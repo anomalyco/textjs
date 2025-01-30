@@ -1,6 +1,6 @@
 {
   "name": "@textjs/core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "sideEffects": false,
   "scripts": {
@@ -78,7 +78,8 @@
   },
   "files": [
     "src",
-    "dist"
+    "dist",
+    "tsconfigs"
   ],
   "prettier": {
     "semi": false
