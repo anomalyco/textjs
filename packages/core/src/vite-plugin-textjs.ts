@@ -1,11 +1,12 @@
-import { Plugin } from "vite"
 import * as fs from "fs"
 import * as path from "path"
 import { globSync } from "glob"
 import { TextjsConfig } from "./config/types"
 import type { RouteInfo, LayoutInfo } from "./router"
+import react from "@vitejs/plugin-react"
+import { Plugin, PluginOption } from "vite"
 
-export function textjsPlugin(root = "./"): Plugin {
+export default function textjs(root = "./"): PluginOption[] {
   const virtualModuleId = "textjs:routes"
   const resolvedVirtualModuleId = `\0${virtualModuleId}`
 
@@ -141,66 +142,66 @@ export interface LayoutProps {
     )
   }
 
-  return {
-    name: "vite-plugin-textjs",
-    config() {
-      return {
-        build: { target: "esnext" },
-        esbuild: { supported: { "top-level-await": true } },
-        optimizeDeps: {
-          esbuildOptions: { target: "esnext" },
-          exclude: ["textjs:routes"],
-        },
-      }
-    },
-    configResolved(config) {
-      appRoot = path.resolve(
-        config.root,
-        root.endsWith("/") ? root : `${root}/`,
-      )
-      const configPath = path.resolve(appRoot, "textjs.config.json")
-      const configExists = fs.existsSync(configPath)
-      textjsConfig = configExists
-        ? (JSON.parse(fs.readFileSync(configPath, "utf8")) as TextjsConfig)
-        : { pages: "./src/pages", defaultRoute: "index" }
-
-      const textjsDir = path.resolve(appRoot, ".textjs")
-      fs.rmSync(textjsDir, { recursive: true, force: true })
-      fs.mkdirSync(textjsDir, { recursive: true })
-      generateTsConfig()
-      generateTypes()
-    },
-    configureServer(server) {
-      server.watcher.add("./.textjs/types.d.ts")
-
-      server.watcher.on("add", handleFileChange)
-      server.watcher.on("change", handleFileChange)
-      server.watcher.on("unlink", handleFileChange)
-
-      // Watch for file change
-      async function handleFileChange(filePath: string) {
-        // You can filter files you want to watch
-        if (filePath.endsWith(".ts") || filePath.endsWith(".tsx")) {
-          if (filePath.endsWith(".d.ts")) return
-          // Regenerate types or handle virtual modules
-          generateTypes()
-
-          // Invalidate module graph if needed
-          const mod = server.moduleGraph.getModuleById(resolvedVirtualModuleId)
-          if (mod) server.moduleGraph.invalidateModule(mod)
+  return [
+    react(),
+    {
+      name: "vite-plugin-textjs",
+      config() {
+        return {
+          build: { target: "esnext" },
+          esbuild: { supported: { "top-level-await": true } },
+          optimizeDeps: {
+            esbuildOptions: { target: "esnext" },
+            exclude: ["textjs:routes"],
+          },
         }
-      }
-    },
-    handleHotUpdate(ctx) {
-      const mod = ctx.server.moduleGraph.getModuleById(resolvedVirtualModuleId)
-      if (mod) ctx.server.moduleGraph.invalidateModule(mod)
-    },
-    resolveId(id) {
-      if (id === virtualModuleId) return resolvedVirtualModuleId
-    },
-    load(id) {
-      if (id === resolvedVirtualModuleId) {
-        return `
+      },
+      configResolved(config) {
+        appRoot = path.resolve(
+          config.root,
+          root.endsWith("/") ? root : `${root}/`,
+        )
+        const configPath = path.resolve(appRoot, "textjs.config.json")
+        const configExists = fs.existsSync(configPath)
+        textjsConfig = configExists
+          ? (JSON.parse(fs.readFileSync(configPath, "utf8")) as TextjsConfig)
+          : { pages: "./src/pages", defaultRoute: "index" }
+
+        const textjsDir = path.resolve(appRoot, ".textjs")
+        fs.rmSync(textjsDir, { recursive: true, force: true })
+        fs.mkdirSync(textjsDir, { recursive: true })
+        generateTsConfig()
+        generateTypes()
+      },
+      configureServer(server) {
+        server.watcher.add("./.textjs/types.d.ts")
+
+        server.watcher.on("add", handleFileChange)
+        server.watcher.on("change", handleFileChange)
+        server.watcher.on("unlink", handleFileChange)
+
+        // Watch for file change
+        async function handleFileChange(filePath: string) {
+          // You can filter files you want to watch
+          if (filePath.endsWith(".ts") || filePath.endsWith(".tsx")) {
+            if (filePath.endsWith(".d.ts")) return
+            // Regenerate types or handle virtual modules
+            generateTypes()
+
+            // Invalidate module graph if needed
+            const mod = server.moduleGraph.getModuleById(
+              resolvedVirtualModuleId,
+            )
+            if (mod) server.moduleGraph.invalidateModule(mod)
+          }
+        }
+      },
+      resolveId(id) {
+        if (id === virtualModuleId) return resolvedVirtualModuleId
+      },
+      load(id) {
+        if (id === resolvedVirtualModuleId) {
+          return `
 export const routes = {
   ${routes
     .map(
@@ -224,9 +225,10 @@ export const routes = {
     )
     .join(",\n  ")}
 }`
-      }
-    },
-  }
+        }
+      },
+    } satisfies Plugin,
+  ]
 }
 
 function generateRouterTypes(routes: RouteInfo[]): string {

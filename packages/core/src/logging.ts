@@ -35,6 +35,8 @@ class Logger {
   }
 
   private add(level: LogLevel, message: string, data?: any) {
+    if (message.includes("[vite]")) return
+
     this.logs.push({
       timestamp: Date.now(),
       level,
