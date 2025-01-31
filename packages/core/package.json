@@ -1,6 +1,6 @@
 {
   "name": "@textjs/core",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "type": "module",
   "sideEffects": false,
   "scripts": {
@@ -12,7 +12,6 @@
     "typescript": "5.5.4"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "4.3.4",
     "classnames": "2.5.1",
     "glob": "11.0.1",
     "react-reconciler": "0.31.0",
