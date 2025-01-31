@@ -24,11 +24,16 @@ export type ResolvedRouteInfo = Omit<RouteInfo, "component" | "layouts"> & {
   layouts: ResolvedLayoutInfo[]
 }
 
+export type RouteContext = {
+  route: string
+}
+
 export interface LayoutProps extends PropsWithChildren {
+  context: RouteContext
   params?: Record<string, string>
 }
 
 export interface PageProps {
-  // context: Context? route, etc.
+  context: RouteContext
   params?: Record<string, string>
 }

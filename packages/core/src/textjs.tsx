@@ -1,4 +1,3 @@
-import { type ReactNode } from "react"
 import { type FiberRoot } from "react-reconciler"
 import { Direction } from "yoga-layout"
 import { reconciler } from "./reconciler"
@@ -28,7 +27,6 @@ export class Textjs {
     this.rootNode.onRender = this.scheduleRender
     this.rootNode.onImmediateRender = this.onRender
 
-    // Store last output to only rerender when needed
     this.lastOutput = ""
 
     this.container = reconciler.createContainer(
@@ -74,7 +72,7 @@ export class Textjs {
     this.lastOutput = key
   }
 
-  render(): void {
+  async render() {
     reconciler.updateContainer(<App />, this.container, null, noop)
   }
 }

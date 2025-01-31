@@ -19,15 +19,10 @@ import { Display, Node } from "yoga-layout"
 type Props = Record<string, unknown> & {
   style?: Style
   className?: string
-  // children?: React.ReactNode;
 }
 
 type HostContext = {
   isInsideText: boolean
-}
-
-type UpdatePayload = {
-  props: Props | undefined
 }
 
 type Config = HostConfig<
@@ -40,7 +35,7 @@ type Config = HostConfig<
   unknown,
   unknown,
   HostContext,
-  UpdatePayload,
+  true, // Force updates
   unknown,
   unknown,
   unknown
@@ -77,7 +72,7 @@ const hostConfig: Config = {
   shouldSetTextContent: () => false,
   createInstance(type, newProps, _root, hostContext) {
     if (hostContext.isInsideText && type === "div") {
-      throw new Error(`<div> can’t be nested inside <span>`)
+      throw new Error(`<div> can't be nested inside <span>`)
     }
 
     const node = createNode(type)
@@ -116,7 +111,7 @@ const hostConfig: Config = {
   appendChild: appendChildNode,
   insertBefore: insertBeforeNode,
   finalizeInitialChildren: () => false,
-  isPrimaryRenderer: false,
+  isPrimaryRenderer: true,
   supportsMutation: true,
   supportsPersistence: false,
   supportsHydration: false,
@@ -135,14 +130,11 @@ const hostConfig: Config = {
     removeChildNode(node, removeNode)
     cleanupYogaNode(removeNode.yogaNode)
   },
-  prepareUpdate(_node, _type, _oldProps, newProps, _rootNode) {
-    return { props: newProps }
-  },
-  commitUpdate(node, { props }) {
-    if (props) {
-      for (const [key, value] of Object.entries(props)) {
-        setAttribute(node, key, value as DOMNodeAttribute)
-      }
+  prepareUpdate: () => true, // Always update
+  commitUpdate(node, _type, _oldProps, newProps) {
+    for (const [key, value] of Object.entries(newProps)) {
+      if (key === "children") continue
+      setAttribute(node, key, value as DOMNodeAttribute)
     }
     reconcileStyle(node)
   },

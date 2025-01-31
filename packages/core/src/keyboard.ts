@@ -70,6 +70,7 @@ function createManager(): KeyboardManager {
     },
 
     setCurrentRoute(route: Route) {
+      if (route === currentRoute) return
       currentRoute = route
       modalStack.length = 0 // Clear modal stack on route change
       globalStack.length = 0 // Clear global stack on route change

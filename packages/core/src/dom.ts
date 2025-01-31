@@ -23,11 +23,13 @@ export type DOMElement = {
   onComputeLayout?: () => void
   onRender?: () => void
   onImmediateRender?: () => void
+  _version?: number
 } & TextjsNode
 
 export type TextNode = {
   nodeName: TextName
   nodeValue: string
+  _version?: number
 } & TextjsNode
 
 export type DOMNode<T = { nodeName: NodeNames }> = T extends {
@@ -52,6 +54,7 @@ export const createNode = (nodeName: ElementNames): DOMElement => {
     childNodes: [],
     parentNode: undefined,
     yogaNode: Yoga.Node.create(config),
+    _version: 0,
   }
 
   if (nodeName === "span") {
@@ -82,6 +85,8 @@ export const appendChildNode = (
   if (node.nodeName === "span") {
     markNodeAsDirty(node)
   }
+
+  bumpVersion(node)
 }
 
 export const insertBeforeNode = (
@@ -117,6 +122,8 @@ export const insertBeforeNode = (
   if (node.nodeName === "span") {
     markNodeAsDirty(node)
   }
+
+  bumpVersion(node)
 }
 
 export const removeChildNode = (
@@ -137,6 +144,8 @@ export const removeChildNode = (
   if (node.nodeName === "span") {
     markNodeAsDirty(node)
   }
+
+  bumpVersion(node)
 }
 
 export const setAttribute = (
@@ -145,10 +154,12 @@ export const setAttribute = (
   value: DOMNodeAttribute,
 ): void => {
   node.attributes[key] = value
+  bumpVersion(node)
 }
 
 export const setStyle = (node: DOMNode, style: Style): void => {
-  node.style = style
+  node.style = { ...style } // Create new style object reference
+  bumpVersion(node)
 }
 
 export const createTextNode = (text: string): TextNode => {
@@ -158,10 +169,10 @@ export const createTextNode = (text: string): TextNode => {
     yogaNode: undefined,
     parentNode: undefined,
     style: {},
+    _version: 0,
   }
 
   setTextNodeValue(node, text)
-
   return node
 }
 
@@ -173,12 +184,10 @@ const measureTextNode = function (
     node.nodeName === "#text" ? node.nodeValue : squashTextNodes(node)
   const dimensions = measureText(text)
 
-  // Text fits into container, no need to wrap
   if (dimensions.width <= width) {
     return dimensions
   }
 
-  // Handle edge case where container is very small
   if (dimensions.width >= 1 && width > 0 && width < 1) {
     return dimensions
   }
@@ -191,19 +200,14 @@ const measureTextNode = function (
 export const squashTextNodes = (node: DOMElement): string => {
   let text = ""
 
-  for (let index = 0; index < node.childNodes.length; index++) {
-    const childNode = node.childNodes[index]
-    if (childNode === undefined) {
-      continue
-    }
+  for (const childNode of node.childNodes) {
+    if (childNode === undefined) continue
 
     let nodeText = ""
     if (childNode.nodeName === "#text") {
       nodeText = childNode.nodeValue
-    } else {
-      if (childNode.nodeName === "span") {
-        nodeText = squashTextNodes(childNode)
-      }
+    } else if (childNode.nodeName === "span") {
+      nodeText = squashTextNodes(childNode)
     }
 
     text += nodeText
@@ -213,15 +217,11 @@ export const squashTextNodes = (node: DOMElement): string => {
 }
 
 const findClosestYogaNode = (node?: DOMNode): YogaNode | undefined => {
-  if (!node?.parentNode) {
-    return undefined
-  }
-
+  if (!node?.parentNode) return undefined
   return node.yogaNode ?? findClosestYogaNode(node.parentNode)
 }
 
 const markNodeAsDirty = (node?: DOMNode): void => {
-  // Mark closest Yoga node as dirty to measure text dimensions again
   const yogaNode = findClosestYogaNode(node)
   yogaNode?.markDirty()
 }
@@ -233,4 +233,12 @@ export const setTextNodeValue = (node: TextNode, text: string): void => {
 
   node.nodeValue = text
   markNodeAsDirty(node)
+  bumpVersion(node)
+}
+
+const bumpVersion = (node: DOMNode) => {
+  node._version = (node._version || 0) + 1
+  if (node.parentNode) {
+    bumpVersion(node.parentNode)
+  }
 }

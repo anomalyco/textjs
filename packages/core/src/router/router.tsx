@@ -1,20 +1,15 @@
 import React, { useState, useEffect, Fragment } from "react"
 import { RouterContext, RouteParams } from "./context"
 import { Route, routes } from "textjs:routes"
-import {
-  LayoutProps,
-  PageProps,
-  ResolvedLayoutInfo,
-  ResolvedRouteInfo,
-} from "./types"
+import { LayoutProps, PageProps, ResolvedRouteInfo } from "./types"
 import { useKeyboardManager } from "../keyboard"
 
 function LayoutTree({
-  layouts,
+  route,
   page: Page,
   params,
 }: {
-  layouts: ResolvedLayoutInfo[]
+  route: ResolvedRouteInfo
   page: React.ComponentType<PageProps>
   params: Record<string, string>
 }) {
@@ -23,17 +18,23 @@ function LayoutTree({
   >([])
 
   useEffect(() => {
-    Promise.all(layouts.map((l) => l.component))
+    Promise.all(route.layouts.map((l) => l.component))
       .then((modules) => setLoadedLayouts(modules.map((m) => m.default)))
       .catch(console.error)
-  }, [layouts, setLoadedLayouts])
+  }, [route.layouts, setLoadedLayouts])
 
-  return loadedLayouts
-    .reverse()
-    .reduce(
-      (children, Layout) => <Layout params={params}>{children}</Layout>,
-      <Page params={params} />,
-    )
+  const context = {
+    route: route.route,
+  }
+
+  return loadedLayouts.toReversed().reduce(
+    (children, Layout) => (
+      <Layout context={context} params={params}>
+        {children}
+      </Layout>
+    ),
+    <Page context={context} params={params} />,
+  )
 }
 
 export function Router() {
@@ -80,7 +81,7 @@ export function Router() {
   return (
     <RouterContext.Provider value={{ route, params, navigate }}>
       {Page ? (
-        <LayoutTree layouts={routeInfo.layouts} page={Page} params={params} />
+        <LayoutTree route={routeInfo} page={Page} params={params} />
       ) : (
         <Fragment />
       )}

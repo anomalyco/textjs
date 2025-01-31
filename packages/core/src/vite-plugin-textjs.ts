@@ -96,18 +96,34 @@ export function textjsPlugin(root = "./"): Plugin {
       textjsConfig.pages.replace(/^\//, ""),
       route.sourcePath.replace(/^\//, ""),
     )
-    const typeFile = path.resolve(typesDir, "types.d.ts")
+    const typeFile = path.resolve(typesDir, "props.d.ts")
     fs.mkdirSync(typesDir, { recursive: true })
 
-    const content = route.paramNames?.length
-      ? `
-export interface Props {
-  params: {
+    const content = `
+import type { RouteContext } from "@textjs/core/router"
+
+export interface PageProps {
+  context: RouteContext
+  ${
+    route.paramNames?.length
+      ? `params: {
     ${route.paramNames.map((p) => `${p}: string`).join("\n  ")}
+  }`
+      : ""
+  }
+}
+
+export interface LayoutProps {
+  context: RouteContext
+  ${
+    route.paramNames?.length
+      ? `params: {
+    ${route.paramNames.map((p) => `${p}: string`).join("\n  ")}
+  }`
+      : ""
   }
 }
 `.trim()
-      : `export interface Props {}`
     fs.writeFileSync(typeFile, content)
   }
 
@@ -165,6 +181,7 @@ export interface Props {
       async function handleFileChange(filePath: string) {
         // You can filter files you want to watch
         if (filePath.endsWith(".ts") || filePath.endsWith(".tsx")) {
+          if (filePath.endsWith(".d.ts")) return
           // Regenerate types or handle virtual modules
           generateTypes()
 
@@ -174,10 +191,13 @@ export interface Props {
         }
       }
     },
+    handleHotUpdate(ctx) {
+      const mod = ctx.server.moduleGraph.getModuleById(resolvedVirtualModuleId)
+      if (mod) ctx.server.moduleGraph.invalidateModule(mod)
+    },
     resolveId(id) {
       if (id === virtualModuleId) return resolvedVirtualModuleId
     },
-
     load(id) {
       if (id === resolvedVirtualModuleId) {
         return `
