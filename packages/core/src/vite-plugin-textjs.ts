@@ -3,7 +3,6 @@ import * as path from "path"
 import { globSync } from "glob"
 import { TextjsConfig } from "./config/types"
 import type { RouteInfo, LayoutInfo } from "./router"
-import react from "@vitejs/plugin-react"
 import { Plugin, PluginOption } from "vite"
 
 export default function textjs(root = "./"): PluginOption[] {
@@ -101,6 +100,7 @@ export default function textjs(root = "./"): PluginOption[] {
     fs.mkdirSync(typesDir, { recursive: true })
 
     const content = `
+import type { PropsWithChildren } from "react"
 import type { RouteContext } from "@textjs/core/router"
 
 export interface PageProps {
@@ -114,7 +114,7 @@ export interface PageProps {
   }
 }
 
-export interface LayoutProps {
+export interface LayoutProps extends PropsWithChildren {
   context: RouteContext
   ${
     route.paramNames?.length
@@ -143,7 +143,6 @@ export interface LayoutProps {
   }
 
   return [
-    react(),
     {
       name: "vite-plugin-textjs",
       config() {

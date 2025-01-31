@@ -11,7 +11,6 @@ export const Link = (props: LinkProps) => {
   const router = useRouter()
   return (
     <Button
-      hintPosition="before"
       {...props}
       className="px-0"
       onClick={() => router.navigate(props.to, props.params)}

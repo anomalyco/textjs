@@ -1,24 +1,42 @@
-import { type PropsWithChildren } from "react"
-import { useGlobalHandlers } from "../keyboard"
+import { useState } from "react"
+import { useGlobalHandlers, useKeyboardManager } from "../keyboard"
 
-export interface ButtonProps extends PropsWithChildren {
+export interface ButtonProps {
+  children?: string | undefined
+  trigger?: string
+  onClick?: () => void
   className?: string
   color?: string
-  keys?: string[]
   hint?: boolean
-  hintPosition?: "before" | "after"
-  onClick?: () => void
+  hintType?: "underline" | "before" | "after"
 }
 
 export const Button = (props: ButtonProps) => {
-  const keys = props.keys ?? ["enter"]
+  const keyboardManager = useKeyboardManager()
   const color = props.color
   const hint = props.hint ?? true
-  const hintPosition = props.hintPosition ?? "after"
+  const hintType = props.hintType ?? "underline"
+
+  const [key] = useState(() => {
+    if (props.trigger) return props.trigger
+
+    const chars = props.children.split("")
+    let char = chars.shift()
+    while (char) {
+      const key = char.toLowerCase()
+      if (keyboardManager.hasGlobalHandler(key)) {
+        char = chars.shift()
+        continue
+      }
+      return key
+    }
+  })
+
+  const hintIndex = props.children?.toLowerCase().indexOf(key)
 
   useGlobalHandlers([
     {
-      keys,
+      keys: [key],
       handler: () => {
         if (props.onClick) {
           props.onClick()
@@ -32,7 +50,7 @@ export const Button = (props: ButtonProps) => {
     <div
       className={{
         "flex gap-1": true,
-        "flex-row-reverse": hintPosition === "before",
+        "flex-row-reverse": hintType === "before",
       }}
     >
       <div
@@ -42,9 +60,21 @@ export const Button = (props: ButtonProps) => {
         }}
         style={color ? { backgroundColor: color } : {}}
       >
-        <span>{props.children}</span>
+        {hintType === "underline" ? (
+          <div className="flex">
+            {props.children?.split("").map((char, i) => (
+              <span key={char + i} className={{ underline: i === hintIndex }}>
+                {char}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span>{props.children}</span>
+        )}
       </div>
-      {hint && <span>{keys.join("/")}</span>}
+      {hint && (hintType === "before" || hintType === "after") && (
+        <span>{key}</span>
+      )}
     </div>
   )
 }

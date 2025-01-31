@@ -6,6 +6,7 @@ app.render()
 
 if (import.meta.hot) {
   import.meta.hot.on("vite:afterUpdate", async () => {
+    await app.reset()
     await handleHMRUpdate()
     await app.render()
   })

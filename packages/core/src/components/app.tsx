@@ -1,9 +1,11 @@
-import { createKeyboardManager, KeyboardContext } from "../keyboard"
+import { KeyboardContext, KeyboardManager } from "../keyboard"
 import { Router } from "../router"
 
-const keyboardManager = createKeyboardManager()
-
-export default function App() {
+export default function App({
+  keyboardManager,
+}: {
+  keyboardManager: KeyboardManager
+}) {
   return (
     <KeyboardContext.Provider value={keyboardManager}>
       <Router />

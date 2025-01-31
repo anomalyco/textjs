@@ -5,6 +5,7 @@ import { renderer } from "./renderer"
 import * as dom from "./dom.js"
 import { logger } from "./logging"
 import App from "./components/app"
+import { createKeyboardManager, KeyboardManager } from "./keyboard"
 
 const noop = () => {}
 
@@ -14,6 +15,7 @@ export type Options = {
 
 export class Textjs {
   private readonly options: Options
+  private readonly keyboardManager: KeyboardManager
   private readonly container: FiberRoot
   private readonly rootNode: dom.DOMElement
 
@@ -22,6 +24,7 @@ export class Textjs {
 
   constructor(options?: Options) {
     this.options = options
+    this.keyboardManager = createKeyboardManager()
     this.rootNode = dom.createNode("div")
     this.rootNode.onComputeLayout = this.calculateLayout
     this.rootNode.onRender = this.scheduleRender
@@ -72,7 +75,16 @@ export class Textjs {
     this.lastOutput = key
   }
 
+  async reset() {
+    this.keyboardManager.reset()
+  }
+
   async render() {
-    reconciler.updateContainer(<App />, this.container, null, noop)
+    reconciler.updateContainer(
+      <App keyboardManager={this.keyboardManager} />,
+      this.container,
+      null,
+      noop,
+    )
   }
 }

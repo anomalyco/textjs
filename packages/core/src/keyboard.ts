@@ -9,6 +9,7 @@ interface HandlerRegistration {
 }
 
 export interface KeyboardManager {
+  reset(): void
   currentRoute: Route | null
   handlerStack: HandlerRegistration[][]
   handleKeyEvent(event: KeyboardEvent): void
@@ -18,6 +19,7 @@ export interface KeyboardManager {
   popModalHandlers(): void
   pushGlobalHandlers(handlers: HandlerRegistration[]): void
   popGlobalHandlers(): void
+  hasGlobalHandler(key: string): boolean
 }
 
 export const KeyboardContext = createContext<KeyboardManager | undefined>(
@@ -31,6 +33,11 @@ function createManager(): KeyboardManager {
   let currentRoute: Route | null = null
 
   const manager: KeyboardManager = {
+    reset() {
+      modalStack.length = 0 // Clear modal stack on reset
+      globalStack.length = 0 // Clear global stack on reset
+    },
+
     get currentRoute() {
       return currentRoute
     },
@@ -94,6 +101,10 @@ function createManager(): KeyboardManager {
 
     popGlobalHandlers() {
       globalStack.pop()
+    },
+
+    hasGlobalHandler(key: string) {
+      return !!globalStack.find((s) => !!s.find((x) => x.keys?.includes(key)))
     },
   }
 
