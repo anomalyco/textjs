@@ -1,4 +1,4 @@
-import { type ReactNode, type Key } from "react"
+import React, { type ReactNode, type Key } from "react"
 import { Style } from "./style"
 import cn from "classnames"
 
@@ -23,8 +23,9 @@ export namespace JSX {
     div: TextJS.Div
     span: TextJS.Span
   }
+
+  export type Fragment = typeof React.Fragment
 }
 
 export { jsx, jsxs } from "react/jsx-runtime"
 export { jsxDEV } from "react/jsx-dev-runtime"
-export { Fragment } from "react"
