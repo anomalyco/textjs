@@ -4,6 +4,7 @@ import { globSync } from "glob"
 import { TextjsConfig } from "./config/types"
 import type { RouteInfo, LayoutInfo } from "./router"
 import { Plugin, PluginOption } from "vite"
+import react from "@vitejs/plugin-react-swc"
 
 export default function textjs(root = "./"): PluginOption[] {
   const virtualModuleId = "textjs:routes"

@@ -1,9 +1,8 @@
-import { useState } from "react"
-import { useGlobalHandlers, useKeyboardManager } from "../keyboard"
+import { useGlobalHandlers } from "../keyboard"
 
 export interface ButtonProps {
+  trigger: string
   children?: string | undefined
-  trigger?: string
   onClick?: () => void
   className?: string
   color?: string
@@ -12,25 +11,10 @@ export interface ButtonProps {
 }
 
 export const Button = (props: ButtonProps) => {
-  const keyboardManager = useKeyboardManager()
   const color = props.color
   const hint = props.hint ?? true
   const hintType = props.hintType ?? "underline"
-
-  const [key] = useState(() => {
-    if (props.trigger) return props.trigger
-
-    const chars = props.children.split("")
-    let char = chars.shift()
-    while (char) {
-      const key = char.toLowerCase()
-      if (keyboardManager.hasGlobalHandler(key)) {
-        char = chars.shift()
-        continue
-      }
-      return key
-    }
-  })
+  const key = props.trigger
 
   const hintIndex = props.children?.toLowerCase().indexOf(key)
 

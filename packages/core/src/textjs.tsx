@@ -75,10 +75,6 @@ export class Textjs {
     this.lastOutput = key
   }
 
-  async reset() {
-    this.keyboardManager.reset()
-  }
-
   async render() {
     reconciler.updateContainer(
       <App keyboardManager={this.keyboardManager} />,
