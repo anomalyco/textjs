@@ -1,0 +1,262 @@
+import { beforeAll, describe, expect, test } from "bun:test";
+import {
+  ConsoleRenderer,
+  estimateDockedConsoleSize,
+  initYoga,
+  InputEngine,
+  isPassthroughShortcut,
+  ViewportController,
+  type InputEvent,
+  type KeyboardEventLike,
+  type RendererScheduler,
+  type TextConsoleApi,
+  type WindowLike,
+} from "../src/index";
+import { box, FakeConsole, text } from "./fixtures";
+
+beforeAll(async () => {
+  await initYoga();
+});
+
+function key(k: string, mods: Partial<KeyboardEventLike> = {}): KeyboardEventLike & { prevented: boolean } {
+  const e = {
+    key: k,
+    code: "",
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
+    altKey: false,
+    prevented: false,
+    preventDefault() {
+      e.prevented = true;
+    },
+    ...mods,
+  };
+  return e;
+}
+
+describe("InputEngine", () => {
+  test("browser and DevTools shortcuts pass through untouched", () => {
+    const engine = new InputEngine({ document: null });
+    const events: InputEvent[] = [];
+    engine.onAny((e) => events.push(e));
+    const shortcuts = [
+      key("j", { metaKey: true, altKey: true }),
+      key("i", { metaKey: true, altKey: true }),
+      key("c", { metaKey: true, altKey: true }),
+      key("F12"),
+      key("r", { metaKey: true }),
+      key("R", { metaKey: true, shiftKey: true }),
+      key("l", { metaKey: true }),
+      key("t", { metaKey: true }),
+      key("w", { metaKey: true }),
+      key("J", { ctrlKey: true, shiftKey: true }),
+    ];
+    for (const e of shortcuts) {
+      expect(isPassthroughShortcut(e)).toBe(true);
+      expect(engine.handleKeyDown(e)).toBe(false);
+      expect(e.prevented).toBe(false);
+    }
+    expect(events.length).toBe(0);
+  });
+
+  test("TUI navigation keys are prevented and normalized", () => {
+    const engine = new InputEngine({ document: null });
+    const names: string[] = [];
+    engine.on("key", (e) => names.push(e.key));
+    const cases: Array<[string, string]> = [
+      ["ArrowUp", "up"],
+      ["ArrowDown", "down"],
+      ["ArrowLeft", "left"],
+      ["ArrowRight", "right"],
+      [" ", "space"],
+      ["Tab", "tab"],
+      ["Backspace", "backspace"],
+      ["Escape", "escape"],
+      ["/", "/"],
+      ["PageUp", "pageup"],
+      ["PageDown", "pagedown"],
+      ["Home", "home"],
+      ["End", "end"],
+      ["Enter", "return"],
+    ];
+    for (const [k] of cases) {
+      const e = key(k);
+      expect(engine.handleKeyDown(e)).toBe(true);
+      expect(e.prevented).toBe(true);
+    }
+    expect(names).toEqual(cases.map(([, n]) => n));
+  });
+
+  test("printable keys carry input; clipboard shortcuts keep defaults", () => {
+    const engine = new InputEngine({ document: null });
+    const got: Array<{ key: string; input: string; meta: boolean; ctrl: boolean }> = [];
+    engine.on("key", (e) => got.push({ key: e.key, input: e.input, meta: e.meta, ctrl: e.ctrl }));
+    const a = key("A", { shiftKey: true });
+    engine.handleKeyDown(a);
+    expect(a.prevented).toBe(true);
+    const paste = key("v", { metaKey: true });
+    engine.handleKeyDown(paste);
+    expect(paste.prevented).toBe(false);
+    const ctrlK = key("k", { ctrlKey: true });
+    engine.handleKeyDown(ctrlK);
+    expect(ctrlK.prevented).toBe(true);
+    expect(got).toEqual([
+      { key: "a", input: "A", meta: false, ctrl: false },
+      { key: "v", input: "", meta: true, ctrl: false },
+      { key: "k", input: "", meta: false, ctrl: true },
+    ]);
+  });
+
+  test("IME composition and modifier-only keys are ignored", () => {
+    const engine = new InputEngine({ document: null });
+    let count = 0;
+    engine.on("key", () => count++);
+    engine.handleKeyDown(key("Shift"));
+    engine.handleKeyDown(key("a", { isComposing: true }));
+    engine.handleKeyDown(key("Process", { keyCode: 229 }));
+    expect(count).toBe(0);
+    engine.handleTextInput("你好");
+    expect(count).toBe(1);
+  });
+
+  test("paste, wheel and focus events", () => {
+    const engine = new InputEngine({ document: null });
+    const events: InputEvent[] = [];
+    engine.onAny((e) => events.push(e));
+    engine.handlePaste("a\r\nb");
+    engine.handleWheel({ deltaX: 0, deltaY: 48, deltaMode: 0, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false });
+    engine.setFocused(false);
+    engine.setFocused(false);
+    expect(events).toEqual([
+      { type: "paste", text: "a\nb" },
+      { type: "wheel", deltaX: 0, deltaY: 48, rows: 3, cols: 0, ctrl: false, meta: false, shift: false, alt: false },
+      { type: "focus", focused: false },
+    ]);
+  });
+});
+
+describe("ViewportController", () => {
+  const win = (o: Partial<WindowLike>): WindowLike => ({ innerWidth: 1440, innerHeight: 812, outerWidth: 1440, outerHeight: 900, ...o });
+
+  test("fixed size", () => {
+    const v = new ViewportController({ width: 120, height: 40, window: null });
+    expect(v.getSize()).toEqual({ cols: 120, rows: 40, dock: "fixed" });
+  });
+
+  test("undocked falls back to 100×32", () => {
+    expect(estimateDockedConsoleSize(win({}), 7.2, 14)).toEqual({ cols: 100, rows: 32, dock: "undocked" });
+  });
+
+  test("docked right estimates columns from devtools width", () => {
+    const s = estimateDockedConsoleSize(win({ innerWidth: 700 }), 7.2, 14);
+    expect(s.dock).toBe("right");
+    expect(s.cols).toBe(Math.floor((740 - 32) / 7.2));
+    expect(s.rows).toBe(Math.floor((900 - 88 - 84) / 14));
+  });
+
+  test("docked bottom estimates rows and clamps", () => {
+    const s = estimateDockedConsoleSize(win({ innerHeight: 400 }), 7.2, 14);
+    expect(s.dock).toBe("bottom");
+    expect(s.rows).toBe(Math.max(18, Math.floor((900 - 400 - 88 - 84) / 14)));
+    expect(s.cols).toBe(180);
+  });
+
+  test("responsive refresh notifies subscribers", () => {
+    const w = win({ innerWidth: 700 });
+    const v = new ViewportController({ responsive: true, window: w, charWidth: 7.2 });
+    const sizes: number[] = [];
+    v.subscribe((s) => sizes.push(s.cols));
+    w.innerWidth = 900;
+    v.refresh();
+    v.refresh();
+    expect(sizes).toEqual([Math.floor((540 - 32) / 7.2)]);
+    v.setSize(80, 24);
+    expect(v.getSize()).toEqual({ cols: 80, rows: 24, dock: "fixed" });
+  });
+});
+
+class ManualScheduler implements RendererScheduler {
+  queue: Array<() => void> = [];
+  request(cb: () => void): unknown {
+    this.queue.push(cb);
+    return this.queue.length;
+  }
+  cancel(): void {
+    this.queue = [];
+  }
+  flush(): void {
+    const q = this.queue;
+    this.queue = [];
+    for (const cb of q) cb();
+  }
+}
+
+describe("ConsoleRenderer", () => {
+  test("coalesces requests and only logs dirty frames", () => {
+    const con = new FakeConsole();
+    const scheduler = new ManualScheduler();
+    const label = text({ fg: "#22c55e" }, "count: 0");
+    const root = box({ flexDirection: "column", padding: 1, border: "rounded", title: "▼ Text.js" }, label);
+    const r = new ConsoleRenderer({ root, console: con, scheduler, viewport: { width: 40, height: 8 }, input: false, registerGlobal: false });
+    r.requestRender();
+    r.requestRender();
+    r.requestRender();
+    expect(scheduler.queue.length).toBe(1);
+    scheduler.flush();
+    expect(con.logs.length).toBe(1);
+    expect(con.clears).toBe(1);
+
+    r.requestRender();
+    scheduler.flush();
+    expect(con.logs.length).toBe(1);
+    expect(r.stats().skippedFrames).toBe(1);
+
+    (label.children[0] ?? label).setText("count: 1");
+    r.requestRender();
+    scheduler.flush();
+    expect(con.logs.length).toBe(2);
+    const s = r.stats();
+    expect(s.dirtyRows).toBe(1);
+    expect(s.frameCount).toBe(2);
+    expect(s.cols).toBe(40);
+    expect(s.rows).toBe(8);
+    expect(s.yogaNodes).toBe(2);
+    expect(r.copyText()).toContain("count: 1");
+    r.dispose();
+  });
+
+  test("pause / resume and resize", () => {
+    const con = new FakeConsole();
+    const scheduler = new ManualScheduler();
+    const r = new ConsoleRenderer({ root: box({}, text({}, "hi")), console: con, scheduler, viewport: { width: 20, height: 4 }, input: false, registerGlobal: false });
+    r.renderNow();
+    r.pause();
+    r.requestRender(true);
+    expect(scheduler.queue.length).toBe(0);
+    expect(r.stats().paused).toBe(true);
+    r.resume();
+    scheduler.flush();
+    expect(con.logs.length).toBe(2);
+    r.resize(30, 6);
+    scheduler.flush();
+    expect(r.buffer.width).toBe(30);
+    expect(con.logs.length).toBe(3);
+    r.dispose();
+  });
+
+  test("registers the window.text REPL helper", () => {
+    const con = new FakeConsole();
+    const r = new ConsoleRenderer({ root: box({}, text({}, "repl")), console: con, scheduler: new ManualScheduler(), viewport: { width: 20, height: 3 }, input: false, registerGlobal: true });
+    const api = (globalThis as { text?: TextConsoleApi }).text;
+    expect(api).toBeDefined();
+    expect(api?.renderer).toBe(r);
+    api?.resize(24, 5);
+    expect(api?.stats()).toMatchObject({ cols: 24, rows: 5 });
+    r.renderNow();
+    expect(api?.copyText()).toBe("repl");
+    expect(typeof api?.help).toBe("function");
+    r.dispose();
+    expect((globalThis as { text?: TextConsoleApi }).text).toBeUndefined();
+  });
+});

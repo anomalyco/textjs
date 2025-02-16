@@ -1,167 +1,358 @@
-import { Display } from "yoga-layout"
-import { getBorderCharacter, getBorderInfo } from "./border"
-import { CssStyle, styleToString } from "./style"
-import { wrapText } from "./text"
-import { DOMElement, DOMNode, squashTextNodes } from "./dom"
+/**
+ * ConsoleRenderer: Yoga layout → CellBuffer raster → CssConsoleDriver, on a
+ * demand-driven animation-frame scheduler with rolling telemetry.
+ */
 
-export interface Cell {
-  char: string
-  style: CssStyle
+import { parseColor, type ColorInput } from "./color";
+import { CellBuffer } from "./cell-buffer";
+import { CssConsoleDriver, type ConsoleTarget } from "./drivers/css-console-driver";
+import type { ConsoleTypographyOptions, StyleResolveOptions } from "./drivers/style";
+import { InputEngine, type FocusChangeEvent } from "./input";
+import { paintScene, type SceneNode } from "./scene";
+import { ViewportController, type ResolvedViewport, type ViewportOptions } from "./viewport";
+
+export interface RendererScheduler {
+  request(callback: () => void): unknown;
+  cancel(handle: unknown): void;
 }
 
-export type Matrix = Cell[][]
+export interface RendererStats {
+  fps: number;
+  frameCount: number;
+  dirtyRows: number;
+  spanCount: number;
+  layoutMs: number;
+  rasterMs: number;
+  encodeMs: number;
+  totalMs: number;
+  skippedFrames: number;
+  yogaNodes: number;
+  cols: number;
+  rows: number;
+  focused: boolean;
+  paused: boolean;
+}
 
-export const renderer = (
-  node: DOMElement,
-): { text: string; styles: string[] } => {
-  if (node.yogaNode) {
-    const { width, height } = node.yogaNode.getComputedLayout()
-    const matrix = createMatrix(width, height)
-    renderNodeToMatrix(node, matrix)
+export interface FrameResult extends RendererStats {
+  skipped: boolean;
+}
 
-    const texts: string[] = []
-    const styles: string[] = []
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const previous =
-          x === 0
-            ? y === 0
-              ? undefined
-              : matrix[y - 1][width - 1]
-            : matrix[y][x - 1]
-        const char = matrix[y][x].char
-        const style = styleToString(matrix[y][x].style)
-        if (previous && style === styleToString(previous.style)) {
-          texts[texts.length - 1] += char
-          continue
-        }
+export interface ConsoleRendererOptions {
+  root?: SceneNode | null;
+  viewport?: ViewportOptions | ViewportController;
+  console?: ConsoleTarget;
+  typography?: Partial<ConsoleTypographyOptions>;
+  style?: Partial<StyleResolveOptions>;
+  scheduler?: RendererScheduler;
+  /** Create (true), reuse (instance) or skip (false) the input engine. Defaults to `true` in browsers. */
+  input?: InputEngine | boolean;
+  /** Register `window.text` (or a custom global name). Defaults to `true` in browsers. */
+  registerGlobal?: boolean | string;
+  /** Background painted behind the scene (default: theme background). */
+  background?: ColorInput;
+  wireframe?: boolean;
+  /** Called before layout on every scheduled frame (e.g. to flush a reconciler). */
+  beforeFrame?: () => void;
+  onFrame?: (result: FrameResult) => void;
+}
 
-        texts.push("%c" + char)
-        styles.push(style)
-      }
-      texts.push("\n")
+/** The `window.text` console REPL helper. */
+export interface TextConsoleApi {
+  resize(cols: number, rows: number): RendererStats;
+  responsive(enabled?: boolean): RendererStats;
+  pause(): void;
+  resume(): void;
+  stats(): RendererStats;
+  copyText(): string;
+  wireframe(enabled?: boolean): boolean;
+  help(): string;
+  readonly renderer: ConsoleRenderer;
+}
+
+const now: () => number =
+  typeof performance !== "undefined" && typeof performance.now === "function" ? () => performance.now() : () => Date.now();
+
+const hasWindow = typeof window !== "undefined" && typeof document !== "undefined";
+
+export function createDefaultScheduler(): RendererScheduler {
+  if (typeof requestAnimationFrame === "function") {
+    return {
+      request: (cb) => requestAnimationFrame(() => cb()),
+      cancel: (h) => cancelAnimationFrame(h as number),
+    };
+  }
+  return {
+    request: (cb) => setTimeout(cb, 16),
+    cancel: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
+  };
+}
+
+const HELP = `▼ Text.js — window.text
+  text.resize(cols, rows)   pin the console grid size
+  text.responsive(true)     follow the docked DevTools size
+  text.pause() / resume()   freeze output (select & copy freely)
+  text.stats()              frame telemetry
+  text.copyText()           copy the current frame as plain text
+  text.wireframe(on?)       toggle the layout wireframe overlay
+  text.help()               this message`;
+
+export class ConsoleRenderer {
+  readonly buffer: CellBuffer;
+  readonly driver: CssConsoleDriver;
+  readonly viewport: ViewportController;
+  readonly input: InputEngine | null;
+  private root: SceneNode | null;
+  private readonly scheduler: RendererScheduler;
+  private readonly options: ConsoleRendererOptions;
+  private readonly background: number;
+  private handle: unknown = null;
+  private scheduled = false;
+  private pendingForce = false;
+  private isPaused = false;
+  private disposed = false;
+  private wireframe: boolean;
+  private highlighted: SceneNode | null = null;
+  private focusedNode: SceneNode | null = null;
+  private readonly frameTimes: number[] = [];
+  private readonly cleanup: Array<() => void> = [];
+  private readonly focusListeners = new Set<(focused: boolean) => void>();
+  private globalName: string | null = null;
+  private telemetry: RendererStats;
+
+  constructor(options: ConsoleRendererOptions = {}) {
+    this.options = options;
+    this.root = options.root ?? null;
+    this.viewport = options.viewport instanceof ViewportController ? options.viewport : new ViewportController(options.viewport ?? {});
+    this.buffer = new CellBuffer(this.viewport.cols, this.viewport.rows);
+    this.driver = new CssConsoleDriver({ console: options.console, typography: options.typography, style: options.style });
+    this.scheduler = options.scheduler ?? createDefaultScheduler();
+    this.background = parseColor(options.background);
+    this.wireframe = options.wireframe ?? false;
+    const inputOpt = options.input ?? hasWindow;
+    this.input = inputOpt instanceof InputEngine ? inputOpt : inputOpt ? new InputEngine() : null;
+    this.telemetry = {
+      fps: 0,
+      frameCount: 0,
+      dirtyRows: 0,
+      spanCount: 0,
+      layoutMs: 0,
+      rasterMs: 0,
+      encodeMs: 0,
+      totalMs: 0,
+      skippedFrames: 0,
+      yogaNodes: 0,
+      cols: this.buffer.width,
+      rows: this.buffer.height,
+      focused: this.input?.focused ?? true,
+      paused: false,
+    };
+    this.cleanup.push(this.viewport.subscribe((size) => this.applySize(size)));
+    if (this.input) {
+      if (!(inputOpt instanceof InputEngine)) this.input.attach();
+      this.cleanup.push(this.input.on("focus", (e: FocusChangeEvent) => this.setFocused(e.focused)));
     }
-
-    const text = texts.join("")
-    return { text, styles }
+    const reg = options.registerGlobal ?? hasWindow;
+    if (reg) this.registerGlobal(typeof reg === "string" ? reg : "text");
   }
 
-  return { text: "", styles: [] }
-}
+  // ---------------------------------------------------------------------------
+  // Scene
+  // ---------------------------------------------------------------------------
 
-function createMatrix(width: number, height: number): Matrix {
-  return Array(height)
-    .fill(null)
-    .map(() =>
-      Array(width)
-        .fill(null)
-        .map(() => ({
-          char: " ",
-          style: {},
-        })),
-    )
-}
-
-function renderNodeToMatrix(
-  node: DOMNode,
-  matrix: Matrix,
-  offset: { x: number; y: number } = { x: 0, y: 0 },
-): void {
-  if (node.nodeName === "#text") return
-  const yogaNode = node.yogaNode ?? node.parentNode?.yogaNode
-  if (yogaNode.getDisplay() === Display.None) return
-
-  const layout = yogaNode?.getComputedLayout()
-  const text = node.nodeName === "span" ? squashTextNodes(node) : ""
-  const style = node.style
-
-  const left = offset.x + layout.left
-  const top = offset.y + layout.top
-
-  const topEdge = Math.max(top, 0)
-  const rightEdge = Math.min(left + layout.width, matrix[0]?.length)
-  const bottomEdge = Math.min(top + layout.height, matrix.length)
-  const leftEdge = Math.max(left, 0)
-
-  if (text) {
-    // Get wrapped text based on the computed layout width
-    const wrappedText = wrapText(text, {
-      width: layout?.width,
-      textWrap: style.textWrap,
-    })
-
-    // Split into lines and render each line
-    const lines = wrappedText.split("\n")
-    lines.forEach((line, lineIndex) => {
-      const y = top + lineIndex
-      if (y >= matrix.length) return
-
-      for (let i = 0; i < line.length; i++) {
-        const x = left + i
-        if (x >= matrix[0].length) break
-
-        matrix[y][x] = {
-          char: line[i],
-          // inherit existing styles
-          style: { ...matrix[y][x].style, ...style },
-        }
-      }
-    })
-  } else {
-    // For non-text elements, just fill the computed layout area
-    for (let y = topEdge; y < bottomEdge; y++) {
-      for (let x = leftEdge; x < rightEdge; x++) {
-        let {
-          border,
-          borderTop,
-          borderRight,
-          borderBottom,
-          borderLeft,
-          borderColor,
-          borderStyle,
-          ...rest
-        } = style
-
-        const borderStyles: Record<string, any> = {}
-        if ((!borderStyle || borderStyle === "css") && borderColor) {
-          if (y === topEdge && (borderTop || border)) {
-            borderStyles.borderTop = `${borderTop || border}px solid ${borderColor}`
-          }
-          if (x === rightEdge - 1 && (borderRight || border)) {
-            borderStyles.borderRight = `${borderRight || border}px solid ${borderColor}`
-          }
-          if (y === bottomEdge - 1 && (borderBottom || border)) {
-            borderStyles.borderBottom = `${borderBottom || border}px solid ${borderColor}`
-          }
-          if (x === leftEdge && (borderLeft || border)) {
-            borderStyles.borderLeft = `${borderLeft || border}px solid ${borderColor}`
-          }
-        }
-
-        const borderInfo = getBorderInfo(style)
-        const borderChar = getBorderCharacter(
-          {
-            top: y === topEdge,
-            right: x === rightEdge - 1,
-            bottom: y === bottomEdge - 1,
-            left: x === leftEdge,
-          },
-          borderInfo,
-        )
-        if (borderChar) borderStyles.color = borderColor
-
-        matrix[y][x] = {
-          char: borderChar ?? " ",
-          // inherit existing styles
-          style: { ...matrix[y][x].style, ...rest, ...borderStyles },
-        }
-      }
-    }
+  setRoot(root: SceneNode | null): void {
+    this.root = root;
+    this.requestRender(true);
   }
 
-  if ("childNodes" in node) {
-    for (const child of node.childNodes ?? []) {
-      renderNodeToMatrix(child as DOMElement, matrix, { x: left, y: top })
+  getRoot(): SceneNode | null {
+    return this.root;
+  }
+
+  setWireframe(enabled: boolean): void {
+    this.wireframe = enabled;
+    this.requestRender();
+  }
+
+  setHighlightedNode(node: SceneNode | null): void {
+    this.highlighted = node;
+    this.requestRender();
+  }
+
+  setFocusedNode(node: SceneNode | null): void {
+    this.focusedNode = node;
+    this.requestRender();
+  }
+
+  get focused(): boolean {
+    return this.telemetry.focused;
+  }
+
+  get paused(): boolean {
+    return this.isPaused;
+  }
+
+  onFocusChange(listener: (focused: boolean) => void): () => void {
+    this.focusListeners.add(listener);
+    return () => this.focusListeners.delete(listener);
+  }
+
+  /** Update page focus state (driven by the input engine; callable manually). */
+  setFocused(focused: boolean): void {
+    if (this.telemetry.focused === focused) return;
+    this.telemetry.focused = focused;
+    for (const l of this.focusListeners) l(focused);
+    this.requestRender();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scheduling
+  // ---------------------------------------------------------------------------
+
+  /** Schedule a frame on the next animation frame (coalesced). */
+  requestRender(force = false): void {
+    if (this.disposed) return;
+    if (force) this.pendingForce = true;
+    if (this.isPaused || this.scheduled) return;
+    this.scheduled = true;
+    this.handle = this.scheduler.request(() => {
+      this.scheduled = false;
+      this.handle = null;
+      const f = this.pendingForce;
+      this.pendingForce = false;
+      this.renderNow(f);
+    });
+  }
+
+  /** Lay out, paint and emit a frame synchronously. */
+  renderNow(force = false): FrameResult {
+    const t = this.telemetry;
+    if (this.disposed || this.isPaused) return { ...t, skipped: true };
+    const t0 = now();
+    this.options.beforeFrame?.();
+    const root = this.root;
+    const buf = this.buffer;
+    if (root) root.calculateLayout(buf.width, buf.height);
+    const t1 = now();
+    if (root) {
+      paintScene(root, buf, {
+        clearBg: this.background,
+        wireframe: this.wireframe,
+        highlightedNode: this.highlighted,
+        focusedNode: this.focusedNode,
+      });
+    } else buf.clear(this.background);
+    const t2 = now();
+    const result = this.driver.render(buf, { force });
+    const t3 = now();
+    t.layoutMs = t1 - t0;
+    t.rasterMs = t2 - t1;
+    t.encodeMs = t3 - t2;
+    t.totalMs = t3 - t0;
+    t.cols = buf.width;
+    t.rows = buf.height;
+    if (result.skipped) t.skippedFrames++;
+    else {
+      t.frameCount++;
+      t.dirtyRows = result.dirtyRows;
+      t.spanCount = result.spanCount;
+      const times = this.frameTimes;
+      times.push(t3);
+      while (times.length > 0 && (times[0] as number) < t3 - 1000) times.shift();
+      t.fps = times.length;
+    }
+    if (root && t.frameCount % 30 === 1) t.yogaNodes = root.countYogaNodes();
+    const frame: FrameResult = { ...t, skipped: result.skipped };
+    this.options.onFrame?.(frame);
+    return frame;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Control
+  // ---------------------------------------------------------------------------
+
+  private applySize(size: ResolvedViewport): void {
+    if (size.cols === this.buffer.width && size.rows === this.buffer.height) return;
+    this.buffer.resize(size.cols, size.rows);
+    this.telemetry.cols = size.cols;
+    this.telemetry.rows = size.rows;
+    this.requestRender(true);
+  }
+
+  resize(cols: number, rows: number): void {
+    this.viewport.setSize(Math.max(1, Math.floor(cols)), Math.max(1, Math.floor(rows)));
+    this.applySize(this.viewport.getSize());
+  }
+
+  pause(): void {
+    if (this.isPaused) return;
+    this.isPaused = true;
+    this.telemetry.paused = true;
+    if (this.handle !== null) this.scheduler.cancel(this.handle);
+    this.handle = null;
+    this.scheduled = false;
+  }
+
+  resume(): void {
+    if (!this.isPaused) return;
+    this.isPaused = false;
+    this.telemetry.paused = false;
+    this.driver.invalidate();
+    this.requestRender(true);
+  }
+
+  stats(): RendererStats {
+    return { ...this.telemetry };
+  }
+
+  /** Plain-text copy of the current frame (also written to the clipboard when possible). */
+  copyText(): string {
+    const text = this.buffer.toPlainString(true).replace(/\n+$/, "");
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => undefined);
+    }
+    return text;
+  }
+
+  private registerGlobal(name: string): void {
+    const api: TextConsoleApi = {
+      resize: (cols, rows) => {
+        this.resize(cols, rows);
+        return this.stats();
+      },
+      responsive: (enabled = true) => {
+        this.viewport.setResponsive(enabled);
+        this.applySize(this.viewport.getSize());
+        return this.stats();
+      },
+      pause: () => this.pause(),
+      resume: () => this.resume(),
+      stats: () => this.stats(),
+      copyText: () => this.copyText(),
+      wireframe: (enabled) => {
+        this.setWireframe(enabled ?? !this.wireframe);
+        return this.wireframe;
+      },
+      help: () => {
+        if (typeof console !== "undefined") console.log(HELP);
+        return HELP;
+      },
+      renderer: this,
+    };
+    (globalThis as Record<string, unknown>)[name] = api;
+    this.globalName = name;
+  }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    if (this.handle !== null) this.scheduler.cancel(this.handle);
+    for (const fn of this.cleanup) fn();
+    if (this.input && !(this.options.input instanceof InputEngine)) this.input.detach();
+    this.viewport.dispose();
+    if (this.globalName !== null) {
+      const g = globalThis as Record<string, unknown>;
+      const api = g[this.globalName] as TextConsoleApi | undefined;
+      if (api && api.renderer === this) delete g[this.globalName];
     }
   }
 }
