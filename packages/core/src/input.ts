@@ -132,19 +132,29 @@ const PREVENT_KEYS = new Set([
 
 const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta", "CapsLock", "Fn", "FnLock", "Hyper", "Super", "OS", "AltGraph"]);
 
+const isApplePlatform: boolean =
+  typeof navigator !== "undefined"
+    ? /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)
+    : (globalThis as { process?: { platform?: string } }).process?.platform === "darwin";
+
 /** Browser / DevTools shortcuts that must never be intercepted. */
 export function isPassthroughShortcut(e: KeyboardEventLike): boolean {
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (k === "F12" || k === "F5") return true;
-  const cmd = e.metaKey || e.ctrlKey;
-  if (!cmd) return false;
   // ⌘⌥J / ⌘⌥I / ⌘⌥C (macOS) and Ctrl+Shift+J/I/C (Windows/Linux): DevTools.
   if ((e.metaKey && e.altKey) || (e.ctrlKey && e.shiftKey)) {
     if (k === "j" || k === "i" || k === "c") return true;
   }
   if (e.altKey) return false;
-  // Reload, hard reload, address bar, new tab, close tab, new window, quit.
-  return k === "r" || k === "l" || k === "t" || k === "w" || k === "n" || k === "q";
+  // Reload, hard reload, address bar, new tab, close tab, new window, quit:
+  // ⌘+<key> on macOS; Ctrl+R / Ctrl+L on Windows/Linux (browsers reserve Ctrl+T/W/N natively).
+  if (e.metaKey) {
+    return k === "r" || k === "l" || k === "t" || k === "w" || k === "n" || k === "q";
+  }
+  if (e.ctrlKey && !isApplePlatform) {
+    return k === "r" || k === "l";
+  }
+  return false;
 }
 
 function isSingleGrapheme(s: string): boolean {
