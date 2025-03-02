@@ -1,0 +1,126 @@
+/**
+ * Routes InputEngine events to `useInput` / `usePaste` / `useWheel` handlers
+ * with priorities, propagation control and modal traps. Keyboard and paste
+ * dispatch at React's discrete priority (SyncLane) for zero-lag typing.
+ */
+
+import type { InputEngine, KeyInputEvent, PasteInputEvent, WheelInputEvent } from "@textjs/core";
+import { ROOT_SCOPE, type Scope } from "./context";
+import { isWithinScope, type FocusManager } from "./focus";
+import { ContinuousEventPriority, DiscreteEventPriority, runWithPriority } from "./reconciler";
+
+export interface EventControl {
+  /** Prevent lower-priority handlers (and Tab focus cycling) from receiving this event. */
+  stopPropagation(): void;
+  readonly propagationStopped: boolean;
+}
+
+export type KeyEvent = KeyInputEvent & EventControl;
+export type PasteEvent = PasteInputEvent & EventControl;
+export type WheelEvent = WheelInputEvent & EventControl;
+
+interface EventTypes {
+  key: KeyEvent;
+  paste: PasteEvent;
+  wheel: WheelEvent;
+}
+
+export type InputEventType = keyof EventTypes;
+
+export interface RegisterOptions {
+  /** Higher priorities run first (default `0`). Focused editors use `10`. */
+  priority?: number;
+  scope?: Scope;
+  /** Receive events even while a modal trap is active outside this handler's scope. */
+  global?: boolean;
+}
+
+interface Entry<E> {
+  handler: (event: E) => void;
+  priority: number;
+  seq: number;
+  scope: Scope;
+  global: boolean;
+}
+
+/** Priority used by focused text editors so typing never leaks into global shortcuts. */
+export const FOCUSED_INPUT_PRIORITY = 10;
+
+let seqCounter = 0;
+
+function withControl<E extends object>(event: E): E & EventControl {
+  let stopped = false;
+  const out = { ...event } as E & { stopPropagation(): void };
+  out.stopPropagation = () => {
+    stopped = true;
+  };
+  Object.defineProperty(out, "propagationStopped", { get: () => stopped, enumerable: false });
+  return out as E & EventControl;
+}
+
+export class InputManager {
+  private readonly entries: { [K in InputEventType]: Array<Entry<EventTypes[K]>> } = { key: [], paste: [], wheel: [] };
+  private readonly cleanup: Array<() => void> = [];
+
+  constructor(
+    readonly engine: InputEngine,
+    private readonly focus: FocusManager,
+  ) {
+    this.cleanup.push(
+      engine.on("key", (e) => runWithPriority(DiscreteEventPriority, () => this.dispatchKey(e), "keydown")),
+      engine.on("paste", (e) => runWithPriority(DiscreteEventPriority, () => this.dispatch("paste", e), "paste")),
+      engine.on("wheel", (e) => runWithPriority(ContinuousEventPriority, () => this.dispatch("wheel", e), "wheel")),
+    );
+  }
+
+  register<K extends InputEventType>(type: K, handler: (event: EventTypes[K]) => void, options: RegisterOptions = {}): () => void {
+    const list = this.entries[type] as Array<Entry<EventTypes[K]>>;
+    const entry: Entry<EventTypes[K]> = {
+      handler,
+      priority: options.priority ?? 0,
+      seq: ++seqCounter,
+      scope: options.scope ?? ROOT_SCOPE,
+      global: options.global ?? false,
+    };
+    // Keep sorted: priority desc, then most recently registered first.
+    let i = 0;
+    while (i < list.length && ((list[i] as Entry<EventTypes[K]>).priority > entry.priority || ((list[i] as Entry<EventTypes[K]>).priority === entry.priority && (list[i] as Entry<EventTypes[K]>).seq > entry.seq))) i++;
+    list.splice(i, 0, entry);
+    return () => {
+      const idx = list.indexOf(entry);
+      if (idx >= 0) list.splice(idx, 1);
+    };
+  }
+
+  /** Number of registered handlers (diagnostics / tests). */
+  handlerCount(type: InputEventType): number {
+    return this.entries[type].length;
+  }
+
+  private dispatch<K extends InputEventType>(type: K, raw: Omit<EventTypes[K], keyof EventControl>): EventTypes[K] {
+    const event = withControl(raw) as EventTypes[K];
+    const trap = this.focus.topTrap;
+    const list = (this.entries[type] as Array<Entry<EventTypes[K]>>).slice();
+    for (const e of list) {
+      if (event.propagationStopped) break;
+      if (trap !== null && !e.global && !isWithinScope(e.scope, trap)) continue;
+      e.handler(event);
+    }
+    return event;
+  }
+
+  private dispatchKey(raw: KeyInputEvent): void {
+    const event = this.dispatch("key", raw);
+    if (event.propagationStopped || raw.key !== "tab" || raw.ctrl || raw.meta || raw.alt || !this.focus.isEnabled) return;
+    if (raw.shift) this.focus.focusPrevious();
+    else this.focus.focusNext();
+  }
+
+  dispose(): void {
+    for (const fn of this.cleanup) fn();
+    this.cleanup.length = 0;
+    this.entries.key.length = 0;
+    this.entries.paste.length = 0;
+    this.entries.wheel.length = 0;
+  }
+}
