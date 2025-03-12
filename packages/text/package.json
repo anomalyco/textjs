@@ -1,0 +1,55 @@
+{
+  "name": "textjs",
+  "version": "0.1.0",
+  "description": "The Console Framework for the Web. React 19 App Router apps that render inside DevTools console.log.",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "homepage": "https://textjs.org",
+  "keywords": ["react", "console", "devtools", "tui", "framework", "app-router"],
+  "bin": {
+    "text": "./bin/text.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./navigation": "./src/navigation.ts",
+    "./link": "./src/link.tsx",
+    "./router": "./src/router.tsx",
+    "./devtools": "./src/devtools.tsx",
+    "./client": "./src/client.tsx",
+    "./vite": "./src/vite-plugin.ts",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "./navigation": { "types": "./dist/navigation.d.ts", "default": "./dist/navigation.js" },
+      "./link": { "types": "./dist/link.d.ts", "default": "./dist/link.js" },
+      "./router": { "types": "./dist/router.d.ts", "default": "./dist/router.js" },
+      "./devtools": { "types": "./dist/devtools.d.ts", "default": "./dist/devtools.js" },
+      "./client": { "types": "./dist/client.d.ts", "default": "./dist/client.js" },
+      "./vite": { "types": "./dist/vite-plugin.d.ts", "default": "./dist/vite-plugin.js" },
+      "./package.json": "./package.json"
+    }
+  },
+  "files": ["bin", "dist", "src"],
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@textjs/core": "workspace:*",
+    "@textjs/react": "workspace:*",
+    "@vitejs/plugin-react": "^4.5.2",
+    "vite": "^6.3.5"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
