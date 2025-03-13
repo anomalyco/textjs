@@ -201,6 +201,9 @@ export function ScrollBox(props: ScrollBoxProps): ReactNode {
     fg: outer.fg ?? color,
     borderColor: keyboardActive ? (focusedBorderColor ?? theme.borderFocus) : outer.borderColor,
   });
+  // A growing scroll area must not take its (unbounded) content height as its flex basis,
+  // or it squeezes its siblings instead of scrolling.
+  if (outerProps.flexBasis === undefined && (outerProps.flexGrow ?? 0) > 0 && outerProps.height === undefined) outerProps.flexBasis = 0;
   const setViewport = useCallback((n: SceneNode | null) => {
     viewport.current = n;
   }, []);

@@ -40,6 +40,8 @@ export interface ConsoleRootOptions extends Omit<ConsoleRendererOptions, "root" 
   identifierPrefix?: string;
   onUncaughtError?: (error: unknown) => void;
   onRecoverableError?: (error: unknown) => void;
+  /** Errors caught by an error boundary (default: `console.error`). */
+  onCaughtError?: (error: unknown, errorInfo: { componentStack?: string | null }) => void;
   onExit?: (error?: unknown) => void;
 }
 
@@ -137,6 +139,7 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
     identifierPrefix = "tx",
     onUncaughtError = defaultErrorHandler,
     onRecoverableError = defaultErrorHandler,
+    onCaughtError = defaultErrorHandler,
     onExit,
     onFrame,
     ...rendererOptions
@@ -182,7 +185,7 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
     null,
     identifierPrefix,
     (error) => onUncaughtError(error),
-    (error) => defaultErrorHandler(error),
+    (error, info) => onCaughtError(error, info),
     (error) => onRecoverableError(error),
     () => undefined,
     null,
