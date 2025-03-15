@@ -1,0 +1,321 @@
+/**
+ * `textjs/vite` — the Vite plugin behind `text dev` and `text build`:
+ * file-system App Router manifest, virtual `index.html` + client entry,
+ * `app/**\/route.ts` API handlers, rewrites / proxy and React Fast Refresh.
+ */
+
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { dirname, extname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import react from "@vitejs/plugin-react";
+import type { Plugin, ProxyOptions, ViteDevServer } from "vite";
+import { BRAND_MARK, ENGINE_NAME, VERSION } from "@textjs/core";
+import { normalizeBasePath, toClientConfig, type Rewrite, type TextConfig } from "./config";
+import { applyRewrites, compileRewrite, proxyRequest, runRouteHandler, sendWebResponse, toWebRequest, type CompiledRewrite, type RouteHandlerModule } from "./server/http";
+import { generateRoutesModule, isRouteFile, matchApiRoute, scanApp, toApiManifest, toPosix, toStaticManifest, type AppScan } from "./server/scan";
+import { flattenRoutes, type RouteManifest, type RouteSegmentNode } from "./routing";
+
+export const VIRTUAL_ROUTES = "virtual:textjs/routes";
+export const VIRTUAL_CONFIG = "virtual:textjs/config";
+export const VIRTUAL_ENTRY = "virtual:textjs/entry";
+export const VIRTUAL_API = "virtual:textjs/api";
+/** The script `src` used by the generated `index.html`. */
+export const ENTRY_URL = "/@textjs/entry";
+
+const RESOLVED = (id: string): string => `\0${id}`;
+
+export interface TextLogger {
+  info(message: string): void;
+  error(message: string): void;
+}
+
+export interface TextVitePluginOptions extends TextConfig {
+  /** Project root (defaults to Vite's `root`). */
+  root?: string;
+  /** Request / HMR log lines (the CLI passes its logger). */
+  logger?: TextLogger;
+}
+
+const here = dirname(realpathSync(fileURLToPath(import.meta.url)));
+const sourceExt = extname(fileURLToPath(import.meta.url)) === ".ts" ? ".tsx" : extname(fileURLToPath(import.meta.url));
+/** Absolute path of `textjs/client` (deduped with the user's `textjs` imports via realpath). */
+export const CLIENT_MODULE = toPosix(join(here, `client${sourceExt}`));
+
+export const FAVICON = `data:image/svg+xml,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#0a0a0a"/><path d="M7 10h18L16 25z" fill="#ededed"/></svg>`,
+)}`;
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string);
+}
+
+/** The generated `index.html` used when the project has none. */
+export function createIndexHtml(title: string, entryUrl = ENTRY_URL): string {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content="Text.js ${VERSION} (${ENGINE_NAME})" />
+    <meta name="color-scheme" content="dark" />
+    <title>${escapeHtml(title)}</title>
+    <link rel="icon" href="${FAVICON}" />
+    <style>
+      html, body { margin: 0; min-height: 100%; background: #0a0a0a; color: #ededed; }
+      body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+        font-family: Geist, Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+      .tx-hint { font: 12px "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace; color: #6b6b6b; letter-spacing: 0.01em; }
+      .tx-hint b { color: #a1a1a1; font-weight: 500; }
+    </style>
+  </head>
+  <body>
+    <div id="__textjs"></div>
+    <div class="tx-hint">${BRAND_MARK} This app renders in the DevTools Console. Press <b>⌘⌥J</b> (macOS) or <b>Ctrl+Shift+J</b>.</div>
+    <noscript>${BRAND_MARK} Text.js apps render into console.log, which requires JavaScript.</noscript>
+    <script type="module" src="${entryUrl}"></script>
+  </body>
+</html>
+`;
+}
+
+export function createEntryModule(clientModule = CLIENT_MODULE): string {
+  return `import { bootTextApp } from ${JSON.stringify(clientModule)};
+import routes from ${JSON.stringify(VIRTUAL_ROUTES)};
+import config from ${JSON.stringify(VIRTUAL_CONFIG)};
+
+bootTextApp({ routes, config, dev: import.meta.env.DEV, hot: import.meta.hot });
+`;
+}
+
+/** Generate the server-side API handler bundle entry. */
+export function generateApiModule(scan: AppScan): string {
+  const imports: string[] = [];
+  const handlers: string[] = [];
+  const manifest = toApiManifest(scan);
+  let n = 0;
+  const walk = (node: RouteSegmentNode): RouteSegmentNode => {
+    const out: RouteSegmentNode = { segment: node.segment };
+    if (node.files?.page) {
+      const id = `r${n++}`;
+      imports.push(`import * as ${id} from ${JSON.stringify(toPosix(node.files.page))};`);
+      out.page = {};
+      out.files = { page: id };
+      handlers.push(`${JSON.stringify(id)}: ${id}`);
+    }
+    if (node.children) out.children = node.children.map(walk);
+    return out;
+  };
+  const tree = walk(manifest);
+  return `${imports.join("\n")}
+export const manifest = ${JSON.stringify(tree)};
+export const handlers = { ${handlers.join(", ")} };
+`;
+}
+
+function findUp(start: string, rel: string): string | null {
+  let dir = start;
+  for (;;) {
+    const p = join(dir, rel);
+    if (existsSync(p)) return p;
+    const parent = dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+
+const OPTIMIZE = ["react", "react/jsx-runtime", "react/jsx-dev-runtime", "react-dom", "react-dom/client", "react-reconciler", "react-reconciler/constants", "scheduler", "yoga-layout/load"];
+
+function toViteProxy(proxy: TextConfig["proxy"]): Record<string, string | ProxyOptions> | undefined {
+  if (!proxy) return undefined;
+  const out: Record<string, string | ProxyOptions> = {};
+  for (const [k, v] of Object.entries(proxy)) out[k] = typeof v === "string" ? v : { ...v };
+  return out;
+}
+
+async function resolveRewrites(rewrites: TextConfig["rewrites"]): Promise<CompiledRewrite[]> {
+  if (!rewrites) return [];
+  const list: Rewrite[] = typeof rewrites === "function" ? await rewrites() : rewrites;
+  return list.map(compileRewrite);
+}
+
+function isHtmlRequest(url: string, accept: string | undefined): boolean {
+  const pathname = url.split("?")[0] ?? "/";
+  if (pathname.startsWith("/@") || pathname.startsWith("/node_modules/") || pathname.startsWith("/__")) return false;
+  const last = pathname.split("/").pop() ?? "";
+  if (last.endsWith(".html")) return true;
+  if (last.includes(".")) return false;
+  return accept === undefined || accept.includes("text/html") || accept.includes("*/*");
+}
+
+/** Text.js Vite plugin (includes `@vitejs/plugin-react` for Fast Refresh). */
+export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] {
+  const appDirName = options.appDir ?? "app";
+  const basePath = normalizeBasePath(options.basePath);
+  let root = resolve(options.root ?? process.cwd());
+  let scan: AppScan = scanApp(root, appDirName);
+  let apiManifest: RouteManifest = toApiManifest(scan);
+  let routesSignature = "";
+  const log = options.logger;
+
+  const rescan = (): boolean => {
+    scan = scanApp(root, appDirName);
+    apiManifest = toApiManifest(scan);
+    const sig = JSON.stringify(generateRoutesModule(scan));
+    const changed = sig !== routesSignature;
+    routesSignature = sig;
+    return changed;
+  };
+
+  const userHtml = (): string | null => {
+    const p = join(root, "index.html");
+    return existsSync(p) ? p : null;
+  };
+  const htmlPath = (): string => join(root, "index.html");
+  const title = (): string => options.title ?? `${BRAND_MARK} Text.js`;
+
+  const plugin: Plugin = {
+    name: "textjs",
+    enforce: "pre",
+
+    config(user, env) {
+      root = resolve(user.root ?? options.root ?? process.cwd());
+      rescan();
+      const optimize = OPTIMIZE.filter((id) => {
+        const pkg = id.startsWith("@") ? id.split("/").slice(0, 2).join("/") : (id.split("/")[0] as string);
+        return findUp(root, join("node_modules", pkg, "package.json")) !== null;
+      });
+      return {
+        root,
+        appType: "custom",
+        base: basePath ? `${basePath}/` : undefined,
+        resolve: {
+          dedupe: ["react", "react-dom"],
+        },
+        optimizeDeps: {
+          entries: [`${appDirName}/**/*.{tsx,ts,jsx,js}`],
+          include: optimize,
+        },
+        server: options.proxy ? { proxy: toViteProxy(options.proxy) } : undefined,
+        preview: options.proxy ? { proxy: toViteProxy(options.proxy) } : undefined,
+        build:
+          env.command === "build" && !user.build?.ssr
+            ? {
+                outDir: options.outDir ?? "dist",
+                target: "es2022",
+                chunkSizeWarningLimit: 4096,
+                rollupOptions: { input: userHtml() ?? htmlPath() },
+              }
+            : { target: "es2022" },
+      };
+    },
+
+    configResolved(config) {
+      root = config.root;
+      rescan();
+    },
+
+    buildStart() {
+      rescan();
+    },
+
+    resolveId(rawId) {
+      // `build.ssr` entries arrive resolved against the root.
+      const v = rawId.indexOf("virtual:textjs/");
+      const id = v > 0 && !rawId.startsWith("\0") ? rawId.slice(v) : rawId;
+      if (id === VIRTUAL_ROUTES || id === VIRTUAL_CONFIG || id === VIRTUAL_API) return RESOLVED(id);
+      if (id === VIRTUAL_ENTRY || id === ENTRY_URL || id === `${basePath}${ENTRY_URL}`) return RESOLVED(VIRTUAL_ENTRY);
+      if (!userHtml() && toPosix(id) === toPosix(htmlPath())) return id;
+      return null;
+    },
+
+    load(id) {
+      if (id === RESOLVED(VIRTUAL_ROUTES)) return generateRoutesModule(scan, { hmr: true });
+      if (id === RESOLVED(VIRTUAL_CONFIG)) return `export default ${JSON.stringify(toClientConfig(options))};`;
+      if (id === RESOLVED(VIRTUAL_ENTRY)) return createEntryModule();
+      if (id === RESOLVED(VIRTUAL_API)) return generateApiModule(scan);
+      if (!userHtml() && toPosix(id) === toPosix(htmlPath())) return createIndexHtml(title());
+      return null;
+    },
+
+    handleHotUpdate(ctx) {
+      if (log && !ctx.file.includes("/node_modules/")) log.info(` ✓ Fast Refresh  ${toPosix(relative(root, ctx.file))}`);
+    },
+
+    async configureServer(server: ViteDevServer) {
+      const appDir = join(root, appDirName);
+      server.watcher.add(appDir);
+      const onStructure = (file: string): void => {
+        if (!isRouteFile(file, appDir) && !toPosix(file).startsWith(toPosix(appDir))) return;
+        if (!rescan()) return;
+        const mod = server.moduleGraph.getModuleById(RESOLVED(VIRTUAL_ROUTES));
+        if (mod) server.moduleGraph.invalidateModule(mod);
+        log?.info(` ○ Route manifest updated (${flattenRoutes(toStaticManifest(scan)).length} routes)`);
+        server.ws.send({ type: "full-reload" });
+      };
+      server.watcher.on("add", onStructure);
+      server.watcher.on("unlink", onStructure);
+      server.watcher.on("addDir", onStructure);
+      server.watcher.on("unlinkDir", onStructure);
+
+      const rewrites = await resolveRewrites(options.rewrites);
+      const userHook = await options.configureServer?.(server as never);
+
+      server.middlewares.use(async (req, res, next) => {
+        const started = performance.now();
+        const origin = `http://${req.headers.host ?? "localhost"}`;
+        let url = req.url ?? "/";
+        if (basePath) {
+          if (url === basePath || url.startsWith(`${basePath}/`) || url.startsWith(`${basePath}?`)) url = url.slice(basePath.length) || "/";
+        }
+        try {
+          const rewritten = rewrites.length > 0 ? applyRewrites(rewrites, url) : null;
+          if (rewritten) {
+            if (/^[a-z]+:\/\//i.test(rewritten)) {
+              await proxyRequest(req, res, rewritten, origin);
+              log?.info(` ${req.method} ${url} → ${rewritten} ${res.statusCode} in ${Math.round(performance.now() - started)}ms`);
+              return;
+            }
+            url = rewritten;
+            req.url = basePath + rewritten;
+          }
+          const pathname = url.split("?")[0] ?? "/";
+          const api = matchApiRoute(apiManifest, pathname);
+          if (api) {
+            const mod = (await server.ssrLoadModule(api.file)) as RouteHandlerModule;
+            const request = toWebRequest(Object.assign(req, { url }), origin);
+            const response = await runRouteHandler(mod, request, api.params);
+            await sendWebResponse(res, response, request.method);
+            log?.info(` ${req.method} ${pathname} ${response.status} in ${Math.round(performance.now() - started)}ms`);
+            return;
+          }
+          if ((req.method === "GET" || req.method === "HEAD") && isHtmlRequest(url, req.headers.accept)) {
+            const custom = userHtml();
+            const raw = custom ? readFileSync(custom, "utf8") : createIndexHtml(title(), `${basePath}${ENTRY_URL}`);
+            const html = await server.transformIndexHtml(req.url ?? "/", raw, req.originalUrl);
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "text/html; charset=utf-8");
+            res.setHeader("Cache-Control", "no-cache");
+            res.end(req.method === "HEAD" ? undefined : html);
+            log?.info(` ${req.method} ${pathname} 200 in ${Math.round(performance.now() - started)}ms`);
+            return;
+          }
+        } catch (error) {
+          if (error instanceof Error) server.ssrFixStacktrace(error);
+          log?.error(` ⨯ ${req.method} ${url}\n${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
+          res.statusCode = 500;
+          res.setHeader("Content-Type", "text/plain; charset=utf-8");
+          res.end(`${BRAND_MARK} Text.js: ${error instanceof Error ? error.message : String(error)}`);
+          return;
+        }
+        next();
+      });
+
+      return typeof userHook === "function" ? userHook : undefined;
+    },
+  };
+
+  return [...(react() as Plugin[]), plugin];
+}
+
+export { scanApp, toStaticManifest, listApiRoutes, listPages, generateRoutesModule, type AppScan } from "./server/scan";
+export default textjsVitePlugin;
