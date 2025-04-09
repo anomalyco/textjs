@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "repository": {"type": "git", "url": "git+https://github.com/adamdotdevin/textjs.git"},
   "workspaces": [
     "packages/*",
     "apps/*",
@@ -11,6 +12,7 @@
   "scripts": {
     "build": "bun run --filter './packages/*' build && bun run --filter './apps/*' build",
     "build:packages": "bun run --filter '@textjs/core' build && bun run --filter '@textjs/react' build && bun run --filter 'textjs' build && bun run --filter 'create-text-app' build",
+    "dev:dashboard": "bun run --cwd examples/dashboard dev",
     "test": "bun test packages/",
     "typecheck": "tsc -b packages/core packages/react packages/text packages/create-text-app"
   },

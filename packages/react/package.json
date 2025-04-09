@@ -4,6 +4,7 @@
   "description": "Text.js React 19 renderer: custom reconciler, cell-utility styling, hooks and the PascalCase TUI component kit for console.log.",
   "type": "module",
   "license": "MIT",
+  "repository": {"type": "git", "url": "git+https://github.com/adamdotdevin/textjs.git", "directory": "packages/react"},
   "sideEffects": false,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
