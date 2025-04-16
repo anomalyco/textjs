@@ -259,4 +259,40 @@ describe("ConsoleRenderer", () => {
     r.dispose();
     expect((globalThis as { text?: TextConsoleApi }).text).toBeUndefined();
   });
+
+  test("disposing a secondary renderer never deletes window.text owned by another", () => {
+    const g = globalThis as { text?: TextConsoleApi };
+    const main = new ConsoleRenderer({ root: box({}, text({}, "main")), console: new FakeConsole(), scheduler: new ManualScheduler(), viewport: { width: 20, height: 3 }, input: false, registerGlobal: true });
+    const preview = new ConsoleRenderer({ root: box({}, text({}, "preview")), console: new FakeConsole(), scheduler: new ManualScheduler(), viewport: { width: 20, height: 3 }, input: false, registerGlobal: true });
+    expect(g.text?.renderer).toBe(preview);
+    const sandbox = new ConsoleRenderer({ root: box({}, text({}, "sandbox")), console: new FakeConsole(), scheduler: new ManualScheduler(), viewport: { width: 20, height: 3 }, input: false, registerGlobal: false });
+    expect(g.text?.renderer).toBe(preview);
+    sandbox.dispose();
+    main.dispose();
+    expect(g.text?.renderer).toBe(preview);
+    preview.dispose();
+    expect(g.text).toBeUndefined();
+  });
+});
+
+describe("InputEngine capture gate", () => {
+  test("a disabled engine never calls preventDefault() or emits", () => {
+    let enabled = false;
+    const engine = new InputEngine({ document: null, shouldCapture: () => enabled });
+    const events: InputEvent[] = [];
+    engine.onAny((e) => events.push(e));
+    for (const k of ["Tab", " ", "PageDown", "ArrowDown", "a"]) {
+      const e = key(k);
+      expect(engine.handleKeyDown(e)).toBe(false);
+      expect(e.prevented).toBe(false);
+    }
+    engine.handlePaste("hello");
+    expect(engine.enabled).toBe(false);
+    expect(events.length).toBe(0);
+    enabled = true;
+    const tab = key("Tab");
+    expect(engine.handleKeyDown(tab)).toBe(true);
+    expect(tab.prevented).toBe(true);
+    expect(events.length).toBe(1);
+  });
 });

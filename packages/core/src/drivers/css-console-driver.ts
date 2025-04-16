@@ -127,6 +127,10 @@ export class CssConsoleDriver {
     let css = this.cssCache.get(key);
     if (css === undefined) {
       css = styleCss(this.baseCss, style);
+      if (this.cssCache.size >= 4096) {
+        const oldest = this.cssCache.keys().next();
+        if (!oldest.done) this.cssCache.delete(oldest.value);
+      }
       this.cssCache.set(key, css);
     }
     return css;

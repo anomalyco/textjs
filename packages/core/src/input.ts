@@ -199,6 +199,11 @@ export interface InputEngineOptions {
   wheel?: boolean;
   /** CSS pixels per text row for pixel-mode wheel deltas (default `16`). */
   pixelsPerRow?: number;
+  /**
+   * Return `false` to leave host page keyboard and paste events completely
+   * untouched (no `preventDefault()`, no emitted events). Default: always capture.
+   */
+  shouldCapture?: () => boolean;
 }
 
 type Listener<E> = (event: E) => void;
@@ -218,7 +223,8 @@ export class InputEngine {
   };
   private readonly anyListeners = new Set<Listener<InputEvent>>();
   private readonly doc: Document | null;
-  private readonly options: Required<Omit<InputEngineOptions, "document">>;
+  private readonly options: Required<Omit<InputEngineOptions, "document" | "shouldCapture">>;
+  private readonly shouldCapture: (() => boolean) | null;
   private sink: HTMLTextAreaElement | null = null;
   private cleanup: Array<() => void> = [];
   private isFocused = true;
@@ -231,11 +237,17 @@ export class InputEngine {
       wheel: options.wheel ?? true,
       pixelsPerRow: options.pixelsPerRow ?? 16,
     };
+    this.shouldCapture = options.shouldCapture ?? null;
     if (this.doc && typeof this.doc.hasFocus === "function") this.isFocused = this.doc.hasFocus();
   }
 
   get focused(): boolean {
     return this.isFocused;
+  }
+
+  /** Whether host page keyboard / paste events are currently captured. */
+  get enabled(): boolean {
+    return this.shouldCapture === null || this.shouldCapture();
   }
 
   get element(): HTMLTextAreaElement | null {
@@ -263,7 +275,7 @@ export class InputEngine {
    * default prevented). Browser and DevTools shortcuts always pass through.
    */
   handleKeyDown(e: KeyboardEventLike): boolean {
-    if (isPassthroughShortcut(e)) return false;
+    if (!this.enabled || isPassthroughShortcut(e)) return false;
     const event = normalizeKeyEvent(e);
     if (event === null) return false;
     let prevent = false;
@@ -301,7 +313,7 @@ export class InputEngine {
   }
 
   handlePaste(text: string): void {
-    if (text.length > 0) this.emit("paste", { type: "paste", text: text.replace(/\r\n?/g, "\n") });
+    if (text.length > 0 && this.enabled) this.emit("paste", { type: "paste", text: text.replace(/\r\n?/g, "\n") });
   }
 
   handleWheel(e: WheelEventLike): void {
@@ -382,7 +394,7 @@ export class InputEngine {
       doc,
       "paste",
       (e) => {
-        if (isForeignEditable(e.target)) return;
+        if (isForeignEditable(e.target) || !this.enabled) return;
         const text = e.clipboardData?.getData("text/plain") ?? "";
         e.preventDefault();
         this.handlePaste(text);

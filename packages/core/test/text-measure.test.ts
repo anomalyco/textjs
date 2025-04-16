@@ -142,3 +142,16 @@ describe("LruCache", () => {
     expect(c.size).toBe(2);
   });
 });
+
+describe("bounded caches", () => {
+  test("long strings are measured and wrapped correctly without being cached", () => {
+    const long = "é".repeat(2000);
+    expect(stringWidth(long)).toBe(2000);
+    const lines = wrapText(long, 100);
+    expect(lines.length).toBe(20);
+    expect(wrapText(long, 100)).not.toBe(lines);
+    const short = "héllo wörld";
+    expect(wrapText(short, 5)).toBe(wrapText(short, 5));
+  });
+});
+

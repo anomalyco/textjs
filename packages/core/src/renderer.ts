@@ -152,7 +152,13 @@ export class ConsoleRenderer {
       this.cleanup.push(this.input.on("focus", (e: FocusChangeEvent) => this.setFocused(e.focused)));
     }
     const reg = options.registerGlobal ?? hasWindow;
-    if (reg) this.registerGlobal(typeof reg === "string" ? reg : "text");
+    if (reg) {
+      const name = typeof reg === "string" ? reg : "text";
+      // Implicit registration never steals `window.text` from another live renderer.
+      const existing = (globalThis as Record<string, unknown>)[name] as TextConsoleApi | undefined;
+      const owned = existing?.renderer instanceof ConsoleRenderer && !existing.renderer.disposed;
+      if (options.registerGlobal !== undefined || !owned) this.registerGlobal(name);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -351,8 +357,7 @@ export class ConsoleRenderer {
     this.viewport.dispose();
     if (this.globalName !== null) {
       const g = globalThis as Record<string, unknown>;
-      const api = g[this.globalName] as TextConsoleApi | undefined;
-      if (api && api.renderer === this) delete g[this.globalName];
+      if ((g[this.globalName] as TextConsoleApi | undefined)?.renderer === this) delete g[this.globalName];
     }
   }
 }

@@ -286,6 +286,8 @@ export function segmentGraphemes(text: string, out: Grapheme[] = []): Grapheme[]
 }
 
 const widthCache = new LruCache<string, number>(4096);
+/** Longer strings (streaming Markdown, logs) are measured but never cached. */
+const MAX_CACHED_TEXT = 512;
 
 /**
  * Display width in cells. For multi-line input, the widest line is returned.
@@ -305,7 +307,7 @@ export function stringWidth(text: string): number {
     } else line += g.width;
   }
   if (line > max) max = line;
-  widthCache.set(text, max);
+  if (text.length <= MAX_CACHED_TEXT) widthCache.set(text, max);
   return max;
 }
 
@@ -453,8 +455,9 @@ const wrapCache = new LruCache<string, readonly string[]>(4096);
 
 /** Wrap or truncate text into lines no wider than `maxWidth` cells. Results are cached and frozen. */
 export function wrapText(text: string, maxWidth: number, mode: WrapMode = "wrap"): readonly string[] {
-  const key = `${mode}\u0000${maxWidth}\u0000${text}`;
-  const cached = wrapCache.get(key);
+  const cacheable = text.length <= MAX_CACHED_TEXT;
+  const key = cacheable ? `${mode}\u0000${maxWidth}\u0000${text}` : "";
+  const cached = cacheable ? wrapCache.get(key) : undefined;
   if (cached !== undefined) return cached;
   let result: readonly string[];
   if (isPrintableAscii(text) && (mode === "nowrap" || text.length <= maxWidth)) {
@@ -463,7 +466,7 @@ export function wrapText(text: string, maxWidth: number, mode: WrapMode = "wrap"
     const gs = segmentGraphemes(text);
     result = Object.freeze(layoutGraphemeLines(gs, maxWidth, mode).map((l) => lineToString(gs, l)));
   }
-  wrapCache.set(key, result);
+  if (cacheable) wrapCache.set(key, result);
   return result;
 }
 
