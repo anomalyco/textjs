@@ -200,6 +200,7 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
     viewportStore.dispose();
     stats?.dispose();
     renderer.dispose();
+    rootNode.destroy();
     resolveExit();
   };
 

@@ -139,7 +139,7 @@ describe("React 19 reconciler", () => {
     expect(rootNode.countYogaNodes()).toBe(2);
     await t.unmount();
     expect(rootNode.children.length).toBe(0);
-    expect(rootNode.countYogaNodes()).toBe(1);
+    expect(rootNode.countYogaNodes()).toBe(0);
   });
 
   test("Suspense hides and reveals instances", async () => {

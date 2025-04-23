@@ -86,7 +86,7 @@ test("kitchen sink mounts, updates and unmounts with zero runtime warnings", asy
       expect(root.renderer.buffer.toPlainString(true)).not.toContain("Welcome");
       expect(root.renderer.buffer.toPlainString(true)).toContain("hi");
       root.unmount();
-      expect(root.rootNode.countYogaNodes()).toBe(1);
+      expect(root.rootNode.countYogaNodes()).toBe(0);
     }),
   );
   expect(warnings).toEqual([]);

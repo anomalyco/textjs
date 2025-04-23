@@ -22,9 +22,12 @@ const DEVTOOLS = {
   light: { bg: "#ffffff", panel: "#f1f3f4", border: "#d0d0d0", text: "#1f1f1f", muted: "#5f6368", accent: "#1a73e8", row: "#ffffff" },
 } as const;
 
-function spanStyle(s: StyledSpan): CSSProperties | undefined {
-  if (s.fgCss === null && s.bgCss === null && !s.bold && !s.italic && !s.underline && !s.strikethrough) return undefined;
-  const st: CSSProperties = {};
+/**
+ * Spans are full-height inline blocks and rows are clipped to exactly one line
+ * box, so cell backgrounds tile edge to edge with no horizontal scanline gaps.
+ */
+function spanStyle(s: StyledSpan, linePx: number): CSSProperties {
+  const st: CSSProperties = { display: "inline-block", height: linePx, lineHeight: `${linePx}px`, verticalAlign: "top" };
   if (s.fgCss !== null) st.color = s.fgCss;
   if (s.bgCss !== null) st.backgroundColor = s.bgCss;
   if (s.bold) st.fontWeight = 700;
@@ -33,11 +36,30 @@ function spanStyle(s: StyledSpan): CSSProperties | undefined {
   return st;
 }
 
+/** The width-weighted most common cell background, used to fill the mirror behind every row. */
+function dominantBg(frame: StyledFrame): string | null {
+  const weight = new Map<string, number>();
+  let best: string | null = null;
+  let bestWeight = 0;
+  for (const row of frame.rows) {
+    for (const s of row) {
+      if (s.bgCss === null) continue;
+      const w = (weight.get(s.bgCss) ?? 0) + s.width;
+      weight.set(s.bgCss, w);
+      if (w > bestWeight) {
+        best = s.bgCss;
+        bestWeight = w;
+      }
+    }
+  }
+  return best;
+}
+
 const Row = memo(function Row({ spans, height }: { spans: StyledSpan[]; height: number }): ReactNode {
   return (
-    <div style={{ height, whiteSpace: "pre" }}>
+    <div style={{ height, lineHeight: `${height}px`, overflow: "hidden", whiteSpace: "pre" }}>
       {spans.map((s, i) => (
-        <span key={i} style={spanStyle(s)}>
+        <span key={i} style={spanStyle(s, height)}>
           {s.text}
         </span>
       ))}
@@ -57,6 +79,7 @@ export function ConsoleMirror({
   style,
 }: ConsoleMirrorProps): ReactNode {
   const c = DEVTOOLS[appearance];
+  const fill = frame === null ? (appearance === "dark" ? "#0a0a0a" : c.row) : (dominantBg(frame) ?? c.row);
   const body = (
     <div
       data-textjs-mirror=""
@@ -66,7 +89,7 @@ export function ConsoleMirror({
         lineHeight: `${lineHeight}px`,
         fontVariantLigatures: "none",
         color: c.text,
-        background: c.row,
+        background: fill,
         overflowX: "auto",
         userSelect: "text",
       }}

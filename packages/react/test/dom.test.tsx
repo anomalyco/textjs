@@ -27,6 +27,17 @@ describe("DOM companion", () => {
     expect(plain).toContain("Waiting for the first frame");
   });
 
+  test("ConsoleMirror rows tile edge to edge (no horizontal scanline gaps)", () => {
+    const buf = new CellBuffer(8, 3);
+    for (let y = 0; y < 3; y++) buf.drawText(0, y, "████████", 0xffffffff, 0x0a0a0aff, 0);
+    const html = renderToStaticMarkup(<ConsoleMirror frame={extractStyledFrame(buf)} lineHeight={15} />);
+    // Rows are clipped to exactly one line box; spans fill the whole box.
+    expect(html.match(/height:15px;line-height:15px;overflow:hidden/g)?.length).toBe(3);
+    expect(html).toContain("display:inline-block;height:15px;line-height:15px;vertical-align:top");
+    // The container is filled with the frame's dominant background, not a contrasting DevTools grey.
+    expect(html).toMatch(/data-textjs-mirror="" style="[^"]*background:(#0a0a0a|rgb\(10, ?10, ?10\))/);
+  });
+
   test("FocusPad and TextCanvas render their receiver shell", async () => {
     const pad = renderToStaticMarkup(<FocusPad root={null} title="my-app" />);
     expect(pad).toContain("▼ Text.js");
