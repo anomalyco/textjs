@@ -60,6 +60,15 @@ describe("text dev", () => {
     expect((await fetch(`${base}/api/echo/x`)).status).toBe(405);
   });
 
+  test("API routes and pages are covered by the dev host check (DNS rebinding)", async () => {
+    const port = new URL(base).port;
+    const evil = await fetch(`${base}/api/echo/x`, { method: "POST", body: "hi", headers: { host: `attacker.example:${port}` } });
+    expect(evil.status).toBe(403);
+    expect((await fetch(`${base}/`, { headers: { host: `attacker.example:${port}`, accept: "text/html" } })).status).toBe(403);
+    const ok = await fetch(`${base}/api/echo/x`, { method: "POST", body: "hi", headers: { host: `localhost:${port}` } });
+    expect(await ok.json()).toEqual({ name: "x", body: "hi" });
+  });
+
   test("adding app/ route files refreshes the route manifest", async () => {
     mkdirSync(join(dir, "app/logs"), { recursive: true });
     writeFileSync(join(dir, "app/logs/page.tsx"), 'import { Text } from "textjs";\nexport default function Logs() { return <Text>logs</Text>; }\n');

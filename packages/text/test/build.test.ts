@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
+import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { startProductionServer } from "../src/cli/start";
@@ -53,6 +54,8 @@ describe("text build (examples/dashboard)", () => {
     async () => {
       const server = await startProductionServer({ root: DASHBOARD, port: 0, log: false });
       try {
+        // Loopback by default; `--host` opts into 0.0.0.0.
+        expect((server.server.address() as AddressInfo).address).toBe("127.0.0.1");
         const home = await fetch(server.url + "/");
         expect(home.status).toBe(200);
         expect(await home.text()).toContain('id="__textjs"');

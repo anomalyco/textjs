@@ -4,7 +4,9 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { flattenRoutes, matchAppRoutes } from "../src/routing";
 import { generateRoutesModule, isRouteFile, listApiRoutes, matchApiRoute, scanApp, toApiManifest, toStaticManifest } from "../src/server/scan";
-import { applyRewrites, compileRewrite, runRouteHandler } from "../src/server/http";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import { applyRewrites, compileRewrite, isLoopbackUrl, proxyRequest, runRouteHandler, sendWebResponse, toWebRequest } from "../src/server/http";
 import { createEntryModule, createIndexHtml, generateApiModule, textjsVitePlugin } from "../src/vite-plugin";
 import { parseArgs } from "../src/cli/index";
 import { LEGEND, routeTable, stripAnsi, summarize } from "../src/cli/ui";
@@ -192,3 +194,92 @@ describe("CLI", () => {
     expect(LEGEND).toBe("○  (Static)   prerendered as static console cells\nƒ  (Dynamic)  on-demand console reconciliation");
   });
 });
+
+describe("node http bridge", () => {
+  const listen = async (server: Server): Promise<string> => {
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  };
+  const close = (server: Server): Promise<void> => new Promise((r) => server.close(() => r()));
+
+  test("streaming responses are cancelled and request signals abort when the client disconnects", async () => {
+    let cancelled = false;
+    let aborted = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const server = createServer((req, res) => {
+      const request = toWebRequest(req, "http://127.0.0.1", res);
+      request.signal.addEventListener("abort", () => {
+        aborted = true;
+      });
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          timer = setInterval(() => controller.enqueue(new TextEncoder().encode("data: tick\n\n")), 5);
+        },
+        cancel() {
+          cancelled = true;
+          if (timer) clearInterval(timer);
+        },
+      });
+      void sendWebResponse(res, new Response(body, { headers: { "content-type": "text/event-stream" } }));
+    });
+    const origin = await listen(server);
+    try {
+      const abort = new AbortController();
+      const res = await fetch(`${origin}/api/event`, { signal: abort.signal });
+      const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+      await reader.read();
+      abort.abort();
+      const deadline = Date.now() + 2000;
+      while ((!cancelled || !aborted) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 10));
+      expect(cancelled).toBe(true);
+      expect(aborted).toBe(true);
+    } finally {
+      if (timer) clearInterval(timer);
+      await close(server);
+    }
+  });
+
+  test("proxying strips cookies and credentials for non-loopback origins only", async () => {
+    expect(isLoopbackUrl("http://localhost:4096/x")).toBe(true);
+    expect(isLoopbackUrl("http://127.0.0.1/")).toBe(true);
+    expect(isLoopbackUrl("http://[::1]:3000/")).toBe(true);
+    expect(isLoopbackUrl("https://api.example.com/")).toBe(false);
+    expect(isLoopbackUrl("not a url")).toBe(false);
+
+    const seen: Array<{ cookie?: string; authorization?: string }> = [];
+    const upstream = createServer((req, res) => {
+      seen.push({ cookie: req.headers.cookie, authorization: req.headers.authorization });
+      res.end("ok");
+    });
+    const upstreamOrigin = await listen(upstream);
+    let target = upstreamOrigin;
+    const front = createServer((req, res) => void proxyRequest(req, res, `${target}/echo`, "http://127.0.0.1"));
+    const frontOrigin = await listen(front);
+    try {
+      const headers = { cookie: "session=secret", authorization: "Bearer secret" };
+      expect(await (await fetch(frontOrigin, { headers })).text()).toBe("ok");
+      expect(seen[0]).toEqual({ cookie: "session=secret", authorization: "Bearer secret" });
+      // A non-loopback upstream: stub the proxy's outgoing fetch and inspect what it would send.
+      target = "https://api.example.com";
+      const originalFetch = globalThis.fetch;
+      let forwarded: Headers | null = null;
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).startsWith(frontOrigin)) return originalFetch(input, init);
+        forwarded = new Headers(init?.headers);
+        return new Response("remote");
+      }) as typeof fetch;
+      try {
+        expect(await (await fetch(frontOrigin, { headers })).text()).toBe("remote");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+      const sent = forwarded as Headers | null;
+      expect(sent?.get("cookie") ?? null).toBeNull();
+      expect(sent?.get("authorization") ?? null).toBeNull();
+    } finally {
+      await close(front);
+      await close(upstream);
+    }
+  });
+});
+

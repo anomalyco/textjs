@@ -13,10 +13,15 @@ export function findConfigFile(root: string): string | null {
   return null;
 }
 
-/** Load `text.config.ts` (bundled with esbuild, so it runs under Node or Bun). */
+/**
+ * Load `text.config.ts`. Bun runs TypeScript dependencies natively, so the
+ * config is bundled with esbuild; on Node, Vite's module runner transforms
+ * TypeScript workspace packages (`textjs` sources) imported by the config.
+ */
 export async function loadTextConfig(root: string, command: "serve" | "build", mode = command === "build" ? "production" : "development"): Promise<{ config: TextConfig; file: string | null }> {
   const file = findConfigFile(root);
   if (!file) return { config: {}, file: null };
-  const loaded = await loadConfigFromFile({ command, mode }, file, root, "silent");
+  const loader = typeof process.versions.bun === "string" ? "bundle" : "runner";
+  const loaded = await loadConfigFromFile({ command, mode }, file, root, "silent", undefined, loader);
   return { config: (loaded?.config ?? {}) as TextConfig, file };
 }

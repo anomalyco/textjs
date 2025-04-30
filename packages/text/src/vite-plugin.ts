@@ -5,6 +5,7 @@
  */
 
 import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { isIP } from "node:net";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
@@ -36,10 +37,52 @@ export interface TextVitePluginOptions extends TextConfig {
   logger?: TextLogger;
 }
 
+/**
+ * Mirrors Vite's `server.allowedHosts` check. Text.js API routes and user
+ * middleware are registered in the pre-hook phase (ahead of Vite's own host
+ * check), so they get the same DNS-rebinding protection here.
+ */
+export function isAllowedDevHost(server: Pick<ViteDevServer, "config">, hostHeader: string | undefined): boolean {
+  const cfg = server.config.server;
+  if (cfg.allowedHosts === true || cfg.https) return true;
+  if (!hostHeader) return false;
+  const host = hostHeader.trim();
+  if (host.startsWith("[")) {
+    const end = host.indexOf("]");
+    return end > 0 && isIP(host.slice(1, end)) === 6;
+  }
+  const hostname = host.replace(/:\d+$/, "");
+  if (isIP(hostname) === 4 || hostname === "localhost" || hostname.endsWith(".localhost")) return true;
+  const extra = (server.config as { additionalAllowedHosts?: readonly string[] }).additionalAllowedHosts ?? [];
+  if (extra.includes(hostname)) return true;
+  for (const allowed of cfg.allowedHosts ?? []) {
+    if (allowed === hostname) return true;
+    if (allowed.startsWith(".") && (allowed.slice(1) === hostname || hostname.endsWith(allowed))) return true;
+  }
+  return false;
+}
+
 const here = dirname(realpathSync(fileURLToPath(import.meta.url)));
 const sourceExt = extname(fileURLToPath(import.meta.url)) === ".ts" ? ".tsx" : extname(fileURLToPath(import.meta.url));
+
+/** `textjs/client` as the package's own `exports` map resolves it (used when this file is bundled into `dist/bin`). */
+function resolveClientModule(): string {
+  const sibling = join(here, `client${sourceExt}`);
+  if (existsSync(sibling)) return sibling;
+  for (let dir = here; dirname(dir) !== dir; dir = dirname(dir)) {
+    const pkgFile = join(dir, "package.json");
+    if (!existsSync(pkgFile)) continue;
+    const pkg = JSON.parse(readFileSync(pkgFile, "utf8")) as { name?: string; exports?: Record<string, string | { default?: string }> };
+    if (pkg.name !== "textjs") continue;
+    const entry = pkg.exports?.["./client"];
+    const rel = typeof entry === "string" ? entry : entry?.default;
+    if (rel) return join(dir, rel);
+  }
+  return sibling;
+}
+
 /** Absolute path of `textjs/client` (deduped with the user's `textjs` imports via realpath). */
-export const CLIENT_MODULE = toPosix(join(here, `client${sourceExt}`));
+export const CLIENT_MODULE = toPosix(resolveClientModule());
 
 export const FAVICON = `data:image/svg+xml,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#0a0a0a"/><path d="M7 10h18L16 25z" fill="#ededed"/></svg>`,
@@ -258,6 +301,13 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
       server.watcher.on("unlinkDir", onStructure);
 
       const rewrites = await resolveRewrites(options.rewrites);
+      // Registered before user middleware and API routes so neither bypasses the host check.
+      server.middlewares.use((req, res, next) => {
+        if (isAllowedDevHost(server, req.headers.host)) return next();
+        res.statusCode = 403;
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.end(`${BRAND_MARK} Text.js: blocked request. This host (${JSON.stringify((req.headers.host ?? "").replace(/:\d+$/, ""))}) is not allowed. Add it to \`vite.server.allowedHosts\` in text.config.ts.`);
+      });
       const userHook = await options.configureServer?.(server as never);
 
       server.middlewares.use(async (req, res, next) => {
@@ -282,7 +332,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
           const api = matchApiRoute(apiManifest, pathname);
           if (api) {
             const mod = (await server.ssrLoadModule(api.file)) as RouteHandlerModule;
-            const request = toWebRequest(Object.assign(req, { url }), origin);
+            const request = toWebRequest(Object.assign(req, { url }), origin, res);
             const response = await runRouteHandler(mod, request, api.params);
             await sendWebResponse(res, response, request.method);
             log?.info(` ${req.method} ${pathname} ${response.status} in ${Math.round(performance.now() - started)}ms`);

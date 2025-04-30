@@ -20,6 +20,32 @@
         "yoga-layout": "^3.2.1",
       },
     },
+    "apps/opencode-console": {
+      "name": "@textjs/opencode-console",
+      "version": "0.1.0",
+      "dependencies": {
+        "@textjs/core": "workspace:*",
+        "@textjs/react": "workspace:*",
+        "react": "^19.3.1",
+        "react-dom": "^19.3.1",
+        "textjs": "workspace:*",
+      },
+    },
+    "apps/web": {
+      "name": "@textjs/web",
+      "version": "0.1.0",
+      "dependencies": {
+        "@textjs/core": "workspace:*",
+        "@textjs/react": "workspace:*",
+        "react": "^19.3.1",
+        "react-dom": "^19.3.1",
+        "textjs": "workspace:*",
+      },
+      "devDependencies": {
+        "@vitejs/plugin-react": "^4.5.2",
+        "vite": "^6.3.5",
+      },
+    },
     "examples/dashboard": {
       "name": "@textjs/example-dashboard",
       "version": "0.1.0",
@@ -35,21 +61,21 @@
     },
     "packages/core": {
       "name": "@textjs/core",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "yoga-layout": "^3.2.1",
       },
     },
     "packages/create-text-app": {
       "name": "create-text-app",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "bin": {
-        "create-text-app": "./bin/create-text-app.ts",
+        "create-text-app": "./bin/create-text-app.js",
       },
     },
     "packages/react": {
       "name": "@textjs/react",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@textjs/core": "workspace:*",
         "react-reconciler": "^0.34.0",
@@ -65,9 +91,9 @@
     },
     "packages/text": {
       "name": "textjs",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "bin": {
-        "text": "./bin/text.ts",
+        "text": "./bin/text.js",
       },
       "dependencies": {
         "@textjs/core": "workspace:*",
@@ -242,7 +268,11 @@
 
     "@textjs/example-dashboard": ["@textjs/example-dashboard@workspace:examples/dashboard"],
 
+    "@textjs/opencode-console": ["@textjs/opencode-console@workspace:apps/opencode-console"],
+
     "@textjs/react": ["@textjs/react@workspace:packages/react"],
+
+    "@textjs/web": ["@textjs/web@workspace:apps/web"],
 
     "@types/babel__core": ["@types/babel__core@7.20.5", "", { "dependencies": { "@babel/parser": "^7.20.7", "@babel/types": "^7.20.7", "@types/babel__generator": "*", "@types/babel__template": "*", "@types/babel__traverse": "*" } }, "sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA=="],
 

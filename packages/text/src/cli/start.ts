@@ -85,7 +85,7 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
         const m = matchApiRoute(api.manifest, pathname);
         const mod = m ? api.handlers[m.file] : undefined;
         if (m && mod) {
-          const request = toWebRequest(Object.assign(req, { url }), origin);
+          const request = toWebRequest(Object.assign(req, { url }), origin, res);
           return sendWebResponse(res, await runRouteHandler(mod, request, m.params), request.method);
         }
       }
@@ -124,12 +124,14 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
   });
 
   const port = opts.port ?? 3000;
+  // Loopback only unless `--host` is passed explicitly.
+  const host = opts.host ?? "127.0.0.1";
   await new Promise<void>((resolveListen, reject) => {
     server.once("error", reject);
-    server.listen(port, opts.host, () => resolveListen());
+    server.listen(port, host, () => resolveListen());
   });
   const addr = server.address() as AddressInfo;
-  const url = `http://${opts.host && opts.host !== "0.0.0.0" ? opts.host : "localhost"}:${addr.port}${basePath}`;
+  const url = `http://${host === "0.0.0.0" || host === "127.0.0.1" ? "localhost" : host}:${addr.port}${basePath}`;
   if (log) {
     console.log(`\n${banner([["Local", color.cyan(url)]])}\n`);
     console.log(ok("Starting..."));

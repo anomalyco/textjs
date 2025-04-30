@@ -13,8 +13,21 @@ export type HttpMethod = (typeof HTTP_METHODS)[number];
 export type RouteHandler = (request: Request, context: { params: RouteParams }) => Response | Promise<Response>;
 export type RouteHandlerModule = Partial<Record<HttpMethod, RouteHandler>> & Record<string, unknown>;
 
-export function toWebRequest(req: IncomingMessage, origin: string): Request {
+/**
+ * Bridge a Node request into a Web `Request`. Its `signal` aborts as soon as the
+ * client disconnects, so streaming handlers (SSE) can clean up immediately.
+ */
+export function toWebRequest(req: IncomingMessage, origin: string, res?: ServerResponse): Request {
   const url = new URL(req.url ?? "/", origin);
+  const controller = new AbortController();
+  const abort = (): void => {
+    if (!controller.signal.aborted) controller.abort();
+  };
+  req.on("aborted", abort);
+  // `close` before `end()` means the client disconnected (tab closed, EventSource dropped).
+  res?.on("close", () => {
+    if (!res.writableEnded) abort();
+  });
   const headers = new Headers();
   for (const [k, v] of Object.entries(req.headers)) {
     if (v === undefined) continue;
@@ -23,7 +36,7 @@ export function toWebRequest(req: IncomingMessage, origin: string): Request {
   }
   const method = (req.method ?? "GET").toUpperCase();
   const hasBody = method !== "GET" && method !== "HEAD";
-  const init: RequestInit & { duplex?: "half" } = { method, headers };
+  const init: RequestInit & { duplex?: "half" } = { method, headers, signal: controller.signal };
   if (hasBody) {
     init.body = new ReadableStream({
       start(controller) {
@@ -51,10 +64,29 @@ export async function sendWebResponse(res: ServerResponse, response: Response, m
     return;
   }
   const reader = response.body.getReader();
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    res.write(value);
+  const cancel = (): void => {
+    reader.cancel().catch(() => undefined);
+  };
+  res.on("close", cancel);
+  try {
+    for (;;) {
+      if (res.writableEnded || res.destroyed) {
+        cancel();
+        return;
+      }
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (res.writableEnded || res.destroyed) {
+        cancel();
+        return;
+      }
+      res.write(value);
+    }
+  } catch {
+    // The client went away mid-stream (the reader was cancelled).
+    return;
+  } finally {
+    res.off("close", cancel);
   }
   res.end();
 }
@@ -145,13 +177,28 @@ export function applyRewrites(rewrites: readonly CompiledRewrite[], url: string)
   return null;
 }
 
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+export function isLoopbackUrl(url: string): boolean {
+  try {
+    return LOOPBACK_HOSTS.has(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
 /** Forward a request to an absolute URL and pipe the response back. */
 export async function proxyRequest(req: IncomingMessage, res: ServerResponse, target: string, origin: string): Promise<void> {
-  const incoming = toWebRequest(req, origin);
+  const incoming = toWebRequest(req, origin, res);
   const headers = new Headers(incoming.headers);
   headers.delete("host");
   headers.delete("connection");
-  const init: RequestInit & { duplex?: "half" } = { method: incoming.method, headers, redirect: "manual" };
+  // Never forward the visitor's credentials to a third-party origin.
+  if (!isLoopbackUrl(target)) {
+    headers.delete("cookie");
+    headers.delete("authorization");
+  }
+  const init: RequestInit & { duplex?: "half" } = { method: incoming.method, headers, redirect: "manual", signal: incoming.signal };
   if (incoming.body) {
     init.body = incoming.body;
     init.duplex = "half";
@@ -163,6 +210,10 @@ export async function proxyRequest(req: IncomingMessage, res: ServerResponse, ta
     out.delete("content-length");
     await sendWebResponse(res, new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers: out }), incoming.method);
   } catch (error) {
+    if (incoming.signal.aborted) {
+      res.destroy();
+      return;
+    }
     res.statusCode = 502;
     res.setHeader("content-type", "text/plain; charset=utf-8");
     res.end(`▼ Text.js proxy error: ${target}\n${error instanceof Error ? error.message : String(error)}`);
