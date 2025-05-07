@@ -42,7 +42,7 @@ export function parseCliArgs(argv: readonly string[]): CliArgs {
 const HELP = `Usage: create-text-app [project-directory] [options]
 
 Options:
-  -t, --template <name>   starter | dashboard (default: starter)
+  -t, --template <name>   starter | dashboard | opencode (default: starter)
   -y, --yes               Use defaults for anything not passed as a flag
   -f, --force             Scaffold into a non-empty directory
   -v, --version           Print the version

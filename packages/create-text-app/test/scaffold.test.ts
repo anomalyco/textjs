@@ -21,6 +21,7 @@ afterAll(() => {
 const EXPECTED: Record<TemplateName, string[]> = {
   starter: [".gitignore", "README.md", "app/about/page.tsx", "app/layout.tsx", "app/page.tsx", "package.json", "text.config.ts", "tsconfig.json"],
   dashboard: [".gitignore", "README.md", "app/api/metrics/route.ts", "app/deployments/[id]/page.tsx", "app/layout.tsx", "app/not-found.tsx", "app/page.tsx", "lib/data.ts", "package.json", "text.config.ts", "tsconfig.json"],
+  opencode: [".gitignore", "README.md", "app/layout.tsx", "app/page.tsx", "app/session/[id]/page.tsx", "lib/opencode.ts", "package.json", "text.config.ts", "tsconfig.json"],
 };
 
 /** Link the workspace `textjs` + React into a scaffolded project (stands in for `bun install`). */
@@ -38,6 +39,7 @@ describe("helpers", () => {
     expect(toPackageName("./.hidden")).toBe("hidden");
     expect(validateProjectName("my-app")).toBeNull();
     expect(validateProjectName("My App")).not.toBeNull();
+    for (const reserved of ["textjs", "react", "react-dom", "node_modules"]) expect(validateProjectName(reserved)).toContain("reserved");
   });
 
   test("package manager detection and commands", () => {
@@ -51,7 +53,7 @@ describe("helpers", () => {
 
   test("argument parsing", () => {
     expect(parseCliArgs(["my-app", "--template", "dashboard", "--yes"])).toMatchObject({ dir: "my-app", template: "dashboard", yes: true });
-    expect(parseCliArgs(["--template=dashboard", "-y", "x"])).toMatchObject({ dir: "x", template: "dashboard", yes: true });
+    expect(parseCliArgs(["--template=opencode", "-y", "x"])).toMatchObject({ dir: "x", template: "opencode", yes: true });
   });
 
   test("completion instructions", () => {

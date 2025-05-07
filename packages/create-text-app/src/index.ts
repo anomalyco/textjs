@@ -11,6 +11,7 @@ export const VERSION = "0.1.0";
 export const TEMPLATES = {
   starter: "Clean starter: layout, keyboard counter and <Link> navigation",
   dashboard: "Real-time metrics & deployments App Router dashboard",
+  opencode: "Connect to a local OpenCode server: sessions & prompt input",
 } as const;
 
 export type TemplateName = keyof typeof TEMPLATES;
@@ -19,7 +20,8 @@ export function isTemplateName(name: string): name is TemplateName {
   return Object.prototype.hasOwnProperty.call(TEMPLATES, name);
 }
 
-export const TEMPLATES_DIR = fileURLToPath(new URL("../templates", import.meta.url));
+/** `templates/` relative to `src/`, `dist/` or the bundled `dist/bin/` CLI. */
+export const TEMPLATES_DIR = ["../templates", "../../templates"].map((rel) => fileURLToPath(new URL(rel, import.meta.url))).find((dir) => existsSync(join(dir, "starter"))) ?? fileURLToPath(new URL("../templates", import.meta.url));
 
 /** Files stored under a different name so package managers don't drop them. */
 const RENAMES: Record<string, string> = { _gitignore: ".gitignore" };
@@ -55,8 +57,12 @@ export function toPackageName(dir: string): string {
   return name || "text-app";
 }
 
+/** Names that would shadow the framework or its dependencies, or that npm refuses outright. */
+export const RESERVED_NAMES: ReadonlySet<string> = new Set(["textjs", "react", "react-dom", "node_modules", "favicon.ico"]);
+
 export function validateProjectName(name: string): string | null {
   if (name.length === 0) return "Project name cannot be empty.";
+  if (RESERVED_NAMES.has(name)) return `Project name "${name}" is reserved. Please choose a different name.`;
   if (name.length > 214) return "Project name is too long.";
   if (/[A-Z]/.test(name)) return "Project name cannot contain capital letters.";
   if (!/^(?:@[a-z0-9-*~][a-z0-9-*._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/.test(name)) return "Project name can only contain URL-friendly characters.";
@@ -109,6 +115,8 @@ export function scaffold(options: ScaffoldOptions): ScaffoldResult {
     throw new Error(`The directory ${basename(dir)} contains files that could conflict. Either try using a new directory name, or remove the files.`);
   }
   const name = toPackageName(dir);
+  const invalid = validateProjectName(name);
+  if (invalid) throw new Error(invalid);
   const vars: Record<string, string> = { name, textjsVersion: options.textjsVersion ?? `^${VERSION}`, template };
   const src = join(TEMPLATES_DIR, template);
   const written: string[] = [];
