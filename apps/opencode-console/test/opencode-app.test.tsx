@@ -1,0 +1,383 @@
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import { fileURLToPath } from "node:url";
+import { AppRouter, createMemoryHistory, type RouteManifest, type RouteModule, type RouteSegmentNode } from "textjs/router";
+import { scanApp, toStaticManifest } from "textjs/vite";
+import { createDemoClient } from "../lib/demo";
+import { isLoopbackEndpoint, parseV2Event, readSse } from "../lib/client";
+import { OpenCodeStore, resetOpenCodeStore } from "../lib/store";
+import type { AssistantMessage, ToolPart } from "../lib/types";
+import { createOpencodeProxy, normalizeTargetUrl, opencodeDevMiddleware } from "../server/opencode-proxy";
+import { createTestRoot, type TestRoot } from "./helpers";
+import { startMockOpenCode, type MockOpenCode } from "./mock-opencode";
+
+const APP = fileURLToPath(new URL("..", import.meta.url));
+
+/** The real `app/` manifest (scanner + modules), exactly as `text dev` builds it. */
+async function loadRoutes(): Promise<RouteManifest> {
+  const hydrate = async (node: RouteSegmentNode): Promise<RouteSegmentNode> => {
+    const out: RouteSegmentNode = { segment: node.segment, files: node.files };
+    for (const [kind, rel] of Object.entries(node.files ?? {})) {
+      const mod = (await import(`${APP}/${rel}`)) as RouteModule;
+      (out as unknown as Record<string, unknown>)[kind === "not-found" ? "notFound" : kind] = mod;
+    }
+    if (node.children) out.children = await Promise.all(node.children.map(hydrate));
+    return out;
+  };
+  return hydrate(toStaticManifest(scanApp(APP)));
+}
+
+let mock: MockOpenCode;
+let t: TestRoot | null = null;
+
+beforeEach(() => {
+  mock = startMockOpenCode();
+});
+
+afterEach(async () => {
+  await t?.unmount();
+  t = null;
+  resetOpenCodeStore();
+  mock.stop();
+});
+
+async function mount(path = "/") {
+  resetOpenCodeStore({ endpoint: mock.url });
+  const routes = await loadRoutes();
+  const history = createMemoryHistory(path);
+  t = await createTestRoot({ width: 112, height: 34, theme: "opencodeDark", onCaughtError: (e) => console.error(e) });
+  await t.render(<AppRouter routes={routes} history={history} theme="opencodeDark" errorStore={null} documentTitle={false} />);
+  await t.waitFor(() => t?.frame().includes("Investigate flaky CI"), "sessions from the server");
+  await mock.waitForSubscriber();
+  return { t, history };
+}
+
+const requested = (method: string, prefix: string): boolean => mock.requests.some((r) => r.method === method && r.path.startsWith(prefix));
+
+describe("OpenCode Lite console app (live V2 server)", () => {
+  test("home: brand, connection badge, agent/model pills and the session list from the server", async () => {
+    const { t } = await mount("/");
+    const frame = t.frame();
+    expect(frame).toContain("Refactor auth middleware");
+    expect(frame).toContain("▼ opencode");
+    expect(frame).toContain("▼ OPENCODE Lite");
+    expect(frame).toContain(`● connected · localhost:${new URL(mock.url).port}`);
+    expect(frame).toContain(" build ");
+    expect(frame).toContain("claude-opus-5-5");
+    expect(frame).toContain("SESSIONS 2");
+    expect(frame).toContain("Refactor auth middleware");
+    expect(frame).toContain("Investigate flaky CI");
+    expect(frame).toContain("Recent sessions");
+    expect(frame).toContain("ctrl+p  command palette");
+    expect(frame).toContain("~/code/storefront");
+    expect(requested("GET", "/api/info")).toBe(true);
+    expect(requested("GET", "/api/session")).toBe(true);
+    expect(requested("GET", "/api/agent")).toBe(true);
+    expect(requested("GET", "/api/model")).toBe(true);
+
+    // Tab cycles build ↔ plan.
+    await t.press("Tab");
+    expect(t.frame()).toContain(" plan ");
+    await t.press("Tab");
+    expect(t.frame()).toContain(" build ");
+
+    // Ctrl+B collapses the session rail.
+    await t.press("b", { ctrlKey: true });
+    await t.settle();
+    expect(t.frame()).not.toContain("SESSIONS 2");
+  });
+
+  test("prompt → new session → streamed reasoning, edit diff and Markdown, one console.log per frame; Esc interrupts", async () => {
+    const { t, history } = await mount("/");
+    await t.type("Add rate limiting");
+    await t.press("Enter");
+    await t.waitFor(() => history.location.pathname.startsWith("/session/ses_new"), "navigation to the new session");
+    const sessionID = history.location.pathname.split("/").pop() as string;
+    await t.waitFor(() => requested("POST", `/api/session/${sessionID}/prompt`), "POST /prompt");
+    await t.waitFor(() => requested("POST", `/api/session/${sessionID}/view`), "POST /view");
+    const create = mock.requests.find((r) => r.method === "POST" && r.path === "/api/session");
+    expect(create?.body).toMatchObject({ agent: "build", model: { id: "claude-opus-5-5", providerID: "anthropic" } });
+    expect(mock.requests.find((r) => r.path === `/api/session/${sessionID}/prompt`)?.body).toEqual({ text: "Add rate limiting" });
+    expect(t.frame()).toContain("Add rate limiting");
+
+    const m = "msg_stream1";
+    const base = { sessionID, assistantMessageID: m };
+    mock.emit({ type: "session.status", data: { sessionID, status: { type: "busy" } } });
+    mock.emit({ type: "session.inbox.delivered", data: { sessionID, inboxID: "msg_u" } });
+    mock.emit({ type: "session.step.started", data: { ...base, agent: "build", model: { id: "claude-opus-5-5", providerID: "anthropic" }, started: Date.now() } });
+    mock.emit({ type: "session.reasoning.started", data: { ...base, ordinal: 0 } });
+    mock.emit({ type: "session.reasoning.delta", data: { ...base, ordinal: 0, delta: "Need a token bucket per IP." } });
+    await t.waitFor(() => t.frame().includes("⟡ Thinking…"), "thinking block");
+    expect(t.frame()).toContain("Generating… (Esc to interrupt)");
+
+    mock.emit({ type: "session.reasoning.ended", data: { ...base, ordinal: 0, text: "Need a token bucket per IP." } });
+    mock.emit({ type: "session.tool.input.started", data: { ...base, id: "call_edit", name: "edit" } });
+    mock.emit({
+      type: "session.tool.called",
+      data: { ...base, id: "call_edit", executed: true, input: { path: "src/middleware.ts", oldString: "export const limit = 10;\n", newString: "export const limit = 100;\nexport const windowMs = 60_000;\n" } },
+    });
+    await t.waitFor(() => t.frame().includes("running"), "running tool");
+    mock.emit({ type: "session.tool.success", data: { ...base, id: "call_edit", executed: true, content: [{ type: "text", text: "Edit applied." }] } });
+    await t.waitFor(() => t.frame().includes("✓"), "completed tool");
+    let frame = t.frame();
+    expect(frame).toContain("✎ edit src/middleware.ts");
+    expect(frame).toContain("- export const limit = 10;");
+    expect(frame).toContain("+ export const limit = 100;");
+    expect(frame).toContain("+2 -1");
+
+    mock.emit({ type: "session.text.started", data: { ...base, ordinal: 1 } });
+    for (const delta of ["## Rate ", "limiting\n\nAdded a **token bucket** in ", "`src/middleware.ts`.\n\n```ts\nconst windowMs = 60_000;\n"]) {
+      mock.emit({ type: "session.text.delta", data: { ...base, ordinal: 1, delta } });
+    }
+    await t.waitFor(() => t.frame().includes("token bucket in"), "streamed markdown");
+    await t.waitFor(() => t.frame().includes("streaming…"), "streamed code block");
+    frame = t.frame();
+    expect(frame).toContain("Rate limiting");
+    expect(frame).toContain("Added a token bucket in src/middleware.ts.");
+    expect(frame).toContain("streaming…");
+
+    // Each dirty frame is exactly one console.clear() + one console.log(format, ...css) of the whole grid.
+    const logs = t.console.logs.length;
+    const clears = t.console.clears;
+    mock.emit({ type: "session.text.delta", data: { ...base, ordinal: 1, delta: "```\n\nDone." } });
+    await t.settle(60);
+    t.frame();
+    expect(t.console.logs.length).toBe(logs + 1);
+    expect(t.console.clears).toBe(clears + 1);
+    const last = t.console.logs[t.console.logs.length - 1] as unknown[];
+    expect(typeof last[0]).toBe("string");
+    expect((last[0] as string).split("\n").length).toBe(34);
+    expect(last.length).toBeGreaterThan(10);
+    expect((last[0] as string).match(/%c/g)?.length).toBe(last.length - 1);
+    expect(t.frame()).toContain("Done.");
+
+    await t.press("Escape");
+    await t.waitFor(() => requested("POST", `/api/session/${sessionID}/interrupt`), "POST /interrupt");
+
+    mock.emit({ type: "session.text.ended", data: { ...base, ordinal: 1, text: "## Rate limiting\n\nAdded a **token bucket** in `src/middleware.ts`.\n\n```ts\nconst windowMs = 60_000;\n```\n\nDone." } });
+    mock.emit({ type: "session.step.ended", data: { ...base, finish: "stop", cost: 0.02, tokens: { input: 1200, output: 300, reasoning: 20, cache: { read: 0, write: 0 } } } });
+    mock.emit({ type: "session.execution.interrupted", data: { sessionID, reason: "user" } });
+    mock.emit({ type: "session.status", data: { sessionID, status: { type: "idle" } } });
+    await t.waitFor(() => !t.frame().includes("Generating…"), "idle footer");
+    expect(t.frame()).toContain("▣ build · claude-opus-5-5");
+
+    // Idle: no further frames without changes.
+    const idleLogs = t.console.logs.length;
+    t.frame();
+    t.frame();
+    expect(t.console.logs.length).toBe(idleLogs);
+  });
+
+  test("Ctrl+P opens the command palette over a dimmed backdrop and switches sessions", async () => {
+    const { t, history } = await mount("/session/ses_alpha");
+    await t.waitFor(() => t.frame().includes("It lives in src/middleware.ts."), "session timeline");
+    const frame = t.frame();
+    expect(frame).toContain("Where is the auth middleware?");
+    expect(frame).toContain("✱ grep authMiddleware");
+    expect(frame).toContain("1 matches");
+
+    const before = t.root.renderer.buffer.getCell(1, 0);
+    await t.press("p", { ctrlKey: true });
+    await t.settle();
+    const open = t.frame();
+    expect(open).toContain("Commands");
+    expect(open).toContain("New session");
+    expect(open).toContain("Switch model…");
+    expect(open).toContain("Toggle theme");
+    const after = t.root.renderer.buffer.getCell(1, 0);
+    expect(after?.char).toBe(before?.char);
+    expect(after?.fg).not.toBe(before?.fg);
+
+    await t.type("flaky");
+    expect(t.frame()).toContain("Investigate flaky CI");
+    await t.press("Enter");
+    await t.waitFor(() => history.location.pathname === "/session/ses_beta", "navigation");
+    await t.waitFor(() => t.frame().includes("Why does CI flake on Tuesdays?"), "beta timeline");
+    expect(t.frame()).not.toContain("Commands");
+
+    // Ctrl+M opens the model picker with models from /api/model.
+    await t.press("m", { ctrlKey: true });
+    await t.settle();
+    expect(t.frame()).toContain("Switch model");
+    expect(t.frame()).toContain("gpt-6.1-terra");
+    await t.press("Escape");
+    await t.settle();
+    expect(t.frame()).not.toContain("Switch model");
+  });
+
+  test("unknown sessions render a not-found state", async () => {
+    const { t } = await mount("/session/ses_nope");
+    await t.waitFor(() => t.frame().includes("Session ses_nope not found"), "missing session");
+  });
+});
+
+describe("dev proxy (/__opencode)", () => {
+  test("status, credential injection and streaming SSE passthrough without leaking the password", async () => {
+    mock.stop();
+    const secret = "s3cr3t-pa55word";
+    mock = startMockOpenCode({ password: secret });
+    const authorization = `Basic ${Buffer.from(`opencode:${secret}`).toString("base64")}`;
+    const proxy = createOpencodeProxy({ discover: async () => ({ url: mock.url, mode: "service", authorization }) });
+    let server: Server | null = null;
+    try {
+      server = createServer(opencodeDevMiddleware("/__opencode", proxy) as never);
+      await new Promise<void>((r) => server?.listen(0, "127.0.0.1", r));
+      const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
+      const statusRes = await fetch(`${origin}/__opencode/_status`);
+      const statusText = await statusRes.text();
+      expect(JSON.parse(statusText)).toEqual({ connected: true, targetUrl: mock.url, mode: "service" });
+      expect(statusText).not.toContain(secret);
+      expect(statusText).not.toContain(authorization);
+
+      const sessions = await fetch(`${origin}/__opencode/api/session?limit=5`);
+      expect(sessions.status).toBe(200);
+      expect(sessions.headers.get("cache-control")).toBe("no-cache");
+      expect(((await sessions.json()) as { data: unknown[] }).data.length).toBe(2);
+      expect(mock.requests.find((r) => r.path === "/api/session?limit=5")?.authorization).toBe(authorization);
+
+      const prompt = await fetch(`${origin}/__opencode/api/session/ses_alpha/prompt`, { method: "POST", headers: { "content-type": "application/json", "x-opencode-client": "1" }, body: JSON.stringify({ text: "hi" }) });
+      expect(prompt.status).toBe(200);
+      expect(mock.requests.find((r) => r.path === "/api/session/ses_alpha/prompt")?.body).toEqual({ text: "hi" });
+
+      const abort = new AbortController();
+      const sse = await fetch(`${origin}/__opencode/api/event`, { signal: abort.signal });
+      expect(sse.headers.get("content-type")).toContain("text/event-stream");
+      expect(sse.headers.get("cache-control")).toBe("no-cache");
+      const events: unknown[] = [];
+      const reading = readSse(sse, (d) => events.push(d)).catch(() => undefined);
+      await mock.waitForSubscriber();
+      mock.emit({ type: "session.text.delta", data: { sessionID: "ses_alpha", assistantMessageID: "m", ordinal: 0, delta: "hello" } });
+      const deadline = Date.now() + 3000;
+      while (events.length < 2 && Date.now() < deadline) await new Promise((r) => setTimeout(r, 10));
+      abort.abort();
+      await reading;
+      expect(events.map((e) => parseV2Event(e))).toEqual([
+        { type: "connected" },
+        { type: "part.delta", sessionID: "ses_alpha", messageID: "m", kind: "text", delta: "hello" },
+      ]);
+
+      // Non-loopback custom targets are refused.
+      const ssrf = await fetch(`${origin}/__opencode/api/info`, { headers: { "x-opencode-target": "http://example.com" } });
+      expect(ssrf.status).toBe(403);
+    } finally {
+      await new Promise<void>((r) => (server ? server.close(() => r()) : r()));
+    }
+  });
+
+  test("refuses DNS rebinding, cross-site requests, header-less writes and oversized bodies", async () => {
+    const proxy = createOpencodeProxy({ discover: async () => ({ url: mock.url, mode: "direct" }) });
+    let server: Server | null = null;
+    try {
+      server = createServer(opencodeDevMiddleware("/__opencode", proxy) as never);
+      await new Promise<void>((r) => server?.listen(0, "127.0.0.1", r));
+      const port = (server.address() as AddressInfo).port;
+      const origin = `http://127.0.0.1:${port}`;
+      const before = mock.requests.length;
+
+      const rebound = await fetch(`${origin}/__opencode/api/session`, { headers: { host: `attacker.example:${port}` } });
+      expect(rebound.status).toBe(403);
+      for (const host of [`localhost:${port}`, `[::1]:${port}`, "127.0.0.1"]) {
+        expect((await fetch(`${origin}/__opencode/api/session`, { headers: { host } })).status).toBe(200);
+      }
+
+      const crossSite = await fetch(`${origin}/__opencode/api/session`, { headers: { "sec-fetch-site": "cross-site" } });
+      expect(crossSite.status).toBe(403);
+      expect((await fetch(`${origin}/__opencode/api/session`, { headers: { "sec-fetch-site": "same-site" } })).status).toBe(403);
+      expect((await fetch(`${origin}/__opencode/api/session`, { headers: { "sec-fetch-site": "same-origin" } })).status).toBe(200);
+      expect((await fetch(`${origin}/__opencode/api/session`, { headers: { "sec-fetch-site": "none" } })).status).toBe(200);
+
+      const csrf = await fetch(`${origin}/__opencode/api/session/ses_alpha/prompt`, { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify({ text: "pwned" }) });
+      expect(csrf.status).toBe(403);
+      expect(mock.requests.some((r) => r.path === "/api/session/ses_alpha/prompt")).toBe(false);
+
+      const huge = await fetch(`${origin}/__opencode/api/session/ses_alpha/prompt`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-opencode-client": "1" },
+        body: "x".repeat(4 * 1024 * 1024 + 1),
+      });
+      expect(huge.status).toBe(413);
+      expect(mock.requests.slice(before).some((r) => r.method === "POST")).toBe(false);
+    } finally {
+      await new Promise<void>((r) => (server ? server.close(() => r()) : r()));
+    }
+  });
+
+  test("the route handler (text start) applies the same guards", async () => {
+    const proxy = createOpencodeProxy({ discover: async () => ({ url: mock.url, mode: "direct" }) });
+    const ok = await proxy.handle(new Request("http://localhost:3001/api/opencode/api/session", { headers: { host: "localhost:3001" } }), "/api/session");
+    expect(ok.status).toBe(200);
+    const rebound = await proxy.handle(new Request("http://evil.test:3001/api/opencode/api/session", { headers: { host: "evil.test:3001" } }), "/api/session");
+    expect(rebound.status).toBe(403);
+    const put = await proxy.handle(new Request("http://localhost:3001/api/opencode/api/session/x", { method: "PUT", headers: { host: "localhost:3001" }, body: "{}" }), "/api/session/x");
+    expect(put.status).toBe(403);
+  });
+
+  test("readSse handles CRLF split across chunk boundaries", async () => {
+    const enc = new TextEncoder();
+    const chunks = ['data: {"a":1}\r', '\ndata: {"b":2}\r\n\r', '\n'];
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        for (const chunk of chunks) c.enqueue(enc.encode(chunk));
+        c.close();
+      },
+    });
+    const events: unknown[] = [];
+    await readSse(new Response(body), (d) => events.push(d));
+    // `data:` lines of one block join with "\n": a false blank line would have split this into two frames.
+    expect(events).toEqual([]);
+    const events2: unknown[] = [];
+    const body2 = new ReadableStream<Uint8Array>({
+      start(c) {
+        for (const chunk of ['data: {"a":', "1}\r", "\n\r", "\ndata: 2\r\n\r\n"]) c.enqueue(enc.encode(chunk));
+        c.close();
+      },
+    });
+    await readSse(new Response(body2), (d) => events2.push(d));
+    expect(events2).toEqual([{ a: 1 }, 2]);
+  });
+
+  test("?server= only accepts loopback hosts", () => {
+    expect(isLoopbackEndpoint("http://localhost:4096")).toBe(true);
+    expect(isLoopbackEndpoint("127.0.0.1:4096")).toBe(true);
+    expect(isLoopbackEndpoint("http://[::1]:4096")).toBe(true);
+    expect(isLoopbackEndpoint("https://evil.example")).toBe(false);
+    expect(isLoopbackEndpoint("http://localhost.evil.example")).toBe(false);
+    expect(isLoopbackEndpoint("javascript:alert(1)")).toBe(false);
+  });
+
+  test("normalizes `opencode service status` output", () => {
+    expect(normalizeTargetUrl("http://0.0.0.0:49374\n")).toBe("http://127.0.0.1:49374");
+    expect(normalizeTargetUrl("running at http://127.0.0.1:4096/")).toBe("http://127.0.0.1:4096");
+    expect(normalizeTargetUrl("not running")).toBeNull();
+  });
+});
+
+describe("demo backend", () => {
+  test("streams reasoning, read / edit / shell tool calls and Markdown through the same store", async () => {
+    const store = new OpenCodeStore({ client: createDemoClient({ tick: 1 }) });
+    try {
+      store.start();
+      const deadline = Date.now() + 3000;
+      while (!store.getSnapshot().sessionsLoaded && Date.now() < deadline) await new Promise((r) => setTimeout(r, 5));
+      expect(store.getSnapshot().connection.kind).toBe("demo");
+      expect(store.getSnapshot().sessions.length).toBe(4);
+      const id = await store.send(null, "Fix the cart badge");
+      expect(id).toBeTruthy();
+      const sid = id as string;
+      while (store.getSnapshot().busy[sid] !== false && Date.now() < deadline + 5000) await new Promise((r) => setTimeout(r, 10));
+      await new Promise((r) => setTimeout(r, 200));
+      const msgs = store.getSnapshot().messages[sid] ?? [];
+      expect(msgs[0]).toMatchObject({ type: "user", text: "Fix the cart badge" });
+      const assistant = msgs.find((m): m is AssistantMessage => m.type === "assistant");
+      expect(assistant).toBeDefined();
+      const tools = (assistant?.content ?? []).filter((p): p is ToolPart => p.type === "tool");
+      expect(tools.map((p) => `${p.name}:${p.state.status}`)).toEqual(["read:completed", "edit:completed", "shell:completed"]);
+      expect(assistant?.content.some((p) => p.type === "text" && p.text.includes("99+"))).toBe(true);
+      expect(store.getSnapshot().sessions.find((s) => s.id === sid)?.title).toBe("Fix the cart badge");
+    } finally {
+      store.dispose();
+    }
+  });
+});
