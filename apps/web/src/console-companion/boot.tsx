@@ -1,0 +1,159 @@
+/**
+ * Boots the live console companion: a real `@textjs/react` ConsoleRoot that
+ * renders into the visitor's DevTools console the moment textjs.org loads.
+ */
+
+import { extractStyledFrame, InputEngine, type FrameResult, type StyledFrame } from "@textjs/core";
+import { createConsoleRoot, type ConsoleRoot } from "@textjs/react";
+import { CompanionApp } from "./App";
+import { siteStore } from "./store";
+
+export const COMPANION_COLS = 104;
+export const COMPANION_ROWS = 32;
+
+const EDITABLE = "input,textarea,select,[contenteditable=''],[contenteditable='true']";
+/** Elements that own their keyboard input (sandboxes, search) and must never feed the companion. */
+export const BYPASS_SELECTOR = `${EDITABLE},[data-console-bypass]`;
+
+function isSink(el: Element | null): boolean {
+  return el !== null && el.hasAttribute("data-textjs-input-sink");
+}
+
+/** Returns `true` when keystrokes should be routed into the console app right now. */
+export function shouldRouteToConsole(active: Element | null, consoleInput: boolean): boolean {
+  if (!consoleInput) return false;
+  if (active === null || isSink(active)) return true;
+  return active.closest(BYPASS_SELECTOR) === null;
+}
+
+/**
+ * An InputEngine that coexists with the website: keystrokes inside page form
+ * fields (⌘K search, playground editor, sandboxes) or while the visitor has
+ * paused console input are left alone.
+ */
+export class GatedInputEngine extends InputEngine {
+  constructor(gate: () => boolean) {
+    // While the gate is closed the host page keeps every default (Tab, Space, PageDown, paste).
+    super({ autoFocus: false, refocusOnClick: false, wheel: false, shouldCapture: gate });
+  }
+}
+
+/** Explicit console surfaces (live DevTools mirrors) that route keystrokes into the companion when clicked. */
+export const ENGAGE_SELECTOR = "[data-console-engage]";
+
+type FrameListener = (frame: StyledFrame) => void;
+
+export interface Companion {
+  root: ConsoleRoot;
+  engine: GatedInputEngine;
+  /** Latest styled snapshot (for inline DevTools mirrors). */
+  getFrame(): StyledFrame | null;
+  subscribeFrame(listener: FrameListener): () => void;
+  /** Focus keyboard capture for the console app (used by "click to type" buttons). */
+  activate(): void;
+}
+
+let companion: Companion | null = null;
+let booting: Promise<Companion> | null = null;
+const pending = new Set<FrameListener>();
+const telemetryListeners = new Set<(f: FrameResult) => void>();
+
+export function getCompanion(): Companion | null {
+  return companion;
+}
+
+export function onTelemetry(listener: (f: FrameResult) => void): () => void {
+  telemetryListeners.add(listener);
+  return () => telemetryListeners.delete(listener);
+}
+
+export function subscribeCompanionFrame(listener: FrameListener): () => void {
+  if (companion) return companion.subscribeFrame(listener);
+  pending.add(listener);
+  let off: (() => void) | null = null;
+  void booting?.then((c) => {
+    if (pending.delete(listener)) off = c.subscribeFrame(listener);
+  });
+  return () => {
+    pending.delete(listener);
+    off?.();
+  };
+}
+
+const finePointer = (): boolean => typeof matchMedia === "function" && matchMedia("(pointer: fine)").matches;
+
+export function bootCompanion(): Promise<Companion> {
+  if (booting) return booting;
+  booting = (async () => {
+    const engine = new GatedInputEngine(() => shouldRouteToConsole(document.activeElement, siteStore.getSnapshot().consoleInput));
+    engine.attach();
+    const root = await createConsoleRoot({
+      width: COMPANION_COLS,
+      height: COMPANION_ROWS,
+      input: engine,
+      theme: siteStore.getSnapshot().theme,
+      tabFocus: false,
+      identifierPrefix: "txc",
+    });
+
+    let theme = siteStore.getSnapshot().theme;
+    siteStore.subscribe(() => {
+      const next = siteStore.getSnapshot().theme;
+      if (next !== theme) {
+        theme = next;
+        root.setTheme(next);
+      }
+    });
+
+    // Only clicking an explicit console surface routes keys into the console;
+    // the page background stays a normal, selectable, scrollable document.
+    document.addEventListener("mousedown", (e) => {
+      const t = e.target as Element | null;
+      if (!t || typeof t.closest !== "function") return;
+      if (t.closest(ENGAGE_SELECTOR) === null || t.closest(BYPASS_SELECTOR) !== null) return;
+      siteStore.set({ consoleInput: true });
+      if (finePointer()) setTimeout(() => engine.focus(), 0);
+    });
+    window.addEventListener("focus", () => engine.setFocused(true));
+    window.addEventListener("blur", () => engine.setFocused(false));
+
+    const listeners = new Set<FrameListener>();
+    let latest: StyledFrame | null = null;
+    let scheduled = false;
+    const publish = (): void => {
+      scheduled = false;
+      if (root.unmounted) return;
+      latest = extractStyledFrame(root.renderer.buffer);
+      for (const l of listeners) l(latest);
+    };
+    root.onFrame((frame) => {
+      for (const l of telemetryListeners) l(frame);
+      if (frame.skipped || listeners.size === 0 || scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(publish);
+    });
+
+    root.render(<CompanionApp />);
+
+    const c: Companion = {
+      root,
+      engine,
+      getFrame: () => latest ?? (root.unmounted ? null : (latest = extractStyledFrame(root.renderer.buffer))),
+      subscribeFrame(listener) {
+        listeners.add(listener);
+        listener(c.getFrame() as StyledFrame);
+        return () => listeners.delete(listener);
+      },
+      activate() {
+        siteStore.set({ consoleInput: true });
+        engine.setFocused(true);
+        engine.focus();
+      },
+    };
+    companion = c;
+    for (const l of pending) c.subscribeFrame(l);
+    pending.clear();
+    return c;
+  })();
+  return booting;
+}
