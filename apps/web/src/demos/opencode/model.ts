@@ -1,0 +1,301 @@
+/**
+ * OpenCode Lite data model, scripted sandbox agent and pre-loaded sessions.
+ */
+
+export type Agent = "build" | "plan";
+
+export type ToolName = "read" | "edit" | "write" | "shell" | "grep" | "glob" | "todo";
+
+export interface TextPart {
+  type: "text";
+  text: string;
+}
+
+export interface ReasoningPart {
+  type: "reasoning";
+  text: string;
+}
+
+export interface ToolPart {
+  type: "tool";
+  tool: ToolName | (string & {});
+  title: string;
+  status: "pending" | "running" | "completed" | "error";
+  /** Source for `read` cards. */
+  code?: string;
+  language?: string;
+  /** Diff for `edit` cards. */
+  diff?: { before: string; after: string; filename: string };
+  /** Command output for `shell` / `grep` cards. */
+  output?: string;
+}
+
+export type Part = TextPart | ReasoningPart | ToolPart;
+
+export interface Message {
+  id: string;
+  role: "user" | "assistant";
+  agent?: Agent;
+  model?: string;
+  parts: Part[];
+  /** Assistant duration in ms once finished. */
+  durationMs?: number;
+  tokens?: number;
+}
+
+export interface Session {
+  id: string;
+  title: string;
+  updated: string;
+  messages: Message[];
+  live?: boolean;
+  /** Pre-loaded sandbox history; new prompts start a fresh session. */
+  demo?: boolean;
+}
+
+export type Step =
+  | { kind: "think"; ms: number; text: string }
+  | { kind: "text"; text: string }
+  | { kind: "tool"; part: ToolPart; ms: number };
+
+export const MODELS = [
+  { id: "anthropic/claude-opus-5-5", label: "Claude Opus 5.5", provider: "Anthropic" },
+  { id: "openai/gpt-5-codex", label: "GPT-5 Codex", provider: "OpenAI" },
+  { id: "opencode/grok-code", label: "Grok Code Fast", provider: "OpenCode Zen" },
+  { id: "opencode/big-pickle", label: "Big Pickle", provider: "OpenCode Zen" },
+] as const;
+
+let idCounter = 0;
+export function nextId(prefix: string): string {
+  idCounter++;
+  return `${prefix}_${Date.now().toString(36)}${idCounter.toString(36)}`;
+}
+
+const PAGE_BEFORE = `import { Box, Text } from "textjs";
+
+export default function Page() {
+  return (
+    <Box className="flex-col p-1">
+      <Text bold>Sessions</Text>
+    </Box>
+  );
+}
+`;
+
+const PAGE_AFTER = `import { Box, Text, useTheme } from "textjs";
+import { SessionList } from "./session-list";
+
+export default function Page() {
+  const theme = useTheme();
+  return (
+    <Box className="flex-col p-1 gap-1">
+      <Text bold color={theme.accent}>Sessions</Text>
+      <SessionList limit={20} />
+    </Box>
+  );
+}
+`;
+
+const SSE_BEFORE = `export function connect(url: string, onEvent: (e: Event) => void) {
+  const source = new EventSource(url);
+  source.onmessage = (m) => onEvent(JSON.parse(m.data));
+  source.onerror = () => source.close();
+  return () => source.close();
+}
+`;
+
+const SSE_AFTER = `export function connect(url: string, onEvent: (e: Event) => void) {
+  let source: EventSource | null = null;
+  let retry = 250;
+  const open = () => {
+    source = new EventSource(url);
+    source.onopen = () => (retry = 250);
+    source.onmessage = (m) => onEvent(JSON.parse(m.data));
+    source.onerror = () => {
+      source?.close();
+      setTimeout(open, (retry = Math.min(retry * 2, 8_000)));
+    };
+  };
+  open();
+  return () => source?.close();
+}
+`;
+
+const SETTINGS_BEFORE = `export default function SettingsPage() {
+  return (
+    <Box className="flex-col gap-1">
+      <Text bold>Settings</Text>
+      <Text color="muted">Theme: geistDark</Text>
+    </Box>
+  );
+}
+`;
+
+const SETTINGS_AFTER = `import { useAppTheme } from "textjs";
+
+export default function SettingsPage() {
+  const { themeName, setTheme } = useAppTheme();
+  useInput((e) => {
+    if (e.input === "t") setTheme(themeName === "geistDark" ? "geistLight" : "geistDark");
+  });
+  return (
+    <Box className="flex-col gap-1">
+      <Text bold>Settings</Text>
+      <Text color="muted">Theme: {themeName} · press t to toggle</Text>
+    </Box>
+  );
+}
+`;
+
+function shortPrompt(prompt: string): string {
+  const one = prompt.replace(/\s+/g, " ").trim();
+  return one.length > 60 ? `${one.slice(0, 57)}…` : one;
+}
+
+/** Build the scripted, multi-step response for a prompt in the sandbox. */
+export function scriptFor(prompt: string, agent: Agent): Step[] {
+  const p = prompt.toLowerCase();
+  const topic = shortPrompt(prompt) || "this";
+  if (agent === "plan") {
+    return [
+      { kind: "think", ms: 700, text: "Reading the app/ tree before proposing changes (plan mode is read-only)." },
+      { kind: "tool", ms: 600, part: { type: "tool", tool: "glob", title: "app/**/*.tsx", status: "completed", output: "app/layout.tsx\napp/page.tsx\napp/sessions/[id]/page.tsx\napp/sessions/[id]/loading.tsx\napp/settings/page.tsx" } },
+      {
+        kind: "text",
+        text: `Here's how I'd approach **${topic}** — no files will be changed in \`plan\` mode.
+
+1. **Locate the route.** The work lives under \`app/sessions/[id]/page.tsx\`, rendered inside the root \`layout.tsx\`.
+2. **Extract a component.** Move the list into \`SessionList\` so \`<ScrollBox stickyScroll>\` can own scrolling.
+3. **Add a loading state.** \`loading.tsx\` streams a \`<Spinner>\` through React Suspense while data resolves.
+4. **Verify.** Run \`text build\` and \`bun test\`; expect **0** DOM nodes and **1** \`console.log\` per frame.
+
+Press \`tab\` to switch to **build** and I'll implement it.`,
+      },
+    ];
+  }
+  if (/test|fail|flak|bug|fix|error|crash|reconnect/.test(p)) {
+    return [
+      { kind: "think", ms: 900, text: "The failure is intermittent, which smells like a reconnect race in the SSE client." },
+      { kind: "text", text: "Let me find where the event stream is opened." },
+      { kind: "tool", ms: 500, part: { type: "tool", tool: "grep", title: "new EventSource", status: "completed", output: "lib/events.ts:2:  const source = new EventSource(url);\ntest/events.test.ts:14:  // reconnects after server restart" } },
+      { kind: "tool", ms: 450, part: { type: "tool", tool: "read", title: "lib/events.ts", status: "completed", code: SSE_BEFORE, language: "ts" } },
+      { kind: "text", text: "The client closes on the first `onerror` and never retries. I'll add exponential backoff and reset it on `onopen`." },
+      { kind: "tool", ms: 700, part: { type: "tool", tool: "edit", title: "lib/events.ts", status: "completed", diff: { before: SSE_BEFORE, after: SSE_AFTER, filename: "lib/events.ts" } } },
+      {
+        kind: "tool",
+        ms: 1400,
+        part: {
+          type: "tool",
+          tool: "shell",
+          title: "bun test test/events.test.ts",
+          status: "completed",
+          output: "bun test v1.3.0\n\ntest/events.test.ts:\n✓ connects and parses events [3.12ms]\n✓ reconnects after server restart [251.40ms]\n✓ backs off up to 8s [0.41ms]\n\n 3 pass\n 0 fail\nRan 3 tests across 1 file. [262.00ms]",
+        },
+      },
+      { kind: "text", text: "Fixed. `connect()` now retries with backoff (250ms → 8s) and resets after a successful `onopen`. All **3** tests pass, including the previously flaky reconnect case." },
+    ];
+  }
+  if (/dark|theme|light|color|style/.test(p)) {
+    return [
+      { kind: "think", ms: 700, text: "Settings needs a theme toggle wired to the app shell's ThemeProvider." },
+      { kind: "tool", ms: 450, part: { type: "tool", tool: "read", title: "app/settings/page.tsx", status: "completed", code: SETTINGS_BEFORE, language: "tsx" } },
+      { kind: "text", text: "Text.js exposes the active theme through `useAppTheme()`, so this is a small change — no CSS required (there is no CSS)." },
+      { kind: "tool", ms: 650, part: { type: "tool", tool: "edit", title: "app/settings/page.tsx", status: "completed", diff: { before: SETTINGS_BEFORE, after: SETTINGS_AFTER, filename: "app/settings/page.tsx" } } },
+      { kind: "tool", ms: 1100, part: { type: "tool", tool: "shell", title: "bun run typecheck", status: "completed", output: "$ tsc --noEmit\n✓ 0 errors in 42 files (1.8s)" } },
+      { kind: "text", text: "Done — press **t** on `/settings` to flip between `geistDark` and `geistLight`. The switch repaints in a single frame and re-encodes only the rows whose colors changed." },
+    ];
+  }
+  if (/explain|how|what|why|\?/.test(p)) {
+    return [
+      { kind: "think", ms: 800, text: "They want a conceptual answer; I'll ground it in the renderer source." },
+      {
+        kind: "tool",
+        ms: 450,
+        part: {
+          type: "tool",
+          tool: "read",
+          title: "node_modules/@textjs/core/src/drivers/css-console-driver.ts",
+          status: "completed",
+          language: "ts",
+          code: `render(buffer: CellBuffer): DriverRenderResult {
+  const { frame } = this.encode(buffer);
+  if (frame === null) return SKIPPED; // zero noop logs
+  console.clear();
+  console.log(frame.format, ...frame.args);
+}`,
+        },
+      },
+      {
+        kind: "text",
+        text: `Good question. Short version of **${topic}**:
+
+- React commits into a **scene graph**, not the DOM.
+- **Yoga** computes flexbox layout in integer cells (\`pointScaleFactor = 1\`).
+- The painter rasterizes into a **TypedArray CellBuffer**.
+- Each row is hashed; unchanged rows reuse cached \`%c\` spans.
+- The whole frame ships as **one** \`console.log(format, ...css)\`.
+
+\`\`\`ts
+console.log("%c▼ Text.js%c 1.0", "color:#fff;font-weight:700", "color:#888");
+\`\`\`
+
+If nothing changed, nothing is logged. That's why an idle app costs **0** console calls.`,
+      },
+    ];
+  }
+  return [
+    { kind: "think", ms: 800, text: `Breaking down: ${topic}` },
+    { kind: "text", text: `On it. First I'll look at the project layout to see where **${topic}** belongs.` },
+    { kind: "tool", ms: 500, part: { type: "tool", tool: "shell", title: "ls -R app", status: "completed", output: "app:\nlayout.tsx  page.tsx  sessions/  settings/\n\napp/sessions:\n[id]/\n\napp/sessions/[id]:\nloading.tsx  page.tsx" } },
+    { kind: "tool", ms: 450, part: { type: "tool", tool: "read", title: "app/page.tsx", status: "completed", code: PAGE_BEFORE, language: "tsx" } },
+    { kind: "text", text: "The index route only renders a heading. I'll extract a `SessionList` and give the page some structure." },
+    { kind: "tool", ms: 700, part: { type: "tool", tool: "edit", title: "app/page.tsx", status: "completed", diff: { before: PAGE_BEFORE, after: PAGE_AFTER, filename: "app/page.tsx" } } },
+    {
+      kind: "tool",
+      ms: 1500,
+      part: {
+        type: "tool",
+        tool: "shell",
+        title: "text build",
+        status: "completed",
+        output: "▼ Text.js 0.1.0 (Turbolog)\n\n  Creating an optimized console production build…\n  ✓ Compiled successfully in 812ms\n\nRoute (app)                    Size     First Frame\n┌ ○ /                          1.2 kB   0.18ms\n├ ƒ /sessions/[id]             2.4 kB   0.21ms\n└ ○ /settings                  0.9 kB   0.16ms\n\n○ Static   ƒ Dynamic   ▼ 0 DOM nodes",
+      },
+    },
+    { kind: "text", text: `Done. I updated \`app/page.tsx\` for **${topic}**; the build passes and every route renders its first frame in under **0.25ms**.` },
+  ];
+}
+
+/** Collapse a script into finished parts (used to pre-load history). */
+export function partsFromSteps(steps: readonly Step[]): Part[] {
+  const parts: Part[] = [];
+  for (const s of steps) {
+    if (s.kind === "think") parts.push({ type: "reasoning", text: s.text });
+    else if (s.kind === "text") parts.push({ type: "text", text: s.text });
+    else parts.push({ ...s.part, status: "completed" });
+  }
+  return parts;
+}
+
+function convo(prompt: string, agent: Agent, model: string, durationMs: number, tokens: number): Message[] {
+  return [
+    { id: nextId("msg"), role: "user", parts: [{ type: "text", text: prompt }] },
+    { id: nextId("msg"), role: "assistant", agent, model, parts: partsFromSteps(scriptFor(prompt, agent)), durationMs, tokens },
+  ];
+}
+
+export function initialSessions(): Session[] {
+  const list: Session[] = [
+    { id: "ses_fix_sse", title: "Fix flaky SSE reconnect test", updated: "2m ago", messages: convo("The events reconnect test fails ~1 in 5 runs. Can you fix it?", "build", "anthropic/claude-opus-5-5", 18_400, 12_840) },
+    { id: "ses_dark", title: "Add theme toggle to settings", updated: "1h ago", messages: convo("Add a dark/light theme toggle to the settings page", "build", "openai/gpt-5-codex", 9_100, 6_210) },
+    { id: "ses_rle", title: "Explain the Turbolog RLE encoder", updated: "yesterday", messages: convo("How does Turbolog get a whole frame into one console.log?", "build", "anthropic/claude-opus-5-5", 6_700, 4_022) },
+    { id: "ses_plan", title: "Plan: sessions/[id] loading state", updated: "2d ago", messages: convo("Add a loading state to sessions/[id]", "plan", "opencode/grok-code", 4_300, 3_310) },
+  ];
+  return list.map((s) => ({ ...s, demo: true }));
+}
+
+export const EXAMPLE_PROMPTS = [
+  "Fix the flaky reconnect test in lib/events.ts",
+  "Add a dark mode toggle to settings",
+  "Explain how console.log renders a whole frame",
+  "Build a sessions list on the home page",
+] as const;
