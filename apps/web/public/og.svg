@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="0%" r="70%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M60 0H0V60" fill="none" stroke="#ffffff" stroke-opacity="0.06"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="#000"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <path d="M520 170h160l-80 138z" fill="#fff"/>
+  <text x="600" y="410" text-anchor="middle" font-family="Geist, Inter, Helvetica, Arial, sans-serif" font-size="76" font-weight="700" fill="#fff" letter-spacing="-3">Text.js</text>
+  <text x="600" y="470" text-anchor="middle" font-family="Geist, Inter, Helvetica, Arial, sans-serif" font-size="30" fill="#a1a1a1">The Console Framework for the Web</text>
+  <text x="600" y="560" text-anchor="middle" font-family="Geist Mono, Menlo, monospace" font-size="22" fill="#666">textjs.org</text>
+</svg>

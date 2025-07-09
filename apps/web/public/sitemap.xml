@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://textjs.org/</loc><priority>1.0</priority></url>
+  <url><loc>https://textjs.org/docs</loc><priority>0.9</priority></url>
+  <url><loc>https://textjs.org/docs/installation</loc></url>
+  <url><loc>https://textjs.org/docs/project-structure</loc></url>
+  <url><loc>https://textjs.org/docs/routing</loc></url>
+  <url><loc>https://textjs.org/docs/loading-and-errors</loc></url>
+  <url><loc>https://textjs.org/docs/route-handlers</loc></url>
+  <url><loc>https://textjs.org/docs/styling</loc></url>
+  <url><loc>https://textjs.org/docs/components-layout</loc></url>
+  <url><loc>https://textjs.org/docs/components-interactive</loc></url>
+  <url><loc>https://textjs.org/docs/components-content</loc></url>
+  <url><loc>https://textjs.org/docs/hooks-and-repl</loc></url>
+  <url><loc>https://textjs.org/docs/turbolog-engine</loc></url>
+  <url><loc>https://textjs.org/docs/opencode</loc></url>
+  <url><loc>https://textjs.org/playground</loc><priority>0.8</priority></url>
+  <url><loc>https://textjs.org/opencode</loc><priority>0.8</priority></url>
+  <url><loc>https://textjs.org/showcase</loc></url>
+</urlset>
