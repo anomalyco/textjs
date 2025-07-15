@@ -32,7 +32,7 @@ bun dev
 Open [http://localhost:3000](http://localhost:3000), press **⌘⌥J** (macOS) or **Ctrl+Shift+J** (Windows / Linux), then click back into the page so it captures the keyboard. The `text` and `create-text-app` CLIs run on Bun or Node.js 20.11+.
 
 ```text
-   ▼ Text.js 0.1.0 (Turbolog)
+   ▼ Text.js 0.2.0 (Turbolog)
    - Local:        http://localhost:3000
 
  ✓ Starting...

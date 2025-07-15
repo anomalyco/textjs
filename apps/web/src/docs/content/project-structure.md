@@ -104,7 +104,7 @@ text build
 ```
 
 ```text
-▼ Text.js 0.1.0 (Turbolog)
+▼ Text.js 0.2.0 (Turbolog)
 
   Creating an optimized console production build…
   ✓ Compiled successfully in 812ms

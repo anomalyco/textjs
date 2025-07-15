@@ -49,7 +49,7 @@ describe("page rendering", () => {
   test("landing page", () => {
     const html = renderToStaticMarkup(<RouteView route={{ name: "home" }} />);
     expect(html).toContain("The Console Framework for the Web");
-    expect(html).toContain("Introducing Text.js 0.1 (Turbolog)");
+    expect(html).toContain("Introducing Text.js 0.2 (Turbolog)");
     expect(html).toContain("bunx create-text-app@latest");
     expect(html).toContain("app/sessions/[id]/page.tsx");
     expect(html).toContain("text.config.ts");

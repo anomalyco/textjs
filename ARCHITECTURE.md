@@ -4,7 +4,7 @@
 
 ## Brand & Design Identity
 - **Brand Mark:** `▼` (`U+25BC` BLACK DOWN-POINTING TRIANGLE) — an inverted play on Vercel's `▲`. Where traditional frameworks render *up* into the DOM, Text.js Inverted Architecture™ streams frames *down* (`▼`) into the DevTools Console drawer. Never use `▲` as the Text.js logo; always use `▼`.
-- **Engine Name:** **Turbolog** (`▼ Text.js 0.1.0 (Turbolog)`).
+- **Engine Name:** **Turbolog** (`▼ Text.js 0.2.0 (Turbolog)`).
 - **JSX Casing:** **PascalCase** components (`<Box>`, `<Text>`, `<ScrollBox>`, `<Input>`, `<Textarea>`, `<Select>`, `<Tabs>`, `<Link>`, `<Code>`, `<Markdown>`, `<Diff>`, `<Modal>`, `<Spinner>`, `<AsciiFont>`, `<Spacer>`, `<Badge>`, `<Divider>`) matching Next.js / React conventions, backed by clean lowercase host intrinsic elements (`tx-box`, `tx-text`, `tx-raw-text`) inside the custom React reconciler.
 
 ## Non-Negotiable Rendering & Performance Contracts

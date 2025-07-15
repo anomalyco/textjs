@@ -19,7 +19,7 @@ function Header(): ReactNode {
         ▼ Text.js
       </Text>
       <Text color="subtle" wrap="nowrap">
-        0.1 (Turbolog)
+        0.2 (Turbolog)
       </Text>
       <Text color="border">│</Text>
       <Text color="muted" wrap="truncate-end" flexShrink={1}>

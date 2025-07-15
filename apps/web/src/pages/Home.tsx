@@ -51,7 +51,7 @@ function Hero(): ReactNode {
           <Crosses />
           <div className="hero-body">
             <A href="/docs/turbolog-engine" className="pill">
-              <Logo size={11} /> Introducing Text.js 0.1 (Turbolog) — Zero-DOM React 19 Framework <ArrowRight size={12} />
+              <Logo size={11} /> Introducing Text.js 0.2 (Turbolog) — Zero-DOM React 19 Framework <ArrowRight size={12} />
             </A>
             <h1>The Console Framework for the Web</h1>
             <p className="lede">

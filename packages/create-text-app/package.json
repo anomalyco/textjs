@@ -1,6 +1,6 @@
 {
   "name": "create-text-app",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Create Text.js apps — React App Router apps that render inside DevTools console.log.",
   "type": "module",
   "license": "MIT",

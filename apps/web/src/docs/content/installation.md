@@ -24,7 +24,7 @@ On installation, you'll see the following prompts:
     opencode    Connect to a local OpenCode server: sessions & prompt input
 ```
 
-After the prompts, `create-text-app` creates a folder with your project name, scaffolded against `textjs@^0.1.0`. Install the dependencies and start the development server:
+After the prompts, `create-text-app` creates a folder with your project name, scaffolded against `textjs@^0.2.0`. Install the dependencies and start the development server:
 
 ```bash
 cd my-app
@@ -33,7 +33,7 @@ bun dev
 ```
 
 ```text
-   ▼ Text.js 0.1.0 (Turbolog)
+   ▼ Text.js 0.2.0 (Turbolog)
    - Local:        http://localhost:3000
 
  ✓ Starting...
@@ -75,7 +75,7 @@ To manually create a Text.js app, create a `package.json` with `"type": "module"
 
 ```bash
 bun init -y
-bun add textjs@^0.1.0 react react-dom
+bun add textjs@^0.2.0 react react-dom
 ```
 
 Add the following scripts to your `package.json`:

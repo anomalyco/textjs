@@ -258,7 +258,7 @@ If nothing changed, nothing is logged. That's why an idle app costs **0** consol
         tool: "shell",
         title: "text build",
         status: "completed",
-        output: "▼ Text.js 0.1.0 (Turbolog)\n\n  Creating an optimized console production build…\n  ✓ Compiled successfully in 812ms\n\nRoute (app)                    Size     First Frame\n┌ ○ /                          1.2 kB   0.18ms\n├ ƒ /sessions/[id]             2.4 kB   0.21ms\n└ ○ /settings                  0.9 kB   0.16ms\n\n○ Static   ƒ Dynamic   ▼ 0 DOM nodes",
+        output: "▼ Text.js 0.2.0 (Turbolog)\n\n  Creating an optimized console production build…\n  ✓ Compiled successfully in 812ms\n\nRoute (app)                    Size     First Frame\n┌ ○ /                          1.2 kB   0.18ms\n├ ƒ /sessions/[id]             2.4 kB   0.21ms\n└ ○ /settings                  0.9 kB   0.16ms\n\n○ Static   ƒ Dynamic   ▼ 0 DOM nodes",
       },
     },
     { kind: "text", text: `Done. I updated \`app/page.tsx\` for **${topic}**; the build passes and every route renders its first frame in under **0.25ms**.` },

@@ -44,7 +44,7 @@ Each dirty row is scanned left to right. Consecutive cells with identical `(fg, 
 
 ```js
 console.log(
-  "%c▼ Text.js%c 0.1 (Turbolog)%c\n%cReady in 412ms",
+  "%c▼ Text.js%c 0.2 (Turbolog)%c\n%cReady in 412ms",
   "color:#ededed;font-weight:700;background:#111113",
   "color:#6b6b70;background:#111113",
   "background:#0a0a0a",
