@@ -12,6 +12,7 @@ cd my-app && bun install && bun dev
 | `text dev`   | Vite dev server with React Fast Refresh and the in-console Redbox |
 | `text build` | Optimized console production build + route summary            |
 | `text start` | Serve the production build (static files + route handlers)    |
+| `text proxy` | Bridge a local opencode server to textjs.org (CORS, :4096)    |
 
 ## Entry points
 

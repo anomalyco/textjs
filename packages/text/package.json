@@ -4,7 +4,6 @@
   "description": "The Console Framework for the Web. React 19 App Router apps that render inside DevTools console.log.",
   "type": "module",
   "license": "MIT",
-  "repository": {"type": "git", "url": "git+https://github.com/adamdotdevin/textjs.git", "directory": "packages/text"},
   "sideEffects": false,
   "homepage": "https://textjs.org",
   "keywords": ["react", "console", "devtools", "tui", "framework", "app-router"],
