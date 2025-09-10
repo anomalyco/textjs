@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, Spinner, Text, useInput, useTheme, useViewport } from "textjs";
+import { Box, diffTexts, Spinner, Text, useInput, useTheme, useViewport } from "textjs";
 import { usePathname, useRouter } from "textjs/navigation";
-import { compactNumber, modelLabel, relativeTime, shortPath, truncate } from "../lib/format";
+import { compactNumber, relativeTime } from "../lib/format";
 import { useStore, useStoreState, type StoreState } from "../lib/store";
-import type { SessionInfo } from "../lib/types";
+import type { SessionInfo, SessionMessage } from "../lib/types";
 import { Palette, type PaletteKind } from "./Palette";
 
 export const SIDEBAR_WIDTH = 28;
@@ -55,7 +55,7 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
 
   return (
     <Box flexDirection="column" width="100%" height="100%" bg={theme.bg}>
-      <Header state={state} active={active} />
+      {active ? <Header state={state} active={active} /> : null}
       <Box flexDirection="row" flexGrow={1} flexShrink={1} minHeight={0}>
         {state.ui.sidebar ? <Sidebar state={state} active={active} /> : null}
         <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={0}>
@@ -67,57 +67,68 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
   );
 }
 
-function ConnectionBadge({ state }: { state: StoreState }): ReactNode {
+export function ConnectionBadge({ state }: { state: StoreState }): ReactNode {
   const theme = useTheme();
   const c = state.connection;
-  if (c.status === "connecting") return <Spinner variant="dots" label="connecting…" color={theme.muted} />;
+  if (c.status === "connecting") return <Spinner variant="line" label="connecting" color={theme.muted} />;
   if (c.kind === "demo") {
     return (
       <Text color={theme.warning} wrap="nowrap" flexShrink={0}>
-        ◆ demo
+        ● demo
       </Text>
     );
   }
   return (
     <Text color={c.live ? theme.success : theme.warning} wrap="nowrap" flexShrink={0}>
-      {c.live ? "● " : "○ "}
-      {c.live ? "connected" : "reconnecting"}
+      {c.live ? "● connected" : "○ reconnecting"}
       <Text color={theme.subtle}>{` · ${c.label}${c.kind === "v1" ? " (v1)" : ""}`}</Text>
     </Text>
   );
 }
 
-function Header({ state, active }: { state: StoreState; active: string | null }): ReactNode {
+/** `+3 -1` across a session's edits. */
+export function sessionDiffStat(messages: readonly SessionMessage[]): { additions: number; deletions: number; tokens: number } {
+  let additions = 0;
+  let deletions = 0;
+  let tokens = 0;
+  for (const m of messages) {
+    if (m.type !== "assistant") continue;
+    tokens += (m.tokens?.input ?? 0) + (m.tokens?.output ?? 0);
+    for (const p of m.content) {
+      if (p.type !== "tool" || p.state.status === "streaming") continue;
+      const input = p.state.input;
+      if (typeof input.oldString !== "string" && typeof input.newString !== "string") continue;
+      const f = diffTexts(typeof input.oldString === "string" ? input.oldString : "", typeof input.newString === "string" ? input.newString : "", "", 0);
+      additions += f.additions;
+      deletions += f.deletions;
+    }
+  }
+  return { additions, deletions, tokens };
+}
+
+function Header({ state, active }: { state: StoreState; active: string }): ReactNode {
   const theme = useTheme();
-  const session = active ? state.sessions.find((s) => s.id === active) : undefined;
-  const title = active ? (session?.title ?? "New session") : "Home";
-  const dir = shortPath(session?.directory ?? state.connection.directory);
-  const agent = state.agent;
-  const isPlan = agent === "plan";
+  const session = state.sessions.find((s) => s.id === active);
+  const stat = sessionDiffStat(state.messages[active] ?? []);
+  const changed = stat.additions + stat.deletions > 0;
   return (
-    <Box flexDirection="row" height={1} flexShrink={0} bg={theme.surface} paddingX={1} gap={1}>
-      <Text bold color={theme.accent} wrap="nowrap" flexShrink={0}>
-        ▼ opencode
-      </Text>
-      <ConnectionBadge state={state} />
-      <Text color={theme.border} wrap="nowrap" flexShrink={0}>
-        │
-      </Text>
+    <Box flexDirection="row" height={1} flexShrink={0} paddingX={2} gap={2}>
       <Text bold color={theme.fg} wrap="truncate-end" flexShrink={1}>
-        {title}
+        {session?.title || "New session"}
       </Text>
-      {dir ? (
-        <Text color={theme.subtle} wrap="truncate-start" flexShrink={2}>
-          {dir}
+      <Box flexGrow={1} />
+      {changed || stat.tokens > 0 ? (
+        <Text wrap="nowrap" flexShrink={0}>
+          {changed ? (
+            <>
+              <Text color={theme.success}>{`+${stat.additions}`}</Text>
+              <Text color={theme.danger}>{` -${stat.deletions}`}</Text>
+            </>
+          ) : null}
+          {stat.tokens > 0 ? <Text color={theme.subtle}>{`${changed ? " · " : ""}${compactNumber(stat.tokens)}`}</Text> : null}
         </Text>
       ) : null}
-      <Box flexGrow={1} />
-      <Text bg={isPlan ? theme.info : theme.accent} color={theme.accentFg} bold wrap="nowrap" flexShrink={0}>
-        {` ${agent} `}
-      </Text>
-      <Text bg={theme.elevated} color={theme.muted} wrap="nowrap" flexShrink={0}>
-        {` ${truncate(modelLabel(state.model), 26)} `}
-      </Text>
+      <ConnectionBadge state={state} />
     </Box>
   );
 }
@@ -164,20 +175,7 @@ function Sidebar({ state, active }: { state: StoreState; active: string | null }
         <Box flexGrow={1} />
         {busyCount > 0 ? <Text color={theme.accent} wrap="nowrap">{`${busyCount} running`}</Text> : null}
       </Box>
-      <Box flexDirection="row" height={1} paddingX={1} marginBottom={1}>
-        <Text color={theme.fg} wrap="nowrap">
-          ctrl+n
-        </Text>
-        <Text color={theme.subtle} wrap="nowrap">
-          {" new  "}
-        </Text>
-        <Text color={theme.fg} wrap="nowrap">
-          ctrl+g
-        </Text>
-        <Text color={theme.subtle} wrap="nowrap">
-          {" switch"}
-        </Text>
-      </Box>
+      <Box height={1} flexShrink={0} />
       {!state.sessionsLoaded && state.connection.status === "connecting" ? (
         <Box paddingX={1}>
           <Spinner variant="dots" label="loading…" />

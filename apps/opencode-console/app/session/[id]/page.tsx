@@ -36,7 +36,7 @@ export default function SessionPage({ params }: { params: Record<string, string 
 
   if (missing) {
     return (
-      <Box flexDirection="column" flexGrow={1} minHeight={0}>
+      <Box flexDirection="column" flexGrow={1} minHeight={0} paddingX={2}>
         <Box flexDirection="column" flexGrow={1} alignItems="center" justifyContent="center" gap={1}>
           <Text color={theme.danger} bold>{`Session ${id} not found`}</Text>
           <Text color={theme.subtle}>ctrl+n new session · ctrl+g switch session</Text>
@@ -47,8 +47,9 @@ export default function SessionPage({ params }: { params: Record<string, string 
   }
 
   return (
-    <Box flexDirection="column" flexGrow={1} minHeight={0}>
+    <Box flexDirection="column" flexGrow={1} minHeight={0} paddingX={2}>
       <Timeline messages={messages} options={options} busy={busy} loading={!loaded && messages.length === 0} />
+      <Box height={1} flexShrink={0} />
       <Composer busy={busy} onSubmit={(text) => void store.send(id, text)} />
     </Box>
   );

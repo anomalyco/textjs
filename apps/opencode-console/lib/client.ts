@@ -683,6 +683,15 @@ function normalizeUrl(input: string): string {
   return withScheme.replace(/\/+$/, "");
 }
 
+async function proxyAvailable(prefix: string): Promise<boolean> {
+  try {
+    const status = await createTransport(prefix, "").json<unknown>("GET", "/_status", undefined, 6000);
+    return typeof status === "object" && status !== null;
+  } catch {
+    return false;
+  }
+}
+
 /** Resolve a live OpenCode client, falling back to the interactive demo backend. */
 export async function connectOpenCode(options: ConnectOptions = {}): Promise<Connection> {
   const endpoint = options.endpoint === undefined ? savedEndpoint() : options.endpoint;
@@ -691,12 +700,18 @@ export async function connectOpenCode(options: ConnectOptions = {}): Promise<Con
   if (endpoint) {
     const url = normalizeUrl(endpoint);
     const label = hostLabel(url);
-    // Same-origin proxy first (avoids CORS and works for loopback servers), then direct.
-    if (typeof window !== "undefined" && window.location) {
+    // Loopback servers go through the same-origin proxy (`x-opencode-target`), so the
+    // browser never makes a cross-origin request; direct fetches are only a fallback
+    // for static previews that have no proxy.
+    if (typeof window !== "undefined" && window.location && isLoopbackEndpoint(url)) {
+      let proxied = false;
       for (const prefix of options.proxyPrefixes ?? PROXY_PREFIXES) {
+        if (!(await proxyAvailable(prefix))) continue;
+        proxied = true;
         const viaProxy = await detect(createTransport(prefix, label, { "x-opencode-target": url }), "custom");
         if (viaProxy) return { client: viaProxy, targetUrl: url };
       }
+      if (proxied) return { client: createDemoClient(), reason: `Couldn't reach ${label}`, targetUrl: url };
     }
     const direct = await detect(createTransport(url, label), "custom");
     if (direct) return { client: direct, targetUrl: url };

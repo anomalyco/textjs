@@ -1,7 +1,9 @@
 import { memo, type ReactNode } from "react";
-import { Box, Markdown, ScrollBox, Spinner, Text, useTheme } from "textjs";
-import { clock, compactNumber, duration } from "../lib/format";
-import type { AssistantMessage, ReasoningPart, SessionMessage, ShellMessage, UserMessage } from "../lib/types";
+import { Box, Markdown, ScrollBox, Text, useTheme } from "textjs";
+import { duration, modelLabel } from "../lib/format";
+import { useStoreState } from "../lib/store";
+import type { AssistantMessage, AssistantPart, ReasoningPart, SessionMessage, ShellMessage, UserMessage } from "../lib/types";
+import { agentColor, capitalize } from "./Composer";
 import { ToolCard } from "./ToolCard";
 
 export interface TimelineOptions {
@@ -10,16 +12,15 @@ export interface TimelineOptions {
   directory?: string;
 }
 
-const UserBubble = memo(function UserBubble({ msg }: { msg: UserMessage }): ReactNode {
+const UserBubble = memo(function UserBubble({ msg, agent }: { msg: UserMessage; agent: string }): ReactNode {
   const theme = useTheme();
   return (
-    <Box flexDirection="column" flexShrink={0} bg={theme.surface} border="heavy" borderTop={false} borderRight={false} borderBottom={false} borderColor={msg.pending ? theme.subtle : theme.accent} paddingX={1}>
-      <Text color={theme.fg} wrap="wrap">
-        {msg.text}
-      </Text>
-      <Text color={theme.subtle} wrap="nowrap">
-        {msg.pending ? "sending…" : clock(msg.time.created)}
-      </Text>
+    <Box flexDirection="column" flexShrink={0} border="heavy" borderTop={false} borderRight={false} borderBottom={false} borderColor={msg.pending ? theme.border : agentColor(theme, agent)}>
+      <Box flexDirection="column" flexShrink={0} bg={theme.panel} paddingX={1} paddingY={1}>
+        <Text color={theme.fg} wrap="wrap">
+          {msg.text}
+        </Text>
+      </Box>
     </Box>
   );
 });
@@ -28,55 +29,75 @@ function Thinking({ part, expanded, live }: { part: ReasoningPart; expanded: boo
   const theme = useTheme();
   const text = part.text.trim();
   const done = !live || part.time?.completed !== undefined;
-  const took = part.time?.completed && part.time.created ? ` · ${duration(part.time.completed - part.time.created)}` : "";
+  const label = !done ? "Thinking" : part.time?.completed && part.time.created ? `Thought for ${duration(part.time.completed - part.time.created)}` : "Thought";
   if (!expanded) {
     const preview = text.split("\n").filter(Boolean).pop() ?? "";
     return (
-      <Box flexDirection="row" height={1} flexShrink={0} paddingLeft={1}>
-        <Text color={theme.subtle} italic wrap="nowrap" flexShrink={0}>
-          {done ? `⟡ Thought${took}` : "⟡ Thinking…"}
+      <Box flexDirection="row" height={1} flexShrink={0} paddingLeft={3}>
+        <Text color={theme.muted} italic wrap="nowrap" flexShrink={0}>
+          {label}
         </Text>
-        <Text color={theme.subtle} dim italic wrap="truncate-end" flexShrink={1}>
+        <Text color={theme.subtle} italic wrap="truncate-end" flexShrink={1}>
           {preview ? `  ${preview}` : ""}
         </Text>
       </Box>
     );
   }
   return (
-    <Box flexDirection="column" flexShrink={0} border="single" borderTop={false} borderRight={false} borderBottom={false} borderColor={theme.subtle} paddingLeft={1}>
-      <Text color={theme.subtle} italic wrap="nowrap">
-        {done ? `⟡ Thought${took}` : "⟡ Thinking…"}
-      </Text>
-      <Text color={theme.muted} italic dim wrap="wrap">
-        {text || "…"}
-      </Text>
+    <Box flexDirection="column" flexShrink={0} paddingLeft={3}>
+      <Box flexDirection="column" flexShrink={0} border="heavy" borderTop={false} borderRight={false} borderBottom={false} borderColor={theme.border} paddingLeft={1}>
+        <Text color={theme.muted} italic wrap="nowrap">
+          {label}
+        </Text>
+        <Text color={theme.subtle} italic wrap="wrap">
+          {text || "…"}
+        </Text>
+      </Box>
+    </Box>
+  );
+}
+
+function Part({ part, prev, options, live }: { part: AssistantPart; prev: AssistantPart | undefined; options: TimelineOptions; live: boolean }): ReactNode {
+  const gap = prev === undefined || (prev.type === "tool" && part.type === "tool") ? 0 : 1;
+  let body: ReactNode;
+  if (part.type === "text") body = <Markdown content={part.text} paddingLeft={3} codeMaxHeight={options.toolDetails ? undefined : 24} />;
+  else if (part.type === "reasoning") body = <Thinking part={part} expanded={options.thinking} live={live} />;
+  else body = <ToolCard part={part} expanded={options.toolDetails} directory={options.directory} />;
+  return (
+    <Box flexDirection="column" flexShrink={0} marginTop={gap}>
+      {body}
     </Box>
   );
 }
 
 function Assistant({ msg, options, live }: { msg: AssistantMessage; options: TimelineOptions; live: boolean }): ReactNode {
   const theme = useTheme();
+  const models = useStoreState((s) => s.models);
   const took = msg.time.completed ? duration(msg.time.completed - msg.time.created) : "";
-  const tokens = msg.tokens ? `${compactNumber(msg.tokens.input + msg.tokens.output)} tok` : "";
+  const model = models.find((m) => m.id === msg.model.id && m.providerID === msg.model.providerID)?.name ?? modelLabel(msg.model);
+  const parts = msg.content.filter((p) => (p.type === "text" ? p.text.trim().length > 0 : p.type === "reasoning" ? p.text.trim().length > 0 || live : true));
   return (
-    <Box flexDirection="column" flexShrink={0} gap={1}>
-      {msg.content.map((p, i) => {
-        if (p.type === "text") return p.text.trim() ? <Markdown key={i} content={p.text} paddingLeft={1} codeMaxHeight={options.toolDetails ? undefined : 24} /> : null;
-        if (p.type === "reasoning") return p.text.trim() || live ? <Thinking key={i} part={p} expanded={options.thinking} live={live} /> : null;
-        return <ToolCard key={p.id || i} part={p} expanded={options.toolDetails} directory={options.directory} />;
-      })}
+    <Box flexDirection="column" flexShrink={0}>
+      {parts.map((p, i) => (
+        <Part key={p.type === "tool" ? p.id || i : i} part={p} prev={parts[i - 1]} options={options} live={live} />
+      ))}
+      {live && parts.length === 0 ? (
+        <Text color={theme.muted} italic paddingLeft={3}>
+          Thinking
+        </Text>
+      ) : null}
       {msg.error ? (
-        <Text color={theme.danger} wrap="wrap" paddingLeft={1}>
-          {`✗ ${msg.error.message}`}
+        <Text color={theme.danger} wrap="wrap" paddingLeft={3} marginTop={1}>
+          {msg.error.message}
         </Text>
       ) : null}
       {msg.time.completed && !live ? (
-        <Box flexDirection="row" height={1} paddingLeft={1}>
-          <Text color={msg.agent === "plan" ? theme.info : theme.accent} wrap="nowrap">
+        <Box flexDirection="row" height={1} paddingLeft={3} marginTop={1}>
+          <Text color={agentColor(theme, msg.agent)} wrap="nowrap">
             ▣{" "}
           </Text>
           <Text color={theme.subtle} wrap="truncate-end">
-            {[msg.agent, msg.model.id, took, tokens].filter(Boolean).join(" · ")}
+            {[capitalize(msg.agent), model, took].filter(Boolean).join(" · ")}
           </Text>
         </Box>
       ) : null}
@@ -87,14 +108,14 @@ function Assistant({ msg, options, live }: { msg: AssistantMessage; options: Tim
 function Shell({ msg }: { msg: ShellMessage }): ReactNode {
   const theme = useTheme();
   return (
-    <Box flexDirection="column" flexShrink={0} bg={theme.panel} paddingX={1}>
+    <Box flexDirection="column" flexShrink={0} paddingLeft={3}>
       <Text wrap="truncate-end">
-        <Text color={theme.accent}>$ </Text>
+        <Text color={theme.muted}>$ </Text>
         <Text color={theme.fg}>{msg.command}</Text>
         <Text color={theme.subtle}>{`  ${msg.status}`}</Text>
       </Text>
       {msg.output ? (
-        <Text color={theme.muted} wrap="wrap">
+        <Text color={theme.subtle} wrap="wrap" paddingLeft={2}>
           {msg.output.split("\n").slice(-6).join("\n")}
         </Text>
       ) : null}
@@ -102,11 +123,12 @@ function Shell({ msg }: { msg: ShellMessage }): ReactNode {
   );
 }
 
-function Message({ msg, options, live }: { msg: SessionMessage; options: TimelineOptions; live: boolean }): ReactNode {
+function Message({ msg, next, options, live }: { msg: SessionMessage; next: SessionMessage | undefined; options: TimelineOptions; live: boolean }): ReactNode {
   const theme = useTheme();
+  const agent = useStoreState((s) => s.agent);
   switch (msg.type) {
     case "user":
-      return <UserBubble msg={msg} />;
+      return <UserBubble msg={msg} agent={next?.type === "assistant" ? next.agent : agent} />;
     case "assistant":
       return <Assistant msg={msg} options={options} live={live} />;
     case "shell":
@@ -114,8 +136,8 @@ function Message({ msg, options, live }: { msg: SessionMessage; options: Timelin
     case "note": {
       const color = msg.tone === "danger" ? theme.danger : msg.tone === "warning" ? theme.warning : msg.tone === "info" ? theme.info : theme.subtle;
       return (
-        <Text color={color} italic wrap="truncate-end" paddingLeft={1}>
-          {`── ${msg.text} ──`}
+        <Text color={color} italic wrap="truncate-end" paddingLeft={3}>
+          {msg.text}
         </Text>
       );
     }
@@ -129,17 +151,20 @@ export function Timeline({ messages, options, busy, loading }: { messages: reado
     return null;
   })();
   return (
-    <ScrollBox stickyScroll flexGrow={1} paddingX={2} paddingTop={1} gap={1} focused scrollbarColor={theme.subtle}>
-      {loading ? <Spinner variant="dots" label="Loading session…" /> : null}
-      {!loading && messages.length === 0 ? (
-        <Text color={theme.subtle} italic>
-          No messages yet — type a prompt below.
+    <ScrollBox stickyScroll showScrollbar={false} flexGrow={1} paddingTop={1} gap={1} focused>
+      {loading ? (
+        <Text color={theme.muted} italic paddingLeft={3}>
+          Loading…
         </Text>
       ) : null}
-      {messages.map((m) => (
-        <Message key={m.id} msg={m} options={options} live={busy && m.id === lastAssistant && m.type === "assistant" && !m.time.completed} />
+      {!loading && messages.length === 0 ? (
+        <Text color={theme.subtle} paddingLeft={3}>
+          No messages yet.
+        </Text>
+      ) : null}
+      {messages.map((m, i) => (
+        <Message key={m.id} msg={m} next={messages[i + 1]} options={options} live={busy && m.id === lastAssistant && m.type === "assistant" && !m.time.completed} />
       ))}
-      <Box height={1} flexShrink={0} />
     </ScrollBox>
   );
 }

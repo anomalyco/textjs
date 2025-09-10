@@ -100,7 +100,7 @@ export class OpenCodeStore {
       models: [],
       agent: "build",
       model: null,
-      ui: { sidebar: true, toolDetails: false, thinking: false },
+      ui: { sidebar: false, toolDetails: false, thinking: false },
       toast: null,
     };
   }

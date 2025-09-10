@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 import { AppRouter, createMemoryHistory, type RouteManifest, type RouteModule, type RouteSegmentNode } from "textjs/router";
 import { scanApp, toStaticManifest } from "textjs/vite";
 import { createDemoClient } from "../lib/demo";
-import { isLoopbackEndpoint, parseV2Event, readSse } from "../lib/client";
-import { OpenCodeStore, resetOpenCodeStore } from "../lib/store";
+import { connectOpenCode, isLoopbackEndpoint, parseV2Event, readSse } from "../lib/client";
+import { getOpenCodeStore, OpenCodeStore, resetOpenCodeStore } from "../lib/store";
 import type { AssistantMessage, ToolPart } from "../lib/types";
 import { createOpencodeProxy, normalizeTargetUrl, opencodeDevMiddleware } from "../server/opencode-proxy";
 import { createTestRoot, type TestRoot } from "./helpers";
@@ -48,7 +48,7 @@ async function mount(path = "/") {
   const history = createMemoryHistory(path);
   t = await createTestRoot({ width: 112, height: 34, theme: "opencodeDark", onCaughtError: (e) => console.error(e) });
   await t.render(<AppRouter routes={routes} history={history} theme="opencodeDark" errorStore={null} documentTitle={false} />);
-  await t.waitFor(() => t?.frame().includes("Investigate flaky CI"), "sessions from the server");
+  await t.waitFor(() => getOpenCodeStore().getSnapshot().sessionsLoaded && getOpenCodeStore().getSnapshot().models.length > 0, "sessions from the server");
   await mock.waitForSubscriber();
   return { t, history };
 }
@@ -56,21 +56,23 @@ async function mount(path = "/") {
 const requested = (method: string, prefix: string): boolean => mock.requests.some((r) => r.method === method && r.path.startsWith(prefix));
 
 describe("OpenCode Lite console app (live V2 server)", () => {
-  test("home: brand, connection badge, agent/model pills and the session list from the server", async () => {
+  test("home: two-tone logo, split-border prompt with metadata, quiet status bar", async () => {
     const { t } = await mount("/");
+    await t.waitFor(() => t.frame().includes("Claude Opus 5.5"), "model metadata");
     const frame = t.frame();
-    expect(frame).toContain("Refactor auth middleware");
-    expect(frame).toContain("▼ opencode");
-    expect(frame).toContain("▼ OPENCODE Lite");
+    expect(frame).toContain("█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█");
+    expect(frame).toContain('┃  Ask anything... "Fix broken tests"');
+    expect(frame).toContain("Build · Claude Opus 5.5 Anthropic");
+    expect(frame).toContain("tab plan · ctrl+p commands");
+    expect(frame).toContain("╹▀▀▀");
     expect(frame).toContain(`● connected · localhost:${new URL(mock.url).port}`);
-    expect(frame).toContain(" build ");
-    expect(frame).toContain("claude-opus-5-5");
-    expect(frame).toContain("SESSIONS 2");
-    expect(frame).toContain("Refactor auth middleware");
-    expect(frame).toContain("Investigate flaky CI");
-    expect(frame).toContain("Recent sessions");
-    expect(frame).toContain("ctrl+p  command palette");
+    expect(frame).toContain("ctrl+p sessions");
     expect(frame).toContain("~/code/storefront");
+    expect(frame).not.toContain("SESSIONS");
+    // The logo's shadow cells are tinted toward the glyph color.
+    const row = frame.split("\n").findIndex((l) => l.includes("█  █ █  █ █▀▀▀"));
+    const col = (frame.split("\n")[row] ?? "").indexOf("█  █") + 1;
+    expect(t.root.renderer.buffer.getCell(col, row)?.bg).not.toBe(0);
     expect(requested("GET", "/api/info")).toBe(true);
     expect(requested("GET", "/api/session")).toBe(true);
     expect(requested("GET", "/api/agent")).toBe(true);
@@ -78,11 +80,21 @@ describe("OpenCode Lite console app (live V2 server)", () => {
 
     // Tab cycles build ↔ plan.
     await t.press("Tab");
-    expect(t.frame()).toContain(" plan ");
+    expect(t.frame()).toContain("Plan · Claude Opus 5.5");
+    expect(t.frame()).toContain("tab build");
     await t.press("Tab");
-    expect(t.frame()).toContain(" build ");
+    expect(t.frame()).toContain("Build · Claude Opus 5.5");
 
-    // Ctrl+B collapses the session rail.
+    // Typing never changes the prompt's height.
+    const before = t.frame().split("\n").findIndex((l) => l.includes("Build · Claude"));
+    await t.type("x");
+    expect(t.frame().split("\n").findIndex((l) => l.includes("Build · Claude"))).toBe(before);
+    await t.press("Backspace");
+
+    // Ctrl+B toggles the optional session rail (off by default).
+    await t.press("b", { ctrlKey: true });
+    await t.settle();
+    expect(t.frame()).toContain("SESSIONS 2");
     await t.press("b", { ctrlKey: true });
     await t.settle();
     expect(t.frame()).not.toContain("SESSIONS 2");
@@ -108,8 +120,8 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     mock.emit({ type: "session.step.started", data: { ...base, agent: "build", model: { id: "claude-opus-5-5", providerID: "anthropic" }, started: Date.now() } });
     mock.emit({ type: "session.reasoning.started", data: { ...base, ordinal: 0 } });
     mock.emit({ type: "session.reasoning.delta", data: { ...base, ordinal: 0, delta: "Need a token bucket per IP." } });
-    await t.waitFor(() => t.frame().includes("⟡ Thinking…"), "thinking block");
-    expect(t.frame()).toContain("Generating… (Esc to interrupt)");
+    await t.waitFor(() => t.frame().includes("Thinking  Need a token bucket per IP."), "thinking block");
+    expect(t.frame()).toContain("esc interrupt");
 
     mock.emit({ type: "session.reasoning.ended", data: { ...base, ordinal: 0, text: "Need a token bucket per IP." } });
     mock.emit({ type: "session.tool.input.started", data: { ...base, id: "call_edit", name: "edit" } });
@@ -117,11 +129,11 @@ describe("OpenCode Lite console app (live V2 server)", () => {
       type: "session.tool.called",
       data: { ...base, id: "call_edit", executed: true, input: { path: "src/middleware.ts", oldString: "export const limit = 10;\n", newString: "export const limit = 100;\nexport const windowMs = 60_000;\n" } },
     });
-    await t.waitFor(() => t.frame().includes("running"), "running tool");
+    await t.waitFor(() => t.frame().includes("← Edit src/middleware.ts"), "running tool");
     mock.emit({ type: "session.tool.success", data: { ...base, id: "call_edit", executed: true, content: [{ type: "text", text: "Edit applied." }] } });
-    await t.waitFor(() => t.frame().includes("✓"), "completed tool");
+    await t.waitFor(() => t.frame().includes("Thought"), "completed reasoning");
     let frame = t.frame();
-    expect(frame).toContain("✎ edit src/middleware.ts");
+    expect(frame).toContain("← Edit src/middleware.ts");
     expect(frame).toContain("- export const limit = 10;");
     expect(frame).toContain("+ export const limit = 100;");
     expect(frame).toContain("+2 -1");
@@ -159,8 +171,8 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     mock.emit({ type: "session.step.ended", data: { ...base, finish: "stop", cost: 0.02, tokens: { input: 1200, output: 300, reasoning: 20, cache: { read: 0, write: 0 } } } });
     mock.emit({ type: "session.execution.interrupted", data: { sessionID, reason: "user" } });
     mock.emit({ type: "session.status", data: { sessionID, status: { type: "idle" } } });
-    await t.waitFor(() => !t.frame().includes("Generating…"), "idle footer");
-    expect(t.frame()).toContain("▣ build · claude-opus-5-5");
+    await t.waitFor(() => !t.frame().includes("esc interrupt"), "idle footer");
+    expect(t.frame()).toContain("▣ Build · Claude Opus 5.5");
 
     // Idle: no further frames without changes.
     const idleLogs = t.console.logs.length;
@@ -174,10 +186,10 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     await t.waitFor(() => t.frame().includes("It lives in src/middleware.ts."), "session timeline");
     const frame = t.frame();
     expect(frame).toContain("Where is the auth middleware?");
-    expect(frame).toContain("✱ grep authMiddleware");
+    expect(frame).toContain('* Grep "authMiddleware" in src');
     expect(frame).toContain("1 matches");
 
-    const before = t.root.renderer.buffer.getCell(1, 0);
+    const before = t.root.renderer.buffer.getCell(2, 0);
     await t.press("p", { ctrlKey: true });
     await t.settle();
     const open = t.frame();
@@ -185,7 +197,7 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     expect(open).toContain("New session");
     expect(open).toContain("Switch model…");
     expect(open).toContain("Toggle theme");
-    const after = t.root.renderer.buffer.getCell(1, 0);
+    const after = t.root.renderer.buffer.getCell(2, 0);
     expect(after?.char).toBe(before?.char);
     expect(after?.fg).not.toBe(before?.fg);
 
@@ -336,6 +348,29 @@ describe("dev proxy (/__opencode)", () => {
     });
     await readSse(new Response(body2), (d) => events2.push(d));
     expect(events2).toEqual([{ a: 1 }, 2]);
+  });
+
+  test("custom loopback servers are reached through the same-origin proxy, never cross-origin", async () => {
+    const g = globalThis as { window?: unknown; fetch: typeof fetch };
+    const realFetch = g.fetch;
+    const calls: Array<{ url: string; target: string | null }> = [];
+    g.window = { location: { origin: "http://localhost:3001", search: "" } };
+    g.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      calls.push({ url, target: new Headers(init?.headers).get("x-opencode-target") });
+      if (url === "/__opencode/_status") return Response.json({ connected: true, targetUrl: "http://127.0.0.1:49374", mode: "service" });
+      if (url === "/__opencode/api/info") return Response.json({ version: "2.0.0" });
+      return new Response("nope", { status: 404 });
+    }) as typeof fetch;
+    try {
+      const conn = await connectOpenCode({ endpoint: "http://127.0.0.1:4096" });
+      expect(conn.client.kind).toBe("v2");
+      expect(calls.some((c) => c.url.startsWith("http://127.0.0.1:4096"))).toBe(false);
+      expect(calls.find((c) => c.url === "/__opencode/api/info")?.target).toBe("http://127.0.0.1:4096");
+    } finally {
+      g.fetch = realFetch;
+      delete g.window;
+    }
   });
 
   test("?server= only accepts loopback hosts", () => {

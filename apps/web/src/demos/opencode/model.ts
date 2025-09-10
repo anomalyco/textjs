@@ -14,6 +14,8 @@ export interface TextPart {
 export interface ReasoningPart {
   type: "reasoning";
   text: string;
+  /** Thinking time once finished. */
+  ms?: number;
 }
 
 export interface ToolPart {
@@ -28,6 +30,8 @@ export interface ToolPart {
   diff?: { before: string; after: string; filename: string };
   /** Command output for `shell` / `grep` cards. */
   output?: string;
+  /** Raw tool input (live sessions). */
+  input?: Record<string, unknown>;
 }
 
 export type Part = TextPart | ReasoningPart | ToolPart;
@@ -51,6 +55,7 @@ export interface Session {
   live?: boolean;
   /** Pre-loaded sandbox history; new prompts start a fresh session. */
   demo?: boolean;
+  directory?: string;
 }
 
 export type Step =
@@ -96,7 +101,7 @@ export default function Page() {
 }
 `;
 
-const SSE_BEFORE = `export function connect(url: string, onEvent: (e: Event) => void) {
+const FIX_BEFORE = `export function connect(url: string, onEvent: (e: Event) => void) {
   const source = new EventSource(url);
   source.onmessage = (m) => onEvent(JSON.parse(m.data));
   source.onerror = () => source.close();
@@ -104,20 +109,14 @@ const SSE_BEFORE = `export function connect(url: string, onEvent: (e: Event) => 
 }
 `;
 
-const SSE_AFTER = `export function connect(url: string, onEvent: (e: Event) => void) {
-  let source: EventSource | null = null;
-  let retry = 250;
-  const open = () => {
-    source = new EventSource(url);
-    source.onopen = () => (retry = 250);
-    source.onmessage = (m) => onEvent(JSON.parse(m.data));
-    source.onerror = () => {
-      source?.close();
-      setTimeout(open, (retry = Math.min(retry * 2, 8_000)));
-    };
+const FIX_AFTER = `export function connect(url: string, onEvent: (e: Event) => void) {
+  const source = new EventSource(url);
+  source.onmessage = (m) => onEvent(JSON.parse(m.data));
+  source.onerror = () => {
+    source.close();
+    setTimeout(() => connect(url, onEvent), 250);
   };
-  open();
-  return () => source?.close();
+  return () => source.close();
 }
 `;
 
@@ -159,7 +158,7 @@ export function scriptFor(prompt: string, agent: Agent): Step[] {
   if (agent === "plan") {
     return [
       { kind: "think", ms: 700, text: "Reading the app/ tree before proposing changes (plan mode is read-only)." },
-      { kind: "tool", ms: 600, part: { type: "tool", tool: "glob", title: "app/**/*.tsx", status: "completed", output: "app/layout.tsx\napp/page.tsx\napp/sessions/[id]/page.tsx\napp/sessions/[id]/loading.tsx\napp/settings/page.tsx" } },
+      { kind: "tool", ms: 600, part: { type: "tool", tool: "glob", title: '"app/**/*.tsx"', status: "completed", output: "app/layout.tsx\napp/page.tsx\napp/sessions/[id]/page.tsx\napp/sessions/[id]/loading.tsx\napp/settings/page.tsx" } },
       {
         kind: "text",
         text: `Here's how I'd approach **${topic}** — no files will be changed in \`plan\` mode.
@@ -175,24 +174,13 @@ Press \`tab\` to switch to **build** and I'll implement it.`,
   }
   if (/test|fail|flak|bug|fix|error|crash|reconnect/.test(p)) {
     return [
-      { kind: "think", ms: 900, text: "The failure is intermittent, which smells like a reconnect race in the SSE client." },
-      { kind: "text", text: "Let me find where the event stream is opened." },
-      { kind: "tool", ms: 500, part: { type: "tool", tool: "grep", title: "new EventSource", status: "completed", output: "lib/events.ts:2:  const source = new EventSource(url);\ntest/events.test.ts:14:  // reconnects after server restart" } },
-      { kind: "tool", ms: 450, part: { type: "tool", tool: "read", title: "lib/events.ts", status: "completed", code: SSE_BEFORE, language: "ts" } },
-      { kind: "text", text: "The client closes on the first `onerror` and never retries. I'll add exponential backoff and reset it on `onopen`." },
-      { kind: "tool", ms: 700, part: { type: "tool", tool: "edit", title: "lib/events.ts", status: "completed", diff: { before: SSE_BEFORE, after: SSE_AFTER, filename: "lib/events.ts" } } },
-      {
-        kind: "tool",
-        ms: 1400,
-        part: {
-          type: "tool",
-          tool: "shell",
-          title: "bun test test/events.test.ts",
-          status: "completed",
-          output: "bun test v1.3.0\n\ntest/events.test.ts:\n✓ connects and parses events [3.12ms]\n✓ reconnects after server restart [251.40ms]\n✓ backs off up to 8s [0.41ms]\n\n 3 pass\n 0 fail\nRan 3 tests across 1 file. [262.00ms]",
-        },
-      },
-      { kind: "text", text: "Fixed. `connect()` now retries with backoff (250ms → 8s) and resets after a successful `onopen`. All **3** tests pass, including the previously flaky reconnect case." },
+      { kind: "think", ms: 1200, text: "Intermittent failure, likely a reconnect race in the SSE client." },
+      { kind: "tool", ms: 500, part: { type: "tool", tool: "grep", title: '"EventSource" in src/', status: "completed", output: "src/events.ts:2:  const source = new EventSource(url);" } },
+      { kind: "tool", ms: 450, part: { type: "tool", tool: "read", title: "src/events.ts", status: "completed", code: FIX_BEFORE, language: "ts" } },
+      { kind: "text", text: "The client closes on the first `onerror` and never reconnects. I'll retry instead." },
+      { kind: "tool", ms: 700, part: { type: "tool", tool: "edit", title: "src/events.ts", status: "completed", diff: { before: FIX_BEFORE, after: FIX_AFTER, filename: "src/events.ts" } } },
+      { kind: "tool", ms: 1400, part: { type: "tool", tool: "shell", title: "bun test test/events.test.ts", status: "completed", output: "3 pass, 0 fail" } },
+      { kind: "text", text: "Fixed. `connect()` now reconnects after an error. All **3** tests pass, including the flaky one." },
     ];
   }
   if (/dark|theme|light|color|style/.test(p)) {
@@ -269,7 +257,7 @@ If nothing changed, nothing is logged. That's why an idle app costs **0** consol
 export function partsFromSteps(steps: readonly Step[]): Part[] {
   const parts: Part[] = [];
   for (const s of steps) {
-    if (s.kind === "think") parts.push({ type: "reasoning", text: s.text });
+    if (s.kind === "think") parts.push({ type: "reasoning", text: s.text, ms: s.ms });
     else if (s.kind === "text") parts.push({ type: "text", text: s.text });
     else parts.push({ ...s.part, status: "completed" });
   }
@@ -285,7 +273,7 @@ function convo(prompt: string, agent: Agent, model: string, durationMs: number, 
 
 export function initialSessions(): Session[] {
   const list: Session[] = [
-    { id: "ses_fix_sse", title: "Fix flaky SSE reconnect test", updated: "2m ago", messages: convo("The events reconnect test fails ~1 in 5 runs. Can you fix it?", "build", "anthropic/claude-opus-5-5", 18_400, 12_840) },
+    { id: "ses_fix_sse", title: "Fix flaky SSE reconnect test", updated: "2m ago", messages: convo("The events reconnect test fails ~1 in 5 runs. Can you fix it?", "build", "anthropic/claude-opus-5-5", 18_400, 12_400) },
     { id: "ses_dark", title: "Add theme toggle to settings", updated: "1h ago", messages: convo("Add a dark/light theme toggle to the settings page", "build", "openai/gpt-5-codex", 9_100, 6_210) },
     { id: "ses_rle", title: "Explain the Turbolog RLE encoder", updated: "yesterday", messages: convo("How does Turbolog get a whole frame into one console.log?", "build", "anthropic/claude-opus-5-5", 6_700, 4_022) },
     { id: "ses_plan", title: "Plan: sessions/[id] loading state", updated: "2d ago", messages: convo("Add a loading state to sessions/[id]", "plan", "opencode/grok-code", 4_300, 3_310) },
@@ -294,7 +282,7 @@ export function initialSessions(): Session[] {
 }
 
 export const EXAMPLE_PROMPTS = [
-  "Fix the flaky reconnect test in lib/events.ts",
+  "Fix the flaky reconnect test in src/events.ts",
   "Add a dark mode toggle to settings",
   "Explain how console.log renders a whole frame",
   "Build a sessions list on the home page",
