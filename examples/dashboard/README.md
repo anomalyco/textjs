@@ -1,4 +1,4 @@
-# ▼ Vershell Console — Text.js dashboard example
+# ▼ Edge Console — Text.js dashboard example
 
 A multi-route App Router showcase that renders entirely inside your browser's DevTools Console.
 
