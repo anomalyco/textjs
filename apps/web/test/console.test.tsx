@@ -25,15 +25,16 @@ describe("console companion (104×32)", () => {
     await site(() => siteStore.reset());
   });
 
-  test("boots on the Home tab with brand, counter and route indicator", async () => {
+  test("boots on the Home tab with brand, counter and theme picker", async () => {
     await site(() => siteStore.syncRoute("/"));
     h = await mount(<CompanionApp />, { cols: 104, rows: 32, tabFocus: false });
     const f = h.frame();
     expect(f).toContain("▼ Text.js");
     expect(f).toContain("1 Home");
     expect(f).toContain("5 Snake");
-    expect(f).toContain("The Console Framework for the Web.");
-    expect(f).toContain("usePathname");
+    expect(f).toContain("React 19 in console.log");
+    expect(f).toContain("useState");
+    expect(f).not.toContain("spans");
     expect(f).not.toContain("▲");
   });
 
@@ -87,22 +88,33 @@ describe("console companion (104×32)", () => {
     expect(h.frame()).not.toContain("snake · 60fps");
   });
 
-  test("OpenCode tab streams a scripted agent response for any prompt", async () => {
+  test("OpenCode tab: session view, home logo, agent switch and streamed sandbox response", async () => {
     if (!h) throw new Error("companion not mounted");
     await site(() => siteStore.syncRoute("/opencode"));
     let f = h.frame();
-    expect(f).toContain("opencode");
-    expect(f).toContain("Sessions");
-    expect(f).toContain("build");
+    expect(f).toContain("Fix flaky SSE reconnect test");
+    expect(f).toContain("← Edit src/events.ts");
+    expect(f).toContain("$ bun test test/events.test.ts");
+    expect(f).toContain("Build · Claude Opus 5.5 Anthropic");
+    expect(f).toContain("tab plan · ctrl+p commands");
+    expect(f).not.toContain("Sessions");
+    await h.key("n", { ctrl: true });
+    f = h.frame();
+    expect(f).toContain("█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█");
+    expect(f).toContain('Ask anything... "Fix broken tests"');
+    expect(f).toContain("ctrl+p sessions");
     await h.key("tab");
-    expect(h.frame()).toContain(" plan ");
+    expect(h.frame()).toContain("Plan · Claude Opus 5.5");
     await h.key("tab");
+    const rows = h.frame().split("\n").length;
     await h.type("explain the renderer");
     expect(h.frame()).toContain("explain the renderer");
+    expect(h.frame().split("\n").length).toBe(rows);
     await h.key("return");
     await h.wait(1200);
     f = h.frame();
-    expect(f).toContain("Thinking:");
+    expect(f).toContain("explain the renderer");
+    expect(f).toMatch(/Thinking|Thought for/);
     await h.key("p", { ctrl: true });
     f = h.frame();
     expect(f).toContain("Commands");

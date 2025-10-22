@@ -67,7 +67,7 @@ export function useSandbox(app: ReactNode, { cols, rows, theme, wireframe = fals
     if (!mounted) return;
     let cancelled = false;
     let created: ConsoleRoot | null = null;
-    let raf = 0;
+    let queued = false;
     const capture = new CaptureConsole();
     createConsoleRoot({
       width: initial.current.cols,
@@ -85,13 +85,18 @@ export function useSandbox(app: ReactNode, { cols, rows, theme, wireframe = fals
           return;
         }
         created = r;
+        let latest: FrameResult | null = null;
         r.onFrame((f) => {
-          if (f.skipped || raf !== 0) return;
-          raf = requestAnimationFrame(() => {
-            raf = 0;
-            if (r.unmounted) return;
+          if (f.skipped) return;
+          latest = f;
+          if (queued) return;
+          // Microtask, not rAF: the mirror updates in the same task as the keypress.
+          queued = true;
+          queueMicrotask(() => {
+            queued = false;
+            if (cancelled || r.unmounted) return;
             setFrame(extractStyledFrame(r.renderer.buffer));
-            setStats(f);
+            setStats(latest);
             setLog(capture.last);
           });
         });
@@ -101,7 +106,6 @@ export function useSandbox(app: ReactNode, { cols, rows, theme, wireframe = fals
     );
     return () => {
       cancelled = true;
-      if (raf !== 0) cancelAnimationFrame(raf);
       created?.unmount();
       setRoot(null);
     };

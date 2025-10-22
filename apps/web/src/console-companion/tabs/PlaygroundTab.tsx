@@ -7,7 +7,6 @@ import { useSite } from "../useSite";
 export function PlaygroundTab(): ReactNode {
   const theme = useTheme();
   const site = useSite();
-  const preset = PRESETS.find((p) => p.id === site.preset) ?? PRESETS[0];
 
   useInput((e) => {
     if (e.input === "[" || e.input === "]") {
@@ -29,11 +28,8 @@ export function PlaygroundTab(): ReactNode {
           shortcuts={false}
         />
       </Box>
-      <Text color="subtle" wrap="truncate-end">
-        {`${preset?.description ?? ""}  · synced with textjs.org/playground`}
-      </Text>
       <Box className="flex-col grow border rounded mt-1" borderColor={theme.border} title={` ${site.playgroundTitle} `} titleColor={theme.muted} overflow="hidden">
-        <PresetView preset={site.preset} title={site.playgroundTitle} reserveRows={9} />
+        <PresetView preset={site.preset} title={site.playgroundTitle} reserveRows={7} />
       </Box>
     </Box>
   );

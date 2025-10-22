@@ -25,7 +25,7 @@ describe("router", () => {
   });
 
   test("titles", () => {
-    expect(titleFor({ name: "home" })).toBe("Text.js by Vershell — The Console Framework for the Web");
+    expect(titleFor({ name: "home" })).toBe("Text.js — The Console Framework");
     expect(titleFor({ name: "docs", slug: "routing" })).toBe("Routing | Text.js Docs");
     expect(titleFor({ name: "not-found" })).toContain("404");
   });
@@ -48,19 +48,18 @@ describe("router", () => {
 describe("page rendering", () => {
   test("landing page", () => {
     const html = renderToStaticMarkup(<RouteView route={{ name: "home" }} />);
-    expect(html).toContain("The Console Framework for the Web");
-    expect(html).toContain("Introducing Text.js 0.2 (Turbolog)");
-    expect(html).toContain("bunx create-text-app@latest");
-    expect(html).toContain("app/sessions/[id]/page.tsx");
+    expect(html).toContain("The Console Framework");
+    expect(html).toContain("Build interactive React apps rendered entirely inside");
+    expect(html).toContain("bunx create-text-app");
+    expect(html).toContain("app/page.tsx");
+    expect(html).toContain("app/layout.tsx");
     expect(html).toContain("text.config.ts");
     expect(html).toContain("text://viewport:1");
-    expect(html).toContain("Not a video.");
-    for (const card of ["Inverted Architecture", "Turbolog %c RLE Engine", "File-System App Router", "Yoga WASM Flexbox", "100/100 Lighthouse by Default", "In-Console [▼] DevTools"]) {
-      expect(html).toContain(card.replace("&", "&amp;"));
-    }
-    expect(html).toContain("How Turbolog works");
-    expect(html).toContain("DOM Frameworks (Next.js)");
-    expect(html).toContain("OpenCode, in console.log.");
+    expect(html).toContain("this app is live in your console.");
+    for (const card of ["App Router", "Yoga Flexbox", "Zero DOM"]) expect(html).toContain(card);
+    expect(html).toContain("OpenCode in console.log");
+    expect(html).toContain("Explore OpenCode");
+    for (const gone of ["Introducing Text.js", "How Turbolog works", "DOM Frameworks (Next.js)", "Render down."]) expect(html).not.toContain(gone);
     expect(html).not.toContain("▲");
   });
 
@@ -75,22 +74,32 @@ describe("page rendering", () => {
 
   test("playground, opencode, showcase and 404", () => {
     const pg = renderToStaticMarkup(<RouteView route={{ name: "playground" }} />);
+    expect(pg).toContain("Edit props, switch themes, and inspect the raw");
     for (const label of ["Counter &amp; State", "Server Dashboard", "Form &amp; Inputs", "Streaming Markdown &amp; Diff", "Console Snake", "RLE Inspector", "80×24", "100×32", "120×38", "amberCrt"]) {
       expect(pg).toContain(label);
     }
     const oc = renderToStaticMarkup(<RouteView route={{ name: "opencode" }} />);
-    expect(oc).toContain("Connect to Local OpenCode Server");
-    expect(oc).toContain("bunx create-text-app my-opencode --template opencode");
+    expect(oc).toContain("Connect Local Server");
+    expect(oc).toContain("http://127.0.0.1:4096");
+    expect(oc).toContain("bunx textjs proxy");
+    expect(oc).toContain("Bridges your local opencode daemon with CORS headers on :4096.");
+    expect(oc).not.toContain("Keyboard");
     const sc = renderToStaticMarkup(<RouteView route={{ name: "showcase" }} />);
-    expect(sc).toContain("Built with Text.js");
+    expect(sc).toContain("Live console apps rendered by Text.js.");
+    for (const t of ["OpenCode Lite", "Edge Console", "Console Snake", "Streaming Markdown"]) expect(sc).toContain(t);
     const nf = renderToStaticMarkup(<RouteView route={{ name: "not-found" }} />);
     expect(nf).toContain("404");
   });
 
   test("header and footer", () => {
     const header = renderToStaticMarkup(<Header />);
-    for (const s of ["Text.js", "1.0", "Docs", "Playground", "OpenCode", "Showcase", "Search documentation", "Live in Console"]) expect(header).toContain(s);
+    expect(header).not.toContain("github.com");
+    for (const s of ["Text.js", "Docs", "Playground", "OpenCode", "Showcase", "Search", "⌘K"]) expect(header).toContain(s);
+    expect(header).not.toContain("Live in Console");
+    expect(header).not.toContain(">1.0<");
     const footer = renderToStaticMarkup(<Footer />);
-    for (const s of ["Resources", "Framework", "Engine", "Community", "▼ Elmore Inc. — Deployed downward into console.log"]) expect(footer).toContain(s);
+    for (const s of ["Anomaly", "anomaly-signature.svg", "Docs", "Playground", "OpenCode", "Showcase"]) expect(footer).toContain(s);
+    expect(footer).not.toContain("GitHub");
+    expect(footer).not.toContain("Community");
   });
 });

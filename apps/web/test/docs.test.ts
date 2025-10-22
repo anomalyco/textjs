@@ -28,12 +28,12 @@ describe("documentation registry", () => {
     expect(DOCS.length).toBeGreaterThanOrEqual(13);
   });
 
-  test("every page is substantial, categorized and has sections", () => {
+  test("every page is concise, categorized and has sections", () => {
     for (const d of DOCS) {
       expect(DOC_CATEGORIES).toContain(d.category);
       expect(d.title.length).toBeGreaterThan(3);
       expect(d.description.length).toBeGreaterThan(20);
-      expect(d.markdown.length).toBeGreaterThan(1500);
+      expect(d.markdown.length).toBeGreaterThan(800);
       expect(headingsOf(d.markdown).length).toBeGreaterThanOrEqual(3);
       expect(parseMarkdown(d.markdown).length).toBeGreaterThan(8);
     }

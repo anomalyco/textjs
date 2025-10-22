@@ -11,7 +11,6 @@ import streamingSource from "../demos/Streaming.tsx?raw";
 import snakeSource from "../demos/Snake.tsx?raw";
 import { SandboxConsole } from "../sandbox/SandboxConsole";
 import { useSandbox, type CapturedLog } from "../sandbox/useSandbox";
-import { devtoolsShortcut } from "../site/Chrome";
 import { CopyButton } from "../site/CodeBlock";
 import { HighlightedCode } from "../site/highlight";
 
@@ -63,21 +62,17 @@ function cssColor(css: string, prop: "background" | "color"): string | undefined
   return m ? (m[1] as string).trim() : undefined;
 }
 
-function Inspector({ log, totalMs, dirtyRows }: { log: CapturedLog | null; totalMs: number; dirtyRows: number }): ReactNode {
-  const [open, setOpen] = useState(true);
+function Inspector({ log, totalMs }: { log: CapturedLog | null; totalMs: number }): ReactNode {
+  const [open, setOpen] = useState(false);
   const snippet = useMemo(() => (log ? `console.log(${JSON.stringify(log.format)}, ...${JSON.stringify(log.args)});` : ""), [log]);
   return (
     <div className="inspector">
       <button type="button" className="inspector-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <span>{open ? "▾" : "▸"}</span>
         <b>RLE Inspector</b>
-        <span className="subtle">the exact console.log call for the last frame</span>
         <span className="meta">
-          <span>{log ? `${log.args.length} %c spans` : "—"}</span>
-          <span>{log ? `${log.format.length.toLocaleString()} chars` : ""}</span>
-          <span>{`${dirtyRows} dirty rows`}</span>
+          <span>{log ? `${log.args.length} spans` : "—"}</span>
           <span>{`${totalMs.toFixed(2)}ms`}</span>
-          <span>{log ? `${log.calls} calls` : ""}</span>
         </span>
       </button>
       {open ? (
@@ -90,9 +85,6 @@ function Inspector({ log, totalMs, dirtyRows }: { log: CapturedLog | null; total
               </span>
             </div>
             {log ? <FormatString log={log} /> : <p className="subtle">Waiting for the first frame…</p>}
-            <p className="subtle" style={{ fontSize: 12.5, margin: "12px 0 0" }}>
-              Copy and paste this into your DevTools console to reproduce the frame byte-for-byte.
-            </p>
           </div>
           <div>
             <div className="field-label">...css arguments</div>
@@ -140,11 +132,9 @@ export function PlaygroundPage(): ReactNode {
   return (
     <>
       <div className="container page-head">
-        <div className="eyebrow">▼ Playground</div>
         <h1>Playground</h1>
         <p>
-          Five live templates, each a real console root. Pick one, tweak the theme and viewport, and inspect the exact <code className="mono">console.log("%c…")</code> call
-          Turbolog emits. The selected template is also running in your console — press <kbd>{devtoolsShortcut()}</kbd> then <kbd>2</kbd>.
+          Edit props, switch themes, and inspect the raw <code className="mono">%c</code> frame.
         </p>
       </div>
       <div className="pg">
@@ -155,7 +145,6 @@ export function PlaygroundPage(): ReactNode {
               {PRESETS.map((p) => (
                 <button key={p.id} type="button" className="preset" aria-pressed={p.id === preset} onClick={() => siteStore.set({ preset: p.id })}>
                   <b>{p.label}</b>
-                  <span>{p.description}</span>
                 </button>
               ))}
             </div>
@@ -182,7 +171,7 @@ export function PlaygroundPage(): ReactNode {
           </div>
           <div role="switch" aria-checked={wireframe} tabIndex={0} className="switch" onClick={() => setWireframe((w) => !w)} onKeyDown={(e) => (e.key === " " || e.key === "Enter") && setWireframe((w) => !w)}>
             <span>
-              Wireframe mode <kbd>W</kbd>
+              Wireframe <kbd>W</kbd>
             </span>
             <span className="switch-track" />
           </div>
@@ -212,11 +201,8 @@ export function PlaygroundPage(): ReactNode {
               cols={vp.cols}
               rows={vp.rows}
             />
-            <div className="callout-live">
-              <span className="dot" />
-              <span>
-                <strong>Click the console</strong> to focus it — keystrokes go to this sandbox only. {preset === "snake" ? "WASD / arrows to steer, Space to start." : null}
-              </span>
+            <div className="pg-actions">
+              {preset === "snake" ? <span className="subtle">WASD to steer · Space to start</span> : null}
               <button type="button" className="btn btn-secondary btn-sm" style={{ marginLeft: "auto" }} onClick={() => setShowSource((s) => !s)}>
                 {showSource ? "Hide source" : "View source"}
               </button>
@@ -234,7 +220,7 @@ export function PlaygroundPage(): ReactNode {
               </div>
             ) : null}
           </div>
-          <Inspector log={sandbox.log} totalMs={sandbox.stats?.totalMs ?? 0} dirtyRows={sandbox.stats?.dirtyRows ?? 0} />
+          <Inspector log={sandbox.log} totalMs={sandbox.stats?.totalMs ?? 0} />
         </div>
       </div>
     </>

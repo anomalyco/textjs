@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { DOC_CATEGORIES, DOCS, docPath, getDoc, headingsOf, neighbors } from "../docs/registry";
 import { A, useLocation } from "../router";
-import { devtoolsShortcut } from "../site/Chrome";
 import { MenuIcon } from "../site/icons";
 import { MarkdownDoc } from "../site/Markdown";
 
@@ -98,9 +97,6 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
               {h.text}
             </a>
           ))}
-          <div className="toc-console">
-            This page is also open in your console. Press <kbd>{devtoolsShortcut()}</kbd> then <kbd>4</kbd>.
-          </div>
         </aside>
       </div>
     </>

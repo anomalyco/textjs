@@ -8,8 +8,9 @@ import { createConsoleRoot, type ConsoleRoot } from "@textjs/react";
 import { CompanionApp } from "./App";
 import { siteStore } from "./store";
 
-export const COMPANION_COLS = 104;
-export const COMPANION_ROWS = 32;
+export const COMPANION_COLS = 100;
+/** Fits a docked DevTools drawer, so `console.clear()` never triggers its scroll-to-bottom jump. */
+export const COMPANION_ROWS = 26;
 
 const EDITABLE = "input,textarea,select,[contenteditable=''],[contenteditable='true']";
 /** Elements that own their keyboard input (sandboxes, search) and must never feed the companion. */
@@ -129,8 +130,9 @@ export function bootCompanion(): Promise<Companion> {
     root.onFrame((frame) => {
       for (const l of telemetryListeners) l(frame);
       if (frame.skipped || listeners.size === 0 || scheduled) return;
+      // Microtask, not rAF: inline mirrors update in the same task as the keypress.
       scheduled = true;
-      requestAnimationFrame(publish);
+      queueMicrotask(publish);
     });
 
     root.render(<CompanionApp />);

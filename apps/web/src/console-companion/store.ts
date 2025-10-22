@@ -20,11 +20,11 @@ export const COMPANION_TABS: ReadonlyArray<{ id: CompanionTab; label: string; sh
 export type PresetId = "counter" | "dashboard" | "form" | "streaming" | "snake";
 
 export const PRESETS: ReadonlyArray<{ id: PresetId; label: string; description: string }> = [
-  { id: "counter", label: "Counter & State", description: "useState, useInput and a keyboard-driven counter." },
-  { id: "dashboard", label: "Server Dashboard", description: "Live metrics, throughput bars and a deployments table." },
-  { id: "form", label: "Form & Inputs", description: "<Input>, <Select>, <Tabs> and focus management." },
-  { id: "streaming", label: "Streaming Markdown & Diff", description: "Token-by-token <Markdown> with <Code> and <Diff>." },
-  { id: "snake", label: "Console Snake", description: "A 60fps game loop in a single console.log per frame." },
+  { id: "counter", label: "Counter & State", description: "useState and useInput" },
+  { id: "dashboard", label: "Server Dashboard", description: "Live metrics and deploys" },
+  { id: "form", label: "Form & Inputs", description: "Inputs, selects and tabs" },
+  { id: "streaming", label: "Streaming Markdown & Diff", description: "Token-by-token Markdown" },
+  { id: "snake", label: "Console Snake", description: "A 60fps game loop" },
 ];
 
 export const THEME_ORDER: readonly ThemeName[] = ["geistDark", "opencodeDark", "tokyoNight", "amberCrt", "geistLight"];
@@ -32,7 +32,7 @@ export const THEME_ORDER: readonly ThemeName[] = ["geistDark", "opencodeDark", "
 export type OpenCodeConnection =
   | { mode: "sandbox" }
   | { mode: "connecting"; url: string }
-  | { mode: "live"; url: string; version?: string }
+  | { mode: "live"; url: string; version?: string; protocol?: "v1" | "v2"; bridge?: boolean }
   | { mode: "error"; url: string; message: string };
 
 export interface SiteState {

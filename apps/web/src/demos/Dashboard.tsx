@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Badge, Box, KeyHint, Spinner, Text, useInput, useTheme } from "@textjs/react";
+import { Box, KeyHint, Spinner, Text, useInput, useTheme } from "@textjs/react";
 
 const BARS = " ▁▂▃▄▅▆▇█";
 
@@ -125,12 +125,12 @@ export function DashboardDemo({ title = "storefront" }: DashboardDemoProps): Rea
         <Metric label="p95 latency" value={`${70 + Math.round(now * 30)}ms`} delta="−6ms" good />
         <Metric label="Error rate" value="0.04%" delta="+0.01%" good={false} />
       </Box>
-      <Box className="flex-col border rounded px-1 shrink-0" borderColor="border" title=" Throughput · req/s " titleColor={theme.muted}>
+      <Box className="flex-col border rounded px-1 shrink-0" borderColor="border" title=" Throughput " titleColor={theme.muted}>
         <Box className="flex-row h-1">
           <Text color="fg" bold wrap="nowrap">{`${Math.round(now * 1800)} req/s`}</Text>
-          <Text color="subtle" wrap="nowrap">{`   peak ${Math.round(peak * 1800)} · ${regions[region]} · live`}</Text>
+          <Text color="subtle" wrap="nowrap">{`   peak ${Math.round(peak * 1800)}`}</Text>
           <Box className="grow" />
-          <Spinner variant="dots" label="streaming" />
+          <Spinner variant="dots" />
         </Box>
         <ThroughputBars series={series} height={4} />
       </Box>
@@ -156,10 +156,7 @@ export function DashboardDemo({ title = "storefront" }: DashboardDemoProps): Rea
           );
         })}
       </Box>
-      <Box className="flex-row gap-2 shrink-0">
-        <KeyHint keys="←/→" label="region" />
-        <Badge variant="outline">0 DOM nodes</Badge>
-      </Box>
+      <KeyHint keys="←/→" label="region" />
     </Box>
   );
 }

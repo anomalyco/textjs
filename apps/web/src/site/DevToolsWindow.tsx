@@ -89,7 +89,7 @@ export function DevToolsWindow({
   onActivate,
   engaged = false,
   engage = false,
-  activateLabel = "Click to type into this console",
+  activateLabel = "Click to focus",
   children,
   className,
   fontSize,

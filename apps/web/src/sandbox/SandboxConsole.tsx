@@ -50,7 +50,7 @@ export function SandboxConsole({ frame, engine, source, filter, className, captu
       e.preventDefault();
       activate();
     }}>
-      <DevToolsWindow frame={frame} source={source} filter={filter} engaged={focused} onActivate={activate} activateLabel="Click to focus · keys go to this sandbox" fontSize={fontSize} lineHeight={lineHeight} cols={cols} rows={rows}>
+      <DevToolsWindow frame={frame} source={source} filter={filter} engaged={focused} onActivate={activate} activateLabel="Click to focus" fontSize={fontSize} lineHeight={lineHeight} cols={cols} rows={rows}>
         <textarea
           ref={sink}
           className="sandbox-sink"

@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from "react";
-import { Box, KeyHint, Tabs, Text, themes, useApp, useFocusManager, useInput, useTheme, useViewport } from "@textjs/react";
+import { Box, KeyHint, Tabs, Text, themes, useApp, useFocusManager, useInput, useTheme } from "@textjs/react";
 import { OpenCodeLite } from "../demos/opencode/OpenCodeLite";
 import { SnakeDemo } from "../demos/Snake";
 import { useSite } from "./useSite";
@@ -7,30 +7,19 @@ import { COMPANION_TABS, siteStore, type CompanionTab } from "./store";
 import { HomeTab } from "./tabs/HomeTab";
 import { PlaygroundTab } from "./tabs/PlaygroundTab";
 import { DocsTab } from "./tabs/DocsTab";
-import { useFrameStats } from "./useFrameStats";
 
-function Header(): ReactNode {
+function Header({ tab }: { tab: CompanionTab }): ReactNode {
   const site = useSite();
-  const stats = useFrameStats();
-  const vp = useViewport();
   return (
-    <Box className="flex-row h-1 shrink-0 px-1 bg-surface gap-1">
+    <Box className="flex-row h-1 shrink-0 px-1 gap-2 bg-surface">
       <Text bold color="fg" wrap="nowrap">
         ▼ Text.js
       </Text>
-      <Text color="subtle" wrap="nowrap">
-        0.2 (Turbolog)
-      </Text>
-      <Text color="border">│</Text>
-      <Text color="muted" wrap="truncate-end" flexShrink={1}>
-        {`textjs.org${site.pathname}`}
-      </Text>
+      <Tabs tabs={COMPANION_TABS} activeTab={tab} onChange={(id) => siteStore.set({ tab: id as CompanionTab })} variant="pill" shortcuts={false} />
       <Box className="grow" />
-      <Text color={vp.focused ? (site.consoleInput ? "success" : "warning") : "subtle"} wrap="nowrap">
-        {vp.focused ? (site.consoleInput ? "● input live" : "○ input paused") : "▯ page unfocused"}
+      <Text color="subtle" wrap="nowrap">
+        {themes[site.theme].name}
       </Text>
-      <Text color="border">│</Text>
-      <Text color="subtle" wrap="nowrap">{`${stats.totalMs.toFixed(2)}ms · ${stats.spanCount} spans · #${stats.frameCount}`}</Text>
     </Box>
   );
 }
@@ -39,42 +28,30 @@ function Footer({ tab }: { tab: CompanionTab }): ReactNode {
   const hints: Record<CompanionTab, Array<[string, string]>> = {
     home: [
       ["↑/↓", "count"],
-      ["space", "+10"],
       ["t", "theme"],
     ],
     playground: [
       ["[ ]", "preset"],
       ["t", "theme"],
-      ["F2", "wireframe"],
     ],
     opencode: [
-      ["enter", "send"],
-      ["tab", "build/plan"],
-      ["ctrl+p", "commands"],
       ["esc", "leave prompt"],
     ],
     docs: [
       ["/", "search"],
-      ["↑/↓", "browse"],
       ["enter", "read"],
-      ["←", "back"],
     ],
     snake: [
       ["wasd", "steer"],
       ["space", "start"],
-      ["r", "reset"],
     ],
   };
   return (
-    <Box className="flex-row h-1 shrink-0 px-1 bg-surface gap-2">
-      <KeyHint keys="1-5" label="tabs" />
+    <Box className="flex-row h-1 shrink-0 px-1 gap-3">
       {hints[tab].map(([k, l]) => (
         <KeyHint key={k} keys={k} label={l} />
       ))}
-      <Box className="grow" />
-      <Text color="subtle" wrap="nowrap">
-        window.text.help()
-      </Text>
+      <KeyHint keys="1-5" label="tabs" />
     </Box>
   );
 }
@@ -121,21 +98,13 @@ export function CompanionApp(): ReactNode {
 
   return (
     <Box className="flex-col grow">
-      <Header />
-      <Box className="flex-row h-1 shrink-0 px-1">
-        <Tabs tabs={COMPANION_TABS} activeTab={tab} onChange={(id) => siteStore.set({ tab: id as CompanionTab })} variant="pill" shortcuts={false} />
-        <Box className="grow" />
-        <Text color="subtle" wrap="nowrap">{`theme `}</Text>
-        <Text color="accent" wrap="nowrap">
-          {themes[site.theme].name}
-        </Text>
-      </Box>
+      <Header tab={tab} />
       <Box className="flex-col grow overflow-hidden" borderColor={theme.border} border borderLeft={false} borderRight={false} borderBottom={false}>
         {tab === "home" ? <HomeTab /> : null}
         {tab === "playground" ? <PlaygroundTab /> : null}
         {tab === "opencode" ? <OpenCodeLite active /> : null}
         {tab === "docs" ? <DocsTab /> : null}
-        {tab === "snake" ? <SnakeDemo reserveRows={7} title="snake · 60fps" /> : null}
+        {tab === "snake" ? <SnakeDemo reserveRows={6} title="snake · 60fps" /> : null}
       </Box>
       <Footer tab={tab} />
     </Box>

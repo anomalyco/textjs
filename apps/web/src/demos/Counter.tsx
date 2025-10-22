@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { AsciiFont, Badge, Box, KeyHint, Text, useInput, useTheme } from "@textjs/react";
+import { AsciiFont, Box, KeyHint, Text, useInput, useTheme } from "@textjs/react";
 
 export interface CounterDemoProps {
   title?: string;
@@ -40,14 +40,12 @@ export function CounterDemo({ title = "counter", compact = false }: CounterDemoP
   const sign = count > 0 ? "success" : count < 0 ? "danger" : "fg";
 
   return (
-    <Box className="flex-col grow px-2 py-1 gap-1">
+    <Box className="flex-col grow px-2 py-1 gap-2">
       <Box className="flex-row gap-1 shrink-0">
         <Text bold color="fg">
           {title}
         </Text>
         <Text color="subtle">/ app/page.tsx</Text>
-        <Box className="grow" />
-        <Badge variant={count === 0 ? "default" : count > 0 ? "success" : "danger"}>{count === 0 ? "idle" : count > 0 ? "positive" : "negative"}</Badge>
       </Box>
       <Box className="flex-row gap-3 shrink-0" alignItems="center">
         {compact ? (
@@ -55,21 +53,15 @@ export function CounterDemo({ title = "counter", compact = false }: CounterDemoP
         ) : (
           <AsciiFont text={String(count)} color={theme[sign]} />
         )}
-        <Box className="flex-col">
-          <Text color="muted">{"const [count, setCount] = useState(0)"}</Text>
-          <Text color="subtle">{`renders · ${history.length}  ·  min ${min}  ·  max ${max}`}</Text>
-        </Box>
+        <Text color="subtle">{"useState(0)"}</Text>
       </Box>
       {compact ? null : (
-        <Box className="flex-col border rounded px-1 shrink-0" borderColor={theme.border} title=" history " titleColor={theme.subtle}>
-          <Text color="accent" wrap="nowrap">
-            {spark.padEnd(48, " ")}
-          </Text>
-        </Box>
+        <Text color="accent" wrap="nowrap">
+          {spark}
+        </Text>
       )}
       <Box className="flex-row gap-2 shrink-0">
-        <KeyHint keys="↑/↓" label="±1" />
-        <KeyHint keys="space" label="+10" />
+        <KeyHint keys="↑/↓" label="count" />
         <KeyHint keys="r" label="reset" />
       </Box>
     </Box>

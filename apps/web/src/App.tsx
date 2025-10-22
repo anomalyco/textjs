@@ -15,9 +15,6 @@ export function NotFoundPage(): ReactNode {
       <h1>
         <b>404</b>This page could not be found.
       </h1>
-      <p className="subtle" style={{ margin: 0 }}>
-        It may have been rendered into a console that has since been cleared.
-      </p>
       <A href="/" className="btn btn-secondary btn-sm">
         ← Back home
       </A>
