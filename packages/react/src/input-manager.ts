@@ -1,13 +1,14 @@
 /**
  * Routes InputEngine events to `useInput` / `usePaste` / `useWheel` handlers
  * with priorities, propagation control and modal traps. Keyboard and paste
- * dispatch at React's discrete priority (SyncLane) for zero-lag typing.
+ * dispatch at React's discrete priority (SyncLane), commit synchronously and
+ * emit the frame in the same task for zero-lag typing.
  */
 
-import type { InputEngine, KeyInputEvent, PasteInputEvent, WheelInputEvent } from "@textjs/core";
+import type { ConsoleRenderer, InputEngine, KeyInputEvent, PasteInputEvent, WheelInputEvent } from "@textjs/core";
 import { ROOT_SCOPE, type Scope } from "./context";
 import { isWithinScope, type FocusManager } from "./focus";
-import { ContinuousEventPriority, DiscreteEventPriority, runWithPriority } from "./reconciler";
+import { ContinuousEventPriority, DiscreteEventPriority, reconciler, runWithPriority } from "./reconciler";
 
 export interface EventControl {
   /** Prevent lower-priority handlers (and Tab focus cycling) from receiving this event. */
@@ -65,12 +66,25 @@ export class InputManager {
   constructor(
     readonly engine: InputEngine,
     private readonly focus: FocusManager,
+    private readonly renderer: Pick<ConsoleRenderer, "flushInputFrame"> | null = null,
   ) {
     this.cleanup.push(
-      engine.on("key", (e) => runWithPriority(DiscreteEventPriority, () => this.dispatchKey(e), "keydown")),
-      engine.on("paste", (e) => runWithPriority(DiscreteEventPriority, () => this.dispatch("paste", e), "paste")),
+      engine.on("key", (e) => {
+        runWithPriority(DiscreteEventPriority, () => this.dispatchKey(e), "keydown");
+        this.flush();
+      }),
+      engine.on("paste", (e) => {
+        runWithPriority(DiscreteEventPriority, () => this.dispatch("paste", e), "paste");
+        this.flush();
+      }),
       engine.on("wheel", (e) => runWithPriority(ContinuousEventPriority, () => this.dispatch("wheel", e), "wheel")),
     );
+  }
+
+  private flush(): void {
+    if (this.renderer === null) return;
+    reconciler.flushSyncWork();
+    this.renderer.flushInputFrame();
   }
 
   register<K extends InputEventType>(type: K, handler: (event: EventTypes[K]) => void, options: RegisterOptions = {}): () => void {

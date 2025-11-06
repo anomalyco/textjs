@@ -27,6 +27,16 @@ describe("DOM companion", () => {
     expect(plain).toContain("Waiting for the first frame");
   });
 
+  test("ConsoleMirror locks its geometry so no glyph can shift a row", () => {
+    const buf = new CellBuffer(10, 3);
+    buf.drawText(0, 1, "→ ✱ ┃ ▀", 0, 0);
+    const html = renderToStaticMarkup(<ConsoleMirror frame={extractStyledFrame(buf)} lineHeight={14} />);
+    expect(html).toContain("height:42px");
+    expect(html).toContain("contain:layout paint style");
+    expect(html).toContain("font-variant-ligatures:none");
+    expect(html.match(/height:14px;line-height:14px;overflow:hidden;white-space:pre/g)?.length).toBe(3);
+  });
+
   test("ConsoleMirror rows tile edge to edge (no horizontal scanline gaps)", () => {
     const buf = new CellBuffer(8, 3);
     for (let y = 0; y < 3; y++) buf.drawText(0, y, "████████", 0xffffffff, 0x0a0a0aff, 0);
@@ -42,17 +52,18 @@ describe("DOM companion", () => {
     const pad = renderToStaticMarkup(<FocusPad root={null} title="my-app" />);
     expect(pad).toContain("▼ Text.js");
     expect(pad).toContain("my-app");
-    expect(pad).toContain("Click anywhere to focus keyboard");
+    expect(pad).toContain("Click to focus");
     expect(pad).toContain("80×24");
     expect(pad).toContain("100×32");
     expect(pad).toContain("120×38");
-    expect(pad).toContain("Responsive");
-    expect(pad).toContain("Copy Plain Frame");
-    expect(pad).toContain("Preview Console Inline");
-    expect(pad).toContain("Pause or click into DevTools to select &amp; copy console text");
+    expect(pad).toContain("Auto");
+    expect(pad).toContain("Pause");
+    expect(pad).toContain("Preview");
+    expect(pad).toContain("Open DevTools Console");
+    expect(pad).not.toContain("%c spans");
     const canvas = renderToStaticMarkup(<TextCanvas app={<Text>hi</Text>} title="demo" theme="geistLight" />);
     expect(canvas).toContain("demo");
-    expect(canvas).toContain("Booting Turbolog");
+    expect(canvas).toContain("Click to focus");
   });
 
   test("FocusPad telemetry reads frames without re-rendering the console tree", async () => {

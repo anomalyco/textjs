@@ -1,4 +1,14 @@
-import { ATTR_ALLOW_LINK, ATTR_WIDE_CONT, CHAR_SPACE, GRAPHEME_POOL_FLAG, type CellBuffer } from "../cell-buffer";
+import { blendOver } from "../color";
+import {
+  ATTR_ALLOW_LINK,
+  ATTR_INVERSE,
+  ATTR_STRIKETHROUGH,
+  ATTR_UNDERLINE,
+  ATTR_WIDE_CONT,
+  CHAR_SPACE,
+  GRAPHEME_POOL_FLAG,
+  type CellBuffer,
+} from "../cell-buffer";
 import {
   DEFAULT_STYLE_RESOLVE,
   DEFAULT_TYPOGRAPHY,
@@ -22,6 +32,13 @@ export interface CompiledSpan {
   css: string;
   /** Span text, already escaped for use inside a `console.log` format string. */
   text: string;
+  /** Resolved background of the span. */
+  bg: number;
+  /** Span contains only blank cells. */
+  blank: boolean;
+  link: boolean;
+  /** Underline or strikethrough: visible on blank cells, so blanks never join. */
+  deco: boolean;
 }
 
 export interface ConsoleFrame {
@@ -35,6 +52,8 @@ export interface CssConsoleDriverOptions {
   style?: Partial<StyleResolveOptions>;
   /** Call `console.clear()` before each frame (default `true`). */
   clear?: boolean;
+  /** Fold blank cells into the open span when their background matches (default `true`). */
+  coalesceWhitespace?: boolean;
 }
 
 export interface DriverRenderOptions {
@@ -84,6 +103,7 @@ export class CssConsoleDriver {
   readonly styleOptions: Readonly<StyleResolveOptions>;
   private target: ConsoleTarget | null;
   private readonly clearEachFrame: boolean;
+  private readonly coalesce: boolean;
   private readonly baseCss: string;
   private readonly cssCache = new Map<bigint, string>();
   private width = -1;
@@ -100,6 +120,7 @@ export class CssConsoleDriver {
     this.typography = Object.freeze({ ...DEFAULT_TYPOGRAPHY, ...options.typography });
     this.styleOptions = Object.freeze({ ...DEFAULT_STYLE_RESOLVE, ...options.style });
     this.clearEachFrame = options.clear ?? true;
+    this.coalesce = options.coalesceWhitespace ?? true;
     this.baseCss = typographyCss(this.typography);
   }
 
@@ -136,7 +157,12 @@ export class CssConsoleDriver {
     return css;
   }
 
-  /** Compile one row into RLE spans. */
+  /**
+   * Compile one row into RLE spans. Plain spaces whose visible background
+   * matches the open span are folded into it regardless of foreground, weight
+   * or slant (all invisible on a blank cell), which removes most `%c` breaks
+   * in real TUI layouts.
+   */
   compileRow(buffer: CellBuffer, y: number): CompiledSpan[] {
     const spans: CompiledSpan[] = [];
     const W = buffer.width;
@@ -147,70 +173,199 @@ export class CssConsoleDriver {
     const pool = buffer.graphemePool;
     const opts = this.styleOptions;
     const scratch = this.scratch;
+    const coalesce = this.coalesce;
+    // Last resolved raw style.
     let rawFg = -1;
     let rawBg = -1;
     let rawAttrs = -1;
+    let rKey = -1n;
+    let rCss = "";
+    let rBg = 0;
+    let rLink = false;
+    let rDeco = false;
+    // Open span.
     let key = -1n;
     let css = "";
     let allowLink = false;
+    let spanBg = 0;
+    let spanDeco = false;
     let text = "";
+    let blank = true;
+    // Blank run waiting to see whether the next cell shares its background.
+    let pend = 0;
+    let pKey = -1n;
+    let pCss = "";
+    let pBg = 0;
+    let pLink = false;
+    const push = (): void => {
+      if (text.length > 0) spans.push({ styleKey: key, css, text: blank ? text : escapeConsoleText(text, allowLink), bg: spanBg, blank, link: allowLink, deco: spanDeco });
+    };
+    const resolve = (f: number, b: number, a: number): void => {
+      if (f === rawFg && b === rawBg && a === rawAttrs) return;
+      rawFg = f;
+      rawBg = b;
+      rawAttrs = a;
+      resolveStyle(f, b, a, opts, scratch);
+      const k = styleKeyOf(scratch);
+      if (k === rKey) return;
+      rKey = k;
+      rCss = this.cssFor(scratch, k);
+      rBg = scratch.bg;
+      rLink = (a & ATTR_ALLOW_LINK) !== 0;
+      rDeco = (scratch.flags & (ATTR_UNDERLINE | ATTR_STRIKETHROUGH)) !== 0;
+    };
+    const promotePending = (): void => {
+      if (pend === 0) return;
+      if (pKey !== key) {
+        push();
+        key = pKey;
+        css = pCss;
+        allowLink = pLink;
+        spanBg = pBg;
+        spanDeco = false;
+        text = "";
+        blank = true;
+      }
+      text += " ".repeat(pend);
+      pend = 0;
+    };
     for (let i = y * W, end = i + W; i < end; i++) {
       const a = A[i] as number;
       if (a & ATTR_WIDE_CONT) continue;
       const f = F[i] as number;
       const b = B[i] as number;
-      if (f !== rawFg || b !== rawBg || a !== rawAttrs) {
-        rawFg = f;
-        rawBg = b;
-        rawAttrs = a;
-        resolveStyle(f, b, a, opts, scratch);
-        const k = styleKeyOf(scratch);
-        if (k !== key) {
-          if (text.length > 0) spans.push({ styleKey: key, css, text: escapeConsoleText(text, allowLink) });
-          key = k;
-          css = this.cssFor(scratch, k);
-          allowLink = (a & ATTR_ALLOW_LINK) !== 0;
-          text = "";
-        }
-      }
       const c = C[i] as number;
+      if (coalesce && c <= CHAR_SPACE && (a & (ATTR_UNDERLINE | ATTR_STRIKETHROUGH)) === 0) {
+        const link = (a & ATTR_ALLOW_LINK) !== 0;
+        let effBg = b >>> 0;
+        if (a & ATTR_INVERSE) {
+          effBg = (f & 255) === 0 ? opts.inverseBg : f;
+          if ((effBg & 255) !== 255) effBg = blendOver(effBg, opts.inverseFg);
+          effBg >>>= 0;
+        }
+        if (pend === 0 && key !== -1n && !spanDeco && effBg === spanBg && link === allowLink) {
+          text += " ";
+          continue;
+        }
+        if (pend > 0 && effBg === pBg && link === pLink) {
+          pend++;
+          continue;
+        }
+        promotePending();
+        resolve(f, b, a);
+        pend = 1;
+        pKey = rKey;
+        pCss = rCss;
+        pBg = rBg;
+        pLink = rLink;
+        continue;
+      }
+      resolve(f, b, a);
+      if (pend > 0) {
+        if (!rDeco && rBg === pBg && rLink === pLink) {
+          // The blanks adopt this cell's style.
+          if (rKey !== key) {
+            push();
+            key = rKey;
+            css = rCss;
+            allowLink = rLink;
+            spanBg = rBg;
+            text = "";
+            blank = true;
+          }
+          text += " ".repeat(pend);
+          pend = 0;
+        } else promotePending();
+      }
+      if (rKey !== key) {
+        push();
+        key = rKey;
+        css = rCss;
+        allowLink = rLink;
+        spanBg = rBg;
+        spanDeco = rDeco;
+        text = "";
+        blank = true;
+      }
+      blank = false;
       if (c >= GRAPHEME_POOL_FLAG) text += pool[c & 0x7fffffff] ?? " ";
       else if (c < 0x10000) text += String.fromCharCode(c < 0x20 ? CHAR_SPACE : c);
       else text += String.fromCodePoint(c);
     }
-    if (text.length > 0) spans.push({ styleKey: key, css, text: escapeConsoleText(text, allowLink) });
+    promotePending();
+    push();
     return spans;
   }
 
-  /** Assemble cached row spans into one format string, merging identical styles across `\n`. */
+  /**
+   * Assemble cached row spans into one format string. Spans with the same
+   * style continue across `\n`, and blank spans join a neighbour that shares
+   * their background.
+   */
   private assemble(): ConsoleFrame {
     const parts: string[] = [];
     const args: string[] = [];
     let curKey: bigint | null = null;
+    let curBg = 0;
+    let curLink = false;
+    let curDeco = false;
+    // A blank span (plus the separators before it) held to see what follows.
+    let held: CompiledSpan | null = null;
+    let heldText = "";
+    let sep = "";
+    const open = (s: CompiledSpan, text: string): void => {
+      parts.push("%c", text);
+      args.push(s.css);
+      curKey = s.styleKey;
+      curBg = s.bg;
+      curLink = s.link;
+      curDeco = s.deco;
+    };
+    const flushHeld = (): void => {
+      if (held === null) return;
+      open(held, heldText);
+      held = null;
+    };
     const rows = this.rowCache;
     for (let y = 0; y < rows.length; y++) {
       const spans = rows[y] ?? [];
-      if (y > 0) {
-        const first = spans[0];
-        if (first !== undefined && first.styleKey === curKey) {
-          parts.push("\n", first.text);
-          for (let k = 1; k < spans.length; k++) {
-            const s = spans[k] as CompiledSpan;
-            parts.push("%c", s.text);
-            args.push(s.css);
-            curKey = s.styleKey;
-          }
-          continue;
-        }
-        parts.push("\n");
-      }
+      if (y > 0) sep += "\n";
       for (let k = 0; k < spans.length; k++) {
         const s = spans[k] as CompiledSpan;
-        parts.push("%c", s.text);
-        args.push(s.css);
-        curKey = s.styleKey;
+        if (held !== null) {
+          if (s.styleKey === held.styleKey || (!s.deco && s.bg === held.bg && s.link === held.link)) {
+            if (s.blank) {
+              heldText += sep + s.text;
+              sep = "";
+              continue;
+            }
+            open(s, heldText + sep + s.text);
+            held = null;
+            sep = "";
+            continue;
+          }
+          flushHeld();
+        }
+        if (s.styleKey === curKey || (this.coalesce && s.blank && !curDeco && s.bg === curBg && s.link === curLink && curKey !== null)) {
+          parts.push(sep, s.text);
+          sep = "";
+          continue;
+        }
+        if (this.coalesce && s.blank) {
+          held = s;
+          heldText = sep + s.text;
+          sep = "";
+          continue;
+        }
+        if (sep) {
+          parts.push(sep);
+          sep = "";
+        }
+        open(s, s.text);
       }
     }
+    flushHeld();
+    if (sep) parts.push(sep);
     return { format: parts.join(""), args };
   }
 

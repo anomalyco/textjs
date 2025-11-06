@@ -212,7 +212,7 @@ const INTERACTIVE_SELECTOR =
   'input,textarea,select,button,a[href],label,summary,[contenteditable=""],[contenteditable="true"],[data-textjs-interactive]';
 
 export const SINK_STYLE =
-  "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1;border:0;padding:0;margin:0;resize:none;overflow:hidden;";
+  "position:fixed;top:50%;left:50%;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1;border:0;padding:0;margin:0;resize:none;overflow:hidden;";
 
 export class InputEngine {
   private readonly listeners: { [K in keyof InputEventMap]: Set<Listener<InputEventMap[K]>> } = {
@@ -287,7 +287,13 @@ export class InputEngine {
       prevent = k !== "v" && k !== "c" && k !== "x" && k !== "tab";
     } else if (PREVENT_KEYS.has(e.key)) prevent = true;
     else if (event.input.length > 0) prevent = true;
-    if (prevent) e.preventDefault();
+    // Printable keys never reach the sink: letting Blink insert text into the
+    // focused textarea triggers scroll-into-view and jumps the page.
+    if (!prevent && !e.isComposing && !e.metaKey && !e.ctrlKey && e.key.length === 1) prevent = true;
+    if (prevent) {
+      e.preventDefault();
+      if (this.sink !== null && this.sink.value !== "") this.sink.value = "";
+    }
     this.emit("key", event);
     return prevent;
   }

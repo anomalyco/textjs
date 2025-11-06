@@ -97,6 +97,30 @@ describe("performance (100×32 dashboard)", () => {
     expect(r.mean).toBeLessThan(0.5);
   });
 
+  test("whitespace coalescing cuts %c spans and CSS bytes with identical text", () => {
+    const { root } = buildDashboard();
+    const buf = new CellBuffer(COLS, ROWS);
+    root.calculateLayout(COLS, ROWS);
+    paintScene(root, buf);
+    const measure = (coalesceWhitespace: boolean) => {
+      const con = new FakeConsole();
+      new CssConsoleDriver({ console: con, coalesceWhitespace }).render(buf);
+      const { format, args } = con.last;
+      return { spans: args.length, cssBytes: args.reduce((n, a) => n + a.length, 0), text: format.replaceAll("%c", "") };
+    };
+    const legacyCss = 'font-family:ui-monospace,"SF Mono",Menlo,Monaco,Consolas,monospace;font-size:12px;line-height:14px;margin:-1px 0;font-variant-ligatures:none;padding:1px 0;';
+    const compactCss = 'font:12px/14px ui-monospace,"SF Mono",Menlo,Monaco,Consolas,monospace;margin:-1px 0;padding:1px 0;';
+    const off = measure(false);
+    const on = measure(true);
+    const legacyBytes = off.cssBytes + off.spans * (legacyCss.length - compactCss.length);
+    const cut = 1 - on.spans / off.spans;
+    console.info(
+      `[bench] %c spans ${off.spans} → ${on.spans} (−${(cut * 100).toFixed(0)}%) · css ${(legacyBytes / 1024).toFixed(1)}KB → ${(on.cssBytes / 1024).toFixed(1)}KB (−${((1 - on.cssBytes / legacyBytes) * 100).toFixed(0)}%)`,
+    );
+    expect(on.text).toBe(off.text);
+    expect(cut).toBeGreaterThan(0.25);
+  });
+
   test("unchanged frame makes zero console calls", () => {
     const { root } = buildDashboard();
     const con = new FakeConsole();

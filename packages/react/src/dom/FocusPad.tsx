@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
-import { extractStyledFrame, type FrameResult, type StyledFrame } from "@textjs/core";
+import { extractStyledFrame, type StyledFrame } from "@textjs/core";
 import type { ConsoleRoot } from "../root";
 import type { ViewportState } from "../stores";
 import { ConsoleMirror } from "./ConsoleMirror";
@@ -46,20 +46,10 @@ function isMac(): boolean {
   return typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 }
 
-interface Telemetry {
-  cols: number;
-  rows: number;
-  spanCount: number;
-  totalMs: number;
-  frames: number;
-  gated: number;
-}
-
 /**
- * The browser-side receiver for a console app: focus status, live telemetry,
- * viewport presets, pause / copy controls and an optional inline preview.
- * Telemetry is read from renderer frames into DOM state only, so it never
- * re-renders the console tree.
+ * The browser-side receiver for a console app: focus status, viewport presets,
+ * pause and an optional inline preview. Frames are read into DOM state only,
+ * so the pad never re-renders the console tree.
  */
 export function FocusPad({ root, title, appearance = "dark", presets = DEFAULT_PRESETS, showMirrorDefault = false, className, style, children }: FocusPadProps): ReactNode {
   const c = PALETTE[appearance];
@@ -68,27 +58,15 @@ export function FocusPad({ root, title, appearance = "dark", presets = DEFAULT_P
     root ? root.viewport.getSnapshot : () => EMPTY_STATE,
     () => EMPTY_STATE,
   );
-  const [telemetry, setTelemetry] = useState<Telemetry | null>(null);
   const [showMirror, setShowMirror] = useState(showMirrorDefault);
   const [mirror, setMirror] = useState<StyledFrame | null>(null);
-  const [copied, setCopied] = useState(false);
-  const latest = useRef<FrameResult | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mirrorPending = useRef(false);
   const showMirrorRef = useRef(showMirror);
   showMirrorRef.current = showMirror;
 
   useEffect(() => {
     if (!root) return;
-    const flushTelemetry = (): void => {
-      timer.current = null;
-      const f = latest.current;
-      if (!f) return;
-      setTelemetry({ cols: f.cols, rows: f.rows, spanCount: f.spanCount, totalMs: f.totalMs, frames: f.frameCount, gated: f.skippedFrames });
-    };
-    const off = root.onFrame((frame) => {
-      latest.current = frame;
-      if (timer.current === null) timer.current = setTimeout(flushTelemetry, 250);
+    return root.onFrame((frame) => {
       if (!frame.skipped && showMirrorRef.current && !mirrorPending.current) {
         mirrorPending.current = true;
         queueMicrotask(() => {
@@ -97,13 +75,6 @@ export function FocusPad({ root, title, appearance = "dark", presets = DEFAULT_P
         });
       }
     });
-    const s = root.renderer.stats();
-    setTelemetry({ cols: s.cols, rows: s.rows, spanCount: s.spanCount, totalMs: s.totalMs, frames: s.frameCount, gated: s.skippedFrames });
-    return () => {
-      off();
-      if (timer.current !== null) clearTimeout(timer.current);
-      timer.current = null;
-    };
   }, [root]);
 
   useEffect(() => {
@@ -114,13 +85,6 @@ export function FocusPad({ root, title, appearance = "dark", presets = DEFAULT_P
     if (!root) return;
     if (root.renderer.paused) root.renderer.resume();
     else root.renderer.pause();
-  }, [root]);
-
-  const copy = useCallback(() => {
-    if (!root) return;
-    root.renderer.copyText();
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1400);
   }, [root]);
 
   const setPreset = useCallback(
@@ -161,10 +125,10 @@ export function FocusPad({ root, title, appearance = "dark", presets = DEFAULT_P
         background: c.card,
         border: `1px solid ${c.border}`,
         borderRadius: 12,
-        padding: 16,
+        padding: 20,
         display: "flex",
         flexDirection: "column",
-        gap: 12,
+        gap: 16,
         ...style,
       }}
     >
@@ -178,6 +142,7 @@ export function FocusPad({ root, title, appearance = "dark", presets = DEFAULT_P
           </>
         ) : null}
         <span style={{ flex: 1 }} />
+        {vp.cols > 0 ? <span style={{ fontFamily: MONO, fontSize: 12, color: c.subtle }}>{`${vp.cols}×${vp.rows}`}</span> : null}
         <span
           className={focused ? undefined : "tx-pad-pulse"}
           style={{
@@ -185,44 +150,15 @@ export function FocusPad({ root, title, appearance = "dark", presets = DEFAULT_P
             alignItems: "center",
             gap: 6,
             fontSize: 12,
-            padding: "4px 10px",
+            padding: "3px 10px",
             borderRadius: 999,
             border: `1px solid ${focused ? c.ok : c.border}`,
             color: focused ? c.ok : c.muted,
             animation: focused ? undefined : "tx-pad-pulse 1.8s ease-in-out infinite",
           }}
         >
-          {focused ? (
-            <>● Capturing Keyboard → Rendering in DevTools Console</>
-          ) : (
-            <>
-              Click anywhere to focus keyboard · Press {devtoolsKeys} to open DevTools Console
-            </>
-          )}
+          {focused ? "● Focused" : "Click to focus"}
         </span>
-      </div>
-
-      <div style={{ fontFamily: MONO, fontSize: 12, color: c.muted, display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {telemetry ? (
-          <>
-            <span style={{ color: c.text }}>
-              {telemetry.cols}×{telemetry.rows} cells
-            </span>
-            <span>·</span>
-            <span>{telemetry.spanCount} %c spans</span>
-            <span>·</span>
-            <span>{telemetry.totalMs.toFixed(2)}ms frame</span>
-            <span>·</span>
-            <span>{telemetry.frames} frames</span>
-            <span>·</span>
-            <span>{telemetry.gated} idle frames gated</span>
-            <span>·</span>
-            <span>0 noop logs</span>
-            {vp.paused ? <span style={{ color: c.accent }}>· paused</span> : null}
-          </>
-        ) : (
-          <span>Booting Turbolog…</span>
-        )}
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -232,20 +168,17 @@ export function FocusPad({ root, title, appearance = "dark", presets = DEFAULT_P
           </button>
         ))}
         <button type="button" style={button(vp.responsive)} onClick={() => setPreset(null)}>
-          Responsive
+          Auto
         </button>
-        <span style={{ width: 1, height: 20, background: c.border, margin: "0 4px" }} />
+        <span style={{ flex: 1 }} />
         <button type="button" style={button(vp.paused)} onClick={togglePause}>
           {vp.paused ? "Resume" : "Pause"}
         </button>
-        <button type="button" style={button(false)} onClick={copy}>
-          {copied ? "Copied" : "Copy Plain Frame"}
-        </button>
         <button type="button" style={button(showMirror)} onClick={() => setShowMirror((v) => !v)}>
-          {showMirror ? "Hide Console Preview" : "Preview Console Inline"}
+          Preview
         </button>
       </div>
-      <div style={{ fontSize: 12, color: c.subtle }}>Pause or click into DevTools to select &amp; copy console text.</div>
+      <div style={{ fontSize: 12, color: c.subtle }}>Open DevTools Console ({devtoolsKeys})</div>
 
       {showMirror ? <ConsoleMirror frame={mirror} chrome appearance={appearance} /> : null}
       {children}

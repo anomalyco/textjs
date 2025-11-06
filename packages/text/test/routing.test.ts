@@ -16,7 +16,7 @@ const page = (title?: string) => ({ default: () => null, ...(title ? { metadata:
 
 const manifest: RouteManifest = {
   segment: "",
-  layout: { default: () => null, metadata: { title: { default: "Vershell", template: "%s · Vershell" } } },
+  layout: { default: () => null, metadata: { title: { default: "Acme", template: "%s · Acme" } } },
   page: page("Overview"),
   notFound: page(),
   children: [
@@ -108,10 +108,10 @@ describe("resolveRoute (not-found)", () => {
 
 describe("metadata", () => {
   test("applies title templates, generateMetadata and absolute titles", () => {
-    expect(resolveMetadata(resolveRoute(manifest, "/")).title).toBe("Overview · Vershell");
-    expect(resolveMetadata(resolveRoute(manifest, "/deployments/dpl_1")).title).toBe("Deployment dpl_1 · Vershell");
+    expect(resolveMetadata(resolveRoute(manifest, "/")).title).toBe("Overview · Acme");
+    expect(resolveMetadata(resolveRoute(manifest, "/deployments/dpl_1")).title).toBe("Deployment dpl_1 · Acme");
     expect(resolveMetadata(resolveRoute(manifest, "/about")).title).toBe("About Text.js");
-    expect(resolveMetadata(resolveRoute(manifest, "/docs/a")).title).toBe("Vershell");
+    expect(resolveMetadata(resolveRoute(manifest, "/docs/a")).title).toBe("Acme");
   });
 });
 

@@ -72,6 +72,8 @@ export interface TextConsoleApi {
 const now: () => number =
   typeof performance !== "undefined" && typeof performance.now === "function" ? () => performance.now() : () => Date.now();
 
+const SYNC_FLUSH_INTERVAL_MS = 8;
+
 const hasWindow = typeof window !== "undefined" && typeof document !== "undefined";
 
 export function createDefaultScheduler(): RendererScheduler {
@@ -117,6 +119,7 @@ export class ConsoleRenderer {
   private readonly cleanup: Array<() => void> = [];
   private readonly focusListeners = new Set<(focused: boolean) => void>();
   private globalName: string | null = null;
+  private lastSyncFlushAt = -Infinity;
   private telemetry: RendererStats;
 
   constructor(options: ConsoleRendererOptions = {}) {
@@ -227,6 +230,27 @@ export class ConsoleRenderer {
       this.pendingForce = false;
       this.renderNow(f);
     });
+  }
+
+  /**
+   * Render discrete input (a keypress, a paste) synchronously in the same task
+   * instead of waiting for the next animation frame. Capped at ~120fps so held
+   * key repeat coalesces into scheduled frames.
+   */
+  flushInputFrame(): FrameResult | null {
+    if (this.disposed || this.isPaused) return null;
+    const t = now();
+    if (t - this.lastSyncFlushAt < SYNC_FLUSH_INTERVAL_MS) {
+      this.requestRender();
+      return null;
+    }
+    this.lastSyncFlushAt = t;
+    if (this.handle !== null) this.scheduler.cancel(this.handle);
+    this.handle = null;
+    this.scheduled = false;
+    const f = this.pendingForce;
+    this.pendingForce = false;
+    return this.renderNow(f);
   }
 
   /** Lay out, paint and emit a frame synchronously. */

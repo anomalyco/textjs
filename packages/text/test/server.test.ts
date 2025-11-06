@@ -112,8 +112,8 @@ describe("vite plugin", () => {
   });
 
   test("index.html has the ▼ favicon, dark body and FocusPad mount", () => {
-    const html = createIndexHtml("Vershell <Console>");
-    expect(html).toContain("<title>Vershell &lt;Console&gt;</title>");
+    const html = createIndexHtml("Edge <Console>");
+    expect(html).toContain("<title>Edge &lt;Console&gt;</title>");
     expect(html).toContain("#0a0a0a");
     expect(html).toContain('id="__textjs"');
     expect(html).toContain('src="/@textjs/entry"');

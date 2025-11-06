@@ -296,3 +296,77 @@ describe("InputEngine capture gate", () => {
     expect(events.length).toBe(1);
   });
 });
+
+describe("zero-jump input", () => {
+  function fakeDocument() {
+    const focusCalls: unknown[] = [];
+    const sink = {
+      value: "",
+      style: { cssText: "" },
+      setAttribute() {},
+      addEventListener() {},
+      removeEventListener() {},
+      remove() {},
+      focus(opts?: unknown) {
+        focusCalls.push(opts);
+      },
+    };
+    const doc = {
+      defaultView: null,
+      body: { appendChild() {} },
+      documentElement: null,
+      createElement: () => sink,
+      addEventListener() {},
+      removeEventListener() {},
+      hasFocus: () => true,
+    };
+    return { doc: doc as unknown as Document, sink, focusCalls };
+  }
+
+  test("the sink is centered, focused with preventScroll and never receives printable text", () => {
+    const { doc, sink, focusCalls } = fakeDocument();
+    const engine = new InputEngine({ document: doc }).attach();
+    expect(sink.style.cssText).toContain("position:fixed;top:50%;left:50%;");
+    engine.focus();
+    expect(focusCalls.length).toBe(2);
+    expect(focusCalls.every((o) => (o as { preventScroll?: boolean }).preventScroll === true)).toBe(true);
+    sink.value = "x";
+    const e = key("é");
+    engine.handleKeyDown(e);
+    expect(e.prevented).toBe(true);
+    expect(sink.value).toBe("");
+    // IME composition and clipboard shortcuts still reach the textarea natively.
+    const ime = key("a", { isComposing: true });
+    engine.handleKeyDown(ime);
+    expect(ime.prevented).toBe(false);
+    const paste = key("v", { metaKey: true });
+    engine.handleKeyDown(paste);
+    expect(paste.prevented).toBe(false);
+    engine.detach();
+  });
+
+  test("flushInputFrame renders synchronously, then coalesces key repeat at 120fps", () => {
+    const con = new FakeConsole();
+    const scheduler = new ManualScheduler();
+    const label = text({}, "a");
+    const root = box({ flexDirection: "column" }, label);
+    const r = new ConsoleRenderer({ root, console: con, scheduler, viewport: { width: 20, height: 2 }, input: false, registerGlobal: false });
+    r.requestRender();
+    const t0 = performance.now();
+    const frame = r.flushInputFrame();
+    const elapsed = performance.now() - t0;
+    expect(frame?.skipped).toBe(false);
+    expect(con.logs.length).toBe(1);
+    expect(scheduler.queue.length).toBe(0);
+    expect(elapsed).toBeLessThan(1);
+    console.info(`[bench] input → frame (sync flush): ${elapsed.toFixed(3)}ms`);
+    // A second flush within 8ms defers to the next animation frame.
+    (label.children[0] ?? label).setText("ab");
+    expect(r.flushInputFrame()).toBeNull();
+    expect(con.logs.length).toBe(1);
+    expect(scheduler.queue.length).toBe(1);
+    scheduler.flush();
+    expect(con.logs.length).toBe(2);
+    r.dispose();
+  });
+});

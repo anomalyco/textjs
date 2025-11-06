@@ -162,7 +162,7 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
   stats = new StatsStore(renderer);
   const focus = new FocusManager();
   if (!tabFocus) focus.disable();
-  const inputManager = new InputManager(engine, focus);
+  const inputManager = new InputManager(engine, focus, renderer);
   const viewportStore = new ViewportStore(renderer);
   const themeStore = new ThemeStore(resolveTheme(theme));
 

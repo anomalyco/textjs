@@ -121,7 +121,7 @@ describe("<Input>", () => {
     await t.unmount();
   });
 
-  test("unfocused page: static hollow cursor and zero console.clear() even with cursorBlink", async () => {
+  test("unfocused page: static tinted cursor and zero console.clear() even with cursorBlink", async () => {
     const t = await createTestRoot({ width: 20, height: 1 });
     await t.render(<Input autoFocus cursorBlink />);
     // Focused + blinking: the cursor toggles.
@@ -129,9 +129,13 @@ describe("<Input>", () => {
     await t.act(() => sleep(600));
     t.frame();
     expect(t.console.logs.length).toBeGreaterThan(before);
-    // Page loses focus: hollow cursor, timers stop.
+    // Page loses focus: tinted cursor cell (no symbol glyph), timers stop.
     await t.act(() => t.root.renderer.setFocused(false));
-    expect(t.frame()).toBe("▯");
+    expect(t.frame().trim()).toBe("");
+    const cell = t.root.renderer.buffer.getCell(0, 0);
+    expect(cell?.char).toBe("\u00a0");
+    expect(cell?.attrs && cell.attrs & ATTR_INVERSE).toBeFalsy();
+    expect(cell?.bg).not.toBe(0);
     const logs = t.console.logs.length;
     const clears = t.console.clears;
     await t.act(() => sleep(1200));
@@ -154,6 +158,21 @@ describe("<Input>", () => {
     t.frame();
     expect(t.console.logs.length).toBe(logs);
     await t.act(() => t.root.renderer.resume());
+    await t.unmount();
+  });
+});
+
+describe("zero-frame input latency", () => {
+  test("a keypress commits and emits its console frame synchronously, without waiting for rAF", async () => {
+    const t = await createTestRoot({ width: 20, height: 1 });
+    await t.render(<Input autoFocus />);
+    t.frame();
+    const logs = t.console.logs.length;
+    await t.press("a");
+    // No scheduler flush: the frame was emitted inside the keydown turn.
+    expect(t.console.logs.length).toBe(logs + 1);
+    expect(String(t.console.logs.at(-1)?.[0])).toContain("a");
+    expect(t.root.renderer.buffer.rowText(0).startsWith("a")).toBe(true);
     await t.unmount();
   });
 });

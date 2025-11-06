@@ -89,7 +89,10 @@ export function styleKeyOf(style: EffectiveStyle): bigint {
 }
 
 export function typographyCss(t: ConsoleTypographyOptions): string {
-  let css = `font-family:${t.fontFamily};font-size:${t.fontSize}px;line-height:${t.lineHeight}px;margin:${t.rowMarginY}px 0;font-variant-ligatures:none;`;
+  let css = `font:${t.fontSize}px/${t.lineHeight}px ${t.fontFamily};`;
+  // The default stack has no programming ligatures; custom fonts may.
+  if (t.fontFamily !== DEFAULT_TYPOGRAPHY.fontFamily) css += "font-variant-ligatures:none;";
+  if (t.rowMarginY !== 0) css += `margin:${t.rowMarginY}px 0;`;
   if (t.rowPaddingY !== 0) css += `padding:${t.rowPaddingY}px 0;`;
   if (t.extraCss) css += t.extraCss.endsWith(";") ? t.extraCss : `${t.extraCss};`;
   return css;

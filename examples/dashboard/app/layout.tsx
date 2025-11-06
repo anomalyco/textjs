@@ -4,7 +4,7 @@ import Link from "textjs/link";
 import { usePathname } from "textjs/navigation";
 
 export const metadata: Metadata = {
-  title: { default: "Vershell Console", template: "%s · Vershell Console" },
+  title: { default: "Edge Console", template: "%s · Edge Console" },
   description: "Deployments, logs and metrics — rendered in console.log.",
 };
 
@@ -48,7 +48,7 @@ export default function RootLayout({ children }: { children?: ReactNode }): Reac
     <Box className="flex-col w-full h-full">
       <Box className="flex-row h-1 px-1 bg-surface shrink-0">
         <Text bold color={theme.fg} wrap="nowrap">
-          ▼ Vershell Console
+          ▼ Edge Console
         </Text>
         <Text color={theme.border} wrap="nowrap">
           {"  /  "}

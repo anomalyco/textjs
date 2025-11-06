@@ -68,7 +68,7 @@ export type CursorMode = "block" | "hidden" | "hollow" | "off";
 /**
  * Cursor visibility. Steady inverse block by default; with `blink` the block
  * toggles every 530 ms only while the field is focused, the page has focus and
- * output is not paused. An unfocused page shows a static hollow cursor and runs
+ * output is not paused. An unfocused page shows a static tinted cell and runs
  * no timers, so idle apps emit zero frames.
  */
 export function useCursor(isFocused: boolean, blink: boolean, editVersion: unknown): CursorMode {
@@ -107,9 +107,12 @@ export function splitAtCursor(display: string, cursor: number): CursorParts {
   return { before, glyph: glyph === " " ? CURSOR_SPACE : glyph, after: rest.slice(len) };
 }
 
-/** The literal text drawn for the cursor cell (used for both rendering and layout math). */
+/**
+ * The literal text drawn for the cursor cell (used for both rendering and
+ * layout math). Every mode reuses the cell's own glyph: a cursor only swaps
+ * colors, so no symbol font fallback can change the row's line box.
+ */
 export function cursorText(glyph: string, mode: CursorMode): string {
-  if (mode === "hollow" && glyph === CURSOR_SPACE) return "▯";
   if (mode === "hidden" && glyph === CURSOR_SPACE) return "";
   return glyph;
 }
@@ -120,7 +123,7 @@ export function renderCursor(glyph: string, mode: CursorMode, theme: TextTheme):
     case "block":
       return <TxText inverse>{text}</TxText>;
     case "hollow":
-      return glyph === CURSOR_SPACE ? <TxText fg={theme.muted}>{text}</TxText> : <TxText dim underline>{text}</TxText>;
+      return <TxText bg={theme.selection}>{text}</TxText>;
     default:
       return text;
   }

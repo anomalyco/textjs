@@ -39,7 +39,7 @@ describe("examples/dashboard", () => {
   test("Overview: header, nav, metric cards, throughput chart and recent deployments", async () => {
     const { t } = await visit("/");
     const frame = t.frame();
-    expect(frame).toContain("▼ Vershell Console");
+    expect(frame).toContain("▼ Edge Console");
     expect(frame).toContain("1 Overview");
     expect(frame).toContain("4 Settings");
     expect(frame).toContain("Requests · 24h");

@@ -101,7 +101,7 @@ export function buildLog(d: Deployment): string[] {
   if (d.status === "error") {
     lines.push("⨯ Failed to compile.", "", "./app/page.tsx:12:7", "Type error: Property 'yoga' does not exist on type 'Console'.", "Error: Command \"text build\" exited with 1");
   } else if (d.status === "ready") {
-    lines.push("Build Completed in /vershell/output [" + formatDuration(d.durationS) + "]", "Deploying outputs...", `Deployment completed — https://${d.project}-${d.sha}.vershell.app`);
+    lines.push("Build Completed in /edge/output [" + formatDuration(d.durationS) + "]", "Deploying outputs...", `Deployment completed — https://${d.project}-${d.sha}.edge.app`);
   } else if (d.status === "canceled") {
     lines.splice(4);
     lines.push("Build canceled by user.");

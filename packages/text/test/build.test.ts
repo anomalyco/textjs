@@ -32,13 +32,13 @@ describe("text build (examples/dashboard)", () => {
 
       const dist = join(DASHBOARD, "dist");
       const html = readFileSync(join(dist, "index.html"), "utf8");
-      expect(html).toContain("<title>Vershell Console</title>");
+      expect(html).toContain("<title>Edge Console</title>");
       expect(html).toMatch(/<script type="module" crossorigin src="\/assets\/index-[\w-]+\.js"><\/script>/);
       const assets = readdirSync(join(dist, "assets"));
       const js = assets.filter((f) => f.endsWith(".js"));
       expect(js.length).toBeGreaterThan(0);
       const bundle = js.map((f) => readFileSync(join(dist, "assets", f), "utf8")).join("\n");
-      expect(bundle).toContain("Vershell Console");
+      expect(bundle).toContain("Edge Console");
       expect(bundle).toContain("console.log (%c)");
       expect(bundle).not.toContain("virtual:textjs");
       expect(existsSync(join(dist, ".text/server/api.mjs"))).toBe(true);

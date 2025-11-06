@@ -148,8 +148,9 @@ describe("CssConsoleDriver", () => {
     b.drawText(4, 0, "ef", 0, 0, ATTR_DIM);
     d.render(b);
     const [a1, a2, a3] = con.last.args;
-    expect(a1).toContain("font-size:13px;line-height:15px;margin:-1px 0;font-variant-ligatures:none;");
-    expect(a1).toContain("font-family:ui-monospace");
+    expect(a1).toStartWith("font:13px/15px ui-monospace");
+    expect(a1).toContain("margin:-1px 0;padding:1px 0;");
+    expect(a1).not.toContain("font-variant-ligatures");
     expect(a1).toContain("color:#22c55e;");
     expect(a1).toContain("background-color:#18181b;");
     expect(a1).toContain("font-weight:700;");
@@ -161,6 +162,35 @@ describe("CssConsoleDriver", () => {
     b.setCell(5, 0, "z", 0, 0, ATTR_DIM);
     d.render(b);
     expect(d.internedStyles).toBe(before);
+  });
+
+  test("blank cells fold into the open span when the background matches", () => {
+    const con = new FakeConsole();
+    const d = new CssConsoleDriver({ console: con });
+    const b = new CellBuffer(12, 1);
+    b.clear(BG);
+    b.drawText(0, 0, "ab", GREEN, BG, ATTR_BOLD);
+    b.drawText(4, 0, "cd", 0xffffffff, BG);
+    b.drawText(8, 0, "  ", 0, 0x334155ff);
+    d.render(b);
+    expect(chromiumFormat(con.last.format, con.last.args).text).toBe("ab  cd      ");
+    expect(con.last.args.length).toBe(4);
+    const off = new FakeConsole();
+    new CssConsoleDriver({ console: off, coalesceWhitespace: false }).render(b);
+    expect(off.last.args.length).toBe(6);
+  });
+
+  test("underlined and inverse blanks keep their own span", () => {
+    const con = new FakeConsole();
+    const d = new CssConsoleDriver({ console: con });
+    const b = new CellBuffer(6, 1);
+    b.clear(BG);
+    b.drawText(0, 0, "a", GREEN, BG);
+    b.drawText(1, 0, " ", GREEN, BG, ATTR_UNDERLINE);
+    b.drawText(3, 0, " ", GREEN, BG, ATTR_INVERSE);
+    d.render(b);
+    expect(con.last.args.length).toBe(5);
+    expect(con.last.args[3]).toContain("background-color:#22c55e;");
   });
 
   test("wide chars emit once, continuation cells are skipped", () => {

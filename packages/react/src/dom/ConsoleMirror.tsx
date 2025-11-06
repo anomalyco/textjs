@@ -24,7 +24,8 @@ const DEVTOOLS = {
 
 /**
  * Spans are full-height inline blocks and rows are clipped to exactly one line
- * box, so cell backgrounds tile edge to edge with no horizontal scanline gaps.
+ * box, so cell backgrounds tile edge to edge with no horizontal scanline gaps
+ * and no font fallback can ever shift a row.
  */
 function spanStyle(s: StyledSpan, linePx: number): CSSProperties {
   const st: CSSProperties = { display: "inline-block", height: linePx, lineHeight: `${linePx}px`, verticalAlign: "top" };
@@ -57,7 +58,7 @@ function dominantBg(frame: StyledFrame): string | null {
 
 const Row = memo(function Row({ spans, height }: { spans: StyledSpan[]; height: number }): ReactNode {
   return (
-    <div style={{ height, lineHeight: `${height}px`, overflow: "hidden", whiteSpace: "pre" }}>
+    <div style={{ height: `${height}px`, lineHeight: `${height}px`, overflow: "hidden", whiteSpace: "pre" }}>
       {spans.map((s, i) => (
         <span key={i} style={spanStyle(s, height)}>
           {s.text}
@@ -88,10 +89,13 @@ export function ConsoleMirror({
         fontSize,
         lineHeight: `${lineHeight}px`,
         fontVariantLigatures: "none",
+        whiteSpace: "pre",
         color: c.text,
         background: fill,
         overflowX: "auto",
+        overflowY: "hidden",
         userSelect: "text",
+        ...(frame === null ? null : { height: frame.height * lineHeight, contain: "layout paint style" }),
       }}
     >
       {frame === null ? (

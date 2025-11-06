@@ -300,7 +300,7 @@ describe("<TextDevOverlay>", () => {
   };
 
   test("renders the [▼] pill and toggles the inspector with F2 and Ctrl+`", async () => {
-    await mount(manifest, "/projects/vershell", { overlay: true, width: 100, height: 30 });
+    await mount(manifest, "/projects/acme", { overlay: true, width: 100, height: 30 });
     let lines = t!.lines();
     expect(lines[lines.length - 1]?.startsWith("[▼]")).toBe(true);
     expect(t!.frame()).not.toContain("Text.js DevTools");
@@ -310,7 +310,7 @@ describe("<TextDevOverlay>", () => {
     expect(frame).toContain("Text.js DevTools · Turbolog");
     expect(frame).toContain("ƒ Dynamic");
     expect(frame).toContain("/projects/[slug]");
-    expect(frame).toContain('{ slug: "vershell" }');
+    expect(frame).toContain('{ slug: "acme" }');
     expect(frame).toContain("Project");
     expect(frame).toContain("100×30 cells");
     expect(frame).toContain("%c spans");
