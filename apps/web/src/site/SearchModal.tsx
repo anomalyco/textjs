@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { docPath, searchDocs } from "../docs/registry";
 import { navigate } from "../router";
 import { SearchIcon } from "./icons";
+import { useScrollLock } from "./Sheet";
 
 interface Item {
   key: string;
@@ -31,6 +32,7 @@ export function SearchModal(): ReactNode {
   const [index, setIndex] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
+  useScrollLock(open);
 
   useEffect(() => {
     const l = (v: boolean): void => setOpen(v);
@@ -92,6 +94,12 @@ export function SearchModal(): ReactNode {
             value={query}
             placeholder="Search documentation…"
             aria-label="Search"
+            type="search"
+            enterKeyHint="go"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             onChange={(e) => {
               setQuery(e.target.value);
               setIndex(0);
@@ -112,7 +120,10 @@ export function SearchModal(): ReactNode {
               }
             }}
           />
-          <kbd>esc</kbd>
+          <kbd className="kbar-esc">esc</kbd>
+          <button type="button" className="kbar-cancel" onClick={() => setOpen(false)}>
+            Cancel
+          </button>
         </div>
         <div className="kbar-list" ref={list}>
           {items.length === 0 ? <div className="kbar-group">No results for “{query}”.</div> : null}

@@ -3,8 +3,9 @@ import { getCompanion } from "../console-companion/boot";
 import { siteStore } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
 import { A, useLocation } from "../router";
-import { CloseIcon, Logo, MenuIcon, SearchIcon } from "./icons";
+import { ChevronRight, CloseIcon, Logo, MenuIcon, SearchIcon } from "./icons";
 import { openSearch } from "./SearchModal";
+import { Sheet, useCloseOnMedia } from "./Sheet";
 
 export function isMac(): boolean {
   return typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -21,10 +22,20 @@ const NAV = [
   { href: "/showcase", label: "Showcase" },
 ];
 
+function isActive(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function Header(): ReactNode {
   const { pathname } = useLocation();
   const [menu, setMenu] = useState(false);
-  useEffect(() => setMenu(false), [pathname]);
+  const close = (): void => setMenu(false);
+  useEffect(close, [pathname]);
+  useCloseOnMedia(menu, "(min-width: 901px)", close);
+  const search = (): void => {
+    setMenu(false);
+    openSearch();
+  };
   return (
     <header className="header">
       <div className="container header-inner" style={{ maxWidth: 1440 }}>
@@ -34,7 +45,7 @@ export function Header(): ReactNode {
         </A>
         <nav className="nav" aria-label="Main">
           {NAV.map((n) => (
-            <A key={n.href} href={n.href} aria-current={pathname === n.href || pathname.startsWith(`${n.href}/`) ? "page" : undefined}>
+            <A key={n.href} href={n.href} aria-current={isActive(pathname, n.href) ? "page" : undefined}>
               {n.label}
             </A>
           ))}
@@ -45,23 +56,39 @@ export function Header(): ReactNode {
             <span>Search</span>
             <kbd>⌘K</kbd>
           </button>
-          <button type="button" className="icon-btn menu-btn" onClick={() => setMenu((m) => !m)} aria-label="Menu">
+          <button type="button" className="icon-btn search-icon-btn" onClick={search} aria-label="Search documentation">
+            <SearchIcon size={18} />
+          </button>
+          <button
+            type="button"
+            className="icon-btn menu-btn"
+            onClick={() => setMenu((m) => !m)}
+            aria-label={menu ? "Close menu" : "Open menu"}
+            aria-expanded={menu}
+            aria-controls="mobile-nav"
+          >
             {menu ? <CloseIcon /> : <MenuIcon />}
           </button>
         </div>
       </div>
-      {menu ? (
-        <nav className="mobile-nav" aria-label="Mobile">
+      <Sheet open={menu} onClose={close} id="mobile-nav" label="Site navigation" side="top" className="mobile-nav">
+        <button type="button" className="mobile-search" onClick={search}>
+          <SearchIcon size={16} />
+          <span>Search documentation…</span>
+        </button>
+        <nav aria-label="Mobile" onClick={(e) => (e.target as Element).closest("a") && close()}>
+          <A href="/" aria-current={pathname === "/" ? "page" : undefined}>
+            Home
+            <ChevronRight />
+          </A>
           {NAV.map((n) => (
-            <A key={n.href} href={n.href}>
+            <A key={n.href} href={n.href} aria-current={isActive(pathname, n.href) ? "page" : undefined}>
               {n.label}
+              <ChevronRight />
             </A>
           ))}
-          <button type="button" className="btn btn-secondary" style={{ marginTop: 16 }} onClick={openSearch}>
-            <SearchIcon /> Search docs
-          </button>
         </nav>
-      ) : null}
+      </Sheet>
     </header>
   );
 }
