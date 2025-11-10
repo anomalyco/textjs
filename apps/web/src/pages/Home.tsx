@@ -45,7 +45,7 @@ function Hero(): ReactNode {
   return (
     <section className="hero">
       <div className="grid-bg" />
-      <div className="container" style={{ position: "relative", paddingTop: 64, paddingBottom: 120 }}>
+      <div className="container hero-wrap">
         <div className="frame" style={{ background: "rgba(0,0,0,0.4)" }}>
           <Crosses />
           <div className="hero-body">
@@ -76,7 +76,7 @@ function Hero(): ReactNode {
             </div>
           </div>
         </div>
-        <p className="hero-whisper">Open DevTools ({devtoolsShortcut()}) — this app is live in your console.</p>
+        <p className="hero-whisper desktop-only">Open DevTools ({devtoolsShortcut()}) — this app is live in your console.</p>
       </div>
     </section>
   );

@@ -102,4 +102,18 @@ describe("page rendering", () => {
     expect(footer).not.toContain("GitHub");
     expect(footer).not.toContain("Community");
   });
+
+  test("mobile navigation controls are accessible and closed by default", () => {
+    const header = renderToStaticMarkup(<Header />);
+    expect(header).toContain('aria-label="Open menu"');
+    expect(header).toContain('aria-expanded="false"');
+    expect(header).toContain('aria-controls="mobile-nav"');
+    expect(header).toContain('aria-label="Search documentation"');
+    // Sheets portal to <body> only while open, outside the header's stacking context.
+    expect(header).not.toContain("sheet-layer");
+    const docs = renderToStaticMarkup(<RouteView route={{ name: "docs", slug: "routing" }} />);
+    expect(docs).toContain('aria-label="Open docs navigation"');
+    expect(docs).toContain('aria-controls="docs-drawer"');
+    expect(docs).not.toContain("sheet-layer");
+  });
 });

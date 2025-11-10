@@ -42,7 +42,7 @@ function ConnectPanel(): ReactNode {
           const target = normalizeServerUrl(url);
           if (target) void connectTo(target, false);
         }}
-        style={{ display: "flex", gap: 8 }}
+        className="connect-form"
       >
         <input className="text-input" style={{ flex: 1, minWidth: 0 }} value={url} onChange={(e) => setUrl(e.target.value)} placeholder={DEFAULT_SERVER_URL} spellCheck={false} aria-label="OpenCode server URL" />
         <button type="submit" className="btn btn-primary btn-sm" disabled={conn.mode === "connecting"}>
@@ -60,12 +60,14 @@ function ConnectPanel(): ReactNode {
           </>
         ) : conn.mode === "live" ? (
           <>
-            <span className="dot" /> {conn.url.replace(/^https?:\/\//, "")}
-            {conn.version ? ` · ${conn.version}` : ""}
+            <span className="dot" />
+            <span className="status-text">
+              {conn.url.replace(/^https?:\/\//, "")}
+              {conn.version ? ` · ${conn.version}` : ""}
+            </span>
             <button
               type="button"
-              className="text-link"
-              style={{ marginLeft: "auto", background: "none", border: 0, padding: 0, cursor: "pointer", font: "inherit" }}
+              className="text-link status-action"
               onClick={() => {
                 rememberServer(null);
                 siteStore.set({ opencode: { mode: "sandbox" } });
@@ -76,7 +78,7 @@ function ConnectPanel(): ReactNode {
           </>
         ) : (
           <>
-            <span className="dot dot-amber" /> {conn.message}
+            <span className="dot dot-amber" /> <span className="status-text">{conn.message}</span>
           </>
         )}
       </div>
@@ -93,7 +95,7 @@ export function OpenCodePage(): ReactNode {
         <h1>OpenCode</h1>
         <p>The OpenCode TUI, rendered in console.log.</p>
       </div>
-      <div className="container" style={{ paddingBottom: 120 }}>
+      <div className="container page-body">
         <div className="oc-grid">
           <LiveConsole source="opencode://lite:1" />
           <ConnectPanel />

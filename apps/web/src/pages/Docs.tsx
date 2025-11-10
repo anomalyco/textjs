@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { DOC_CATEGORIES, DOCS, docPath, getDoc, headingsOf, neighbors } from "../docs/registry";
 import { A, useLocation } from "../router";
-import { MenuIcon } from "../site/icons";
+import { ChevronDown, CloseIcon, MenuIcon } from "../site/icons";
 import { MarkdownDoc } from "../site/Markdown";
+import { Sheet, useCloseOnMedia } from "../site/Sheet";
 
-function Sidebar({ slug, open }: { slug: string; open: boolean }): ReactNode {
+function DocLinks({ slug }: { slug: string }): ReactNode {
   return (
-    <aside className={`docs-sidebar${open ? " open" : ""}`} aria-label="Documentation">
+    <>
       {DOC_CATEGORIES.map((cat) => (
         <div key={cat}>
           <h5>{cat}</h5>
@@ -17,6 +18,14 @@ function Sidebar({ slug, open }: { slug: string; open: boolean }): ReactNode {
           ))}
         </div>
       ))}
+    </>
+  );
+}
+
+function Sidebar({ slug }: { slug: string }): ReactNode {
+  return (
+    <aside className="docs-sidebar" aria-label="Documentation">
+      <DocLinks slug={slug} />
     </aside>
   );
 }
@@ -47,7 +56,9 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
   const doc = getDoc(slug) ?? DOCS[0];
   const { pathname } = useLocation();
   const [menu, setMenu] = useState(false);
-  useEffect(() => setMenu(false), [pathname]);
+  const close = (): void => setMenu(false);
+  useEffect(close, [pathname]);
+  useCloseOnMedia(menu, "(min-width: 821px)", close);
   const headings = useMemo(() => (doc ? headingsOf(doc.markdown) : []), [doc]);
   const ids = useMemo(() => headings.map((h) => h.id), [headings]);
   const active = useActiveHeading(ids);
@@ -57,15 +68,27 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
   return (
     <>
       <div className="docs-mobile-bar">
-        <button type="button" className="icon-btn" onClick={() => setMenu((m) => !m)} aria-label="Toggle docs navigation">
+        <button type="button" onClick={() => setMenu(true)} aria-label="Open docs navigation" aria-expanded={menu} aria-controls="docs-drawer">
           <MenuIcon size={16} />
+          <span className="docs-mobile-crumb">
+            {doc.category} <span className="subtle">/</span> <span className="docs-mobile-current">{doc.nav ?? doc.title}</span>
+          </span>
+          <ChevronDown size={14} />
         </button>
-        <span>
-          {doc.category} <span className="subtle">/</span> <span style={{ color: "var(--fg)" }}>{doc.nav ?? doc.title}</span>
-        </span>
       </div>
+      <Sheet open={menu} onClose={close} id="docs-drawer" label="Documentation" side="left" className="docs-drawer">
+        <div className="docs-drawer-head">
+          <span>Documentation</span>
+          <button type="button" className="icon-btn" onClick={close} aria-label="Close docs navigation">
+            <CloseIcon />
+          </button>
+        </div>
+        <nav className="docs-drawer-body" aria-label="Documentation" onClick={(e) => (e.target as Element).closest("a") && close()}>
+          <DocLinks slug={doc.slug} />
+        </nav>
+      </Sheet>
       <div className="docs">
-        <Sidebar slug={doc.slug} open={menu} />
+        <Sidebar slug={doc.slug} />
         <article className="docs-main">
           <div className="breadcrumbs">
             <A href="/docs">Docs</A>

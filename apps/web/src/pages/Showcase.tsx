@@ -77,7 +77,7 @@ export function ShowcasePage(): ReactNode {
         <h1>Showcase</h1>
         <p>Live console apps rendered by Text.js.</p>
       </div>
-      <div className="container" style={{ paddingBottom: 120 }}>
+      <div className="container page-body">
         <div className="showcase-grid">
           {ENTRIES.map((e) => (
             <A key={e.title} href={e.href} className="show-card">

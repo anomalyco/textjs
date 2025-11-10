@@ -57,6 +57,14 @@ export function ArrowRight({ size = 14, ...props }: IconProps): ReactNode {
   return svg(size, props, <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />);
 }
 
+export function ChevronDown({ size = 14, ...props }: IconProps): ReactNode {
+  return svg(size, props, <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />);
+}
+
+export function ChevronRight({ size = 14, ...props }: IconProps): ReactNode {
+  return svg(size, props, <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />);
+}
+
 /* DevTools glyphs */
 
 export function ClearIcon({ size = 14, ...props }: IconProps): ReactNode {

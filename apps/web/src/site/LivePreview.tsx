@@ -21,7 +21,7 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
         <span className="live">
           <span className="dot" /> Live
         </span>
-        <span>{`${spec?.cols ?? 0}×${spec?.rows ?? 0} · ${sandbox.stats ? `${sandbox.stats.totalMs.toFixed(2)}ms · ${sandbox.stats.spanCount} %c spans` : "booting Turbolog…"}`}</span>
+        <span className="preview-stats">{`${spec?.cols ?? 0}×${spec?.rows ?? 0} · ${sandbox.stats ? `${sandbox.stats.totalMs.toFixed(2)}ms · ${sandbox.stats.spanCount} %c spans` : "booting Turbolog…"}`}</span>
         <span style={{ marginLeft: "auto" }}>{language}</span>
         <CopyButton text={code} />
       </div>
