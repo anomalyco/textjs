@@ -118,7 +118,7 @@ describe("vite plugin", () => {
     expect(html).toContain('id="__textjs"');
     expect(html).toContain('src="/@textjs/entry"');
     expect(html).toContain('rel="icon" href="data:image/svg+xml,');
-    expect(html).toContain("Text.js 0.2.0 (Turbolog)");
+    expect(html).toContain("Text.js 0.3.0 (Turbolog)");
   });
 
   test("config helpers", () => {

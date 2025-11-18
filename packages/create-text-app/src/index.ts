@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.3.0";
 
 export const TEMPLATES = {
   starter: "Clean starter: layout, keyboard counter and <Link> navigation",
@@ -73,7 +73,7 @@ export interface ScaffoldOptions {
   /** Target directory (created when missing; must be empty). */
   dir: string;
   template?: TemplateName;
-  /** `textjs` dependency specifier (default `^0.2.0`). */
+  /** `textjs` dependency specifier (default `^0.3.0`). */
   textjsVersion?: string;
   /** Allow writing into a non-empty directory. */
   force?: boolean;

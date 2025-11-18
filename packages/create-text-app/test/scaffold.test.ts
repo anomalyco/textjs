@@ -75,7 +75,7 @@ describe("scaffold", () => {
       expect(result.name).toBe(`valid-${template}`);
       const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
       expect(pkg.name).toBe(`valid-${template}`);
-      expect(pkg.dependencies.textjs).toBe("^0.2.0");
+      expect(pkg.dependencies.textjs).toBe("^0.3.0");
       expect(pkg.scripts).toEqual({ dev: "text dev", build: "text build", start: "text start" });
       JSON.parse(readFileSync(join(dir, "tsconfig.json"), "utf8"));
       const tsx = new Bun.Transpiler({ loader: "tsx" });
