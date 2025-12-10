@@ -72,6 +72,24 @@ describe("hooks", () => {
     await t.unmount();
   });
 
+  test("useConsoleStats waits for its interval on initial mount instead of firing an immediate extra commit", async () => {
+    const t = await createTestRoot({ width: 40, height: 2 });
+    let hudRenders = 0;
+    function Hud() {
+      hudRenders++;
+      const s = useConsoleStats({ interval: 120 });
+      return <Text>{`f=${s.frameCount}`}</Text>;
+    }
+    await t.render(<Hud />);
+    expect(hudRenders).toBe(1);
+    await t.act(() => sleep(20));
+    // Well before the 120ms interval, no extra commit has fired.
+    expect(hudRenders).toBe(1);
+    await t.act(() => sleep(120));
+    expect(hudRenders).toBe(2);
+    await t.unmount();
+  });
+
   test("useFocus + Tab / Shift+Tab cycling and useFocusManager", async () => {
     const t = await createTestRoot({ width: 20, height: 4 });
     let fm: ReturnType<typeof useFocusManager> | null = null;

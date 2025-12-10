@@ -47,7 +47,8 @@ describe("React 19 reconciler", () => {
     expect(t.scheduler.queue.length).toBe(1);
     expect(t.frame()).toBe("count 4");
     expect(t.console.logs.length).toBe(2);
-    expect(t.console.clears).toBe(2);
+    // Append mode: only the first frame clears.
+    expect(t.console.clears).toBe(1);
     // Nothing changed: no further frames scheduled or logged.
     t.frame();
     expect(t.console.logs.length).toBe(2);

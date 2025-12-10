@@ -115,7 +115,7 @@ const STAT_KEYS: ReadonlyArray<keyof ConsoleStats> = [
   "rows",
 ];
 
-function pickStats(f: FrameResult | ConsoleStats): ConsoleStats {
+function pickStats(f: FrameResult | ConsoleStats | ReturnType<ConsoleRenderer["stats"]>): ConsoleStats {
   const out = {} as ConsoleStats;
   for (const k of STAT_KEYS) out[k] = f[k];
   return out;
@@ -130,23 +130,23 @@ const now = (): number => (typeof performance !== "undefined" ? performance.now(
  * infinite render loop and an idle app stays at zero `console.log` calls.
  */
 export class StatsStore {
-  private latest: ConsoleStats;
+  private lastFrame: FrameResult | null = null;
   private snapshot: ConsoleStats;
   private readonly listeners = new Set<() => void>();
   private readonly intervals = new Map<() => void, number>();
   private timer: ReturnType<typeof setTimeout> | null = null;
-  private lastPublish = -Infinity;
+  private lastPublish = now();
   private selfPending = false;
   private readonly frameListeners = new Set<(frame: FrameResult) => void>();
 
-  constructor(renderer: ConsoleRenderer) {
-    this.latest = pickStats({ ...renderer.stats(), skipped: false });
-    this.snapshot = this.latest;
+  constructor(private readonly renderer: ConsoleRenderer) {
+    this.snapshot = pickStats(renderer.stats());
   }
 
   readonly getSnapshot = (): ConsoleStats => this.snapshot;
 
   subscribe(listener: () => void, interval = 250): () => void {
+    if (this.listeners.size === 0) this.lastPublish = now();
     this.listeners.add(listener);
     this.intervals.set(listener, Math.max(16, interval));
     return () => {
@@ -173,13 +173,15 @@ export class StatsStore {
 
   /** Called by the root for every renderer frame. */
   handleFrame(frame: FrameResult): void {
-    this.latest = pickStats(frame);
-    for (const l of this.frameListeners) l(frame);
+    this.lastFrame = frame;
+    if (this.frameListeners.size > 0) {
+      for (const l of this.frameListeners) l(frame);
+    }
     if (this.selfPending) {
       this.selfPending = false;
       return;
     }
-    if (frame.skipped) return;
+    if (this.listeners.size === 0 || frame.skipped) return;
     this.schedule();
   }
 
@@ -195,16 +197,17 @@ export class StatsStore {
   /** Publish the latest stats immediately (on-demand refresh). */
   publish(): void {
     this.lastPublish = now();
+    const latest = this.lastFrame ?? this.renderer.stats();
     const prev = this.snapshot;
     let changed = false;
     for (const k of STAT_KEYS) {
-      if (prev[k] !== this.latest[k]) {
+      if (prev[k] !== latest[k]) {
         changed = true;
         break;
       }
     }
     if (!changed) return;
-    this.snapshot = { ...this.latest };
+    this.snapshot = pickStats(latest);
     this.selfPending = this.listeners.size > 0;
     for (const l of this.listeners) l();
   }

@@ -33,17 +33,31 @@ interface HostContext {
 const ROOT_CONTEXT: HostContext = Object.freeze({ insideText: false });
 const TEXT_CONTEXT: HostContext = Object.freeze({ insideText: true });
 
-const NON_SCENE_PROPS = new Set(["children", "ref", "key"]);
-
 /** Strip React-only props, producing the scene props object stored on the node. */
 export function toSceneProps(props: HostProps): SceneNodeProps {
   const out: Record<string, unknown> = {};
-  for (const k in props) {
-    if (NON_SCENE_PROPS.has(k)) continue;
-    const v = (props as Record<string, unknown>)[k];
+  const src = props as Record<string, unknown>;
+  for (const k in src) {
+    if (k === "children" || k === "ref" || k === "key") continue;
+    const v = src[k];
     if (v !== undefined) out[k] = v;
   }
   return out as SceneNodeProps;
+}
+
+function hasScenePropChanges(current: SceneNodeProps, next: HostProps): boolean {
+  if (current === next) return false;
+  const cur = current as Record<string, unknown>;
+  const nxt = next as Record<string, unknown>;
+  for (const k in nxt) {
+    if (k === "children" || k === "ref" || k === "key") continue;
+    const v = nxt[k];
+    if (v !== undefined && cur[k] !== v) return true;
+  }
+  for (const k in cur) {
+    if (cur[k] !== undefined && nxt[k] === undefined) return true;
+  }
+  return false;
 }
 
 function sceneType(type: string): "box" | "text" {
@@ -213,11 +227,14 @@ export const reconciler = createReconciler<
   },
   commitMount() {},
   commitUpdate(instance, _type, _prev, next) {
-    const props = toSceneProps(next);
     if (hiddenProps.has(instance)) {
+      const props = toSceneProps(next);
       hiddenProps.set(instance, props);
       instance.updateProps({ ...props, display: "none" });
-    } else instance.updateProps(props);
+      return;
+    }
+    if (!hasScenePropChanges(instance.props, next)) return;
+    instance.updateProps(toSceneProps(next));
   },
   hideInstance(instance) {
     hiddenProps.set(instance, instance.props);
