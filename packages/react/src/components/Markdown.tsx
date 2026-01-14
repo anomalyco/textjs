@@ -1,6 +1,15 @@
-import { useMemo, type ReactNode } from "react";
+import { memo, useMemo, useRef, type NamedExoticComponent, type ReactNode } from "react";
 import { stringWidth } from "@textjs/core";
-import { parseInline, parseMarkdown, type InlineSpan, type MarkdownBlock, type TableAlign } from "../markdown";
+import {
+  blockEqual,
+  createMarkdownStreamCache,
+  parseInline,
+  parseMarkdownIncremental,
+  type InlineSpan,
+  type MarkdownBlock,
+  type MarkdownStreamCache,
+  type TableAlign,
+} from "../markdown";
 import { useTheme, type TextTheme } from "../theme";
 import { Box, type BoxProps } from "./Box";
 import { Code } from "./Code";
@@ -19,19 +28,20 @@ export interface MarkdownProps extends Omit<BoxProps, "children" | "ref"> {
 
 function renderInline(spans: readonly InlineSpan[], theme: TextTheme): ReactNode[] {
   const out: ReactNode[] = [];
-  spans.forEach((s, i) => {
+  for (let i = 0; i < spans.length; i++) {
+    const s = spans[i] as InlineSpan;
     if (s.code) {
       out.push(
         <Text key={i} color={theme.syntax.attribute} bg={theme.elevated}>
           {s.text}
         </Text>,
       );
-      return;
+      continue;
     }
     const styled = s.bold || s.italic || s.strike || s.href !== undefined;
     if (!styled) {
       out.push(s.text);
-      return;
+      continue;
     }
     out.push(
       <Text
@@ -53,7 +63,7 @@ function renderInline(spans: readonly InlineSpan[], theme: TextTheme): ReactNode
         </Text>,
       );
     }
-  });
+  }
   return out;
 }
 
@@ -66,7 +76,48 @@ function pad(text: string, width: number, align: TableAlign): [string, string] {
 
 const BULLETS = ["•", "◦", "▪"];
 
-function Block({ block, theme, codeMaxHeight, codeLineNumbers }: { block: MarkdownBlock; theme: TextTheme; codeMaxHeight?: number; codeLineNumbers: boolean }): ReactNode {
+const ListRow = memo(function ListRow({
+  marker,
+  text,
+  depth,
+  checked,
+  theme,
+}: {
+  marker: string;
+  text: string;
+  depth: number;
+  checked?: boolean;
+  theme: TextTheme;
+}): ReactNode {
+  return (
+    <Box flexDirection="row" flexShrink={0} paddingLeft={depth * 2}>
+      <Text color={checked ? theme.success : theme.accent} wrap="nowrap" flexShrink={0}>
+        {`${marker} `}
+      </Text>
+      <Text flexShrink={1} strikethrough={checked === true} color={checked ? theme.subtle : undefined}>
+        {renderInline(parseInline(text), theme)}
+      </Text>
+    </Box>
+  );
+});
+
+interface BlockProps {
+  block: MarkdownBlock;
+  theme: TextTheme;
+  codeMaxHeight?: number;
+  codeLineNumbers: boolean;
+}
+
+function blockPropsEqual(prev: BlockProps, next: BlockProps): boolean {
+  return (
+    prev.theme === next.theme &&
+    prev.codeMaxHeight === next.codeMaxHeight &&
+    prev.codeLineNumbers === next.codeLineNumbers &&
+    blockEqual(prev.block, next.block)
+  );
+}
+
+const Block = memo(function Block({ block, theme, codeMaxHeight, codeLineNumbers }: BlockProps): ReactNode {
   switch (block.type) {
     case "heading": {
       const color = block.level === 1 ? theme.accent : block.level === 2 ? theme.fg : theme.muted;
@@ -90,9 +141,7 @@ function Block({ block, theme, codeMaxHeight, codeLineNumbers }: { block: Markdo
       return (
         <Box flexDirection="column" flexShrink={0} border="single" borderTop={false} borderRight={false} borderBottom={false} borderColor={theme.border} paddingLeft={1} color={theme.muted}>
           {block.blocks.map((b, i) => (
-            <Box key={i} marginTop={i > 0 ? 1 : 0} flexDirection="column" flexShrink={0}>
-              <Block block={b} theme={theme} codeMaxHeight={codeMaxHeight} codeLineNumbers={codeLineNumbers} />
-            </Box>
+            <BlockRow key={i} block={b} marginTop={i > 0 ? 1 : 0} theme={theme} codeMaxHeight={codeMaxHeight} codeLineNumbers={codeLineNumbers} />
           ))}
         </Box>
       );
@@ -104,16 +153,7 @@ function Block({ block, theme, codeMaxHeight, codeLineNumbers }: { block: Markdo
             if (item.ordered && item.depth === 0) counter = counter === 0 ? Number.parseInt(item.marker, 10) || 1 : counter + 1;
             const marker =
               item.checked !== undefined ? (item.checked ? "[✓]" : "[ ]") : item.ordered ? `${item.depth === 0 ? counter : Number.parseInt(item.marker, 10) || 1}.` : (BULLETS[item.depth % BULLETS.length] as string);
-            return (
-              <Box key={i} flexDirection="row" flexShrink={0} paddingLeft={item.depth * 2}>
-                <Text color={item.checked ? theme.success : theme.accent} wrap="nowrap" flexShrink={0}>
-                  {`${marker} `}
-                </Text>
-                <Text flexShrink={1} strikethrough={item.checked === true} color={item.checked ? theme.subtle : undefined}>
-                  {renderInline(parseInline(item.text), theme)}
-                </Text>
-              </Box>
-            );
+            return <ListRow key={i} marker={marker} text={item.text} depth={item.depth} checked={item.checked} theme={theme} />;
           })}
         </Box>
       );
@@ -169,20 +209,41 @@ function Block({ block, theme, codeMaxHeight, codeLineNumbers }: { block: Markdo
     default:
       return null;
   }
+}, blockPropsEqual);
+
+interface BlockRowProps extends BlockProps {
+  marginTop: number;
 }
 
+const BlockRow = memo(
+  function BlockRow({ block, marginTop, theme, codeMaxHeight, codeLineNumbers }: BlockRowProps): ReactNode {
+    return (
+      <Box flexDirection="column" flexShrink={0} marginTop={marginTop}>
+        <Block block={block} theme={theme} codeMaxHeight={codeMaxHeight} codeLineNumbers={codeLineNumbers} />
+      </Box>
+    );
+  },
+  (prev, next) => prev.marginTop === next.marginTop && blockPropsEqual(prev, next),
+);
+
 /** Render Markdown, including partial documents streamed from an LLM. */
-export function Markdown({ children, content, codeMaxHeight, codeLineNumbers = false, ...boxProps }: MarkdownProps): ReactNode {
+export const Markdown: NamedExoticComponent<MarkdownProps> = memo(function Markdown({
+  children,
+  content,
+  codeMaxHeight,
+  codeLineNumbers = false,
+  ...boxProps
+}: MarkdownProps): ReactNode {
   const theme = useTheme();
   const source = content ?? children ?? "";
-  const blocks = useMemo(() => parseMarkdown(source), [source]);
+  const streamCacheRef = useRef<MarkdownStreamCache | null>(null);
+  if (streamCacheRef.current === null) streamCacheRef.current = createMarkdownStreamCache();
+  const blocks = useMemo(() => parseMarkdownIncremental(source, streamCacheRef.current as MarkdownStreamCache), [source]);
   return (
     <Box flexDirection="column" flexShrink={0} {...boxProps}>
       {blocks.map((b, i) => (
-        <Box key={i} flexDirection="column" flexShrink={0} marginTop={i > 0 ? 1 : 0}>
-          <Block block={b} theme={theme} codeMaxHeight={codeMaxHeight} codeLineNumbers={codeLineNumbers} />
-        </Box>
+        <BlockRow key={i} block={b} marginTop={i > 0 ? 1 : 0} theme={theme} codeMaxHeight={codeMaxHeight} codeLineNumbers={codeLineNumbers} />
       ))}
     </Box>
   );
-}
+});

@@ -27,6 +27,10 @@ export interface DiffFile {
 }
 
 const HUNK = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/;
+const DIFF_CACHE_LIMIT = 256;
+const MAX_CACHED_DIFF_CHARS = 65_536;
+const diffTextsCache = new Map<string, DiffFile>();
+const unifiedDiffCache = new Map<string, DiffFile[]>();
 
 function stripPrefix(p: string): string {
   const s = p.trim().split("\t")[0] ?? "";
@@ -36,6 +40,11 @@ function stripPrefix(p: string): string {
 
 /** Parse a (multi-file) unified diff. Text without hunks yields no files. */
 export function parseUnifiedDiff(patch: string): DiffFile[] {
+  const cacheable = patch.length <= MAX_CACHED_DIFF_CHARS;
+  if (cacheable) {
+    const hit = unifiedDiffCache.get(patch);
+    if (hit !== undefined) return hit;
+  }
   const files: DiffFile[] = [];
   let file: DiffFile | null = null;
   let hunk: DiffHunk | null = null;
@@ -99,11 +108,25 @@ export function parseUnifiedDiff(patch: string): DiffFile[] {
       file.hunks.push(hunk);
     }
   }
-  return files.filter((f) => f.hunks.length > 0);
+  const result = files.filter((f) => f.hunks.length > 0);
+  if (cacheable) {
+    if (unifiedDiffCache.size >= DIFF_CACHE_LIMIT) {
+      const oldest = unifiedDiffCache.keys().next();
+      if (!oldest.done) unifiedDiffCache.delete(oldest.value);
+    }
+    unifiedDiffCache.set(patch, result);
+  }
+  return result;
 }
 
 /** Line-level diff (LCS) of two texts, grouped into hunks with `context` lines of context. */
 export function diffTexts(before: string, after: string, filename = "", context = 3): DiffFile {
+  const cacheable = before.length + after.length <= MAX_CACHED_DIFF_CHARS;
+  const key = cacheable ? `${context}:${filename.length}:${filename}:${before.length}:${before}${after}` : "";
+  if (cacheable) {
+    const hit = diffTextsCache.get(key);
+    if (hit !== undefined) return hit;
+  }
   const a = before.length === 0 ? [] : before.replace(/\n$/, "").split("\n");
   const b = after.length === 0 ? [] : after.replace(/\n$/, "").split("\n");
   // Trim common prefix/suffix to keep the DP small.
@@ -197,11 +220,19 @@ export function diffTexts(before: string, after: string, filename = "", context 
     hunks.push(hk);
     k = end;
   }
-  return {
+  const result: DiffFile = {
     oldPath: filename,
     newPath: filename,
     hunks,
     additions: ops.filter((o) => o.kind === "add").length,
     deletions: ops.filter((o) => o.kind === "remove").length,
   };
+  if (cacheable) {
+    if (diffTextsCache.size >= DIFF_CACHE_LIMIT) {
+      const oldest = diffTextsCache.keys().next();
+      if (!oldest.done) diffTextsCache.delete(oldest.value);
+    }
+    diffTextsCache.set(key, result);
+  }
+  return result;
 }

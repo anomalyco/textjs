@@ -71,8 +71,73 @@ function isBlockStart(line: string, next: string | undefined): boolean {
   );
 }
 
-export function parseMarkdown(source: string): MarkdownBlock[] {
-  const lines = source.replace(/\r\n?/g, "\n").split("\n");
+export function blockEqual(a: MarkdownBlock, b: MarkdownBlock): boolean {
+  if (a === b) return true;
+  if (a.type !== b.type) return false;
+  switch (a.type) {
+    case "hr":
+      return true;
+    case "heading":
+      return b.type === "heading" && a.level === b.level && a.text === b.text;
+    case "paragraph":
+      return b.type === "paragraph" && a.text === b.text;
+    case "code":
+      return b.type === "code" && a.language === b.language && a.code === b.code && a.closed === b.closed;
+    case "list":
+      return (
+        b.type === "list" &&
+        a.items.length === b.items.length &&
+        a.items.every((it, i) => {
+          const bit = b.items[i] as ListItem;
+          return it.text === bit.text && it.depth === bit.depth && it.marker === bit.marker && it.ordered === bit.ordered && it.checked === bit.checked;
+        })
+      );
+    case "table":
+      return (
+        b.type === "table" &&
+        a.header.length === b.header.length &&
+        a.align.length === b.align.length &&
+        a.rows.length === b.rows.length &&
+        a.header.every((h, i) => h === b.header[i]) &&
+        a.align.every((al, i) => al === b.align[i]) &&
+        a.rows.every((r, i) => {
+          const br = b.rows[i] as string[];
+          return r.length === br.length && r.every((c, j) => c === br[j]);
+        })
+      );
+    case "quote":
+      return b.type === "quote" && a.blocks.length === b.blocks.length && a.blocks.every((blk, i) => blockEqual(blk, b.blocks[i] as MarkdownBlock));
+  }
+}
+
+/** Reuse previous block object references wherever blocks are structurally equal. */
+export function reconcileBlocks(prev: readonly MarkdownBlock[], next: MarkdownBlock[]): MarkdownBlock[] {
+  const limit = Math.min(prev.length, next.length);
+  for (let i = 0; i < limit; i++) {
+    const p = prev[i] as MarkdownBlock;
+    const n = next[i] as MarkdownBlock;
+    if (blockEqual(p, n)) {
+      next[i] = p;
+    } else if (p.type === "quote" && n.type === "quote") {
+      reconcileBlocks(p.blocks, n.blocks);
+    }
+  }
+  return next;
+}
+
+export interface MarkdownStreamCache {
+  norm: string;
+  blocks: MarkdownBlock[];
+  stableOffset: number;
+  stableBlocks: MarkdownBlock[];
+}
+
+export function createMarkdownStreamCache(): MarkdownStreamCache {
+  return { norm: "", blocks: [], stableOffset: 0, stableBlocks: [] };
+}
+
+function parseNormalized(norm: string): MarkdownBlock[] {
+  const lines = norm.split("\n");
   const blocks: MarkdownBlock[] = [];
   let i = 0;
   while (i < lines.length) {
@@ -121,7 +186,7 @@ export function parseMarkdown(source: string): MarkdownBlock[] {
         inner.push(m[1] as string);
         i++;
       }
-      blocks.push({ type: "quote", blocks: parseMarkdown(inner.join("\n")) });
+      blocks.push({ type: "quote", blocks: parseNormalized(inner.join("\n")) });
       continue;
     }
     if (LIST.test(line)) {
@@ -189,12 +254,102 @@ export function parseMarkdown(source: string): MarkdownBlock[] {
   return blocks;
 }
 
+export function parseMarkdown(source: string, prev?: readonly MarkdownBlock[]): MarkdownBlock[] {
+  const norm = source.includes("\r") ? source.replace(/\r\n?/g, "\n") : source;
+  const next = parseNormalized(norm);
+  return prev && prev.length > 0 ? reconcileBlocks(prev, next) : next;
+}
+
+export function parseMarkdownIncremental(source: string, cache: MarkdownStreamCache): MarkdownBlock[] {
+  const norm = source.includes("\r") ? source.replace(/\r\n?/g, "\n") : source;
+  if (norm === cache.norm && (norm.length > 0 || cache.blocks.length === 0)) {
+    return cache.blocks;
+  }
+  if (cache.stableOffset > 0 && cache.norm.length >= cache.stableOffset && norm.startsWith(cache.norm)) {
+    const tail = parseNormalized(norm.slice(cache.stableOffset));
+    const next = cache.stableBlocks.concat(tail);
+    const limit = Math.min(cache.blocks.length, next.length);
+    for (let i = cache.stableBlocks.length; i < limit; i++) {
+      const p = cache.blocks[i] as MarkdownBlock;
+      const n = next[i] as MarkdownBlock;
+      if (blockEqual(p, n)) next[i] = p;
+      else if (p.type === "quote" && n.type === "quote") reconcileBlocks(p.blocks, n.blocks);
+    }
+    if (tail.length >= 2 && (tail[0]!.type !== "code" || tail[0]!.closed)) {
+      const doubleNl = norm.lastIndexOf("\n\n");
+      if (doubleNl > cache.stableOffset) {
+        const midBlocks = parseNormalized(norm.slice(cache.stableOffset, doubleNl));
+        if (midBlocks.length > 0 && midBlocks.every((b) => b.type !== "code" || b.closed)) {
+          const base = cache.stableBlocks.length;
+          if (base + midBlocks.length < next.length) {
+            for (let j = 0; j < midBlocks.length; j++) {
+              const existing = next[base + j] as MarkdownBlock;
+              if (blockEqual(existing, midBlocks[j] as MarkdownBlock)) midBlocks[j] = existing;
+            }
+            cache.stableBlocks = cache.stableBlocks.concat(midBlocks);
+            cache.stableOffset = doubleNl + 2;
+          }
+        }
+      }
+    }
+    cache.norm = norm;
+    cache.blocks = next;
+    return next;
+  }
+
+  const next = reconcileBlocks(cache.blocks, parseNormalized(norm));
+  cache.stableOffset = 0;
+  cache.stableBlocks = [];
+  if (next.length >= 2) {
+    const doubleNl = norm.lastIndexOf("\n\n");
+    if (doubleNl > 0) {
+      const prefixBlocks = parseNormalized(norm.slice(0, doubleNl));
+      if (prefixBlocks.length > 0 && prefixBlocks.length < next.length && prefixBlocks.every((b) => b.type !== "code" || b.closed)) {
+        for (let i = 0; i < prefixBlocks.length; i++) {
+          if (blockEqual(next[i] as MarkdownBlock, prefixBlocks[i] as MarkdownBlock)) {
+            prefixBlocks[i] = next[i] as MarkdownBlock;
+          }
+        }
+        cache.stableOffset = doubleNl + 2;
+        cache.stableBlocks = prefixBlocks;
+      }
+    }
+  }
+  cache.norm = norm;
+  cache.blocks = next;
+  return next;
+}
+
 type Style = Omit<InlineSpan, "text">;
 
 const URL_RE = /^https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"]/;
+const INLINE_CACHE_LIMIT = 2048;
+const MAX_INLINE_CACHED_LEN = 2048;
+const inlineCache = new Map<string, InlineSpan[]>();
+
+function isDefaultStyle(s: Style): boolean {
+  return s.bold === undefined && s.italic === undefined && s.code === undefined && s.strike === undefined && s.href === undefined;
+}
 
 /** Parse inline Markdown into styled spans. Unclosed markers are kept literally. */
 export function parseInline(text: string, style: Style = {}): InlineSpan[] {
+  const cacheable = text.length <= MAX_INLINE_CACHED_LEN && isDefaultStyle(style);
+  if (cacheable) {
+    const hit = inlineCache.get(text);
+    if (hit !== undefined) return hit;
+  }
+  const result = parseInlineWithStyle(text, style);
+  if (cacheable) {
+    if (inlineCache.size >= INLINE_CACHE_LIMIT) {
+      const oldest = inlineCache.keys().next();
+      if (!oldest.done) inlineCache.delete(oldest.value);
+    }
+    inlineCache.set(text, result);
+  }
+  return result;
+}
+
+function parseInlineWithStyle(text: string, style: Style): InlineSpan[] {
   const out: InlineSpan[] = [];
   let buf = "";
   const flush = (): void => {
@@ -237,7 +392,7 @@ export function parseInline(text: string, style: Style = {}): InlineSpan[] {
       const marker = ch + ch;
       const end = text.indexOf(marker, i + 2);
       if (end > i + 2) {
-        emit(parseInline(text.slice(i + 2, end), { ...style, bold: true }));
+        emit(parseInlineWithStyle(text.slice(i + 2, end), { ...style, bold: true }));
         i = end + 2;
         continue;
       }
@@ -245,7 +400,7 @@ export function parseInline(text: string, style: Style = {}): InlineSpan[] {
     if (ch === "~" && text[i + 1] === "~") {
       const end = text.indexOf("~~", i + 2);
       if (end > i + 2) {
-        emit(parseInline(text.slice(i + 2, end), { ...style, strike: true }));
+        emit(parseInlineWithStyle(text.slice(i + 2, end), { ...style, strike: true }));
         i = end + 2;
         continue;
       }
@@ -253,7 +408,7 @@ export function parseInline(text: string, style: Style = {}): InlineSpan[] {
     if (ch === "*" || (ch === "_" && (i === 0 || /[\s(]/.test(text[i - 1] as string)))) {
       const end = findItalicEnd(text, i + 1, ch);
       if (end > i + 1) {
-        emit(parseInline(text.slice(i + 1, end), { ...style, italic: true }));
+        emit(parseInlineWithStyle(text.slice(i + 1, end), { ...style, italic: true }));
         i = end + 1;
         continue;
       }
@@ -265,7 +420,7 @@ export function parseInline(text: string, style: Style = {}): InlineSpan[] {
         if (end > close) {
           const label = text.slice(i + 1, close);
           const href = text.slice(close + 2, end).trim().split(/\s+/)[0] ?? "";
-          emit(parseInline(label, { ...style, href }));
+          emit(parseInlineWithStyle(label, { ...style, href }));
           i = end + 1;
           continue;
         }

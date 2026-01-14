@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { memo, useMemo, type NamedExoticComponent, type ReactNode } from "react";
 import { diffTexts, parseUnifiedDiff, type DiffFile, type DiffLine } from "../diff";
 import { tokenize, type Token } from "../highlight";
 import { useTheme, type TextTheme } from "../theme";
@@ -34,13 +34,26 @@ function lineTokens(text: string, language: string | undefined): Token[] {
   return tokenize(text, language)[0] ?? [];
 }
 
-function DiffRow({ line, gutter, theme, language, numbers }: { line: DiffLine; gutter: number; theme: TextTheme; language: string | undefined; numbers: boolean }): ReactNode {
+const DiffRow = memo(function DiffRow({
+  line,
+  gutter,
+  theme,
+  language,
+  numbers,
+}: {
+  line: DiffLine;
+  gutter: number;
+  theme: TextTheme;
+  language: string | undefined;
+  numbers: boolean;
+}): ReactNode {
   const add = line.kind === "add";
   const del = line.kind === "remove";
   const bg = add ? theme.diffAddBg : del ? theme.diffRemoveBg : undefined;
   const sign = add ? "+" : del ? "-" : " ";
   const signColor = add ? theme.success : del ? theme.danger : theme.subtle;
-  const tokens = lineTokens(line.text.replace(/\t/g, "  "), language);
+  const cleanText = line.text.includes("\t") ? line.text.replace(/\t/g, "  ") : line.text;
+  const tokens = lineTokens(cleanText, language);
   return (
     <Box flexDirection="row" flexShrink={0} bg={bg} overflow="hidden">
       {numbers ? (
@@ -64,9 +77,21 @@ function DiffRow({ line, gutter, theme, language, numbers }: { line: DiffLine; g
       </Text>
     </Box>
   );
-}
+});
 
-function FileView({ file, theme, numbers, language, maxRows }: { file: DiffFile; theme: TextTheme; numbers: boolean; language: string | false | undefined; maxRows: number }): ReactNode {
+const FileView = memo(function FileView({
+  file,
+  theme,
+  numbers,
+  language,
+  maxRows,
+}: {
+  file: DiffFile;
+  theme: TextTheme;
+  numbers: boolean;
+  language: string | false | undefined;
+  maxRows: number;
+}): ReactNode {
   const path = file.newPath && file.newPath !== "/dev/null" ? file.newPath : file.oldPath;
   const lang = language === false ? undefined : (language ?? languageOf(path));
   let maxLine = 1;
@@ -113,15 +138,49 @@ function FileView({ file, theme, numbers, language, maxRows }: { file: DiffFile;
       {hidden > 0 ? <Text color={theme.subtle} italic>{`… ${hidden} more lines`}</Text> : null}
     </Box>
   );
+});
+
+function patchEqual(a: string | DiffInput, b: string | DiffInput): boolean {
+  if (a === b) return true;
+  if (typeof a === "string" || typeof b === "string") return false;
+  return a.before === b.before && a.after === b.after && a.filename === b.filename;
+}
+
+function diffPropsEqual(prev: DiffProps, next: DiffProps): boolean {
+  const a = prev as unknown as Record<string, unknown>;
+  const b = next as unknown as Record<string, unknown>;
+  for (const k in b) {
+    if (k === "patch") {
+      if (!patchEqual(prev.patch, next.patch)) return false;
+    } else if (a[k] !== b[k]) {
+      return false;
+    }
+  }
+  for (const k in a) {
+    if (k !== "patch" && !(k in b) && a[k] !== undefined) return false;
+  }
+  return true;
 }
 
 /** A unified diff viewer with line numbers, tinted rows and syntax highlighting. */
-export function Diff({ patch, showLineNumbers = true, language, context = 3, maxHeight, ...boxProps }: DiffProps): ReactNode {
+export const Diff: NamedExoticComponent<DiffProps> = memo(function Diff({
+  patch,
+  showLineNumbers = true,
+  language,
+  context = 3,
+  maxHeight,
+  ...boxProps
+}: DiffProps): ReactNode {
   const theme = useTheme();
-  const files = useMemo(() => {
-    if (typeof patch === "string") return parseUnifiedDiff(patch);
-    return [diffTexts(patch.before, patch.after, patch.filename ?? "", context)];
-  }, [patch, context]);
+  const isString = typeof patch === "string";
+  const patchStr = isString ? patch : "";
+  const before = isString ? "" : patch.before;
+  const after = isString ? "" : patch.after;
+  const filename = isString ? "" : (patch.filename ?? "");
+  const files = useMemo(
+    () => (isString ? parseUnifiedDiff(patchStr) : [diffTexts(before, after, filename, context)]),
+    [isString, patchStr, before, after, filename, context],
+  );
   return (
     <Box flexDirection="column" flexShrink={0} gap={1} {...boxProps}>
       {files.length === 0 ? (
@@ -133,4 +192,4 @@ export function Diff({ patch, showLineNumbers = true, language, context = 3, max
       )}
     </Box>
   );
-}
+}, diffPropsEqual);

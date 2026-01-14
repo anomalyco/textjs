@@ -23,6 +23,8 @@ import {
   geistDark,
 } from "../src/index";
 import { parseColor } from "@textjs/core";
+import { createMarkdownStreamCache, parseMarkdownIncremental } from "../src/markdown";
+import { activeSpinnerTickerCount } from "../src/components/Spinner";
 import { createTestRoot } from "./helpers";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -104,6 +106,52 @@ describe("<Markdown>", () => {
     expect(frame).not.toContain("streaming…");
     expect(frame).toContain("Done now.");
     await t.unmount();
+  });
+
+  test("parseMarkdownIncremental matches full parseMarkdown on every streamed chunk and reuses block refs", () => {
+    const doc = [
+      "# Streaming Heading",
+      "",
+      "Intro with **bold**, *italic*, `code` and [docs](https://textjs.org).",
+      "",
+      "- [x] First task",
+      "- [ ] Second task",
+      "  continued lazily",
+      "",
+      "> Quoted paragraph",
+      ">",
+      "> ```ts",
+      "> const inside = 1;",
+      "> ```",
+      "",
+      "| Col | Num |",
+      "| :--- | ---: |",
+      "| alpha | 42 |",
+      "",
+      "```tsx",
+      "export function Demo() {",
+      "",
+      "  return <Box />;",
+      "}",
+      "```",
+      "",
+      "Final paragraph.",
+    ].join("\r\n");
+
+    const cache = createMarkdownStreamCache();
+    let prevBlocks: ReturnType<typeof parseMarkdown> = [];
+    let reusedCount = 0;
+    for (let i = 1; i <= doc.length; i += 3) {
+      const prefix = doc.slice(0, i);
+      const inc = parseMarkdownIncremental(prefix, cache);
+      const full = parseMarkdown(prefix);
+      expect(inc).toEqual(full);
+      if (prevBlocks.length >= 2 && inc.length >= 2 && prevBlocks[0] === inc[0]) {
+        reusedCount++;
+      }
+      prevBlocks = inc;
+    }
+    expect(reusedCount).toBeGreaterThan(20);
   });
 });
 
@@ -199,6 +247,37 @@ describe("<Diff>", () => {
     expect(small[0]).toMatch(/^ f\.md\s+\+1 -1$/);
     expect(small[0]?.length).toBe(39);
     expect(small.slice(1, 4)).toEqual(["@@ -1,1 +1,1 @@", "1   - x", "  1 + y"]);
+    await t.unmount();
+  });
+
+  test("diffTexts caches results without delimiter collisions and <Diff> memoizes patch content", async () => {
+    const d1 = diffTexts("a\nb\n", "a\nc\n", "file.ts", 1);
+    const d2 = diffTexts("a\nb\n", "a\nc\n", "file.ts", 1);
+    expect(d2).toBe(d1);
+    // Distinct (before, after) pairs containing colons/nulls never collide.
+    const c1 = diffTexts("a:b\u0000x\n", "z\n", "f:1", 1);
+    const c2 = diffTexts("a\n", "b\u0000x\nz\n", "f:1", 1);
+    expect(c1).not.toEqual(c2);
+
+    const t = await createTestRoot({ width: 40, height: 6 });
+    let tick = 0;
+    let bump: () => void = () => undefined;
+    function Host() {
+      const [n, setN] = useState(0);
+      bump = () => setN((v) => v + 1);
+      tick = n;
+      return (
+        <Box flexDirection="column">
+          <Text>{`tick=${n}`}</Text>
+          <Diff patch={{ before: "old\n", after: "new\n", filename: "a.ts" }} />
+        </Box>
+      );
+    }
+    await t.render(<Host />);
+    await t.act(() => bump());
+    expect(tick).toBe(1);
+    expect(t.lines()[0]).toBe("tick=1");
+    expect(t.lines()[1]).toMatch(/^ a\.ts\s+\+1 -1$/);
     await t.unmount();
   });
 });
@@ -323,6 +402,26 @@ describe("<AsciiFont>, <Spinner> and primitives", () => {
     await t.render(<Spinner key="matrix" variant="matrix" paused />);
     expect(t.frame()).toBe("▪⬝⬝");
     await t.unmount();
+    expect(activeSpinnerTickerCount()).toBe(0);
+  });
+
+  test("multiple Spinners with the same interval share one ticker and coalesce commits", async () => {
+    const t = await createTestRoot({ width: 30, height: 3 });
+    await t.render(
+      <Box flexDirection="column">
+        <Spinner variant="dots" label="one" />
+        <Spinner variant="dots" label="two" />
+        <Spinner variant="dots" label="three" />
+      </Box>,
+    );
+    expect(activeSpinnerTickerCount()).toBe(1);
+    const logsBefore = t.console.logs.length;
+    await t.act(() => sleep(95));
+    t.frame();
+    expect(t.console.logs.length - logsBefore).toBe(1);
+    expect(t.lines()).toEqual(["⠙ one", "⠙ two", "⠙ three"]);
+    await t.unmount();
+    expect(activeSpinnerTickerCount()).toBe(0);
   });
 
   test("Divider, Badge, KeyHint and Spacer", async () => {

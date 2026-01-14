@@ -188,16 +188,89 @@ export function normalizeLanguage(language: string | undefined): string {
   return ALIASES[language.toLowerCase()] ?? "plain";
 }
 
-const IDENT_START = /[A-Za-z_$@]/;
-const IDENT = /[A-Za-z0-9_$\-]/;
 const PUNCT = "{}[]();,.:";
 const OPERATORS = "+-*/%=<>!&|^~?";
+const LINE_TOKEN_CACHE_LIMIT = 4096;
+const MAX_CACHED_LINE_LEN = 1024;
+const singleLineTokenCache = new Map<string, Token[]>();
+
+function isIdentStart(c: number): boolean {
+  return (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 95 || c === 36 || c === 64;
+}
+
+function isIdentPart(c: number, allowDash: boolean): boolean {
+  return (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c === 95 || c === 36 || (allowDash && c === 45);
+}
+
+function isSpaceCode(c: number, s: string, idx: number): boolean {
+  if (c === 32 || c === 9 || c === 10 || c === 13 || c === 11 || c === 12) return true;
+  return c >= 0x80 && /\s/.test(s[idx] as string);
+}
+
+function nextNonSpaceWithin(code: string, from: number, maxLen: number): string | undefined {
+  const limit = Math.min(code.length, from + maxLen);
+  let p = from;
+  while (p < limit && isSpaceCode(code.charCodeAt(p), code, p)) p++;
+  return p < limit ? code[p] : undefined;
+}
+
+function canTokenizePerLine(code: string, langKey: string, lang: LanguageSpec): boolean {
+  if (langKey === "markdown") return true;
+  if (lang.blockComment !== null && code.includes(lang.blockComment[0])) return false;
+  if (code.includes("`") || code.includes('"""') || code.includes("'''") || code.includes("\\\n")) return false;
+  if (lang.jsx && code.includes("<")) return false;
+  return true;
+}
+
+function tokenizeLineCached(line: string, langKey: string, lang: LanguageSpec): Token[] {
+  if (line.length === 0) return [];
+  if (line.length > MAX_CACHED_LINE_LEN) {
+    return langKey === "markdown" ? (tokenizeMarkdown(line)[0] ?? []) : (tokenizeBlock(line, langKey, lang)[0] ?? []);
+  }
+  const key = `${langKey}\u0000${line}`;
+  let hit = singleLineTokenCache.get(key);
+  if (hit === undefined) {
+    hit = langKey === "markdown" ? (tokenizeMarkdown(line)[0] ?? []) : (tokenizeBlock(line, langKey, lang)[0] ?? []);
+    if (singleLineTokenCache.size >= LINE_TOKEN_CACHE_LIMIT) {
+      const oldest = singleLineTokenCache.keys().next();
+      if (!oldest.done) singleLineTokenCache.delete(oldest.value);
+    }
+    singleLineTokenCache.set(key, hit);
+  }
+  return hit;
+}
 
 /** Tokenize source into lines of tokens. Multi-line strings and comments are split per line. */
 export function tokenize(code: string, language?: string): Token[][] {
   const langKey = normalizeLanguage(language);
-  if (langKey === "markdown") return tokenizeMarkdown(code);
   const lang = LANGS[langKey] as LanguageSpec;
+  if (!code.includes("\n")) {
+    return [tokenizeLineCached(code, langKey, lang)];
+  }
+  if (canTokenizePerLine(code, langKey, lang)) {
+    const rawLines = code.split("\n");
+    // Ensure no line ends with an identifier or JSON string followed by `(` or `:` across a newline.
+    let crossLineLookahead = false;
+    for (let li = 1; li < rawLines.length; li++) {
+      const first = nextNonSpaceWithin(rawLines[li] as string, 0, 32);
+      if (first === "(" || (langKey === "json" && first === ":")) {
+        crossLineLookahead = true;
+        break;
+      }
+    }
+    if (!crossLineLookahead) {
+      const out: Token[][] = new Array(rawLines.length);
+      for (let li = 0; li < rawLines.length; li++) {
+        out[li] = tokenizeLineCached(rawLines[li] as string, langKey, lang);
+      }
+      return out;
+    }
+  }
+  if (langKey === "markdown") return tokenizeMarkdown(code);
+  return tokenizeBlock(code, langKey, lang);
+}
+
+function tokenizeBlock(code: string, langKey: string, lang: LanguageSpec): Token[][] {
   const tokens: Token[] = [];
   const push = (kind: TokenKind, text: string): void => {
     if (text.length === 0) return;
@@ -208,13 +281,14 @@ export function tokenize(code: string, language?: string): Token[][] {
   const n = code.length;
   let i = 0;
   let prevSignificant: Token | null = null;
-  const identRe = langKey === "css" || langKey === "bash" ? IDENT : /[A-Za-z0-9_$]/;
+  const allowDash = langKey === "css" || langKey === "bash";
   while (i < n) {
     const ch = code[i] as string;
+    const chCode = code.charCodeAt(i);
     // Comments
     let matched = false;
     for (const lc of lang.lineComment) {
-      if (code.startsWith(lc, i) && (lc !== "#" || i === 0 || /\s/.test(code[i - 1] as string))) {
+      if (code.startsWith(lc, i) && (lc !== "#" || i === 0 || isSpaceCode(code.charCodeAt(i - 1), code, i - 1))) {
         const end = code.indexOf("\n", i);
         const stop = end < 0 ? n : end;
         push("comment", code.slice(i, stop));
@@ -247,11 +321,17 @@ export function tokenize(code: string, language?: string): Token[][] {
         if (q.length === 1 && q !== "`" && code[k] === "\n") break;
         k++;
       }
-      const text = code.slice(i, Math.min(k, n));
+      const stop = Math.min(k, n);
+      const text = code.slice(i, stop);
       // JSON object keys read as attributes.
-      const after = code.slice(k).match(/^\s*:/);
-      push(langKey === "json" && after ? "attribute" : "string", text);
-      i = Math.min(k, n);
+      let isJsonAttr = false;
+      if (langKey === "json") {
+        let p = k;
+        while (p < n && isSpaceCode(code.charCodeAt(p), code, p)) p++;
+        isJsonAttr = p < n && code.charCodeAt(p) === 58;
+      }
+      push(isJsonAttr ? "attribute" : "string", text);
+      i = stop;
       matched = true;
       break;
     }
@@ -260,7 +340,7 @@ export function tokenize(code: string, language?: string): Token[][] {
       continue;
     }
     // JSX tags: <Foo, </div, />
-    if (lang.jsx && ch === "<") {
+    if (lang.jsx && chCode === 60) {
       const m = /^<\/?([A-Za-z][\w.-]*)/.exec(code.slice(i, i + 64));
       const prevText = prevSignificant?.text ?? "";
       const exprContext = prevSignificant === null || /[(,=:?&|{}[\];>]$|return$/.test(prevText) || prevSignificant.kind === "keyword";
@@ -273,7 +353,7 @@ export function tokenize(code: string, language?: string): Token[][] {
       }
     }
     // Numbers
-    if (/[0-9]/.test(ch) || (ch === "." && /[0-9]/.test(code[i + 1] ?? ""))) {
+    if ((chCode >= 48 && chCode <= 57) || (chCode === 46 && i + 1 < n && code.charCodeAt(i + 1) >= 48 && code.charCodeAt(i + 1) <= 57)) {
       const m = /^(0x[0-9a-fA-F_]+|0b[01_]+|\d[\d_]*(\.\d+)?([eE][+-]?\d+)?n?|\.\d+)/.exec(code.slice(i, i + 64));
       const text = m ? m[0] : ch;
       push("number", text);
@@ -282,7 +362,7 @@ export function tokenize(code: string, language?: string): Token[][] {
       continue;
     }
     // Shell variables
-    if (lang.dollarVars && ch === "$") {
+    if (lang.dollarVars && chCode === 36) {
       const m = /^\$(\{[^}]*\}|[A-Za-z_][A-Za-z0-9_]*|[0-9@#?*!$-])/.exec(code.slice(i, i + 64));
       if (m) {
         push("variable", m[0]);
@@ -291,12 +371,12 @@ export function tokenize(code: string, language?: string): Token[][] {
       }
     }
     // Identifiers
-    if (IDENT_START.test(ch)) {
+    if (isIdentStart(chCode)) {
       let k = i + 1;
-      while (k < n && identRe.test(code[k] as string)) k++;
+      while (k < n && isIdentPart(code.charCodeAt(k), allowDash)) k++;
       const word = code.slice(i, k);
       let kind: TokenKind = "plain";
-      const nextNonSpace = /^\s*(.)/.exec(code.slice(k, k + 32))?.[1];
+      const nextNonSpace = nextNonSpaceWithin(code, k, 32);
       if (lang.keywords.has(word)) kind = "keyword";
       else if (lang.constants.has(word)) kind = "constant";
       else if (lang.builtinTypes.has(word)) kind = "type";
@@ -326,7 +406,7 @@ export function tokenize(code: string, language?: string): Token[][] {
       continue;
     }
     push("plain", ch);
-    if (!/\s/.test(ch)) prevSignificant = tokens[tokens.length - 1] ?? null;
+    if (!isSpaceCode(chCode, code, i)) prevSignificant = tokens[tokens.length - 1] ?? null;
     i++;
   }
   return splitLines(tokens);
