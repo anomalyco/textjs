@@ -50,8 +50,8 @@ export const DEFAULT_STYLE_RESOLVE: Readonly<StyleResolveOptions> = Object.freez
   dimOpacity: 0.6,
 });
 
-/** Style flags that survive into the effective style key (inverse is resolved into colors). */
-export const KEY_FLAG_MASK = ATTR_BOLD | ATTR_DIM | ATTR_ITALIC | ATTR_UNDERLINE | ATTR_STRIKETHROUGH | ATTR_ALLOW_LINK;
+/** Style flags that survive into the effective style key (inverse and dim are resolved into colors). */
+export const KEY_FLAG_MASK = ATTR_BOLD | ATTR_ITALIC | ATTR_UNDERLINE | ATTR_STRIKETHROUGH | ATTR_ALLOW_LINK;
 
 export interface EffectiveStyle {
   fg: PackedColor;
@@ -88,12 +88,18 @@ export function styleKeyOf(style: EffectiveStyle): bigint {
   return (BigInt(style.fg) << 40n) | (BigInt(style.bg) << 8n) | BigInt(style.flags & 0xff);
 }
 
+/**
+ * Per-span typography. DevTools copies every *longhand* of a `%c` style onto
+ * every line of the span, so shorthands are expensive: `font:` alone expands
+ * to ~20 properties. Vertical padding is folded into the line height (an
+ * inline-block's background fills its whole line box), which paints the same
+ * box with fewer properties.
+ */
 export function typographyCss(t: ConsoleTypographyOptions): string {
-  let css = `font:${t.fontSize}px/${t.lineHeight}px ${t.fontFamily};`;
+  let css = `font-family:${t.fontFamily};font-size:${t.fontSize}px;line-height:${t.lineHeight + 2 * t.rowPaddingY}px;`;
   // The default stack has no programming ligatures; custom fonts may.
   if (t.fontFamily !== DEFAULT_TYPOGRAPHY.fontFamily) css += "font-variant-ligatures:none;";
-  if (t.rowMarginY !== 0) css += `margin:${t.rowMarginY}px 0;`;
-  if (t.rowPaddingY !== 0) css += `padding:${t.rowPaddingY}px 0;`;
+  if (t.rowMarginY !== 0) css += `margin-top:${t.rowMarginY}px;margin-bottom:${t.rowMarginY}px;`;
   if (t.extraCss) css += t.extraCss.endsWith(";") ? t.extraCss : `${t.extraCss};`;
   return css;
 }
@@ -106,7 +112,7 @@ export function styleCss(base: string, style: EffectiveStyle): string {
   if (f & ATTR_BOLD) css += "font-weight:700;";
   if (f & ATTR_ITALIC) css += "font-style:italic;";
   if (f & (ATTR_UNDERLINE | ATTR_STRIKETHROUGH)) {
-    css += `text-decoration:${f & ATTR_UNDERLINE ? "underline" : ""}${f & ATTR_UNDERLINE && f & ATTR_STRIKETHROUGH ? " " : ""}${f & ATTR_STRIKETHROUGH ? "line-through" : ""};`;
+    css += `text-decoration-line:${f & ATTR_UNDERLINE ? "underline" : ""}${f & ATTR_UNDERLINE && f & ATTR_STRIKETHROUGH ? " " : ""}${f & ATTR_STRIKETHROUGH ? "line-through" : ""};`;
   }
   return css;
 }

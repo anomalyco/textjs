@@ -114,6 +114,7 @@ export class CssConsoleDriver {
   private rendered = false;
   private lastSpanCount = 0;
   private readonly scratch: EffectiveStyle = { fg: 0, bg: 0, flags: 0 };
+  private readonly blankScratch: EffectiveStyle = { fg: 0, bg: 0, flags: 0 };
 
   constructor(options: CssConsoleDriverOptions = {}) {
     this.target = options.console ?? null;
@@ -197,6 +198,11 @@ export class CssConsoleDriver {
     let pCss = "";
     let pBg = 0;
     let pLink = false;
+    // Last resolved blank-run style.
+    let bBg = -1;
+    let bLink = false;
+    let bKey = -1n;
+    let bCss = "";
     const push = (): void => {
       if (text.length > 0) spans.push({ styleKey: key, css, text: blank ? text : escapeConsoleText(text, allowLink), bg: spanBg, blank, link: allowLink, deco: spanDeco });
     };
@@ -252,12 +258,21 @@ export class CssConsoleDriver {
           continue;
         }
         promotePending();
-        resolve(f, b, a);
+        // A blank run that opens its own span only needs its background.
+        if (effBg !== bBg || link !== bLink) {
+          bBg = effBg;
+          bLink = link;
+          const bs = this.blankScratch;
+          bs.bg = effBg;
+          bs.flags = link ? ATTR_ALLOW_LINK : 0;
+          bKey = styleKeyOf(bs);
+          bCss = this.cssFor(bs, bKey);
+        }
         pend = 1;
-        pKey = rKey;
-        pCss = rCss;
-        pBg = rBg;
-        pLink = rLink;
+        pKey = bKey;
+        pCss = bCss;
+        pBg = effBg;
+        pLink = link;
         continue;
       }
       resolve(f, b, a);
