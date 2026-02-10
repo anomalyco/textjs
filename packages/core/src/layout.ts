@@ -238,15 +238,15 @@ const APPLIERS: Record<LayoutPropKey, Applier> = {
 
 export const LAYOUT_PROP_KEYS: readonly LayoutPropKey[] = Object.freeze(Object.keys(APPLIERS) as LayoutPropKey[]);
 
-const PADDING_KEYS: readonly LayoutPropKey[] = [
-  "padding",
-  "paddingX",
-  "paddingY",
-  "paddingTop",
-  "paddingRight",
-  "paddingBottom",
-  "paddingLeft",
-];
+const APPLIERS_BY_KEY: Record<string, Applier | undefined> = Object.assign(Object.create(null) as Record<string, Applier | undefined>, APPLIERS);
+
+/** Apply a single layout prop by key if `key` is a known layout prop. */
+export function applyLayoutProp(node: YogaNode, key: string, value: unknown): boolean {
+  const applier = APPLIERS_BY_KEY[key];
+  if (applier === undefined) return false;
+  applier(node, value);
+  return true;
+}
 
 /** Initialize a fresh Yoga node with Text.js defaults. */
 export function applyLayoutDefaults(node: YogaNode): void {
@@ -259,19 +259,50 @@ export function applyLayoutDefaults(node: YogaNode): void {
  * Returns the number of Yoga setters invoked (0 means Yoga was not dirtied).
  */
 export function applyLayoutProps(node: YogaNode, prev: LayoutProps | null, next: LayoutProps): number {
+  const nRec = next as Record<string, unknown>;
+  if (prev === null) {
+    let changed = 0;
+    for (const key in nRec) {
+      const value = nRec[key];
+      if (value === undefined) continue;
+      const applier = APPLIERS_BY_KEY[key];
+      if (applier === undefined) continue;
+      applier(node, value);
+      changed++;
+    }
+    return changed;
+  }
+  if (prev === next) return 0;
+  const pRec = prev as Record<string, unknown>;
   let changed = 0;
-  for (const key of LAYOUT_PROP_KEYS) {
-    const value = next[key];
-    if (prev !== null ? prev[key] === value : value === undefined) continue;
-    APPLIERS[key](node, value);
+  for (const key in nRec) {
+    const value = nRec[key];
+    if (value === undefined || pRec[key] === value) continue;
+    const applier = APPLIERS_BY_KEY[key];
+    if (applier === undefined) continue;
+    applier(node, value);
+    changed++;
+  }
+  for (const key in pRec) {
+    if (pRec[key] === undefined || nRec[key] !== undefined) continue;
+    const applier = APPLIERS_BY_KEY[key];
+    if (applier === undefined) continue;
+    applier(node, undefined);
     changed++;
   }
   return changed;
 }
 
 export function hasPaddingProps(props: LayoutProps): boolean {
-  for (const k of PADDING_KEYS) if (props[k] !== undefined) return true;
-  return false;
+  return (
+    props.padding !== undefined ||
+    props.paddingX !== undefined ||
+    props.paddingY !== undefined ||
+    props.paddingTop !== undefined ||
+    props.paddingRight !== undefined ||
+    props.paddingBottom !== undefined ||
+    props.paddingLeft !== undefined
+  );
 }
 
 /** Border widths `[top, right, bottom, left]` (each 0 or 1) implied by border props. */

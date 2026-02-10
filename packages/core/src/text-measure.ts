@@ -41,7 +41,7 @@ export class LruCache<K, V> {
 
   get(key: K): V | undefined {
     const value = this.map.get(key);
-    if (value !== undefined) {
+    if (value !== undefined && (this.max <= 16 || this.map.size >= (this.max >> 1))) {
       this.map.delete(key);
       this.map.set(key, value);
     }
@@ -77,9 +77,28 @@ export function isPrintableAscii(text: string): boolean {
   return true;
 }
 
-function isAsciiOnly(text: string): boolean {
+/**
+ * Conservative BMP whitelist of standalone width-1 characters that never join
+ * with adjacent characters in UAX #29 (excludes combining marks, format chars,
+ * variation selectors, surrogates, soft hyphen and wide symbols/emoji).
+ */
+function isFastNarrowBmp(c: number): boolean {
+  if (c < 0x0300) return c >= 0x00a0 && c !== 0x00ad; // Latin-1 Supplement + Latin Extended-A/B
+  if (c < 0x2010) return false;
+  if (c <= 0x2027) return true; // hyphens, dashes (– —), quotes, • … ·
+  if (c >= 0x2030 && c <= 0x205e) return true; // ‰ ′ ″ ‹ › ※
+  if (c >= 0x20a0 && c <= 0x20cf) return true; // currency symbols
+  if (c >= 0x2190 && c <= 0x22ff) return true; // arrows and mathematical operators
+  if (c >= 0x2500 && c <= 0x25ff) return true; // box drawing, block elements, geometric shapes (▼ ● ▪)
+  if (c >= 0x2800 && c <= 0x28ff) return true; // braille patterns (⠋ ⠙ …)
+  return c === 0x2713 || c === 0x2714 || c === 0x2717 || c === 0x2718; // ✓ ✔ ✗ ✘
+}
+
+/** True when every code unit is ASCII or in `isFastNarrowBmp` (safe to segment without `Intl.Segmenter`). */
+export function isSimpleNarrowString(text: string): boolean {
   for (let i = 0; i < text.length; i++) {
-    if (text.charCodeAt(i) > 0x7f) return false;
+    const c = text.charCodeAt(i);
+    if (c >= 0x80 && !isFastNarrowBmp(c)) return false;
   }
   return true;
 }
@@ -244,6 +263,22 @@ for (let c = 0; c < 0x80; c++) {
   );
 }
 
+const bmpGraphemes = new Map<number, Grapheme>();
+
+function getBmpGrapheme(c: number): Grapheme {
+  let g = bmpGraphemes.get(c);
+  if (g === undefined) {
+    g = Object.freeze({
+      grapheme: String.fromCharCode(c),
+      width: codePointWidth(c),
+      codePoint: c,
+      isMulti: false,
+    });
+    bmpGraphemes.set(c, g);
+  }
+  return g;
+}
+
 function pushGrapheme(out: Grapheme[], g: string): void {
   if (g.length === 1) {
     const c = g.charCodeAt(0);
@@ -252,6 +287,10 @@ function pushGrapheme(out: Grapheme[], g: string): void {
         for (let t = 0; t < TAB_WIDTH; t++) out.push(SPACE_GRAPHEME);
       } else if (c === 0x0a) out.push(NEWLINE_GRAPHEME);
       else if (c !== 0x0d) out.push(asciiGraphemes[c] ?? SPACE_GRAPHEME);
+      return;
+    }
+    if (isFastNarrowBmp(c)) {
+      out.push(getBmpGrapheme(c));
       return;
     }
   }
@@ -270,14 +309,15 @@ function pushGrapheme(out: Grapheme[], g: string): void {
  * Returned grapheme objects may be shared and must be treated as read-only.
  */
 export function segmentGraphemes(text: string, out: Grapheme[] = []): Grapheme[] {
-  if (isAsciiOnly(text)) {
+  if (isSimpleNarrowString(text)) {
     for (let i = 0; i < text.length; i++) {
       const c = text.charCodeAt(i);
-      if (c >= 0x20 && c < 0x7f) out.push(asciiGraphemes[c] ?? SPACE_GRAPHEME);
+      if (c >= 0x20 && c < 0x7f) out.push(asciiGraphemes[c] as Grapheme);
+      else if (c >= 0x80) out.push(getBmpGrapheme(c));
       else if (c === 0x09) {
         for (let t = 0; t < TAB_WIDTH; t++) out.push(SPACE_GRAPHEME);
       } else if (c === 0x0a) out.push(NEWLINE_GRAPHEME);
-      else if (c !== 0x0d) out.push(asciiGraphemes[c] ?? SPACE_GRAPHEME);
+      else if (c !== 0x0d) out.push(asciiGraphemes[c] as Grapheme);
     }
     return out;
   }
@@ -295,6 +335,19 @@ const MAX_CACHED_TEXT = 512;
  */
 export function stringWidth(text: string): number {
   if (isPrintableAscii(text)) return text.length;
+  if (isSimpleNarrowString(text)) {
+    let max = 0;
+    let line = 0;
+    for (let i = 0; i < text.length; i++) {
+      const c = text.charCodeAt(i);
+      if (c === 0x0a) {
+        if (line > max) max = line;
+        line = 0;
+      } else if (c === 0x09) line += TAB_WIDTH;
+      else if (c >= 0x20 && c !== 0x7f) line += 1;
+    }
+    return line > max ? line : max;
+  }
   const cached = widthCache.get(text);
   if (cached !== undefined) return cached;
   const gs = segmentGraphemes(text);
@@ -315,12 +368,6 @@ function isBreakSpace(g: Grapheme): boolean {
   return g.codePoint === 0x20 || g.codePoint === 0x3000;
 }
 
-function sumWidth(gs: readonly Grapheme[], from: number, to: number): number {
-  let w = 0;
-  for (let i = from; i < to; i++) w += (gs[i] as Grapheme).width;
-  return w;
-}
-
 function plainLine(start: number, end: number, width: number): TextLine {
   return { start, end, cutStart: end, cutEnd: end, ellipsis: false, width };
 }
@@ -329,6 +376,7 @@ function wrapHardLine(gs: readonly Grapheme[], s: number, e: number, max: number
   let start = s;
   let width = 0;
   let lastSpace = -1;
+  let widthBeforeSpace = 0;
   let i = s;
   while (i < e) {
     const g = gs[i] as Grapheme;
@@ -336,8 +384,12 @@ function wrapHardLine(gs: readonly Grapheme[], s: number, e: number, max: number
     if (width + w > max && width > 0) {
       if (isBreakSpace(g)) {
         let end = i;
-        while (end > start && isBreakSpace(gs[end - 1] as Grapheme)) end--;
-        out.push(plainLine(start, end, sumWidth(gs, start, end)));
+        let lineW = width;
+        while (end > start && isBreakSpace(gs[end - 1] as Grapheme)) {
+          end--;
+          lineW -= (gs[end] as Grapheme).width;
+        }
+        out.push(plainLine(start, end, lineW));
         while (i < e && isBreakSpace(gs[i] as Grapheme)) i++;
         start = i;
         width = 0;
@@ -346,10 +398,15 @@ function wrapHardLine(gs: readonly Grapheme[], s: number, e: number, max: number
       }
       if (lastSpace > start) {
         let end = lastSpace;
-        while (end > start && isBreakSpace(gs[end - 1] as Grapheme)) end--;
-        out.push(plainLine(start, end, sumWidth(gs, start, end)));
+        let lineW = widthBeforeSpace;
+        while (end > start && isBreakSpace(gs[end - 1] as Grapheme)) {
+          end--;
+          lineW -= (gs[end] as Grapheme).width;
+        }
+        out.push(plainLine(start, end, lineW));
+        const spaceW = (gs[lastSpace] as Grapheme).width;
         start = lastSpace + 1;
-        width = sumWidth(gs, start, i);
+        width = width - widthBeforeSpace - spaceW;
         lastSpace = -1;
         continue;
       }
@@ -359,26 +416,33 @@ function wrapHardLine(gs: readonly Grapheme[], s: number, e: number, max: number
       lastSpace = -1;
       continue;
     }
-    if (isBreakSpace(g)) lastSpace = i;
+    if (isBreakSpace(g)) {
+      lastSpace = i;
+      widthBeforeSpace = width;
+    }
     width += w;
     i++;
   }
   let end = e;
+  let lineW = width;
   if (out.length > 0 && start > s) {
-    while (end > start && isBreakSpace(gs[end - 1] as Grapheme)) end--;
+    while (end > start && isBreakSpace(gs[end - 1] as Grapheme)) {
+      end--;
+      lineW -= (gs[end] as Grapheme).width;
+    }
   }
-  out.push(plainLine(start, end, sumWidth(gs, start, end)));
+  out.push(plainLine(start, end, lineW));
 }
 
 function truncateHardLine(
   gs: readonly Grapheme[],
   s: number,
   e: number,
+  total: number,
   max: number,
   mode: "truncate-end" | "truncate-middle" | "truncate-start",
   out: TextLine[],
 ): void {
-  const total = sumWidth(gs, s, e);
   if (total <= max) {
     out.push(plainLine(s, e, total));
     return;
@@ -424,15 +488,23 @@ export function layoutGraphemeLines(gs: readonly Grapheme[], maxWidth: number, m
   const out: TextLine[] = [];
   const max = maxWidth === Infinity ? Infinity : Math.max(0, Math.floor(maxWidth));
   let s = 0;
+  let w = 0;
   const n = gs.length;
   for (let i = 0; i <= n; i++) {
-    if (i < n && (gs[i] as Grapheme).codePoint !== 0x0a) continue;
-    if (mode === "nowrap" || max === Infinity) out.push(plainLine(s, i, sumWidth(gs, s, i)));
+    if (i < n) {
+      const g = gs[i] as Grapheme;
+      if (g.codePoint !== 0x0a) {
+        w += g.width;
+        continue;
+      }
+    }
+    if (mode === "nowrap" || max === Infinity || w <= max) out.push(plainLine(s, i, w));
     else if (mode === "wrap") {
       if (max <= 0) out.push(plainLine(s, s, 0));
       else wrapHardLine(gs, s, i, max, out);
-    } else truncateHardLine(gs, s, i, max, mode, out);
+    } else truncateHardLine(gs, s, i, w, max, mode, out);
     s = i + 1;
+    w = 0;
   }
   return out;
 }

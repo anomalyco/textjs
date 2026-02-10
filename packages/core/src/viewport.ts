@@ -45,7 +45,7 @@ export interface ViewportOptions {
   browserChromeHeight?: number;
   /** Horizontal console chrome: gutters, scrollbar (default `32`). */
   consolePaddingX?: number;
-  /** Vertical DevTools chrome: tab strip, console toolbar, "Console was cleared" line (default `84`). */
+  /** Vertical DevTools chrome: tab strip, console toolbar, prompt line (default `84`). */
   consoleChromeY?: number;
   window?: WindowLike | null;
 }

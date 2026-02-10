@@ -19,6 +19,7 @@ import {
 import {
   applyBorder,
   applyLayoutDefaults,
+  applyLayoutProp,
   applyLayoutProps,
   borderEdges,
   createYogaNode,
@@ -26,6 +27,7 @@ import {
   Direction,
   Edge,
   hasPaddingProps,
+  LAYOUT_PROP_KEYS,
   MeasureMode,
   resolveBorderStyle,
   type BorderProps,
@@ -117,17 +119,13 @@ export interface TextModel {
   naturalHeight: number;
 }
 
-const ATTR_PROPS: ReadonlyArray<readonly [keyof TextStyleProps, number]> = [
-  ["bold", ATTR_BOLD],
-  ["dim", ATTR_DIM],
-  ["italic", ATTR_ITALIC],
-  ["underline", ATTR_UNDERLINE],
-  ["strikethrough", ATTR_STRIKETHROUGH],
-  ["inverse", ATTR_INVERSE],
-  ["allowLink", ATTR_ALLOW_LINK],
-];
+const FLAG_LAYOUT = 1 << 0;
+const FLAG_STYLE = 1 << 1;
+const FLAG_BORDER = 1 << 2;
 
-const STYLE_KEYS = new Set<keyof SceneNodeProps>([
+const PROP_FLAGS: Record<string, number | undefined> = Object.create(null) as Record<string, number | undefined>;
+for (const k of LAYOUT_PROP_KEYS) PROP_FLAGS[k] = (PROP_FLAGS[k] ?? 0) | FLAG_LAYOUT;
+for (const k of [
   "fg",
   "bg",
   "bold",
@@ -144,29 +142,37 @@ const STYLE_KEYS = new Set<keyof SceneNodeProps>([
   "bottomTitleColor",
   "backdropDim",
   "backdropColor",
-]);
+]) {
+  PROP_FLAGS[k] = (PROP_FLAGS[k] ?? 0) | FLAG_STYLE;
+}
+for (const k of ["border", "borderStyle", "borderTop", "borderRight", "borderBottom", "borderLeft"]) {
+  PROP_FLAGS[k] = (PROP_FLAGS[k] ?? 0) | FLAG_BORDER;
+}
 
-const BORDER_KEYS: ReadonlyArray<keyof BorderProps> = [
-  "border",
-  "borderStyle",
-  "borderTop",
-  "borderRight",
-  "borderBottom",
-  "borderLeft",
-];
+const EMPTY_PROPS: SceneNodeProps = Object.freeze({});
 
 function emptyRect(): ComputedRect {
   return { x: 0, y: 0, width: 0, height: 0, contentX: 0, contentY: 0, contentWidth: 0, contentHeight: 0, scrollWidth: 0, scrollHeight: 0 };
 }
 
 function resolveStyle(p: SceneNodeProps): ResolvedStyle {
+  if (p === EMPTY_PROPS) return DEFAULT_RESOLVED_STYLE;
   let on = 0;
   let off = 0;
-  for (const [key, bit] of ATTR_PROPS) {
-    const v = p[key];
-    if (v === true) on |= bit;
-    else if (v === false) off |= bit;
-  }
+  if (p.bold === true) on |= ATTR_BOLD;
+  else if (p.bold === false) off |= ATTR_BOLD;
+  if (p.dim === true) on |= ATTR_DIM;
+  else if (p.dim === false) off |= ATTR_DIM;
+  if (p.italic === true) on |= ATTR_ITALIC;
+  else if (p.italic === false) off |= ATTR_ITALIC;
+  if (p.underline === true) on |= ATTR_UNDERLINE;
+  else if (p.underline === false) off |= ATTR_UNDERLINE;
+  if (p.strikethrough === true) on |= ATTR_STRIKETHROUGH;
+  else if (p.strikethrough === false) off |= ATTR_STRIKETHROUGH;
+  if (p.inverse === true) on |= ATTR_INVERSE;
+  else if (p.inverse === false) off |= ATTR_INVERSE;
+  if (p.allowLink === true) on |= ATTR_ALLOW_LINK;
+  else if (p.allowLink === false) off |= ATTR_ALLOW_LINK;
   const dim = p.backdropDim ?? 0;
   let backdrop = 0;
   if (dim > 0) {
@@ -185,6 +191,18 @@ function resolveStyle(p: SceneNodeProps): ResolvedStyle {
     backdrop,
   };
 }
+
+const DEFAULT_RESOLVED_STYLE: ResolvedStyle = Object.freeze({
+  fg: null,
+  bg: null,
+  attrsOn: 0,
+  attrsOff: 0,
+  borderStyle: "none",
+  borderColor: null,
+  titleColor: null,
+  bottomTitleColor: null,
+  backdrop: 0,
+});
 
 let nextNodeId = 1;
 
@@ -212,18 +230,24 @@ export class SceneNode {
   private lines: TextLine[] | null = null;
   private paintOrderCache: SceneNode[] | null = null;
   private padded = false;
+  private destroyed = false;
+  private relValid = false;
+  private geometryDirty = true;
+  private mCache: number[] | null = null;
+  private mOverflow = false;
+  private pendingTextNodes: Set<SceneNode> | null = null;
   private lastLayoutW = -1;
   private lastLayoutH = -1;
   private rel = { left: 0, top: 0, width: 0, height: 0, bt: 0, br: 0, bb: 0, bl: 0, pt: 0, pr: 0, pb: 0, pl: 0 };
   // Subtree bounds relative to this node's absolute position, used for culling.
   private bounds = { x0: 0, y0: 0, x1: 0, y1: 0 };
 
-  constructor(type: SceneNodeType, props: SceneNodeProps = {}, text = "") {
+  constructor(type: SceneNodeType, props: SceneNodeProps = EMPTY_PROPS, text = "") {
     this.type = type;
     this.props = props;
     this.text = text;
     this.style = resolveStyle(props);
-    this.ensureYoga();
+    if (type === "box") this.ensureYoga();
   }
 
   // ---------------------------------------------------------------------------
@@ -239,15 +263,42 @@ export class SceneNode {
     return this.isTextLike && this.parent !== null && this.parent.isTextLike;
   }
 
+  private rootAncestor(): SceneNode {
+    let cur: SceneNode = this;
+    while (cur.parent !== null) cur = cur.parent;
+    return cur;
+  }
+
+  private markGeometryDirty(): void {
+    let cur: SceneNode | null = this;
+    while (cur !== null && !cur.geometryDirty) {
+      cur.geometryDirty = true;
+      cur = cur.parent;
+    }
+  }
+
+  private clearMeasureCache(): void {
+    if (this.mCache !== null) this.mCache.length = 0;
+    this.mOverflow = false;
+  }
+
+  private markTextYogaDirty(): void {
+    this.clearMeasureCache();
+    this.yoga?.markDirty();
+    this.markGeometryDirty();
+  }
+
   private ensureYoga(): void {
-    if (this.yoga !== null) return;
+    if (this.yoga !== null || this.destroyed) return;
     const node = createYogaNode();
     applyLayoutDefaults(node);
     applyLayoutProps(node, null, this.props);
     applyBorder(node, borderEdges(this.props));
     this.padded = hasPaddingProps(this.props);
-    if (this.isTextLike) node.setMeasureFunc((w, wm, h, hm) => this.measure(w, wm, h, hm));
+    if (this.isTextLike) node.setMeasureFunc((w, wm, h, hm) => this.measureFromYoga(w, wm, h, hm));
     this.yoga = node;
+    this.relValid = false;
+    this.geometryDirty = true;
   }
 
   private dropYoga(): void {
@@ -257,6 +308,8 @@ export class SceneNode {
     if (this.isTextLike) this.yoga.unsetMeasureFunc();
     this.yoga.free();
     this.yoga = null;
+    this.relValid = false;
+    this.clearMeasureCache();
   }
 
   private yogaIndexOf(child: SceneNode): number {
@@ -270,6 +323,7 @@ export class SceneNode {
 
   private attach(child: SceneNode): void {
     child.parent = this;
+    child.relValid = false;
     if (this.isTextLike) {
       child.dropYoga();
       this.invalidateText(true);
@@ -280,6 +334,20 @@ export class SceneNode {
       if (owner) owner.removeChild(y);
       (this.yoga as YogaNode).insertChild(y, this.yogaIndexOf(child));
       child.syncShrink();
+      child.markGeometryDirty();
+      this.markGeometryDirty();
+      if (child.pendingTextNodes !== null && child.pendingTextNodes.size > 0) {
+        const root = this.rootAncestor();
+        if (root !== child) {
+          let dst = root.pendingTextNodes;
+          if (dst === null) {
+            dst = new Set();
+            root.pendingTextNodes = dst;
+          }
+          for (const n of child.pendingTextNodes) dst.add(n);
+          child.pendingTextNodes.clear();
+        }
+      }
     }
     this.paintOrderCache = null;
   }
@@ -319,12 +387,17 @@ export class SceneNode {
     this.children.splice(idx, 1);
     if (child.yoga !== null && this.yoga !== null) this.yoga.removeChild(child.yoga);
     child.parent = null;
+    child.relValid = false;
+    child.clearMeasureCache();
     if (this.isTextLike) this.invalidateText(true);
+    else this.markGeometryDirty();
     this.paintOrderCache = null;
   }
 
   /** Free Yoga memory for this subtree. The node must not be used afterwards. */
   destroy(): void {
+    this.destroyed = true;
+    if (this.pendingTextNodes !== null) this.pendingTextNodes.clear();
     if (this.parent) this.parent.removeChild(this);
     for (const c of this.children.slice()) c.destroy();
     this.dropYoga();
@@ -338,35 +411,70 @@ export class SceneNode {
   updateProps(next: SceneNodeProps): void {
     const prev = this.props;
     if (prev === next) return;
+    const pRec = prev as Record<string, unknown>;
+    const nRec = next as Record<string, unknown>;
+    const y = this.yoga;
+    let diffFlags = 0;
+    let anyChanged = false;
+    let layoutChanged = 0;
+
+    for (const k in nRec) {
+      const nv = nRec[k];
+      if (nv === undefined || pRec[k] === nv) continue;
+      anyChanged = true;
+      const f = PROP_FLAGS[k] ?? 0;
+      diffFlags |= f;
+      if (y !== null && (f & FLAG_LAYOUT) !== 0) {
+        applyLayoutProp(y, k, nv);
+        layoutChanged++;
+      }
+    }
+    for (const k in pRec) {
+      if (pRec[k] === undefined || nRec[k] !== undefined) continue;
+      anyChanged = true;
+      const f = PROP_FLAGS[k] ?? 0;
+      diffFlags |= f;
+      if (y !== null && (f & FLAG_LAYOUT) !== 0) {
+        applyLayoutProp(y, k, undefined);
+        layoutChanged++;
+      }
+    }
+
     this.props = next;
-    let styleChanged = false;
-    for (const key of STYLE_KEYS) {
-      if (prev[key] !== next[key]) {
-        styleChanged = true;
-        break;
-      }
-    }
+    if (!anyChanged) return;
+
+    const styleChanged = (diffFlags & FLAG_STYLE) !== 0;
     if (styleChanged) this.style = resolveStyle(next);
-    if (this.yoga !== null) {
-      const changed = applyLayoutProps(this.yoga, prev, next);
-      if (changed > 0) this.padded = hasPaddingProps(next);
-      for (const k of BORDER_KEYS) {
-        if (prev[k] !== next[k]) {
-          applyBorder(this.yoga, borderEdges(next));
-          break;
-        }
+    if (y !== null) {
+      if (layoutChanged > 0) this.padded = hasPaddingProps(next);
+      if ((diffFlags & FLAG_BORDER) !== 0) applyBorder(y, borderEdges(next));
+      if (layoutChanged > 0 || (diffFlags & FLAG_BORDER) !== 0) {
+        this.clearMeasureCache();
+        this.markGeometryDirty();
       }
     }
-    if (prev.flexShrink !== next.flexShrink) this.syncShrink();
-    if (prev.overflow !== next.overflow) for (const c of this.children) c.syncShrink();
+    if (prev.flexShrink !== next.flexShrink) {
+      this.syncShrink();
+      this.clearMeasureCache();
+      this.markGeometryDirty();
+    }
+    if (prev.overflow !== next.overflow) {
+      for (const c of this.children) {
+        c.syncShrink();
+        c.clearMeasureCache();
+        c.geometryDirty = true;
+      }
+      this.markGeometryDirty();
+    }
     if (prev.zIndex !== next.zIndex || prev.position !== next.position || prev.display !== next.display) {
       if (this.parent) this.parent.paintOrderCache = null;
+      this.markGeometryDirty();
     }
     if (this.isTextLike) {
       if (prev.wrap !== next.wrap) {
         this.lines = null;
         this.linesWidth = -1;
-        this.yoga?.markDirty();
+        this.markTextYogaDirty();
       }
       if (styleChanged && this.isInline) this.invalidateText(false);
       else if (styleChanged) this.textModel = null;
@@ -393,7 +501,19 @@ export class SceneNode {
     if (contentChanged) {
       owner.lines = null;
       owner.linesWidth = -1;
-      if (owner.yoga !== null && owner.isTextLike) owner.yoga.markDirty();
+      if (owner.yoga !== null && owner.isTextLike) {
+        if (!owner.relValid || owner.mOverflow || owner.yoga.isDirty()) {
+          owner.markTextYogaDirty();
+        } else {
+          const root = owner.rootAncestor();
+          let set = root.pendingTextNodes;
+          if (set === null) {
+            set = new Set();
+            root.pendingTextNodes = set;
+          }
+          set.add(owner);
+        }
+      }
     }
   }
 
@@ -405,9 +525,12 @@ export class SceneNode {
   getTextModel(): TextModel {
     if (this.textModel !== null) return this.textModel;
     const graphemes: Grapheme[] = [];
-    const runIdx: number[] = [];
     const runs: TextRun[] = [];
+    const runBounds: number[] = [];
     let text = "";
+    let naturalWidth = 0;
+    let curLineWidth = 0;
+    let naturalHeight = 1;
     const visit = (node: SceneNode, parent: TextRun | null): void => {
       if (node.props.display === "none") return;
       const s = node.style;
@@ -425,14 +548,30 @@ export class SceneNode {
           runs.push(run);
           const before = graphemes.length;
           segmentGraphemes(node.text, graphemes);
-          for (let i = before; i < graphemes.length; i++) runIdx.push(ri);
+          const after = graphemes.length;
+          if (ri > 0 && after > before) runBounds.push(ri, before, after);
+          for (let i = before; i < after; i++) {
+            const g = graphemes[i] as Grapheme;
+            if (g.codePoint === 0x0a) {
+              if (curLineWidth > naturalWidth) naturalWidth = curLineWidth;
+              curLineWidth = 0;
+              naturalHeight++;
+            } else {
+              curLineWidth += g.width;
+            }
+          }
           text += node.text;
         }
       }
       for (const c of node.children) visit(c, run);
     };
     visit(this, null);
-    this.textModel = { graphemes, runOf: Uint16Array.from(runIdx), runs, text, naturalWidth: -1, naturalHeight: 0 };
+    if (curLineWidth > naturalWidth) naturalWidth = curLineWidth;
+    const runOf = new Uint16Array(graphemes.length);
+    for (let b = 0; b < runBounds.length; b += 3) {
+      runOf.fill(runBounds[b] as number, runBounds[b + 1] as number, runBounds[b + 2] as number);
+    }
+    this.textModel = { graphemes, runOf, runs, text, naturalWidth, naturalHeight };
     return this.textModel;
   }
 
@@ -446,30 +585,44 @@ export class SceneNode {
     return this.lines;
   }
 
-  private naturalSize(): { width: number; height: number } {
+  private computeMeasure(width: number, widthMode: MeasureMode): { width: number; height: number } {
     const model = this.getTextModel();
-    if (model.naturalWidth < 0) {
-      const natural = layoutGraphemeLines(model.graphemes, Infinity, "nowrap");
-      let w = 0;
-      for (const l of natural) if (l.width > w) w = l.width;
-      model.naturalWidth = w;
-      model.naturalHeight = natural.length;
-    }
-    return { width: model.naturalWidth, height: model.naturalHeight };
-  }
-
-  private measure(width: number, widthMode: MeasureMode, _height: number, _heightMode: MeasureMode): { width: number; height: number } {
-    const natural = this.naturalSize();
-    if (widthMode === MeasureMode.Undefined || Number.isNaN(width)) return natural;
+    const natW = model.naturalWidth;
+    const natH = model.naturalHeight;
+    if (widthMode === MeasureMode.Undefined || Number.isNaN(width)) return { width: natW, height: natH };
     const avail = Math.max(0, Math.floor(width));
-    if (natural.width <= avail) {
-      return { width: widthMode === MeasureMode.Exactly ? avail : natural.width, height: natural.height };
+    if (natW <= avail) {
+      return { width: widthMode === MeasureMode.Exactly ? avail : natW, height: natH };
     }
-    if ((this.props.wrap ?? "wrap") !== "wrap") return { width: avail, height: natural.height };
+    if ((this.props.wrap ?? "wrap") !== "wrap") return { width: avail, height: natH };
     const lines = this.getLines(avail);
     let maxLine = 0;
     for (const l of lines) if (l.width > maxLine) maxLine = l.width;
     return { width: widthMode === MeasureMode.Exactly ? avail : Math.min(avail, maxLine), height: lines.length };
+  }
+
+  private measureFromYoga(width: number, widthMode: MeasureMode, _height: number, _heightMode: MeasureMode): { width: number; height: number } {
+    const res = this.computeMeasure(width, widthMode);
+    let mc = this.mCache;
+    if (mc === null) {
+      mc = [];
+      this.mCache = mc;
+    }
+    const nw = widthMode === MeasureMode.Undefined || Number.isNaN(width) ? -1 : Math.max(0, Math.floor(width));
+    let found = false;
+    for (let i = 0; i < mc.length; i += 4) {
+      if (mc[i] === nw && mc[i + 1] === widthMode) {
+        mc[i + 2] = res.width;
+        mc[i + 3] = res.height;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      if (mc.length < 32) mc.push(nw, widthMode, res.width, res.height);
+      else this.mOverflow = true;
+    }
+    return res;
   }
 
   // ---------------------------------------------------------------------------
@@ -478,8 +631,43 @@ export class SceneNode {
 
   /** Run Yoga layout for this root and refresh absolute geometry of the whole tree. */
   calculateLayout(width: number, height: number, force = false): boolean {
+    if (this.yoga === null) this.ensureYoga();
     const y = this.yoga;
     if (y === null) return false;
+    if (this.pendingTextNodes !== null && this.pendingTextNodes.size > 0) {
+      const rootAlreadyDirty = force || y.isDirty() || width !== this.lastLayoutW || height !== this.lastLayoutH;
+      for (const owner of this.pendingTextNodes) {
+        if (owner.destroyed || owner.yoga === null || owner.rootAncestor() !== this) continue;
+        if (rootAlreadyDirty || !owner.relValid || owner.mOverflow || owner.yoga.isDirty()) {
+          owner.markTextYogaDirty();
+          continue;
+        }
+        const mc = owner.mCache;
+        let sizeChanged = false;
+        if (mc !== null && mc.length > 0) {
+          for (let i = 0; i < mc.length; i += 4) {
+            const nw = mc[i] as number;
+            const wm = mc[i + 1] as MeasureMode;
+            const m = owner.computeMeasure(nw < 0 ? NaN : nw, wm);
+            if (m.width !== mc[i + 2] || m.height !== mc[i + 3]) {
+              sizeChanged = true;
+              break;
+            }
+          }
+        }
+        if (sizeChanged) {
+          owner.markTextYogaDirty();
+        } else {
+          const L = owner.layout;
+          const lines = owner.getLines(L.contentWidth);
+          let maxW = 0;
+          for (const l of lines) if (l.width > maxW) maxW = l.width;
+          L.scrollWidth = Math.max(L.contentWidth, maxW);
+          L.scrollHeight = Math.max(L.contentHeight, lines.length);
+        }
+      }
+      this.pendingTextNodes.clear();
+    }
     if (!force && !y.isDirty() && width === this.lastLayoutW && height === this.lastLayoutH) return false;
     y.calculateLayout(width, height, Direction.LTR);
     this.lastLayoutW = width;
@@ -491,7 +679,14 @@ export class SceneNode {
   private updateGeometry(parentX: number, parentY: number): void {
     const y = this.yoga;
     const r = this.rel;
-    if (y !== null && y.hasNewLayout()) {
+    const hasNew = y !== null && y.hasNewLayout();
+    const L = this.layout;
+    if (!hasNew && !this.geometryDirty && this.relValid && parentX + r.left === L.x && parentY + r.top === L.y) {
+      return;
+    }
+    this.geometryDirty = false;
+    this.relValid = true;
+    if (hasNew && y !== null) {
       r.left = y.getComputedLeft();
       r.top = y.getComputedTop();
       r.width = y.getComputedWidth();
@@ -509,7 +704,6 @@ export class SceneNode {
       } else r.pt = r.pr = r.pb = r.pl = 0;
       y.markLayoutSeen();
     }
-    const L = this.layout;
     L.x = parentX + r.left;
     L.y = parentY + r.top;
     L.width = r.width;
@@ -601,12 +795,12 @@ export class SceneNode {
 }
 
 /** Create a node. Requires `await initYoga()` to have resolved. */
-export function createNode(type: SceneNodeType, props: SceneNodeProps = {}, text = ""): SceneNode {
+export function createNode(type: SceneNodeType, props: SceneNodeProps = EMPTY_PROPS, text = ""): SceneNode {
   return new SceneNode(type, props, text);
 }
 
 export function createRawText(text: string): SceneNode {
-  return new SceneNode("raw-text", {}, text);
+  return new SceneNode("raw-text", EMPTY_PROPS, text);
 }
 
 /** Lay out a root node into a `cols × rows` viewport. */

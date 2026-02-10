@@ -90,9 +90,9 @@ describe("blendOver", () => {
 });
 
 describe("colorToCss", () => {
-  test("hex for opaque, rgba otherwise, interned", () => {
+  test("hex for opaque, #rrggbbaa otherwise, interned", () => {
     expect(colorToCss(0x22c55eff)).toBe("#22c55e");
-    expect(colorToCss(packRGBA(0, 0, 0, 166))).toBe("rgba(0,0,0,0.651)");
+    expect(colorToCss(packRGBA(0, 0, 0, 166))).toBe("#000000a6");
     expect(colorToCss(0x22c55eff)).toBe(colorToCss(0x22c55eff));
   });
 });

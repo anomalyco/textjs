@@ -7,6 +7,7 @@ import {
   codePointWidth,
   graphemeWidth,
   isPrintableAscii,
+  isSimpleNarrowString,
   segmentGraphemes,
   stringWidth,
   truncateText,
@@ -66,6 +67,43 @@ export const BORDER_CHARS: Readonly<Record<Exclude<BorderStyle, "none">, BorderC
   dashed: chars8("┌", "╌", "┐", "╎", "┘", "╌", "└", "╎"),
   ascii: chars8("+", "-", "+", "|", "+", "-", "+", "|"),
 });
+
+interface BorderCodes {
+  tl: number;
+  t: number;
+  tr: number;
+  r: number;
+  br: number;
+  b: number;
+  bl: number;
+  l: number;
+}
+
+const BORDER_CODES: Readonly<Record<Exclude<BorderStyle, "none">, BorderCodes>> = Object.freeze(
+  Object.fromEntries(
+    Object.entries(BORDER_CHARS).map(([k, v]) => [
+      k,
+      Object.freeze({
+        tl: v.topLeft.charCodeAt(0),
+        t: v.top.charCodeAt(0),
+        tr: v.topRight.charCodeAt(0),
+        r: v.right.charCodeAt(0),
+        br: v.bottomRight.charCodeAt(0),
+        b: v.bottom.charCodeAt(0),
+        bl: v.bottomLeft.charCodeAt(0),
+        l: v.left.charCodeAt(0),
+      }),
+    ]),
+  ) as Record<Exclude<BorderStyle, "none">, BorderCodes>,
+);
+
+function hasAsciiControls(text: string): boolean {
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    if (c < 0x20 || c === 0x7f) return true;
+  }
+  return false;
+}
 
 export type TitleAlign = "left" | "center" | "right";
 
@@ -397,18 +435,65 @@ export class CellBuffer {
     bg: PackedColor,
     attrs = 0,
   ): number {
+    if (y < this.clipY0 || y >= this.clipY1) {
+      let adv = 0;
+      for (let k = from; k < to; k++) adv += (gs[k] as Grapheme).width;
+      return adv;
+    }
+    const clipX0 = this.clipX0;
+    const clipX1 = this.clipX1;
+    const W = this.width;
+    const rowOffset = y * W;
+    const C = this.chars;
+    const F = this.fg;
+    const B = this.bg;
+    const A = this.attrs;
+    const a = attrs & ~ATTR_WIDE_CONT;
+    const ba = bg & 255;
+    const fa = fg & 255;
+    const fastColors = (ba === 0 || ba === 255) && (fa === 255 || fa === 0);
+
     let col = x;
-    const visibleRow = y >= this.clipY0 && y < this.clipY1;
     for (let k = from; k < to; k++) {
       const g = gs[k] as Grapheme;
       const w = g.width;
       if (w === 0) continue;
-      if (visibleRow && col >= this.clipX0 && col < this.clipX1) {
-        this.put(col, y, g.isMulti ? this.internGrapheme(g.grapheme) : g.codePoint, w, fg, bg, attrs);
+      if (col >= clipX0 && col < clipX1) {
+        let code = g.isMulti ? this.internGrapheme(g.grapheme) : g.codePoint;
+        if (fastColors) {
+          let putW: number = w;
+          if (putW === 2 && col + 1 >= clipX1) {
+            code = CHAR_SPACE;
+            putW = 1;
+          }
+          const i = rowOffset + col;
+          if ((A[i] as number) & ATTR_WIDE_CONT) {
+            if (col > 0) C[i - 1] = CHAR_SPACE;
+          } else if (putW === 1 && col + 1 < W && ((A[i + 1] as number) & ATTR_WIDE_CONT)) {
+            C[i + 1] = CHAR_SPACE;
+            A[i + 1] = (A[i + 1] as number) & ~ATTR_WIDE_CONT;
+          }
+          if (putW === 2 && col + 2 < W && ((A[i + 2] as number) & ATTR_WIDE_CONT)) {
+            C[i + 2] = CHAR_SPACE;
+            A[i + 2] = (A[i + 2] as number) & ~ATTR_WIDE_CONT;
+          }
+          C[i] = code;
+          F[i] = fg;
+          if (ba === 255) B[i] = bg;
+          A[i] = a;
+          if (putW === 2) {
+            const j = i + 1;
+            C[j] = CHAR_CONTINUATION;
+            F[j] = fg;
+            if (ba === 255) B[j] = bg;
+            A[j] = a | ATTR_WIDE_CONT;
+          }
+        } else {
+          this.put(col, y, code, w, fg, bg, attrs);
+        }
       }
       col += w;
-      if (col >= this.clipX1 && visibleRow) {
-        // Remaining graphemes are clipped; still report the full advance.
+      if (col >= clipX1) {
         for (let r = k + 1; r < to; r++) col += (gs[r] as Grapheme).width;
         break;
       }
@@ -419,7 +504,7 @@ export class CellBuffer {
   /** Draw a single line of text (stops at `\n`). Returns the column advance. */
   drawText(x: number, y: number, text: string, fg: PackedColor, bg: PackedColor, attrs = 0, maxWidth = Infinity): number {
     if (maxWidth <= 0 || text.length === 0) return 0;
-    if (isPrintableAscii(text)) {
+    if (isPrintableAscii(text) || (isSimpleNarrowString(text) && !hasAsciiControls(text))) {
       const n = Math.min(text.length, maxWidth);
       if (y < this.clipY0 || y >= this.clipY1) return n;
       const start = Math.max(x, this.clipX0);
@@ -454,34 +539,42 @@ export class CellBuffer {
     const attrs = options.attrs ?? 0;
     if (options.fill) this.fillRect(x, y, w, h, bg);
     if (style === "none") return;
-    const bc = BORDER_CHARS[style];
+    const bc = BORDER_CODES[style];
     const top = options.top ?? true;
     const right = options.right ?? true;
     const bottom = options.bottom ?? true;
     const left = options.left ?? true;
     const x2 = x + w - 1;
     const y2 = y + h - 1;
-    const hTop = bc.top.codePointAt(0) ?? 0x2d;
-    const hBottom = bc.bottom.codePointAt(0) ?? 0x2d;
-    const vLeft = bc.left.codePointAt(0) ?? 0x7c;
-    const vRight = bc.right.codePointAt(0) ?? 0x7c;
-    if (top) {
-      for (let cx = x; cx <= x2; cx++) {
-        const ch = cx === x && left ? bc.topLeft : cx === x2 && right ? bc.topRight : null;
-        this.setCell(cx, y, ch ?? hTop, fg, bg, attrs);
+    const clipX0 = this.clipX0;
+    const clipX1 = this.clipX1;
+    const clipY0 = this.clipY0;
+    const clipY1 = this.clipY1;
+    if (top && y >= clipY0 && y < clipY1) {
+      const cx0 = Math.max(x, clipX0);
+      const cx1 = Math.min(x2 + 1, clipX1);
+      for (let cx = cx0; cx < cx1; cx++) {
+        const code = cx === x && left ? bc.tl : cx === x2 && right ? bc.tr : bc.t;
+        this.put(cx, y, code, 1, fg, bg, attrs);
       }
     }
-    if (bottom && (h > 1 || !top)) {
-      for (let cx = x; cx <= x2; cx++) {
-        const ch = cx === x && left ? bc.bottomLeft : cx === x2 && right ? bc.bottomRight : null;
-        this.setCell(cx, y2, ch ?? hBottom, fg, bg, attrs);
+    if (bottom && (h > 1 || !top) && y2 >= clipY0 && y2 < clipY1) {
+      const cx0 = Math.max(x, clipX0);
+      const cx1 = Math.min(x2 + 1, clipX1);
+      for (let cx = cx0; cx < cx1; cx++) {
+        const code = cx === x && left ? bc.bl : cx === x2 && right ? bc.br : bc.b;
+        this.put(cx, y2, code, 1, fg, bg, attrs);
       }
     }
-    const vy0 = top ? y + 1 : y;
-    const vy1 = bottom ? y2 - 1 : y2;
-    for (let cy = vy0; cy <= vy1; cy++) {
-      if (left) this.setCell(x, cy, vLeft, fg, bg, attrs);
-      if (right && (w > 1 || !left)) this.setCell(x2, cy, vRight, fg, bg, attrs);
+    const vy0 = Math.max(top ? y + 1 : y, clipY0);
+    const vy1 = Math.min((bottom ? y2 - 1 : y2) + 1, clipY1);
+    const drawLeft = left && x >= clipX0 && x < clipX1;
+    const drawRight = right && (w > 1 || !left) && x2 >= clipX0 && x2 < clipX1;
+    if (drawLeft || drawRight) {
+      for (let cy = vy0; cy < vy1; cy++) {
+        if (drawLeft) this.put(x, cy, bc.l, 1, fg, bg, attrs);
+        if (drawRight) this.put(x2, cy, bc.r, 1, fg, bg, attrs);
+      }
     }
     if (top && options.title) {
       this.drawBorderTitle(x, y, w, options.title, options.titleAlign ?? "left", options.titleColor ?? fg, bg, options.titleAttrs ?? attrs);
@@ -529,6 +622,22 @@ export class CellBuffer {
     const B = this.bg;
     const A = this.attrs;
     const pool = this.graphemePool;
+    if (pool.length === 0) {
+      for (let y = 0; y < H; y++) {
+        let h = 0x811c9dc5 ^ W;
+        for (let i = y * W, end = i + W; i < end; i++) {
+          h = Math.imul(h ^ (C[i] as number), 0x01000193);
+          h = Math.imul(h ^ (F[i] as number), 0x01000193);
+          h = Math.imul(h ^ (B[i] as number), 0x01000193);
+          h = Math.imul(h ^ (A[i] as number), 0x01000193);
+        }
+        h ^= h >>> 16;
+        h = Math.imul(h, 0x85ebca6b);
+        h ^= h >>> 13;
+        result[y] = h >>> 0;
+      }
+      return result;
+    }
     for (let y = 0; y < H; y++) {
       let h = 0x811c9dc5 ^ W;
       for (let i = y * W, end = i + W; i < end; i++) {

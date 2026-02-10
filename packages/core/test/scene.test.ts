@@ -278,3 +278,97 @@ describe("painting", () => {
     expect(unpackRGBA(buf.bg[2 * 12 + 2] ?? 0).b).toBeGreaterThan(0);
   });
 });
+
+describe("incremental layout & prop optimizations", () => {
+  test("lazy Yoga allocation skips raw-text and inline spans, allocating on demand when needed", () => {
+    const raw = createRawText("span");
+    const inline = createNode("text", { bold: true });
+    inline.appendChild(raw);
+    expect(raw.yoga).toBeNull();
+    expect(inline.yoga).toBeNull();
+
+    const outer = createNode("text");
+    outer.appendChild(inline);
+    expect(outer.yoga).toBeNull();
+
+    const root = box({ width: 20, height: 2 }, outer);
+    expect(outer.yoga).not.toBeNull();
+    expect(inline.yoga).toBeNull();
+    expect(raw.yoga).toBeNull();
+    expect(root.countYogaNodes()).toBe(2);
+
+    // Raw text directly inside a box still gets a Yoga node on attach.
+    const directRaw = createRawText("direct");
+    expect(directRaw.yoga).toBeNull();
+    root.appendChild(directRaw);
+    expect(directRaw.yoga).not.toBeNull();
+    expect(root.countYogaNodes()).toBe(3);
+    root.destroy();
+    expect(root.countYogaNodes()).toBe(0);
+
+    // Standalone text root laid out directly allocates Yoga on calculateLayout.
+    const standalone = text({}, "standalone");
+    expect(standalone.yoga).toBeNull();
+    expect(standalone.calculateLayout(12, 2)).toBe(true);
+    expect(standalone.yoga).not.toBeNull();
+    expect(standalone.layout.width).toBe(12);
+    standalone.destroy();
+  });
+
+  test("sparse updateProps handles unchanged, added, modified and removed layout/border/style props", () => {
+    const child = box({ width: 8, height: 3, paddingLeft: 2, border: "single", fg: "#ff0000" });
+    const root = box({ width: 20, height: 10, flexDirection: "column" }, child);
+    root.calculateLayout(20, 10);
+    expect(child.layout).toMatchObject({ width: 8, height: 3, contentX: 3, contentWidth: 4 });
+
+    // Identical prop values in a new object early-out without dirtying Yoga.
+    child.updateProps({ width: 8, height: 3, paddingLeft: 2, border: "single", fg: "#ff0000" });
+    expect(root.yoga?.isDirty()).toBe(false);
+    expect(root.calculateLayout(20, 10)).toBe(false);
+
+    // Removing paddingLeft and border shrinks content offset back to 0 and stretches width to 20.
+    child.updateProps({ height: 4 });
+    expect(root.yoga?.isDirty()).toBe(true);
+    expect(root.calculateLayout(20, 10)).toBe(true);
+    expect(child.layout).toMatchObject({ width: 20, height: 4, contentX: 0, contentWidth: 20 });
+    expect(child.resolved.fg).toBeNull();
+    expect(child.resolved.borderStyle).toBe("none");
+    root.destroy();
+  });
+
+  test("text changes skip Yoga relayout when measured size is unchanged and relayout when lines change", () => {
+    const spinnerRaw = createRawText("⠋ working");
+    const spinner = createNode("text", { wrap: "nowrap", flexShrink: 0 });
+    spinner.appendChild(spinnerRaw);
+
+    const streamRaw = createRawText("hello");
+    const stream = createNode("text");
+    stream.appendChild(streamRaw);
+
+    const footer = text({}, "footer");
+    const root = box({ width: 12, height: 8, flexDirection: "column" }, spinner, stream, footer);
+    expect(root.calculateLayout(12, 8)).toBe(true);
+    expect(footer.layout.y).toBe(2);
+
+    // Same-width spinner frame & 1-line text growth inside stretched column skip Yoga WASM relayout.
+    spinnerRaw.setText("⠙ working");
+    streamRaw.setText("hello world");
+    expect(root.calculateLayout(12, 8)).toBe(false);
+    expect(footer.layout.y).toBe(2);
+
+    // Wrapping onto a second line changes measured height and triggers relayout, shifting footer down.
+    streamRaw.setText("hello world again");
+    expect(root.calculateLayout(12, 8)).toBe(true);
+    expect(stream.layout.height).toBe(2);
+    expect(footer.layout.y).toBe(3);
+
+    // Verify buffer output matches a forced full relayout on an independent buffer.
+    const incrementalBuf = new CellBuffer(12, 8);
+    paintScene(root, incrementalBuf);
+    root.calculateLayout(12, 8, true);
+    const forcedBuf = new CellBuffer(12, 8);
+    paintScene(root, forcedBuf);
+    expect(incrementalBuf.toPlainString()).toBe(forcedBuf.toPlainString());
+    root.destroy();
+  });
+});

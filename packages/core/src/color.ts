@@ -237,7 +237,7 @@ function hex2(n: number): string {
   return (n < 16 ? "0" : "") + n.toString(16);
 }
 
-/** Convert a packed color to CSS (`#rrggbb` when opaque, `rgba(...)` otherwise). Interned. */
+/** Convert a packed color to CSS hex (`#rrggbb` when opaque, `#rrggbbaa` otherwise). Interned. */
 export function colorToCss(c: PackedColor): string {
   const key = c >>> 0;
   const cached = cssCache.get(key);
@@ -246,10 +246,7 @@ export function colorToCss(c: PackedColor): string {
   const g = (key >>> 16) & 255;
   const b = (key >>> 8) & 255;
   const a = key & 255;
-  const css =
-    a === 255
-      ? `#${hex2(r)}${hex2(g)}${hex2(b)}`
-      : `rgba(${r},${g},${b},${Math.round((a / 255) * 1000) / 1000})`;
+  const css = a === 255 ? `#${hex2(r)}${hex2(g)}${hex2(b)}` : `#${hex2(r)}${hex2(g)}${hex2(b)}${hex2(a)}`;
   if (cssCache.size >= 8192) cssCache.clear();
   cssCache.set(key, css);
   return css;
