@@ -1,228 +1,74 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { ThemeName } from "@textjs/react";
-import { PRESETS, siteStore, THEME_ORDER, type PresetId } from "../console-companion/store";
+import { useState, type ReactNode } from "react";
+import { getCompanion } from "../console-companion/boot";
+import { PRESETS, siteStore } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
-import { PresetView } from "../demos/presets";
-import { STREAMING_MARKDOWN } from "../demos/Streaming";
 import counterSource from "../demos/Counter.tsx?raw";
 import dashboardSource from "../demos/Dashboard.tsx?raw";
 import formSource from "../demos/Form.tsx?raw";
 import streamingSource from "../demos/Streaming.tsx?raw";
 import snakeSource from "../demos/Snake.tsx?raw";
-import { SandboxConsole } from "../sandbox/SandboxConsole";
-import { useSandbox, type CapturedLog } from "../sandbox/useSandbox";
+import type { PresetId } from "../console-companion/store";
 import { CopyButton } from "../site/CodeBlock";
+import { ConsolePad } from "../site/ConsolePad";
 import { HighlightedCode } from "../site/highlight";
 
-const SOURCES: Record<PresetId, { file: string; code: string }> = {
-  counter: { file: "app/page.tsx — Counter.tsx", code: counterSource },
-  dashboard: { file: "app/page.tsx — Dashboard.tsx", code: dashboardSource },
-  form: { file: "app/page.tsx — Form.tsx", code: formSource },
-  streaming: { file: "app/page.tsx — Streaming.tsx", code: streamingSource },
-  snake: { file: "app/page.tsx — Snake.tsx", code: snakeSource },
+const SOURCES: Record<PresetId, string> = {
+  counter: counterSource,
+  form: formSource,
+  streaming: streamingSource,
+  dashboard: dashboardSource,
+  snake: snakeSource,
 };
 
-const VIEWPORTS = [
-  { label: "80×24", cols: 80, rows: 24 },
-  { label: "100×32", cols: 100, rows: 32 },
-  { label: "120×38", cols: 120, rows: 38 },
-] as const;
-
-function isTyping(el: Element | null): boolean {
-  return el !== null && el.closest("input,textarea,select,[contenteditable],[data-console-bypass]") !== null;
-}
-
-/** Render the format string with `%c` and `\n` made visible. */
-function FormatString({ log }: { log: CapturedLog }): ReactNode {
-  const LIMIT = 6000;
-  const text = log.format.length > LIMIT ? log.format.slice(0, LIMIT) : log.format;
-  const parts = text.split(/(%%|%c|\n)/);
+function Picker(): ReactNode {
+  const site = useSite();
   return (
-    <pre className="fmt">
-      {parts.map((p, i) =>
-        p === "%c" ? (
-          <span key={i} className="pc">
-            %c
-          </span>
-        ) : p === "\n" ? (
-          <span key={i} className="nl">
-            {"\\n\n"}
-          </span>
-        ) : (
-          p
-        ),
-      )}
-      {log.format.length > LIMIT ? <span className="subtle">{`\n… ${log.format.length - LIMIT} more characters`}</span> : null}
-    </pre>
-  );
-}
-
-function cssColor(css: string, prop: "background" | "color"): string | undefined {
-  const m = new RegExp(`(?:^|;)\\s*${prop}(?:-color)?\\s*:\\s*([^;]+)`).exec(css);
-  return m ? (m[1] as string).trim() : undefined;
-}
-
-function Inspector({ log, totalMs }: { log: CapturedLog | null; totalMs: number }): ReactNode {
-  const [open, setOpen] = useState(false);
-  const snippet = useMemo(() => (log ? `console.log(${JSON.stringify(log.format)}, ...${JSON.stringify(log.args)});` : ""), [log]);
-  return (
-    <div className="inspector">
-      <button type="button" className="inspector-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-        <span>{open ? "▾" : "▸"}</span>
-        <b>RLE Inspector</b>
-        <span className="meta">
-          <span>{log ? `${log.args.length} spans` : "—"}</span>
-          <span>{`${totalMs.toFixed(2)}ms`}</span>
-        </span>
-      </button>
-      {open ? (
-        <div className="inspector-body">
-          <div>
-            <div className="field-label" style={{ display: "flex", alignItems: "center" }}>
-              format string
-              <span style={{ marginLeft: "auto", textTransform: "none", letterSpacing: 0 }}>
-                <CopyButton text={snippet} />
-              </span>
-            </div>
-            {log ? <FormatString log={log} /> : <p className="subtle">Waiting for the first frame…</p>}
-          </div>
-          <div>
-            <div className="field-label">...css arguments</div>
-            <ul className="args">
-              {(log?.args ?? []).slice(0, 400).map((css, i) => (
-                <li key={i}>
-                  <i>{i}</i>
-                  <span className="sw" style={{ background: cssColor(css, "background") ?? "transparent", borderColor: cssColor(css, "color") }} />
-                  <span>{css.replace(/(?:font-family|font-size|line-height|margin|padding|font-variant-ligatures|display):[^;]*;?/g, "").slice(0, 120) || "(base typography)"}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      ) : null}
+    <div className="pad-picker" role="tablist" aria-label="Demo">
+      {PRESETS.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          role="tab"
+          aria-selected={p.id === site.preset}
+          title={p.description}
+          onClick={() => {
+            siteStore.set({ preset: p.id });
+            // Picking a demo is a click on the stage: keys go straight to the console.
+            getCompanion()?.activate();
+          }}
+        >
+          {p.label}
+        </button>
+      ))}
     </div>
   );
 }
 
 export function PlaygroundPage(): ReactNode {
   const site = useSite();
-  const preset = site.preset;
-  const [theme, setTheme] = useState<ThemeName>("geistDark");
-  const [vp, setVp] = useState<(typeof VIEWPORTS)[number]>(VIEWPORTS[0]);
-  const [wireframe, setWireframe] = useState(false);
-  const [markdown, setMarkdown] = useState(STREAMING_MARKDOWN);
+  const preset = PRESETS.find((p) => p.id === site.preset) ?? PRESETS[0];
   const [showSource, setShowSource] = useState(false);
-  const title = site.playgroundTitle;
-
-  const app = useMemo(() => <PresetView preset={preset} title={title} markdown={markdown} reserveRows={2} />, [preset, title, markdown]);
-  const sandbox = useSandbox(app, { cols: vp.cols, rows: vp.rows, theme, wireframe });
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.metaKey || e.ctrlKey || e.altKey || (e.key !== "w" && e.key !== "W")) return;
-      if (isTyping(document.activeElement) || siteStore.getSnapshot().consoleInput) return;
-      setWireframe((w) => !w);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  const source = SOURCES[preset];
+  if (!preset) return null;
 
   return (
     <>
-      <div className="container page-head">
-        <h1>Playground</h1>
-        <p>
-          Edit props, switch themes, and inspect the raw <code className="mono">%c</code> frame.
-        </p>
-      </div>
-      <div className="pg">
-        <aside className="pg-side">
-          <div>
-            <span className="field-label">Template</span>
-            <div className="preset-list">
-              {PRESETS.map((p) => (
-                <button key={p.id} type="button" className="preset" aria-pressed={p.id === preset} onClick={() => siteStore.set({ preset: p.id })}>
-                  <b>{p.label}</b>
-                </button>
-              ))}
+      <ConsolePad hints={preset.hints} action={preset.action} top={<Picker />}>
+        <button type="button" className="text-link pad-source" onClick={() => setShowSource((s) => !s)} aria-expanded={showSource}>
+          {showSource ? "Hide source" : "View source"}
+        </button>
+      </ConsolePad>
+      {showSource ? (
+        <div className="container pad-code">
+          <div className="codeblock" style={{ margin: 0 }}>
+            <div className="codeblock-head">
+              <span>{`app/page.tsx — ${preset.label}`}</span>
+              <span className="lang">tsx</span>
+              <CopyButton text={SOURCES[preset.id]} />
             </div>
+            <HighlightedCode code={SOURCES[preset.id]} language="tsx" lineNumbers />
           </div>
-          <div>
-            <span className="field-label">Theme</span>
-            <div className="segmented">
-              {THEME_ORDER.map((t) => (
-                <button key={t} type="button" aria-pressed={t === theme} onClick={() => setTheme(t)}>
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <span className="field-label">Viewport</span>
-            <div className="segmented">
-              {VIEWPORTS.map((v) => (
-                <button key={v.label} type="button" aria-pressed={v.label === vp.label} onClick={() => setVp(v)}>
-                  {v.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div role="switch" aria-checked={wireframe} tabIndex={0} className="switch" onClick={() => setWireframe((w) => !w)} onKeyDown={(e) => (e.key === " " || e.key === "Enter") && setWireframe((w) => !w)}>
-            <span>
-              Wireframe <kbd>W</kbd>
-            </span>
-            <span className="switch-track" />
-          </div>
-          <div>
-            <label className="field-label" htmlFor="pg-title">
-              App title
-            </label>
-            <input id="pg-title" className="text-input" value={title} onChange={(e) => siteStore.set({ playgroundTitle: e.target.value })} spellCheck={false} />
-          </div>
-          {preset === "streaming" ? (
-            <div>
-              <label className="field-label" htmlFor="pg-md">
-                Markdown source
-              </label>
-              <textarea id="pg-md" className="text-area" value={markdown} onChange={(e) => setMarkdown(e.target.value)} spellCheck={false} />
-            </div>
-          ) : null}
-        </aside>
-        <div className="pg-main">
-          <div className="pg-stage">
-            <SandboxConsole
-              frame={sandbox.frame}
-              engine={sandbox.engine}
-              source={`playground://${preset}:1`}
-              filter={`${vp.label} · ${theme}`}
-              captureWheel
-              cols={vp.cols}
-              rows={vp.rows}
-            />
-            <div className="pg-actions">
-              {preset === "snake" ? <span className="subtle">WASD to steer · Space to start</span> : null}
-              <button type="button" className="btn btn-secondary btn-sm" style={{ marginLeft: "auto" }} onClick={() => setShowSource((s) => !s)}>
-                {showSource ? "Hide source" : "View source"}
-              </button>
-            </div>
-            {showSource ? (
-              <div className="codeblock" style={{ margin: 0 }}>
-                <div className="codeblock-head">
-                  <span>{source.file}</span>
-                  <span className="lang">tsx</span>
-                  <CopyButton text={source.code} />
-                </div>
-                <div style={{ maxHeight: 480, overflow: "auto" }}>
-                  <HighlightedCode code={source.code} language="tsx" lineNumbers />
-                </div>
-              </div>
-            ) : null}
-          </div>
-          <Inspector log={sandbox.log} totalMs={sandbox.stats?.totalMs ?? 0} />
         </div>
-      </div>
+      ) : null}
     </>
   );
 }

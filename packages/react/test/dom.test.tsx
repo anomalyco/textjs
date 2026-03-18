@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CellBuffer, extractStyledFrame, initYoga } from "@textjs/core";
-import { ConsoleMirror, FocusPad, TextCanvas } from "../src/dom/index";
+import { ConsoleMirror, devtoolsShortcutKeys, FocusPad, focusPadState, keyLabel, TextCanvas } from "../src/dom/index";
 import { Box, Text } from "../src/index";
 import { createTestRoot } from "./helpers";
 
@@ -48,22 +48,45 @@ describe("DOM companion", () => {
     expect(html).toMatch(/data-textjs-mirror="" style="[^"]*background:(#0a0a0a|rgb\(10, ?10, ?10\))/);
   });
 
-  test("FocusPad and TextCanvas render their receiver shell", async () => {
-    const pad = renderToStaticMarkup(<FocusPad root={null} title="my-app" />);
-    expect(pad).toContain("▼ Text.js");
+  test("FocusPad: one calm click target with the DevTools shortcut and the app's keys", async () => {
+    const pad = renderToStaticMarkup(<FocusPad root={null} title="my-app" hints={[{ keys: "↑ ↓", label: "count" }, { keys: "r", label: "reset" }]} />);
     expect(pad).toContain("my-app");
-    expect(pad).toContain("Click to focus");
-    expect(pad).toContain("80×24");
-    expect(pad).toContain("100×32");
-    expect(pad).toContain("120×38");
-    expect(pad).toContain("Auto");
-    expect(pad).toContain("Pause");
-    expect(pad).toContain("Preview");
-    expect(pad).toContain("Open DevTools Console");
-    expect(pad).not.toContain("%c spans");
+    expect(pad).toContain("Open the console");
+    expect(pad).toContain("Then click here and press ↑ ↓.");
+    expect(pad).toContain("count");
+    expect(pad).toContain(">R</kbd>");
+    expect(pad).toContain("Open on a desktop");
+    // No viewport presets, pause toggles or on-page preview by default.
+    for (const gone of ["80×24", "Pause", "Preview", "data-textjs-mirror"]) expect(pad).not.toContain(gone);
+    const typed = renderToStaticMarkup(<FocusPad root={null} action="type a prompt" />);
+    expect(typed).toContain("Then click here and type a prompt.");
     const canvas = renderToStaticMarkup(<TextCanvas app={<Text>hi</Text>} title="demo" theme="geistLight" />);
     expect(canvas).toContain("demo");
-    expect(canvas).toContain("Click to focus");
+    expect(canvas).toContain("Open the console");
+  });
+
+  test("FocusPad state: never blocks on DevTools detection", () => {
+    const s = (o: Partial<Parameters<typeof focusPadState>[0]>) => focusPadState({ pageFocused: true, capturing: false, devtoolsLikelyOpen: false, keySeen: false, ...o });
+    expect(s({})).toBe("open");
+    // Focus moved into DevTools (or another window): ask for a click.
+    expect(s({ pageFocused: false })).toBe("click");
+    expect(s({ pageFocused: false, devtoolsLikelyOpen: true, capturing: true })).toBe("click");
+    // DevTools docked but the page isn't routing keys yet.
+    expect(s({ devtoolsLikelyOpen: true })).toBe("click");
+    expect(s({ devtoolsLikelyOpen: true, capturing: true })).toBe("live");
+    // Undocked DevTools can't be detected: the first keystroke proves it.
+    expect(s({ capturing: true })).toBe("open");
+    expect(s({ capturing: true, keySeen: true })).toBe("live");
+  });
+
+  test("keyLabel echoes keystrokes the way the hints spell them", () => {
+    const k = (key: string, input = "", mods: { ctrl?: boolean } = {}) => keyLabel({ key, input, ctrl: mods.ctrl ?? false, meta: false, alt: false });
+    expect(k("up")).toBe("↑");
+    expect(k("return")).toBe("Enter");
+    expect(k("space", " ")).toBe("Space");
+    expect(k("r", "r")).toBe("r");
+    expect(k("p", "", { ctrl: true })).toBe("Ctrl P");
+    expect(devtoolsShortcutKeys()).toHaveLength(3);
   });
 
   test("FocusPad telemetry reads frames without re-rendering the console tree", async () => {
@@ -82,7 +105,7 @@ describe("DOM companion", () => {
     const seen: number[] = [];
     const off = t.root.onFrame((f) => seen.push(f.frameCount));
     const html = renderToStaticMarkup(<FocusPad root={t.root} title="x" showMirrorDefault />);
-    expect(html).toContain("▼ Text.js");
+    expect(html).toContain("▼ x");
     await t.act(() => t.root.renderer.requestRender(true));
     t.frame();
     expect(seen.length).toBe(1);

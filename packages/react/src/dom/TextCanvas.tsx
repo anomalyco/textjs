@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { createConsoleRoot, type ConsoleRoot, type ConsoleRootOptions } from "../root";
 import type { TextTheme, ThemeName } from "../theme";
-import { FocusPad, type ViewportPreset } from "./FocusPad";
+import { FocusPad, type FocusPadHint } from "./FocusPad";
 
 export interface TextCanvasProps {
   /** The console app to mount into `console.log`. */
@@ -14,7 +14,8 @@ export interface TextCanvasProps {
   title?: string;
   /** Focus Pad appearance (defaults to the theme's appearance). */
   appearance?: "dark" | "light";
-  presets?: readonly ViewportPreset[];
+  /** Keys worth pressing, shown on the Focus Pad. */
+  hints?: readonly FocusPadHint[];
   rootOptions?: Omit<ConsoleRootOptions, "width" | "height" | "responsive" | "theme">;
   onRoot?: (root: ConsoleRoot | null) => void;
   className?: string;
@@ -35,7 +36,7 @@ export function TextCanvas({
   showMirrorDefault = false,
   title,
   appearance,
-  presets,
+  hints,
   rootOptions,
   onRoot,
   className,
@@ -89,7 +90,7 @@ export function TextCanvas({
   const resolvedAppearance = appearance ?? (root ? root.getTheme().appearance : typeof theme === "object" ? theme.appearance : theme === "geistLight" ? "light" : "dark");
 
   return (
-    <FocusPad root={root} title={title} appearance={resolvedAppearance} presets={presets} showMirrorDefault={showMirrorDefault} className={className} style={style}>
+    <FocusPad root={root} title={title} appearance={resolvedAppearance} hints={hints} showMirrorDefault={showMirrorDefault} className={className} style={style}>
       {children}
     </FocusPad>
   );

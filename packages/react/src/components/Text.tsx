@@ -1,6 +1,7 @@
 import type { ReactNode, Ref } from "react";
+import { jsx } from "react/jsx-runtime";
 import type { ColorInput, LayoutProps, SceneNode, SceneNodeProps, TextAlign, TextStyleProps, WrapMode } from "@textjs/core";
-import { mergeStyleProps, TxText } from "../host";
+import { buildTextHostProps, TxText } from "../host";
 import { useTheme } from "../theme";
 
 export interface TextProps extends TextStyleProps, LayoutProps {
@@ -16,14 +17,8 @@ export interface TextProps extends TextStyleProps, LayoutProps {
 }
 
 /** Rich inline text. Nested `<Text>` elements become styled spans of the outer text. */
-export function Text({ color, align, className, style, ref, children, fg, ...rest }: TextProps): ReactNode {
-  const theme = useTheme();
-  const props = mergeStyleProps(theme, className, style, { ...rest, fg: fg ?? color, textAlign: align });
-  return (
-    <TxText {...props} ref={ref}>
-      {children}
-    </TxText>
-  );
+export function Text(props: TextProps): ReactNode {
+  return jsx(TxText, buildTextHostProps(useTheme(), props));
 }
 
 export interface LinkProps extends Omit<TextProps, "allowLink"> {

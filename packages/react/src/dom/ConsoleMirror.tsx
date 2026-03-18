@@ -150,7 +150,6 @@ export function ConsoleMirror({
         <span style={{ flex: 1, border: `1px solid ${c.border}`, borderRadius: 4, padding: "1px 6px" }}>Filter</span>
         <span>Default levels ▾</span>
       </div>
-      <div style={{ padding: "2px 8px", color: c.muted, fontStyle: "italic", borderBottom: `1px solid ${c.border}` }}>Console was cleared</div>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "4px 8px" }}>
         <div style={{ flex: 1, minWidth: 0 }}>{body}</div>
         <span style={{ color: c.muted, textDecoration: "underline", whiteSpace: "nowrap", fontSize: 11 }}>{source}</span>
