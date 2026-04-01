@@ -39,9 +39,12 @@ export default function ConnectPage(): ReactNode {
 
   return (
     <Box flexDirection="column" flexGrow={1} alignItems="center" justifyContent="center" paddingX={4}>
-      <Box flexDirection="column" width={72} maxWidth="100%" border="rounded" borderColor={theme.borderFocus} bg={theme.panel} paddingX={2} paddingY={1} gap={1} title=" Connect to OpenCode " titleColor={theme.fg}>
+      <Box flexDirection="column" width={88} maxWidth="100%" gap={1}>
+        <Text bold color={theme.fg}>
+          Connect to OpenCode
+        </Text>
         <Text color={theme.muted} wrap="wrap">
-          Leave empty to auto-discover the local daemon (`opencode service status`). Enter a URL such as http://localhost:4096 for a V2 or V1 server, or type demo for the offline simulator.
+          Leave empty to find your local server, paste a URL, or type demo.
         </Text>
         <Box flexDirection="row" border="single" borderColor={theme.border} paddingX={1}>
           <Text color={theme.accent} wrap="nowrap">

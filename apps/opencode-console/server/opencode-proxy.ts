@@ -6,8 +6,10 @@
  * never logged, never returned to the browser and never written to disk.
  */
 
-import { execFile } from "node:child_process";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { discoverOpencode, normalizeTargetUrl, probeOpenCode, selectsTarget } from "../../../packages/text/src/cli/proxy";
+
+export { normalizeTargetUrl };
 
 export type ProxyMode = "service" | "direct";
 
@@ -22,6 +24,8 @@ export interface ProxyStatus {
   connected: boolean;
   targetUrl: string;
   mode: ProxyMode | "demo";
+  /** Upstream status on failure (0 = unreachable, 415 = not OpenCode). */
+  upstreamStatus?: number;
 }
 
 export interface OpencodeProxyOptions {
@@ -33,7 +37,7 @@ export interface OpencodeProxyOptions {
 
 const DEFAULT_URL = "http://127.0.0.1:4096";
 const TARGET_HEADER = "x-opencode-target";
-const FORWARD_REQUEST_HEADERS = ["accept", "content-type", "last-event-id", "x-opencode-directory"];
+const FORWARD_REQUEST_HEADERS = ["accept", "content-type", "last-event-id", "x-opencode-directory", "x-opencode-client"];
 const FORWARD_RESPONSE_HEADERS = ["content-type", "location", "x-request-id"];
 /** Required on state-changing requests: a custom header forces a CORS preflight, defeating cross-site form / `fetch` CSRF. */
 export const CLIENT_HEADER = "x-opencode-client";
@@ -97,39 +101,10 @@ async function readRequestBody(request: Request, limit = MAX_BODY_BYTES): Promis
   return out.buffer;
 }
 
-function run(args: string[]): Promise<string> {
-  return new Promise((resolve) => {
-    execFile("opencode", args, { timeout: 4000, windowsHide: true }, (error, stdout) => resolve(error ? "" : String(stdout).trim()));
-  });
-}
-
-/** `http://0.0.0.0:49374` → `http://127.0.0.1:49374`. */
-export function normalizeTargetUrl(raw: string): string | null {
-  const line = raw
-    .split(/\s+/)
-    .find((s) => /^https?:\/\//i.test(s));
-  if (!line) return null;
-  try {
-    const u = new URL(line);
-    if (u.hostname === "0.0.0.0" || u.hostname === "[::]" || u.hostname === "::") u.hostname = "127.0.0.1";
-    return u.origin;
-  } catch {
-    return null;
-  }
-}
-
-/** Discover the running daemon: `opencode service status`, else `$OPENCODE_SERVER_URL`, else `:4096`. */
+/** Honor explicit configuration, otherwise discover the daemon or try the standard foreground port. */
 export async function discoverTarget(): Promise<ProxyTarget> {
-  const fromService = normalizeTargetUrl(await run(["service", "status"]));
-  if (fromService) {
-    const password = await run(["service", "get", "password"]);
-    return {
-      url: fromService,
-      mode: "service",
-      authorization: password ? `Basic ${Buffer.from(`opencode:${password}`).toString("base64")}` : undefined,
-    };
-  }
-  return { url: normalizeTargetUrl(process.env.OPENCODE_SERVER_URL ?? "") ?? DEFAULT_URL, mode: "direct" };
+  const t = await discoverOpencode();
+  return { url: t?.url ?? DEFAULT_URL, mode: t?.source === "service" ? "service" : "direct", authorization: t?.authorization };
 }
 
 function isLoopback(url: URL): boolean {
@@ -153,29 +128,17 @@ export function createOpencodeProxy(options: OpencodeProxyOptions = {}): Opencod
     return cached.target;
   };
 
-  const probe = async (t: ProxyTarget): Promise<number> => {
-    const headers: Record<string, string> = { accept: "application/json" };
-    if (t.authorization) headers.authorization = t.authorization;
-    try {
-      const r = await fetch(`${t.url}/api/info`, { headers, signal: AbortSignal.timeout(1500) });
-      if (r.ok || r.status === 401) return r.status;
-      const v1 = await fetch(`${t.url}/session`, { headers, signal: AbortSignal.timeout(1500) });
-      return v1.status;
-    } catch {
-      return 0;
-    }
-  };
-
   const status = async (): Promise<ProxyStatus> => {
+    const wasCached = cached !== null && Date.now() - cached.at < cacheMs;
     let t = await target();
-    let code = await probe(t);
+    let code = await probeOpenCode(t);
     // The daemon may have restarted with a new port or credential.
-    if (code === 0 || code === 401) {
+    if (wasCached && t.mode === "service" && (code === 0 || code === 401)) {
       t = await target(true);
-      code = await probe(t);
+      code = await probeOpenCode(t);
     }
     const connected = code >= 200 && code < 300;
-    return { connected, targetUrl: t.url, mode: connected ? t.mode : "demo" };
+    return { connected, targetUrl: t.url, mode: connected ? t.mode : "demo", upstreamStatus: connected ? undefined : code };
   };
 
   const handle = async (request: Request, subpath: string): Promise<Response> => {
@@ -185,6 +148,7 @@ export function createOpencodeProxy(options: OpencodeProxyOptions = {}): Opencod
     if (subpath === "/_status") {
       return Response.json(await status(), { headers: { "cache-control": "no-store" } });
     }
+    const wasCached = cached !== null && Date.now() - cached.at < cacheMs;
     const discovered = await target();
     let base = discovered.url;
     let authorization = discovered.authorization;
@@ -196,19 +160,24 @@ export function createOpencodeProxy(options: OpencodeProxyOptions = {}): Opencod
       } catch {
         return Response.json({ error: "Invalid target URL" }, { status: 400 });
       }
-      if (!isLoopback(u)) return Response.json({ error: "Only loopback OpenCode servers can be proxied" }, { status: 403 });
-      const origin = normalizeTargetUrl(u.origin) ?? u.origin;
-      // Only send the service credential to the daemon it belongs to.
-      if (origin !== discovered.url) authorization = undefined;
-      base = origin;
+      const origin = normalizeTargetUrl(u.origin);
+      if (!origin || !isLoopback(new URL(origin))) return Response.json({ error: "Only loopback OpenCode servers can be proxied" }, { status: 403 });
+      // For loopback aliases of the discovered target, send to `discovered.url` rather than an alternate interface.
+      if (!selectsTarget(origin, discovered.url)) {
+        authorization = undefined;
+        base = origin;
+      }
     }
 
-    const headers = new Headers();
-    for (const h of FORWARD_REQUEST_HEADERS) {
-      const v = request.headers.get(h);
-      if (v) headers.set(h, v);
-    }
-    if (authorization) headers.set("authorization", authorization);
+    const buildHeaders = (auth?: string): Headers => {
+      const h = new Headers();
+      for (const k of FORWARD_REQUEST_HEADERS) {
+        const v = request.headers.get(k);
+        if (v) h.set(k, v);
+      }
+      if (auth) h.set("authorization", auth);
+      return h;
+    };
     const method = request.method.toUpperCase();
     let body: ArrayBuffer | undefined;
     if (method !== "GET" && method !== "HEAD") {
@@ -222,15 +191,42 @@ export function createOpencodeProxy(options: OpencodeProxyOptions = {}): Opencod
       }
     }
 
+    const canRetry = !custom && wasCached && discovered.mode === "service" && SAFE_METHODS.has(method);
     let upstream: Response;
     try {
-      upstream = await fetch(`${base}${subpath}${incoming.search}`, { method, headers, body, signal: request.signal, redirect: "manual" });
+      upstream = await fetch(`${base}${subpath}${incoming.search}`, { method, headers: buildHeaders(authorization), body, signal: request.signal, redirect: "manual" });
     } catch (error) {
       if (request.signal.aborted) return new Response(null, { status: 499 });
       cached = null;
-      return Response.json({ error: "OpenCode server unreachable", targetUrl: base, detail: error instanceof Error ? error.message : String(error) }, { status: 502 });
+      if (canRetry) {
+        const refreshed = await target(true);
+        try {
+          upstream = await fetch(`${refreshed.url}${subpath}${incoming.search}`, { method, headers: buildHeaders(refreshed.authorization), body, signal: request.signal, redirect: "manual" });
+        } catch (retryError) {
+          if (request.signal.aborted) return new Response(null, { status: 499 });
+          cached = null;
+          return Response.json({ error: "OpenCode server unreachable", targetUrl: refreshed.url, detail: retryError instanceof Error ? retryError.message : String(retryError) }, { status: 502 });
+        }
+      } else {
+        return Response.json({ error: "OpenCode server unreachable", targetUrl: base, detail: error instanceof Error ? error.message : String(error) }, { status: 502 });
+      }
     }
-    if (upstream.status === 401 && !custom) cached = null;
+    if (upstream.status === 401 && !custom) {
+      cached = null;
+      if (canRetry) {
+        const refreshed = await target(true);
+        if (refreshed.url !== base || refreshed.authorization !== authorization) {
+          await upstream.body?.cancel().catch(() => undefined);
+          try {
+            upstream = await fetch(`${refreshed.url}${subpath}${incoming.search}`, { method, headers: buildHeaders(refreshed.authorization), body, signal: request.signal, redirect: "manual" });
+          } catch (retryError) {
+            if (request.signal.aborted) return new Response(null, { status: 499 });
+            cached = null;
+            return Response.json({ error: "OpenCode server unreachable", targetUrl: refreshed.url, detail: retryError instanceof Error ? retryError.message : String(retryError) }, { status: 502 });
+          }
+        }
+      }
+    }
 
     const out = new Headers();
     for (const h of FORWARD_RESPONSE_HEADERS) {

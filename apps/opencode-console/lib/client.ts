@@ -47,19 +47,21 @@ export interface Transport {
 
 export function createTransport(base: string, label: string, extraHeaders: Record<string, string> = {}): Transport {
   const root = base.replace(/\/+$/, "");
-  // The same-origin proxy requires `x-opencode-client: 1` on writes (forces a CORS preflight for cross-site callers).
-  // Direct cross-origin servers don't get it, so their simple requests stay preflight-free.
-  const headers: Record<string, string> = root.startsWith("/") ? { "x-opencode-client": "1", ...extraHeaders } : extraHeaders;
+  // Direct servers need no custom headers. Both proxies require a CSRF header on writes.
+  let proxy = root.startsWith("/");
   return {
     label,
     async json<T>(method: string, path: string, body?: unknown, timeoutMs = 15_000): Promise<T> {
-      const init: RequestInit = { method, headers: { accept: "application/json", ...headers } };
+      const headers: Record<string, string> = { accept: "application/json", ...extraHeaders };
+      if (proxy && method !== "GET" && method !== "HEAD") headers["x-opencode-client"] = "1";
+      const init: RequestInit = { method, headers };
       if (body !== undefined) {
         init.body = JSON.stringify(body);
         init.headers = { ...init.headers, "content-type": "application/json" };
       }
       if (timeoutMs > 0 && typeof AbortSignal.timeout === "function") init.signal = AbortSignal.timeout(timeoutMs);
       const res = await fetch(`${root}${path}`, init);
+      if (res.headers.get("x-textjs-bridge") === "1") proxy = true;
       if (!res.ok) throw new HttpError(res.status, `${method} ${path} → ${res.status}`);
       if (res.status === 204) return undefined as T;
       const text = await res.text();
@@ -68,8 +70,11 @@ export function createTransport(base: string, label: string, extraHeaders: Recor
       return JSON.parse(text) as T;
     },
     async stream(path, signal) {
-      const res = await fetch(`${root}${path}`, { headers: { accept: "text/event-stream", ...headers }, signal });
-      if (!res.ok || !res.body) throw new HttpError(res.status, `GET ${path} → ${res.status}`);
+      const res = await fetch(`${root}${path}`, { headers: { accept: "text/event-stream", ...extraHeaders }, signal });
+      if (!res.ok || !res.body || !res.headers.get("content-type")?.includes("text/event-stream")) {
+        await res.body?.cancel();
+        throw new HttpError(res.status, `Event stream unavailable at ${path}`);
+      }
       return res;
     },
   };
@@ -360,6 +365,17 @@ export function parseV2Event(raw: unknown): AppEvent | null {
 
 export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClient {
   let directory: string | undefined;
+  // /view acknowledges a specific unviewed idle transition, never one the client hasn't seen.
+  const idleTimes = new Map<string, number>();
+  const session = (v: unknown): SessionInfo | null => {
+    const s = v2Session(v);
+    if (s && s.time.idle !== undefined) {
+      const viewed = num(rec(isRecord(v) ? v.time : undefined).viewed);
+      if (viewed === undefined || viewed < s.time.idle) idleTimes.set(s.id, s.time.idle);
+      else idleTimes.delete(s.id);
+    }
+    return s;
+  };
   return {
     kind: "v2",
     mode,
@@ -370,12 +386,12 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     },
     async sessions() {
       const res = await t.json<{ data?: unknown[] }>("GET", "/api/session?limit=50&order=desc&parentID=null");
-      return (res?.data ?? []).map(v2Session).filter((s): s is SessionInfo => s !== null && s.parentID === undefined);
+      return (res?.data ?? []).map(session).filter((s): s is SessionInfo => s !== null && s.parentID === undefined);
     },
     async session(id) {
       try {
         const res = await t.json<{ data?: unknown }>("GET", `/api/session/${encodeURIComponent(id)}`);
-        return v2Session(res?.data);
+        return session(res?.data);
       } catch (error) {
         if (error instanceof HttpError && (error.status === 404 || error.status === 400)) return null;
         throw error;
@@ -412,7 +428,11 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
       await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/model`, { model: { id: model.id, providerID: model.providerID, variant: model.variant } });
     },
     async view(sessionID) {
-      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/view`, {});
+      const idle = idleTimes.get(sessionID);
+      if (idle !== undefined) {
+        await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/view`, { idle });
+        idleTimes.delete(sessionID);
+      }
     },
     async agents() {
       const res = await t.json<{ location?: { directory?: string }; data?: unknown[] }>("GET", "/api/agent");
@@ -649,20 +669,36 @@ export function saveEndpoint(endpoint: string | null): void {
   }
 }
 
-async function detect(t: Transport, mode: ConnectionMode): Promise<OpenCodeClient | null> {
+async function detect(t: Transport, mode: ConnectionMode): Promise<OpenCodeClient> {
   try {
-    const info = await t.json<{ version?: string }>("GET", "/api/info", undefined, 2500);
-    if (info && typeof info === "object") return createV2Client(t, mode);
-  } catch {
-    // not V2
+    const info = await t.json<{ version?: string }>("GET", "/api/info");
+    if (typeof info?.version === "string") return createV2Client(t, mode);
+  } catch (err) {
+    // V1 servers return 404 or their HTML app shell here. An auth/network failure isn't V1.
+    if (!(err instanceof HttpError) || ![404, 405, 415].includes(err.status)) throw err;
   }
-  try {
-    const list = await t.json<unknown>("GET", "/session", undefined, 2500);
-    if (Array.isArray(list)) return createV1Client(t, mode);
-  } catch {
-    // not V1 either
+  const list = await t.json<unknown>("GET", "/session?limit=1");
+  if (Array.isArray(list)) return createV1Client(t, mode);
+  throw new HttpError(415, "Not an OpenCode server");
+}
+
+function offline(reason: string, targetUrl?: string): Connection {
+  console.warn(`OpenCode Lite: ${reason} (demo mode)`);
+  return { client: createDemoClient(), reason, targetUrl };
+}
+
+function failure(status: number, label: string, discoveredUrl?: string): string {
+  const alt = discoveredUrl ? hostLabel(discoveredUrl) : "";
+  if (status === 401) {
+    return alt && alt !== label
+      ? `Auth required at ${label} — clear /connect to use ${alt}`
+      : "Auth required — check opencode service status or OPENCODE_PASSWORD";
   }
-  return null;
+  if (status === 403) return "Forbidden — open the app on localhost";
+  if ([404, 405, 415].includes(status)) return `Not OpenCode at ${label} — check /connect`;
+  if (status && status !== 502) return `HTTP ${status} at ${label} — check opencode service status`;
+  if (alt && alt !== label) return `Can't reach ${label} — clear /connect to use ${alt}`;
+  return `Can't reach ${label} — run opencode service start`;
 }
 
 const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -671,7 +707,7 @@ const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 export function isLoopbackEndpoint(input: string): boolean {
   try {
     const u = new URL(normalizeUrl(input));
-    return (u.protocol === "http:" || u.protocol === "https:") && LOOPBACK_HOSTNAMES.has(u.hostname);
+    return (u.protocol === "http:" || u.protocol === "https:") && !u.username && !u.password && LOOPBACK_HOSTNAMES.has(u.hostname);
   } catch {
     return false;
   }
@@ -680,16 +716,29 @@ export function isLoopbackEndpoint(input: string): boolean {
 function normalizeUrl(input: string): string {
   const trimmed = input.trim();
   const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
-  return withScheme.replace(/\/+$/, "");
+  // `service status` may print the bind address, which isn't a connect address.
+  const u = new URL(withScheme);
+  if (u.username || u.password) throw new Error("Use a server URL without credentials");
+  if (u.hostname === "0.0.0.0" || u.hostname === "[::]") u.hostname = "127.0.0.1";
+  return u.href.replace(/\/+$/, "");
 }
 
-async function proxyAvailable(prefix: string): Promise<boolean> {
-  try {
-    const status = await createTransport(prefix, "").json<unknown>("GET", "/_status", undefined, 6000);
-    return typeof status === "object" && status !== null;
-  } catch {
-    return false;
-  }
+interface ProxyCheck {
+  connected: boolean;
+  targetUrl?: string;
+  mode?: string;
+  upstreamStatus?: number;
+}
+
+async function fetchProxyStatus(prefix: string): Promise<ProxyCheck | null> {
+  const status = await createTransport(prefix, "").json<unknown>("GET", "/_status");
+  if (!isRecord(status) || typeof status.connected !== "boolean") return null;
+  return {
+    connected: status.connected,
+    targetUrl: str(status.targetUrl),
+    mode: str(status.mode),
+    upstreamStatus: num(status.upstreamStatus),
+  };
 }
 
 /** Resolve a live OpenCode client, falling back to the interactive demo backend. */
@@ -698,39 +747,48 @@ export async function connectOpenCode(options: ConnectOptions = {}): Promise<Con
   if (endpoint === "demo") return { client: createDemoClient(), reason: "Demo mode selected" };
 
   if (endpoint) {
-    const url = normalizeUrl(endpoint);
-    const label = hostLabel(url);
-    // Loopback servers go through the same-origin proxy (`x-opencode-target`), so the
-    // browser never makes a cross-origin request; direct fetches are only a fallback
-    // for static previews that have no proxy.
-    if (typeof window !== "undefined" && window.location && isLoopbackEndpoint(url)) {
-      let proxied = false;
-      for (const prefix of options.proxyPrefixes ?? PROXY_PREFIXES) {
-        if (!(await proxyAvailable(prefix))) continue;
-        proxied = true;
-        const viaProxy = await detect(createTransport(prefix, label, { "x-opencode-target": url }), "custom");
-        if (viaProxy) return { client: viaProxy, targetUrl: url };
-      }
-      if (proxied) return { client: createDemoClient(), reason: `Couldn't reach ${label}`, targetUrl: url };
+    let url: string;
+    try {
+      url = normalizeUrl(endpoint);
+    } catch {
+      return offline("Invalid URL — omit credentials and use /connect or OPENCODE_PASSWORD");
     }
-    const direct = await detect(createTransport(url, label), "custom");
-    if (direct) return { client: direct, targetUrl: url };
-    return { client: createDemoClient(), reason: `Couldn't reach ${label}`, targetUrl: url };
+    const label = hostLabel(url);
+    let discoveredUrl: string | undefined;
+    try {
+      // Prefer the local same-origin proxy. The website's deployed server is not the user's Mac.
+      if (typeof window !== "undefined" && window.location && isLoopbackEndpoint(url) && isLoopbackEndpoint(window.location.origin)) {
+        for (const prefix of options.proxyPrefixes ?? PROXY_PREFIXES) {
+          const st = await fetchProxyStatus(prefix).catch(() => null);
+          if (!st) continue;
+          if (st.connected && st.targetUrl) discoveredUrl = st.targetUrl;
+          return { client: await detect(createTransport(prefix, label, { "x-opencode-target": url }), "custom"), targetUrl: url };
+        }
+      }
+      return { client: await detect(createTransport(url, label), "custom"), targetUrl: url };
+    } catch (err) {
+      return offline(failure(err instanceof HttpError ? err.status : 0, label, discoveredUrl), url);
+    }
   }
 
   if (typeof window === "undefined" || !window.location) return { client: createDemoClient(), reason: "No browser origin" };
   for (const prefix of options.proxyPrefixes ?? PROXY_PREFIXES) {
-    let status: { connected?: boolean; targetUrl?: string; mode?: string } | null = null;
+    let status: ProxyCheck | null = null;
     try {
-      status = await createTransport(prefix, "").json("GET", "/_status", undefined, 6000);
-    } catch {
+      status = await fetchProxyStatus(prefix);
+    } catch (err) {
+      if (err instanceof HttpError && err.status === 403) return offline("Proxy blocked — open the app on localhost");
       continue;
     }
-    if (!status || typeof status !== "object") continue;
-    const targetUrl = status.targetUrl ?? "";
-    if (!status.connected) return { client: createDemoClient(), reason: `No OpenCode server at ${hostLabel(targetUrl)}`, targetUrl };
-    const client = await detect(createTransport(prefix, hostLabel(targetUrl)), status.mode === "service" ? "service" : "direct");
-    if (client) return { client, targetUrl };
+    if (!status || !status.targetUrl) continue;
+    const targetUrl = status.targetUrl;
+    const label = hostLabel(targetUrl);
+    if (!status.connected) return offline(failure(status.upstreamStatus ?? 0, label), targetUrl);
+    try {
+      return { client: await detect(createTransport(prefix, label), status.mode === "service" ? "service" : "direct"), targetUrl };
+    } catch (err) {
+      return offline(failure(err instanceof HttpError ? err.status : 0, label), targetUrl);
+    }
   }
-  return { client: createDemoClient(), reason: "No local OpenCode proxy (static preview)" };
+  return offline("No local proxy — run bun run dev:opencode");
 }

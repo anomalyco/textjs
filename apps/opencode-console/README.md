@@ -3,7 +3,8 @@
 A connected OpenCode client built with the Text.js App Router. It renders entirely inside your browser's DevTools Console (112×34, `opencodeDark`).
 
 ```bash
-bun run --cwd apps/opencode-console dev     # text dev --port 3001
+opencode service status                    # If stopped: opencode service start
+bun run dev:opencode                        # From the repo root; defaults to localhost:3001
 bun run --cwd apps/opencode-console test
 bun run --cwd apps/opencode-console build
 ```
@@ -12,7 +13,9 @@ Open the page, press **⌘⌥J** (or **Ctrl+Shift+J**), then click back into the
 
 ## Connecting
 
-- **Auto-discovery (dev):** `text.config.ts` mounts a `/__opencode/*` proxy. It finds the daemon with `opencode service status` and falls back to `$OPENCODE_SERVER_URL`, then `http://127.0.0.1:4096`. The service password is read with `opencode service get password` and kept in the dev server's memory as an `Authorization: Basic …` header. It never reaches the browser. `GET /__opencode/_status` returns `{ connected, targetUrl, mode }`.
+- **Local app:** open the localhost URL printed by `bun run dev:opencode`. Leave `/connect` empty to discover the managed daemon, even if its port changes. No CORS flag or separate bridge is needed. The `/__opencode` dev proxy reads the service password with `opencode service get password` and injects it server-side. `GET /__opencode/_status` reports the target, mode, and upstream status on failure, never the password.
+- **Foreground server:** to select a specific server instead of the managed daemon, run `OPENCODE_SERVER_URL=http://127.0.0.1:4096 bun run dev:opencode`. For a protected foreground server on loopback, export its `OPENCODE_PASSWORD` (or legacy `OPENCODE_SERVER_PASSWORD` and optional `OPENCODE_SERVER_USERNAME`) in the dev server shell. Don't put credentials in a URL. Without an explicit URL or registered service, the dev proxy tries `127.0.0.1:4096`.
+- **Website `/opencode`:** from the Text.js checkout, run `bun run opencode:proxy` and leave it running while using `/opencode` (`bun run dev:web` on `localhost:3000` or `https://textjs.org/opencode`). Connect to `http://127.0.0.1:4096` and allow local network access if prompted. If you instead run an unauthenticated foreground server (`opencode serve --port 4096`, adding `--cors https://textjs.org` for remote origins), `/opencode` can connect to it directly without the bridge. If port `4096` is already taken, run `bun run opencode:proxy --port 4097` (optionally `--target http://127.0.0.1:4096`) and connect to `http://127.0.0.1:4097`. Stop the bridge with Ctrl+C when done.
 - **`text start`:** the same proxy is also served by `app/api/opencode/[...path]/route.ts`.
 - **Custom server:** go to `/connect` (or use `?server=http://localhost:4096`). V2 (`/api/*`) and V1 (`/session`, `/event`) servers are both detected. Loopback URLs go through the proxy; anything else is fetched directly. The `?server=` parameter only accepts `localhost`, `127.0.0.1` and `[::1]`, so a crafted link can't send your prompts to someone else's server.
 - **Proxy hardening:** the proxy only answers requests whose `Host` is `localhost`, `127.0.0.1` or `[::1]` (DNS rebinding), rejects cross-site `Sec-Fetch-Site` requests, requires `x-opencode-client: 1` on anything other than `GET` / `HEAD` / `OPTIONS` (CSRF), and refuses request bodies over 4 MB (`413`).

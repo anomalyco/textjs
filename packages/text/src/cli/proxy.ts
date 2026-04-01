@@ -10,8 +10,11 @@
  */
 
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { color } from "./ui";
 
 export const DEFAULT_PROXY_PORT = 4096;
@@ -26,6 +29,7 @@ export const DEFAULT_ALLOWED_ORIGINS: readonly string[] = [
   "https://*.textjs-avg.pages.dev",
   "http://localhost:*",
   "http://127.0.0.1:*",
+  "http://[::1]:*",
 ];
 
 const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -73,7 +77,7 @@ function matchOrigin(origin: string, pattern: string): boolean {
   } catch {
     return false;
   }
-  const m = /^(https?):\/\/(\*\.)?([^:/]+)(?::(\*|\d+))?$/.exec(pattern);
+  const m = /^(https?):\/\/(\*\.)?(\[[^\]]+\]|[^:/]+)(?::(\*|\d+))?$/.exec(pattern);
   if (!m) return false;
   const [, scheme, wildcard, host, port] = m;
   if (o.protocol !== `${scheme}:`) return false;
@@ -96,7 +100,7 @@ export function corsHeaders(origin: string): Record<string, string> {
     "access-control-allow-origin": origin,
     "access-control-allow-private-network": "true",
     "access-control-allow-methods": "GET, HEAD, POST, PATCH, PUT, DELETE, OPTIONS",
-    "access-control-allow-headers": `Content-Type, Accept, Last-Event-ID, ${CLIENT_HEADER}`,
+    "access-control-allow-headers": `Content-Type, Accept, Last-Event-ID, x-opencode-directory, ${CLIENT_HEADER}`,
     "access-control-expose-headers": BRIDGE_HEADER,
     "access-control-max-age": "86400",
     vary: "Origin",
@@ -116,23 +120,84 @@ export function normalizeTargetUrl(raw: string): string | null {
   }
 }
 
-function run(args: string[]): Promise<string> {
+function opencodeFallbacks(): string[] {
+  try {
+    const home = homedir();
+    return [join(home, ".bun", "bin", "opencode"), join(home, ".opencode", "bin", "opencode"), "/opt/homebrew/bin/opencode", "/usr/local/bin/opencode"];
+  } catch {
+    return ["/opt/homebrew/bin/opencode", "/usr/local/bin/opencode"];
+  }
+}
+
+function execOpencode(bin: string, args: string[]): Promise<{ ok: boolean; enoent: boolean; stdout: string }> {
   return new Promise((resolve) => {
-    execFile("opencode", args, { timeout: 4000, windowsHide: true }, (error, stdout) => resolve(error ? "" : String(stdout).trim()));
+    execFile(bin, args, { timeout: 4000, windowsHide: true }, (error, stdout) => {
+      const enoent = Boolean(error && (error as NodeJS.ErrnoException).code === "ENOENT");
+      resolve({ ok: !error, enoent, stdout: error ? "" : String(stdout).trim() });
+    });
   });
 }
 
-/** Find the running OpenCode daemon (`opencode service status`), else `--target`, else `$OPENCODE_SERVER_URL`. */
+async function run(args: string[]): Promise<string> {
+  const first = await execOpencode("opencode", args);
+  if (!first.enoent) return first.stdout;
+  for (const candidate of opencodeFallbacks()) {
+    if (!existsSync(candidate)) continue;
+    const res = await execOpencode(candidate, args);
+    if (!res.enoent) return res.stdout;
+  }
+  return "";
+}
+
+/** Loopback aliases (`localhost`, `127.0.0.1`, `[::1]`) with the same port select the trusted target, while requests still go to `trusted`. */
+export function selectsTarget(origin: string, trusted: string): boolean {
+  if (origin === trusted) return true;
+  const a = new URL(origin);
+  const b = new URL(trusted);
+  return LOOPBACK_HOSTNAMES.has(a.hostname) && LOOPBACK_HOSTNAMES.has(b.hostname) && a.port === b.port && a.protocol === b.protocol;
+}
+
+/** An explicit target wins. Never apply a foreground server's password to a browser-selected URL. */
 export async function discoverOpencode(target?: string): Promise<BridgeTarget | null> {
-  const explicit = target ? normalizeTargetUrl(/^https?:\/\//i.test(target) ? target : `http://${target}`) : null;
+  const configured = (target ?? process.env.OPENCODE_SERVER_URL ?? "").trim();
+  let explicit: string | undefined;
+  if (configured) {
+    const u = new URL(configured.includes("://") ? configured : `http://${configured}`);
+    if (!/^https?:$/.test(u.protocol) || u.username || u.password || u.pathname !== "/" || u.search || u.hash) {
+      throw new Error("Use an HTTP(S) server origin without credentials for --target or OPENCODE_SERVER_URL.");
+    }
+    explicit = normalizeTargetUrl(u.origin) ?? undefined;
+  }
   const service = normalizeTargetUrl(await run(["service", "status"]));
-  if (service && (!explicit || explicit === service)) {
+  if (service && (!explicit || selectsTarget(explicit, service))) {
     const password = await run(["service", "get", "password"]);
     return { url: service, source: "service", authorization: password ? `Basic ${Buffer.from(`opencode:${password}`).toString("base64")}` : undefined };
   }
-  if (explicit) return { url: explicit, source: "flag" };
-  const env = normalizeTargetUrl(process.env.OPENCODE_SERVER_URL ?? "");
-  return env ? { url: env, source: "env" } : null;
+  if (!explicit) return null;
+  const password = LOOPBACK_HOSTNAMES.has(new URL(explicit).hostname) ? process.env.OPENCODE_PASSWORD ?? process.env.OPENCODE_SERVER_PASSWORD : undefined;
+  const username = process.env.OPENCODE_PASSWORD ? "opencode" : process.env.OPENCODE_SERVER_USERNAME || "opencode";
+  return { url: explicit, source: target ? "flag" : "env", authorization: password ? `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}` : undefined };
+}
+
+/** A Vite/SPA fallback can return 200 HTML for *every* path. Verify the API, not just the status. */
+export async function probeOpenCode(t: { url: string; authorization?: string }): Promise<number> {
+  const headers = new Headers({ accept: "application/json" });
+  if (t.authorization) headers.set("authorization", t.authorization);
+  try {
+    for (const path of ["/api/info", "/session?limit=1"]) {
+      const res = await fetch(`${t.url}${path}`, { headers, signal: AbortSignal.timeout(5000), redirect: "manual" });
+      if (res.ok && res.headers.get("content-type")?.includes("application/json")) {
+        const data = await res.json();
+        if (path === "/api/info" ? typeof data?.version === "string" : Array.isArray(data)) return res.status;
+      } else {
+        await res.body?.cancel();
+        if (!res.ok && res.status !== 404 && res.status !== 405) return res.status;
+      }
+    }
+    return 415;
+  } catch {
+    return 0;
+  }
 }
 
 function json(status: number, body: unknown, headers: Record<string, string> = {}): Response {
@@ -192,21 +257,31 @@ export function createBridgeHandler(options: BridgeOptions = {}): BridgeHandler 
     const method = request.method.toUpperCase();
     if (method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (url.pathname === "/__bridge") {
-      const t = await target();
-      return json(200, { bridge: "textjs", target: t?.url ?? null, connected: t !== null }, cors);
+      const wasCached = cached !== null && Date.now() - cached.at < cacheMs;
+      let t = await target();
+      let code = t ? await probeOpenCode(t) : 0;
+      if (wasCached && t?.source === "service" && (code === 0 || code === 401)) {
+        t = await target(true);
+        code = t ? await probeOpenCode(t) : 0;
+      }
+      return json(200, { bridge: "textjs", target: t?.url ?? null, connected: code >= 200 && code < 300 }, cors);
     }
     if (!SAFE_METHODS.has(method) && request.headers.get(CLIENT_HEADER) !== "1") return json(403, { error: `Missing ${CLIENT_HEADER} header` }, cors);
 
+    const wasCached = cached !== null && Date.now() - cached.at < cacheMs;
     let t = await target();
     if (t === null) t = await target(true);
     if (t === null) return json(502, { error: "No OpenCode server found. Start `opencode` or pass --target." }, cors);
 
-    const headers = new Headers();
-    for (const h of FORWARD_REQUEST_HEADERS) {
-      const v = request.headers.get(h);
-      if (v) headers.set(h, v);
-    }
-    if (t.authorization) headers.set("authorization", t.authorization);
+    const buildHeaders = (auth?: string): Headers => {
+      const h = new Headers();
+      for (const k of FORWARD_REQUEST_HEADERS) {
+        const v = request.headers.get(k);
+        if (v) h.set(k, v);
+      }
+      if (auth) h.set("authorization", auth);
+      return h;
+    };
     let body: ArrayBuffer | undefined;
     if (method !== "GET" && method !== "HEAD") {
       if (Number(request.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) return json(413, { error: "Payload Too Large" }, cors);
@@ -215,16 +290,47 @@ export function createBridgeHandler(options: BridgeOptions = {}): BridgeHandler 
       body = read;
     }
 
+    const canRetry = wasCached && t.source === "service" && SAFE_METHODS.has(method);
     let upstream: Response;
     try {
-      upstream = await fetch(`${t.url}${url.pathname}${url.search}`, { method, headers, body, signal: request.signal, redirect: "manual" });
+      upstream = await fetch(`${t.url}${url.pathname}${url.search}`, { method, headers: buildHeaders(t.authorization), body, signal: request.signal, redirect: "manual" });
     } catch (error) {
       if (request.signal.aborted) return new Response(null, { status: 499, headers: cors });
       cached = null;
-      return json(502, { error: "OpenCode server unreachable", detail: error instanceof Error ? error.message : String(error) }, cors);
+      if (canRetry) {
+        const refreshed = await target(true);
+        if (refreshed) {
+          try {
+            upstream = await fetch(`${refreshed.url}${url.pathname}${url.search}`, { method, headers: buildHeaders(refreshed.authorization), body, signal: request.signal, redirect: "manual" });
+          } catch (retryError) {
+            if (request.signal.aborted) return new Response(null, { status: 499, headers: cors });
+            cached = null;
+            return json(502, { error: "OpenCode server unreachable", detail: retryError instanceof Error ? retryError.message : String(retryError) }, cors);
+          }
+        } else {
+          return json(502, { error: "OpenCode server unreachable", detail: error instanceof Error ? error.message : String(error) }, cors);
+        }
+      } else {
+        return json(502, { error: "OpenCode server unreachable", detail: error instanceof Error ? error.message : String(error) }, cors);
+      }
     }
     // The daemon may have restarted with a new port or password.
-    if (upstream.status === 401) cached = null;
+    if (upstream.status === 401) {
+      cached = null;
+      if (canRetry) {
+        const refreshed = await target(true);
+        if (refreshed && (refreshed.url !== t.url || refreshed.authorization !== t.authorization)) {
+          await upstream.body?.cancel().catch(() => undefined);
+          try {
+            upstream = await fetch(`${refreshed.url}${url.pathname}${url.search}`, { method, headers: buildHeaders(refreshed.authorization), body, signal: request.signal, redirect: "manual" });
+          } catch (retryError) {
+            if (request.signal.aborted) return new Response(null, { status: 499, headers: cors });
+            cached = null;
+            return json(502, { error: "OpenCode server unreachable", detail: retryError instanceof Error ? retryError.message : String(retryError) }, cors);
+          }
+        }
+      }
+    }
 
     const out = new Headers(cors);
     for (const h of FORWARD_RESPONSE_HEADERS) {
@@ -326,13 +432,29 @@ export async function startProxy(options: BridgeOptions = {}): Promise<StartedBr
       res.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
     });
   });
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, host, () => {
-      server.off("error", reject);
-      resolve();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(port, host, () => {
+        server.off("error", reject);
+        resolve();
+      });
     });
-  });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (port > 0 && ((err as NodeJS.ErrnoException)?.code === "EADDRINUSE" || /in use/i.test(msg))) {
+      const probeHost = host === "::1" ? "[::1]" : host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host;
+      const existing = await fetch(`http://${probeHost}:${port}/__bridge`, { signal: AbortSignal.timeout(1000) })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+      if (existing && typeof existing === "object" && (existing as { bridge?: unknown }).bridge === "textjs") {
+        const dest = typeof (existing as { target?: unknown }).target === "string" ? ` → ${(existing as { target: string }).target}` : "";
+        throw new Error(`Bridge already running at http://${probeHost}:${port}${dest} — connect to http://${probeHost}:${port} (or pass --port ${port + 1}).`);
+      }
+      throw new Error(`Port ${port} is already in use — run bun run opencode:proxy --port ${port + 1} and connect to http://${probeHost}:${port + 1}.`);
+    }
+    throw err;
+  }
   const addr = server.address() as AddressInfo;
   const url = `http://${host === "::1" ? "[::1]" : host}:${addr.port}`;
   if (options.log !== false) {

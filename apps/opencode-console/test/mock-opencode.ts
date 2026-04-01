@@ -37,7 +37,7 @@ export function startMockOpenCode(options: { password?: string } = {}): MockOpen
       model: { id: "claude-opus-5-5", providerID: "anthropic" },
       cost: 0.12,
       tokens: { input: 1000, output: 200, reasoning: 0, cache: { read: 0, write: 0 } },
-      time: { created: now - 3_600_000, updated: now - 120_000 },
+      time: { created: now - 3_600_000, updated: now - 120_000, idle: now - 120_000 },
       title: "Refactor auth middleware",
       location: { directory: DIR },
     },
@@ -149,7 +149,7 @@ export function startMockOpenCode(options: { password?: string } = {}): MockOpen
           const order = url.searchParams.get("order") ?? "desc";
           return Response.json({ data: order === "desc" ? list.reverse() : list, cursor: { previous: null, next: null } });
         }
-        if (action === "view") return new Response(null, { status: 204 });
+        if (action === "view") return new Response(null, { status: typeof (body as Json)?.idle === "number" ? 204 : 400 });
         if (action === "agent" || action === "model") return new Response(null, { status: 204 });
         if (action === "interrupt") return Response.json({ interrupted: true });
         if (action === "prompt") {

@@ -5,10 +5,12 @@ import { fileURLToPath } from "node:url";
 import { AppRouter, createMemoryHistory, type RouteManifest, type RouteModule, type RouteSegmentNode } from "textjs/router";
 import { scanApp, toStaticManifest } from "textjs/vite";
 import { createDemoClient } from "../lib/demo";
-import { connectOpenCode, isLoopbackEndpoint, parseV2Event, readSse } from "../lib/client";
+import { connectOpenCode, createTransport, isLoopbackEndpoint, parseV2Event, readSse } from "../lib/client";
 import { getOpenCodeStore, OpenCodeStore, resetOpenCodeStore } from "../lib/store";
 import type { AssistantMessage, ToolPart } from "../lib/types";
 import { createOpencodeProxy, normalizeTargetUrl, opencodeDevMiddleware } from "../server/opencode-proxy";
+import { createBridgeHandler, isAllowedOrigin, selectsTarget, startProxy } from "../../../packages/text/src/cli/proxy";
+import { normalizeServerUrl, OpenCodeClient as WebOpenCodeClient } from "../../web/src/demos/opencode/live";
 import { createTestRoot, type TestRoot } from "./helpers";
 import { startMockOpenCode, type MockOpenCode } from "./mock-opencode";
 
@@ -107,7 +109,8 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     await t.waitFor(() => history.location.pathname.startsWith("/session/ses_new"), "navigation to the new session");
     const sessionID = history.location.pathname.split("/").pop() as string;
     await t.waitFor(() => requested("POST", `/api/session/${sessionID}/prompt`), "POST /prompt");
-    await t.waitFor(() => requested("POST", `/api/session/${sessionID}/view`), "POST /view");
+    // No idle transition has been observed on a new session, so there is nothing to mark viewed.
+    expect(requested("POST", `/api/session/${sessionID}/view`)).toBe(false);
     const create = mock.requests.find((r) => r.method === "POST" && r.path === "/api/session");
     expect(create?.body).toMatchObject({ agent: "build", model: { id: "claude-opus-5-5", providerID: "anthropic" } });
     expect(mock.requests.find((r) => r.path === `/api/session/${sessionID}/prompt`)?.body).toEqual({ text: "Add rate limiting" });
@@ -149,14 +152,14 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     expect(frame).toContain("Added a token bucket in src/middleware.ts.");
     expect(frame).toContain("streaming…");
 
-    // Each dirty frame is exactly one console.clear() + one console.log(format, ...css) of the whole grid.
+    // Each dirty frame is exactly one console.log(format, ...css) of the whole grid, appended without a clear.
     const logs = t.console.logs.length;
     const clears = t.console.clears;
     mock.emit({ type: "session.text.delta", data: { ...base, ordinal: 1, delta: "```\n\nDone." } });
     await t.settle(60);
     t.frame();
     expect(t.console.logs.length).toBe(logs + 1);
-    expect(t.console.clears).toBe(clears + 1);
+    expect(t.console.clears).toBe(clears);
     const last = t.console.logs[t.console.logs.length - 1] as unknown[];
     expect(typeof last[0]).toBe("string");
     expect((last[0] as string).split("\n").length).toBe(34);
@@ -184,6 +187,7 @@ describe("OpenCode Lite console app (live V2 server)", () => {
   test("Ctrl+P opens the command palette over a dimmed backdrop and switches sessions", async () => {
     const { t, history } = await mount("/session/ses_alpha");
     await t.waitFor(() => t.frame().includes("It lives in src/middleware.ts."), "session timeline");
+    expect(mock.requests.find((r) => r.path === "/api/session/ses_alpha/view")?.body).toMatchObject({ idle: (mock.sessions[0]?.time as { idle: number }).idle });
     const frame = t.frame();
     expect(frame).toContain("Where is the auth middleware?");
     expect(frame).toContain('* Grep "authMiddleware" in src');
@@ -386,6 +390,146 @@ describe("dev proxy (/__opencode)", () => {
     expect(normalizeTargetUrl("http://0.0.0.0:49374\n")).toBe("http://127.0.0.1:49374");
     expect(normalizeTargetUrl("running at http://127.0.0.1:4096/")).toBe("http://127.0.0.1:4096");
     expect(normalizeTargetUrl("not running")).toBeNull();
+    expect(selectsTarget("http://localhost:49374", "http://127.0.0.1:49374")).toBe(true);
+    expect(selectsTarget("http://127.0.0.1:49374", "http://localhost:49374")).toBe(true);
+    expect(selectsTarget("http://localhost:4096", "http://127.0.0.1:49374")).toBe(false);
+    expect(isAllowedOrigin("http://[::1]:3000")).toBe(true);
+  });
+
+  test("transport only sends x-opencode-client on proxy/bridge writes, never on GETs or direct servers", async () => {
+    const g = globalThis as { fetch: typeof fetch };
+    const realFetch = g.fetch;
+    const seen: Array<{ method: string; client: string | null }> = [];
+    let advertiseBridge = false;
+    g.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      seen.push({ method: init?.method ?? "GET", client: headers.get("x-opencode-client") });
+      return new Response(JSON.stringify({ version: "2.0.0" }), {
+        status: 200,
+        headers: { "content-type": "application/json", ...(advertiseBridge ? { "x-textjs-bridge": "1" } : {}) },
+      });
+    }) as typeof fetch;
+    try {
+      const direct = createTransport("http://127.0.0.1:4123", "localhost:4123");
+      await direct.json("GET", "/api/info");
+      await direct.json("POST", "/api/session", {});
+      expect(seen.map((s) => s.client)).toEqual([null, null]);
+
+      seen.length = 0;
+      advertiseBridge = true;
+      const bridged = createTransport("http://127.0.0.1:4096", "localhost:4096");
+      await bridged.json("GET", "/api/info");
+      await bridged.json("POST", "/api/session", {});
+      expect(seen.map((s) => s.client)).toEqual([null, "1"]);
+
+      seen.length = 0;
+      const sameOrigin = createTransport("/__opencode", "localhost:49374");
+      await sameOrigin.json("GET", "/api/info");
+      await sameOrigin.json("POST", "/api/session", {});
+      expect(seen.map((s) => s.client)).toEqual([null, "1"]);
+    } finally {
+      g.fetch = realFetch;
+    }
+  });
+
+  test("localhost custom target alias preserves service auth, and daemon restarts recover on the first GET", async () => {
+    mock.stop();
+    const secret1 = "pass-one";
+    const secret2 = "pass-two";
+    mock = startMockOpenCode({ password: secret1 });
+    let current = { url: mock.url, secret: secret1 };
+    const authOf = (s: string) => `Basic ${Buffer.from(`opencode:${s}`).toString("base64")}`;
+
+    const proxy = createOpencodeProxy({
+      discover: async () => ({ url: current.url, mode: "service", authorization: authOf(current.secret) }),
+    });
+    const port = new URL(mock.url).port;
+    const viaAlias = await proxy.handle(
+      new Request(`http://localhost:3001/__opencode/api/info`, {
+        headers: { host: "localhost:3001", "x-opencode-target": `http://localhost:${port}` },
+      }),
+      "/api/info",
+    );
+    expect(viaAlias.status).toBe(200);
+
+    // Simulate daemon restarting on a new port + new password while previous target is still cached.
+    const nextMock = startMockOpenCode({ password: secret2 });
+    try {
+      mock.stop();
+      current = { url: nextMock.url, secret: secret2 };
+      const recovered = await proxy.handle(
+        new Request("http://localhost:3001/__opencode/api/info", { headers: { host: "localhost:3001" } }),
+        "/api/info",
+      );
+      expect(recovered.status).toBe(200);
+
+      const bridge = createBridgeHandler({
+        discover: async () => ({ url: current.url, source: "service", authorization: authOf(current.secret) }),
+      });
+      // Prime cache with stale password first:
+      current = { url: nextMock.url, secret: "stale-pass" };
+      await bridge.target(true);
+      current = { url: nextMock.url, secret: secret2 };
+      const bridgeRecovered = await bridge(
+        new Request("http://127.0.0.1:4096/api/info", { headers: { host: "127.0.0.1:4096", origin: "http://localhost:3000" } }),
+      );
+      expect(bridgeRecovered.status).toBe(200);
+    } finally {
+      nextMock.stop();
+    }
+  });
+
+  test("clear single-line failure diagnostics for SPA HTML, 401, stale /connect port, and duplicate bridge port", async () => {
+    const g = globalThis as { window?: unknown; fetch: typeof fetch };
+    const realFetch = g.fetch;
+    const warns: string[] = [];
+    const origWarn = console.warn;
+    console.warn = (...args: unknown[]) => warns.push(args.join(" "));
+    try {
+      g.window = { location: { origin: "http://localhost:3001", hostname: "localhost", search: "" } };
+
+      // 1. Custom /connect points at dead :4096 while service is live on :49374.
+      g.fetch = (async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === "/__opencode/_status") return Response.json({ connected: true, targetUrl: "http://127.0.0.1:49374", mode: "service" });
+        return new Response(JSON.stringify({ error: "unreachable" }), { status: 502, headers: { "content-type": "application/json" } });
+      }) as typeof fetch;
+      const stale = await connectOpenCode({ endpoint: "http://0.0.0.0:4096" });
+      expect(stale.client.kind).toBe("demo");
+      expect(stale.reason).toBe("Can't reach localhost:4096 — clear /connect to use localhost:49374");
+
+      // 2. HTML SPA shell on both V2 and V1 endpoints is rejected as Not OpenCode, never misdetected.
+      g.fetch = (async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === "/__opencode/_status") return new Response("not found", { status: 404 });
+        return new Response("<!doctype html><html></html>", { status: 200, headers: { "content-type": "text/html" } });
+      }) as typeof fetch;
+      const spa = await connectOpenCode({ endpoint: "http://127.0.0.1:5173" });
+      expect(spa.client.kind).toBe("demo");
+      expect(spa.reason).toBe("Not OpenCode at localhost:5173 — check /connect");
+
+      // 3. Web /opencode client normalizes 0.0.0.0 and gives actionable 1-line errors.
+      expect(normalizeServerUrl("http://0.0.0.0:49374")).toBe("http://127.0.0.1:49374");
+      await expect(WebOpenCodeClient.discover("http://opencode:pw@127.0.0.1:49374")).rejects.toThrow("Don't put credentials in the URL — run bun run opencode:proxy and connect to http://127.0.0.1:4096.");
+
+      g.fetch = (async (_input: RequestInfo | URL) => new Response("{}", { status: 401, headers: { "content-type": "application/json" } })) as typeof fetch;
+      await expect(WebOpenCodeClient.discover("http://0.0.0.0:49374")).rejects.toThrow("Auth required — run bun run opencode:proxy and connect to http://127.0.0.1:4096.");
+
+      expect(warns.every((w) => !w.includes("\n"))).toBe(true);
+    } finally {
+      console.warn = origWarn;
+      g.fetch = realFetch;
+      delete g.window;
+    }
+
+    // 4. Starting a second bridge on the same port detects the existing bridge.
+    const first = await startProxy({ port: 0, log: false, discover: async () => ({ url: mock.url, source: "service" }) });
+    try {
+      const boundPort = Number(new URL(first.url).port);
+      await expect(startProxy({ port: boundPort, log: false, discover: async () => null })).rejects.toThrow(`Bridge already running at http://127.0.0.1:${boundPort}`);
+    } finally {
+      await first.close();
+    }
   });
 });
 
