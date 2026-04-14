@@ -74,20 +74,25 @@ const now: () => number =
 
 const LINK_SCHEME = "://";
 const LINK_SCHEME_SAFE = ":\u2060//";
-const WWW = "www.";
-const WWW_SAFE = "www\u2060.";
+// DevTools linkifies `/path/file.ts:12` and `//host:3000` as source links.
+const PATH_LINE = /(\/[\w.-]*):(?=\d)/g;
+const DATA_URI = /(data):(?=\S)/gi;
 
 /**
  * Escape text for a `console.log` format string: `%` becomes `%%`, and unless
- * links are allowed, `://` and `www.` get a word joiner so Chromium's
- * linkifier cannot hijack span styles.
+ * links are allowed, URL schemes, `www.`, `data:` and `path:line` get a word
+ * joiner so Chromium's linkifier cannot hijack span styles.
  */
 export function escapeConsoleText(text: string, allowLink = false): string {
   let s = text;
   if (s.includes("%")) s = s.replaceAll("%", "%%");
   if (!allowLink) {
-    if (s.includes(LINK_SCHEME)) s = s.replaceAll(LINK_SCHEME, LINK_SCHEME_SAFE);
-    if (s.includes(WWW) || s.includes("WWW.")) s = s.replace(/www\./gi, (m) => `${m.slice(0, 3)}\u2060.`);
+    if (s.includes(":")) {
+      if (s.includes(LINK_SCHEME)) s = s.replaceAll(LINK_SCHEME, LINK_SCHEME_SAFE);
+      if (s.includes("/")) s = s.replace(PATH_LINE, "$1:\u2060");
+      if (s.includes("ata:") || s.includes("ATA:")) s = s.replace(DATA_URI, "$1\u2060:");
+    }
+    if (s.includes("www.") || s.includes("WWW.")) s = s.replace(/www\./gi, (m) => `${m.slice(0, 3)}\u2060.`);
   }
   return s;
 }
