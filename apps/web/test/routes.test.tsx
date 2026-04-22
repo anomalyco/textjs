@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { RouteView } from "../src/App";
+import { BRIDGE_COMMAND } from "../src/demos/opencode/live";
 import { DOCS, docPath } from "../src/docs/registry";
 import { matchRoute, normalizePath, titleFor } from "../src/router";
 import { Footer, Header } from "../src/site/Chrome";
@@ -13,7 +14,8 @@ describe("router", () => {
     expect(matchRoute("/docs/")).toEqual({ name: "docs", slug: "introduction" });
     expect(matchRoute("/playground")).toEqual({ name: "playground" });
     expect(matchRoute("/opencode/")).toEqual({ name: "opencode" });
-    expect(matchRoute("/showcase")).toEqual({ name: "showcase" });
+    // Showcase was folded into the Playground.
+    expect(matchRoute("/showcase")).toEqual({ name: "playground" });
     expect(matchRoute("/nope")).toEqual({ name: "not-found" });
     expect(matchRoute("/docs/does-not-exist")).toEqual({ name: "not-found" });
     for (const d of DOCS) expect(matchRoute(docPath(d.slug))).toEqual({ name: "docs", slug: d.slug });
@@ -41,6 +43,12 @@ describe("router", () => {
     expect(siteStore.getSnapshot().docSlug).toBe("styling");
     siteStore.syncRoute("/opencode");
     expect(siteStore.getSnapshot().tab).toBe("opencode");
+    // Console input survives moving between pad pages, and is released on regular pages.
+    siteStore.set({ consoleInput: true });
+    siteStore.syncRoute("/playground");
+    expect(siteStore.getSnapshot().consoleInput).toBe(true);
+    siteStore.syncRoute("/docs/styling");
+    expect(siteStore.getSnapshot().consoleInput).toBe(false);
     siteStore.syncRoute("/");
   });
 });
@@ -55,7 +63,7 @@ describe("page rendering", () => {
     expect(html).toContain("app/layout.tsx");
     expect(html).toContain("text.config.ts");
     expect(html).toContain("text://viewport:1");
-    expect(html).toContain("this app is live in your console.");
+    expect(html).toContain("This page is running in your console.");
     for (const card of ["App Router", "Yoga Flexbox", "Zero DOM"]) expect(html).toContain(card);
     expect(html).toContain("OpenCode in console.log");
     expect(html).toContain("Explore OpenCode");
@@ -72,21 +80,22 @@ describe("page rendering", () => {
     }
   });
 
-  test("playground, opencode, showcase and 404", () => {
+  test("playground and opencode are one big focus pad, with no TUI on the page", () => {
     const pg = renderToStaticMarkup(<RouteView route={{ name: "playground" }} />);
-    expect(pg).toContain("Edit props, switch themes, and inspect the raw");
-    for (const label of ["Counter &amp; State", "Server Dashboard", "Form &amp; Inputs", "Streaming Markdown &amp; Diff", "Console Snake", "RLE Inspector", "80×24", "100×32", "120×38", "amberCrt"]) {
-      expect(pg).toContain(label);
-    }
+    for (const label of ["Counter", "Form", "Streaming", "Dashboard", "Snake"]) expect(pg).toContain(`>${label}</button>`);
+    expect(pg).toContain("data-textjs-focus-pad");
+    expect(pg).toContain("Open the console");
+    expect(pg).toContain("It runs in DevTools, not on this page. Then click here and press ↑ ↓.");
+    expect(pg).toContain("count");
+    expect(pg).toContain("Open on a desktop");
+    for (const gone of ["RLE Inspector", "data-textjs-mirror", "Wireframe", "App title"]) expect(pg).not.toContain(gone);
     const oc = renderToStaticMarkup(<RouteView route={{ name: "opencode" }} />);
-    expect(oc).toContain("Connect Local Server");
+    expect(oc).toContain("data-textjs-focus-pad");
+    expect(oc).toContain("Then click here and type a prompt.");
+    expect(oc).toContain("Enter");
     expect(oc).toContain("http://127.0.0.1:4096");
-    expect(oc).toContain("bunx textjs proxy");
-    expect(oc).toContain("Bridges your local opencode daemon with CORS headers on :4096.");
-    expect(oc).not.toContain("Keyboard");
-    const sc = renderToStaticMarkup(<RouteView route={{ name: "showcase" }} />);
-    expect(sc).toContain("Live console apps rendered by Text.js.");
-    for (const t of ["OpenCode Lite", "Edge Console", "Console Snake", "Streaming Markdown"]) expect(sc).toContain(t);
+    expect(oc).toContain(BRIDGE_COMMAND);
+    expect(oc).not.toContain("data-textjs-mirror");
     const nf = renderToStaticMarkup(<RouteView route={{ name: "not-found" }} />);
     expect(nf).toContain("404");
   });
@@ -94,11 +103,12 @@ describe("page rendering", () => {
   test("header and footer", () => {
     const header = renderToStaticMarkup(<Header />);
     expect(header).not.toContain("github.com");
-    for (const s of ["Text.js", "Docs", "Playground", "OpenCode", "Showcase", "Search", "⌘K"]) expect(header).toContain(s);
+    for (const s of ["Text.js", "Docs", "Playground", "OpenCode", "Search", "⌘K"]) expect(header).toContain(s);
+    expect(header).not.toContain("Showcase");
     expect(header).not.toContain("Live in Console");
     expect(header).not.toContain(">1.0<");
     const footer = renderToStaticMarkup(<Footer />);
-    for (const s of ["Anomaly", "anomaly-signature.svg", "Docs", "Playground", "OpenCode", "Showcase"]) expect(footer).toContain(s);
+    for (const s of ["Anomaly", "anomaly-signature.svg", "Docs", "Playground", "OpenCode"]) expect(footer).toContain(s);
     expect(footer).not.toContain("GitHub");
     expect(footer).not.toContain("Community");
   });

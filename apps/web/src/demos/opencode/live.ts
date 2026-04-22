@@ -14,14 +14,22 @@ import type { Message, Part, Session, ToolPart } from "./model";
 export type Protocol = "v1" | "v2";
 
 export const DEFAULT_SERVER_URL = "http://127.0.0.1:4096";
-export const BRIDGE_COMMAND = "bunx textjs proxy";
+// The public npm `textjs` package is unrelated and has no CLI. Run this in the Text.js checkout.
+export const BRIDGE_COMMAND = "bun run opencode:proxy";
 const REMEMBER_KEY = "textjs:opencode-server";
 
 export function normalizeServerUrl(input: string): string {
-  let url = input.trim();
-  if (url.length === 0) return "";
-  if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
-  return url.replace(/\/+$/, "");
+  let raw = input.trim();
+  if (raw.length === 0) return "";
+  if (!/^https?:\/\//i.test(raw)) raw = `http://${raw}`;
+  try {
+    const u = new URL(raw);
+    if (u.hostname === "0.0.0.0" || u.hostname === "[::]") u.hostname = "127.0.0.1";
+    if (!u.username && !u.password && u.pathname === "/" && !u.search && !u.hash) return u.origin;
+    return u.href.replace(/\/+$/, "");
+  } catch {
+    return raw.replace(/\/+$/, "");
+  }
 }
 
 export class OpenCodeHttpError extends Error {
@@ -68,7 +76,20 @@ async function request(url: string, { method = "GET", body, timeoutMs = 4000, br
   const init: RequestInit = { method, headers, body: body === undefined ? undefined : JSON.stringify(body) };
   if (timeoutMs > 0 && typeof AbortSignal.timeout === "function") init.signal = AbortSignal.timeout(timeoutMs);
   const res = await fetch(url, init);
-  if (res.status === 401) throw new OpenCodeHttpError(401, `Auth required. Run ${BRIDGE_COMMAND}.`);
+  const viaBridge = res.headers.get("x-textjs-bridge") === "1";
+  if (res.status === 401) {
+    throw new OpenCodeHttpError(
+      401,
+      viaBridge
+        ? "OpenCode rejected the bridge password — check opencode service status or OPENCODE_PASSWORD."
+        : `Auth required — run ${BRIDGE_COMMAND} and connect to ${DEFAULT_SERVER_URL}.`,
+    );
+  }
+  if (res.status === 403) {
+    const origin = typeof location !== "undefined" ? location.origin : "<origin>";
+    throw new OpenCodeHttpError(403, `Origin blocked — pass --allow-origin ${origin} to ${BRIDGE_COMMAND}.`);
+  }
+  if (res.status === 502 && viaBridge) throw new OpenCodeHttpError(502, "Bridge can't reach OpenCode — run opencode service start (or pass --target).");
   if (!res.ok) throw new OpenCodeHttpError(res.status, `HTTP ${res.status}`);
   if (res.status === 204) return { data: undefined, res };
   const text = await res.text();
@@ -342,17 +363,47 @@ export class OpenCodeClient {
   }
 
   /** Detect the protocol (V2 `/api/info`, else V1 `/session`) and whether the server is `text proxy`. */
-  static async discover(url: string, timeoutMs = 3000): Promise<DiscoverResult> {
+  static async discover(rawUrl: string, timeoutMs = 3000): Promise<DiscoverResult> {
+    const url = normalizeServerUrl(rawUrl);
+    const localPage = typeof location !== "undefined" && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
     try {
-      const { data, res } = await request(`${url}/api/info`, { timeoutMs });
-      if (isRecord(data)) return { apiBase: url, version: str(data.version), protocol: "v2", bridge: res.headers.get("x-textjs-bridge") === "1" };
+      let parsed: URL;
+      try {
+        parsed = new URL(url);
+      } catch {
+        throw new OpenCodeHttpError(400, `Invalid URL — enter ${DEFAULT_SERVER_URL} and run ${BRIDGE_COMMAND}.`);
+      }
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        throw new OpenCodeHttpError(400, `Invalid URL — enter ${DEFAULT_SERVER_URL} and run ${BRIDGE_COMMAND}.`);
+      }
+      if (parsed.username || parsed.password) {
+        throw new OpenCodeHttpError(400, `Don't put credentials in the URL — run ${BRIDGE_COMMAND} and connect to ${DEFAULT_SERVER_URL}.`);
+      }
+      // The first public → loopback fetch may wait for Chrome's Local Network Access prompt.
+      if (typeof location !== "undefined" && !localPage) timeoutMs = Math.max(timeoutMs, 60_000);
+      try {
+        const { data, res } = await request(`${url}/api/info`, { timeoutMs });
+        if (isRecord(data) && typeof data.version === "string") return { apiBase: url, version: data.version, protocol: "v2", bridge: res.headers.get("x-textjs-bridge") === "1" };
+      } catch (err) {
+        if (!(err instanceof OpenCodeHttpError) || ![404, 405, 415].includes(err.status)) throw err;
+      }
+      const { data, res } = await request(`${url}/session?limit=1`, { timeoutMs });
+      if (!Array.isArray(data)) throw new OpenCodeHttpError(415, "Not an OpenCode server");
+      return { apiBase: url, protocol: "v1", bridge: res.headers.get("x-textjs-bridge") === "1" };
     } catch (err) {
-      if (err instanceof OpenCodeHttpError && err.status === 401) throw err;
-      if (!(err instanceof OpenCodeHttpError)) throw err;
+      const host = url.replace(/^https?:\/\//, "") || "127.0.0.1:4096";
+      let hint = localPage
+        ? `Can't reach ${host} — run ${BRIDGE_COMMAND} and connect to 127.0.0.1:4096.`
+        : `Can't reach ${host} — run ${BRIDGE_COMMAND} and allow local network access.`;
+      if (err instanceof OpenCodeHttpError) {
+        if ([400, 401, 403, 502].includes(err.status)) hint = err.message;
+        else if ([404, 405, 415].includes(err.status)) hint = `Not an OpenCode server at ${host} — run ${BRIDGE_COMMAND} and connect to 127.0.0.1:4096.`;
+        else hint = `OpenCode returned HTTP ${err.status} at ${host} — check opencode service status or run ${BRIDGE_COMMAND}.`;
+      }
+      // Also explain quiet auto-connect failures, without probing first-time public visitors.
+      console.warn(`OpenCode Lite: ${hint}`);
+      throw new Error(hint);
     }
-    const { data, res } = await request(`${url}/session`, { timeoutMs });
-    if (!Array.isArray(data)) throw new Error("Not an OpenCode server");
-    return { apiBase: url, protocol: "v1", bridge: res.headers.get("x-textjs-bridge") === "1" };
   }
 
   private async call(path: string, opts: RequestOptions = {}): Promise<unknown> {
@@ -421,6 +472,7 @@ export class OpenCodeClient {
   }
 
   private async promptV2(sessionId: string, text: string, agent: string, onParts: (parts: Part[]) => void, signal?: AbortSignal): Promise<void> {
+    if (signal?.aborted) return;
     const id = encodeURIComponent(sessionId);
     const ctrl = new AbortController();
     const abort = (): void => ctrl.abort();
@@ -428,16 +480,18 @@ export class OpenCodeClient {
     const turn = new V2Turn(sessionId, this.dirs.get(sessionId));
     try {
       const res = await fetch(`${this.baseUrl}/api/event`, { headers: { accept: "text/event-stream" }, signal: ctrl.signal });
-      if (!res.ok || !res.body) throw new OpenCodeHttpError(res.status, "Event stream unavailable");
+      if (!res.ok || !res.body || !res.headers.get("content-type")?.includes("text/event-stream")) throw new OpenCodeHttpError(res.status, "OpenCode event stream unavailable. Check the server URL.");
       const finished = new Promise<void>((resolve, reject) => {
         readSse(res, (raw) => {
           if (turn.apply(raw)) onParts(turn.parts.map((p) => ({ ...p })));
           if (turn.done) resolve();
-        }).then(resolve, (err: unknown) => (ctrl.signal.aborted ? resolve() : reject(err)));
+        }).then(() => (turn.done || ctrl.signal.aborted ? resolve() : reject(new Error("OpenCode event stream disconnected before the turn finished."))), (err: unknown) => (ctrl.signal.aborted ? resolve() : reject(err)));
       });
-      await this.call(`/api/session/${id}/agent`, { method: "POST", body: { agent } }).catch(() => undefined);
-      await this.call(`/api/session/${id}/prompt`, { method: "POST", body: { text }, timeoutMs: 30_000 });
-      await finished;
+      const send = async (): Promise<void> => {
+        await this.call(`/api/session/${id}/agent`, { method: "POST", body: { agent } });
+        if (!ctrl.signal.aborted) await this.call(`/api/session/${id}/prompt`, { method: "POST", body: { text }, timeoutMs: 30_000 });
+      };
+      await Promise.all([finished, send()]);
       if (turn.error) throw new Error(turn.error);
     } finally {
       signal?.removeEventListener("abort", abort);

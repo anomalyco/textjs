@@ -3,7 +3,7 @@
  * renders into the visitor's DevTools console the moment textjs.org loads.
  */
 
-import { extractStyledFrame, InputEngine, type FrameResult, type StyledFrame } from "@textjs/core";
+import { extractStyledFrame, InputEngine, type StyledFrame } from "@textjs/core";
 import { createConsoleRoot, type ConsoleRoot } from "@textjs/react";
 import { CompanionApp } from "./App";
 import { siteStore } from "./store";
@@ -57,15 +57,14 @@ export interface Companion {
 let companion: Companion | null = null;
 let booting: Promise<Companion> | null = null;
 const pending = new Set<FrameListener>();
-const telemetryListeners = new Set<(f: FrameResult) => void>();
 
 export function getCompanion(): Companion | null {
   return companion;
 }
 
-export function onTelemetry(listener: (f: FrameResult) => void): () => void {
-  telemetryListeners.add(listener);
-  return () => telemetryListeners.delete(listener);
+/** Resolves once the companion has booted (`null` when it was never started, e.g. in tests). */
+export function companionReady(): Promise<Companion> | null {
+  return booting;
 }
 
 export function subscribeCompanionFrame(listener: FrameListener): () => void {
@@ -128,7 +127,6 @@ export function bootCompanion(): Promise<Companion> {
       for (const l of listeners) l(latest);
     };
     root.onFrame((frame) => {
-      for (const l of telemetryListeners) l(frame);
       if (frame.skipped || listeners.size === 0 || scheduled) return;
       // Microtask, not rAF: inline mirrors update in the same task as the keypress.
       scheduled = true;

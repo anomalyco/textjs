@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getCompanion } from "../console-companion/boot";
-import { siteStore } from "../console-companion/store";
+import { isPadRoute, siteStore } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
 import { A, useLocation } from "../router";
 import { ChevronRight, CloseIcon, Logo, MenuIcon, SearchIcon } from "./icons";
@@ -19,7 +19,6 @@ const NAV = [
   { href: "/docs", label: "Docs" },
   { href: "/playground", label: "Playground" },
   { href: "/opencode", label: "OpenCode" },
-  { href: "/showcase", label: "Showcase" },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -119,6 +118,8 @@ export function Footer(): ReactNode {
 export function ConsolePill(): ReactNode {
   const site = useSite();
   const on = site.consoleInput;
+  // Pad pages are one big console switch already.
+  if (isPadRoute(site.pathname)) return null;
   return (
     <button
       type="button"

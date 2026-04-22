@@ -4,6 +4,7 @@
   "buildCommand": "bun run build",
   "outputDirectory": "dist",
   "cleanUrls": true,
+  "redirects": [{ "source": "/showcase", "destination": "/playground", "permanent": true }],
   "rewrites": [{ "source": "/((?!assets/|favicon\\.svg|og\\.png|og\\.svg|robots\\.txt|sitemap\\.xml).*)", "destination": "/index.html" }],
   "headers": [
     {

@@ -7,25 +7,50 @@
 import type { ThemeName } from "@textjs/react";
 import { safeDecode } from "../url";
 
-export type CompanionTab = "home" | "playground" | "opencode" | "docs" | "snake";
+/** The console app shows exactly one view: the one for the current page. */
+export type CompanionTab = "home" | "playground" | "opencode" | "docs";
 
-export const COMPANION_TABS: ReadonlyArray<{ id: CompanionTab; label: string; shortcut: string }> = [
-  { id: "home", label: "Home", shortcut: "1" },
-  { id: "playground", label: "Playground", shortcut: "2" },
-  { id: "opencode", label: "OpenCode", shortcut: "3" },
-  { id: "docs", label: "Docs", shortcut: "4" },
-  { id: "snake", label: "Snake", shortcut: "5" },
+/** A key worth pressing: `{ keys: "↑ ↓", label: "count" }` (space-separated keycaps). */
+export interface Hint {
+  keys: string;
+  label: string;
+}
+
+export type PresetId = "counter" | "form" | "streaming" | "dashboard" | "snake";
+
+export interface Preset {
+  id: PresetId;
+  label: string;
+  description: string;
+  /** Sentence fragment for "Then click here and …". */
+  action: string;
+  hints: readonly Hint[];
+}
+
+export const PRESETS: readonly Preset[] = [
+  { id: "counter", label: "Counter", description: "useState and useInput", action: "press ↑ ↓", hints: [{ keys: "↑ ↓", label: "count" }, { keys: "r", label: "reset" }] },
+  { id: "form", label: "Form", description: "Inputs and a select", action: "type your name", hints: [{ keys: "Tab", label: "next field" }, { keys: "Enter", label: "submit" }] },
+  { id: "streaming", label: "Streaming", description: "Markdown, token by token", action: "press r", hints: [{ keys: "r", label: "stream again" }] },
+  { id: "dashboard", label: "Dashboard", description: "Live metrics", action: "press ← →", hints: [{ keys: "← →", label: "switch region" }] },
+  { id: "snake", label: "Snake", description: "A game loop", action: "press an arrow key", hints: [{ keys: "← ↑ → ↓", label: "steer" }, { keys: "Space", label: "pause" }] },
 ];
 
-export type PresetId = "counter" | "dashboard" | "form" | "streaming" | "snake";
+/** Keys for the non-playground views. */
+export const PAGE_HINTS: Record<Exclude<CompanionTab, "playground">, { action: string; hints: readonly Hint[] }> = {
+  home: { action: "press ↑ ↓", hints: [{ keys: "↑ ↓", label: "count" }, { keys: "t", label: "theme" }] },
+  opencode: { action: "type a prompt", hints: [{ keys: "Enter", label: "send" }, { keys: "Tab", label: "build / plan" }, { keys: "Ctrl P", label: "commands" }] },
+  docs: { action: "press ↑ ↓", hints: [{ keys: "↑ ↓", label: "browse" }, { keys: "Enter", label: "read" }, { keys: "/", label: "search" }] },
+};
 
-export const PRESETS: ReadonlyArray<{ id: PresetId; label: string; description: string }> = [
-  { id: "counter", label: "Counter & State", description: "useState and useInput" },
-  { id: "dashboard", label: "Server Dashboard", description: "Live metrics and deploys" },
-  { id: "form", label: "Form & Inputs", description: "Inputs, selects and tabs" },
-  { id: "streaming", label: "Streaming Markdown & Diff", description: "Token-by-token Markdown" },
-  { id: "snake", label: "Console Snake", description: "A 60fps game loop" },
-];
+export function hintsFor(tab: CompanionTab, preset: PresetId): { action: string; hints: readonly Hint[] } {
+  if (tab === "playground") return PRESETS.find((p) => p.id === preset) ?? (PRESETS[0] as Preset);
+  return PAGE_HINTS[tab];
+}
+
+/** Routes whose page is one big focus pad: console input stays engaged while moving between them. */
+export function isPadRoute(pathname: string): boolean {
+  return pathname.startsWith("/playground") || pathname.startsWith("/opencode");
+}
 
 export const THEME_ORDER: readonly ThemeName[] = ["geistDark", "opencodeDark", "tokyoNight", "amberCrt", "geistLight"];
 
@@ -46,13 +71,11 @@ export interface SiteState {
   /** Whether keystrokes outside form fields are routed into the console app. */
   consoleInput: boolean;
   opencode: OpenCodeConnection;
-  /** Title typed in the Playground "app title" field. */
-  playgroundTitle: string;
 }
 
 type Listener = () => void;
 
-/** Unknown routes (404s) map to Home so tabs like Snake never keep running off-route. */
+/** Unknown routes (404s) map to Home so demos like Snake never keep running off-route. */
 function tabForPath(pathname: string): CompanionTab {
   if (pathname.startsWith("/docs")) return "docs";
   if (pathname.startsWith("/playground")) return "playground";
@@ -74,7 +97,6 @@ const DEFAULT_STATE: SiteState = {
   docSlug: "",
   consoleInput: false,
   opencode: { mode: "sandbox" },
-  playgroundTitle: "my-text-app",
 };
 
 export class SiteStore {
@@ -111,6 +133,8 @@ export class SiteStore {
   /** Called by the website router on every navigation. */
   syncRoute(pathname: string): void {
     const patch: Partial<SiteState> = { pathname, tab: tabForPath(pathname) };
+    // Regular pages get their arrow keys and scrolling back.
+    if (!isPadRoute(pathname)) patch.consoleInput = false;
     const slug = docSlugForPath(pathname);
     if (slug !== null) patch.docSlug = slug;
     this.set(patch);

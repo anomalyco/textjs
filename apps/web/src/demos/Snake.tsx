@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Badge, Box, KeyHint, Text, useInput, useTheme, useViewport } from "@textjs/react";
-import { useFrameStats } from "../console-companion/useFrameStats";
+import { Box, Text, useInput, useTheme, useViewport } from "@textjs/react";
 
 type Dir = "up" | "down" | "left" | "right";
 interface Point {
@@ -89,17 +88,15 @@ const KEYMAP: Record<string, Dir> = { up: "up", down: "down", left: "left", righ
 export interface SnakeDemoProps {
   /** Rows reserved for surrounding chrome (header, tabs, footer). */
   reserveRows?: number;
-  /** Start immediately instead of waiting for Space. */
+  /** Start immediately instead of waiting for a key. */
   autoStart?: boolean;
-  title?: string;
 }
 
-export function SnakeDemo({ reserveRows = 4, autoStart = false, title = "console snake" }: SnakeDemoProps): ReactNode {
+export function SnakeDemo({ reserveRows = 4, autoStart = false }: SnakeDemoProps): ReactNode {
   const theme = useTheme();
   const vp = useViewport();
-  const stats = useFrameStats();
-  const h = Math.max(6, Math.min(22, vp.rows - reserveRows - 2));
-  const w = Math.max(10, Math.min(32, Math.floor((vp.cols - 30) / 2)));
+  const h = Math.max(6, Math.min(20, vp.rows - reserveRows - 6));
+  const w = Math.max(10, Math.min(30, Math.floor((vp.cols - 8) / 2)));
   const game = useRef<Game>(newGame(w, h));
   const [, setFrame] = useState(0);
   const [high, setHigh] = useState(readHigh);
@@ -188,38 +185,19 @@ export function SnakeDemo({ reserveRows = 4, autoStart = false, title = "console
     );
   }
 
-  const statusBadge =
-    g.status === "running" ? <Badge variant="success">PLAYING</Badge> : g.status === "paused" ? <Badge variant="warning">PAUSED</Badge> : g.status === "over" ? <Badge variant="danger">GAME OVER</Badge> : <Badge variant="accent">READY</Badge>;
+  const status = g.status === "running" ? "" : g.status === "paused" ? "paused" : g.status === "over" ? "game over · space to retry" : "press an arrow key";
 
   return (
-    <Box className="flex-row grow gap-2 px-1">
-      <Box className="flex-col shrink-0 border rounded" alignSelf="flex-start" borderColor={running ? theme.borderFocus : theme.border} title={` ${title} `} titleColor={theme.muted}>
+    <Box className="flex-col grow items-center gap-1">
+      <Box className="flex-row shrink-0" width={g.w * 2 + 2}>
+        <Text color="fg" bold>{`score ${g.score}`}</Text>
+        <Box className="grow" />
+        <Text color="subtle">{`best ${Math.max(high, g.score)}`}</Text>
+      </Box>
+      <Box className="flex-col shrink-0 border rounded" borderColor={theme.border}>
         {rows}
       </Box>
-      <Box className="flex-col grow gap-1 pt-1">
-        <Box className="flex-row gap-1">{statusBadge}</Box>
-        <Box className="flex-col">
-          <Text color="muted">score</Text>
-          <Text bold color="fg">{String(g.score)}</Text>
-        </Box>
-        <Box className="flex-col">
-          <Text color="muted">high score</Text>
-          <Text color="fg">{String(Math.max(high, g.score))}</Text>
-        </Box>
-        <Box className="flex-col">
-          <Text color="muted">turbolog</Text>
-          <Text color="accent">{`${stats.fps} fps · ${stats.totalMs.toFixed(2)}ms`}</Text>
-          <Text color="subtle">{`${stats.spanCount} %c spans/frame`}</Text>
-          <Text color="subtle">{`${stats.frameCount} console.log calls`}</Text>
-          <Text color="subtle">{`tick ${String(g.ticks).padStart(5, "0")} ${"▰".repeat(g.ticks % g.moveEvery + 1).padEnd(g.moveEvery, "▱")}`}</Text>
-        </Box>
-        <Box className="grow" />
-        <Box className="flex-col">
-          <KeyHint keys="wasd/←↑→↓" label="steer" />
-          <KeyHint keys="space" label={g.status === "over" ? "play again" : "start / pause"} />
-          <KeyHint keys="r" label="reset" />
-        </Box>
-      </Box>
+      <Text color={g.status === "over" ? "danger" : "subtle"}>{status}</Text>
     </Box>
   );
 }

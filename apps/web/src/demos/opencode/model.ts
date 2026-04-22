@@ -208,8 +208,7 @@ Press \`tab\` to switch to **build** and I'll implement it.`,
           code: `render(buffer: CellBuffer): DriverRenderResult {
   const { frame } = this.encode(buffer);
   if (frame === null) return SKIPPED; // zero noop logs
-  console.clear();
-  console.log(frame.format, ...frame.args);
+  console.log(frame.format, ...frame.args); // appended, never cleared
 }`,
         },
       },

@@ -132,7 +132,6 @@ export function DevToolsWindow({
         <span style={{ whiteSpace: "nowrap" }}>No Issues</span>
         <GearIcon />
       </div>
-      <div className="dt-cleared">Console was cleared</div>
       <div className={`dt-log${engaged ? " engaged" : ""}`}>
         <div className="dt-body">
           <ScaledMirror frame={frame} fontSize={fontSize} lineHeight={lineHeight} cols={cols} rows={rows} />

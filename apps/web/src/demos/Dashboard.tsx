@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, KeyHint, Spinner, Text, useInput, useTheme } from "@textjs/react";
+import { Box, Text, useInput } from "@textjs/react";
 
 const BARS = " ▁▂▃▄▅▆▇█";
 
@@ -62,101 +62,65 @@ export function ThroughputBars({ series, height = 5, color = "accent" }: { serie
   );
 }
 
-function Metric({ label, value, delta, good }: { label: string; value: string; delta: string; good: boolean }): ReactNode {
+const DEPLOYS = [
+  { id: "dpl_8fK2", status: "ready", msg: "feat: stream cells downward", age: "2m" },
+  { id: "dpl_7Qa9", status: "building", msg: "perf: merge spans across \\n", age: "4m" },
+  { id: "dpl_6Zx1", status: "ready", msg: "fix: escape %% in format strings", age: "1h" },
+] as const;
+
+const REGIONS = ["iad1", "sfo1", "fra1", "hnd1"];
+
+function Stat({ label, value }: { label: string; value: string }): ReactNode {
   return (
-    <Box className="flex-col grow basis-0 border rounded px-1" borderColor="border" minWidth={14}>
+    <Box className="flex-col shrink-0" width={18}>
       <Text color="subtle" wrap="nowrap">
         {label}
       </Text>
-      <Box className="flex-row">
-        <Text bold color="fg" wrap="nowrap">
-          {value}
-        </Text>
-        <Box className="grow" />
-        <Text color={good ? "success" : "danger"} wrap="nowrap">
-          {delta}
-        </Text>
-      </Box>
+      <Text bold color="fg" wrap="nowrap">
+        {value}
+      </Text>
     </Box>
   );
 }
 
-const DEPLOYS = [
-  { id: "dpl_8fK2", status: "ready", branch: "main", msg: "feat: stream cells downward", age: "2m" },
-  { id: "dpl_7Qa9", status: "building", branch: "turbolog-rle", msg: "perf: merge spans across \\n", age: "4m" },
-  { id: "dpl_6Zx1", status: "ready", branch: "main", msg: "fix: escape %% in format strings", age: "1h" },
-  { id: "dpl_5Mn3", status: "error", branch: "css-cascade", msg: "chore: try adding a stylesheet", age: "3h" },
-  { id: "dpl_4Lp0", status: "ready", branch: "main", msg: "docs: disable Preserve log", age: "5h" },
-] as const;
-
-export interface DashboardDemoProps {
-  title?: string;
-}
-
-export function DashboardDemo({ title = "storefront" }: DashboardDemoProps): ReactNode {
-  const theme = useTheme();
+export function DashboardDemo(): ReactNode {
   const series = useLiveSeries(56, 7);
   const [region, setRegion] = useState(0);
-  const regions = ["iad1", "sfo1", "fra1", "hnd1"];
   useInput((e) => {
     if (e.key === "left" || e.key === "right") {
       e.stopPropagation();
-      setRegion((r) => (r + (e.key === "left" ? regions.length - 1 : 1)) % regions.length);
+      setRegion((r) => (r + (e.key === "left" ? REGIONS.length - 1 : 1)) % REGIONS.length);
     }
   });
   const now = series[series.length - 1] ?? 0;
-  const peak = Math.max(...series);
   return (
-    <Box className="flex-col grow px-1 gap-1">
-      <Box className="flex-row h-1 gap-1 shrink-0">
-        <Text bold color="fg" wrap="nowrap">
-          ▼ {title}
-        </Text>
-        <Text color="subtle" wrap="nowrap">
-          / production
-        </Text>
-        <Box className="grow" />
-        {regions.map((r, i) => (
-          <Text key={r} wrap="nowrap" color={i === region ? "accentFg" : "subtle"} bg={i === region ? theme.accent : undefined}>{` ${r} `}</Text>
+    <Box className="flex-col grow px-2 gap-1">
+      <Box className="flex-row h-1 gap-2 shrink-0">
+        {REGIONS.map((r, i) => (
+          <Text key={r} wrap="nowrap" color={i === region ? "fg" : "subtle"} bold={i === region} underline={i === region}>
+            {r}
+          </Text>
         ))}
       </Box>
-      <Box className="flex-row gap-1 shrink-0">
-        <Metric label="Requests · 24h" value="1.28M" delta="+12.4%" good />
-        <Metric label="p95 latency" value={`${70 + Math.round(now * 30)}ms`} delta="−6ms" good />
-        <Metric label="Error rate" value="0.04%" delta="+0.01%" good={false} />
+      <Box className="flex-row shrink-0" marginTop={1}>
+        <Stat label="Requests / s" value={String(Math.round(now * 1800 * (1 - region * 0.17)))} />
+        <Stat label="p95 latency" value={`${70 + region * 9 + Math.round(now * 30)}ms`} />
+        <Stat label="Error rate" value="0.04%" />
       </Box>
-      <Box className="flex-col border rounded px-1 shrink-0" borderColor="border" title=" Throughput " titleColor={theme.muted}>
-        <Box className="flex-row h-1">
-          <Text color="fg" bold wrap="nowrap">{`${Math.round(now * 1800)} req/s`}</Text>
-          <Text color="subtle" wrap="nowrap">{`   peak ${Math.round(peak * 1800)}`}</Text>
-          <Box className="grow" />
-          <Spinner variant="dots" />
-        </Box>
-        <ThroughputBars series={series} height={4} />
+      <ThroughputBars series={series} height={5} />
+      <Box className="flex-col shrink-0" marginTop={1}>
+        {DEPLOYS.map((d) => (
+          <Box key={d.id} className="flex-row h-1 gap-2">
+            <Text color={d.status === "ready" ? "success" : "warning"} wrap="nowrap" width={10} flexShrink={0}>{`● ${d.status}`}</Text>
+            <Text color="muted" wrap="truncate-end" flexGrow={1} flexShrink={1}>
+              {d.msg}
+            </Text>
+            <Text color="subtle" wrap="nowrap" width={3} align="right" flexShrink={0}>
+              {d.age}
+            </Text>
+          </Box>
+        ))}
       </Box>
-      <Box className="flex-col shrink-0">
-        {DEPLOYS.map((d) => {
-          const color = d.status === "ready" ? "success" : d.status === "building" ? "warning" : "danger";
-          return (
-            <Box key={d.id} className="flex-row h-1 gap-2">
-              <Text color={color} wrap="nowrap" width={11} flexShrink={0}>{`● ${d.status}`}</Text>
-              <Text color="fg" wrap="nowrap" width={9} flexShrink={0}>
-                {d.id}
-              </Text>
-              <Text color="muted" wrap="truncate-end" width={13} flexShrink={0}>
-                {d.branch}
-              </Text>
-              <Text color="subtle" wrap="truncate-end" flexGrow={1} flexShrink={1}>
-                {d.msg}
-              </Text>
-              <Text color="subtle" wrap="nowrap" width={3} align="right" flexShrink={0}>
-                {d.age}
-              </Text>
-            </Box>
-          );
-        })}
-      </Box>
-      <KeyHint keys="←/→" label="region" />
     </Box>
   );
 }

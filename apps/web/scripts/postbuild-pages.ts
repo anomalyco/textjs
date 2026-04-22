@@ -25,9 +25,15 @@ function writeRoute(routePath: string, title: string, description: string): void
 }
 
 writeRoute("/docs", "Documentation | Text.js", "Learn how to build full-stack interactive React 19 apps inside browser DevTools console.log.");
-writeRoute("/playground", "Playground | Text.js", "Live interactive Text.js sandbox and Turbolog %c RLE inspector.");
+writeRoute("/playground", "Playground | Text.js", "Pick a Text.js demo, open the DevTools console and press a few keys.");
 writeRoute("/opencode", "OpenCode in the Console | Text.js", "OpenCode Lite coding-agent TUI running inside browser DevTools console.log.");
-writeRoute("/showcase", "Showcase | Text.js", "Applications built with Text.js and rendered inside console.log.");
+
+// Showcase was folded into the Playground.
+mkdirSync(join(distDir, "showcase"), { recursive: true });
+writeFileSync(
+  join(distDir, "showcase", "index.html"),
+  '<!doctype html><meta charset="utf-8"><title>Playground | Text.js</title><link rel="canonical" href="https://textjs.org/playground"><meta http-equiv="refresh" content="0; url=/playground"><script>location.replace("/playground"+location.hash)</script>\n',
+);
 
 for (const entry of readdirSync(contentDir)) {
   if (!entry.endsWith(".md")) continue;

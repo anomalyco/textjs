@@ -8,7 +8,6 @@ export type Route =
   | { name: "docs"; slug: string }
   | { name: "playground" }
   | { name: "opencode" }
-  | { name: "showcase" }
   | { name: "not-found" };
 
 export function normalizePath(pathname: string): string {
@@ -27,7 +26,8 @@ export function matchRoute(pathname: string): Route {
   }
   if (p === "/playground") return { name: "playground" };
   if (p === "/opencode") return { name: "opencode" };
-  if (p === "/showcase") return { name: "showcase" };
+  // Showcase was folded into the Playground.
+  if (p === "/showcase") return { name: "playground" };
   return { name: "not-found" };
 }
 
@@ -44,8 +44,6 @@ export function titleFor(route: Route): string {
       return `Playground | ${suffix}`;
     case "opencode":
       return `OpenCode in the Console | ${suffix}`;
-    case "showcase":
-      return `Showcase | ${suffix}`;
     case "not-found":
       return `404: This page could not be found | ${suffix}`;
   }
@@ -71,12 +69,26 @@ function emit(): void {
 }
 
 function setLocation(pathname: string, hash: string): void {
-  current = { pathname: normalizePath(pathname), hash, key: current.key + 1 };
+  let p = normalizePath(pathname);
+  const to = REDIRECTS[p];
+  if (to && hasWindow) {
+    window.history.replaceState(null, "", `${to}${hash}`);
+    p = to;
+  }
+  current = { pathname: p, hash, key: current.key + 1 };
   siteStore.syncRoute(current.pathname);
   emit();
 }
 
+/** Retired paths and where they live now. */
+export const REDIRECTS: Readonly<Record<string, string>> = { "/showcase": "/playground" };
+
 if (hasWindow) {
+  const to = REDIRECTS[current.pathname];
+  if (to) {
+    window.history.replaceState(null, "", `${to}${window.location.search}${window.location.hash}`);
+    current = { ...current, pathname: to };
+  }
   siteStore.syncRoute(current.pathname);
   window.addEventListener("popstate", () => setLocation(window.location.pathname, window.location.hash));
 }

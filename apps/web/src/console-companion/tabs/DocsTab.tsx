@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { Box, Input, KeyHint, Markdown, ScrollBox, Select, Text, useInput, useTheme, type ScrollBoxHandle, type SelectOption } from "@textjs/react";
+import { Box, Input, Markdown, ScrollBox, Select, Text, useInput, useTheme, type ScrollBoxHandle, type SelectOption } from "@textjs/react";
 import { DOCS, getDoc, searchDocs, toConsoleMarkdown } from "../../docs/registry";
 import { siteStore } from "../store";
 import { useSite } from "../useSite";
@@ -20,7 +20,7 @@ export function DocsTab(): ReactNode {
     for (const hit of searchDocs(query, 40)) {
       if (seen.has(hit.doc.slug)) continue;
       seen.add(hit.doc.slug);
-      out.push({ value: hit.doc.slug, label: hit.doc.nav ?? hit.doc.title, hint: query ? undefined : hit.doc.category.split(" ")[0] });
+      out.push({ value: hit.doc.slug, label: hit.doc.nav ?? hit.doc.title });
     }
     return out;
   }, [query]);
@@ -52,21 +52,20 @@ export function DocsTab(): ReactNode {
 
   return (
     <Box className="flex-col grow">
-      <Box className="flex-row h-1 shrink-0 px-1 gap-1">
-        <Text color={pane === "search" ? "accent" : "subtle"} wrap="nowrap">
-          /
-        </Text>
-        <Input value={query} onChange={setQuery} focused={pane === "search"} placeholder="Search docs… (press /)" onSubmit={() => setPane("list")} />
-        <Text color="subtle" wrap="nowrap">{`${options.length} of ${DOCS.length} pages`}</Text>
-      </Box>
       <Box className="flex-row grow">
-        <Box className="flex-col shrink-0 px-1" width={30} border borderTop={false} borderLeft={false} borderBottom={false} borderColor={theme.border}>
+        <Box className="flex-col shrink-0 px-2 gap-1" width={30} border borderTop={false} borderLeft={false} borderBottom={false} borderColor={theme.border}>
+          <Box className="flex-row h-1 shrink-0 gap-1">
+            <Text color={pane === "search" ? "accent" : "subtle"} wrap="nowrap">
+              /
+            </Text>
+            <Input value={query} onChange={setQuery} focused={pane === "search"} placeholder="Search" onSubmit={() => setPane("list")} />
+          </Box>
           <Select
             key={query}
             options={options}
             value={doc?.slug}
             focused={pane === "list"}
-            limit={24}
+            limit={20}
             onHighlight={(slug) => siteStore.set({ docSlug: slug })}
             onChange={(slug) => {
               siteStore.set({ docSlug: slug });
@@ -75,8 +74,7 @@ export function DocsTab(): ReactNode {
             emptyText="No matching docs"
           />
         </Box>
-        <ScrollBox key={doc?.slug} ref={scroll} focused={pane === "content"} className="grow" paddingX={2} paddingTop={1}>
-          <Text color="subtle">{`Docs › ${doc?.category ?? ""}`}</Text>
+        <ScrollBox key={doc?.slug} ref={scroll} focused={pane === "content"} className="grow" paddingX={2}>
           <Text bold color="fg">
             {doc?.title ?? ""}
           </Text>
@@ -84,16 +82,7 @@ export function DocsTab(): ReactNode {
             {doc?.description ?? ""}
           </Text>
           <Markdown codeMaxHeight={16}>{markdown}</Markdown>
-          <Text color="subtle" marginTop={1}>{`textjs.org/docs/${doc?.slug === "introduction" ? "" : (doc?.slug ?? "")}`}</Text>
         </ScrollBox>
-      </Box>
-      <Box className="flex-row h-1 shrink-0 px-1 gap-2">
-        <Text color={pane === "content" ? "accent" : "subtle"} wrap="nowrap">
-          {pane === "content" ? "● reading" : pane === "search" ? "● searching" : "● browsing"}
-        </Text>
-        <KeyHint keys="enter/→" label="read" />
-        <KeyHint keys="↑↓ space" label="scroll" />
-        <KeyHint keys="←/esc" label="back" />
       </Box>
     </Box>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, Diff, KeyHint, Markdown, ScrollBox, Spinner, Text, useInput } from "@textjs/react";
+import { Box, Diff, Markdown, ScrollBox, useInput } from "@textjs/react";
 
 export const STREAMING_MARKDOWN = `## Streaming \`<Markdown>\`
 
@@ -33,9 +33,11 @@ const AFTER = `export default function Page() {
 
 /** Reveal `text` a few characters at a time, like a model streaming tokens. */
 export function useTokenStream(text: string, cps = 140, restartKey = 0): { shown: string; done: boolean } {
-  const [n, setN] = useState(0);
+  // Start with the heading already in, so the frame is never blank.
+  const head = Math.max(0, text.indexOf(" ", text.indexOf("\n") + 2));
+  const [n, setN] = useState(head);
   useEffect(() => {
-    setN(0);
+    setN(head);
     const step = Math.max(1, Math.round(cps / 30));
     const id = setInterval(() => {
       setN((c) => {
@@ -52,11 +54,10 @@ export function useTokenStream(text: string, cps = 140, restartKey = 0): { shown
 }
 
 export interface StreamingDemoProps {
-  title?: string;
   markdown?: string;
 }
 
-export function StreamingDemo({ title = "assistant", markdown = STREAMING_MARKDOWN }: StreamingDemoProps): ReactNode {
+export function StreamingDemo({ markdown = STREAMING_MARKDOWN }: StreamingDemoProps): ReactNode {
   const [run, setRun] = useState(0);
   const { shown, done } = useTokenStream(markdown, 160, run);
   useInput((e) => {
@@ -66,27 +67,13 @@ export function StreamingDemo({ title = "assistant", markdown = STREAMING_MARKDO
     }
   });
   return (
-    <Box className="flex-col grow px-1">
-      <Box className="flex-row h-1 shrink-0 gap-1">
-        <Text bold color="fg">
-          {title}
-        </Text>
-        <Text color="subtle">{`· ${shown.length}/${markdown.length} chars`}</Text>
-        <Box className="grow" />
-        {done ? <Text color="success">● done</Text> : <Spinner variant="dots" label="streaming" />}
-      </Box>
-      <ScrollBox stickyScroll className="grow" paddingX={1}>
-        <Markdown>{shown}</Markdown>
-        {done ? (
-          <Box className="flex-col border rounded mt-1 shrink-0" borderColor="border" title=" ✎ edit app/page.tsx " titleColor="muted">
-            <Diff patch={{ before: BEFORE, after: AFTER, filename: "app/page.tsx" }} />
-          </Box>
-        ) : null}
-      </ScrollBox>
-      <Box className="flex-row h-1 shrink-0 gap-2">
-        <KeyHint keys="r" label="restream" />
-        <KeyHint keys="wheel" label="scroll" />
-      </Box>
-    </Box>
+    <ScrollBox stickyScroll showScrollbar={false} className="grow" paddingX={2}>
+      <Markdown>{shown}</Markdown>
+      {done ? (
+        <Box className="flex-col shrink-0" marginTop={1}>
+          <Diff patch={{ before: BEFORE, after: AFTER, filename: "app/page.tsx" }} />
+        </Box>
+      ) : null}
+    </ScrollBox>
   );
 }

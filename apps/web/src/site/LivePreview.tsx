@@ -4,6 +4,7 @@ import { PREVIEWS } from "../docs/previews";
 import { SandboxConsole } from "../sandbox/SandboxConsole";
 import { useSandbox } from "../sandbox/useSandbox";
 import { useSite } from "../console-companion/useSite";
+import { PRESETS } from "../console-companion/store";
 import { HighlightedCode } from "./highlight";
 import { CopyButton } from "./CodeBlock";
 
@@ -13,6 +14,7 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
   const site = useSite();
   const [ref, inView] = useInView<HTMLDivElement>();
   const app = useMemo(() => spec?.render() ?? null, [spec]);
+  const hints = PRESETS.find((p) => p.id === id)?.hints;
   const sandbox = useSandbox(app, { cols: spec?.cols ?? 60, rows: spec?.rows ?? 10, theme: site.theme === "geistLight" ? "geistDark" : site.theme, enabled: inView && spec !== undefined });
 
   return (
@@ -21,7 +23,9 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
         <span className="live">
           <span className="dot" /> Live
         </span>
-        <span className="preview-stats">{`${spec?.cols ?? 0}×${spec?.rows ?? 0} · ${sandbox.stats ? `${sandbox.stats.totalMs.toFixed(2)}ms · ${sandbox.stats.spanCount} %c spans` : "booting Turbolog…"}`}</span>
+        <span className="preview-stats">
+          {hints ? `Click it, then ${hints.map((h) => `${h.keys} ${h.label}`).join(" · ")}` : `${spec?.cols ?? 0}×${spec?.rows ?? 0} · ${sandbox.stats ? `${sandbox.stats.totalMs.toFixed(2)}ms` : "booting Turbolog…"}`}
+        </span>
         <span style={{ marginLeft: "auto" }}>{language}</span>
         <CopyButton text={code} />
       </div>

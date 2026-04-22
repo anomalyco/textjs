@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { act } from "react";
 import { CompanionApp } from "../src/console-companion/App";
-import { siteStore } from "../src/console-companion/store";
+import { PAGE_HINTS, PRESETS, siteStore } from "../src/console-companion/store";
 import { PREVIEWS } from "../src/docs/previews";
 import { newGame, step } from "../src/demos/Snake";
 import { scriptFor, partsFromSteps, initialSessions } from "../src/demos/opencode/model";
@@ -25,16 +25,15 @@ describe("console companion (104×32)", () => {
     await site(() => siteStore.reset());
   });
 
-  test("boots on the Home tab with brand, counter and theme picker", async () => {
+  test("boots on Home: brand, counter and one quiet line of keys, no tabs", async () => {
     await site(() => siteStore.syncRoute("/"));
     h = await mount(<CompanionApp />, { cols: 104, rows: 32, tabFocus: false });
     const f = h.frame();
     expect(f).toContain("▼ Text.js");
-    expect(f).toContain("1 Home");
-    expect(f).toContain("5 Snake");
     expect(f).toContain("React 19 in console.log");
-    expect(f).toContain("useState");
-    expect(f).not.toContain("spans");
+    expect(f).toContain("↑ ↓ count");
+    expect(f).toContain("t theme");
+    for (const gone of ["1 Home", "5 Snake", "Playground", "tabs", "useState", "spans"]) expect(f).not.toContain(gone);
     expect(f).not.toContain("▲");
   });
 
@@ -45,7 +44,8 @@ describe("console companion (104×32)", () => {
     h.frame();
     const after = h.console.logs.length;
     expect(after - before).toBe(1);
-    expect(h.console.clears).toBe(h.console.logs.length);
+    // Append mode: frames stack and only the first one clears.
+    expect(h.console.clears).toBe(1);
     h.frame();
     h.frame();
     expect(h.console.logs.length).toBe(after);
@@ -66,43 +66,66 @@ describe("console companion (104×32)", () => {
     expect(h.frame()).toContain("OpenCode Dark");
   });
 
-  test("number keys switch tabs; website navigation syncs tabs", async () => {
+  test("each page shows only its own view; the playground shows only the picked demo", async () => {
     if (!h) throw new Error("companion not mounted");
+    // Number keys no longer switch views.
     await h.key("4", { input: "4" });
-    expect(h.frame()).toContain("Search docs");
-    expect(h.frame()).toContain("Introduction");
-    await h.key("5", { input: "5" });
-    expect(h.frame()).toContain("snake · 60fps");
-    await h.key("2", { input: "2" });
-    expect(h.frame()).toContain("Counter & State");
-    await h.key("]", { input: "]" });
-    expect(siteStore.getSnapshot().preset).toBe("dashboard");
-    expect(h.frame()).toContain("Throughput");
+    expect(h.frame()).toContain("React 19 in console.log");
     await site(() => siteStore.syncRoute("/docs/routing"));
     expect(h.frame()).toContain("File-system App Router");
-    await site(() => siteStore.syncRoute("/"));
-    expect(h.frame()).toContain("useState");
-    await h.key("5", { input: "5" });
+    await site(() => siteStore.syncRoute("/playground"));
+    expect(h.frame()).toContain("playground / counter");
+    expect(h.frame()).toContain("useState(0)");
+    expect(h.frame()).toContain("↑ ↓ count");
+    // Other demos are picked on the page, never from inside the console.
+    await h.key("]", { input: "]" });
+    expect(siteStore.getSnapshot().preset).toBe("counter");
+    await site(() => siteStore.set({ preset: "dashboard" }));
+    expect(h.frame()).toContain("Requests / s");
+    expect(h.frame()).toContain("← → switch region");
+    await site(() => siteStore.set({ preset: "snake" }));
+    expect(h.frame()).toContain("score 0");
     await site(() => siteStore.syncRoute("/this-page-does-not-exist"));
     expect(siteStore.getSnapshot().tab).toBe("home");
-    expect(h.frame()).not.toContain("snake · 60fps");
+    expect(h.frame()).not.toContain("score 0");
   });
 
-  test("OpenCode tab: session view, home logo, agent switch and streamed sandbox response", async () => {
+  test("every playground demo reacts to its declared keys", async () => {
+    if (!h) throw new Error("companion not mounted");
+    await site(() => siteStore.syncRoute("/playground"));
+    await site(() => siteStore.set({ preset: "counter" }));
+    const zero = h.frame();
+    await h.key("up");
+    await h.key("up");
+    expect(h.frame()).not.toBe(zero);
+    await h.key("r", { input: "r" });
+    expect(h.frame()).toBe(zero);
+    await site(() => siteStore.set({ preset: "form" }));
+    await h.type("acme");
+    await h.key("return");
+    expect(h.frame()).toContain("✓ Deployed acme to Your DevTools Console.");
+    await site(() => siteStore.set({ preset: "dashboard" }));
+    expect(h.frame()).toMatch(/\biad1\b/);
+    await site(() => siteStore.set({ preset: "snake" }));
+    expect(h.frame()).toContain("press an arrow key");
+    await h.key("right");
+    expect(h.frame()).not.toContain("press an arrow key");
+    await site(() => siteStore.set({ preset: "streaming" }));
+    await h.wait(400);
+    await h.key("r", { input: "r" });
+    expect(h.frame()).toContain("r stream again");
+    await site(() => siteStore.set({ preset: "counter" }));
+  });
+
+  test("OpenCode: full-screen TUI that opens on the prompt, like the real one", async () => {
     if (!h) throw new Error("companion not mounted");
     await site(() => siteStore.syncRoute("/opencode"));
     let f = h.frame();
-    expect(f).toContain("Fix flaky SSE reconnect test");
-    expect(f).toContain("← Edit src/events.ts");
-    expect(f).toContain("$ bun test test/events.test.ts");
-    expect(f).toContain("Build · Claude Opus 5.5 Anthropic");
-    expect(f).toContain("tab plan · ctrl+p commands");
-    expect(f).not.toContain("Sessions");
-    await h.key("n", { ctrl: true });
-    f = h.frame();
     expect(f).toContain("█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█");
     expect(f).toContain('Ask anything... "Fix broken tests"');
+    expect(f).toContain("Build · Claude Opus 5.5 Anthropic");
     expect(f).toContain("ctrl+p sessions");
+    expect(f).not.toContain("▼ Text.js");
     await h.key("tab");
     expect(h.frame()).toContain("Plan · Claude Opus 5.5");
     await h.key("tab");
@@ -118,13 +141,12 @@ describe("console companion (104×32)", () => {
     await h.key("p", { ctrl: true });
     f = h.frame();
     expect(f).toContain("Commands");
-    expect(f).toContain("New session");
+    expect(f).toContain("Fix flaky SSE reconnect test");
     await h.key("escape");
     expect(h.frame()).not.toContain("Search sessions, models and commands");
     await h.key("escape");
-    await h.key("escape");
-    await h.key("1", { input: "1" });
-    expect(h.frame()).toContain("useState");
+    await site(() => siteStore.syncRoute("/"));
+    expect(h.frame()).toContain("React 19 in console.log");
   });
 });
 
@@ -181,5 +203,14 @@ describe("demo logic", () => {
   test("input coexistence gate", () => {
     expect(shouldRouteToConsole(null, true)).toBe(true);
     expect(shouldRouteToConsole(null, false)).toBe(false);
+  });
+
+  test("every demo declares two or three keys and what to do first", () => {
+    for (const p of PRESETS) {
+      expect(p.hints.length).toBeGreaterThanOrEqual(1);
+      expect(p.hints.length).toBeLessThanOrEqual(3);
+      expect(p.action.length).toBeGreaterThan(0);
+    }
+    for (const page of Object.values(PAGE_HINTS)) expect(page.hints.length).toBeLessThanOrEqual(3);
   });
 });

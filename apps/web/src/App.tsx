@@ -3,7 +3,6 @@ import { DocsPage } from "./pages/Docs";
 import { HomePage } from "./pages/Home";
 import { OpenCodePage } from "./pages/OpenCode";
 import { PlaygroundPage } from "./pages/Playground";
-import { ShowcasePage } from "./pages/Showcase";
 import { A, matchRoute, titleFor, useLocation, type Route } from "./router";
 import { ConsolePill, Footer, Header } from "./site/Chrome";
 import { SearchModal } from "./site/SearchModal";
@@ -32,8 +31,6 @@ export function RouteView({ route }: { route: Route }): ReactNode {
       return <PlaygroundPage />;
     case "opencode":
       return <OpenCodePage />;
-    case "showcase":
-      return <ShowcasePage />;
     case "not-found":
       return <NotFoundPage />;
   }

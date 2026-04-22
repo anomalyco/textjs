@@ -8,23 +8,21 @@ import { StreamingDemo } from "./Streaming";
 
 export interface PresetViewProps {
   preset: PresetId;
-  title?: string;
-  markdown?: string;
   /** Rows used by surrounding chrome (for the Snake board size). */
   reserveRows?: number;
 }
 
-export function PresetView({ preset, title, markdown, reserveRows = 4 }: PresetViewProps): ReactNode {
+export function PresetView({ preset, reserveRows = 4 }: PresetViewProps): ReactNode {
   switch (preset) {
     case "counter":
-      return <CounterDemo title={title} />;
+      return <CounterDemo />;
     case "dashboard":
-      return <DashboardDemo title={title} />;
+      return <DashboardDemo />;
     case "form":
-      return <FormDemo title={title} />;
+      return <FormDemo />;
     case "streaming":
-      return <StreamingDemo title={title} markdown={markdown} />;
+      return <StreamingDemo />;
     case "snake":
-      return <SnakeDemo reserveRows={reserveRows} title={title} />;
+      return <SnakeDemo reserveRows={reserveRows} />;
   }
 }
