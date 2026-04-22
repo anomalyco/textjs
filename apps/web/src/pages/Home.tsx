@@ -1,8 +1,6 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { COMPANION_COLS, COMPANION_ROWS, getCompanion } from "../console-companion/boot";
 import { useSite } from "../console-companion/useSite";
-import { OpenCodeLite } from "../demos/opencode/OpenCodeLite";
-import { InlineSandbox } from "../sandbox/InlineSandbox";
 import { A } from "../router";
 import { devtoolsShortcut } from "../site/Chrome";
 import { CopyCommand } from "../site/CodeBlock";
@@ -23,7 +21,7 @@ function Crosses(): ReactNode {
   );
 }
 
-export function LiveConsole({ source = "text://viewport:1" }: { source?: string }): ReactNode {
+function LiveConsole({ source = "text://viewport:1" }: { source?: string }): ReactNode {
   const frame = useCompanionFrame();
   const site = useSite();
   return (
@@ -59,6 +57,9 @@ function Hero(): ReactNode {
               </A>
               <CopyCommand command="bunx create-text-app" />
             </div>
+            <p className="hero-whisper desktop-only">
+              This page is running in your console. Open it with <kbd>{devtoolsShortcut()}</kbd>, click the preview below, press <kbd>↑</kbd> <kbd>↓</kbd>.
+            </p>
           </div>
           <div className="split">
             <div className="split-code">
@@ -76,7 +77,6 @@ function Hero(): ReactNode {
             </div>
           </div>
         </div>
-        <p className="hero-whisper desktop-only">Open DevTools ({devtoolsShortcut()}) — this app is live in your console.</p>
       </div>
     </section>
   );
@@ -121,18 +121,16 @@ function Features(): ReactNode {
 }
 
 function OpenCodeSpotlight(): ReactNode {
-  const app = useMemo(() => <OpenCodeLite />, []);
   return (
     <section className="section">
       <div className="container spotlight">
         <div>
           <h2>OpenCode in console.log</h2>
-          <p className="muted">A connected coding-agent TUI running in DevTools.</p>
-          <A href="/opencode" className="text-link">
-            Explore OpenCode <ArrowRight size={14} />
-          </A>
+          <p className="muted">The OpenCode TUI, running in DevTools. Bring your own server or use the sandbox.</p>
         </div>
-        <InlineSandbox app={app} cols={100} rows={30} theme="opencodeDark" source="opencode://lite:1" filter="opencode" />
+        <A href="/opencode" className="btn btn-secondary">
+          Explore OpenCode <ArrowRight size={14} />
+        </A>
       </div>
     </section>
   );
