@@ -22,9 +22,14 @@ Each row is hashed. If nothing changed, the driver returns early:
 
 ```ts
 if (frame === null) return SKIPPED; // 0 console calls
-console.clear();
 console.log(frame.format, ...frame.args);
 ```
+
+## Frame swap
+
+Frames are appended, not cleared. DevTools removes cleared messages at once but paints new ones on a 50ms throttle, so clearing every frame flashes an empty console. Appended frames swap inside a single paint, and a leading spacer keeps the previous frame out of view. Scroll up to see earlier frames.
+
+Frames are paced to about 15fps. Faster frames reset the DevTools throttle and are dropped.
 
 ## Run-length encoding
 
@@ -37,7 +42,8 @@ console.log("%c▼ Text.js%c ready", "color:#ededed;font-weight:700", "color:#45
 ## Chromium details
 
 - Literal `%` is escaped as `%%`.
-- URLs get a word joiner so DevTools won't restyle them.
+- URLs and `path:line` text get a word joiner so DevTools won't restyle them.
+- Spans use longhand CSS only. DevTools copies every expanded property onto every line.
 - Spans are tuned so backgrounds tile without gaps.
 
 ## Benchmarks
@@ -51,4 +57,4 @@ console.log("%c▼ Text.js%c ready", "color:#ededed;font-weight:700", "color:#45
 | Dashboard | **0.32ms** | 88 |
 | Full repaint | **0.57ms** | 92 |
 
-Run `text.stats()` in DevTools, or open the RLE Inspector in the [Playground](/playground).
+Run `text.stats()` in DevTools while a demo from the [Playground](/playground) is running.

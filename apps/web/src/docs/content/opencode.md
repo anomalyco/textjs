@@ -43,9 +43,11 @@ export default function SessionPage({ params }: PageProps<{ id: string }>) {
 ## Connect a local server
 
 ```bash
-bunx textjs proxy
+# In the Text.js checkout (after bun install):
+opencode service status  # If stopped: opencode service start
+bun run opencode:proxy
 ```
 
-The bridge finds your running opencode daemon and serves it on `http://127.0.0.1:4096` with the CORS and Private Network Access headers browsers require. Then press Connect on the [OpenCode page](/opencode).
+Leave the bridge running. On the [OpenCode page](/opencode), enter `http://127.0.0.1:4096`, press **Connect**, and allow local network access if Chrome asks. Use the bridge URL, not the service port: the bridge supplies the service credential and CORS headers. Stop it with Ctrl+C when done.
 
-`opencode serve --port 4096 --cors https://textjs.org` works too.
+For a foreground server already on port 4096, run `bun run opencode:proxy --port 4097 --target http://127.0.0.1:4096` and connect the page to port **4097**. For a password-protected foreground server, export its `OPENCODE_PASSWORD` in the bridge shell; don't put a password in a browser URL.
