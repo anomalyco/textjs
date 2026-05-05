@@ -40,13 +40,13 @@ describe("examples/dashboard", () => {
     const { t } = await visit("/");
     const frame = t.frame();
     expect(frame).toContain("▼ Edge Console");
-    expect(frame).toContain("1 Overview");
-    expect(frame).toContain("4 Settings");
+    expect(frame).toContain("Overview");
+    expect(frame).toContain("Settings");
     expect(frame).toContain("Requests · 24h");
-    expect(frame).toContain("Throughput · req/s");
-    expect(frame).toContain("Recent Deployments");
+    expect(frame).toContain("Throughput");
+    expect(frame).toContain("Recent deployments");
     expect(frame).toContain("dpl_8f2kq1");
-    expect(frame).toContain("F2 devtools");
+    expect(frame).toContain("1-4 pages");
   });
 
   test("number keys navigate; <Select> + Enter opens the dynamic build-log route", async () => {

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Badge, Box, Text, useTheme, type Metadata } from "textjs";
+import { Box, Text, useTheme, type Metadata } from "textjs";
 import Link from "textjs/link";
 import { DEPLOYMENTS, formatAge, mulberry32, STATUS, throughputSeries } from "../lib/data";
 
@@ -7,22 +7,16 @@ export const metadata: Metadata = { title: "Overview" };
 
 const BARS = " ▁▂▃▄▅▆▇█";
 
-function MetricCard({ label, value, delta, good }: { label: string; value: string; delta: string; good: boolean }): ReactNode {
+function Metric({ label, value }: { label: string; value: string }): ReactNode {
   const theme = useTheme();
   return (
-    <Box className="flex-col grow basis-0 border rounded px-1" borderColor={theme.border} minWidth={18}>
+    <Box className="flex-col shrink-0" width={20}>
       <Text color={theme.subtle} wrap="nowrap">
         {label}
       </Text>
-      <Box className="flex-row">
-        <Text bold color={theme.fg} wrap="nowrap">
-          {value}
-        </Text>
-        <Box className="grow" />
-        <Text color={good ? theme.success : theme.danger} wrap="nowrap">
-          {delta}
-        </Text>
-      </Box>
+      <Text bold color={theme.fg} wrap="nowrap">
+        {value}
+      </Text>
     </Box>
   );
 }
@@ -43,7 +37,7 @@ function useLiveSeries(length: number): number[] {
   return series;
 }
 
-function ThroughputChart({ height = 6 }: { height?: number }): ReactNode {
+function ThroughputChart({ height = 5 }: { height?: number }): ReactNode {
   const theme = useTheme();
   const series = useLiveSeries(64);
   const rows: string[] = [];
@@ -58,13 +52,16 @@ function ThroughputChart({ height = 6 }: { height?: number }): ReactNode {
   const peak = Math.max(...series);
   const now = series[series.length - 1] ?? 0;
   return (
-    <Box className="flex-col border rounded px-1 shrink-0" borderColor={theme.border} title=" Throughput · req/s " titleColor={theme.muted}>
+    <Box className="flex-col shrink-0">
       <Box className="flex-row h-1">
-        <Text color={theme.fg} bold wrap="nowrap">{`${Math.round(now * 1800)} req/s`}</Text>
-        <Text color={theme.subtle} wrap="nowrap">{`   peak ${Math.round(peak * 1800)} · last 64s · live`}</Text>
+        <Text color={theme.subtle} wrap="nowrap">
+          Throughput
+        </Text>
+        <Box className="grow" />
+        <Text color={theme.subtle} wrap="nowrap">{`${Math.round(now * 1800)} req/s · peak ${Math.round(peak * 1800)}`}</Text>
       </Box>
       {rows.map((row, i) => (
-        <Text key={i} color={i < 2 ? theme.accent : theme.info} wrap="nowrap">
+        <Text key={i} color={theme.accent} wrap="nowrap">
           {row}
         </Text>
       ))}
@@ -74,20 +71,19 @@ function ThroughputChart({ height = 6 }: { height?: number }): ReactNode {
 
 export default function OverviewPage(): ReactNode {
   const theme = useTheme();
-  const recent = DEPLOYMENTS.slice(0, 7);
+  const recent = DEPLOYMENTS.slice(0, 5);
   return (
-    <Box className="flex-col gap-1 pt-1 grow">
-      <Box className="flex-row gap-1 shrink-0">
-        <MetricCard label="Requests · 24h" value="1.28M" delta="+12.4%" good />
-        <MetricCard label="p95 latency" value="84ms" delta="−6ms" good />
-        <MetricCard label="Error rate" value="0.04%" delta="+0.01%" good={false} />
-        <MetricCard label="Bandwidth" value="38.2 GB" delta="+3.1%" good />
+    <Box className="flex-col gap-1 grow">
+      <Box className="flex-row shrink-0">
+        <Metric label="Requests · 24h" value="1.28M" />
+        <Metric label="p95 latency" value="84ms" />
+        <Metric label="Error rate" value="0.04%" />
       </Box>
       <ThroughputChart />
-      <Box className="flex-col shrink-0">
+      <Box className="flex-col shrink-0" marginTop={1}>
         <Box className="flex-row h-1">
           <Text bold color={theme.fg} wrap="nowrap">
-            Recent Deployments
+            Recent deployments
           </Text>
           <Box className="grow" />
           <Link href="/deployments" className="text-subtle">
@@ -108,7 +104,6 @@ export default function OverviewPage(): ReactNode {
               <Text color={theme.subtle} wrap="truncate-end" flexGrow={1} flexShrink={1}>
                 {d.commit}
               </Text>
-              {d.environment === "Production" ? <Badge variant="outline">prod</Badge> : null}
               <Text color={theme.subtle} wrap="nowrap" width={8} align="right" flexShrink={0}>
                 {formatAge(d.ageMin)}
               </Text>

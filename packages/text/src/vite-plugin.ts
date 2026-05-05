@@ -105,15 +105,12 @@ export function createIndexHtml(title: string, entryUrl = ENTRY_URL): string {
     <link rel="icon" href="${FAVICON}" />
     <style>
       html, body { margin: 0; min-height: 100%; background: #0a0a0a; color: #ededed; }
-      body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+      body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
         font-family: Geist, Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
-      .tx-hint { font: 12px "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace; color: #6b6b6b; letter-spacing: 0.01em; }
-      .tx-hint b { color: #a1a1a1; font-weight: 500; }
     </style>
   </head>
   <body>
     <div id="__textjs"></div>
-    <div class="tx-hint">${BRAND_MARK} This app renders in the DevTools Console. Press <b>⌘⌥J</b> (macOS) or <b>Ctrl+Shift+J</b>.</div>
     <noscript>${BRAND_MARK} Text.js apps render into console.log, which requires JavaScript.</noscript>
     <script type="module" src="${entryUrl}"></script>
   </body>

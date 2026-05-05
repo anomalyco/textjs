@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Badge, Box, Code, Text, useInput, useTheme } from "textjs";
+import { Box, Code, Text, useInput, useTheme } from "textjs";
 import Link from "textjs/link";
 
 export default function Home(): ReactNode {
@@ -18,17 +18,12 @@ export default function Home(): ReactNode {
         Get started by editing <Text color={theme.fg} bold>app/page.tsx</Text>. Save and see your changes instantly.
       </Text>
 
-      <Box className="flex-row items-center gap-2 border rounded px-2 py-1 shrink-0" borderColor={theme.border} width={44}>
-        <Text color={theme.subtle} wrap="nowrap">
-          Counter
+      <Box className="flex-row gap-1 shrink-0">
+        <Text color={theme.subtle}>count</Text>
+        <Text bold color={count > 0 ? theme.success : count < 0 ? theme.danger : theme.fg}>
+          {String(count)}
         </Text>
-        <Text bold color={theme.fg} wrap="nowrap">
-          {String(count).padStart(4)}
-        </Text>
-        <Box className="grow" />
-        <Badge variant={count === 0 ? "default" : count > 0 ? "success" : "danger"}>{count === 0 ? "idle" : count > 0 ? "up" : "down"}</Badge>
       </Box>
-      <Text color={theme.subtle}>↑ / + increment · ↓ / - decrement · r reset</Text>
 
       <Code language="tsx" code={`export default function Page() {\n  return <Text>Hello, console.log</Text>;\n}`} showLineNumbers />
 

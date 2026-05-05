@@ -95,8 +95,10 @@ export async function bootTextApp(options: BootOptions): Promise<TextApp> {
       createElement(FocusPad, {
         root,
         title: config.title || undefined,
+        hints: config.hints,
+        action: config.action,
         showMirrorDefault: config.showMirrorDefault,
-        style: { width: "min(880px, calc(100vw - 48px))" },
+        style: { width: "min(960px, calc(100vw - 48px))", minHeight: "min(640px, calc(100vh - 48px))", boxSizing: "border-box" },
       }),
     );
   }

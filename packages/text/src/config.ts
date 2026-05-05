@@ -56,6 +56,10 @@ export interface TextConfig {
   basePath?: string;
   /** Title shown in the FocusPad and as the default `document.title`. */
   title?: string;
+  /** The two or three keys worth pressing, shown on the page's FocusPad, e.g. `[{ keys: "↑ ↓", label: "count" }]`. */
+  hints?: Array<{ keys: string; label: string }>;
+  /** What to do first, shown as "Then click here and …" (default: `press <first hint>`). */
+  action?: string;
   /** Dev / start server proxy rules, keyed by path prefix. */
   proxy?: Record<string, string | ProxyTarget>;
   /** Rewrites applied before routing. External destinations are proxied. */
@@ -90,6 +94,8 @@ export interface ClientConfig {
   showMirrorDefault: boolean;
   basePath: string;
   title: string;
+  hints?: Array<{ keys: string; label: string }>;
+  action?: string;
 }
 
 export function toClientConfig(config: TextConfig): ClientConfig {
@@ -99,6 +105,8 @@ export function toClientConfig(config: TextConfig): ClientConfig {
     showMirrorDefault: config.showMirrorDefault ?? false,
     basePath: normalizeBasePath(config.basePath),
     title: config.title ?? "",
+    ...(config.hints ? { hints: config.hints.map((h) => ({ keys: h.keys, label: h.label })) } : {}),
+    ...(config.action ? { action: config.action } : {}),
   };
 }
 

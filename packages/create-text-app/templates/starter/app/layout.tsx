@@ -13,9 +13,6 @@ export default function RootLayout({ children }: { children?: ReactNode }): Reac
     <Box className="flex-col w-full h-full px-2 pt-1">
       <Box className="flex-row items-end gap-2 shrink-0">
         <AsciiFont text="▼ TEXT.JS" font="compact" color={theme.fg} />
-        <Text color={theme.subtle} wrap="nowrap">
-          The Console Framework for the Web
-        </Text>
       </Box>
       <Box className="flex-row gap-3 h-1 shrink-0 mt-1">
         <Link href="/" shortcut="1">
@@ -26,11 +23,9 @@ export default function RootLayout({ children }: { children?: ReactNode }): Reac
         </Link>
       </Box>
       <Box className="grow flex-col pt-1">{children}</Box>
-      <Box className="flex-row gap-2 h-1 shrink-0 pl-4">
-        <KeyHint keys="tab" label="focus" />
-        <KeyHint keys="enter" label="open link" />
-        <KeyHint keys="1/2" label="navigate" />
-        <KeyHint keys="F2" label="devtools" />
+      <Box className="flex-row gap-3 h-1 shrink-0">
+        <KeyHint keys="↑ ↓" label="count" />
+        <KeyHint keys="1 2" label="pages" />
       </Box>
     </Box>
   );
