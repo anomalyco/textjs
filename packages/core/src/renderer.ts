@@ -44,6 +44,13 @@ export interface ConsoleRendererOptions {
   typography?: Partial<ConsoleTypographyOptions>;
   style?: Partial<StyleResolveOptions>;
   scheduler?: RendererScheduler;
+  /**
+   * Minimum milliseconds between emitted frames. DevTools repaints new console
+   * messages on a 50ms throttle that restarts when a message arrives early, so
+   * frames sent faster than ~15fps are dropped and add latency rather than
+   * smoothness. Defaults to 66 with the default scheduler and 0 with a custom one.
+   */
+  minFrameInterval?: number;
   /** Create (true), reuse (instance) or skip (false) the input engine. Defaults to `true` in browsers. */
   input?: InputEngine | boolean;
   /** Register `window.text` (or a custom global name). Defaults to `true` in browsers. */
@@ -73,6 +80,7 @@ const now: () => number =
   typeof performance !== "undefined" && typeof performance.now === "function" ? () => performance.now() : () => Date.now();
 
 const SYNC_FLUSH_INTERVAL_MS = 8;
+const DEFAULT_FRAME_INTERVAL_MS = 66;
 
 const hasWindow = typeof window !== "undefined" && typeof document !== "undefined";
 
@@ -109,6 +117,8 @@ export class ConsoleRenderer {
   private readonly background: number;
   private handle: unknown = null;
   private scheduled = false;
+  private readonly frameInterval: number;
+  private lastEmitAt = -Infinity;
   private pendingForce = false;
   private isPaused = false;
   private disposed = false;
@@ -129,6 +139,7 @@ export class ConsoleRenderer {
     this.buffer = new CellBuffer(this.viewport.cols, this.viewport.rows);
     this.driver = new CssConsoleDriver({ console: options.console, typography: options.typography, style: options.style });
     this.scheduler = options.scheduler ?? createDefaultScheduler();
+    this.frameInterval = Math.max(0, options.minFrameInterval ?? (options.scheduler ? 0 : DEFAULT_FRAME_INTERVAL_MS));
     this.background = parseColor(options.background);
     this.wireframe = options.wireframe ?? false;
     const inputOpt = options.input ?? hasWindow;
@@ -240,7 +251,7 @@ export class ConsoleRenderer {
   flushInputFrame(): FrameResult | null {
     if (this.disposed || this.isPaused) return null;
     const t = now();
-    if (t - this.lastSyncFlushAt < SYNC_FLUSH_INTERVAL_MS) {
+    if (t - this.lastSyncFlushAt < SYNC_FLUSH_INTERVAL_MS || t - this.lastEmitAt < this.frameInterval) {
       this.requestRender();
       return null;
     }
