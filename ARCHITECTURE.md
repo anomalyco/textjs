@@ -11,6 +11,7 @@
 1. **Strictly ONE `console.log` Call Per Dirty Frame:**
    - Never log line-by-line (which creates ugly DevTools row borders, `(2)` repeat badges, and 30× CDP IPC overhead).
    - Every dirty frame emits `console.clear()` followed by **one** `console.log(formatString, ...cssArgs)` with rows joined by `\n`.
+   - **Frame pacing:** emitted frames are ≥66ms apart (~15fps). Faster frames restart DevTools' 50ms throttle, so they are dropped and add latency (measured: 30fps paints *fewer* frames than 15fps). Discrete input still renders synchronously when the interval allows.
 2. **Zero-Noop-Log Dirty Gate:**
    - `CellBuffer` tracks per-row 32-bit dirty hashes comparing `backBuffer` vs `frontBuffer`.
    - If zero cells changed since the previous committed frame, **do not allocate strings, do not call `console.clear()`, and do not call `console.log()`**. Idle CPU and DevTools churn must be strictly zero.
