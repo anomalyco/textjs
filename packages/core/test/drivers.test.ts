@@ -52,6 +52,14 @@ describe("escapeConsoleText", () => {
     expect(escapeConsoleText("see www.textjs.org")).toBe("see www\u2060.textjs.org");
     expect(escapeConsoleText("https://textjs.org", true)).toBe("https://textjs.org");
   });
+
+  test("defuses path:line, host:port and data: links", () => {
+    expect(escapeConsoleText("at src/scene.ts:53")).toBe("at src/scene.ts:\u206053");
+    expect(escapeConsoleText("http://localhost:3000")).toBe("http:\u2060//localhost:\u20603000");
+    expect(escapeConsoleText("data:text/plain")).toBe("data\u2060:text/plain");
+    expect(escapeConsoleText("time 12:30, ratio 3:1")).toBe("time 12:30, ratio 3:1");
+    expect(escapeConsoleText("src/scene.ts:53", true)).toBe("src/scene.ts:53");
+  });
 });
 
 describe("CssConsoleDriver", () => {
@@ -65,6 +73,70 @@ describe("CssConsoleDriver", () => {
     expect(con.clears).toBe(1);
     expect(con.logs.length).toBe(1);
     expect(r.dirtyRows).toBe(4);
+  });
+
+  test("append mode clears only on the first frame and after invalidate()", () => {
+    const con = new FakeConsole();
+    const d = new CssConsoleDriver({ console: con });
+    const b = new CellBuffer(20, 2);
+    for (let i = 0; i < 5; i++) {
+      b.drawText(0, 0, `frame ${i}`, GREEN, 0);
+      d.render(b);
+    }
+    expect(con.clears).toBe(1);
+    expect(con.logs.length).toBe(5);
+    d.invalidate();
+    d.render(b);
+    expect(con.clears).toBe(2);
+  });
+
+  test("append mode starts over after maxFrames", () => {
+    const con = new FakeConsole();
+    const d = new CssConsoleDriver({ console: con, maxFrames: 3 });
+    const b = new CellBuffer(20, 1);
+    for (let i = 0; i < 7; i++) {
+      b.drawText(0, 0, `frame ${i}`, GREEN, 0);
+      d.render(b);
+    }
+    expect(con.clears).toBe(3);
+  });
+
+  test("forced identical frames never repeat the exact same message", () => {
+    const con = new FakeConsole();
+    const d = new CssConsoleDriver({ console: con });
+    const b = new CellBuffer(20, 1);
+    b.drawText(0, 0, "same", GREEN, 0);
+    d.render(b);
+    d.render(b, { force: true });
+    d.render(b, { force: true });
+    const [f0, f1, f2] = con.logs.map((l) => l[0]);
+    expect(f1).not.toBe(f0);
+    expect(f2).not.toBe(f1);
+  });
+
+  test("curtain span leads the frame only when writing to a console", () => {
+    const con = new FakeConsole();
+    const d = new CssConsoleDriver({ console: con, curtain: true });
+    const b = new CellBuffer(4, 2);
+    b.fillRect(0, 0, 4, 2, BG);
+    d.render(b);
+    expect(con.last.format.startsWith("%c\u200b%c")).toBe(true);
+    expect(con.last.args[0]).toContain("margin-top:100vh;");
+    expect(con.last.args[1]).not.toContain("100vh");
+    const plain = new FakeConsole();
+    new CssConsoleDriver({ console: plain }).render(b);
+    expect(plain.last.args.some((a) => a.includes("100vh"))).toBe(false);
+  });
+
+  test("frame mode clears before every frame", () => {
+    const con = new FakeConsole();
+    const d = new CssConsoleDriver({ console: con, clear: "frame" });
+    const b = new CellBuffer(20, 1);
+    for (let i = 0; i < 3; i++) {
+      b.drawText(0, 0, `frame ${i}`, GREEN, 0);
+      d.render(b);
+    }
+    expect(con.clears).toBe(3);
   });
 
   test("unchanged frame makes zero console calls", () => {
@@ -85,7 +157,7 @@ describe("CssConsoleDriver", () => {
     expect(con.clears).toBe(0);
     expect(con.logs.length).toBe(0);
     d.render(b, { force: true });
-    expect(con.clears).toBe(1);
+    expect(con.clears).toBe(0);
     expect(con.logs.length).toBe(1);
   });
 
@@ -148,16 +220,17 @@ describe("CssConsoleDriver", () => {
     b.drawText(4, 0, "ef", 0, 0, ATTR_DIM);
     d.render(b);
     const [a1, a2, a3] = con.last.args;
-    expect(a1).toStartWith("font:13px/15px ui-monospace");
-    expect(a1).toContain("margin:-1px 0;padding:1px 0;");
+    expect(a1).toStartWith('font-family:ui-monospace,"SF Mono"');
+    expect(a1).toContain("font-size:13px;line-height:17px;margin-top:-1px;margin-bottom:-1px;");
+    expect(a1).not.toMatch(/(^|;)(font|margin|padding|text-decoration):/);
     expect(a1).not.toContain("font-variant-ligatures");
     expect(a1).toContain("color:#22c55e;");
     expect(a1).toContain("background-color:#18181b;");
     expect(a1).toContain("font-weight:700;");
-    expect(a1).toContain("text-decoration:underline;");
+    expect(a1).toContain("text-decoration-line:underline;");
     expect(a2).toContain("color:#18181b;");
     expect(a2).toContain("background-color:#22c55e;");
-    expect(a3).toContain("color:rgba(128,128,128,0.6);");
+    expect(a3).toContain("color:#80808099;");
     const before = d.internedStyles;
     b.setCell(5, 0, "z", 0, 0, ATTR_DIM);
     d.render(b);

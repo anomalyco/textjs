@@ -5,7 +5,7 @@
 
 import { parseColor, type ColorInput } from "./color";
 import { CellBuffer } from "./cell-buffer";
-import { CssConsoleDriver, type ConsoleTarget } from "./drivers/css-console-driver";
+import { CssConsoleDriver, type ClearMode, type ConsoleTarget } from "./drivers/css-console-driver";
 import type { ConsoleTypographyOptions, StyleResolveOptions } from "./drivers/style";
 import { InputEngine, type FocusChangeEvent } from "./input";
 import { paintScene, type SceneNode } from "./scene";
@@ -41,6 +41,10 @@ export interface ConsoleRendererOptions {
   root?: SceneNode | null;
   viewport?: ViewportOptions | ViewportController;
   console?: ConsoleTarget;
+  /** Frame replacement strategy (default `"append"`; see `ClearMode`). */
+  clear?: ClearMode | boolean;
+  /** In `"append"` mode, clear and start over after this many frames (default 300). */
+  maxFrames?: number;
   typography?: Partial<ConsoleTypographyOptions>;
   style?: Partial<StyleResolveOptions>;
   scheduler?: RendererScheduler;
@@ -116,6 +120,7 @@ export class ConsoleRenderer {
   private readonly options: ConsoleRendererOptions;
   private readonly background: number;
   private handle: unknown = null;
+  private delay: ReturnType<typeof setTimeout> | null = null;
   private scheduled = false;
   private readonly frameInterval: number;
   private lastEmitAt = -Infinity;
@@ -137,7 +142,13 @@ export class ConsoleRenderer {
     this.root = options.root ?? null;
     this.viewport = options.viewport instanceof ViewportController ? options.viewport : new ViewportController(options.viewport ?? {});
     this.buffer = new CellBuffer(this.viewport.cols, this.viewport.rows);
-    this.driver = new CssConsoleDriver({ console: options.console, typography: options.typography, style: options.style });
+    this.driver = new CssConsoleDriver({
+      console: options.console,
+      clear: options.clear,
+      maxFrames: options.maxFrames,
+      typography: options.typography,
+      style: options.style,
+    });
     this.scheduler = options.scheduler ?? createDefaultScheduler();
     this.frameInterval = Math.max(0, options.minFrameInterval ?? (options.scheduler ? 0 : DEFAULT_FRAME_INTERVAL_MS));
     this.background = parseColor(options.background);
@@ -228,25 +239,41 @@ export class ConsoleRenderer {
   // Scheduling
   // ---------------------------------------------------------------------------
 
-  /** Schedule a frame on the next animation frame (coalesced). */
+  /**
+   * Schedule a frame on the next animation frame (coalesced), or once
+   * `minFrameInterval` has passed since the last emitted frame.
+   */
   requestRender(force = false): void {
     if (this.disposed) return;
     if (force) this.pendingForce = true;
     if (this.isPaused || this.scheduled) return;
     this.scheduled = true;
-    this.handle = this.scheduler.request(() => {
-      this.scheduled = false;
-      this.handle = null;
-      const f = this.pendingForce;
-      this.pendingForce = false;
-      this.renderNow(f);
-    });
+    const wait = this.lastEmitAt + this.frameInterval - now();
+    if (wait > 1) this.delay = setTimeout(this.runScheduled, wait);
+    else this.handle = this.scheduler.request(this.runScheduled);
+  }
+
+  private readonly runScheduled = (): void => {
+    this.scheduled = false;
+    this.handle = null;
+    this.delay = null;
+    const f = this.pendingForce;
+    this.pendingForce = false;
+    this.renderNow(f);
+  };
+
+  private cancelScheduled(): void {
+    if (this.handle !== null) this.scheduler.cancel(this.handle);
+    if (this.delay !== null) clearTimeout(this.delay);
+    this.handle = null;
+    this.delay = null;
+    this.scheduled = false;
   }
 
   /**
    * Render discrete input (a keypress, a paste) synchronously in the same task
-   * instead of waiting for the next animation frame. Capped at ~120fps so held
-   * key repeat coalesces into scheduled frames.
+   * instead of waiting for the next animation frame. Within `minFrameInterval`
+   * of the last frame (and always at >120fps) it coalesces into a scheduled frame.
    */
   flushInputFrame(): FrameResult | null {
     if (this.disposed || this.isPaused) return null;
@@ -256,9 +283,7 @@ export class ConsoleRenderer {
       return null;
     }
     this.lastSyncFlushAt = t;
-    if (this.handle !== null) this.scheduler.cancel(this.handle);
-    this.handle = null;
-    this.scheduled = false;
+    this.cancelScheduled();
     const f = this.pendingForce;
     this.pendingForce = false;
     return this.renderNow(f);
@@ -293,6 +318,7 @@ export class ConsoleRenderer {
     t.rows = buf.height;
     if (result.skipped) t.skippedFrames++;
     else {
+      this.lastEmitAt = t3;
       t.frameCount++;
       t.dirtyRows = result.dirtyRows;
       t.spanCount = result.spanCount;
@@ -328,9 +354,7 @@ export class ConsoleRenderer {
     if (this.isPaused) return;
     this.isPaused = true;
     this.telemetry.paused = true;
-    if (this.handle !== null) this.scheduler.cancel(this.handle);
-    this.handle = null;
-    this.scheduled = false;
+    this.cancelScheduled();
   }
 
   resume(): void {
@@ -386,7 +410,7 @@ export class ConsoleRenderer {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    if (this.handle !== null) this.scheduler.cancel(this.handle);
+    this.cancelScheduled();
     for (const fn of this.cleanup) fn();
     if (this.input && !(this.options.input instanceof InputEngine)) this.input.detach();
     this.viewport.dispose();

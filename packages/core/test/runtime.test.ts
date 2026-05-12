@@ -369,4 +369,35 @@ describe("zero-jump input", () => {
     expect(con.logs.length).toBe(2);
     r.dispose();
   });
+
+  test("minFrameInterval paces emitted frames and coalesces updates in between", async () => {
+    const con = new FakeConsole();
+    const scheduler = new ManualScheduler();
+    const label = text({}, "a");
+    const root = box({ flexDirection: "column" }, label);
+    const r = new ConsoleRenderer({
+      root,
+      console: con,
+      scheduler,
+      minFrameInterval: 40,
+      viewport: { width: 20, height: 2 },
+      input: false,
+      registerGlobal: false,
+    });
+    r.renderNow();
+    expect(con.logs.length).toBe(1);
+    const raw = label.children[0] ?? label;
+    raw.setText("ab");
+    r.requestRender();
+    raw.setText("abc");
+    expect(r.flushInputFrame()).toBeNull();
+    r.requestRender();
+    // Within the interval nothing goes through the animation-frame scheduler.
+    expect(scheduler.queue.length).toBe(0);
+    expect(con.logs.length).toBe(1);
+    await Bun.sleep(60);
+    expect(con.logs.length).toBe(2);
+    expect(String(con.last.format)).toContain("abc");
+    r.dispose();
+  });
 });

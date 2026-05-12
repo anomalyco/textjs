@@ -26,6 +26,6 @@ test("@textjs/react bundles for the browser with no Node built-ins", async () =>
 test("@textjs/react/dom bundles for the browser with no Node built-ins", async () => {
   const code = await bundle("../src/dom/index.ts");
   expectBrowserSafe(code);
-  expect(code).toContain("Open DevTools Console");
+  expect(code).toContain("Open the console");
   expect(code).toContain("text://viewport:1");
 }, 30_000);

@@ -46,12 +46,36 @@ export interface ConsoleFrame {
   args: string[];
 }
 
+/**
+ * How a new frame replaces the previous one.
+ *
+ * - `"append"` (default): log each frame below the last and let DevTools'
+ *   stick-to-bottom scrolling swap them in a single paint. The console is
+ *   cleared only on the first frame, after `invalidate()`, and to release
+ *   old frames: on the first frame after an idle second once 100 frames have
+ *   piled up (when a brief blank is least visible), or at `maxFrames`.
+ * - `"frame"` (or `true`): `console.clear()` before every frame. DevTools
+ *   applies a clear synchronously but paints new messages on a 50ms throttle,
+ *   so this flashes an empty console whenever frames arrive faster than that.
+ * - `"never"` (or `false`): never clear.
+ */
+export type ClearMode = "append" | "frame" | "never";
+
 export interface CssConsoleDriverOptions {
   console?: ConsoleTarget;
   typography?: Partial<ConsoleTypographyOptions>;
   style?: Partial<StyleResolveOptions>;
-  /** Call `console.clear()` before each frame (default `true`). */
-  clear?: boolean;
+  /** Frame replacement strategy (default `"append"`). */
+  clear?: ClearMode | boolean;
+  /** In `"append"` mode, clear and start over after this many frames (default 300). */
+  maxFrames?: number;
+  /**
+   * In `"append"` mode, push earlier frames above the top of the console with
+   * a tall top margin on the first span, so a frame shorter than the console
+   * never shows the tail of the previous one. Defaults to `true` when writing
+   * to the global console and `false` for an injected target.
+   */
+  curtain?: boolean;
   /** Fold blank cells into the open span when their background matches (default `true`). */
   coalesceWhitespace?: boolean;
 }
@@ -97,17 +121,24 @@ export function escapeConsoleText(text: string, allowLink = false): string {
   return s;
 }
 
+const CURTAIN_CSS = "margin-top:100vh;";
+const IDLE_COMPACT_FRAMES = 100;
+const IDLE_COMPACT_MS = 1000;
+
 const SKIPPED: DriverRenderResult = Object.freeze({ skipped: true, dirtyRows: 0, spanCount: 0, encodeMs: 0, frame: null });
 
 /**
- * Renders a `CellBuffer` into DevTools with exactly one `console.clear()` and
- * one `console.log(format, ...css)` per dirty frame, and zero calls otherwise.
+ * Renders a `CellBuffer` into DevTools with exactly one
+ * `console.log(format, ...css)` per dirty frame (see `ClearMode` for when it
+ * also clears), and zero calls otherwise.
  */
 export class CssConsoleDriver {
   readonly typography: Readonly<ConsoleTypographyOptions>;
   readonly styleOptions: Readonly<StyleResolveOptions>;
   private target: ConsoleTarget | null;
-  private readonly clearEachFrame: boolean;
+  readonly clearMode: ClearMode;
+  private readonly maxFrames: number;
+  private readonly curtainOption: boolean | undefined;
   private readonly coalesce: boolean;
   private readonly baseCss: string;
   private readonly cssCache = new Map<bigint, string>();
@@ -118,6 +149,11 @@ export class CssConsoleDriver {
   private rowCache: CompiledSpan[][] = [];
   private rendered = false;
   private lastSpanCount = 0;
+  /** Frames logged since the last `console.clear()`; 0 forces a clear on the next frame. */
+  private appended = 0;
+  private lastLogAt = 0;
+  private parity = false;
+  private readonly curtainCss: string;
   private readonly scratch: EffectiveStyle = { fg: 0, bg: 0, flags: 0 };
   private readonly blankScratch: EffectiveStyle = { fg: 0, bg: 0, flags: 0 };
 
@@ -125,20 +161,25 @@ export class CssConsoleDriver {
     this.target = options.console ?? null;
     this.typography = Object.freeze({ ...DEFAULT_TYPOGRAPHY, ...options.typography });
     this.styleOptions = Object.freeze({ ...DEFAULT_STYLE_RESOLVE, ...options.style });
-    this.clearEachFrame = options.clear ?? true;
+    const clear = options.clear ?? "append";
+    this.clearMode = clear === true ? "frame" : clear === false ? "never" : clear;
+    this.maxFrames = Math.max(1, options.maxFrames ?? 300);
+    this.curtainOption = options.curtain;
     this.coalesce = options.coalesceWhitespace ?? true;
     this.baseCss = typographyCss(this.typography);
+    this.curtainCss = this.baseCss + CURTAIN_CSS;
   }
 
   setConsole(target: ConsoleTarget | null): void {
     this.target = target;
   }
 
-  /** Forget the previous frame so the next render is emitted in full. */
+  /** Forget the previous frame so the next render is emitted in full (after a clear). */
   invalidate(): void {
     this.rendered = false;
     this.width = -1;
     this.height = -1;
+    this.appended = 0;
   }
 
   /** Number of interned CSS style strings. */
@@ -429,10 +470,38 @@ export class CssConsoleDriver {
     if (frame === null) return SKIPPED;
     const target = this.target ?? (typeof console !== "undefined" ? console : null);
     if (target !== null) {
-      if (this.clearEachFrame) target.clear();
-      target.log(frame.format, ...frame.args);
+      const mode = this.clearMode;
+      let clear = mode === "frame";
+      if (mode === "append") {
+        const n = this.appended;
+        if (n === 0 || n >= this.maxFrames || (n >= IDLE_COMPACT_FRAMES && t0 - this.lastLogAt >= IDLE_COMPACT_MS)) {
+          clear = true;
+          this.appended = 0;
+        }
+        this.appended++;
+        this.lastLogAt = t0;
+      }
+      if (clear) target.clear();
+      if (mode === "append") this.logAppended(target, frame, !clear && dirtyRows === 0);
+      else target.log(frame.format, ...frame.args);
     }
     this.lastSpanCount = frame.args.length;
     return { skipped: false, dirtyRows, spanCount: frame.args.length, encodeMs: now() - t0, frame };
+  }
+
+  private logAppended(target: ConsoleTarget, frame: ConsoleFrame, unchanged: boolean): void {
+    let format = frame.format;
+    // DevTools collapses identical consecutive messages behind a repeat badge,
+    // which shifts the frame sideways; vary a zero-width tail instead.
+    if (unchanged) {
+      this.parity = !this.parity;
+      if (this.parity) format += "\u200b";
+    }
+    if (!(this.curtainOption ?? this.target === null)) {
+      target.log(format, ...frame.args);
+      return;
+    }
+    // A zero-width span of its own: a multi-row span would repeat the margin on every line.
+    target.log(`%c\u200b${format}`, this.curtainCss, ...frame.args);
   }
 }

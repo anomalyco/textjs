@@ -39,17 +39,64 @@ export interface StyledFrame {
   rows: StyledSpan[][];
 }
 
+const ASCII_STRINGS: readonly string[] = Array.from({ length: 128 }, (_, i) => String.fromCharCode(i));
+
+interface BufferSnapshotCache {
+  width: number;
+  height: number;
+  styleKey: string;
+  prevHashes: Uint32Array;
+  nextHashes: Uint32Array;
+  rows: Array<StyledSpan[] | undefined>;
+}
+
+const snapshotCache = new WeakMap<CellBuffer, BufferSnapshotCache>();
+
 /** Extract a serializable styled snapshot of a buffer for DOM mirrors and docs playgrounds. */
 export function extractStyledFrame(buffer: CellBuffer, style: Partial<StyleResolveOptions> = {}): StyledFrame {
-  const opts: StyleResolveOptions = { ...DEFAULT_STYLE_RESOLVE, ...style };
-  const scratch: EffectiveStyle = { fg: 0, bg: 0, flags: 0 };
+  const hasCustomStyle =
+    style.inverseFg !== undefined ||
+    style.inverseBg !== undefined ||
+    style.dimFallbackFg !== undefined ||
+    style.dimOpacity !== undefined;
+  const opts: StyleResolveOptions = hasCustomStyle ? { ...DEFAULT_STYLE_RESOLVE, ...style } : DEFAULT_STYLE_RESOLVE;
+  const styleKey = hasCustomStyle ? `${opts.inverseFg}:${opts.inverseBg}:${opts.dimFallbackFg}:${opts.dimOpacity}` : "";
   const W = buffer.width;
-  const rows: StyledSpan[][] = [];
-  for (let y = 0; y < buffer.height; y++) {
+  const H = buffer.height;
+
+  let cache = snapshotCache.get(buffer);
+  if (cache === undefined || cache.width !== W || cache.height !== H || cache.styleKey !== styleKey) {
+    cache = {
+      width: W,
+      height: H,
+      styleKey,
+      prevHashes: new Uint32Array(H),
+      nextHashes: new Uint32Array(H),
+      rows: new Array<StyledSpan[] | undefined>(H),
+    };
+    snapshotCache.set(buffer, cache);
+  }
+
+  const hashes = buffer.computeRowHashes(cache.nextHashes);
+  const prevHashes = cache.prevHashes;
+  const cachedRows = cache.rows;
+  const rows = new Array<StyledSpan[]>(H);
+  let scratch: EffectiveStyle | null = null;
+
+  for (let y = 0; y < H; y++) {
+    const h = hashes[y] as number;
+    const existing = cachedRows[y];
+    if (existing !== undefined && h === prevHashes[y]) {
+      rows[y] = existing;
+      continue;
+    }
+    prevHashes[y] = h;
+    if (scratch === null) scratch = { fg: 0, bg: 0, flags: 0 };
     const spans: StyledSpan[] = [];
     let cur: StyledSpan | null = null;
+    const rowStart = y * W;
     for (let x = 0; x < W; x++) {
-      const i = y * W + x;
+      const i = rowStart + x;
       const raw = buffer.attrs[i] as number;
       const f = buffer.fg[i] as number;
       const b = buffer.bg[i] as number;
@@ -78,10 +125,12 @@ export function extractStyledFrame(buffer: CellBuffer, style: Partial<StyleResol
         };
         spans.push(cur);
       }
-      cur.text += buffer.cellText(i);
+      const c = buffer.chars[i] as number;
+      cur.text += c < 128 ? (ASCII_STRINGS[c] as string) : buffer.cellText(i);
       cur.width++;
     }
-    rows.push(spans);
+    cachedRows[y] = spans;
+    rows[y] = spans;
   }
-  return { width: W, height: buffer.height, rows };
+  return { width: W, height: H, rows };
 }
