@@ -129,7 +129,7 @@ function buildDynamicDashboard(): DynamicDashboard {
   }
 
   const inputText = createRawText("> benchmark ready");
-  const statusText = createRawText("▼ Text.js 0.3.0 (Turbolog) · ready");
+  const statusText = createRawText("▼ Text.js 0.4.0 (Turbolog) · ready");
 
   const conversationBox = box(
     {
@@ -196,7 +196,7 @@ function buildDynamicDashboard(): DynamicDashboard {
       `> [${spin}] streaming frame #${fStr} (${strategy} @ ${fps}fps) ${"█".repeat((frameId % 8) + 1)}`,
     );
     statusText.setText(
-      `▼ Text.js 0.3.0 (Turbolog) · FRAME:${fStr} · strategy=${strategy} · target=${fps}fps`,
+      `▼ Text.js 0.4.0 (Turbolog) · FRAME:${fStr} · strategy=${strategy} · target=${fps}fps`,
     );
 
     if (dirtyMode === "all") {

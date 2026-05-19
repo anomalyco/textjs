@@ -11,6 +11,6 @@ export * from "./input";
 export * from "./viewport";
 export * from "./renderer";
 
-export const VERSION = "0.3.0";
+export const VERSION = "0.4.0";
 export const ENGINE_NAME = "Turbolog";
 export const BRAND_MARK = "\u25BC";
