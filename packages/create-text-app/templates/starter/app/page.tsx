@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Box, Code, Text, useInput, useTheme } from "textjs";
-import Link from "textjs/link";
+import { Box, Code, Text, useInput, useTheme } from "@textjs/next";
+import Link from "@textjs/next/link";
 
 export default function Home(): ReactNode {
   const theme = useTheme();

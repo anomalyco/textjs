@@ -1,4 +1,4 @@
-import { defineConfig } from "textjs";
+import { defineConfig } from "@textjs/next";
 
 const OPENCODE_URL = process.env.OPENCODE_URL ?? "http://localhost:4096";
 

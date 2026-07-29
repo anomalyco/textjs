@@ -1,4 +1,4 @@
-import { defineConfig } from "textjs";
+import { defineConfig } from "@textjs/next";
 
 export default defineConfig({
   title: "{{name}}",

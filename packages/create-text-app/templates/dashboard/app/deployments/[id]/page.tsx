@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Box, Text, useInput, useTheme, type Metadata } from "textjs";
-import { notFound, useParams, useRouter } from "textjs/navigation";
+import { Box, Text, useInput, useTheme, type Metadata } from "@textjs/next";
+import { notFound, useParams, useRouter } from "@textjs/next/navigation";
 import { DEPLOYMENTS, STATUS_COLOR } from "../../../lib/data";
 
 export function generateMetadata({ params }: { params: Record<string, string | string[]> }): Metadata {

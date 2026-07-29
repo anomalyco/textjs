@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, Text, useTheme } from "textjs";
-import Link from "textjs/link";
+import { Box, Text, useTheme } from "@textjs/next";
+import Link from "@textjs/next/link";
 import { DEPLOYMENTS, nextSample, sparkline, STATUS_COLOR } from "../lib/data";
 
 function useSeries(length: number, start: number): number[] {
