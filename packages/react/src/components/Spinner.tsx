@@ -1,15 +1,19 @@
-import { memo, useEffect, useState, type NamedExoticComponent, type ReactNode } from "react";
+import { memo, useEffect, useState, useSyncExternalStore, type NamedExoticComponent, type ReactNode } from "react";
 import type { ColorInput } from "@textjs/core";
-import { useViewport } from "../hooks";
+import { useRuntime } from "../context";
+import { ACTIVITY_FOCUSED, ACTIVITY_HIDDEN, ACTIVITY_PAUSED } from "../stores";
 import { useTheme } from "../theme";
 import { Text } from "./Text";
 
-export type SpinnerVariant = "dots" | "pulse" | "matrix" | "line";
+export type SpinnerVariant = "dots" | "braille" | "pulse" | "matrix" | "line";
 
+// DevTools renders with Menlo, which has no braille glyphs: the fallback is
+// wider than a cell and skews the row, so only `braille` (for real terminals) uses them.
 export const SPINNERS: Readonly<Record<SpinnerVariant, { frames: readonly string[]; interval: number }>> = Object.freeze({
-  dots: { frames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"], interval: 80 },
+  dots: { frames: ["▘", "▝", "▗", "▖"], interval: 80 },
+  braille: { frames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"], interval: 80 },
   pulse: { frames: ["▼", "▼", "▽", "▽"], interval: 220 },
-  matrix: { frames: ["▪⬝⬝", "⬝▪⬝", "⬝⬝▪", "⬝▪⬝"], interval: 140 },
+  matrix: { frames: ["▪··", "·▪·", "··▪", "·▪·"], interval: 140 },
   line: { frames: ["─", "\\", "│", "/"], interval: 100 },
 });
 
@@ -65,10 +69,11 @@ export const Spinner: NamedExoticComponent<SpinnerProps> = memo(function Spinner
   paused = false,
 }: SpinnerProps): ReactNode {
   const theme = useTheme();
-  const vp = useViewport();
+  const rt = useRuntime();
+  const flags = useSyncExternalStore(rt.viewport.subscribe, rt.viewport.getActivityFlags, rt.viewport.getActivityFlags);
   const spec = SPINNERS[variant];
   const [frame, setFrame] = useState(0);
-  const running = !paused && !vp.paused;
+  const running = !paused && (flags & ACTIVITY_FOCUSED) !== 0 && (flags & (ACTIVITY_PAUSED | ACTIVITY_HIDDEN)) === 0;
   useEffect(() => {
     if (!running) return;
     const len = spec.frames.length;
