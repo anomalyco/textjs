@@ -85,6 +85,19 @@ const now: () => number =
 
 const SYNC_FLUSH_INTERVAL_MS = 8;
 const DEFAULT_FRAME_INTERVAL_MS = 66;
+/**
+ * After `console.clear() + console.log(frame)`, DevTools' synthetic "Console was
+ * cleared" row takes `viewportThrottler`'s immediate slot and pushes `frame` onto
+ * a 50ms timer (`lastCompleteTime ≈ t_emit + 52ms`). Waiting ≥110ms before the
+ * next frame ensures `now - lastCompleteTime > 50ms` so every subsequent frame
+ * hits DevTools' 0ms fast path (~12ms display lag instead of ~63ms phase-locked lag).
+ */
+const POST_CLEAR_INTERVAL_MS = 110;
+const FRAME_RING_CAP = 256;
+const FRAME_RING_MASK = FRAME_RING_CAP - 1;
+
+const DRIVER_NORMAL: Readonly<DriverRenderOptions> = Object.freeze({ force: false });
+const DRIVER_FORCE: Readonly<DriverRenderOptions> = Object.freeze({ force: true });
 
 const hasWindow = typeof window !== "undefined" && typeof document !== "undefined";
 
@@ -124,6 +137,7 @@ export class ConsoleRenderer {
   private scheduled = false;
   private readonly frameInterval: number;
   private lastEmitAt = -Infinity;
+  private lastEmitCleared = false;
   private pendingForce = false;
   private isPaused = false;
   private disposed = false;
@@ -151,6 +165,8 @@ export class ConsoleRenderer {
     });
     this.scheduler = options.scheduler ?? createDefaultScheduler();
     this.frameInterval = Math.max(0, options.minFrameInterval ?? (options.scheduler ? 0 : DEFAULT_FRAME_INTERVAL_MS));
+    this.postClearInterval =
+      options.minFrameInterval === undefined && options.scheduler === undefined ? POST_CLEAR_INTERVAL_MS : this.frameInterval;
     this.background = parseColor(options.background);
     this.wireframe = options.wireframe ?? false;
     const inputOpt = options.input ?? hasWindow;
@@ -248,7 +264,8 @@ export class ConsoleRenderer {
     if (force) this.pendingForce = true;
     if (this.isPaused || this.scheduled) return;
     this.scheduled = true;
-    const wait = this.lastEmitAt + this.frameInterval - now();
+    const interval = this.lastEmitCleared ? this.postClearInterval : this.frameInterval;
+    const wait = this.lastEmitAt + interval - now();
     if (wait > 1) this.delay = setTimeout(this.runScheduled, wait);
     else this.handle = this.scheduler.request(this.runScheduled);
   }
@@ -278,7 +295,8 @@ export class ConsoleRenderer {
   flushInputFrame(): FrameResult | null {
     if (this.disposed || this.isPaused) return null;
     const t = now();
-    if (t - this.lastSyncFlushAt < SYNC_FLUSH_INTERVAL_MS || t - this.lastEmitAt < this.frameInterval) {
+    const interval = this.lastEmitCleared ? this.postClearInterval : this.frameInterval;
+    if (t - this.lastSyncFlushAt < SYNC_FLUSH_INTERVAL_MS || t - this.lastEmitAt < interval) {
       this.requestRender();
       return null;
     }
@@ -319,6 +337,7 @@ export class ConsoleRenderer {
     if (result.skipped) t.skippedFrames++;
     else {
       this.lastEmitAt = t3;
+      this.lastEmitCleared = result.cleared === true;
       t.frameCount++;
       t.dirtyRows = result.dirtyRows;
       t.spanCount = result.spanCount;
