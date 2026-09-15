@@ -360,8 +360,9 @@ export class CssConsoleDriver {
 
   /**
    * Assemble cached row spans into one format string. Spans with the same
-   * style continue across `\n`, and blank spans join a neighbour that shares
-   * their background.
+   * style continue across `\n`, blank spans join a neighbour that shares their
+   * background, and unmerged row breaks reset `%c` to `""` so DevTools emits a
+   * plain text newline instead of a phantom empty `contain:paint` inline-block.
    */
   private assemble(): ConsoleFrame {
     const parts: string[] = [];
@@ -502,6 +503,9 @@ export class CssConsoleDriver {
       return;
     }
     // A zero-width span of its own: a multi-row span would repeat the margin on every line.
-    target.log(`%c\u200b${format}`, this.curtainCss, ...frame.args);
+    // Resetting style before "\n" keeps the break outside the curtain span (so margin-top:100vh
+    // is applied once, not repeated on row 0) while ending the curtain's line beside DevTools'
+    // right-floated source link ("VM12:1") instead of narrowing the frame's first row.
+    target.log(`%c\u200b%c\n${format}`, this.curtainCss, "", ...frame.args);
   }
 }
