@@ -79,7 +79,7 @@ export function buildLog(d: Deployment): string[] {
     "Restored build cache from previous deployment",
     'Running "bun install"',
     "bun install v1.2.10",
-    " + textjs@0.4.0",
+    " + textjs@1.0.0",
     " + react@19.3.1",
     " 132 packages installed [884.00ms]",
     'Running "text build"',

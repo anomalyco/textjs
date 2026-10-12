@@ -109,7 +109,7 @@ describe("deploy adapters (middleware + route handlers + cache)", () => {
       expect(result.output).toBe(out);
       const config = JSON.parse(readFileSync(join(out, "config.json"), "utf8"));
       expect(config.version).toBe(3);
-      expect(config.framework.version).toBe("0.4.0");
+      expect(config.framework.version).toBe("1.0.0");
       const mw = config.routes.find((r: { middlewarePath?: string }) => r.middlewarePath);
       expect(mw).toMatchObject({ middlewarePath: "_middleware", continue: true, override: true, middlewareRawSrc: ["/((?!assets/|favicon.ico).*)"] });
       expect(config.routes.some((r: { handle?: string }) => r.handle === "filesystem")).toBe(true);

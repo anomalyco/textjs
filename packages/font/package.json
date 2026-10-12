@@ -52,7 +52,7 @@
     "references": "bun scripts/generate-references.ts"
   },
   "peerDependencies": {
-    "@textjs/react": "^0.4.0",
+    "@textjs/react": "^1.0.0",
     "react": "^19.0.0"
   },
   "peerDependenciesMeta": {
