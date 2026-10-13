@@ -67,3 +67,35 @@ A centered overlay that dims what's beneath and traps focus.
 <Badge variant="success">READY</Badge>
 <KeyHint keys="⌘K" label="search" />
 ```
+
+## Layout helpers
+
+Shorthands for common flex arrangements.
+
+```tsx
+<Center>
+  <Text>Nothing deployed yet</Text>
+</Center>
+
+<Stack gap={1} divider>
+  <Overview />
+  <Deployments />
+</Stack>
+
+<Grid columns={3} gap={1}>
+  {metrics.map((m) => <Metric key={m.id} {...m} />)}
+</Grid>
+```
+
+## `<SplitPane>`
+
+Two panes and a divider. With `resizable`, the divider joins the `Tab` order and `←` `→` resize it (`Shift` for five cells).
+
+```tsx
+<SplitPane defaultSize={0.3} resizable minSize={16}>
+  <Sidebar />
+  <Content />
+</SplitPane>
+```
+
+`size` is a fraction (`0.3`) or a number of cells (`24`). `direction="column"` stacks the panes.
