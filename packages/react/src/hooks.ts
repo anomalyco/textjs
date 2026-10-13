@@ -82,9 +82,7 @@ function useInputRegistration<K extends InputEventType>(
   const rt = useRuntime();
   const scope = useContext(ScopeContext);
   const ref = useRef(handler);
-  useLayoutEffect(() => {
-    ref.current = handler;
-  });
+  ref.current = handler;
   const isActive = options.isActive ?? true;
   const priority = options.priority ?? 0;
   const global = options.global ?? false;
