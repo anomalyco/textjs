@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from "react";
-import { Box, Modal, Select, Text, useAppTheme, useTheme, useViewport, type SelectOption } from "textjs";
-import { useRouter } from "textjs/navigation";
+import { Box, Modal, Select, Text, useAppTheme, useTheme, useViewport, type SelectOption } from "@textjs/next";
+import { useRouter } from "@textjs/next/navigation";
 import { relativeTime } from "../lib/format";
 import { useStore, useStoreState } from "../lib/store";
 import { useActiveSessionId } from "./Shell";

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Badge, Box, ScrollBox, Spinner, Text, useInput, useTheme, type Metadata } from "textjs";
-import Link from "textjs/link";
-import { notFound, useRouter } from "textjs/navigation";
+import { Badge, Box, ScrollBox, Spinner, Text, useInput, useTheme, type Metadata } from "@textjs/next";
+import Link from "@textjs/next/link";
+import { notFound, useRouter } from "@textjs/next/navigation";
 import { buildLog, findDeployment, formatAge, formatDuration, STATUS } from "../../../lib/data";
 
 export function generateMetadata({ params }: { params: Record<string, string | string[]> }): Metadata {

@@ -5,7 +5,7 @@ Suspense and error boundaries, rendered in the console.
 Add `loading.tsx` to show a fallback while a page suspends.
 
 ```tsx@app/sessions/[id]/loading.tsx
-import { Spinner } from "textjs";
+import { Spinner } from "@textjs/next";
 
 export default function Loading() {
   return <Spinner variant="dots" label="Loading session…" />;
@@ -24,7 +24,7 @@ export default function Loading() {
 Add `error.tsx` to catch render errors. It receives the error and a `reset` function.
 
 ```tsx@app/sessions/[id]/error.tsx
-import { Text, useInput, type ErrorComponentProps } from "textjs";
+import { Text, useInput, type ErrorComponentProps } from "@textjs/next";
 
 export default function SessionError({ error, reset }: ErrorComponentProps) {
   useInput((e) => e.input === "r" && reset());
@@ -37,7 +37,7 @@ export default function SessionError({ error, reset }: ErrorComponentProps) {
 Call `notFound()` to render the nearest `not-found.tsx`.
 
 ```tsx
-import { notFound } from "textjs/navigation";
+import { notFound } from "@textjs/next/navigation";
 
 if (!session) notFound();
 ```

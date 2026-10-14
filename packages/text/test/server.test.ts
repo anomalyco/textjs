@@ -107,7 +107,7 @@ describe("vite plugin", () => {
   test("bundles @vitejs/plugin-react and the textjs plugin", () => {
     const plugins = textjsVitePlugin({ root });
     const names = plugins.map((p) => p.name);
-    expect(names).toContain("textjs");
+    expect(names).toContain("@textjs/next");
     expect(names.some((n) => n.startsWith("vite:react"))).toBe(true);
   });
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, type ReactNode } from "react";
-import { Box, Text, useInput, useTheme, type Metadata } from "textjs";
-import { useRouter } from "textjs/navigation";
+import { Box, Text, useInput, useTheme, type Metadata } from "@textjs/next";
+import { useRouter } from "@textjs/next/navigation";
 import { Composer } from "../../../components/Composer";
 import { Timeline } from "../../../components/Timeline";
 import { useStore, useStoreState } from "../../../lib/store";

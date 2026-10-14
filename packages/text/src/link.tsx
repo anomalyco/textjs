@@ -1,5 +1,5 @@
 /**
- * `textjs/link` — focusable client-side navigation for console apps.
+ * `@textjs/next/link` — focusable client-side navigation for console apps.
  */
 
 import { useRef, type ReactNode } from "react";

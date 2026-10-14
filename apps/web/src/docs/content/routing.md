@@ -5,7 +5,7 @@ A file-system router, synced with the browser's URL and history.
 Default-export a component from `page.tsx`:
 
 ```tsx@app/sessions/page.tsx
-import { Text } from "textjs";
+import { Text } from "@textjs/next";
 
 export default function SessionsPage() {
   return <Text bold>Sessions</Text>;
@@ -18,8 +18,8 @@ Layouts wrap routes and keep their state across navigation.
 
 ```tsx@app/layout.tsx
 import type { ReactNode } from "react";
-import { Box, Text } from "textjs";
-import Link from "textjs/link";
+import { Box, Text } from "@textjs/next";
+import Link from "@textjs/next/link";
 
 export const metadata = { title: { default: "Acme", template: "%s · Acme" } };
 
@@ -40,7 +40,7 @@ export default function RootLayout({ children }: { children?: ReactNode }) {
 ## Dynamic segments
 
 ```tsx@app/sessions/[id]/page.tsx
-import { Text, type PageProps } from "textjs";
+import { Text, type PageProps } from "@textjs/next";
 
 export default function SessionPage({ params }: PageProps<{ id: string }>) {
   return <Text>Session {params.id}</Text>;
@@ -74,7 +74,7 @@ router.back();
 Read the current route:
 
 ```tsx
-import { useParams, usePathname } from "textjs/navigation";
+import { useParams, usePathname } from "@textjs/next/navigation";
 
 const pathname = usePathname(); // "/sessions/42"
 const { id } = useParams<{ id: string }>(); // "42"

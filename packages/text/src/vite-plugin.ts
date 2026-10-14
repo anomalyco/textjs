@@ -1,5 +1,5 @@
 /**
- * `textjs/vite` — the Vite plugin behind `text dev` and `text build`:
+ * `@textjs/next/vite` — the Vite plugin behind `text dev` and `text build`:
  * file-system App Router manifest, virtual `index.html` + client entry,
  * `app/**\/route.ts` API handlers, rewrites / proxy and React Fast Refresh.
  */
@@ -65,7 +65,7 @@ export function isAllowedDevHost(server: Pick<ViteDevServer, "config">, hostHead
 const here = dirname(realpathSync(fileURLToPath(import.meta.url)));
 const sourceExt = extname(fileURLToPath(import.meta.url)) === ".ts" ? ".tsx" : extname(fileURLToPath(import.meta.url));
 
-/** `textjs/client` as the package's own `exports` map resolves it (used when this file is bundled into `dist/bin`). */
+/** `@textjs/next/client` as the package's own `exports` map resolves it (used when this file is bundled into `dist/bin`). */
 function resolveClientModule(): string {
   const sibling = join(here, `client${sourceExt}`);
   if (existsSync(sibling)) return sibling;
@@ -73,7 +73,7 @@ function resolveClientModule(): string {
     const pkgFile = join(dir, "package.json");
     if (!existsSync(pkgFile)) continue;
     const pkg = JSON.parse(readFileSync(pkgFile, "utf8")) as { name?: string; exports?: Record<string, string | { default?: string }> };
-    if (pkg.name !== "textjs") continue;
+    if (pkg.name !== "@textjs/next") continue;
     const entry = pkg.exports?.["./client"];
     const rel = typeof entry === "string" ? entry : entry?.default;
     if (rel) return join(dir, rel);
@@ -81,7 +81,7 @@ function resolveClientModule(): string {
   return sibling;
 }
 
-/** Absolute path of `textjs/client` (deduped with the user's `textjs` imports via realpath). */
+/** Absolute path of `@textjs/next/client` (deduped with the user's `@textjs/next` imports via realpath). */
 export const CLIENT_MODULE = toPosix(resolveClientModule());
 
 export const FAVICON = `data:image/svg+xml,${encodeURIComponent(
@@ -214,7 +214,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
   const title = (): string => options.title ?? `${BRAND_MARK} Text.js`;
 
   const plugin: Plugin = {
-    name: "textjs",
+    name: "@textjs/next",
     enforce: "pre",
 
     config(user, env) {

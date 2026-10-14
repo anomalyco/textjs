@@ -19,8 +19,8 @@ beforeAll(async () => {
   symlinkSync(join(REPO, "packages/text"), join(dir, "node_modules/textjs"));
   for (const dep of ["react", "react-dom"]) symlinkSync(join(REPO, "node_modules", dep), join(dir, "node_modules", dep));
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "dev-fixture", type: "module", private: true }));
-  writeFileSync(join(dir, "text.config.ts"), 'import { defineConfig } from "textjs";\nexport default defineConfig({ title: "Fixture", viewport: { width: 90 } });\n');
-  writeFileSync(join(dir, "app/page.tsx"), 'import { Text } from "textjs";\nexport const metadata = { title: "Home" };\nexport default function Page() { return <Text>hello</Text>; }\n');
+  writeFileSync(join(dir, "text.config.ts"), 'import { defineConfig } from "@textjs/next";\nexport default defineConfig({ title: "Fixture", viewport: { width: 90 } });\n');
+  writeFileSync(join(dir, "app/page.tsx"), 'import { Text } from "@textjs/next";\nexport const metadata = { title: "Home" };\nexport default function Page() { return <Text>hello</Text>; }\n');
   writeFileSync(join(dir, "app/api/echo/[name]/route.ts"), "export async function POST(req: Request, { params }: { params: { name: string } }) { return Response.json({ name: params.name, body: await req.text() }); }\n");
   server = await startDevServer({ root: dir, port: 34000 + Math.floor(Math.random() * 2000), log: false });
   base = (server.resolvedUrls?.local[0] ?? "").replace(/\/$/, "");
@@ -71,7 +71,7 @@ describe("text dev", () => {
 
   test("adding app/ route files refreshes the route manifest", async () => {
     mkdirSync(join(dir, "app/logs"), { recursive: true });
-    writeFileSync(join(dir, "app/logs/page.tsx"), 'import { Text } from "textjs";\nexport default function Logs() { return <Text>logs</Text>; }\n');
+    writeFileSync(join(dir, "app/logs/page.tsx"), 'import { Text } from "@textjs/next";\nexport default function Logs() { return <Text>logs</Text>; }\n');
     let code = "";
     for (let i = 0; i < 40 && !code.includes("/app/logs/page.tsx"); i++) {
       await new Promise((r) => setTimeout(r, 100));

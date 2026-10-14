@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, diffTexts, Spinner, Text, useInput, useTheme, useViewport } from "textjs";
-import { usePathname, useRouter } from "textjs/navigation";
+import { Box, diffTexts, Spinner, Text, useInput, useTheme, useViewport } from "@textjs/next";
+import { usePathname, useRouter } from "@textjs/next/navigation";
 import { compactNumber, relativeTime } from "../lib/format";
 import { useStore, useStoreState, type StoreState } from "../lib/store";
 import type { SessionInfo, SessionMessage } from "../lib/types";

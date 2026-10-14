@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Box, Input, KeyHint, Spinner, Text, useInput, useTheme, type Metadata } from "textjs";
-import { useRouter } from "textjs/navigation";
+import { Box, Input, KeyHint, Spinner, Text, useInput, useTheme, type Metadata } from "@textjs/next";
+import { useRouter } from "@textjs/next/navigation";
 import { savedEndpoint } from "../../lib/client";
 import { useStore, useStoreState } from "../../lib/store";
 

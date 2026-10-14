@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Box, Input, ScrollBox, Text, useFocusManager, useInput, useTheme, type Metadata } from "textjs";
+import { Box, Input, ScrollBox, Text, useFocusManager, useInput, useTheme, type Metadata } from "@textjs/next";
 import { createLogGenerator, type LogLevel, type LogLine } from "../../lib/data";
 
 export const metadata: Metadata = { title: "Logs" };

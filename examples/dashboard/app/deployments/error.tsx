@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Box, Text, useInput, useTheme } from "textjs";
-import type { ErrorComponentProps } from "textjs";
+import { Box, Text, useInput, useTheme } from "@textjs/next";
+import type { ErrorComponentProps } from "@textjs/next";
 
 export default function DeploymentsError({ error, reset }: ErrorComponentProps): ReactNode {
   const theme = useTheme();

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Box, Text, useTheme } from "textjs";
+import { Box, Text, useTheme } from "@textjs/next";
 
 /** The two-tone `opencode` mark from the OpenCode TUI (`packages/tui/src/logo.ts`). */
 export const LOGO = {

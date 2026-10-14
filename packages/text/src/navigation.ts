@@ -1,5 +1,5 @@
 /**
- * `textjs/navigation` — App Router hooks with Next.js signatures.
+ * `@textjs/next/navigation` — App Router hooks with Next.js signatures.
  */
 
 import { useMemo } from "react";

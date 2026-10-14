@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, Text, Textarea, useTheme, useViewport, type TextTheme } from "textjs";
+import { Box, Text, Textarea, useTheme, useViewport, type TextTheme } from "@textjs/next";
 import { useStoreState } from "../lib/store";
 
 export interface ComposerProps {

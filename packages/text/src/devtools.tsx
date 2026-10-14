@@ -1,5 +1,5 @@
 /**
- * `textjs/devtools` — the in-console `[▼]` DevTools pill & inspector, and the
+ * `@textjs/next/devtools` — the in-console `[▼]` DevTools pill & inspector, and the
  * Next.js-style Redbox error overlay, all rendered inside `console.log`.
  */
 

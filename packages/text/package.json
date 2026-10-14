@@ -1,5 +1,5 @@
 {
-  "name": "textjs",
+  "name": "@textjs/next",
   "version": "0.4.0",
   "description": "The Console Framework for the Web. React 19 App Router apps that render inside DevTools console.log.",
   "type": "module",

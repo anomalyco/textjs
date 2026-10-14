@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import type { Metadata } from "textjs";
+import type { Metadata } from "@textjs/next";
 import { Shell } from "../components/Shell";
 import { getOpenCodeStore, OpenCodeProvider } from "../lib/store";
 

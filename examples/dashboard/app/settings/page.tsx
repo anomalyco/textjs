@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Box, Select, Text, themes, useAppTheme, useTheme, useViewport, type Metadata, type SelectOption, type ThemeName } from "textjs";
+import { Box, Select, Text, themes, useAppTheme, useTheme, useViewport, type Metadata, type SelectOption, type ThemeName } from "@textjs/next";
 
 export const metadata: Metadata = { title: "Settings" };
 

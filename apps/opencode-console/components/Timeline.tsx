@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from "react";
-import { Box, Markdown, ScrollBox, Text, useTheme } from "textjs";
+import { Box, Markdown, ScrollBox, Text, useTheme } from "@textjs/next";
 import { duration, modelLabel } from "../lib/format";
 import { useStoreState } from "../lib/store";
 import type { AssistantMessage, AssistantPart, ReasoningPart, SessionMessage, ShellMessage, UserMessage } from "../lib/types";

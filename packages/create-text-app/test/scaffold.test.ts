@@ -24,7 +24,7 @@ const EXPECTED: Record<TemplateName, string[]> = {
   opencode: [".gitignore", "README.md", "app/layout.tsx", "app/page.tsx", "app/session/[id]/page.tsx", "lib/opencode.ts", "package.json", "text.config.ts", "tsconfig.json"],
 };
 
-/** Link the workspace `textjs` + React into a scaffolded project (stands in for `bun install`). */
+/** Link the workspace `@textjs/next` + React into a scaffolded project (stands in for `bun install`). */
 function linkDeps(dir: string): void {
   const nm = join(dir, "node_modules");
   mkdirSync(join(nm, "@types"), { recursive: true });

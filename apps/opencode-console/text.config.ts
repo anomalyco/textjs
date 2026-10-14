@@ -1,4 +1,4 @@
-import { defineConfig } from "textjs";
+import { defineConfig } from "@textjs/next";
 import { opencodeDevMiddleware } from "./server/opencode-proxy";
 
 export default defineConfig({

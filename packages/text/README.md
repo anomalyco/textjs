@@ -16,12 +16,12 @@ cd my-app && bun install && bun dev
 
 ## Entry points
 
-- `textjs` — the full `@textjs/react` component kit plus `defineConfig`, `Metadata`, `ViewportConfig`, `useAppTheme`
-- `textjs/navigation` — `useRouter`, `usePathname`, `useParams`, `useSearchParams`, `notFound`, `redirect`
-- `textjs/link` — `<Link href>` (focusable; `Enter` navigates, optional `shortcut`)
-- `textjs/router` — `<AppRouter>`, `matchAppRoutes`, `createBrowserHistory`, `createMemoryHistory`
-- `textjs/devtools` — `<TextDevOverlay>` (`F2` / ``Ctrl+` ``), `<RedboxOverlay>`, `connectViteHmr`
-- `textjs/vite` — `textjsVitePlugin()` for custom Vite setups
+- `@textjs/next` — the full `@textjs/react` component kit plus `defineConfig`, `Metadata`, `ViewportConfig`, `useAppTheme`
+- `@textjs/next/navigation` — `useRouter`, `usePathname`, `useParams`, `useSearchParams`, `notFound`, `redirect`
+- `@textjs/next/link` — `<Link href>` (focusable; `Enter` navigates, optional `shortcut`)
+- `@textjs/next/router` — `<AppRouter>`, `matchAppRoutes`, `createBrowserHistory`, `createMemoryHistory`
+- `@textjs/next/devtools` — `<TextDevOverlay>` (`F2` / ``Ctrl+` ``), `<RedboxOverlay>`, `connectViteHmr`
+- `@textjs/next/vite` — `textjsVitePlugin()` for custom Vite setups
 
 ## `app/` conventions
 

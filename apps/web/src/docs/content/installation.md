@@ -35,7 +35,7 @@ Turn off **Preserve log** and **Group similar messages** in the console settings
 ## Manual setup
 
 ```bash
-bun add textjs react react-dom
+bun add @textjs/next react react-dom
 ```
 
 ```json@package.json
@@ -45,7 +45,7 @@ bun add textjs react react-dom
 ```
 
 ```tsx@app/page.tsx
-import { Text } from "textjs";
+import { Text } from "@textjs/next";
 
 export default function Page() {
   return <Text className="p-1">Hello from console.log</Text>;

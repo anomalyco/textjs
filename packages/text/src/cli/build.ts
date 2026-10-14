@@ -99,7 +99,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuildResult> {
         rollupOptions: { output: { entryFileNames: "api.mjs", format: "es" } },
       },
       // Bundle the framework into api.mjs so `text start` runs on plain Node.
-      ssr: { noExternal: ["textjs", /^@textjs\//] },
+      ssr: { noExternal: ["@textjs/next", /^@textjs\//] },
       plugins: [textjsVitePlugin({ ...config, root: opts.root })],
     };
     await build(config.vite ? mergeConfig(serverBuild, config.vite) : serverBuild);

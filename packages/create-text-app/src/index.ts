@@ -73,7 +73,7 @@ export interface ScaffoldOptions {
   /** Target directory (created when missing; must be empty). */
   dir: string;
   template?: TemplateName;
-  /** `textjs` dependency specifier (default `^1.0.0`). */
+  /** `@textjs/next` dependency specifier (default `^1.0.0`). */
   textjsVersion?: string;
   /** Allow writing into a non-empty directory. */
   force?: boolean;

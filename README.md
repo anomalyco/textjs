@@ -24,7 +24,7 @@ Open [localhost:3000](http://localhost:3000) and press **⌘⌥J**.
 ```tsx
 // app/page.tsx
 import { useState } from "react";
-import { Box, Text, useInput } from "textjs";
+import { Box, Text, useInput } from "@textjs/next";
 
 export default function Page() {
   const [count, setCount] = useState(0);
@@ -49,7 +49,7 @@ Each frame is laid out with Yoga, run-length encoded into `%c` spans, and writte
 
 | Package | Description |
 | --- | --- |
-| [`textjs`](packages/text) | App Router, CLI and route handlers |
+| [`@textjs/next`](packages/text) | App Router, CLI and route handlers |
 | [`@textjs/react`](packages/react) | Reconciler, components and hooks |
 | [`@textjs/core`](packages/core) | Cell buffer, layout and the `%c` driver |
 | [`create-text-app`](packages/create-text-app) | Project generator |
