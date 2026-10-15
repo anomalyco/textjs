@@ -1,0 +1,21 @@
+{
+  "name": "@textjs/terminal-shop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "text dev --port 3002",
+    "build": "text build",
+    "start": "text start --port 3002",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "e2e": "bun scripts/e2e.ts"
+  },
+  "dependencies": {
+    "@textjs/core": "workspace:*",
+    "@textjs/react": "workspace:*",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "@textjs/next": "workspace:*"
+  }
+}
