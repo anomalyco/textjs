@@ -1,0 +1,124 @@
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "@textjs/next/navigation";
+import { HEIGHT, WIDTH } from "../lib/frame";
+import { useKeys } from "../lib/keys";
+import { useShop, useShopState } from "../lib/store";
+import { defaultTheme, palette } from "../lib/theme";
+import { centerLines, place, span, type Line } from "../lib/ui";
+import { HeaderModeContext, useBlink, type HeaderMode } from "./chrome";
+import { LoginScreen } from "./screens/Login";
+import { Screen } from "./Screen";
+
+export function logo(cursor: boolean): Line {
+  return [span("terminal", { fg: palette.accent, bold: true }), span(" ", cursor ? { bg: palette.brand } : {})];
+}
+
+function Splash(): ReactNode {
+  const cursor = useBlink();
+  const error = useShopState((s) => s.error);
+  const t = defaultTheme;
+  const content: Line[] = error
+    ? centerLines([[], [], [], [], logo(cursor), [], [], [t.error(error)], [t.bold("esc"), t.base(" "), t.base("quit")]])
+    : [logo(cursor)];
+  return <Screen lines={place(content, WIDTH, HEIGHT)} />;
+}
+
+/** What `ssh` prints after the session ends. */
+function Quit(): ReactNode {
+  const store = useShop();
+  useKeys(() => {
+    store.reconnect();
+    return true;
+  }, { priority: 100 });
+  const t = defaultTheme;
+  return <Screen lines={[[t.base("Connection to terminal.shop closed.")], [], [t.bold("enter"), t.base(" reconnect")]]} />;
+}
+
+export function Shell({ children }: { children?: ReactNode }): ReactNode {
+  const store = useShop();
+  const router = useRouter();
+  const pathname = usePathname();
+  const phase = useShopState((s) => s.phase);
+  const error = useShopState((s) => s.error);
+  const headerMode = useRef<HeaderMode>({ enabled: true, claims: [], page: null });
+  const [routed, setRouted] = useState(false);
+  const lastPage = useRef("/shop");
+
+  useEffect(() => {
+    const initial = typeof window !== "undefined" ? window.location.pathname + window.location.search : pathname;
+    void store.start(initial.startsWith("/") ? initial : pathname);
+  }, [store]);
+
+  // `routeToInitialPage`: honor the requested path once data has loaded.
+  useEffect(() => {
+    if (phase !== "ready") {
+      setRouted(false);
+      return;
+    }
+    if (routed) return;
+    setRouted(true);
+    const target = store.s.initialPath;
+    const url = new URL(target, "http://x");
+    const p = url.searchParams.get("p");
+    if (p) store.selectProductByName(p);
+    if (pathname === "/" || pathname === "/login" || pathname.startsWith("/auth") || pathname !== url.pathname) router.replace(url.pathname === "/" ? "/shop" : url.pathname);
+  }, [phase, routed, store, router, pathname]);
+
+  useEffect(() => {
+    if (pathname !== "/menu" && pathname !== "/") lastPage.current = pathname;
+  }, [pathname]);
+
+  // Root `Update`: ctrl+c quits, esc dismisses an error.
+  useKeys(
+    (key) => {
+      if (key === "ctrl+c") {
+        store.quit();
+        return true;
+      }
+      if (key === "esc" && error) {
+        if (phase === "splash") store.quit();
+        else store.setError(null);
+        return true;
+      }
+      return false;
+    },
+    { priority: 50, isActive: phase !== "quit" },
+  );
+
+  // `HeaderUpdate`: reserved keys navigate unless a form has focus.
+  useKeys(
+    (key) => {
+      const mode = headerMode.current;
+      if (!mode.enabled || mode.claims.includes(key)) return false;
+      const page = mode.page;
+      switch (key) {
+        case "c":
+          if (page !== "cart") router.push("/cart");
+          return true;
+        case "s":
+          if (page !== "shop") router.push("/shop");
+          return true;
+        case "a":
+          if (page !== "account") router.push("/account");
+          return true;
+        case "m":
+          if (page !== "menu") router.push(`/menu?from=${encodeURIComponent(lastPage.current)}`);
+          return true;
+        case "q":
+          store.quit();
+          return true;
+      }
+      return false;
+    },
+    { priority: 40, isActive: phase === "ready" && routed },
+  );
+
+  let content: ReactNode;
+  if (pathname.startsWith("/auth/callback") && phase !== "ready" && phase !== "quit") content = children;
+  else if (phase === "quit") content = <Quit />;
+  else if (phase === "login") content = <LoginScreen />;
+  else if (phase === "ready" && routed && pathname !== "/") content = children;
+  else content = <Splash />;
+
+  return <HeaderModeContext.Provider value={headerMode}>{content}</HeaderModeContext.Provider>;
+}
