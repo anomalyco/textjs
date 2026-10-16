@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { DOC_CATEGORIES, DOCS, docPath, getDoc, headingsOf, neighbors } from "../docs/registry";
 import { A, useLocation } from "../router";
+import { Footer } from "../site/Chrome";
 import { ChevronDown, CloseIcon, MenuIcon } from "../site/icons";
 import { MarkdownDoc } from "../site/Markdown";
 import { Sheet, useCloseOnMedia } from "../site/Sheet";
@@ -89,30 +90,34 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
       </Sheet>
       <div className="docs">
         <Sidebar slug={doc.slug} />
-        <article className="docs-main">
-          <div className="breadcrumbs">
-            <A href="/docs">Docs</A>
-            <span>/</span>
-            <span>{doc.category}</span>
-          </div>
-          <h1 className="docs-title">{doc.title}</h1>
-          <p className="docs-desc">{doc.description}</p>
-          <MarkdownDoc source={doc.markdown} />
-          <nav className="docs-nav" aria-label="Pagination">
-            {prev ? (
-              <A href={docPath(prev.slug)}>
-                <small>Previous</small>
-                <span>← {prev.title}</span>
-              </A>
-            ) : null}
-            {next ? (
-              <A href={docPath(next.slug)} className="next">
-                <small>Next</small>
-                <span>{next.title} →</span>
-              </A>
-            ) : null}
-          </nav>
-        </article>
+        {/* The footer lives in the content column, so the sticky sidebar and TOC stay pinned to the very bottom. */}
+        <div className="docs-body">
+          <article className="docs-main">
+            <div className="breadcrumbs">
+              <A href="/docs">Docs</A>
+              <span>/</span>
+              <span>{doc.category}</span>
+            </div>
+            <h1 className="docs-title">{doc.title}</h1>
+            <p className="docs-desc">{doc.description}</p>
+            <MarkdownDoc key={doc.slug} source={doc.markdown} />
+            <nav className="docs-nav" aria-label="Pagination">
+              {prev ? (
+                <A href={docPath(prev.slug)}>
+                  <small>Previous</small>
+                  <span>← {prev.title}</span>
+                </A>
+              ) : null}
+              {next ? (
+                <A href={docPath(next.slug)} className="next">
+                  <small>Next</small>
+                  <span>{next.title} →</span>
+                </A>
+              ) : null}
+            </nav>
+          </article>
+          <Footer />
+        </div>
         <aside className="docs-toc" aria-label="On this page">
           <h6>On this page</h6>
           {headings.map((h) => (

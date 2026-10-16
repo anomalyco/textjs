@@ -60,7 +60,8 @@ export function App(): ReactNode {
       <main>
         <RouteView route={route} />
       </main>
-      <Footer />
+      {/* Docs render the footer inside their content column. */}
+      {route.name === "docs" ? null : <Footer />}
       <ConsolePill />
       <SearchModal />
     </>
