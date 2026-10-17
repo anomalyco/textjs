@@ -60,8 +60,8 @@ export function App(): ReactNode {
       <main>
         <RouteView route={route} />
       </main>
-      {/* Docs render the footer inside their content column. */}
-      {route.name === "docs" ? null : <Footer />}
+      {/* Docs and learn chapters render the footer inside their content column, so their sticky sidebars stay pinned to the bottom. */}
+      {route.name === "docs" || (route.name === "learn" && route.slug !== "") ? null : <Footer />}
       <ConsolePill />
       <SearchModal />
     </>

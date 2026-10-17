@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { A } from "../router";
-import { DevtoolsShortcut } from "../site/Chrome";
+import { DevtoolsShortcut, Footer } from "../site/Chrome";
 import { ArrowRight } from "../site/icons";
 import { certificateLines, formatCertificateDate, NAME_PLACEHOLDER } from "../learn/certificate";
 import { ChapterBody, chapterHeadings } from "../learn/ChapterBody";
@@ -153,62 +153,65 @@ function ChapterPage({ chapter }: { chapter: Chapter }): ReactNode {
   return (
     <div className="learn-layout">
       <ChapterNav current={chapter.slug} progress={progress} />
-      <article className="learn-main">
-        <div className="breadcrumbs">
-          <A href="/learn">Learn</A>
-          <span>/</span>
-          <span>{`Chapter ${i + 1} of ${CHAPTERS.length}`}</span>
-        </div>
-        <h1 className="docs-title">{chapter.title}</h1>
-        <p className="docs-desc">{chapter.summary}</p>
-        <div className="learn-live-note">
-          <span className="dot" aria-hidden="true" />
-          <span>
-            {"This chapter's app is running in your console. Open it with "}
-            <kbd>
-              <DevtoolsShortcut />
-            </kbd>
-            {", then "}
-            <a href="#try-it">try it</a>.
-          </span>
-        </div>
-        <div className="learn-outline">
-          <h2>In this chapter</h2>
-          <ul>
-            {headings.map((h) => (
-              <li key={h}>{h}</li>
-            ))}
-          </ul>
-        </div>
+      <div className="learn-body">
+        <article className="learn-main">
+          <div className="breadcrumbs">
+            <A href="/learn">Learn</A>
+            <span>/</span>
+            <span>{`Chapter ${i + 1} of ${CHAPTERS.length}`}</span>
+          </div>
+          <h1 className="docs-title">{chapter.title}</h1>
+          <p className="docs-desc">{chapter.summary}</p>
+          <div className="learn-live-note">
+            <span className="dot" aria-hidden="true" />
+            <span>
+              {"This chapter's app is running in your console. Open it with "}
+              <kbd>
+                <DevtoolsShortcut />
+              </kbd>
+              {", then "}
+              <a href="#try-it">try it</a>.
+            </span>
+          </div>
+          <div className="learn-outline">
+            <h2>In this chapter</h2>
+            <ul>
+              {headings.map((h) => (
+                <li key={h}>{h}</li>
+              ))}
+            </ul>
+          </div>
 
-        <ChapterBody markdown={chapter.markdown} />
+          <ChapterBody markdown={chapter.markdown} />
 
-        <section className="learn-section" aria-labelledby="try-it">
-          <h2 id="try-it">Try it</h2>
-          <p className="learn-section-lede">{`${COURSE_APP} as it stands at the end of this chapter, live in DevTools. Click the pad, then use the keys below.`}</p>
-          <LearnPad title={`${n} · ${chapter.title}`} hints={chapter.hints} action={chapter.action} />
-        </section>
+          <section className="learn-section" aria-labelledby="try-it">
+            <h2 id="try-it">Try it</h2>
+            <p className="learn-section-lede">{`${COURSE_APP} as it stands at the end of this chapter, live in DevTools. Click the pad, then use the keys below.`}</p>
+            <LearnPad title={`${n} · ${chapter.title}`} hints={chapter.hints} action={chapter.action} />
+          </section>
 
-        <Quiz key={chapter.slug} chapter={chapter} />
+          <Quiz key={chapter.slug} chapter={chapter} />
 
-        <nav className="docs-nav" aria-label="Chapters">
-          {prev ? (
-            <A href={learnPath(prev.slug)}>
-              <small>Previous</small>
-              <span>← {prev.title}</span>
+          <nav className="docs-nav" aria-label="Chapters">
+            {prev ? (
+              <A href={learnPath(prev.slug)}>
+                <small>Previous</small>
+                <span>← {prev.title}</span>
+              </A>
+            ) : (
+              <A href="/learn">
+                <small>Course</small>
+                <span>← Overview</span>
+              </A>
+            )}
+            <A href={learnPath(next ? next.slug : COMPLETE_SLUG)} className="next">
+              <small>{next ? `Chapter ${i + 2}` : "Finish"}</small>
+              <span>{next ? next.title : "Certificate"} →</span>
             </A>
-          ) : (
-            <A href="/learn">
-              <small>Course</small>
-              <span>← Overview</span>
-            </A>
-          )}
-          <A href={learnPath(next ? next.slug : COMPLETE_SLUG)} className="next">
-            <small>{next ? `Chapter ${i + 2}` : "Finish"}</small>
-            <span>{next ? next.title : "Certificate"} →</span>
-          </A>
-        </nav>
-      </article>
+          </nav>
+        </article>
+        <Footer />
+      </div>
     </div>
   );
 }
@@ -223,53 +226,56 @@ function CertificatePage(): ReactNode {
   return (
     <div className="learn-layout">
       <ChapterNav current={COMPLETE_SLUG} progress={progress} />
-      <article className="learn-main">
-        <div className="breadcrumbs">
-          <A href="/learn">Learn</A>
-          <span>/</span>
-          <span>Certificate</span>
-        </div>
-        <h1 className="docs-title">Certificate</h1>
-        <p className="docs-desc">{`Build ${COURSE_APP} in ${CHAPTERS.length} chapters and it's yours, printed on the page and in your console.`}</p>
-        <p className={`learn-cert-status${complete ? " done" : ""}`}>
-          {complete ? `✓ Course complete. ${formatCertificateDate(progress.completedAt)}` : `${n} of ${CHAPTERS.length} chapters complete. Finish the rest to make it official.`}
-        </p>
+      <div className="learn-body">
+        <article className="learn-main">
+          <div className="breadcrumbs">
+            <A href="/learn">Learn</A>
+            <span>/</span>
+            <span>Certificate</span>
+          </div>
+          <h1 className="docs-title">Certificate</h1>
+          <p className="docs-desc">{`Build ${COURSE_APP} in ${CHAPTERS.length} chapters and it's yours, printed on the page and in your console.`}</p>
+          <p className={`learn-cert-status${complete ? " done" : ""}`}>
+            {complete ? `✓ Course complete. ${formatCertificateDate(progress.completedAt)}` : `${n} of ${CHAPTERS.length} chapters complete. Finish the rest to make it official.`}
+          </p>
 
-        <label className="learn-name">
-          <span>Name on certificate</span>
-          <input
-            type="text"
-            value={progress.name}
-            placeholder={NAME_PLACEHOLDER}
-            maxLength={48}
-            autoComplete="name"
-            spellCheck={false}
-            onChange={(e) => progressStore.setName(e.target.value)}
-          />
-        </label>
+          <label className="learn-name">
+            <span>Name on certificate</span>
+            <input
+              type="text"
+              value={progress.name}
+              placeholder={NAME_PLACEHOLDER}
+              maxLength={48}
+              autoComplete="name"
+              spellCheck={false}
+              onChange={(e) => progressStore.setName(e.target.value)}
+            />
+          </label>
 
-        <div className={`learn-cert${complete ? "" : " pending"}`}>
-          <pre aria-label="Certificate">{lines.join("\n")}</pre>
-        </div>
+          <div className={`learn-cert${complete ? "" : " pending"}`}>
+            <pre aria-label="Certificate">{lines.join("\n")}</pre>
+          </div>
 
-        <section className="learn-section" aria-labelledby="in-console">
-          <h2 id="in-console">In your console</h2>
-          <p className="learn-section-lede">The same certificate, rendered by Text.js. It updates as you type your name.</p>
-          <LearnPad title="certificate" hints={CERTIFICATE_HINTS.hints} action={CERTIFICATE_HINTS.action} />
-        </section>
+          <section className="learn-section" aria-labelledby="in-console">
+            <h2 id="in-console">In your console</h2>
+            <p className="learn-section-lede">The same certificate, rendered by Text.js. It updates as you type your name.</p>
+            <LearnPad title="certificate" hints={CERTIFICATE_HINTS.hints} action={CERTIFICATE_HINTS.action} />
+          </section>
 
-        <p className="learn-reset">
-          <button
-            type="button"
-            className="text-link"
-            onClick={() => {
-              if (window.confirm("Reset your course progress?")) progressStore.reset();
-            }}
-          >
-            Reset progress
-          </button>
-        </p>
-      </article>
+          <p className="learn-reset">
+            <button
+              type="button"
+              className="text-link"
+              onClick={() => {
+                if (window.confirm("Reset your course progress?")) progressStore.reset();
+              }}
+            >
+              Reset progress
+            </button>
+          </p>
+        </article>
+        <Footer />
+      </div>
     </div>
   );
 }

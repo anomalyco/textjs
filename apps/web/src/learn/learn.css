@@ -241,6 +241,21 @@
   font-size: 10.5px;
 }
 
+/* The footer lives in the content column, so the sticky sidebar stays pinned to the very bottom. */
+.learn-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.learn-body .learn-main {
+  flex: 1;
+}
+
+.learn-body .footer .container {
+  padding: 0 56px;
+}
+
 .learn-main {
   width: 100%;
   padding: 40px 56px 96px;
@@ -570,6 +585,9 @@
 @media (max-width: 960px) {
   .learn-layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .learn-body .footer .container {
+    padding: 0 20px;
   }
   .learn-sidebar {
     display: none;
