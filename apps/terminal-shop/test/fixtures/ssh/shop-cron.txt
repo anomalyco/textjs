@@ -1,0 +1,30 @@
+ ┌───────────────────┬──────────────────┬──────────────────┬──────────────────┐
+ │     terminal      │      s shop      │    a account     │  c cart $ 0 [0]  │
+ └───────────────────┴──────────────────┴──────────────────┴──────────────────┘
+
+  ~ featured ~       cron
+  cron               12oz
+
+  ~ originals ~      $30
+  [object Object]
+  segfault           Subscribe to Cron, the official Terminal membership and.
+  dark mode          Each month you'll receive a scheduled delivery with a
+  404                special flavor-of-the-month blend. You'll also get
+                     receive additional gifts, exclusive offers, and invites
+                     to Terminal events.
+
+                      subscribe  enter
+
+
+
+
+
+
+
+
+
+
+                       free shipping on US orders over $40
+ ──────────────────────────────────────────────────────────────────────────────
+             r 🇺🇸 (US)   ↑/↓ products   +/- qty   c cart   q quit
+

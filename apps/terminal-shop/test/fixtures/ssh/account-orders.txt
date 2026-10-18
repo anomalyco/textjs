@@ -1,0 +1,30 @@
+ ┌───────────────────┬──────────────────┬──────────────────┬──────────────────┐
+ │     terminal      │      s shop      │    a account     │  c cart $ 0 [0]  │
+ └───────────────────┴──────────────────┴──────────────────┴──────────────────┘
+
+  order history
+  subscriptions
+  access tokens
+  apps (oauth 2.0)
+  addresses
+  link email
+  faq
+  about
+  debug info
+                                          no orders found
+
+
+
+
+
+
+
+
+
+
+
+
+                       free shipping on US orders over $40
+ ──────────────────────────────────────────────────────────────────────────────
+                          ↑/↓ navigate   enter select
+

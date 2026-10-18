@@ -1,0 +1,30 @@
+ ┌───────────────────┬──────────────────┬──────────────────┬──────────────────┐
+ │     terminal      │      s shop      │    a account     │  c cart $ 0 [0]  │
+ └───────────────────┴──────────────────┴──────────────────┴──────────────────┘
+
+  order history       1. # Amazingly awesome products for developers brought
+  subscriptions       to you by a group of talented, good looking, and humble
+  access tokens       heroes...
+  apps (oauth 2.0)
+  addresses           2. # @theprimeagen
+  link email
+  faq                 3. # @teej_dv
+  about
+  debug info          4. Terminal Products, Inc.
+
+
+
+
+
+
+
+
+
+
+
+
+
+                       free shipping on US orders over $40
+ ──────────────────────────────────────────────────────────────────────────────
+                          ↑/↓ navigate   enter select
+

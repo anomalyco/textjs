@@ -1,0 +1,30 @@
+ ┌───────────────────┬──────────────────┬──────────────────┬──────────────────┐
+ │     terminal      │      s shop      │    a account     │  c cart $ 0 [0]  │
+ └───────────────────┴──────────────────┴──────────────────┴──────────────────┘
+
+  order history       link this ssh key to an email account
+  subscriptions
+  access tokens       this lets multiple ssh keys open the same terminal
+  apps (oauth 2.0)    account.
+  addresses           we'll email you a confirmation link, and the browser
+  link email          will ask for the code shown here.
+  faq
+  about               select this item to start.
+  debug info
+
+
+
+
+
+
+
+
+
+
+
+
+
+                       free shipping on US orders over $40
+ ──────────────────────────────────────────────────────────────────────────────
+                          ↑/↓ navigate   enter select
+

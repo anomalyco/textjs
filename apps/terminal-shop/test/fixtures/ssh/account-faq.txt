@@ -1,0 +1,30 @@
+ ┌───────────────────┬──────────────────┬──────────────────┬──────────────────┐
+ │     terminal      │      s shop      │    a account     │  c cart $ 0 [0]  │
+ └───────────────────┴──────────────────┴──────────────────┴──────────────────┘
+
+  order history       help, i have a question about my order!
+  subscriptions       send us an email at support@terminal.shop.
+  access tokens
+  apps (oauth 2.0)    when was my coffee roasted? the roast date is blank on
+  addresses           my bag.
+  link email          we roast your coffee within 24 hours of shipping, and
+  faq                 you'll receive an email once your order ships. we're
+  about               working on a solution to stamping the roast date on the
+  debug info          bags, but so far all attempts have failed (the ink
+                      wipes off).
+
+                      where do you ship?
+                      we ship all of our blends in the US. Unfortunately, we
+                      don't ship to other countries at this time. We are
+                      actively looking for other small-batch roasters in
+                      other countries and regions though!
+
+                      is your coffee ethically sourced?
+                      absolutely.
+
+                      is ordering via ssh secure?
+
+                       free shipping on US orders over $40
+ ──────────────────────────────────────────────────────────────────────────────
+                          ↑/↓ scroll   pgup/pgdn page
+

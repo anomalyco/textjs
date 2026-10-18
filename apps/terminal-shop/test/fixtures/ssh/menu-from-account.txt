@@ -1,0 +1,30 @@
+
+
+
+
+
+
+
+
+                                    terminal
+                             ──────────────────────
+
+
+                                s       shop
+                                a       account
+                                c       cart
+
+                                ↑/↓     navigate
+                                enter   select
+
+
+                             ──────────────────────
+                               press esc to close
+
+
+
+
+
+
+
+

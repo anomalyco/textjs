@@ -1,0 +1,30 @@
+ ┌───────────────────┬──────────────────┬──────────────────┬──────────────────┐
+ │     terminal      │      s shop      │    a account     │  c cart $ 0 [0]  │
+ └───────────────────┴──────────────────┴──────────────────┴──────────────────┘
+
+  ~ featured ~       segfault
+  cron               medium roast | 12oz | whole beans
+
+  ~ originals ~      $22
+  [object Object]
+  segfault           A savory yet sweet blend created from a natural fault in
+  dark mode          the coffee cherry that causes it to develop one bean
+  404                instead of two.
+
+                     -  0  +
+
+
+
+
+
+
+
+
+
+
+
+
+                       free shipping on US orders over $40
+ ──────────────────────────────────────────────────────────────────────────────
+             r 🇺🇸 (US)   ↑/↓ products   +/- qty   c cart   q quit
+

@@ -1,0 +1,30 @@
+ ┌───────────────────┬──────────────────┬──────────────────┬──────────────────┐
+ │     terminal      │      s shop      │    a account     │  c cart $ 0 [0]  │
+ └───────────────────┴──────────────────┴──────────────────┴──────────────────┘
+
+  order history       manage saved shipping addresses
+  subscriptions
+  access tokens       no saved addresses yet.
+  apps (oauth 2.0)
+  addresses           select this item to add, edit, or remove addresses.
+  link email
+  faq
+  about
+  debug info
+
+
+
+
+
+
+
+
+
+
+
+
+
+                       free shipping on US orders over $40
+ ──────────────────────────────────────────────────────────────────────────────
+                          ↑/↓ navigate   enter select
+

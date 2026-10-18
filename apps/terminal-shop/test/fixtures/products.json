@@ -1,0 +1,107 @@
+[
+  {
+    "id": "prd_01JD0E7PD4H3XDZA5P5VXSDPQC",
+    "name": "cron",
+    "description": "Subscribe to Cron, the official Terminal membership and. Each month you'll receive a scheduled delivery with a special flavor-of-the-month blend. You'll also get receive additional gifts, exclusive offers, and invites to Terminal events.",
+    "order": 1,
+    "subscription": "required",
+    "variants": [
+      {
+        "id": "var_01JD0E87SB7K9MB5KGFPVJ1N7A",
+        "name": "12oz",
+        "price": 3000,
+        "tags": {
+          "market_eu": false,
+          "market_na": false,
+          "market_global": false
+        }
+      }
+    ],
+    "tags": {
+      "color": "#00FFF0",
+      "featured": true,
+      "market_eu": false,
+      "market_na": true
+    }
+  },
+  {
+    "id": "prd_01J1JFDYPMKTESS6FQFMTTMJYK",
+    "name": "[object Object]",
+    "description": "The interpolation of Caturra and Castillo varietals from Las Cochitas creates this refreshing citrusy and complex coffee.",
+    "order": 100,
+    "subscription": "allowed",
+    "variants": [
+      {
+        "id": "var_01J1JFE53306NT180RC4HGPWH8",
+        "name": "Light Roast | 12oz | Whole Beans",
+        "price": 2200
+      }
+    ],
+    "tags": {
+      "color": "#F5BB1D",
+      "featured": false,
+      "market_eu": false,
+      "market_na": true
+    }
+  },
+  {
+    "id": "prd_01J1JFDEE3MYS0TA1G0SKQ46CM",
+    "name": "segfault",
+    "description": "A savory yet sweet blend created from a natural fault in the coffee cherry that causes it to develop one bean instead of two.",
+    "order": 200,
+    "subscription": "allowed",
+    "variants": [
+      {
+        "id": "var_01J1JFDMNBXB5GJCQF6C3AEBCQ",
+        "name": "Medium Roast | 12oz | Whole Beans",
+        "price": 2200
+      }
+    ],
+    "tags": {
+      "color": "#169FC1",
+      "featured": false,
+      "market_eu": false,
+      "market_na": true
+    }
+  },
+  {
+    "id": "prd_01J1JFEYGWX8RH8E1T9E087ZYQ",
+    "name": "dark mode",
+    "description": "A dark roast from the Cerrado region of Brazil, an expansive lush and tropical savanna that creates a dark chocolate blend with hints of almond.",
+    "order": 300,
+    "subscription": "allowed",
+    "variants": [
+      {
+        "id": "var_01J1JFF4D5PBGT0W2RJ7FREHRR",
+        "name": "Dark Roast | 12oz | Whole Beans",
+        "price": 2200
+      }
+    ],
+    "tags": {
+      "color": "#118B39",
+      "featured": false,
+      "market_eu": false,
+      "market_na": true
+    }
+  },
+  {
+    "id": "prd_01J1JFEG67PXYK510FHV3VQW9P",
+    "name": "404",
+    "description": "A flavorful decaf coffee processed in the mountain waters of Brazil to create a dark chocolatey blend.",
+    "order": 400,
+    "subscription": "allowed",
+    "variants": [
+      {
+        "id": "var_01J1JFEP8WXK5MKXNBTR2FJ1YC",
+        "name": "Decaf | 12oz | Whole Beans",
+        "price": 2200
+      }
+    ],
+    "tags": {
+      "color": "#D53C81",
+      "featured": false,
+      "market_eu": false,
+      "market_na": true
+    }
+  }
+]
