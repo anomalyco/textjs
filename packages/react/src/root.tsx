@@ -148,11 +148,16 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
   const rootNode = createNode("box", { width: "100%", height: "100%", flexDirection: "column", wireframeLabel: "root" });
   let stats: StatsStore | null = null;
   const engineOption: InputEngine | boolean = input ?? (hasDom ? true : new InputEngine({ document: null }));
+  const userBeforeFrame = rendererOptions.beforeFrame;
   const renderer = new ConsoleRenderer({
     ...rendererOptions,
     root: rootNode,
     input: engineOption,
     viewport: { ...viewport, ...(width !== undefined ? { width } : {}), ...(height !== undefined ? { height } : {}), ...(responsive !== undefined ? { responsive } : {}) },
+    beforeFrame: () => {
+      reconciler.flushSyncWork();
+      userBeforeFrame?.();
+    },
     onFrame: (frame) => {
       stats?.handleFrame(frame);
       onFrame?.(frame);

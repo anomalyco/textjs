@@ -57,13 +57,20 @@ function dominantBg(frame: StyledFrame): string | null {
 }
 
 const Row = memo(function Row({ spans, height }: { spans: StyledSpan[]; height: number }): ReactNode {
+  // Keyed by start column: a run that moves becomes a new node instead of a shifted one, so
+  // live frames never register as layout shifts (CLS) on the host page.
+  let x = 0;
   return (
     <div style={{ height: `${height}px`, lineHeight: `${height}px`, overflow: "hidden", whiteSpace: "pre" }}>
-      {spans.map((s, i) => (
-        <span key={i} style={spanStyle(s, height)}>
-          {s.text}
-        </span>
-      ))}
+      {spans.map((s) => {
+        const col = x;
+        x += s.width;
+        return (
+          <span key={col} style={spanStyle(s, height)}>
+            {s.text}
+          </span>
+        );
+      })}
     </div>
   );
 });

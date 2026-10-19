@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { estimateDockedConsoleSize, extractStyledFrame, type KeyInputEvent, type StyledFrame } from "@textjs/core";
 import type { ConsoleRoot } from "../root";
 import { ConsoleMirror } from "./ConsoleMirror";
+import { ViewportControl, type ViewportControlProps } from "./ViewportControl";
 
 /** One key hint, e.g. `{ keys: "↑ ↓", label: "count" }`. Space-separated keys render as separate keycaps. */
 export interface FocusPadHint {
@@ -55,6 +56,8 @@ export interface FocusPadProps {
   style?: CSSProperties;
   /** Content below the message. */
   children?: ReactNode;
+  /** Show a quiet console size picker ("Fit console" or a fixed grid) in the corner. */
+  sizeControl?: boolean | Omit<ViewportControlProps, "root">;
 }
 
 const PALETTE = {
@@ -70,11 +73,14 @@ const CSS = `
 .tx-pad:hover{border-color:var(--tx-pad-hover)!important}
 .tx-pad[data-state=live]{cursor:default}
 .tx-pad-touch{display:none}
-@media (hover:none) and (pointer:coarse){.tx-pad{cursor:default}.tx-pad-touch{display:flex}.tx-pad-desk{display:none!important}}
+.tx-pad-size{position:absolute;right:24px;bottom:24px}
+@media (max-width:900px){.tx-pad-size{position:static}}
+@media (hover:none) and (pointer:coarse){.tx-pad{cursor:default}.tx-pad-touch{display:flex}.tx-pad-desk,.tx-pad-size{display:none!important}}
 @keyframes tx-pad-pulse{0%,100%{opacity:1}50%{opacity:.35}}
 @keyframes tx-pad-ring{0%{opacity:.55;transform:scale(1)}100%{opacity:0;transform:scale(1.015)}}
 @keyframes tx-pad-pop{0%{transform:translateY(2px);opacity:0}15%{transform:none;opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.tx-pad *{animation:none!important}}
+html:not([data-os=mac]) .tx-pad .tx-os-mac,html[data-os=mac] .tx-pad .tx-os-other{display:none!important}
 `;
 
 const INTERACTIVE = "a,button,input,textarea,select,label,summary,[contenteditable],[data-focus-pad-ignore]";
@@ -86,6 +92,18 @@ function isMac(): boolean {
 /** The DevTools console shortcut for this platform, as keycaps. */
 export function devtoolsShortcutKeys(): string[] {
   return isMac() ? ["⌘", "⌥", "J"] : ["Ctrl", "Shift", "J"];
+}
+
+type Platform = "mac" | "other";
+const SHORTCUT_KEYS: Record<Platform, string[]> = { mac: ["⌘", "⌥", "J"], other: ["Ctrl", "Shift", "J"] };
+const noSubscribe = (): (() => void) => () => undefined;
+
+/**
+ * `null` while server rendering and hydrating: both shortcuts are then rendered and CSS
+ * (`html[data-os=mac]`) shows one, so prerendered pages hydrate without swapping text.
+ */
+function usePlatform(): Platform | null {
+  return useSyncExternalStore(noSubscribe, () => (isMac() ? "mac" : "other"), () => null);
 }
 
 const KEY_LABEL: Record<string, string> = { up: "↑", down: "↓", left: "←", right: "→", return: "Enter", escape: "Esc", space: "Space", tab: "Tab", backspace: "⌫", delete: "Del", pageup: "PgUp", pagedown: "PgDn" };
@@ -146,7 +164,7 @@ function Keycap({ children, size, c, lit = false }: { children: ReactNode; size:
  * keyboard, and which keys to press. It lights up as keystrokes arrive.
  * Frames are never mirrored into the page unless `showMirrorDefault` is set.
  */
-export function FocusPad({ root, title, hints = [], action, capturing, onActivate, appearance = "dark", showMirrorDefault = false, top, className, style, children }: FocusPadProps): ReactNode {
+export function FocusPad({ root, title, hints = [], action, capturing, onActivate, appearance = "dark", showMirrorDefault = false, top, className, style, children, sizeControl = false }: FocusPadProps): ReactNode {
   const c = PALETTE[appearance];
   const [pageFocused, setPageFocused] = useState(true);
   const [docked, setDocked] = useState(false);
@@ -235,7 +253,8 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
 
   const first = hints[0];
   const doThis = action ?? (first ? `press ${first.keys}` : "type");
-  const shortcut = devtoolsShortcutKeys();
+  const platform = usePlatform();
+  const shortcut = SHORTCUT_KEYS[platform ?? "other"];
 
   const step = (n: number, label: string, done: boolean, current: boolean): ReactNode => (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 8, color: current ? c.text : done ? c.muted : c.subtle, whiteSpace: "nowrap" }}>
@@ -316,13 +335,15 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
         {state === "open" ? (
           <>
             <h2 style={headline}>Open the console</h2>
-            <div style={{ display: "flex", gap: 10 }} aria-label={`Press ${shortcut.join(" ")}`}>
-              {shortcut.map((k) => (
-                <Keycap key={k} size="lg" c={c}>
-                  {k}
-                </Keycap>
-              ))}
-            </div>
+            {(platform ? [platform] : (["mac", "other"] as const)).map((p) => (
+              <div key={p} className={platform ? undefined : `tx-os-${p}`} style={{ display: "flex", gap: 10 }} aria-label={`Press ${SHORTCUT_KEYS[p].join(" ")}`}>
+                {SHORTCUT_KEYS[p].map((k) => (
+                  <Keycap key={k} size="lg" c={c}>
+                    {k}
+                  </Keycap>
+                ))}
+              </div>
+            ))}
             <p style={sub}>{`It runs in DevTools, not on this page. Then click here and ${doThis}.`}</p>
           </>
         ) : state === "click" ? (
@@ -375,6 +396,21 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
       </div>
 
       {children}
+      {sizeControl ? (
+        <div className="tx-pad-size">
+          <ViewportControl
+            root={root}
+            color={c.subtle}
+            activeColor={c.text}
+            {...(typeof sizeControl === "object" ? sizeControl : {})}
+            onChange={(choice) => {
+              if (typeof sizeControl === "object") sizeControl.onChange?.(choice);
+              if (onActivate) onActivate();
+              else root?.input.focus();
+            }}
+          />
+        </div>
+      ) : null}
       {showMirrorDefault ? <ConsoleMirror frame={mirror} chrome appearance={appearance} /> : null}
     </div>
   );
