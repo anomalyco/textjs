@@ -54,14 +54,14 @@ export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: 
           { value: "tools", label: state.ui.toolDetails ? "Compact tool output" : "Expand tool output", hint: "ctrl+o" },
           { value: "thinking", label: state.ui.thinking ? "Collapse thinking" : "Expand thinking", hint: "ctrl+t" },
           { value: "theme", label: "Toggle theme", description: shell.theme.name },
-          { value: "viewport", label: vp.responsive ? "Viewport: fixed 112×34" : "Viewport: follow DevTools size" },
+          { value: "viewport", label: vp.responsive ? `Viewport: fixed ${vp.cols}×${vp.rows}` : "Viewport: follow DevTools size" },
           { value: "connect", label: "Connect to server…", description: state.connection.label || undefined },
           { value: "reload", label: "Reload sessions" },
           ...sessions.slice(0, 12),
         ];
       }
     }
-  }, [kind, state, active, shell.theme.name, vp.responsive]);
+  }, [kind, state, active, shell.theme.name, vp.responsive, vp.cols, vp.rows]);
 
   const current =
     kind === "models" && state.model ? `model:${state.model.providerID}/${state.model.id}` : kind === "agents" ? `agent:${state.agent}` : kind === "sessions" && active ? `session:${active}` : undefined;
@@ -79,8 +79,7 @@ export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: 
     else if (value === "theme") shell.setTheme(shell.themeName === "opencodeDark" ? "tokyoNight" : shell.themeName === "tokyoNight" ? "geistLight" : "opencodeDark");
     else if (value === "viewport") {
       if (vp.responsive) {
-        vp.setResponsive(false);
-        vp.resize(112, 34);
+        vp.resize(vp.cols, vp.rows);
       } else vp.setResponsive(true);
     } else if (value === "connect") router.push("/connect");
     else if (value === "reload") void store.refreshSessions();
@@ -94,7 +93,7 @@ export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: 
   };
 
   return (
-    <Modal title={TITLES[kind]} onClose={onClose} width={68} maxHeight="80%" footer=" ↑↓ select · enter run · esc close ">
+    <Modal title={TITLES[kind]} onClose={onClose} width={68} maxWidth="94%" maxHeight="80%" footer=" ↑↓ select · enter run · esc close ">
       <Select
         key={kind}
         options={options}

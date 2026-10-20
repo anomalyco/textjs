@@ -7,6 +7,8 @@ import type { SessionInfo, SessionMessage } from "../lib/types";
 import { Palette, type PaletteKind } from "./Palette";
 
 export const SIDEBAR_WIDTH = 28;
+/** Below this width the sidebar steps aside so the conversation keeps room. */
+export const SIDEBAR_MIN_COLS = 96;
 
 /** The active session id, derived from `/session/[id]`. */
 export function useActiveSessionId(): string | null {
@@ -34,6 +36,7 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
   const state = useStoreState((s) => s);
   const active = useActiveSessionId();
   const [palette, setPalette] = useState<PaletteKind | null>(null);
+  const vp = useViewport();
 
   useInput(
     (e) => {
@@ -57,7 +60,7 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
     <Box flexDirection="column" width="100%" height="100%" bg={theme.bg}>
       {active ? <Header state={state} active={active} /> : null}
       <Box flexDirection="row" flexGrow={1} flexShrink={1} minHeight={0}>
-        {state.ui.sidebar ? <Sidebar state={state} active={active} /> : null}
+        {state.ui.sidebar && vp.cols >= SIDEBAR_MIN_COLS ? <Sidebar state={state} active={active} /> : null}
         <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={0}>
           {children}
         </Box>

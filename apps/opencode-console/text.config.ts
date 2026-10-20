@@ -3,7 +3,8 @@ import { opencodeDevMiddleware } from "./server/opencode-proxy";
 
 export default defineConfig({
   title: "▼ OpenCode Lite",
-  viewport: { width: 112, height: 34, responsive: false, theme: "opencodeDark" },
+  // Fills the docked DevTools console; 120×36 when it can't be measured.
+  viewport: { width: 120, height: 36, theme: "opencodeDark" },
   devIndicators: true,
   action: "type a prompt",
   hints: [
