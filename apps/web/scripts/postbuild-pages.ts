@@ -1,54 +1,82 @@
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const rootDir = join(import.meta.dirname, "..");
 const distDir = join(rootDir, "dist");
-const contentDir = join(rootDir, "src", "docs", "content");
+const ssrDir = join(rootDir, "node_modules", ".cache", "textjs-ssr");
 const baseHtml = readFileSync(join(distDir, "index.html"), "utf8");
+
+interface ServerEntry {
+  ROUTES: ReadonlyArray<{ path: string; title: string; description: string; canonical?: string }>;
+  NOT_FOUND_PATH: string;
+  PREFIT_MIRRORS_SCRIPT: string;
+  render(pathname: string): Promise<string>;
+}
+
+const server = (await import(pathToFileURL(join(ssrDir, "entry-server.js")).href)) as ServerEntry;
+
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
 
 function withMeta(html: string, title: string, description: string, urlPath: string): string {
   const fullUrl = `https://textjs.org${urlPath}`;
-  return html
-    .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
-    .replace(/(<meta\s+name="description"\s+content=")[^"]*(")/, `$1${description}$2`)
-    .replace(/(<meta\s+property="og:title"\s+content=")[^"]*(")/, `$1${title}$2`)
-    .replace(/(<meta\s+property="og:description"\s+content=")[^"]*(")/, `$1${description}$2`)
+  const t = escapeAttr(title);
+  let out = html
+    .replace(/<title>[^<]*<\/title>/, `<title>${t}</title>`)
+    .replace(/(<link\s+rel="canonical"\s+href=")[^"]*(")/, `$1${fullUrl}$2`)
+    .replace(/(<meta\s+property="og:title"\s+content=")[^"]*(")/, `$1${t}$2`)
     .replace(/(<meta\s+property="og:url"\s+content=")[^"]*(")/, `$1${fullUrl}$2`)
-    .replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/, `$1${title}$2`)
-    .replace(/(<meta\s+name="twitter:description"\s+content=")[^"]*(")/, `$1${description}$2`);
+    .replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/, `$1${t}$2`);
+  if (description) {
+    const d = escapeAttr(description);
+    out = out
+      .replace(/(<meta\s+name="description"\s+content=")[^"]*(")/, `$1${d}$2`)
+      .replace(/(<meta\s+property="og:description"\s+content=")[^"]*(")/, `$1${d}$2`)
+      .replace(/(<meta\s+name="twitter:description"\s+content=")[^"]*(")/, `$1${d}$2`);
+  }
+  return out;
 }
 
-function writeRoute(routePath: string, title: string, description: string): void {
-  const dir = join(distDir, ...routePath.split("/").filter(Boolean));
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "index.html"), withMeta(baseHtml, title, description, routePath));
+async function withMarkup(html: string, routePath: string): Promise<string> {
+  const markup = await server.render(routePath);
+  const root = '<div id="root"></div>';
+  if (!html.includes(root)) throw new Error("index.html is missing the #root mount point");
+  const prefit = markup.includes("mirror-scale") ? `<script>${server.PREFIT_MIRRORS_SCRIPT}</script>` : "";
+  return html.replace(root, `<div id="root" data-route="${escapeAttr(routePath)}">${markup}</div>${prefit}`);
 }
 
-writeRoute("/docs", "Documentation | Text.js", "Learn how to build full-stack interactive React 19 apps inside browser DevTools console.log.");
-writeRoute("/playground", "Playground | Text.js", "Pick a Text.js demo, open the DevTools console and press a few keys.");
-writeRoute("/opencode", "OpenCode in the Console | Text.js", "OpenCode Lite coding-agent TUI running inside browser DevTools console.log.");
+async function writeRoute(routePath: string, title: string, description: string, canonical = routePath): Promise<void> {
+  const html = await withMarkup(withMeta(baseHtml, title, description, canonical), routePath);
+  writeHtml(routePath, html);
+}
+
+/**
+ * `/` → `index.html`, `/docs/routing` → `docs/routing.html`: Cloudflare Pages serves `<route>.html`
+ * at the slash-less URL with a 200 (and redirects `/docs/routing.html` there), whereas
+ * `<route>/index.html` would cost every visit a 308 to `/docs/routing/`.
+ */
+function writeHtml(routePath: string, html: string): void {
+  const parts = routePath.split("/").filter(Boolean);
+  const file = parts.length === 0 ? join(distDir, "index.html") : `${join(distDir, ...parts)}.html`;
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, html);
+}
+
+for (const r of server.ROUTES) await writeRoute(r.path, r.title, r.description, r.canonical);
 
 // Showcase was folded into the Playground.
-mkdirSync(join(distDir, "showcase"), { recursive: true });
-writeFileSync(
-  join(distDir, "showcase", "index.html"),
+writeHtml(
+  "/showcase",
   '<!doctype html><meta charset="utf-8"><title>Playground | Text.js</title><link rel="canonical" href="https://textjs.org/playground"><meta http-equiv="refresh" content="0; url=/playground"><script>location.replace("/playground"+location.hash)</script>\n',
 );
 
-for (const entry of readdirSync(contentDir)) {
-  if (!entry.endsWith(".md")) continue;
-  const slug = entry.slice(0, -3);
-  const label = slug
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-  writeRoute(
-    `/docs/${slug}`,
-    `${label} | Text.js Docs`,
-    `Text.js documentation — ${label}.`,
-  );
-}
-
-writeFileSync(join(distDir, "404.html"), baseHtml);
+const notFound = baseHtml
+  .replace(/<title>[^<]*<\/title>/, "<title>404: This page could not be found | Text.js</title>")
+  .replace(/\s*<link\s+rel="canonical"[^>]*>/, "")
+  .replace(/(<meta name="viewport"[^>]*>)/, '$1\n    <meta name="robots" content="noindex" />');
+writeFileSync(join(distDir, "404.html"), await withMarkup(notFound, server.NOT_FOUND_PATH));
 writeFileSync(join(distDir, "CNAME"), "textjs.org\n");
 writeFileSync(join(distDir, ".nojekyll"), "");
+rmSync(ssrDir, { recursive: true, force: true });

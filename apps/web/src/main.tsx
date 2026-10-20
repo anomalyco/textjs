@@ -1,19 +1,25 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import { App } from "./App";
+import { createRoot, hydrateRoot } from "react-dom/client";
 import { bootCompanion } from "./console-companion/boot";
-import { ErrorBoundary } from "./ErrorBoundary";
+import { Root } from "./Root";
+import { getLocation, matchRoute, normalizePath } from "./router";
 import "./styles.css";
+
+/** Whether the prerendered markup (`data-route`) was rendered for the route we're on now. */
+function prerenderedFor(container: HTMLElement): boolean {
+  const pre = container.dataset.route;
+  if (pre === undefined || container.firstElementChild === null) return false;
+  const here = getLocation().pathname;
+  if (normalizePath(pre) === here) return true;
+  return matchRoute(pre).name === "not-found" && matchRoute(here).name === "not-found";
+}
 
 const container = document.getElementById("root");
 if (container) {
-  createRoot(container).render(
-    <StrictMode>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
-    </StrictMode>,
-  );
+  if (prerenderedFor(container)) hydrateRoot(container, <Root />);
+  else {
+    container.textContent = "";
+    createRoot(container).render(<Root />);
+  }
 }
 
 // The second React root: a real Text.js app rendering into your DevTools console.
