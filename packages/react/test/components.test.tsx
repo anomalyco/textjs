@@ -25,7 +25,7 @@ import {
 import { parseColor } from "@textjs/core";
 import { createMarkdownStreamCache, parseMarkdownIncremental } from "../src/markdown";
 import { activeSpinnerTickerCount } from "../src/components/Spinner";
-import { createTestRoot } from "./helpers";
+import { captureWarnings, createTestRoot } from "./helpers";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -388,9 +388,9 @@ describe("<AsciiFont>, <Spinner> and primitives", () => {
   test("Spinner animates and stops while the renderer is paused", async () => {
     const t = await createTestRoot({ width: 20, height: 1 });
     await t.render(<Spinner variant="dots" label="Loading" />);
-    expect(t.frame()).toBe("⠋ Loading");
+    expect(t.frame()).toBe("▘ Loading");
     await t.act(() => sleep(100));
-    expect(t.frame()).not.toBe("⠋ Loading");
+    expect(t.frame()).not.toBe("▘ Loading");
     await t.act(() => t.root.renderer.pause());
     const logs = t.console.logs.length;
     await t.act(() => sleep(250));
@@ -400,7 +400,7 @@ describe("<AsciiFont>, <Spinner> and primitives", () => {
     await t.render(<Spinner key="pulse" variant="pulse" paused />);
     expect(t.frame()).toBe("▼");
     await t.render(<Spinner key="matrix" variant="matrix" paused />);
-    expect(t.frame()).toBe("▪⬝⬝");
+    expect(t.frame()).toBe("▪··");
     await t.unmount();
     expect(activeSpinnerTickerCount()).toBe(0);
   });
@@ -419,7 +419,7 @@ describe("<AsciiFont>, <Spinner> and primitives", () => {
     await t.act(() => sleep(95));
     t.frame();
     expect(t.console.logs.length - logsBefore).toBe(1);
-    expect(t.lines()).toEqual(["⠙ one", "⠙ two", "⠙ three"]);
+    expect(t.lines()).toEqual(["▝ one", "▝ two", "▝ three"]);
     await t.unmount();
     expect(activeSpinnerTickerCount()).toBe(0);
   });
@@ -438,6 +438,39 @@ describe("<AsciiFont>, <Spinner> and primitives", () => {
     );
     expect(t.lines()).toEqual(["── Logs ────────────", " OK        ⌘K search"]);
     expect(t.root.renderer.buffer.getCell(1, 1)?.bg).toBe(parseColor(geistDark.success));
+    await t.unmount();
+  });
+
+  test("Spinner stops its shared timer while the page is unfocused", async () => {
+    const t = await createTestRoot({ width: 20, height: 1 });
+    await t.render(<Spinner variant="dots" label="busy" />);
+    expect(activeSpinnerTickerCount()).toBe(1);
+    await t.act(() => t.root.renderer.setFocused(false));
+    expect(activeSpinnerTickerCount()).toBe(0);
+    await t.act(() => t.root.renderer.setFocused(true));
+    expect(activeSpinnerTickerCount()).toBe(1);
+    await t.unmount();
+    expect(activeSpinnerTickerCount()).toBe(0);
+  });
+
+  test("Select and keyed Box/Text never forward React key into host JSX props", async () => {
+    const t = await createTestRoot({ width: 40, height: 6 });
+    const warnings = await captureWarnings(async () => {
+      await t.render(
+        <Box key="wrap" flexDirection="column">
+          <Text key="hdr">Choose</Text>
+          <Select
+            options={[
+              { value: "one", label: "One", description: "first" },
+              { value: "two", label: "Two", hint: "2" },
+            ]}
+            value="one"
+          />
+        </Box>,
+      );
+    });
+    expect(warnings).toEqual([]);
+    expect(t.frame()).toContain("› One ●  first");
     await t.unmount();
   });
 });

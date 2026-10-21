@@ -27,13 +27,17 @@ function assignDefined(target: Record<string, unknown>, src: object | undefined)
   }
 }
 
+function needsTokenResolve(v: unknown): boolean {
+  return typeof v === "string" && v.length > 0 && v.charCodeAt(0) !== 35;
+}
+
 function resolveColorFields(theme: TextTheme, out: Record<string, unknown>): void {
-  if (typeof out.fg === "string") out.fg = resolveColor(theme, out.fg as ColorInput);
-  if (typeof out.bg === "string") out.bg = resolveColor(theme, out.bg as ColorInput);
-  if (typeof out.borderColor === "string") out.borderColor = resolveColor(theme, out.borderColor as ColorInput);
-  if (typeof out.titleColor === "string") out.titleColor = resolveColor(theme, out.titleColor as ColorInput);
-  if (typeof out.bottomTitleColor === "string") out.bottomTitleColor = resolveColor(theme, out.bottomTitleColor as ColorInput);
-  if (typeof out.backdropColor === "string") out.backdropColor = resolveColor(theme, out.backdropColor as ColorInput);
+  if (needsTokenResolve(out.fg)) out.fg = resolveColor(theme, out.fg as ColorInput);
+  if (needsTokenResolve(out.bg)) out.bg = resolveColor(theme, out.bg as ColorInput);
+  if (needsTokenResolve(out.borderColor)) out.borderColor = resolveColor(theme, out.borderColor as ColorInput);
+  if (needsTokenResolve(out.titleColor)) out.titleColor = resolveColor(theme, out.titleColor as ColorInput);
+  if (needsTokenResolve(out.bottomTitleColor)) out.bottomTitleColor = resolveColor(theme, out.bottomTitleColor as ColorInput);
+  if (needsTokenResolve(out.backdropColor)) out.backdropColor = resolveColor(theme, out.backdropColor as ColorInput);
 }
 
 /**
@@ -66,8 +70,29 @@ export function buildBoxHostProps(
     focusedBorderColor?: ColorInput;
     bg?: ColorInput;
     fg?: ColorInput;
+    borderColor?: ColorInput;
+    titleColor?: ColorInput;
+    bottomTitleColor?: ColorInput;
+    backdropColor?: ColorInput;
   },
 ): HostElementProps {
+  if (
+    !("key" in raw) &&
+    !raw.className &&
+    !raw.style &&
+    raw.backgroundColor === undefined &&
+    raw.color === undefined &&
+    !raw.focused &&
+    raw.focusedBorderColor === undefined &&
+    !needsTokenResolve(raw.fg) &&
+    !needsTokenResolve(raw.bg) &&
+    !needsTokenResolve(raw.borderColor) &&
+    !needsTokenResolve(raw.titleColor) &&
+    !needsTokenResolve(raw.bottomTitleColor) &&
+    !needsTokenResolve(raw.backdropColor)
+  ) {
+    return raw as HostElementProps;
+  }
   const out: Record<string, unknown> = {};
   if (raw.className) assignDefined(out, parseClassName(raw.className, theme));
   if (raw.style) assignDefined(out, raw.style);
@@ -107,6 +132,9 @@ export function buildTextHostProps(
     align?: SceneNodeProps["textAlign"];
   },
 ): HostElementProps {
+  if (!("key" in raw) && !raw.className && !raw.style && raw.color === undefined && raw.align === undefined && !needsTokenResolve(raw.fg)) {
+    return raw as HostElementProps;
+  }
   const out: Record<string, unknown> = {};
   if (raw.className) assignDefined(out, parseClassName(raw.className, theme));
   if (raw.style) assignDefined(out, raw.style);

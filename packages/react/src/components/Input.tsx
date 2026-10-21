@@ -6,7 +6,7 @@ import { useFocus } from "../focus";
 import { mergeStyleProps, TxBox, TxText } from "../host";
 import { usePaste, useInput } from "../hooks";
 import { FOCUSED_INPUT_PRIORITY } from "../input-manager";
-import { useTheme } from "../theme";
+import { resolveColor, useTheme } from "../theme";
 import { cursorText, renderCursor, splitAtCursor, useCursor, useEditor, type FieldValueProps } from "./field";
 
 export interface InputProps extends FieldValueProps, LayoutProps {
@@ -95,7 +95,7 @@ export function Input(props: InputProps): ReactNode {
   );
 
   const boxProps = mergeStyleProps(theme, className, style, { flexGrow: 1, flexShrink: 1, minWidth: 1, maxHeight: 1, ...layout, bg });
-  const fg = mergeStyleProps(theme, undefined, undefined, { fg: color ?? theme.fg }).fg;
+  const fg = resolveColor(theme, color ?? theme.fg);
   const value = editor.value;
 
   let content: ReactNode;
@@ -103,7 +103,7 @@ export function Input(props: InputProps): ReactNode {
   let cursorCol = 0;
   if (value.length === 0 && placeholder) {
     const parts = splitAtCursor(placeholder, 0);
-    const phColor = mergeStyleProps(theme, undefined, undefined, { fg: placeholderColor ?? theme.subtle }).fg;
+    const phColor = resolveColor(theme, placeholderColor ?? theme.subtle);
     const head = mode === "block" ? <TxText inverse>{parts.glyph}</TxText> : mode === "hollow" ? <TxText fg={phColor} underline>{parts.glyph}</TxText> : parts.glyph;
     content = (
       <>

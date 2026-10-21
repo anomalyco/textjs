@@ -4,7 +4,18 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CellBuffer, extractStyledFrame, initYoga } from "@textjs/core";
-import { ConsoleMirror, devtoolsShortcutKeys, FocusPad, focusPadState, keyLabel, TextCanvas } from "../src/dom/index";
+import {
+  applyViewportChoice,
+  ConsoleMirror,
+  devtoolsShortcutKeys,
+  FocusPad,
+  focusPadState,
+  formatViewportChoice,
+  keyLabel,
+  parseViewportChoice,
+  TextCanvas,
+  ViewportControl,
+} from "../src/dom/index";
 import { Box, Text } from "../src/index";
 import { createTestRoot } from "./helpers";
 
@@ -63,6 +74,28 @@ describe("DOM companion", () => {
     const canvas = renderToStaticMarkup(<TextCanvas app={<Text>hi</Text>} title="demo" theme="geistLight" />);
     expect(canvas).toContain("demo");
     expect(canvas).toContain("Open the console");
+  });
+
+  test("console size choices parse, persist and apply", async () => {
+    expect(parseViewportChoice("fit")).toBe("fit");
+    expect(parseViewportChoice(" 120×36 ")).toEqual({ cols: 120, rows: 36 });
+    expect(parseViewportChoice("160x48")).toEqual({ cols: 160, rows: 48 });
+    for (const bad of [null, "", "big", "5x5", "999x999", "80x"]) expect(parseViewportChoice(bad)).toBeNull();
+    expect(formatViewportChoice({ cols: 80, rows: 24 })).toBe("80x24");
+    expect(formatViewportChoice("fit")).toBe("fit");
+
+    const t = await createTestRoot({ width: 40, height: 4 });
+    applyViewportChoice(t.root, { cols: 50, rows: 6 });
+    expect(t.root.viewport.getSnapshot()).toMatchObject({ cols: 50, rows: 6, responsive: false });
+    applyViewportChoice(t.root, "fit");
+    expect(t.root.viewport.getSnapshot().responsive).toBe(true);
+    await t.unmount();
+
+    // Opt-in on the pad: one quiet select, presets included.
+    const pad = renderToStaticMarkup(<FocusPad root={null} sizeControl />);
+    expect(pad).toContain('aria-label="Console size"');
+    for (const s of ["Fit console", "80×24", "120×36", "160×48", "Custom…"]) expect(pad).toContain(s);
+    expect(renderToStaticMarkup(<ViewportControl root={null} />)).toContain("Fit console");
   });
 
   test("FocusPad state: never blocks on DevTools detection", () => {

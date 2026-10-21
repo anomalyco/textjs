@@ -1,4 +1,4 @@
-import { Fragment, useRef, type ReactNode } from "react";
+import { Fragment, memo, useRef, type NamedExoticComponent, type ReactNode } from "react";
 import { useFocus } from "../focus";
 import { useInput } from "../hooks";
 import { useTheme } from "../theme";
@@ -30,7 +30,7 @@ export interface TabsProps extends Omit<BoxProps, "children" | "onChange" | "ref
 }
 
 /** A horizontal tab strip with keyboard switching and shortcut keys. */
-export function Tabs(props: TabsProps): ReactNode {
+export const Tabs: NamedExoticComponent<TabsProps> = memo(function Tabs(props: TabsProps): ReactNode {
   const {
     tabs,
     activeTab,
@@ -99,4 +99,4 @@ export function Tabs(props: TabsProps): ReactNode {
       })}
     </Box>
   );
-}
+});

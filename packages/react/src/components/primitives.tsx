@@ -1,4 +1,4 @@
-import { useCallback, type ReactNode } from "react";
+import { memo, useCallback, type NamedExoticComponent, type ReactNode } from "react";
 import { ATTR_BOLD, parseColor, stringWidth, type CellBuffer, type ColorInput, type ComputedRect } from "@textjs/core";
 import { TxBox } from "../host";
 import { resolveColor, useTheme } from "../theme";
@@ -9,9 +9,9 @@ export interface SpacerProps {
 }
 
 /** Flexible space that pushes siblings apart (or a fixed `size` in cells). */
-export function Spacer({ size }: SpacerProps): ReactNode {
+export const Spacer: NamedExoticComponent<SpacerProps> = memo(function Spacer({ size }: SpacerProps): ReactNode {
   return size === undefined ? <TxBox flexGrow={1} flexShrink={1} /> : <TxBox width={size} height={size} flexShrink={0} />;
-}
+});
 
 export interface DividerProps {
   title?: string;
@@ -25,7 +25,14 @@ export interface DividerProps {
 }
 
 /** A full-width horizontal rule with an optional inline title. */
-export function Divider({ title, color, titleColor, char, titleAlign = "left", vertical = false }: DividerProps): ReactNode {
+export const Divider: NamedExoticComponent<DividerProps> = memo(function Divider({
+  title,
+  color,
+  titleColor,
+  char,
+  titleAlign = "left",
+  vertical = false,
+}: DividerProps): ReactNode {
   const theme = useTheme();
   const lineColor = parseColor(resolveColor(theme, color ?? theme.border));
   const labelColor = parseColor(resolveColor(theme, titleColor ?? theme.muted));
@@ -51,7 +58,7 @@ export function Divider({ title, color, titleColor, char, titleAlign = "left", v
   ) : (
     <TxBox height={1} maxHeight={1} flexGrow={1} flexShrink={1} alignSelf="stretch" customPaint={paint} />
   );
-}
+});
 
 export type BadgeVariant = "default" | "accent" | "success" | "warning" | "danger" | "info" | "outline";
 
@@ -61,7 +68,7 @@ export interface BadgeProps {
 }
 
 /** A compact inverse label: ` NEW `, ` 3 `, ` beta `. */
-export function Badge({ variant = "default", children }: BadgeProps): ReactNode {
+export const Badge: NamedExoticComponent<BadgeProps> = memo(function Badge({ variant = "default", children }: BadgeProps): ReactNode {
   const theme = useTheme();
   if (variant === "outline") {
     return (
@@ -89,7 +96,7 @@ export function Badge({ variant = "default", children }: BadgeProps): ReactNode 
       {children}{" "}
     </Text>
   );
-}
+});
 
 export interface KeyHintProps {
   keys: string;
@@ -97,7 +104,7 @@ export interface KeyHintProps {
 }
 
 /** Keyboard shortcut legend: **⌘K** search. */
-export function KeyHint({ keys, label }: KeyHintProps): ReactNode {
+export const KeyHint: NamedExoticComponent<KeyHintProps> = memo(function KeyHint({ keys, label }: KeyHintProps): ReactNode {
   const theme = useTheme();
   return (
     <Text wrap="nowrap" flexShrink={0}>
@@ -107,4 +114,4 @@ export function KeyHint({ keys, label }: KeyHintProps): ReactNode {
       <Text color={theme.subtle}> {label}</Text>
     </Text>
   );
-}
+});

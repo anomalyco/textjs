@@ -66,3 +66,30 @@ export { parseMarkdown, parseInline, type MarkdownBlock, type InlineSpan, type L
 export { parseUnifiedDiff, diffTexts, type DiffFile, type DiffHunk, type DiffLine, type DiffLineKind } from "./diff";
 export { renderAsciiFont, ASCII_FONT_CHARS, type AsciiFontName } from "./fonts";
 export { applyEditKey, type EditState } from "./editing";
+export {
+  useKeymap,
+  useKeymapBindings,
+  useKeymapRegistry,
+  KeymapRegistry,
+  type Keymap,
+  type KeyBinding,
+  type KeyHandler,
+  type UseKeymapOptions,
+  type RegisteredBinding,
+} from "./keymap";
+export { parseKeys, matchesKey, matchStroke, formatKeys, keyEventFromCombo, type KeyStroke, type KeySequence, type FormatKeysOptions } from "./keys";
+export { fuzzyMatch, fuzzyFilter, type FuzzyMatch } from "./fuzzy";
+export { sparkline, dataRange, formatCompact, DotCanvas, BrailleCanvas, SPARK_BLOCKS, QUADRANTS, type DotMarker, type Range } from "./charts";
+export { useInterval, useTimeout, useAnimationFrame, type UseAnimationFrameOptions } from "./hooks/timers";
+export { useTween, useSpring, easings, type Easing, type EasingName, type UseTweenOptions, type UseSpringOptions } from "./hooks/animation";
+export { useMeasure, type Measurement } from "./hooks/measure";
+export {
+  useBreakpoint,
+  useClipboard,
+  useLocalStorage,
+  BREAKPOINTS,
+  type Breakpoint,
+  type BreakpointApi,
+  type ClipboardApi,
+  type UseClipboardOptions,
+} from "./hooks/environment";

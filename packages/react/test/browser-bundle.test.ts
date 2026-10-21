@@ -29,3 +29,12 @@ test("@textjs/react/dom bundles for the browser with no Node built-ins", async (
   expect(code).toContain("Open the console");
   expect(code).toContain("text://viewport:1");
 }, 30_000);
+
+test("@textjs/react keeps the terminal runner and testing kit out of the main bundle", async () => {
+  const code = await bundle("../src/index.ts");
+  expect(code).not.toContain("TerminalInputParser");
+  expect(code).not.toContain("waitForText");
+  const terminal = await bundle("../src/terminal.tsx");
+  expectBrowserSafe(terminal);
+  expect(terminal).toContain("TerminalInputParser");
+}, 30_000);

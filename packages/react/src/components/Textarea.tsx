@@ -1,11 +1,11 @@
-import { useRef, type ReactNode, type Ref } from "react";
+import { useMemo, useRef, type ReactNode, type Ref } from "react";
 import { layoutGraphemeLines, segmentGraphemes, type ColorInput, type LayoutProps, type SceneNode, type SceneNodeProps } from "@textjs/core";
 import { applyEditKey, insert, lineStart, verticalMove } from "../editing";
 import { useFocus } from "../focus";
 import { mergeStyleProps, TxBox, TxText } from "../host";
 import { useInput, usePaste } from "../hooks";
 import { FOCUSED_INPUT_PRIORITY } from "../input-manager";
-import { useTheme } from "../theme";
+import { resolveColor, useTheme } from "../theme";
 import { cursorText, renderCursor, splitAtCursor, useCursor, useEditor, type FieldValueProps } from "./field";
 import { useMergedRef } from "./refs";
 
@@ -108,46 +108,53 @@ export function Textarea(props: TextareaProps): ReactNode {
   );
 
   const boxProps = mergeStyleProps(theme, className, style, { flexGrow: 1, flexShrink: 0, ...layout, bg });
-  const fg = mergeStyleProps(theme, undefined, undefined, { fg: color ?? theme.fg }).fg;
+  const fg = resolveColor(theme, color ?? theme.fg);
   const value = editor.value;
+  const cursor = editor.cursor;
+  const phResolved = resolveColor(theme, placeholderColor ?? theme.subtle);
 
-  let content: ReactNode;
-  let display: string;
-  let cursorGrapheme: number;
-  if (value.length === 0 && placeholder) {
-    const parts = splitAtCursor(placeholder, 0);
-    const phColor = mergeStyleProps(theme, undefined, undefined, { fg: placeholderColor ?? theme.subtle }).fg;
-    content = (
-      <TxText fg={phColor}>
-        {mode === "block" ? <TxText inverse>{parts.glyph}</TxText> : parts.glyph}
-        {parts.after}
-      </TxText>
-    );
-    display = placeholder;
-    cursorGrapheme = 0;
-  } else {
-    const parts = splitAtCursor(value, editor.cursor);
-    content = (
-      <>
-        {parts.before}
-        {renderCursor(parts.glyph, mode, theme)}
-        {parts.after}
-      </>
-    );
-    display = parts.before + cursorText(parts.glyph, mode) + parts.after;
-    cursorGrapheme = segmentGraphemes(parts.before).length;
-  }
+  const split = useMemo(() => {
+    if (value.length === 0 && placeholder) {
+      const parts = splitAtCursor(placeholder, 0);
+      return { isPlaceholder: true as const, parts, display: placeholder, cursorGrapheme: 0 };
+    }
+    const parts = splitAtCursor(value, cursor);
+    return {
+      isPlaceholder: false as const,
+      parts,
+      display: parts.before + cursorText(parts.glyph, mode) + parts.after,
+      cursorGrapheme: parts.before.length === 0 ? 0 : segmentGraphemes(parts.before).length,
+    };
+  }, [value, cursor, placeholder, mode]);
+
+  const content: ReactNode = split.isPlaceholder ? (
+    <TxText fg={phResolved}>
+      {mode === "block" ? <TxText inverse>{split.parts.glyph}</TxText> : split.parts.glyph}
+      {split.parts.after}
+    </TxText>
+  ) : (
+    <>
+      {split.parts.before}
+      {renderCursor(split.parts.glyph, mode, theme)}
+      {split.parts.after}
+    </>
+  );
+  const display = split.display;
+  const cursorGrapheme = split.cursorGrapheme;
 
   // Keep the cursor's visual row in view using the same wrap engine as the scene.
   const width = boxRef.current?.layout.contentWidth ?? 0;
+  const wrappedLines = useMemo(
+    () => (width > 0 ? layoutGraphemeLines(segmentGraphemes(display), width, "wrap") : null),
+    [display, width],
+  );
   let scrollY: number;
   let visibleRows: number;
-  if (width <= 0) {
+  if (wrappedLines === null) {
     scrollY = MAX_SCROLL;
     visibleRows = Math.max(minRows, Math.min(maxRows, display.split("\n").length));
   } else {
-    const gs = segmentGraphemes(display);
-    const lines = layoutGraphemeLines(gs, width, "wrap");
+    const lines = wrappedLines;
     let row = lines.length - 1;
     for (let i = 0; i < lines.length; i++) {
       const l = lines[i] as { start: number; end: number };

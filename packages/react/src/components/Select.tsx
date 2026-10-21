@@ -71,7 +71,7 @@ export function Select<V = string>(props: SelectProps<V>): ReactNode {
   const focus = useFocus({ id, autoFocus, focused, isActive });
   const active = focus.isFocused && isActive;
   const [query, setQuery] = useState("");
-  const filtered = useMemo(() => options.filter((o) => matches(o, query)), [options, query]);
+  const filtered = useMemo(() => (query.length === 0 ? options : options.filter((o) => matches(o, query))), [options, query]);
   const [highlight, setHighlight] = useState(() => {
     const sel = value === undefined ? -1 : options.findIndex((o) => o.value === value);
     return sel >= 0 ? sel : Math.max(0, firstEnabled(options, 0, 1));

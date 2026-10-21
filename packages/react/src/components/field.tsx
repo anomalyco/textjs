@@ -2,10 +2,11 @@
  * Shared state + cursor rendering for `<Input>` and `<Textarea>`.
  */
 
-import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
+import { useEffect, useReducer, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useRuntime } from "../context";
 import type { EditState } from "../editing";
 import { TxText } from "../host";
-import { useViewport } from "../hooks";
+import { ACTIVITY_FOCUSED, ACTIVITY_HIDDEN, ACTIVITY_PAUSED } from "../stores";
 import type { TextTheme } from "../theme";
 import { segmentGraphemes } from "@textjs/core";
 
@@ -72,9 +73,13 @@ export type CursorMode = "block" | "hidden" | "hollow" | "off";
  * no timers, so idle apps emit zero frames.
  */
 export function useCursor(isFocused: boolean, blink: boolean, editVersion: unknown): CursorMode {
-  const vp = useViewport();
+  const rt = useRuntime();
+  const flags = useSyncExternalStore(rt.viewport.subscribe, rt.viewport.getActivityFlags, rt.viewport.getActivityFlags);
+  const pageFocused = (flags & ACTIVITY_FOCUSED) !== 0;
+  const pagePaused = (flags & ACTIVITY_PAUSED) !== 0;
+  const pageHidden = (flags & ACTIVITY_HIDDEN) !== 0;
   const [blinkOn, setBlinkOn] = useState(true);
-  const blinking = blink && isFocused && vp.focused && !vp.paused;
+  const blinking = blink && isFocused && pageFocused && !pagePaused && !pageHidden;
   useEffect(() => {
     setBlinkOn(true);
     if (!blinking) return;
@@ -82,7 +87,7 @@ export function useCursor(isFocused: boolean, blink: boolean, editVersion: unkno
     return () => clearInterval(id);
   }, [blinking, editVersion]);
   if (!isFocused) return "hidden";
-  if (!vp.focused) return "hollow";
+  if (!pageFocused) return "hollow";
   if (blinking && !blinkOn) return "off";
   return "block";
 }

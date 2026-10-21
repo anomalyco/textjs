@@ -10,6 +10,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./dom": "./src/dom/index.ts",
+    "./testing": "./src/testing.tsx",
+    "./terminal": "./src/terminal.tsx",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -23,6 +25,14 @@
       "./dom": {
         "types": "./dist/dom/index.d.ts",
         "default": "./dist/dom/index.js"
+      },
+      "./testing": {
+        "types": "./dist/testing.d.ts",
+        "default": "./dist/testing.js"
+      },
+      "./terminal": {
+        "types": "./dist/terminal.d.ts",
+        "default": "./dist/terminal.js"
       }
     }
   },

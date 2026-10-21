@@ -15,15 +15,30 @@ export interface ViewportState {
   dock: DockSide;
 }
 
+export const ACTIVITY_FOCUSED = 1 << 0;
+export const ACTIVITY_PAUSED = 1 << 1;
+export const ACTIVITY_HIDDEN = 1 << 2;
+
+function isDocHidden(): boolean {
+  return typeof document !== "undefined" && document.visibilityState === "hidden";
+}
+
 export class ViewportStore {
   private snapshot: ViewportState;
+  private activityFlags: number;
   private readonly listeners = new Set<() => void>();
   private readonly cleanup: Array<() => void> = [];
 
   constructor(private readonly renderer: ConsoleRenderer) {
     this.snapshot = this.read();
+    this.activityFlags = this.readActivityFlags();
     this.cleanup.push(renderer.viewport.subscribe(() => this.refresh()));
     this.cleanup.push(renderer.onFocusChange(() => this.refresh()));
+    if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+      const onVis = (): void => this.refresh();
+      document.addEventListener("visibilitychange", onVis);
+      this.cleanup.push(() => document.removeEventListener("visibilitychange", onVis));
+    }
     // Observe pause/resume however they are triggered (hooks, FocusPad or the `window.text` REPL).
     const pause = renderer.pause;
     const resume = renderer.resume;
@@ -53,6 +68,11 @@ export class ViewportStore {
     };
   }
 
+  private readActivityFlags(): number {
+    const r = this.renderer;
+    return (r.focused ? ACTIVITY_FOCUSED : 0) | (r.paused ? ACTIVITY_PAUSED : 0) | (isDocHidden() ? ACTIVITY_HIDDEN : 0);
+  }
+
   readonly subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -60,21 +80,26 @@ export class ViewportStore {
 
   readonly getSnapshot = (): ViewportState => this.snapshot;
 
+  /** Primitive bitmask of `(focused, paused, hidden)` so timers/cursors skip resize re-renders. */
+  readonly getActivityFlags = (): number => this.activityFlags;
+
   /** Re-read renderer state and notify subscribers when anything changed. */
   refresh(): void {
     const next = this.read();
+    const nextFlags = this.readActivityFlags();
     const prev = this.snapshot;
-    if (
+    const snapSame =
       next.cols === prev.cols &&
       next.rows === prev.rows &&
       next.responsive === prev.responsive &&
       next.focused === prev.focused &&
       next.paused === prev.paused &&
-      next.dock === prev.dock
-    ) {
+      next.dock === prev.dock;
+    if (snapSame && nextFlags === this.activityFlags) {
       return;
     }
-    this.snapshot = next;
+    if (!snapSame) this.snapshot = next;
+    this.activityFlags = nextFlags;
     for (const l of this.listeners) l();
   }
 
