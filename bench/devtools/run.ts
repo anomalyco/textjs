@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
 import { chromium } from "playwright-core";
-import { parseStrategy, type MetricSummary, type PageStreamResult } from "./client";
+import { parseStrategy, type BenchScenario, type MetricSummary, type PageStreamResult } from "./client";
 import {
   analyzeScreencastFrames,
   runFrontendProbe,
@@ -15,12 +15,14 @@ import {
 import { startBenchServer } from "./server";
 
 export interface CliOptions {
+  scenarios: BenchScenario[];
   strategies: string[];
   fpsList: number[];
   seconds: number;
   headed: boolean;
   all: boolean;
   screencast: boolean;
+  trace: boolean;
   scheduler: "timer" | "raf";
   dirtyMode: "all" | "partial";
   cols: number;
@@ -30,6 +32,7 @@ export interface CliOptions {
 }
 
 export interface BenchmarkRunMetrics {
+  scenario: BenchScenario;
   strategy: string;
   targetFps: number;
   durationSec: number;
@@ -69,6 +72,9 @@ export interface BenchmarkRunMetrics {
     mountedWrappersEnd: number;
     mountedWrappersMax: number;
     mountedWrappersMean: number;
+    domSpansPerFrame: number;
+    emptySpansPerFrame: number;
+    stylePropsPerFrame: number;
     consoleScrollHeightEnd: number;
     screencast: ScreencastAnalysis;
   };
@@ -81,6 +87,7 @@ export interface BenchmarkRunMetrics {
     layoutCount: number;
     recalcStyleDurationMs: number;
     recalcStyleCount: number;
+    paintDurationMs?: number;
     domNodesDelta: number;
     jsHeapDeltaMB: number;
   };
@@ -111,12 +118,14 @@ Options:
 }
 
 function parseCliArgs(argv: string[]): CliOptions {
+  let scenarioArg = "dashboard";
   let strategyArg = "clear";
   let fpsArg = "60";
   let seconds = 5;
   let headed = false;
   let all = false;
   let screencast = true;
+  let trace = false;
   let scheduler: "timer" | "raf" = "timer";
   let dirtyMode: "all" | "partial" = "all";
   let cols = 100;
@@ -148,6 +157,10 @@ function parseCliArgs(argv: string[]): CliOptions {
       screencast = false;
       continue;
     }
+    if (arg === "--trace") {
+      trace = true;
+      continue;
+    }
     if (arg === "--json") {
       json = true;
       continue;
@@ -158,6 +171,10 @@ function parseCliArgs(argv: string[]): CliOptions {
     const val = eq >= 0 ? arg.slice(eq + 1) : argv[++i] ?? "";
 
     switch (key) {
+      case "--scenario":
+      case "--scenarios":
+        scenarioArg = val;
+        break;
       case "--strategy":
       case "--strategies":
         strategyArg = val;
@@ -203,13 +220,19 @@ function parseCliArgs(argv: string[]): CliOptions {
         .map((s) => Number.parseFloat(s.trim()))
         .filter((n) => Number.isFinite(n) && n > 0);
 
+  const scenarios = scenarioArg
+    .split(",")
+    .map((s) => (s.trim() === "react-stream" ? "react-stream" : "dashboard") as BenchScenario);
+
   return {
+    scenarios,
     strategies,
     fpsList,
     seconds,
     headed,
     all,
     screencast,
+    trace,
     scheduler,
     dirtyMode,
     cols,
@@ -303,10 +326,12 @@ async function runSingleBenchmark(
   debugPort: number,
   serverUrl: string,
   opts: {
+    scenario: BenchScenario;
     strategy: string;
     fps: number;
     seconds: number;
     screencast: boolean;
+    trace: boolean;
     scheduler: "timer" | "raf";
     dirtyMode: "all" | "partial";
     cols: number;
@@ -410,6 +435,20 @@ async function runSingleBenchmark(
       await dtCdp.send("Profiler.setSamplingInterval", { interval: 200 });
       await dtCdp.send("Profiler.start");
     }
+    let browserCdp: import("playwright-core").CDPSession | null = null;
+    const traceEvents: Array<{ name?: string; ph?: string; dur?: number }> = [];
+    let traceDone: Promise<void> | null = null;
+    if (opts.trace) {
+      browserCdp = await browser.newBrowserCDPSession();
+      browserCdp.on("Tracing.dataCollected", (ev: { value: Array<{ name?: string; ph?: string; dur?: number }> }) => {
+        for (const e of ev.value) traceEvents.push(e);
+      });
+      traceDone = new Promise<void>((res) => browserCdp!.on("Tracing.tracingComplete", () => res()));
+      await browserCdp.send("Tracing.start", {
+        categories: "devtools.timeline,blink",
+        transferMode: "ReportEvents",
+      });
+    }
     const runStartEpochMs = Date.now();
 
     const [frontendRaw, pageRes] = await Promise.all([
@@ -417,6 +456,7 @@ async function runSingleBenchmark(
       page.evaluate(
         (streamOpts) => window.__runStream!(streamOpts),
         {
+          scenario: opts.scenario,
           strategy: parsedStrategy.raw,
           fps: opts.fps,
           durationMs,
@@ -430,6 +470,17 @@ async function runSingleBenchmark(
 
     const runEndEpochMs = Date.now();
     const perfAfter = await dtCdp.send("Performance.getMetrics");
+    let paintDurationMs: number | undefined;
+    if (browserCdp && traceDone) {
+      await browserCdp.send("Tracing.end");
+      await traceDone;
+      await browserCdp.detach().catch(() => {});
+      let paintUs = 0;
+      for (const e of traceEvents) {
+        if (e.ph === "X" && e.name === "Blink.Paint.UpdateTime" && e.dur) paintUs += e.dur;
+      }
+      paintDurationMs = paintUs / 1000;
+    }
     if (profileDir) {
       const { profile } = (await dtCdp.send("Profiler.stop")) as { profile: unknown };
       await Bun.write(`${profileDir}/devtools-${parsedStrategy.raw.replace(/\W+/g, "_")}-${opts.fps}fps.cpuprofile`, JSON.stringify(profile));
@@ -497,6 +548,7 @@ async function runSingleBenchmark(
       frontendRaw.totalPaints > 0 ? (frontendRaw.blankPaints / frontendRaw.totalPaints) * 100 : 0;
 
     return {
+      scenario: opts.scenario,
       strategy: parsedStrategy.raw,
       targetFps: opts.fps,
       durationSec: opts.seconds,
@@ -536,6 +588,9 @@ async function runSingleBenchmark(
         mountedWrappersEnd: frontendRaw.mountedWrappersEnd,
         mountedWrappersMax: frontendRaw.mountedWrappersMax,
         mountedWrappersMean: frontendRaw.mountedWrappersMean,
+        domSpansPerFrame: frontendRaw.domSpansPerFrame,
+        emptySpansPerFrame: frontendRaw.emptySpansPerFrame,
+        stylePropsPerFrame: frontendRaw.stylePropsPerFrame,
         consoleScrollHeightEnd: frontendRaw.consoleScrollHeightEnd,
         screencast: screencastAnalysis,
       },
@@ -548,6 +603,7 @@ async function runSingleBenchmark(
         layoutCount,
         recalcStyleDurationMs,
         recalcStyleCount,
+        paintDurationMs,
         domNodesDelta,
         jsHeapDeltaMB,
       },
@@ -617,8 +673,10 @@ function printComparisonTables(results: BenchmarkRunMetrics[], showScreencast: b
     true,
     true,
   ];
+  const labelOf = (r: BenchmarkRunMetrics): string =>
+    r.scenario === "dashboard" ? r.strategy : `${r.strategy} (${r.scenario})`;
   const flickerRows = results.map((r) => [
-    r.strategy,
+    labelOf(r),
     `${r.targetFps} / ${r.page.actualFps.toFixed(1)}`,
     `${r.frontend.blankPaints}/${r.frontend.totalRafPaints} (${r.frontend.blankPaintPct.toFixed(1)}%)`,
     `${r.frontend.emptyDomPaints} / ${r.frontend.clearedOnlyPaints}`,
@@ -636,6 +694,7 @@ function printComparisonTables(results: BenchmarkRunMetrics[], showScreencast: b
   console.log(renderTable(flickerHeaders, flickerRows, flickerAlign));
 
   console.log("\n=== 2. DevTools Frontend Main-Thread CPU & Page-Side Cost ===\n");
+  const showPaint = results.some((r) => r.cdpCpu.paintDurationMs !== undefined);
   const cpuHeaders = [
     "Strategy",
     "FPS",
@@ -643,21 +702,23 @@ function printComparisonTables(results: BenchmarkRunMetrics[], showScreencast: b
     "DT Script",
     "DT Layout (#)",
     "DT Style (#)",
-    "LongTasks",
+    ...(showPaint ? ["DT Paint"] : []),
+    "DOM Spans (emp)",
     "DOM msgs (max/end)",
     "DT Heap Δ",
     "Page console() p50/p95",
     "Page encode p50/p95",
   ];
-  const cpuAlign = [false, true, true, true, true, true, true, true, true, true, true];
+  const cpuAlign = [false, true, true, true, true, true, ...(showPaint ? [true] : []), true, true, true, true, true];
   const cpuRows = results.map((r) => [
-    r.strategy,
+    labelOf(r),
     `${r.targetFps}`,
     `${r.cdpCpu.taskDurationMs.toFixed(0)}ms (${r.cdpCpu.taskBusyPct.toFixed(1)}%)`,
     `${r.cdpCpu.scriptDurationMs.toFixed(0)}ms`,
     `${r.cdpCpu.layoutDurationMs.toFixed(0)}ms (${r.cdpCpu.layoutCount})`,
     `${r.cdpCpu.recalcStyleDurationMs.toFixed(0)}ms (${r.cdpCpu.recalcStyleCount})`,
-    `${r.frontend.longTaskCount} (${r.frontend.longTaskTotalMs.toFixed(0)}ms)`,
+    ...(showPaint ? [`${(r.cdpCpu.paintDurationMs ?? 0).toFixed(0)}ms`] : []),
+    `${r.frontend.domSpansPerFrame} (${r.frontend.emptySpansPerFrame})`,
     `${r.frontend.mountedWrappersMax} / ${r.frontend.mountedWrappersEnd}`,
     `${r.cdpCpu.jsHeapDeltaMB >= 0 ? "+" : ""}${r.cdpCpu.jsHeapDeltaMB.toFixed(1)}MB`,
     `${r.page.consoleCallMs.p50.toFixed(2)} / ${r.page.consoleCallMs.p95.toFixed(2)}ms`,
@@ -704,10 +765,12 @@ async function main(): Promise<void> {
       for (const strat of ["clear", "noclear"]) {
         process.stdout.write(`  → sanity: strategy=${strat} @ 2fps (${cli.seconds}s)... `);
         const res = await runSingleBenchmark(browser, debugPort, server.url, {
+          scenario: "dashboard",
           strategy: strat,
           fps: 2,
           seconds: cli.seconds,
           screencast: cli.screencast,
+          trace: cli.trace,
           scheduler: cli.scheduler,
           dirtyMode: cli.dirtyMode,
           cols: cli.cols,
@@ -721,26 +784,30 @@ async function main(): Promise<void> {
     }
 
     console.log(
-      `\n[bench/devtools] Running benchmark (${cli.strategies.length} strategies × ${cli.fpsList.length} FPS rates)...`,
+      `\n[bench/devtools] Running benchmark (${cli.scenarios.length} scenarios × ${cli.strategies.length} strategies × ${cli.fpsList.length} FPS rates)...`,
     );
 
-    for (const fps of cli.fpsList) {
-      for (const strategy of cli.strategies) {
-        process.stdout.write(`  → strategy=${strategy} @ ${fps}fps (${cli.seconds}s)... `);
-        const res = await runSingleBenchmark(browser, debugPort, server.url, {
-          strategy,
-          fps,
-          seconds: cli.seconds,
-          screencast: cli.screencast,
-          scheduler: cli.scheduler,
-          dirtyMode: cli.dirtyMode,
-          cols: cli.cols,
-          rows: cli.rows,
-        });
-        console.log(
-          `blank=${res.frontend.blankPaintPct.toFixed(1)}% (${res.frontend.blankPaints}/${res.frontend.totalRafPaints}), painted=${res.frontend.distinctFramesPainted}/${res.page.emittedFrames}, DT busy=${res.cdpCpu.taskBusyPct.toFixed(1)}%`,
-        );
-        allResults.push(res);
+    for (const scenario of cli.scenarios) {
+      for (const fps of cli.fpsList) {
+        for (const strategy of cli.strategies) {
+          process.stdout.write(`  → scenario=${scenario} strategy=${strategy} @ ${fps}fps (${cli.seconds}s)... `);
+          const res = await runSingleBenchmark(browser, debugPort, server.url, {
+            scenario,
+            strategy,
+            fps,
+            seconds: cli.seconds,
+            screencast: cli.screencast,
+            trace: cli.trace,
+            scheduler: cli.scheduler,
+            dirtyMode: cli.dirtyMode,
+            cols: cli.cols,
+            rows: cli.rows,
+          });
+          console.log(
+            `blank=${res.frontend.blankPaintPct.toFixed(1)}% (${res.frontend.blankPaints}/${res.frontend.totalRafPaints}), painted=${res.frontend.distinctFramesPainted}/${res.page.emittedFrames}, DT busy=${res.cdpCpu.taskBusyPct.toFixed(1)}%`,
+          );
+          allResults.push(res);
+        }
       }
     }
 

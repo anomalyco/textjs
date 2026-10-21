@@ -1,3 +1,4 @@
+import React from "react";
 import {
   CellBuffer,
   CssConsoleDriver,
@@ -6,11 +7,26 @@ import {
   initYoga,
   paintScene,
   type ConsoleTarget,
+  type FrameResult,
+  type RendererScheduler,
   type SceneNode,
   type SceneNodeProps,
 } from "../../packages/core/src/index";
+import {
+  Box as RBox,
+  createConsoleRootSync,
+  Diff as RDiff,
+  KeyHint as RKeyHint,
+  Markdown as RMarkdown,
+  ScrollBox as RScrollBox,
+  Text as RText,
+  Textarea as RTextarea,
+} from "../../packages/react/src/index";
+
+export type BenchScenario = "dashboard" | "react-stream";
 
 export interface StreamOptions {
+  scenario?: BenchScenario;
   strategy: string;
   fps: number;
   durationMs: number;
@@ -357,9 +373,11 @@ function readQueryOptions(): StreamOptions & { autostart: boolean } {
   const scheduler = (params.get("scheduler") === "raf" ? "raf" : "timer") as "timer" | "raf";
   const coalesce = params.get("coalesce") !== "0" && params.get("coalesce") !== "false";
   const dirtyMode = (params.get("dirty") === "partial" ? "partial" : "all") as "all" | "partial";
+  const scenario = (params.get("scenario") === "react-stream" ? "react-stream" : "dashboard") as BenchScenario;
   const autostart = params.get("autostart") === "1" || params.get("autostart") === "true";
 
   return {
+    scenario,
     strategy,
     fps,
     durationMs: seconds * 1000,
@@ -370,6 +388,65 @@ function readQueryOptions(): StreamOptions & { autostart: boolean } {
     dirtyMode,
     autostart,
   };
+}
+
+const STREAM_MARKDOWN_DOC = `# Streaming Pipeline Analysis
+
+We traced **@textjs/react** and **@textjs/core** during live LLM streaming:
+
+1. **Reconciler Commit**: \`updateContainerSync\` mutates dirty \`SceneNode\` leaves.
+2. **Damage-Band Paint**: \`paintScene\` clears and rasterizes only damaged row bands.
+3. **Turbolog Encode**: \`CssConsoleDriver\` compiles dirty rows and resets \`%c\` across unmerged line breaks.
+
+\`\`\`ts
+export function renderStreamChunk(buf: CellBuffer, driver: CssConsoleDriver) {
+  const hashes = buf.getRowHashes();
+  return driver.render(buf);
+}
+\`\`\`
+
+| Stage | Cost (ms) | Notes |
+| :--- | ---: | :--- |
+| Commit | 0.03 | Memoized blocks & zero-copy host props |
+| Layout | 0.01 | In-place row leaf width update |
+| Paint | 0.01 | Scissor-clipped dirty row bands |
+| Encode | 0.02 | TypedArray L1 style IDs |
+`;
+
+const DIFF_BEFORE = `export function schedule(next: () => void) {\n  setTimeout(next, 66);\n}\n`;
+const DIFF_AFTER = `export function schedule(next: () => void, cleared: boolean) {\n  setTimeout(next, cleared ? 110 : 66);\n}\n`;
+
+function renderReactStreamElement(frameId: number, epochMs: number, streamText: string): React.ReactElement {
+  const fStr = String(frameId).padStart(6, "0");
+  const tStr = epochMs.toFixed(1);
+  const spin = SPINNERS[frameId % SPINNERS.length] ?? "⠋";
+  return React.createElement(
+    RBox,
+    { className: "flex-col grow", bg: "#09090b" },
+    React.createElement(
+      RBox,
+      { className: "flex-row h-1 shrink-0 px-1 bg-surface", justifyContent: "space-between" },
+      React.createElement(RText, { bold: true, color: "fg", wrap: "nowrap" }, `▼ OpenCode · FRAME:${fStr} · T:${tStr}`),
+      React.createElement(RText, { color: "accent", wrap: "nowrap" }, `${spin} ${(streamText.length / 4).toFixed(0)} tok`),
+    ),
+    React.createElement(
+      RScrollBox,
+      { stickyScroll: true, showScrollbar: true, className: "grow", paddingX: 2, paddingTop: 1, gap: 1 },
+      React.createElement(RDiff, { patch: { before: DIFF_BEFORE, after: DIFF_AFTER, filename: "renderer.ts" }, context: 1, maxHeight: 5 }),
+      React.createElement(RMarkdown, { codeLineNumbers: true }, streamText),
+    ),
+    React.createElement(
+      RBox,
+      { className: "flex-col shrink-0", bg: "panel", paddingX: 2, paddingY: 1 },
+      React.createElement(RTextarea, { id: "prompt", value: "", onChange: () => {}, placeholder: "Ask anything...", minRows: 1, maxRows: 2 }),
+      React.createElement(
+        RBox,
+        { className: "flex-row h-1 shrink-0", justifyContent: "space-between" },
+        React.createElement(RText, { color: "muted", wrap: "nowrap" }, "Claude Opus 5.5"),
+        React.createElement(RKeyHint, { keys: "esc", label: "interrupt" }),
+      ),
+    ),
+  );
 }
 
 declare global {
@@ -417,6 +494,128 @@ async function boot(): Promise<void> {
     const opts = { ...defaults, ...overrides };
     const parsed = parseStrategy(opts.strategy);
     const target = new InstrumentedConsoleTarget(parsed);
+
+    if (opts.scenario === "react-stream") {
+      let manualCb: (() => void) | null = null;
+      const manualSched: RendererScheduler = {
+        request(fn) {
+          manualCb = fn;
+          return 1;
+        },
+        cancel() {
+          manualCb = null;
+        },
+      };
+      let lastFrameResult: FrameResult | null = null;
+      const consoleRoot = createConsoleRootSync({
+        width: opts.cols,
+        height: opts.rows,
+        console: target,
+        clear: parsed.driverClearOption,
+        scheduler: manualSched,
+        minFrameInterval: 0,
+        input: false,
+        registerGlobal: false,
+        onFrame: (f) => {
+          lastFrameResult = f;
+        },
+      });
+      // Enable curtain when strategy is "native" on injected target
+      if (parsed.raw === "native") {
+        (consoleRoot.renderer.driver as unknown as { curtainOption: boolean }).curtainOption = true;
+      }
+
+      const layoutPaintSamples: number[] = [];
+      const encodeSamples: number[] = [];
+      const consoleCallSamples: number[] = [];
+      const totalFrameSamples: number[] = [];
+      const frameEmitEpochs: number[] = [performance.timeOrigin + performance.now()];
+      let totalDirtyRows = 0;
+      let totalSpans = 0;
+      let totalCssBytes = 0;
+      let frameId = 0;
+
+      const docLen = STREAM_MARKDOWN_DOC.length;
+
+      return new Promise<PageStreamResult>((resolve) => {
+        const startPerf = performance.now();
+        const intervalMs = 1000 / opts.fps;
+        let nextTarget = startPerf;
+
+        const emitOneFrame = (): boolean => {
+          frameId++;
+          const clearsBefore = target.clearsCalled;
+          const f0 = performance.now();
+          const emitEpoch = performance.timeOrigin + f0;
+          const chars = Math.max(8, ((frameId * 18) % (docLen + 1)));
+          const chunk = STREAM_MARKDOWN_DOC.slice(0, chars);
+
+          consoleRoot.render(renderReactStreamElement(frameId, emitEpoch, chunk));
+          const cb = manualCb;
+          manualCb = null;
+          if (cb) cb();
+          else consoleRoot.renderer.renderNow(true);
+          const afterRender = performance.now();
+
+          const fr = lastFrameResult;
+          const callMs = target.lastCallMs;
+          const lpMs = fr ? afterRender - f0 - (fr.encodeMs ?? 0) : afterRender - f0;
+          const pureEncodeMs = Math.max(0, (fr?.encodeMs ?? 0) - callMs);
+          const totalMs = afterRender - f0;
+
+          layoutPaintSamples.push(Math.max(0, lpMs));
+          encodeSamples.push(pureEncodeMs);
+          consoleCallSamples.push(callMs);
+          totalFrameSamples.push(totalMs);
+          frameEmitEpochs.push(emitEpoch);
+
+          totalDirtyRows += fr?.dirtyRows ?? 0;
+          totalSpans += fr?.spanCount ?? 0;
+          window.__latestEmittedFrame = frameId;
+          return target.clearsCalled > clearsBefore;
+        };
+
+        const finish = (): void => {
+          const actualDurationMs = performance.now() - startPerf;
+          consoleRoot.unmount();
+          const n = Math.max(1, frameId);
+          resolve({
+            strategy: parsed.raw,
+            targetFps: opts.fps,
+            durationMs: opts.durationMs,
+            actualDurationMs,
+            emittedFrames: frameId,
+            actualFps: (frameId / actualDurationMs) * 1000,
+            clearsCalled: target.clearsCalled,
+            logsCalled: target.logsCalled,
+            dirtyRowsMean: totalDirtyRows / n,
+            spanCountMean: totalSpans / n,
+            cssBytesMean: totalCssBytes / n,
+            layoutPaintMs: summarize(layoutPaintSamples),
+            encodeMs: summarize(encodeSamples),
+            consoleCallMs: summarize(consoleCallSamples),
+            totalFrameMs: summarize(totalFrameSamples),
+            frameEmitEpochs,
+          });
+        };
+
+        const onTick = (): void => {
+          if (performance.now() - startPerf >= opts.durationMs) {
+            finish();
+            return;
+          }
+          const didClear = emitOneFrame();
+          if (didClear && parsed.mode === "native") {
+            nextTarget = performance.now() + Math.max(intervalMs, 110);
+          } else {
+            nextTarget += intervalMs;
+          }
+          setTimeout(onTick, Math.max(0, nextTarget - performance.now()));
+        };
+        onTick();
+      });
+    }
+
     const driver = new CssConsoleDriver({
       console: target,
       clear: parsed.driverClearOption,
@@ -518,14 +717,21 @@ async function boot(): Promise<void> {
         };
         requestAnimationFrame(onRaf);
       } else {
+        let nextTarget = startPerf;
         const onTick = (): void => {
           const elapsed = performance.now() - startPerf;
           if (elapsed >= opts.durationMs) {
             finish();
             return;
           }
+          const clearsBefore = target.clearsCalled;
           emitOneFrame();
-          const nextTarget = startPerf + frameId * intervalMs;
+          const didClear = target.clearsCalled > clearsBefore;
+          if (didClear && parsed.mode === "native") {
+            nextTarget = performance.now() + Math.max(intervalMs, 110);
+          } else {
+            nextTarget += intervalMs;
+          }
           const waitMs = Math.max(0, nextTarget - performance.now());
           setTimeout(onTick, waitMs);
         };

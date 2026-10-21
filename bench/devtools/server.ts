@@ -38,6 +38,9 @@ export async function startBenchServer(port = 0): Promise<BenchServer> {
     target: "browser",
     format: "esm",
     minify: false,
+    define: {
+      "process.env.NODE_ENV": '"production"',
+    },
   });
 
   if (!build.success || !build.outputs[0]) {

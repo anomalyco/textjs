@@ -27,6 +27,9 @@ export interface FrontendProbeRawResult {
   mountedWrappersEnd: number;
   mountedWrappersMax: number;
   mountedWrappersMean: number;
+  domSpansPerFrame: number;
+  emptySpansPerFrame: number;
+  stylePropsPerFrame: number;
   consoleScrollHeightEnd: number;
   consoleViewportRect: { x: number; y: number; width: number; height: number };
 }
@@ -213,9 +216,17 @@ export async function runFrontendProbe(
                 const tm = tsRe.exec(firstSpanText);
                 foundEmitEpoch = tm ? Number.parseFloat(tm[1]!) : null;
 
-                const brCount = txtEl.getElementsByTagName("br").length;
+                let lineBreaks = txtEl.getElementsByTagName("br").length;
+                const childNodes = txtEl.childNodes;
+                for (let ci = 0; ci < childNodes.length; ci++) {
+                  const cn = childNodes[ci]!;
+                  if (cn.nodeType === 3) {
+                    const nv = cn.nodeValue || "";
+                    for (let ni = 0; ni < nv.length; ni++) if (nv.charCodeAt(ni) === 10) lineBreaks++;
+                  }
+                }
                 const visibleHeight = Math.min(r.bottom, vpRect.bottom) - Math.max(r.top, vpRect.top);
-                if (brCount + 1 >= expectedRows && visibleHeight >= 150) {
+                if (lineBreaks + 1 >= expectedRows && visibleHeight >= 150) {
                   foundState = "valid";
                 } else {
                   foundState = "incomplete";
@@ -271,7 +282,25 @@ export async function runFrontendProbe(
             requestAnimationFrame(onRaf);
           } else {
             obs?.disconnect();
-            const endWrappers = groupEl ? groupEl.querySelectorAll(".console-message-wrapper").length : 0;
+            const wrapperNodes = groupEl ? groupEl.querySelectorAll(".console-message-wrapper") : null;
+            const endWrappers = wrapperNodes ? wrapperNodes.length : 0;
+            let domSpansPerFrame = 0;
+            let emptySpansPerFrame = 0;
+            let stylePropsPerFrame = 0;
+            if (wrapperNodes && wrapperNodes.length > 0) {
+              const lastWrapper = wrapperNodes[wrapperNodes.length - 1] as HTMLElement;
+              const txt = (lastWrapper.querySelector(".console-message-text") ||
+                deepQuery(lastWrapper, ".console-message-text")) as HTMLElement | null;
+              if (txt) {
+                const spans = txt.querySelectorAll("span");
+                domSpansPerFrame = spans.length;
+                for (let si = 0; si < spans.length; si++) {
+                  const sp = spans[si] as HTMLElement;
+                  if (sp.textContent === "") emptySpansPerFrame++;
+                  stylePropsPerFrame += sp.style.length;
+                }
+              }
+            }
             const endScrollHeight = viewportEl ? viewportEl.scrollHeight : 0;
             const vpRect = viewportEl
               ? viewportEl.getBoundingClientRect()
@@ -297,6 +326,9 @@ export async function runFrontendProbe(
               mountedWrappersEnd: endWrappers,
               mountedWrappersMax,
               mountedWrappersMean: totalPaints > 0 ? mountedWrappersSum / totalPaints : 0,
+              domSpansPerFrame,
+              emptySpansPerFrame,
+              stylePropsPerFrame,
               consoleScrollHeightEnd: endScrollHeight,
               consoleViewportRect: {
                 x: Math.round(vpRect.x),
