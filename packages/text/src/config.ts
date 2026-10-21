@@ -8,11 +8,11 @@
 import type { ThemeName } from "@textjs/react";
 
 export interface ViewportConfig {
-  /** Fixed grid width in cells (default `100`). */
+  /** Grid width in cells when fixed, or when docked DevTools can't be measured (default `120`). */
   width?: number;
-  /** Fixed grid height in cells (default `32`). */
+  /** Grid height in cells when fixed, or when docked DevTools can't be measured (default `36`). */
   height?: number;
-  /** Follow the docked DevTools size instead of a fixed grid. */
+  /** Follow the docked DevTools console size (default `true`); `false` pins `width × height`. */
   responsive?: boolean;
   /** Initial theme preset (default `"geistDark"`). */
   theme?: ThemeName;

@@ -451,7 +451,7 @@ export async function startProxy(options: BridgeOptions = {}): Promise<StartedBr
         const dest = typeof (existing as { target?: unknown }).target === "string" ? ` → ${(existing as { target: string }).target}` : "";
         throw new Error(`Bridge already running at http://${probeHost}:${port}${dest} — connect to http://${probeHost}:${port} (or pass --port ${port + 1}).`);
       }
-      throw new Error(`Port ${port} is already in use — run bun run opencode:proxy --port ${port + 1} and connect to http://${probeHost}:${port + 1}.`);
+      throw new Error(`Port ${port} is already in use — run bunx @textjs/next proxy --port ${port + 1} and connect to http://${probeHost}:${port + 1}.`);
     }
     throw err;
   }

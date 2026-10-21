@@ -15,8 +15,8 @@ let base = "";
 beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), "textjs-dev-"));
   mkdirSync(join(dir, "app/api/echo/[name]"), { recursive: true });
-  mkdirSync(join(dir, "node_modules"), { recursive: true });
-  symlinkSync(join(REPO, "packages/text"), join(dir, "node_modules/textjs"));
+  mkdirSync(join(dir, "node_modules/@textjs"), { recursive: true });
+  symlinkSync(join(REPO, "packages/text"), join(dir, "node_modules/@textjs/next"));
   for (const dep of ["react", "react-dom"]) symlinkSync(join(REPO, "node_modules", dep), join(dir, "node_modules", dep));
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "dev-fixture", type: "module", private: true }));
   writeFileSync(join(dir, "text.config.ts"), 'import { defineConfig } from "@textjs/next";\nexport default defineConfig({ title: "Fixture", viewport: { width: 90 } });\n');

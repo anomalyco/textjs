@@ -59,9 +59,11 @@ export async function bootTextApp(options: BootOptions): Promise<TextApp> {
   const seen = new WeakSet<object>();
 
   const root = await createConsoleRoot({
-    width: vp.width ?? 100,
-    height: vp.height ?? 32,
-    responsive: vp.responsive ?? false,
+    // Follows the docked DevTools console by default; width × height is the
+    // size used when it can't be measured (undocked DevTools) or when `responsive: false`.
+    width: vp.width ?? 120,
+    height: vp.height ?? 36,
+    responsive: vp.responsive ?? true,
     theme: vp.theme,
     onCaughtError: (error) => {
       if (isNavigationError(error)) return;

@@ -15,6 +15,8 @@ export interface ParsedArgs {
   target?: string;
   /** `text proxy --allow-origin <origin>` (repeatable). */
   allowOrigins: string[];
+  /** `text run --path <pathname>`. */
+  path?: string;
   help: boolean;
   version: boolean;
 }
@@ -28,6 +30,8 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
     else if (a === "-v" || a === "--version") out.version = true;
     else if (a === "-p" || a === "--port") out.port = Number(argv[++i]);
     else if (a.startsWith("--port=")) out.port = Number(a.slice(7));
+    else if (a === "--path") out.path = argv[++i];
+    else if (a.startsWith("--path=")) out.path = a.slice(7);
     else if (a === "--target") out.target = argv[++i];
     else if (a.startsWith("--target=")) out.target = a.slice(9);
     else if (a === "--allow-origin") {
@@ -55,10 +59,12 @@ Commands:
   dev      Start the development server (Vite + React Fast Refresh)
   build    Create an optimized console production build
   start    Serve the production build
+  run      Render the app in this terminal (Bun)
   proxy    Bridge your local opencode server to textjs.org (CORS)
 
 Options:
   -p, --port <port>   Port (default 3000; proxy 4096)
+  --path <pathname>   run: initial route (default /)
   --target <url>      proxy: OpenCode server URL (default: discover)
   --allow-origin <o>  proxy: allow another browser origin
   -H, --host [host]   Expose on the network (optionally bind a host)
@@ -103,6 +109,13 @@ export async function main(argv: readonly string[]): Promise<number> {
         process.once("SIGINT", stop);
         process.once("SIGTERM", stop);
         await new Promise<never>(() => undefined);
+        return 0;
+      }
+      case "run": {
+        if (typeof process.versions.bun !== "string") throw new Error("`text run` requires Bun (route files are imported as TypeScript).");
+        const { runInTerminal } = await import("./run");
+        const app = await runInTerminal({ root, path: args.path });
+        await app.waitUntilExit();
         return 0;
       }
       case "proxy": {

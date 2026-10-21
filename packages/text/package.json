@@ -20,6 +20,8 @@
     "./devtools": "./src/devtools.tsx",
     "./client": "./src/client.tsx",
     "./vite": "./src/vite-plugin.ts",
+    "./testing": "./src/testing.ts",
+    "./terminal": "./src/terminal.ts",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -33,6 +35,8 @@
       "./devtools": { "types": "./dist/devtools.d.ts", "default": "./dist/devtools.js" },
       "./client": { "types": "./dist/client.d.ts", "default": "./dist/client.js" },
       "./vite": { "types": "./dist/vite-plugin.d.ts", "default": "./dist/vite-plugin.js" },
+      "./testing": { "types": "./dist/testing.d.ts", "default": "./dist/testing.js" },
+      "./terminal": { "types": "./dist/terminal.d.ts", "default": "./dist/terminal.js" },
       "./package.json": "./package.json"
     }
   },

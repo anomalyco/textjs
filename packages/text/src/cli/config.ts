@@ -16,7 +16,7 @@ export function findConfigFile(root: string): string | null {
 /**
  * Load `text.config.ts`. Bun runs TypeScript dependencies natively, so the
  * config is bundled with esbuild; on Node, Vite's module runner transforms
- * TypeScript workspace packages (`textjs` sources) imported by the config.
+ * TypeScript workspace packages (`@textjs/next` sources) imported by the config.
  */
 export async function loadTextConfig(root: string, command: "serve" | "build", mode = command === "build" ? "production" : "development"): Promise<{ config: TextConfig; file: string | null }> {
   const file = findConfigFile(root);
