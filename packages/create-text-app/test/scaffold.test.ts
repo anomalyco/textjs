@@ -28,7 +28,8 @@ const EXPECTED: Record<TemplateName, string[]> = {
 function linkDeps(dir: string): void {
   const nm = join(dir, "node_modules");
   mkdirSync(join(nm, "@types"), { recursive: true });
-  symlinkSync(join(REPO, "packages/text"), join(nm, "textjs"));
+  mkdirSync(join(nm, "@textjs"), { recursive: true });
+  symlinkSync(join(REPO, "packages/text"), join(nm, "@textjs/next"));
   for (const dep of ["react", "react-dom", "typescript"]) symlinkSync(join(REPO, "node_modules", dep), join(nm, dep));
   for (const t of ["react", "node", "bun"]) if (existsSync(join(REPO, "node_modules/@types", t))) symlinkSync(join(REPO, "node_modules/@types", t), join(nm, "@types", t));
 }
@@ -75,7 +76,7 @@ describe("scaffold", () => {
       expect(result.name).toBe(`valid-${template}`);
       const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
       expect(pkg.name).toBe(`valid-${template}`);
-      expect(pkg.dependencies.textjs).toBe("^1.0.0");
+      expect(pkg.dependencies["@textjs/next"]).toBe("^1.0.0");
       expect(pkg.scripts).toEqual({ dev: "text dev", build: "text build", start: "text start" });
       JSON.parse(readFileSync(join(dir, "tsconfig.json"), "utf8"));
       const tsx = new Bun.Transpiler({ loader: "tsx" });
