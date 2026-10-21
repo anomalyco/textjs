@@ -49,7 +49,8 @@ Every app adds helpers to `window.text`. Type them in the DevTools prompt.
 
 ```js
 text.help()
-text.resize(120, 38)
+text.resize(120, 36)   // pin the grid size
+text.responsive(true)  // fit the docked console again
 text.pause()
 text.stats()
 text.wireframe()

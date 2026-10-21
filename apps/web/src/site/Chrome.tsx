@@ -15,6 +15,19 @@ export function devtoolsShortcut(): string {
   return isMac() ? "⌘⌥J" : "Ctrl+Shift+J";
 }
 
+/**
+ * The DevTools shortcut for this platform. Both variants are rendered and CSS shows one
+ * (`html[data-os]`, set before first paint), so prerendered HTML hydrates without a text swap.
+ */
+export function DevtoolsShortcut(): ReactNode {
+  return (
+    <>
+      <span className="os-mac">⌘⌥J</span>
+      <span className="os-other">Ctrl+Shift+J</span>
+    </>
+  );
+}
+
 const NAV = [
   { href: "/docs", label: "Docs" },
   { href: "/playground", label: "Playground" },
@@ -133,7 +146,9 @@ export function ConsolePill(): ReactNode {
       title={on ? "Keystrokes outside form fields are sent to the console app. Click to pause." : "Click to send keystrokes into the console app."}
     >
       <span className={`dot${on ? "" : " dot-idle"}`} />
-      <kbd className="pill-detail">{devtoolsShortcut()}</kbd>
+      <kbd className="pill-detail">
+        <DevtoolsShortcut />
+      </kbd>
       <span>Console</span>
     </button>
   );

@@ -1,10 +1,10 @@
-import { Fragment, lazy, Suspense, useMemo, type ReactNode } from "react";
+import { Fragment, useMemo, type ReactNode } from "react";
 import { parseInline, parseMarkdown, type ListItem, type MarkdownBlock } from "@textjs/react";
 import { slugify } from "../docs/registry";
 import { A } from "../router";
 import { CodeBlock } from "./CodeBlock";
-
-const LivePreview = lazy(() => import("./LivePreview").then((m) => ({ default: m.LivePreview })));
+// Eager (not lazy): a Suspense fallback swapping to the taller preview would shift the page.
+import { LivePreview } from "./LivePreview";
 
 export function Inline({ text }: { text: string }): ReactNode {
   const spans = parseInline(text);
@@ -91,11 +91,7 @@ function Block({ block }: { block: MarkdownBlock }): ReactNode {
     case "code": {
       const fence = parseFence(block.language);
       if (fence.preview) {
-        return (
-          <Suspense fallback={<CodeBlock code={block.code} language={fence.language} />}>
-            <LivePreview id={fence.preview} code={block.code} language={fence.language} />
-          </Suspense>
-        );
+        return <LivePreview id={fence.preview} code={block.code} language={fence.language} />;
       }
       return <CodeBlock code={block.code} language={fence.language} file={fence.file} />;
     }

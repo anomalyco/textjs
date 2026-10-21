@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, Text, useInput } from "@textjs/react";
+import { Box, Text, useInput, useViewport } from "@textjs/react";
 
 const BARS = " ▁▂▃▄▅▆▇█";
 
@@ -83,8 +83,15 @@ function Stat({ label, value }: { label: string; value: string }): ReactNode {
   );
 }
 
+/** Enough history for the widest console. */
+const HISTORY = 200;
+
 export function DashboardDemo(): ReactNode {
-  const series = useLiveSeries(56, 7);
+  const vp = useViewport();
+  const history = useLiveSeries(HISTORY, 7);
+  // The chart fills the console: full width, and taller when there's room.
+  const series = history.slice(-Math.max(16, Math.min(HISTORY, vp.cols - 4)));
+  const chartHeight = Math.max(3, Math.min(12, vp.rows - 20));
   const [region, setRegion] = useState(0);
   useInput((e) => {
     if (e.key === "left" || e.key === "right") {
@@ -92,7 +99,7 @@ export function DashboardDemo(): ReactNode {
       setRegion((r) => (r + (e.key === "left" ? REGIONS.length - 1 : 1)) % REGIONS.length);
     }
   });
-  const now = series[series.length - 1] ?? 0;
+  const now = history[history.length - 1] ?? 0;
   return (
     <Box className="flex-col grow px-2 gap-1">
       <Box className="flex-row h-1 gap-2 shrink-0">
@@ -107,7 +114,7 @@ export function DashboardDemo(): ReactNode {
         <Stat label="p95 latency" value={`${70 + region * 9 + Math.round(now * 30)}ms`} />
         <Stat label="Error rate" value="0.04%" />
       </Box>
-      <ThroughputBars series={series} height={5} />
+      <ThroughputBars series={series} height={chartHeight} />
       <Box className="flex-col shrink-0" marginTop={1}>
         {DEPLOYS.map((d) => (
           <Box key={d.id} className="flex-row h-1 gap-2">

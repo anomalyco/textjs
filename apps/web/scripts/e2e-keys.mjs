@@ -71,6 +71,26 @@ for (const d of demos) {
 }
 check("pad is live after keystrokes", (await padState()) === "live", await padState());
 
+// Console size control: a preset pins the grid (and persists), "Fit console" follows DevTools again.
+const grid = (frame) => {
+  const rows = frame.replace(/[\u200b\u2060]/g, "").split("\n").filter((r) => r.length > 0);
+  return { cols: Math.max(...rows.map((r) => [...r].length)), rows: rows.length };
+};
+const size = page.getByLabel("Console size");
+check("pad has a console size control, fitting by default", (await size.inputValue()) === "fit", await size.inputValue());
+await size.selectOption("80x24");
+await settle(400);
+const pinned = grid(await last());
+check("size preset resizes the console frame", pinned.cols === 80 && pinned.rows === 24, JSON.stringify(pinned));
+await page.reload();
+await settle(1200);
+check("size choice persists across reloads", (await page.getByLabel("Console size").inputValue()) === "80x24" && grid(await last()).rows === 24, JSON.stringify(grid(await last())));
+await page.getByLabel("Console size").selectOption("fit");
+await settle(400);
+const fitted = grid(await last());
+// DevTools is closed in this headless page, so "Fit console" uses the 120×36 fallback.
+check("Fit console falls back when DevTools can't be measured", fitted.cols === 120 && fitted.rows === 36, JSON.stringify(fitted));
+
 // Simulate focus moving into DevTools: blur the window.
 await page.evaluate(() => window.dispatchEvent(new Event("blur")));
 

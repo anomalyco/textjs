@@ -5,12 +5,24 @@
 
 import { extractStyledFrame, InputEngine, type StyledFrame } from "@textjs/core";
 import { createConsoleRoot, type ConsoleRoot } from "@textjs/react";
+import { loadViewportChoice } from "@textjs/react/dom";
 import { CompanionApp } from "./App";
-import { siteStore } from "./store";
+import { siteStore, type CompanionTab } from "./store";
 
+/** The Home hero mirrors the console on the page, so Home keeps (at most) this shape. */
 export const COMPANION_COLS = 100;
-/** Fits a docked DevTools drawer, so `console.clear()` never triggers its scroll-to-bottom jump. */
 export const COMPANION_ROWS = 26;
+
+/**
+ * The companion fills the docked DevTools console ("Fit console", the
+ * default) unless the visitor picked a size on a pad. Home caps the fit at
+ * the hero mirror's shape; elsewhere it uses the whole console.
+ */
+export function viewportLimitsFor(tab: CompanionTab): { maxCols: number; maxRows: number; fallbackCols: number; fallbackRows: number } {
+  return tab === "home"
+    ? { maxCols: COMPANION_COLS, maxRows: COMPANION_ROWS, fallbackCols: COMPANION_COLS, fallbackRows: COMPANION_ROWS }
+    : { maxCols: 200, maxRows: 60, fallbackCols: 120, fallbackRows: 36 };
+}
 
 const EDITABLE = "input,textarea,select,[contenteditable=''],[contenteditable='true']";
 /** Elements that own their keyboard input (sandboxes, search) and must never feed the companion. */
@@ -87,9 +99,11 @@ export function bootCompanion(): Promise<Companion> {
   booting = (async () => {
     const engine = new GatedInputEngine(() => shouldRouteToConsole(document.activeElement, siteStore.getSnapshot().consoleInput));
     engine.attach();
+    const choice = loadViewportChoice() ?? "fit";
+    const limits = viewportLimitsFor(siteStore.getSnapshot().tab);
     const root = await createConsoleRoot({
-      width: COMPANION_COLS,
-      height: COMPANION_ROWS,
+      ...(choice === "fit" ? { responsive: true } : { width: choice.cols, height: choice.rows }),
+      viewport: limits,
       input: engine,
       theme: siteStore.getSnapshot().theme,
       tabFocus: false,
@@ -97,11 +111,16 @@ export function bootCompanion(): Promise<Companion> {
     });
 
     let theme = siteStore.getSnapshot().theme;
+    let tab = siteStore.getSnapshot().tab;
     siteStore.subscribe(() => {
-      const next = siteStore.getSnapshot().theme;
-      if (next !== theme) {
-        theme = next;
-        root.setTheme(next);
+      const snap = siteStore.getSnapshot();
+      if (snap.theme !== theme) {
+        theme = snap.theme;
+        root.setTheme(snap.theme);
+      }
+      if (snap.tab !== tab) {
+        tab = snap.tab;
+        root.renderer.viewport.configure(viewportLimitsFor(tab));
       }
     });
 

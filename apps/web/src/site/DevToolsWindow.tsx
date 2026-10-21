@@ -11,6 +11,19 @@ export function blankFrame(cols: number, rows: number, bgCss = "#0a0a0a"): Style
   return { width: cols, height: rows, rows: Array.from({ length: rows }, row) };
 }
 
+/** Scale (never up) and resulting height that fit a mirror's natural size into its container. */
+export function fitMirror(outer: HTMLElement, inner: HTMLElement): { scale: number; height: number } {
+  const natural = inner.scrollWidth;
+  const scale = natural > 0 ? Math.min(1, outer.clientWidth / natural) : 1;
+  return { scale, height: inner.offsetHeight * scale };
+}
+
+/**
+ * Inline script for prerendered pages, run right after the markup: applies the same fit
+ * `ScaledMirror` computes on hydration, so scaled mirrors never resize after first paint.
+ */
+export const PREFIT_MIRRORS_SCRIPT = `(function(){var fit=${fitMirror.toString()};document.querySelectorAll(".mirror-scale").forEach(function(o){var i=o.firstElementChild;if(!i)return;var f=fit(o,i);o.style.height=f.height+"px";if(f.scale!==1)i.style.transform="scale("+f.scale+")"})})()`;
+
 /** Scales a fixed-width console mirror down to fit its container (never up). */
 export function ScaledMirror({
   frame,
@@ -35,9 +48,7 @@ export function ScaledMirror({
     const i = inner.current;
     if (!o || !i) return;
     const measure = (): void => {
-      const natural = i.scrollWidth;
-      const scale = natural > 0 ? Math.min(1, o.clientWidth / natural) : 1;
-      const height = i.offsetHeight * scale;
+      const { scale, height } = fitMirror(o, i);
       setFit((f) => (Math.abs(f.scale - scale) < 0.001 && f.height === height ? f : { scale, height }));
     };
     measure();
@@ -49,8 +60,15 @@ export function ScaledMirror({
 
   return (
     <div ref={outer} className="mirror-scale" style={{ height: fit.height }}>
-      <div ref={inner} style={{ transform: fit.scale === 1 ? undefined : `scale(${fit.scale})` }}>
-        <ConsoleMirror frame={frame ?? placeholder} fontSize={fontSize} lineHeight={lineHeight} style={{ display: "block" }} />
+      <div ref={inner} style={{ position: "relative", transform: fit.scale === 1 ? undefined : `scale(${fit.scale})` }}>
+        {/* The blank cols×rows grid always sizes the box; live frames of any size (a responsive
+            companion resizing, a stale frame from another page) paint over it without moving layout. */}
+        <ConsoleMirror frame={placeholder} fontSize={fontSize} lineHeight={lineHeight} style={{ display: "block" }} />
+        {frame ? (
+          <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
+            <ConsoleMirror frame={frame} fontSize={fontSize} lineHeight={lineHeight} style={{ display: "block" }} />
+          </div>
+        ) : null}
       </div>
     </div>
   );

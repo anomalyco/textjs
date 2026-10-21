@@ -55,9 +55,16 @@ const brand = createTheme({ id: "brand", name: "Brand", accent: "#ffffff" }, "ge
 
 ## Responsive viewports
 
-Set `viewport.responsive` to follow the docked DevTools size:
+Apps fill the docked DevTools console by default (`viewport.responsive`), and resize as you drag the panel. Lay out with flex and read the size when you need it:
 
 ```tsx
 const { cols } = useViewport();
 const sidebar = cols >= 90;
+```
+
+The page can only see a docked panel. Undocked DevTools, DevTools zoom and the Console sidebar are invisible to it, so the app uses `viewport.width × viewport.height` (default `120×36`) or a size you pin:
+
+```js
+text.resize(120, 36)   // pin a size
+text.responsive(true)  // fit the console again
 ```

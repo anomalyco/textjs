@@ -43,7 +43,7 @@ import { defineConfig } from "@textjs/next";
 
 export default defineConfig({
   title: "Acme",
-  viewport: { width: 100, height: 32, theme: "geistDark" },
+  viewport: { width: 120, height: 36, theme: "geistDark" },
   hints: [{ keys: "↑ ↓", label: "count" }],
 });
 ```
@@ -51,7 +51,7 @@ export default defineConfig({
 | Option | Default | Description |
 | :-- | :-- | :-- |
 | `title` | `""` | Page and FocusPad title |
-| `viewport` | `100×32` | Grid size, `responsive` and `theme` |
+| `viewport` | fit console, else `120×36` | `responsive` (default `true`), fallback `width × height`, `theme` |
 | `hints` | `[]` | Two or three keys shown on the page's FocusPad |
 | `action` | `press <first hint>` | What to do once focused, e.g. `"type a prompt"` |
 | `devIndicators` | `true` | In-console `[▼]` pill |

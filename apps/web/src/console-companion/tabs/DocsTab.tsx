@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { Box, Input, Markdown, ScrollBox, Select, Text, useInput, useTheme, type ScrollBoxHandle, type SelectOption } from "@textjs/react";
+import { Box, Input, Markdown, ScrollBox, Select, Text, useInput, useTheme, useViewport, type ScrollBoxHandle, type SelectOption } from "@textjs/react";
 import { DOCS, getDoc, searchDocs, toConsoleMarkdown } from "../../docs/registry";
 import { siteStore } from "../store";
 import { useSite } from "../useSite";
@@ -8,6 +8,7 @@ type Pane = "list" | "content" | "search";
 
 export function DocsTab(): ReactNode {
   const theme = useTheme();
+  const vp = useViewport();
   const site = useSite();
   const [query, setQuery] = useState("");
   const [pane, setPane] = useState<Pane>("list");
@@ -53,7 +54,7 @@ export function DocsTab(): ReactNode {
   return (
     <Box className="flex-col grow">
       <Box className="flex-row grow">
-        <Box className="flex-col shrink-0 px-2 gap-1" width={30} border borderTop={false} borderLeft={false} borderBottom={false} borderColor={theme.border}>
+        <Box className="flex-col shrink-0 px-2 gap-1" width={vp.cols < 90 ? 24 : 30} border borderTop={false} borderLeft={false} borderBottom={false} borderColor={theme.border}>
           <Box className="flex-row h-1 shrink-0 gap-1">
             <Text color={pane === "search" ? "accent" : "subtle"} wrap="nowrap">
               /
@@ -65,7 +66,7 @@ export function DocsTab(): ReactNode {
             options={options}
             value={doc?.slug}
             focused={pane === "list"}
-            limit={20}
+            limit={Math.max(4, vp.rows - 6)}
             onHighlight={(slug) => siteStore.set({ docSlug: slug })}
             onChange={(slug) => {
               siteStore.set({ docSlug: slug });

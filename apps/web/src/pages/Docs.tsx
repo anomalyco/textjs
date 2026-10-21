@@ -71,7 +71,7 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
       <div className="docs-mobile-bar">
         <button type="button" onClick={() => setMenu(true)} aria-label="Open docs navigation" aria-expanded={menu} aria-controls="docs-drawer">
           <MenuIcon size={16} />
-          <span className="docs-mobile-crumb">
+          <span key={doc.slug} className="docs-mobile-crumb">
             {doc.category} <span className="subtle">/</span> <span className="docs-mobile-current">{doc.nav ?? doc.title}</span>
           </span>
           <ChevronDown size={14} />

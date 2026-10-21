@@ -95,8 +95,8 @@ export interface SnakeDemoProps {
 export function SnakeDemo({ reserveRows = 4, autoStart = false }: SnakeDemoProps): ReactNode {
   const theme = useTheme();
   const vp = useViewport();
-  const h = Math.max(6, Math.min(20, vp.rows - reserveRows - 6));
-  const w = Math.max(10, Math.min(30, Math.floor((vp.cols - 8) / 2)));
+  const h = Math.max(6, Math.min(26, vp.rows - reserveRows - 6));
+  const w = Math.max(10, Math.min(40, Math.floor((vp.cols - 8) / 2)));
   const game = useRef<Game>(newGame(w, h));
   const [, setFrame] = useState(0);
   const [high, setHigh] = useState(readHigh);

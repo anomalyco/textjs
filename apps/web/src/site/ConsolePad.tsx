@@ -45,6 +45,7 @@ export function ConsolePad({ hints, action, top, children }: ConsolePadProps): R
         onActivate={() => getCompanion()?.activate()}
         top={top}
         className="pad"
+        sizeControl
       >
         {children}
       </FocusPad>

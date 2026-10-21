@@ -8,16 +8,10 @@ export function useScrollLock(active: boolean): void {
   useEffect(() => {
     if (!active) return;
     const root = document.documentElement;
-    if (locks++ === 0) {
-      const gap = window.innerWidth - root.clientWidth;
-      root.style.overflow = "hidden";
-      if (gap > 0) root.style.paddingRight = `${gap}px`;
-    }
+    // `scrollbar-gutter: stable` on <html> keeps the scrollbar's space reserved, so nothing shifts.
+    if (locks++ === 0) root.style.overflow = "hidden";
     return () => {
-      if (--locks === 0) {
-        root.style.overflow = "";
-        root.style.paddingRight = "";
-      }
+      if (--locks === 0) root.style.overflow = "";
     };
   }, [active]);
 }

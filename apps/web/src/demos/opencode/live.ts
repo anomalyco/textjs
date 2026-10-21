@@ -14,8 +14,8 @@ import type { Message, Part, Session, ToolPart } from "./model";
 export type Protocol = "v1" | "v2";
 
 export const DEFAULT_SERVER_URL = "http://127.0.0.1:4096";
-// The public npm `textjs` package is unrelated and has no CLI. Run this in the Text.js checkout.
-export const BRIDGE_COMMAND = "bun run opencode:proxy";
+// Works from any directory: the bridge ships in the `@textjs/next` CLI.
+export const BRIDGE_COMMAND = "bunx @textjs/next proxy";
 const REMEMBER_KEY = "textjs:opencode-server";
 
 export function normalizeServerUrl(input: string): string {

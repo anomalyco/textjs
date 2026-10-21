@@ -33,7 +33,7 @@ export function FormDemo(): ReactNode {
   };
 
   return (
-    <Box className="flex-col grow px-2 gap-1" width={56}>
+    <Box className="flex-col grow px-2 gap-1" width="100%" maxWidth={60}>
       <Text color="muted">Project name</Text>
       <Box className="border rounded px-1 shrink-0" borderColor={theme.border} focusedBorderColor={theme.borderFocus}>
         <Input id="form-name" value={name} onChange={setName} onSubmit={() => submit()} placeholder="my-text-app" autoFocus />

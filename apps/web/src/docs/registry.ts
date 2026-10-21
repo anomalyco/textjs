@@ -9,6 +9,13 @@ import componentsLayout from "./content/components-layout.md?raw";
 import componentsInteractive from "./content/components-interactive.md?raw";
 import componentsContent from "./content/components-content.md?raw";
 import hooksAndRepl from "./content/hooks-and-repl.md?raw";
+import keyboard from "./content/keyboard.md?raw";
+import testing from "./content/testing.md?raw";
+import terminal from "./content/terminal.md?raw";
+import componentsData from "./content/components-data.md?raw";
+import componentsCharts from "./content/components-charts.md?raw";
+import componentsForms from "./content/components-forms.md?raw";
+import utilityHooks from "./content/utility-hooks.md?raw";
 import turbologEngine from "./content/turbolog-engine.md?raw";
 import opencode from "./content/opencode.md?raw";
 
@@ -77,10 +84,33 @@ export const DOCS: readonly DocPage[] = [
     markdown: styling,
   },
   {
+    slug: "keyboard",
+    title: "Keyboard Shortcuts",
+    nav: "Keyboard",
+    description: "useKeymap, sequences, the ? help overlay, key hints and the command palette.",
+    category: "Building Your Application",
+    markdown: keyboard,
+  },
+  {
+    slug: "testing",
+    title: "Testing",
+    description: "Render apps offscreen, press keys and assert on frames with textjs/testing.",
+    category: "Building Your Application",
+    markdown: testing,
+  },
+  {
+    slug: "terminal",
+    title: "Running in a Terminal",
+    nav: "Terminal",
+    description: "text run and renderToTerminal: the same app, drawn with truecolor ANSI.",
+    category: "Building Your Application",
+    markdown: terminal,
+  },
+  {
     slug: "components-layout",
     title: "Layout Components",
     nav: "Layout",
-    description: "<Box>, <Text>, <ScrollBox>, <Modal>, <Spacer>, <Divider>, <Badge> and <KeyHint>.",
+    description: "<Box>, <Text>, <ScrollBox>, <Modal>, <SplitPane>, <Stack>, <Grid> and small pieces.",
     category: "Components",
     markdown: componentsLayout,
   },
@@ -101,12 +131,43 @@ export const DOCS: readonly DocPage[] = [
     markdown: componentsContent,
   },
   {
+    slug: "components-data",
+    title: "Data Components",
+    nav: "Data",
+    description: "<List>, <Table> and <Tree>: virtualized, sortable and selectable.",
+    category: "Components",
+    markdown: componentsData,
+  },
+  {
+    slug: "components-charts",
+    title: "Charts and Visuals",
+    nav: "Charts",
+    description: "<LineChart>, <BarChart>, <Sparkline>, <ProgressBar>, <Gradient> and <Image>.",
+    category: "Components",
+    markdown: componentsCharts,
+  },
+  {
+    slug: "components-forms",
+    title: "Forms and Feedback",
+    nav: "Forms & Feedback",
+    description: "<Button>, <Checkbox>, <Switch>, <RadioGroup>, <Slider>, <Dialog>, <Confirm> and toasts.",
+    category: "Components",
+    markdown: componentsForms,
+  },
+  {
     slug: "hooks-and-repl",
     title: "Hooks and the Console REPL",
     nav: "Hooks & REPL",
     description: "useInput, useFocus, useViewport, useConsoleStats and window.text.",
     category: "API Reference",
     markdown: hooksAndRepl,
+  },
+  {
+    slug: "utility-hooks",
+    title: "Utility Hooks",
+    description: "useInterval, useAnimationFrame, useTween, useSpring, useMeasure, useBreakpoint and useLocalStorage.",
+    category: "API Reference",
+    markdown: utilityHooks,
   },
   {
     slug: "turbolog-engine",

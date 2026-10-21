@@ -102,6 +102,12 @@ export function getLocation(): LocationState {
   return current;
 }
 
+/** Point the router at `pathname` without touching history (build-time prerendering). */
+export function resetLocation(pathname: string): void {
+  current = { pathname: normalizePath(pathname), hash: "", key: 0 };
+  siteStore.syncRoute(current.pathname);
+}
+
 export function useLocation(): LocationState {
   return useSyncExternalStore(subscribeLocation, getLocation, getLocation);
 }

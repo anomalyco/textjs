@@ -19,6 +19,7 @@ import { DashboardDemo } from "../demos/Dashboard";
 import { FormDemo } from "../demos/Form";
 import { SnakeDemo } from "../demos/Snake";
 import { StreamingDemo } from "../demos/Streaming";
+import { ChartsPreview, ControlsPreview, KeymapPreview, TablePreview, TreePreview } from "../demos/Kit";
 
 function LayoutPreview(): ReactNode {
   return (
@@ -205,4 +206,9 @@ export const PREVIEWS: Record<string, PreviewSpec> = {
   theme: { cols: 96, rows: 9, render: () => <ThemePreview /> },
   dashboard: { cols: 100, rows: 26, render: () => <DashboardDemo /> },
   snake: { cols: 96, rows: 24, render: () => <SnakeDemo reserveRows={2} /> },
+  table: { cols: 72, rows: 13, render: () => <TablePreview /> },
+  tree: { cols: 56, rows: 11, render: () => <TreePreview /> },
+  charts: { cols: 72, rows: 14, render: () => <ChartsPreview /> },
+  controls: { cols: 72, rows: 14, render: () => <ControlsPreview /> },
+  keymap: { cols: 80, rows: 18, render: () => <KeymapPreview /> },
 };

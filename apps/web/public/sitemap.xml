@@ -8,10 +8,17 @@
   <url><loc>https://textjs.org/docs/loading-and-errors</loc></url>
   <url><loc>https://textjs.org/docs/route-handlers</loc></url>
   <url><loc>https://textjs.org/docs/styling</loc></url>
+  <url><loc>https://textjs.org/docs/keyboard</loc></url>
+  <url><loc>https://textjs.org/docs/testing</loc></url>
+  <url><loc>https://textjs.org/docs/terminal</loc></url>
   <url><loc>https://textjs.org/docs/components-layout</loc></url>
   <url><loc>https://textjs.org/docs/components-interactive</loc></url>
   <url><loc>https://textjs.org/docs/components-content</loc></url>
+  <url><loc>https://textjs.org/docs/components-data</loc></url>
+  <url><loc>https://textjs.org/docs/components-charts</loc></url>
+  <url><loc>https://textjs.org/docs/components-forms</loc></url>
   <url><loc>https://textjs.org/docs/hooks-and-repl</loc></url>
+  <url><loc>https://textjs.org/docs/utility-hooks</loc></url>
   <url><loc>https://textjs.org/docs/turbolog-engine</loc></url>
   <url><loc>https://textjs.org/docs/opencode</loc></url>
   <url><loc>https://textjs.org/playground</loc><priority>0.8</priority></url>

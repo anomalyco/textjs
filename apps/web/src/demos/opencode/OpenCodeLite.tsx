@@ -511,7 +511,7 @@ export function OpenCodeLite({ active = true }: OpenCodeLiteProps): ReactNode {
   const prompt$ = <PromptBox agent={agent} modelId={model?.id} value={prompt} onChange={setPrompt} onSubmit={submit} right={right} />;
 
   const modal = (
-    <Modal open={palette} title=" Commands " onClose={() => setPalette(false)} width={64} maxHeight={20}>
+    <Modal open={palette} title=" Commands " onClose={() => setPalette(false)} width={64} maxWidth="94%" maxHeight={20}>
       <Select options={options} searchable autoFocus limit={12} onChange={(v) => choose(v)} showDescriptions={false} searchPlaceholder="Search sessions, models and commands…" />
     </Modal>
   );
