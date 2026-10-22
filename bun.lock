@@ -25,10 +25,21 @@
       "version": "0.1.0",
       "dependencies": {
         "@textjs/core": "workspace:*",
+        "@textjs/next": "workspace:*",
         "@textjs/react": "workspace:*",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
-        "textjs": "workspace:*",
+      },
+    },
+    "apps/terminal-shop": {
+      "name": "@textjs/terminal-shop",
+      "version": "0.1.0",
+      "dependencies": {
+        "@textjs/core": "workspace:*",
+        "@textjs/next": "workspace:*",
+        "@textjs/react": "workspace:*",
+        "react": "^19.3.1",
+        "react-dom": "^19.3.1",
       },
     },
     "apps/web": {
@@ -36,10 +47,10 @@
       "version": "0.1.0",
       "dependencies": {
         "@textjs/core": "workspace:*",
+        "@textjs/next": "workspace:*",
         "@textjs/react": "workspace:*",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
-        "textjs": "workspace:*",
       },
       "devDependencies": {
         "@vitejs/plugin-react": "^4.5.2",
@@ -50,9 +61,9 @@
       "name": "@textjs/example-dashboard",
       "version": "0.1.0",
       "dependencies": {
+        "@textjs/next": "workspace:*",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
-        "textjs": "workspace:*",
       },
       "devDependencies": {
         "@types/react": "^19.3.0",
@@ -90,7 +101,7 @@
       ],
     },
     "packages/text": {
-      "name": "textjs",
+      "name": "@textjs/next",
       "version": "1.0.0",
       "bin": {
         "text": "./bin/text.js",
@@ -268,9 +279,13 @@
 
     "@textjs/example-dashboard": ["@textjs/example-dashboard@workspace:examples/dashboard"],
 
+    "@textjs/next": ["@textjs/next@workspace:packages/text"],
+
     "@textjs/opencode-console": ["@textjs/opencode-console@workspace:apps/opencode-console"],
 
     "@textjs/react": ["@textjs/react@workspace:packages/react"],
+
+    "@textjs/terminal-shop": ["@textjs/terminal-shop@workspace:apps/terminal-shop"],
 
     "@textjs/web": ["@textjs/web@workspace:apps/web"],
 
@@ -359,8 +374,6 @@
     "semver": ["semver@6.3.1", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA=="],
 
     "source-map-js": ["source-map-js@1.2.2", "", {}, "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw=="],
-
-    "textjs": ["textjs@workspace:packages/text"],
 
     "tinyglobby": ["tinyglobby@0.2.17", "", { "dependencies": { "fdir": "^6.5.0", "picomatch": "^4.0.4" } }, "sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g=="],
 

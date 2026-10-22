@@ -24,7 +24,7 @@ export interface ConsoleTypographyOptions {
 }
 
 export const DEFAULT_TYPOGRAPHY: Readonly<ConsoleTypographyOptions> = Object.freeze({
-  fontFamily: 'ui-monospace,"SF Mono",Menlo,Monaco,Consolas,monospace',
+  fontFamily: '"SF Mono",Menlo,Consolas,monospace',
   fontSize: 12,
   lineHeight: 14,
   rowMarginY: -1,

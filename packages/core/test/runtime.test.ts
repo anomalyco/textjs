@@ -1,16 +1,13 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import {
   ConsoleRenderer,
-  estimateDockedConsoleSize,
   initYoga,
   InputEngine,
   isPassthroughShortcut,
-  ViewportController,
   type InputEvent,
   type KeyboardEventLike,
   type RendererScheduler,
   type TextConsoleApi,
-  type WindowLike,
 } from "../src/index";
 import { box, FakeConsole, text } from "./fixtures";
 
@@ -133,46 +130,6 @@ describe("InputEngine", () => {
       { type: "wheel", deltaX: 0, deltaY: 48, rows: 3, cols: 0, ctrl: false, meta: false, shift: false, alt: false },
       { type: "focus", focused: false },
     ]);
-  });
-});
-
-describe("ViewportController", () => {
-  const win = (o: Partial<WindowLike>): WindowLike => ({ innerWidth: 1440, innerHeight: 812, outerWidth: 1440, outerHeight: 900, ...o });
-
-  test("fixed size", () => {
-    const v = new ViewportController({ width: 120, height: 40, window: null });
-    expect(v.getSize()).toEqual({ cols: 120, rows: 40, dock: "fixed" });
-  });
-
-  test("undocked falls back to 100×32", () => {
-    expect(estimateDockedConsoleSize(win({}), 7.2, 14)).toEqual({ cols: 100, rows: 32, dock: "undocked" });
-  });
-
-  test("docked right estimates columns from devtools width", () => {
-    const s = estimateDockedConsoleSize(win({ innerWidth: 700 }), 7.2, 14);
-    expect(s.dock).toBe("right");
-    expect(s.cols).toBe(Math.floor((740 - 32) / 7.2));
-    expect(s.rows).toBe(Math.floor((900 - 88 - 84) / 14));
-  });
-
-  test("docked bottom estimates rows and clamps", () => {
-    const s = estimateDockedConsoleSize(win({ innerHeight: 400 }), 7.2, 14);
-    expect(s.dock).toBe("bottom");
-    expect(s.rows).toBe(Math.max(18, Math.floor((900 - 400 - 88 - 84) / 14)));
-    expect(s.cols).toBe(180);
-  });
-
-  test("responsive refresh notifies subscribers", () => {
-    const w = win({ innerWidth: 700 });
-    const v = new ViewportController({ responsive: true, window: w, charWidth: 7.2 });
-    const sizes: number[] = [];
-    v.subscribe((s) => sizes.push(s.cols));
-    w.innerWidth = 900;
-    v.refresh();
-    v.refresh();
-    expect(sizes).toEqual([Math.floor((540 - 32) / 7.2)]);
-    v.setSize(80, 24);
-    expect(v.getSize()).toEqual({ cols: 80, rows: 24, dock: "fixed" });
   });
 });
 

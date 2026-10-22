@@ -5,10 +5,10 @@
 
 import { parseColor, type ColorInput } from "./color";
 import { CellBuffer } from "./cell-buffer";
-import { CssConsoleDriver, type ClearMode, type ConsoleTarget } from "./drivers/css-console-driver";
+import { CssConsoleDriver, type ClearMode, type ConsoleTarget, type DriverRenderOptions } from "./drivers/css-console-driver";
 import type { ConsoleTypographyOptions, StyleResolveOptions } from "./drivers/style";
 import { InputEngine, type FocusChangeEvent } from "./input";
-import { paintScene, type SceneNode } from "./scene";
+import { paintScene, type PaintOptions, type SceneNode } from "./scene";
 import { ViewportController, type ResolvedViewport, type ViewportOptions } from "./viewport";
 
 export interface RendererScheduler {
@@ -101,10 +101,30 @@ const DRIVER_FORCE: Readonly<DriverRenderOptions> = Object.freeze({ force: true 
 
 const hasWindow = typeof window !== "undefined" && typeof document !== "undefined";
 
+function makeFrameResult(t: RendererStats, skipped: boolean): FrameResult {
+  return {
+    fps: t.fps,
+    frameCount: t.frameCount,
+    dirtyRows: t.dirtyRows,
+    spanCount: t.spanCount,
+    layoutMs: t.layoutMs,
+    rasterMs: t.rasterMs,
+    encodeMs: t.encodeMs,
+    totalMs: t.totalMs,
+    skippedFrames: t.skippedFrames,
+    yogaNodes: t.yogaNodes,
+    cols: t.cols,
+    rows: t.rows,
+    focused: t.focused,
+    paused: t.paused,
+    skipped,
+  };
+}
+
 export function createDefaultScheduler(): RendererScheduler {
   if (typeof requestAnimationFrame === "function") {
     return {
-      request: (cb) => requestAnimationFrame(() => cb()),
+      request: (cb) => requestAnimationFrame(cb),
       cancel: (h) => cancelAnimationFrame(h as number),
     };
   }
@@ -136,15 +156,21 @@ export class ConsoleRenderer {
   private delay: ReturnType<typeof setTimeout> | null = null;
   private scheduled = false;
   private readonly frameInterval: number;
+  private readonly postClearInterval: number;
   private lastEmitAt = -Infinity;
   private lastEmitCleared = false;
   private pendingForce = false;
+  private pendingWhileHidden = false;
+  private docHidden = false;
   private isPaused = false;
   private disposed = false;
   private wireframe: boolean;
   private highlighted: SceneNode | null = null;
   private focusedNode: SceneNode | null = null;
-  private readonly frameTimes: number[] = [];
+  private readonly paintOpts: PaintOptions;
+  private readonly frameTimes = new Float64Array(FRAME_RING_CAP);
+  private frameRingHead = 0;
+  private frameRingSize = 0;
   private readonly cleanup: Array<() => void> = [];
   private readonly focusListeners = new Set<(focused: boolean) => void>();
   private globalName: string | null = null;
@@ -169,6 +195,12 @@ export class ConsoleRenderer {
       options.minFrameInterval === undefined && options.scheduler === undefined ? POST_CLEAR_INTERVAL_MS : this.frameInterval;
     this.background = parseColor(options.background);
     this.wireframe = options.wireframe ?? false;
+    this.paintOpts = {
+      clearBg: this.background,
+      wireframe: this.wireframe,
+      highlightedNode: null,
+      focusedNode: null,
+    };
     const inputOpt = options.input ?? hasWindow;
     this.input = inputOpt instanceof InputEngine ? inputOpt : inputOpt ? new InputEngine() : null;
     this.telemetry = {
@@ -191,6 +223,25 @@ export class ConsoleRenderer {
     if (this.input) {
       if (!(inputOpt instanceof InputEngine)) this.input.attach();
       this.cleanup.push(this.input.on("focus", (e: FocusChangeEvent) => this.setFocused(e.focused)));
+    }
+    if (!options.scheduler && hasWindow && typeof document.addEventListener === "function") {
+      this.docHidden = document.visibilityState === "hidden";
+      const onVis = (): void => {
+        const hidden = document.visibilityState === "hidden";
+        if (hidden === this.docHidden) return;
+        this.docHidden = hidden;
+        if (hidden) {
+          if (this.scheduled) {
+            this.cancelScheduled();
+            this.pendingWhileHidden = true;
+          }
+        } else if (this.pendingWhileHidden) {
+          this.pendingWhileHidden = false;
+          this.requestRender(this.pendingForce);
+        }
+      };
+      document.addEventListener("visibilitychange", onVis);
+      this.cleanup.push(() => document.removeEventListener("visibilitychange", onVis));
     }
     const reg = options.registerGlobal ?? hasWindow;
     if (reg) {
@@ -262,6 +313,10 @@ export class ConsoleRenderer {
   requestRender(force = false): void {
     if (this.disposed) return;
     if (force) this.pendingForce = true;
+    if (this.docHidden) {
+      this.pendingWhileHidden = true;
+      return;
+    }
     if (this.isPaused || this.scheduled) return;
     this.scheduled = true;
     const interval = this.lastEmitCleared ? this.postClearInterval : this.frameInterval;
@@ -310,23 +365,25 @@ export class ConsoleRenderer {
   /** Lay out, paint and emit a frame synchronously. */
   renderNow(force = false): FrameResult {
     const t = this.telemetry;
-    if (this.disposed || this.isPaused) return { ...t, skipped: true };
+    if (this.disposed || this.isPaused) return makeFrameResult(t, true);
     const t0 = now();
     this.options.beforeFrame?.();
     const root = this.root;
     const buf = this.buffer;
-    if (root) root.calculateLayout(buf.width, buf.height);
+    if (root) {
+      if (force) root._fullDamage = true;
+      root.calculateLayout(buf.width, buf.height);
+    }
     const t1 = now();
     if (root) {
-      paintScene(root, buf, {
-        clearBg: this.background,
-        wireframe: this.wireframe,
-        highlightedNode: this.highlighted,
-        focusedNode: this.focusedNode,
-      });
+      const po = this.paintOpts;
+      po.wireframe = this.wireframe;
+      po.highlightedNode = this.highlighted;
+      po.focusedNode = this.focusedNode;
+      paintScene(root, buf, po);
     } else buf.clear(this.background);
     const t2 = now();
-    const result = this.driver.render(buf, { force });
+    const result = this.driver.render(buf, force ? DRIVER_FORCE : DRIVER_NORMAL);
     const t3 = now();
     t.layoutMs = t1 - t0;
     t.rasterMs = t2 - t1;
@@ -341,13 +398,27 @@ export class ConsoleRenderer {
       t.frameCount++;
       t.dirtyRows = result.dirtyRows;
       t.spanCount = result.spanCount;
-      const times = this.frameTimes;
-      times.push(t3);
-      while (times.length > 0 && (times[0] as number) < t3 - 1000) times.shift();
-      t.fps = times.length;
+      const ring = this.frameTimes;
+      let head = this.frameRingHead;
+      let size = this.frameRingSize;
+      const cutoff = t3 - 1000;
+      while (size > 0 && (ring[head] as number) < cutoff) {
+        head = (head + 1) & FRAME_RING_MASK;
+        size--;
+      }
+      if (size < FRAME_RING_CAP) {
+        ring[(head + size) & FRAME_RING_MASK] = t3;
+        size++;
+      } else {
+        ring[head] = t3;
+        head = (head + 1) & FRAME_RING_MASK;
+      }
+      this.frameRingHead = head;
+      this.frameRingSize = size;
+      t.fps = size;
     }
     if (root && t.frameCount % 30 === 1) t.yogaNodes = root.countYogaNodes();
-    const frame: FrameResult = { ...t, skipped: result.skipped };
+    const frame = makeFrameResult(t, result.skipped);
     this.options.onFrame?.(frame);
     return frame;
   }

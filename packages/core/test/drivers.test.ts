@@ -120,12 +120,34 @@ describe("CssConsoleDriver", () => {
     const b = new CellBuffer(4, 2);
     b.fillRect(0, 0, 4, 2, BG);
     d.render(b);
-    expect(con.last.format.startsWith("%c\u200b%c")).toBe(true);
-    expect(con.last.args[0]).toContain("margin-top:100vh;");
-    expect(con.last.args[1]).not.toContain("100vh");
+    expect(con.last.format.startsWith("%c\u200b%c\n%c")).toBe(true);
+    expect(con.last.args[0]).toBe("margin-top:100vh;");
+    expect(con.last.args[1]).toBe("");
+    expect(con.last.args[2]).not.toContain("100vh");
     const plain = new FakeConsole();
     new CssConsoleDriver({ console: plain }).render(b);
     expect(plain.last.args.some((a) => a.includes("100vh"))).toBe(false);
+  });
+
+  test("unmerged row breaks reset %c to empty CSS so DevTools never creates phantom empty spans", () => {
+    const con = new FakeConsole();
+    const d = new CssConsoleDriver({ console: con, curtain: true });
+    const b = new CellBuffer(6, 3);
+    b.drawText(0, 0, "row000", GREEN, BG);
+    b.drawText(0, 1, "row111", 0xffffffff, 0x09090bff);
+    b.drawText(0, 2, "row222", GREEN, BG);
+    d.render(b);
+    const { format, args } = con.last;
+    const chunks = format.split("%c").slice(1);
+    expect(chunks.length).toBe(args.length);
+    for (let i = 0; i < chunks.length; i++) {
+      const style = args[i] ?? "";
+      const text = chunks[i] ?? "";
+      if (style.length > 0) {
+        // Every styled %c token must split into non-empty lines so DevTools never builds empty inline-blocks.
+        for (const line of text.split("\n")) expect(line.length).toBeGreaterThan(0);
+      }
+    }
   });
 
   test("frame mode clears before every frame", () => {
@@ -220,7 +242,7 @@ describe("CssConsoleDriver", () => {
     b.drawText(4, 0, "ef", 0, 0, ATTR_DIM);
     d.render(b);
     const [a1, a2, a3] = con.last.args;
-    expect(a1).toStartWith('font-family:ui-monospace,"SF Mono"');
+    expect(a1).toStartWith('font-family:"SF Mono",Menlo,Consolas,monospace;');
     expect(a1).toContain("font-size:13px;line-height:17px;margin-top:-1px;margin-bottom:-1px;");
     expect(a1).not.toMatch(/(^|;)(font|margin|padding|text-decoration):/);
     expect(a1).not.toContain("font-variant-ligatures");

@@ -371,4 +371,48 @@ describe("incremental layout & prop optimizations", () => {
     expect(incrementalBuf.toPlainString()).toBe(forcedBuf.toPlainString());
     root.destroy();
   });
+
+  test("damage-band partial paint matches full paint cell-for-cell across partial edits and external writes", () => {
+    const headerRaw = createRawText("▼ Status: idle");
+    const bodyRaw = createRawText("typing: a");
+    const rowBox = box({ height: 3, border: "rounded", paddingX: 1, borderColor: "#22c55e" }, text({ fg: "#fafafa" }, bodyRaw));
+    const root = box(
+      { width: 24, height: 6, flexDirection: "column", bg: "#09090b" },
+      box({ height: 1, bg: "#18181b" }, text({ fg: "#fafafa", bold: true }, headerRaw)),
+      rowBox,
+      text({ fg: "#a1a1aa" }, "footer line"),
+    );
+
+    const inc = new CellBuffer(24, 6);
+    root.calculateLayout(24, 6);
+    paintScene(root, inc);
+
+    // 1. Idle paint skips work and keeps buffer intact.
+    const idleStats = paintScene(root, inc);
+    expect(idleStats.painted).toBe(0);
+
+    // 2. 1-row leaf edit in a row box skips Yoga WASM and repaints only the damaged band.
+    bodyRaw.setText("typing: hello world");
+    expect(root.calculateLayout(24, 6)).toBe(false);
+    paintScene(root, inc);
+
+    // 3. Visual-only box prop edit (borderColor) also repaints incrementally.
+    rowBox.updateProps({ height: 3, border: "rounded", paddingX: 1, borderColor: "#3b82f6" });
+    expect(root.calculateLayout(24, 6)).toBe(false);
+    paintScene(root, inc);
+
+    const ref = new CellBuffer(24, 6);
+    root.calculateLayout(24, 6, true);
+    paintScene(root, ref);
+    expect(Array.from(inc.chars)).toEqual(Array.from(ref.chars));
+    expect(Array.from(inc.fg)).toEqual(Array.from(ref.fg));
+    expect(Array.from(inc.bg)).toEqual(Array.from(ref.bg));
+    expect(Array.from(inc.attrs)).toEqual(Array.from(ref.attrs));
+
+    // 4. External mutation to `inc` invalidates incremental assumption and restores full scene on next paint.
+    inc.setCell(0, 5, "X", 0xff0000ff, 0);
+    paintScene(root, inc);
+    expect(Array.from(inc.chars)).toEqual(Array.from(ref.chars));
+    root.destroy();
+  });
 });

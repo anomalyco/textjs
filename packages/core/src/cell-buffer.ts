@@ -151,6 +151,16 @@ export class CellBuffer {
   private clipX1 = 0;
   private clipY1 = 0;
   private scissorStack: number[] = [];
+  private rowHashes: Uint32Array;
+  private rowHashValid: Uint8Array;
+  /** @internal */ _writeVersion = 0;
+  /** @internal */ _paintedSceneId = 0;
+  /** @internal */ _paintedWriteVersion = -1;
+  /** @internal */ _paintedClearBg = 0;
+  /** @internal */ _paintedWireframe = false;
+  /** @internal */ _paintedHighlightedId = 0;
+  /** @internal */ _paintedFocusedId = 0;
+  /** @internal */ _paintedHadBackdrop = false;
 
   constructor(width: number, height: number) {
     this.width = Math.max(0, Math.floor(width));
@@ -160,6 +170,8 @@ export class CellBuffer {
     this.fg = new Uint32Array(size);
     this.bg = new Uint32Array(size);
     this.attrs = new Uint16Array(size);
+    this.rowHashes = new Uint32Array(this.height);
+    this.rowHashValid = new Uint8Array(this.height);
     this.resetScissor();
   }
 
@@ -178,6 +190,9 @@ export class CellBuffer {
     this.fg = new Uint32Array(size);
     this.bg = new Uint32Array(size);
     this.attrs = new Uint16Array(size);
+    this.rowHashes = new Uint32Array(h);
+    this.rowHashValid = new Uint8Array(h);
+    this._writeVersion = (this._writeVersion + 1) | 0;
     this.graphemePool.length = 0;
     this.poolLookup.clear();
     this.scissorStack.length = 0;
@@ -190,6 +205,8 @@ export class CellBuffer {
     this.fg.fill(fg >>> 0);
     this.bg.fill(bg >>> 0);
     this.attrs.fill(0);
+    this.rowHashValid.fill(0);
+    this._writeVersion = (this._writeVersion + 1) | 0;
     if (this.graphemePool.length > 0) {
       this.graphemePool.length = 0;
       this.poolLookup.clear();
@@ -333,6 +350,8 @@ export class CellBuffer {
     this.fg[i] = outFg;
     B[i] = outBg;
     A[i] = a;
+    this.rowHashValid[y] = 0;
+    this._writeVersion = (this._writeVersion + 1) | 0;
     if (w === 2) {
       const j = i + 1;
       C[j] = CHAR_CONTINUATION;
@@ -361,6 +380,8 @@ export class CellBuffer {
     const x1 = Math.min(this.clipX1, Math.floor(x + w));
     const y1 = Math.min(this.clipY1, Math.floor(y + h));
     if (x0 >= x1 || y0 >= y1) return;
+    this.rowHashValid.fill(0, y0, y1);
+    this._writeVersion = (this._writeVersion + 1) | 0;
     const W = this.width;
     const ba = bg & 255;
     const fa = fg & 255;
@@ -395,6 +416,9 @@ export class CellBuffer {
     const y0 = Math.max(this.clipY0, Math.floor(y));
     const x1 = Math.min(this.clipX1, Math.floor(x + w));
     const y1 = Math.min(this.clipY1, Math.floor(y + h));
+    if (x0 >= x1 || y0 >= y1) return;
+    this.rowHashValid.fill(0, y0, y1);
+    this._writeVersion = (this._writeVersion + 1) | 0;
     const W = this.width;
     let lastBgIn = -1;
     let lastBgOut = 0;
@@ -454,11 +478,13 @@ export class CellBuffer {
     const fastColors = (ba === 0 || ba === 255) && (fa === 255 || fa === 0);
 
     let col = x;
+    let wrote = false;
     for (let k = from; k < to; k++) {
       const g = gs[k] as Grapheme;
       const w = g.width;
       if (w === 0) continue;
       if (col >= clipX0 && col < clipX1) {
+        wrote = true;
         let code = g.isMulti ? this.internGrapheme(g.grapheme) : g.codePoint;
         if (fastColors) {
           let putW: number = w;
@@ -497,6 +523,10 @@ export class CellBuffer {
         for (let r = k + 1; r < to; r++) col += (gs[r] as Grapheme).width;
         break;
       }
+    }
+    if (wrote) {
+      this.rowHashValid[y] = 0;
+      this._writeVersion = (this._writeVersion + 1) | 0;
     }
     return col - x;
   }
@@ -612,11 +642,15 @@ export class CellBuffer {
   // Hashing & export
   // ---------------------------------------------------------------------------
 
-  /** 32-bit FNV-1a style hash per row across chars, colors and attributes. */
-  computeRowHashes(out?: Uint32Array): Uint32Array {
+  /**
+   * Cached 32-bit FNV-1a row hashes. Re-hashes only rows written since the last
+   * call; callers must treat the returned `Uint32Array` as read-only.
+   */
+  getRowHashes(): Uint32Array {
     const H = this.height;
     const W = this.width;
-    const result = out && out.length >= H ? out : new Uint32Array(H);
+    const hashes = this.rowHashes;
+    const valid = this.rowHashValid;
     const C = this.chars;
     const F = this.fg;
     const B = this.bg;
@@ -624,6 +658,7 @@ export class CellBuffer {
     const pool = this.graphemePool;
     if (pool.length === 0) {
       for (let y = 0; y < H; y++) {
+        if (valid[y] !== 0) continue;
         let h = 0x811c9dc5 ^ W;
         for (let i = y * W, end = i + W; i < end; i++) {
           h = Math.imul(h ^ (C[i] as number), 0x01000193);
@@ -634,11 +669,13 @@ export class CellBuffer {
         h ^= h >>> 16;
         h = Math.imul(h, 0x85ebca6b);
         h ^= h >>> 13;
-        result[y] = h >>> 0;
+        hashes[y] = h >>> 0;
+        valid[y] = 1;
       }
-      return result;
+      return hashes;
     }
     for (let y = 0; y < H; y++) {
+      if (valid[y] !== 0) continue;
       let h = 0x811c9dc5 ^ W;
       for (let i = y * W, end = i + W; i < end; i++) {
         const c = C[i] as number;
@@ -654,9 +691,21 @@ export class CellBuffer {
       h ^= h >>> 16;
       h = Math.imul(h, 0x85ebca6b);
       h ^= h >>> 13;
-      result[y] = h >>> 0;
+      hashes[y] = h >>> 0;
+      valid[y] = 1;
     }
-    return result;
+    return hashes;
+  }
+
+  /** 32-bit FNV-1a style hash per row across chars, colors and attributes. */
+  computeRowHashes(out?: Uint32Array): Uint32Array {
+    const hashes = this.getRowHashes();
+    const H = this.height;
+    if (out && out.length >= H) {
+      out.set(hashes, 0);
+      return out;
+    }
+    return hashes.slice();
   }
 
   rowText(y: number, trimEnd = false): string {
@@ -691,5 +740,7 @@ export class CellBuffer {
     this.attrs.set(other.attrs);
     this.graphemePool = other.graphemePool.slice();
     this.poolLookup = new Map(this.graphemePool.map((g, i) => [g, i]));
+    this.rowHashValid.fill(0);
+    this._writeVersion = (this._writeVersion + 1) | 0;
   }
 }

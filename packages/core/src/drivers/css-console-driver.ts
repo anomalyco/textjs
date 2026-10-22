@@ -28,6 +28,7 @@ export interface ConsoleTarget {
 }
 
 export interface CompiledSpan {
+  styleId: number;
   styleKey: bigint;
   css: string;
   /** Span text, already escaped for use inside a `console.log` format string. */
@@ -87,6 +88,7 @@ export interface DriverRenderOptions {
 
 export interface DriverRenderResult {
   skipped: boolean;
+  cleared?: boolean;
   dirtyRows: number;
   spanCount: number;
   encodeMs: number;
@@ -125,7 +127,50 @@ const CURTAIN_CSS = "margin-top:100vh;";
 const IDLE_COMPACT_FRAMES = 100;
 const IDLE_COMPACT_MS = 1000;
 
-const SKIPPED: DriverRenderResult = Object.freeze({ skipped: true, dirtyRows: 0, spanCount: 0, encodeMs: 0, frame: null });
+const SKIPPED: DriverRenderResult = Object.freeze({
+  skipped: true,
+  cleared: false,
+  dirtyRows: 0,
+  spanCount: 0,
+  encodeMs: 0,
+  frame: null,
+});
+
+const ASCII_CHARS: readonly string[] = Array.from({ length: 128 }, (_, i) => String.fromCharCode(i < 0x20 ? CHAR_SPACE : i));
+const EMPTY_ARGS: readonly string[] = Object.freeze([]);
+
+const L1_SIZE = 1024;
+const L1_MASK = L1_SIZE - 1;
+const BL_SIZE = 64;
+const BL_MASK = BL_SIZE - 1;
+
+interface InternedStyle {
+  id: number;
+  css: string;
+}
+
+interface PrecompiledRow {
+  spans: CompiledSpan[];
+  midFormat: string;
+  midArgs: readonly string[];
+  midLast: CompiledSpan | null;
+}
+
+function buildPrecompiledRow(spans: CompiledSpan[]): PrecompiledRow {
+  const n = spans.length;
+  if (n <= 1) return { spans, midFormat: "", midArgs: EMPTY_ARGS, midLast: null };
+  const lastBlank = (spans[n - 1] as CompiledSpan).blank;
+  const midEnd = lastBlank ? n - 1 : n;
+  if (midEnd <= 1) return { spans, midFormat: "", midArgs: EMPTY_ARGS, midLast: null };
+  let midFormat = "";
+  const midArgs = new Array<string>(midEnd - 1);
+  for (let i = 1; i < midEnd; i++) {
+    const s = spans[i] as CompiledSpan;
+    midFormat += `%c${s.text}`;
+    midArgs[i - 1] = s.css;
+  }
+  return { spans, midFormat, midArgs, midLast: spans[midEnd - 1] as CompiledSpan };
+}
 
 /**
  * Renders a `CellBuffer` into DevTools with exactly one
@@ -141,12 +186,29 @@ export class CssConsoleDriver {
   private readonly curtainOption: boolean | undefined;
   private readonly coalesce: boolean;
   private readonly baseCss: string;
-  private readonly cssCache = new Map<bigint, string>();
+  private readonly cssCache = new Map<bigint, InternedStyle>();
+  private nextStyleId = 1;
+  private readonly l1Valid = new Uint8Array(L1_SIZE);
+  private readonly l1Fg = new Uint32Array(L1_SIZE);
+  private readonly l1Bg = new Uint32Array(L1_SIZE);
+  private readonly l1At = new Uint16Array(L1_SIZE);
+  private readonly l1Id = new Int32Array(L1_SIZE);
+  private readonly l1EffBg = new Uint32Array(L1_SIZE);
+  private readonly l1Flags = new Uint8Array(L1_SIZE);
+  private readonly l1Css: string[] = new Array<string>(L1_SIZE).fill("");
+  private readonly l1Key: bigint[] = new Array<bigint>(L1_SIZE).fill(0n);
+  private readonly blValid = new Uint8Array(BL_SIZE);
+  private readonly blBg = new Uint32Array(BL_SIZE);
+  private readonly blLink = new Uint8Array(BL_SIZE);
+  private readonly blId = new Int32Array(BL_SIZE);
+  private readonly blCss: string[] = new Array<string>(BL_SIZE).fill("");
+  private readonly blKey: bigint[] = new Array<bigint>(BL_SIZE).fill(0n);
   private width = -1;
   private height = -1;
   private prevHashes: Uint32Array = new Uint32Array(0);
-  private nextHashes: Uint32Array = new Uint32Array(0);
   private rowCache: CompiledSpan[][] = [];
+  private preRows: PrecompiledRow[] = [];
+  private readonly partsBuf: string[] = [];
   private rendered = false;
   private lastSpanCount = 0;
   /** Frames logged since the last `console.clear()`; 0 forces a clear on the next frame. */
@@ -167,7 +229,7 @@ export class CssConsoleDriver {
     this.curtainOption = options.curtain;
     this.coalesce = options.coalesceWhitespace ?? true;
     this.baseCss = typographyCss(this.typography);
-    this.curtainCss = this.baseCss + CURTAIN_CSS;
+    this.curtainCss = CURTAIN_CSS;
   }
 
   setConsole(target: ConsoleTarget | null): void {
@@ -191,17 +253,17 @@ export class CssConsoleDriver {
     return this.lastSpanCount;
   }
 
-  private cssFor(style: EffectiveStyle, key: bigint): string {
-    let css = this.cssCache.get(key);
-    if (css === undefined) {
-      css = styleCss(this.baseCss, style);
+  private internStyle(style: EffectiveStyle, key: bigint): InternedStyle {
+    let entry = this.cssCache.get(key);
+    if (entry === undefined) {
+      entry = { id: this.nextStyleId++, css: styleCss(this.baseCss, style) };
       if (this.cssCache.size >= 4096) {
         const oldest = this.cssCache.keys().next();
         if (!oldest.done) this.cssCache.delete(oldest.value);
       }
-      this.cssCache.set(key, css);
+      this.cssCache.set(key, entry);
     }
-    return css;
+    return entry;
   }
 
   /**
@@ -221,66 +283,55 @@ export class CssConsoleDriver {
     const opts = this.styleOptions;
     const scratch = this.scratch;
     const coalesce = this.coalesce;
+    const l1Valid = this.l1Valid;
+    const l1Fg = this.l1Fg;
+    const l1Bg = this.l1Bg;
+    const l1At = this.l1At;
+    const l1Id = this.l1Id;
+    const l1EffBg = this.l1EffBg;
+    const l1Flags = this.l1Flags;
+    const l1Css = this.l1Css;
+    const l1Key = this.l1Key;
+
     // Last resolved raw style.
-    let rawFg = -1;
-    let rawBg = -1;
-    let rawAttrs = -1;
-    let rKey = -1n;
+    let hasRaw = false;
+    let rawFg = 0;
+    let rawBg = 0;
+    let rawAttrs = 0;
+    let rId = -1;
+    let rKey = 0n;
     let rCss = "";
     let rBg = 0;
     let rLink = false;
     let rDeco = false;
+
     // Open span.
-    let key = -1n;
+    let id = -1;
+    let key = 0n;
     let css = "";
     let allowLink = false;
     let spanBg = 0;
     let spanDeco = false;
     let text = "";
     let blank = true;
+    let hasSpecial = false;
+
     // Blank run waiting to see whether the next cell shares its background.
     let pend = 0;
-    let pKey = -1n;
+    let pId = -1;
+    let pKey = 0n;
     let pCss = "";
     let pBg = 0;
     let pLink = false;
+
     // Last resolved blank-run style.
-    let bBg = -1;
+    let hasBlank = false;
+    let bBg = 0;
     let bLink = false;
-    let bKey = -1n;
+    let bId = -1;
+    let bKey = 0n;
     let bCss = "";
-    const push = (): void => {
-      if (text.length > 0) spans.push({ styleKey: key, css, text: blank ? text : escapeConsoleText(text, allowLink), bg: spanBg, blank, link: allowLink, deco: spanDeco });
-    };
-    const resolve = (f: number, b: number, a: number): void => {
-      if (f === rawFg && b === rawBg && a === rawAttrs) return;
-      rawFg = f;
-      rawBg = b;
-      rawAttrs = a;
-      resolveStyle(f, b, a, opts, scratch);
-      const k = styleKeyOf(scratch);
-      if (k === rKey) return;
-      rKey = k;
-      rCss = this.cssFor(scratch, k);
-      rBg = scratch.bg;
-      rLink = (a & ATTR_ALLOW_LINK) !== 0;
-      rDeco = (scratch.flags & (ATTR_UNDERLINE | ATTR_STRIKETHROUGH)) !== 0;
-    };
-    const promotePending = (): void => {
-      if (pend === 0) return;
-      if (pKey !== key) {
-        push();
-        key = pKey;
-        css = pCss;
-        allowLink = pLink;
-        spanBg = pBg;
-        spanDeco = false;
-        text = "";
-        blank = true;
-      }
-      text += " ".repeat(pend);
-      pend = 0;
-    };
+
     for (let i = y * W, end = i + W; i < end; i++) {
       const a = A[i] as number;
       if (a & ATTR_WIDE_CONT) continue;
@@ -295,7 +346,7 @@ export class CssConsoleDriver {
           if ((effBg & 255) !== 255) effBg = blendOver(effBg, opts.inverseFg);
           effBg >>>= 0;
         }
-        if (pend === 0 && key !== -1n && !spanDeco && effBg === spanBg && link === allowLink) {
+        if (pend === 0 && id !== -1 && !spanDeco && effBg === spanBg && link === allowLink) {
           text += " ";
           continue;
         }
@@ -303,43 +354,176 @@ export class CssConsoleDriver {
           pend++;
           continue;
         }
-        promotePending();
+        if (pend > 0) {
+          if (pId !== id) {
+            if (text.length > 0) {
+              spans.push({
+                styleId: id,
+                styleKey: key,
+                css,
+                text: blank || !hasSpecial ? text : escapeConsoleText(text, allowLink),
+                bg: spanBg,
+                blank,
+                link: allowLink,
+                deco: spanDeco,
+              });
+            }
+            id = pId;
+            key = pKey;
+            css = pCss;
+            allowLink = pLink;
+            spanBg = pBg;
+            spanDeco = false;
+            text = "";
+            blank = true;
+            hasSpecial = false;
+          }
+          text += pend === 1 ? " " : " ".repeat(pend);
+          pend = 0;
+        }
         // A blank run that opens its own span only needs its background.
-        if (effBg !== bBg || link !== bLink) {
+        if (!hasBlank || effBg !== bBg || link !== bLink) {
+          hasBlank = true;
           bBg = effBg;
           bLink = link;
-          const bs = this.blankScratch;
-          bs.bg = effBg;
-          bs.flags = link ? ATTR_ALLOW_LINK : 0;
-          bKey = styleKeyOf(bs);
-          bCss = this.cssFor(bs, bKey);
+          const linkNum = link ? 1 : 0;
+          const bh = (Math.imul(effBg, 0x9e3779b1) ^ linkNum) & BL_MASK;
+          if (this.blValid[bh] === 1 && this.blBg[bh] === effBg && this.blLink[bh] === linkNum) {
+            bId = this.blId[bh] as number;
+            bKey = this.blKey[bh] as bigint;
+            bCss = this.blCss[bh] as string;
+          } else {
+            const bs = this.blankScratch;
+            bs.bg = effBg;
+            bs.flags = link ? ATTR_ALLOW_LINK : 0;
+            bKey = styleKeyOf(bs);
+            const entry = this.internStyle(bs, bKey);
+            bId = entry.id;
+            bCss = entry.css;
+            this.blValid[bh] = 1;
+            this.blBg[bh] = effBg;
+            this.blLink[bh] = linkNum;
+            this.blId[bh] = bId;
+            this.blKey[bh] = bKey;
+            this.blCss[bh] = bCss;
+          }
         }
         pend = 1;
+        pId = bId;
         pKey = bKey;
         pCss = bCss;
         pBg = effBg;
         pLink = link;
         continue;
       }
-      resolve(f, b, a);
+
+      if (!hasRaw || f !== rawFg || b !== rawBg || a !== rawAttrs) {
+        hasRaw = true;
+        rawFg = f;
+        rawBg = b;
+        rawAttrs = a;
+        const h = (Math.imul(f ^ Math.imul(b, 0x9e3779b1), 0x85ebca6b) ^ a) & L1_MASK;
+        if (l1Valid[h] === 1 && l1Fg[h] === f && l1Bg[h] === b && l1At[h] === a) {
+          rId = l1Id[h] as number;
+          rKey = l1Key[h] as bigint;
+          rCss = l1Css[h] as string;
+          rBg = l1EffBg[h] as number;
+          const fl = l1Flags[h] as number;
+          rLink = (fl & 1) !== 0;
+          rDeco = (fl & 2) !== 0;
+        } else {
+          resolveStyle(f, b, a, opts, scratch);
+          const k = styleKeyOf(scratch);
+          const entry = this.internStyle(scratch, k);
+          rId = entry.id;
+          rKey = k;
+          rCss = entry.css;
+          rBg = scratch.bg;
+          rLink = (a & ATTR_ALLOW_LINK) !== 0;
+          rDeco = (scratch.flags & (ATTR_UNDERLINE | ATTR_STRIKETHROUGH)) !== 0;
+          l1Valid[h] = 1;
+          l1Fg[h] = f;
+          l1Bg[h] = b;
+          l1At[h] = a;
+          l1Id[h] = rId;
+          l1Key[h] = rKey;
+          l1Css[h] = rCss;
+          l1EffBg[h] = rBg;
+          l1Flags[h] = (rLink ? 1 : 0) | (rDeco ? 2 : 0);
+        }
+      }
+
       if (pend > 0) {
         if (!rDeco && rBg === pBg && rLink === pLink) {
           // The blanks adopt this cell's style.
-          if (rKey !== key) {
-            push();
+          if (rId !== id) {
+            if (text.length > 0) {
+              spans.push({
+                styleId: id,
+                styleKey: key,
+                css,
+                text: blank || !hasSpecial ? text : escapeConsoleText(text, allowLink),
+                bg: spanBg,
+                blank,
+                link: allowLink,
+                deco: spanDeco,
+              });
+            }
+            id = rId;
             key = rKey;
             css = rCss;
             allowLink = rLink;
             spanBg = rBg;
+            spanDeco = rDeco;
             text = "";
             blank = true;
+            hasSpecial = false;
           }
-          text += " ".repeat(pend);
+          text += pend === 1 ? " " : " ".repeat(pend);
           pend = 0;
-        } else promotePending();
+        } else {
+          if (pId !== id) {
+            if (text.length > 0) {
+              spans.push({
+                styleId: id,
+                styleKey: key,
+                css,
+                text: blank || !hasSpecial ? text : escapeConsoleText(text, allowLink),
+                bg: spanBg,
+                blank,
+                link: allowLink,
+                deco: spanDeco,
+              });
+            }
+            id = pId;
+            key = pKey;
+            css = pCss;
+            allowLink = pLink;
+            spanBg = pBg;
+            spanDeco = false;
+            text = "";
+            blank = true;
+            hasSpecial = false;
+          }
+          text += pend === 1 ? " " : " ".repeat(pend);
+          pend = 0;
+        }
       }
-      if (rKey !== key) {
-        push();
+
+      if (rId !== id) {
+        if (text.length > 0) {
+          spans.push({
+            styleId: id,
+            styleKey: key,
+            css,
+            text: blank || !hasSpecial ? text : escapeConsoleText(text, allowLink),
+            bg: spanBg,
+            blank,
+            link: allowLink,
+            deco: spanDeco,
+          });
+        }
+        id = rId;
         key = rKey;
         css = rCss;
         allowLink = rLink;
@@ -347,14 +531,60 @@ export class CssConsoleDriver {
         spanDeco = rDeco;
         text = "";
         blank = true;
+        hasSpecial = false;
       }
       blank = false;
-      if (c >= GRAPHEME_POOL_FLAG) text += pool[c & 0x7fffffff] ?? " ";
-      else if (c < 0x10000) text += String.fromCharCode(c < 0x20 ? CHAR_SPACE : c);
-      else text += String.fromCodePoint(c);
+      if (c < 0x80) {
+        if (c === 0x25 || c === 0x3a || c === 0x77 || c === 0x57) hasSpecial = true;
+        text += ASCII_CHARS[c] as string;
+      } else if (c >= GRAPHEME_POOL_FLAG) {
+        hasSpecial = true;
+        text += pool[c & 0x7fffffff] ?? " ";
+      } else if (c < 0x10000) {
+        text += String.fromCharCode(c);
+      } else {
+        text += String.fromCodePoint(c);
+      }
     }
-    promotePending();
-    push();
+
+    if (pend > 0) {
+      if (pId !== id) {
+        if (text.length > 0) {
+          spans.push({
+            styleId: id,
+            styleKey: key,
+            css,
+            text: blank || !hasSpecial ? text : escapeConsoleText(text, allowLink),
+            bg: spanBg,
+            blank,
+            link: allowLink,
+            deco: spanDeco,
+          });
+        }
+        id = pId;
+        key = pKey;
+        css = pCss;
+        allowLink = pLink;
+        spanBg = pBg;
+        spanDeco = false;
+        text = "";
+        blank = true;
+        hasSpecial = false;
+      }
+      text += pend === 1 ? " " : " ".repeat(pend);
+    }
+    if (text.length > 0) {
+      spans.push({
+        styleId: id,
+        styleKey: key,
+        css,
+        text: blank || !hasSpecial ? text : escapeConsoleText(text, allowLink),
+        bg: spanBg,
+        blank,
+        link: allowLink,
+        deco: spanDeco,
+      });
+    }
     return spans;
   }
 
@@ -365,70 +595,262 @@ export class CssConsoleDriver {
    * plain text newline instead of a phantom empty `contain:paint` inline-block.
    */
   private assemble(): ConsoleFrame {
-    const parts: string[] = [];
+    const parts = this.partsBuf;
+    parts.length = 0;
     const args: string[] = [];
-    let curKey: bigint | null = null;
+    let curId = -1;
     let curBg = 0;
     let curLink = false;
     let curDeco = false;
-    // A blank span (plus the separators before it) held to see what follows.
+    // A blank span held to see what follows across row boundaries.
     let held: CompiledSpan | null = null;
+    let heldLeadSep = "";
     let heldText = "";
     let sep = "";
-    const open = (s: CompiledSpan, text: string): void => {
-      parts.push("%c", text);
-      args.push(s.css);
-      curKey = s.styleKey;
-      curBg = s.bg;
-      curLink = s.link;
-      curDeco = s.deco;
-    };
-    const flushHeld = (): void => {
-      if (held === null) return;
-      open(held, heldText);
-      held = null;
-    };
-    const rows = this.rowCache;
-    for (let y = 0; y < rows.length; y++) {
-      const spans = rows[y] ?? [];
+    const coalesce = this.coalesce;
+    const preRows = this.preRows;
+    const rowCount = preRows.length;
+
+    for (let y = 0; y < rowCount; y++) {
       if (y > 0) sep += "\n";
-      for (let k = 0; k < spans.length; k++) {
+      const row = preRows[y];
+      if (row === undefined) continue;
+      const spans = row.spans;
+      const n = spans.length;
+      if (n === 0) continue;
+
+      if (coalesce && n >= 2) {
+        // 1. First span on row (interacts with previous row / sep).
+        const s0 = spans[0] as CompiledSpan;
+        if (held !== null) {
+          if (s0.styleId === held.styleId || (!s0.deco && s0.bg === held.bg && s0.link === held.link)) {
+            if (s0.blank) {
+              heldText += sep + s0.text;
+              sep = "";
+            } else {
+              if (heldLeadSep) {
+                if (curId !== -1) {
+                  parts.push("%c", heldLeadSep);
+                  args.push("");
+                } else parts.push(heldLeadSep);
+                heldLeadSep = "";
+              }
+              parts.push("%c", heldText, sep, s0.text);
+              args.push(s0.css);
+              curId = s0.styleId;
+              curBg = s0.bg;
+              curLink = s0.link;
+              curDeco = s0.deco;
+              held = null;
+              sep = "";
+            }
+          } else {
+            if (heldLeadSep) {
+              if (curId !== -1) {
+                parts.push("%c", heldLeadSep);
+                args.push("");
+              } else parts.push(heldLeadSep);
+              heldLeadSep = "";
+            }
+            parts.push("%c", heldText);
+            args.push(held.css);
+            curId = held.styleId;
+            curBg = held.bg;
+            curLink = held.link;
+            curDeco = held.deco;
+            held = null;
+            if (s0.styleId === curId || (s0.blank && !curDeco && s0.bg === curBg && s0.link === curLink)) {
+              parts.push(sep, s0.text);
+              sep = "";
+            } else if (s0.blank) {
+              held = s0;
+              heldLeadSep = sep;
+              heldText = s0.text;
+              sep = "";
+            } else {
+              if (sep) {
+                parts.push("%c", sep);
+                args.push("");
+                sep = "";
+              }
+              parts.push("%c", s0.text);
+              args.push(s0.css);
+              curId = s0.styleId;
+              curBg = s0.bg;
+              curLink = s0.link;
+              curDeco = s0.deco;
+            }
+          }
+        } else if (s0.styleId === curId || (s0.blank && !curDeco && s0.bg === curBg && s0.link === curLink && curId !== -1)) {
+          parts.push(sep, s0.text);
+          sep = "";
+        } else if (s0.blank) {
+          held = s0;
+          heldLeadSep = sep;
+          heldText = s0.text;
+          sep = "";
+        } else {
+          if (sep) {
+            if (curId !== -1) {
+              parts.push("%c", sep);
+              args.push("");
+            } else parts.push(sep);
+            sep = "";
+          }
+          parts.push("%c", s0.text);
+          args.push(s0.css);
+          curId = s0.styleId;
+          curBg = s0.bg;
+          curLink = s0.link;
+          curDeco = s0.deco;
+        }
+
+        // 2. Precompiled interior spans (never interact across row boundaries).
+        const midLast = row.midLast;
+        if (midLast !== null) {
+          if (held !== null) {
+            if (heldLeadSep) {
+              if (curId !== -1) {
+                parts.push("%c", heldLeadSep);
+                args.push("");
+              } else parts.push(heldLeadSep);
+              heldLeadSep = "";
+            }
+            parts.push("%c", heldText);
+            args.push(held.css);
+            held = null;
+          }
+          parts.push(row.midFormat);
+          const ma = row.midArgs;
+          for (let m = 0; m < ma.length; m++) args.push(ma[m] as string);
+          curId = midLast.styleId;
+          curBg = midLast.bg;
+          curLink = midLast.link;
+          curDeco = midLast.deco;
+        }
+
+        // 3. Trailing blank span on row (if any; interacts with next row).
+        const sLast = spans[n - 1] as CompiledSpan;
+        if (sLast.blank) {
+          if (held !== null) {
+            if (sLast.styleId === held.styleId || sLast.bg === held.bg && sLast.link === held.link) {
+              heldText += sLast.text;
+              continue;
+            }
+            if (heldLeadSep) {
+              if (curId !== -1) {
+                parts.push("%c", heldLeadSep);
+                args.push("");
+              } else parts.push(heldLeadSep);
+              heldLeadSep = "";
+            }
+            parts.push("%c", heldText);
+            args.push(held.css);
+            curId = held.styleId;
+            curBg = held.bg;
+            curLink = held.link;
+            curDeco = held.deco;
+            held = null;
+          }
+          if (sLast.styleId === curId || (!curDeco && sLast.bg === curBg && sLast.link === curLink && curId !== -1)) {
+            parts.push(sLast.text);
+          } else {
+            held = sLast;
+            heldLeadSep = "";
+            heldText = sLast.text;
+          }
+        }
+        continue;
+      }
+
+      for (let k = 0; k < n; k++) {
         const s = spans[k] as CompiledSpan;
         if (held !== null) {
-          if (s.styleKey === held.styleKey || (!s.deco && s.bg === held.bg && s.link === held.link)) {
+          if (s.styleId === held.styleId || (!s.deco && s.bg === held.bg && s.link === held.link)) {
             if (s.blank) {
               heldText += sep + s.text;
               sep = "";
               continue;
             }
-            open(s, heldText + sep + s.text);
+            if (heldLeadSep) {
+              if (curId !== -1) {
+                parts.push("%c", heldLeadSep);
+                args.push("");
+              } else parts.push(heldLeadSep);
+              heldLeadSep = "";
+            }
+            parts.push("%c", heldText, sep, s.text);
+            args.push(s.css);
+            curId = s.styleId;
+            curBg = s.bg;
+            curLink = s.link;
+            curDeco = s.deco;
             held = null;
             sep = "";
             continue;
           }
-          flushHeld();
+          if (heldLeadSep) {
+            if (curId !== -1) {
+              parts.push("%c", heldLeadSep);
+              args.push("");
+            } else parts.push(heldLeadSep);
+            heldLeadSep = "";
+          }
+          parts.push("%c", heldText);
+          args.push(held.css);
+          curId = held.styleId;
+          curBg = held.bg;
+          curLink = held.link;
+          curDeco = held.deco;
+          held = null;
         }
-        if (s.styleKey === curKey || (this.coalesce && s.blank && !curDeco && s.bg === curBg && s.link === curLink && curKey !== null)) {
+        if (s.styleId === curId || (coalesce && s.blank && !curDeco && s.bg === curBg && s.link === curLink && curId !== -1)) {
           parts.push(sep, s.text);
           sep = "";
           continue;
         }
-        if (this.coalesce && s.blank) {
+        if (coalesce && s.blank) {
           held = s;
-          heldText = sep + s.text;
+          heldLeadSep = sep;
+          heldText = s.text;
           sep = "";
           continue;
         }
         if (sep) {
-          parts.push(sep);
+          if (curId !== -1) {
+            parts.push("%c", sep);
+            args.push("");
+          } else parts.push(sep);
           sep = "";
         }
-        open(s, s.text);
+        parts.push("%c", s.text);
+        args.push(s.css);
+        curId = s.styleId;
+        curBg = s.bg;
+        curLink = s.link;
+        curDeco = s.deco;
       }
     }
-    flushHeld();
-    if (sep) parts.push(sep);
-    return { format: parts.join(""), args };
+    if (held !== null) {
+      if (heldLeadSep) {
+        if (curId !== -1) {
+          parts.push("%c", heldLeadSep);
+          args.push("");
+        } else parts.push(heldLeadSep);
+      }
+      parts.push("%c", heldText);
+      args.push(held.css);
+      curId = held.styleId;
+    }
+    if (sep) {
+      if (curId !== -1) {
+        parts.push("%c", sep);
+        args.push("");
+      } else parts.push(sep);
+    }
+    const format = parts.join("");
+    parts.length = 0;
+    return { format, args };
   }
 
   /**
@@ -443,12 +865,11 @@ export class CssConsoleDriver {
       this.width = W;
       this.height = H;
       this.prevHashes = new Uint32Array(H);
-      this.nextHashes = new Uint32Array(H);
       this.rowCache = new Array<CompiledSpan[]>(H);
+      this.preRows = new Array<PrecompiledRow>(H);
       this.rendered = false;
     }
-    const hashes = buffer.computeRowHashes(this.nextHashes);
-    this.nextHashes = hashes;
+    const hashes = buffer.getRowHashes();
     const prev = this.prevHashes;
     let dirty = 0;
     const full = !this.rendered;
@@ -457,7 +878,9 @@ export class CssConsoleDriver {
       if (full || h !== prev[y]) {
         dirty++;
         prev[y] = h;
-        this.rowCache[y] = this.compileRow(buffer, y);
+        const compiled = this.compileRow(buffer, y);
+        this.rowCache[y] = compiled;
+        this.preRows[y] = buildPrecompiledRow(compiled);
       }
     }
     if (dirty === 0 && !options.force && this.rendered) return { frame: null, dirtyRows: 0 };
@@ -470,6 +893,7 @@ export class CssConsoleDriver {
     const { frame, dirtyRows } = this.encode(buffer, options);
     if (frame === null) return SKIPPED;
     const target = this.target ?? (typeof console !== "undefined" ? console : null);
+    let cleared = false;
     if (target !== null) {
       const mode = this.clearMode;
       let clear = mode === "frame";
@@ -482,12 +906,15 @@ export class CssConsoleDriver {
         this.appended++;
         this.lastLogAt = t0;
       }
-      if (clear) target.clear();
+      if (clear) {
+        target.clear();
+        cleared = true;
+      }
       if (mode === "append") this.logAppended(target, frame, !clear && dirtyRows === 0);
       else target.log(frame.format, ...frame.args);
     }
     this.lastSpanCount = frame.args.length;
-    return { skipped: false, dirtyRows, spanCount: frame.args.length, encodeMs: now() - t0, frame };
+    return { skipped: false, cleared, dirtyRows, spanCount: frame.args.length, encodeMs: now() - t0, frame };
   }
 
   private logAppended(target: ConsoleTarget, frame: ConsoleFrame, unchanged: boolean): void {

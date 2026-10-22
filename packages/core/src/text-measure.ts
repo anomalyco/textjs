@@ -187,6 +187,7 @@ function isWide(cp: number): boolean {
 
 const ZERO_WIDTH_RE = /^[\p{Mn}\p{Me}\p{Cf}]$/u;
 const cpWidthCache = new Map<number, CellWidth>();
+const CP_WIDTH_CACHE_MAX = 4096;
 
 /** Column width of a single code point. */
 export function codePointWidth(cp: number): CellWidth {
@@ -211,6 +212,10 @@ export function codePointWidth(cp: number): CellWidth {
   } else if (isWide(cp)) w = 2;
   else if (ZERO_WIDTH_RE.test(String.fromCodePoint(cp))) w = 0;
   else w = 1;
+  if (cpWidthCache.size >= CP_WIDTH_CACHE_MAX) {
+    const oldest = cpWidthCache.keys().next();
+    if (!oldest.done) cpWidthCache.delete(oldest.value);
+  }
   cpWidthCache.set(cp, w);
   return w;
 }
@@ -264,6 +269,7 @@ for (let c = 0; c < 0x80; c++) {
 }
 
 const bmpGraphemes = new Map<number, Grapheme>();
+const BMP_GRAPHEME_CACHE_MAX = 4096;
 
 function getBmpGrapheme(c: number): Grapheme {
   let g = bmpGraphemes.get(c);
@@ -274,6 +280,10 @@ function getBmpGrapheme(c: number): Grapheme {
       codePoint: c,
       isMulti: false,
     });
+    if (bmpGraphemes.size >= BMP_GRAPHEME_CACHE_MAX) {
+      const oldest = bmpGraphemes.keys().next();
+      if (!oldest.done) bmpGraphemes.delete(oldest.value);
+    }
     bmpGraphemes.set(c, g);
   }
   return g;
@@ -586,4 +596,6 @@ export function clearTextMeasureCaches(): void {
   widthCache.clear();
   wrapCache.clear();
   multiWidthCache.clear();
+  cpWidthCache.clear();
+  bmpGraphemes.clear();
 }

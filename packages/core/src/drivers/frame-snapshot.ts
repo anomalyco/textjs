@@ -46,7 +46,6 @@ interface BufferSnapshotCache {
   height: number;
   styleKey: string;
   prevHashes: Uint32Array;
-  nextHashes: Uint32Array;
   rows: Array<StyledSpan[] | undefined>;
 }
 
@@ -71,13 +70,12 @@ export function extractStyledFrame(buffer: CellBuffer, style: Partial<StyleResol
       height: H,
       styleKey,
       prevHashes: new Uint32Array(H),
-      nextHashes: new Uint32Array(H),
       rows: new Array<StyledSpan[] | undefined>(H),
     };
     snapshotCache.set(buffer, cache);
   }
 
-  const hashes = buffer.computeRowHashes(cache.nextHashes);
+  const hashes = buffer.getRowHashes();
   const prevHashes = cache.prevHashes;
   const cachedRows = cache.rows;
   const rows = new Array<StyledSpan[]>(H);

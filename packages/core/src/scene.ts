@@ -12,6 +12,7 @@ import {
   ATTR_ITALIC,
   ATTR_STRIKETHROUGH,
   ATTR_UNDERLINE,
+  CHAR_SPACE,
   type CellBuffer,
   type DrawBoxOptions,
   type TitleAlign,
@@ -238,6 +239,10 @@ export class SceneNode {
   private pendingTextNodes: Set<SceneNode> | null = null;
   private lastLayoutW = -1;
   private lastLayoutH = -1;
+  /** @internal */ _sceneDirty = true;
+  /** @internal */ _fullDamage = true;
+  /** @internal */ _damageLo = 0;
+  /** @internal */ _damageHi = 0;
   private rel = { left: 0, top: 0, width: 0, height: 0, bt: 0, br: 0, bb: 0, bl: 0, pt: 0, pr: 0, pb: 0, pl: 0 };
   // Subtree bounds relative to this node's absolute position, used for culling.
   private bounds = { x0: 0, y0: 0, x1: 0, y1: 0 };
@@ -267,6 +272,35 @@ export class SceneNode {
     let cur: SceneNode = this;
     while (cur.parent !== null) cur = cur.parent;
     return cur;
+  }
+
+  private markFullDamage(): void {
+    const root = this.rootAncestor();
+    root._sceneDirty = true;
+    root._fullDamage = true;
+  }
+
+  private damageSelf(): void {
+    const target = this.isInline ? this.textOwner() : this;
+    const root = target.rootAncestor();
+    root._sceneDirty = true;
+    if (root._fullDamage) return;
+    const sr = target.screenRect;
+    if (!target.painted || sr.height <= 0) {
+      root._fullDamage = true;
+      return;
+    }
+    const y0 = Math.max(0, sr.y);
+    const y1 = sr.y + sr.height;
+    if (y1 <= y0) return;
+    if (y1 > 64) {
+      root._fullDamage = true;
+      return;
+    }
+    for (let y = y0; y < y1; y++) {
+      if (y < 32) root._damageLo |= 1 << y;
+      else root._damageHi |= 1 << (y - 32);
+    }
   }
 
   private markGeometryDirty(): void {
@@ -336,8 +370,10 @@ export class SceneNode {
       child.syncShrink();
       child.markGeometryDirty();
       this.markGeometryDirty();
+      const root = this.rootAncestor();
+      root._sceneDirty = true;
+      root._fullDamage = true;
       if (child.pendingTextNodes !== null && child.pendingTextNodes.size > 0) {
-        const root = this.rootAncestor();
         if (root !== child) {
           let dst = root.pendingTextNodes;
           if (dst === null) {
@@ -390,7 +426,10 @@ export class SceneNode {
     child.relValid = false;
     child.clearMeasureCache();
     if (this.isTextLike) this.invalidateText(true);
-    else this.markGeometryDirty();
+    else {
+      this.markGeometryDirty();
+      this.markFullDamage();
+    }
     this.paintOrderCache = null;
   }
 
@@ -445,6 +484,18 @@ export class SceneNode {
 
     const styleChanged = (diffFlags & FLAG_STYLE) !== 0;
     if (styleChanged) this.style = resolveStyle(next);
+    let needsFullDamage =
+      layoutChanged > 0 ||
+      (diffFlags & FLAG_BORDER) !== 0 ||
+      prev.flexShrink !== next.flexShrink ||
+      prev.overflow !== next.overflow ||
+      prev.zIndex !== next.zIndex ||
+      prev.position !== next.position ||
+      prev.display !== next.display ||
+      prev.scrollX !== next.scrollX ||
+      prev.scrollY !== next.scrollY ||
+      prev.backdropDim !== next.backdropDim ||
+      prev.backdropColor !== next.backdropColor;
     if (y !== null) {
       if (layoutChanged > 0) this.padded = hasPaddingProps(next);
       if ((diffFlags & FLAG_BORDER) !== 0) applyBorder(y, borderEdges(next));
@@ -475,10 +526,13 @@ export class SceneNode {
         this.lines = null;
         this.linesWidth = -1;
         this.markTextYogaDirty();
+        needsFullDamage = true;
       }
       if (styleChanged && this.isInline) this.invalidateText(false);
       else if (styleChanged) this.textModel = null;
     }
+    if (needsFullDamage) this.markFullDamage();
+    else this.damageSelf();
   }
 
   /** Replace `raw-text` content. */
@@ -497,6 +551,7 @@ export class SceneNode {
 
   private invalidateText(contentChanged: boolean): void {
     const owner = this.textOwner();
+    owner.damageSelf();
     owner.textModel = null;
     if (contentChanged) {
       owner.lines = null;
@@ -504,6 +559,7 @@ export class SceneNode {
       if (owner.yoga !== null && owner.isTextLike) {
         if (!owner.relValid || owner.mOverflow || owner.yoga.isDirty()) {
           owner.markTextYogaDirty();
+          owner.markFullDamage();
         } else {
           const root = owner.rootAncestor();
           let set = root.pendingTextNodes;
@@ -629,6 +685,71 @@ export class SceneNode {
   // Layout
   // ---------------------------------------------------------------------------
 
+  private canFastUpdateRowTextLeaf(mWidth: number, mHeight: number): boolean {
+    const parent = this.parent;
+    if (parent === null || parent.type !== "box" || !parent.relValid) return false;
+    if (this.padded || this.resolved.borderStyle !== "none") return false;
+    const p = this.props;
+    if (
+      p.width !== undefined ||
+      p.minWidth !== undefined ||
+      p.maxWidth !== undefined ||
+      p.flexBasis !== undefined ||
+      p.position === "absolute" ||
+      p.margin !== undefined ||
+      p.marginX !== undefined ||
+      p.marginLeft !== undefined ||
+      p.marginRight !== undefined
+    ) {
+      return false;
+    }
+    const pp = parent.props;
+    if ((pp.flexDirection ?? "row") !== "row" || (pp.flexWrap ?? "nowrap") !== "nowrap") return false;
+    if ((pp.justifyContent ?? "flex-start") !== "flex-start") return false;
+    // Must be the last child in the row so changing width never shifts a following sibling.
+    const siblings = parent.children;
+    if (siblings[siblings.length - 1] !== this) return false;
+    // Parent's own width and height must be top-down constrained (not shrink-wrapping this child).
+    let cur: SceneNode | null = parent;
+    while (cur !== null && cur.parent !== null) {
+      const cp = cur.props;
+      const gp = cur.parent.props;
+      const gDir = gp.flexDirection ?? "row";
+      const fixedW =
+        cp.width !== undefined && cp.width !== "auto"
+          ? true
+          : gDir === "column"
+            ? (gp.alignItems ?? "stretch") === "stretch" && (cp.alignSelf === undefined || cp.alignSelf === "auto" || cp.alignSelf === "stretch")
+            : gDir === "row" && (cp.flexGrow ?? 0) > 0 && cp.flexBasis === 0;
+      if (!fixedW) return false;
+      cur = cur.parent;
+    }
+    const PL = parent.layout;
+    const L = this.layout;
+    const usedBefore = L.x - PL.contentX;
+    const availAfter = PL.contentWidth - usedBefore;
+    if (mWidth > availAfter) return false;
+    const grow = p.flexGrow ?? 0;
+    if (grow > 0) {
+      for (let i = 0; i < siblings.length - 1; i++) {
+        if (((siblings[i] as SceneNode).props.flexGrow ?? 0) > 0) return false;
+      }
+    }
+    const align = p.alignSelf === undefined || p.alignSelf === "auto" ? (pp.alignItems ?? "stretch") : p.alignSelf;
+    if (align !== "stretch" && mHeight !== this.rel.height) return false;
+    const newW = grow > 0 ? availAfter : mWidth;
+    this.rel.width = newW;
+    L.width = newW;
+    L.contentWidth = newW;
+    this.bounds.x1 = newW;
+    const lines = this.getLines(newW);
+    let maxW = 0;
+    for (const l of lines) if (l.width > maxW) maxW = l.width;
+    L.scrollWidth = Math.max(newW, maxW);
+    L.scrollHeight = Math.max(L.contentHeight, lines.length);
+    return true;
+  }
+
   /** Run Yoga layout for this root and refresh absolute geometry of the whole tree. */
   calculateLayout(width: number, height: number, force = false): boolean {
     if (this.yoga === null) this.ensureYoga();
@@ -644,20 +765,45 @@ export class SceneNode {
         }
         const mc = owner.mCache;
         let sizeChanged = false;
+        let fastHandled = false;
         if (mc !== null && mc.length > 0) {
-          for (let i = 0; i < mc.length; i += 4) {
-            const nw = mc[i] as number;
-            const wm = mc[i + 1] as MeasureMode;
+          if (
+            (mc.length === 4 && (mc[1] === MeasureMode.AtMost || mc[1] === MeasureMode.Undefined)) ||
+            (mc.length === 8 && mc[1] === MeasureMode.Undefined && mc[5] === MeasureMode.AtMost)
+          ) {
+            const lastIdx = mc.length - 4;
+            const nw = mc[lastIdx] as number;
+            const wm = mc[lastIdx + 1] as MeasureMode;
             const m = owner.computeMeasure(nw < 0 ? NaN : nw, wm);
-            if (m.width !== mc[i + 2] || m.height !== mc[i + 3]) {
+            if (m.height === mc[lastIdx + 3] && (mc.length === 4 || m.height === mc[3])) {
+              const widthUnchanged = m.width === mc[lastIdx + 2] && (mc.length === 4 || m.width === mc[2]);
+              if (widthUnchanged) {
+                // Identical width & height.
+              } else if (owner.canFastUpdateRowTextLeaf(m.width, m.height)) {
+                mc[lastIdx + 2] = m.width;
+                if (mc.length === 8) mc[2] = owner.computeMeasure(NaN, MeasureMode.Undefined).width;
+                fastHandled = true;
+              } else {
+                sizeChanged = true;
+              }
+            } else {
               sizeChanged = true;
-              break;
+            }
+          } else {
+            for (let i = 0; i < mc.length; i += 4) {
+              const nw = mc[i] as number;
+              const wm = mc[i + 1] as MeasureMode;
+              const m = owner.computeMeasure(nw < 0 ? NaN : nw, wm);
+              if (m.width !== mc[i + 2] || m.height !== mc[i + 3]) {
+                sizeChanged = true;
+                break;
+              }
             }
           }
         }
         if (sizeChanged) {
           owner.markTextYogaDirty();
-        } else {
+        } else if (!fastHandled) {
           const L = owner.layout;
           const lines = owner.getLines(L.contentWidth);
           let maxW = 0;
@@ -672,6 +818,8 @@ export class SceneNode {
     y.calculateLayout(width, height, Direction.LTR);
     this.lastLayoutW = width;
     this.lastLayoutH = height;
+    this._sceneDirty = true;
+    this._fullDamage = true;
     this.updateGeometry(0, 0);
     return true;
   }
@@ -844,23 +992,77 @@ interface Deferred {
 const WIREFRAME_COLOR = 0x38bdf8ff;
 const HIGHLIGHT_TINT = 0x3b82f659;
 const HIGHLIGHT_LABEL_BG = 0x1e3a8aff;
+const EMPTY_OPTIONS: PaintOptions = Object.freeze({});
 
 class Painter {
   stats: PaintStats = { painted: 0, culled: 0 };
+  sawBackdrop = false;
+  private buffer!: CellBuffer;
+  private options: PaintOptions = EMPTY_OPTIONS;
+  private bandMode = false;
   private deferred: Deferred[] = [];
   private paintedNodes: SceneNode[] = [];
   private readonly box: DrawBoxOptions = { x: 0, y: 0, width: 0, height: 0 };
 
-  constructor(
-    private readonly buffer: CellBuffer,
-    private readonly options: PaintOptions,
-  ) {}
+  runFull(root: SceneNode, buffer: CellBuffer, options: PaintOptions): PaintStats {
+    this.buffer = buffer;
+    this.options = options;
+    this.bandMode = false;
+    this.stats = { painted: 0, culled: 0 };
+    this.sawBackdrop = false;
+    this.deferred.length = 0;
+    this.paintedNodes.length = 0;
 
-  run(root: SceneNode): PaintStats {
-    const buf = this.buffer;
-    buf.resetScissor();
-    if (this.options.clear ?? true) buf.clear(this.options.clearBg ?? 0);
+    buffer.resetScissor();
+    if (options.clear ?? true) buffer.clear(options.clearBg ?? 0);
     this.paintNode(root, 0, 0, 0, 0);
+    this.flushDeferred();
+    buffer.resetScissor();
+    if (options.wireframe) this.paintWireframe();
+    const hl = options.highlightedNode;
+    if (hl && hl.painted) this.paintHighlight(hl);
+    this.paintedNodes.length = 0;
+    return this.stats;
+  }
+
+  runBands(root: SceneNode, buffer: CellBuffer, options: PaintOptions, lo: number, hi: number): PaintStats {
+    this.buffer = buffer;
+    this.options = options;
+    this.bandMode = true;
+    this.stats = { painted: 0, culled: 0 };
+    this.sawBackdrop = false;
+    this.deferred.length = 0;
+    this.paintedNodes.length = 0;
+
+    const clearBg = options.clearBg ?? 0;
+    const W = buffer.width;
+    const H = Math.min(buffer.height, 64);
+    let y = 0;
+    while (y < H) {
+      const bit = y < 32 ? lo & (1 << y) : hi & (1 << (y - 32));
+      if (bit === 0) {
+        y++;
+        continue;
+      }
+      let yEnd = y + 1;
+      while (yEnd < H) {
+        const nextBit = yEnd < 32 ? lo & (1 << yEnd) : hi & (1 << (yEnd - 32));
+        if (nextBit === 0) break;
+        yEnd++;
+      }
+      buffer.resetScissor();
+      buffer.pushScissor(0, y, W, yEnd - y);
+      buffer.fillRect(0, y, W, yEnd - y, clearBg, CHAR_SPACE, 0, 0);
+      this.paintNode(root, 0, 0, 0, 0);
+      this.flushDeferred();
+      y = yEnd;
+    }
+    buffer.resetScissor();
+    return this.stats;
+  }
+
+  private flushDeferred(): void {
+    const buf = this.buffer;
     while (this.deferred.length > 0) {
       this.deferred.sort((a, b) => a.z - b.z || a.order - b.order);
       const d = this.deferred.shift() as Deferred;
@@ -868,23 +1070,21 @@ class Painter {
       buf.pushScissor(d.clipX, d.clipY, d.clipW, d.clipH);
       this.paintNode(d.node, d.ox, d.oy, d.fg, d.attrs);
     }
-    buf.resetScissor();
-    if (this.options.wireframe) this.paintWireframe();
-    const hl = this.options.highlightedNode;
-    if (hl && hl.painted) this.paintHighlight(hl);
-    return this.stats;
   }
 
   private paintNode(node: SceneNode, ox: number, oy: number, inhFg: PackedColor, inhAttrs: number): void {
-    node.painted = false;
     const p = node.props;
-    if (p.display === "none") return;
+    if (p.display === "none") {
+      node.painted = false;
+      return;
+    }
     const buf = this.buffer;
     const L = node.layout;
     const x = L.x + ox;
     const y = L.y + oy;
     const sb = node.subtreeBounds;
     if (!buf.intersectsScissor(x + sb.x0, y + sb.y0, sb.x1 - sb.x0, sb.y1 - sb.y0)) {
+      if (!this.bandMode) node.painted = false;
       this.stats.culled++;
       return;
     }
@@ -911,7 +1111,10 @@ class Painter {
       return;
     }
 
-    if (s.backdrop !== 0) buf.dimRect(0, 0, buf.width, buf.height, s.backdrop);
+    if (s.backdrop !== 0) {
+      this.sawBackdrop = true;
+      buf.dimRect(0, 0, buf.width, buf.height, s.backdrop);
+    }
     if (s.bg !== null && (s.bg & 255) !== 0) buf.fillRect(x, y, L.width, L.height, s.bg);
     if (s.borderStyle !== "none") {
       const bx = this.box;
@@ -1055,7 +1258,72 @@ class Painter {
   }
 }
 
+const sharedPainter = new Painter();
+let sharedPainterBusy = false;
+
 /** Rasterize a laid-out scene into a buffer. */
-export function paintScene(root: SceneNode, buffer: CellBuffer, options: PaintOptions = {}): PaintStats {
-  return new Painter(buffer, options).run(root);
+export function paintScene(root: SceneNode, buffer: CellBuffer, options: PaintOptions = EMPTY_OPTIONS): PaintStats {
+  const clear = options.clear ?? true;
+  const clearBg = options.clearBg ?? 0;
+  const wireframe = options.wireframe ?? false;
+  const hlId = options.highlightedNode?.id ?? 0;
+  const focId = options.focusedNode?.id ?? 0;
+
+  const canIncremental =
+    clear &&
+    !wireframe &&
+    !buffer._paintedWireframe &&
+    hlId === 0 &&
+    buffer._paintedHighlightedId === 0 &&
+    focId === buffer._paintedFocusedId &&
+    clearBg === buffer._paintedClearBg &&
+    buffer._paintedSceneId === root.id &&
+    buffer._writeVersion === buffer._paintedWriteVersion &&
+    !buffer._paintedHadBackdrop &&
+    !root._fullDamage &&
+    buffer.height <= 64 &&
+    buffer.graphemePool.length <= 1024;
+
+  if (canIncremental && !root._sceneDirty) {
+    return { painted: 0, culled: 0 };
+  }
+
+  let painter: Painter;
+  const useShared = !sharedPainterBusy;
+  if (useShared) {
+    sharedPainterBusy = true;
+    painter = sharedPainter;
+  } else {
+    painter = new Painter();
+  }
+
+  try {
+    let stats: PaintStats;
+    let hadBackdrop: boolean;
+    if (canIncremental) {
+      stats = painter.runBands(root, buffer, options, root._damageLo, root._damageHi);
+      hadBackdrop = painter.sawBackdrop;
+    } else {
+      stats = painter.runFull(root, buffer, options);
+      hadBackdrop = painter.sawBackdrop;
+    }
+    if (clear) {
+      root._sceneDirty = false;
+      root._fullDamage = false;
+      root._damageLo = 0;
+      root._damageHi = 0;
+      buffer._paintedSceneId = root.id;
+      buffer._paintedWriteVersion = buffer._writeVersion;
+      buffer._paintedClearBg = clearBg;
+      buffer._paintedWireframe = wireframe;
+      buffer._paintedHighlightedId = hlId;
+      buffer._paintedFocusedId = focId;
+      buffer._paintedHadBackdrop = hadBackdrop;
+    } else {
+      buffer._paintedSceneId = 0;
+    }
+    return stats;
+  } finally {
+    if (useShared) sharedPainterBusy = false;
+  }
 }

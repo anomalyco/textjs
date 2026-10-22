@@ -140,6 +140,8 @@ export const NAMED_COLORS: Readonly<Record<string, string>> = {
 const parseCache = new Map<string, PackedColor>();
 const PARSE_CACHE_MAX = 2048;
 
+const HEX2: readonly string[] = Array.from({ length: 256 }, (_, i) => (i < 16 ? "0" : "") + i.toString(16));
+
 function clampByte(n: number): number {
   return n < 0 ? 0 : n > 255 ? 255 : Math.round(n);
 }
@@ -226,16 +228,16 @@ export function parseColor(input: ColorInput): PackedColor {
   const cached = parseCache.get(input);
   if (cached !== undefined) return cached;
   const value = parseUncached(input);
-  if (parseCache.size >= PARSE_CACHE_MAX) parseCache.clear();
+  if (parseCache.size >= PARSE_CACHE_MAX) {
+    const oldest = parseCache.keys().next();
+    if (!oldest.done) parseCache.delete(oldest.value);
+  }
   parseCache.set(input, value);
   return value;
 }
 
 const cssCache = new Map<number, string>();
-
-function hex2(n: number): string {
-  return (n < 16 ? "0" : "") + n.toString(16);
-}
+const CSS_CACHE_MAX = 8192;
 
 /** Convert a packed color to CSS hex (`#rrggbb` when opaque, `#rrggbbaa` otherwise). Interned. */
 export function colorToCss(c: PackedColor): string {
@@ -246,8 +248,14 @@ export function colorToCss(c: PackedColor): string {
   const g = (key >>> 16) & 255;
   const b = (key >>> 8) & 255;
   const a = key & 255;
-  const css = a === 255 ? `#${hex2(r)}${hex2(g)}${hex2(b)}` : `#${hex2(r)}${hex2(g)}${hex2(b)}${hex2(a)}`;
-  if (cssCache.size >= 8192) cssCache.clear();
+  const css =
+    a === 255
+      ? `#${HEX2[r] as string}${HEX2[g] as string}${HEX2[b] as string}`
+      : `#${HEX2[r] as string}${HEX2[g] as string}${HEX2[b] as string}${HEX2[a] as string}`;
+  if (cssCache.size >= CSS_CACHE_MAX) {
+    const oldest = cssCache.keys().next();
+    if (!oldest.done) cssCache.delete(oldest.value);
+  }
   cssCache.set(key, css);
   return css;
 }
