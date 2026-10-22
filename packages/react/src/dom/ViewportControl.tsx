@@ -189,8 +189,12 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      {/* Room for the longest label ("Fit console · 200×60") so the size arriving never shifts layout. */}
-      <span aria-hidden="true" style={{ minWidth: "20ch", textAlign: "right" }}>{label}</span>
+      {/* Room for the longest label ("Fit console · 200×60") so the size arriving never shifts layout.
+          While fitting, it is left-aligned so the measured size is appended without moving "Fit console";
+          a fixed size gets a fresh node (a new node is not a layout shift) aligned next to the chevron. */}
+      <span key={responsive ? "fit" : "fixed"} aria-hidden="true" style={{ minWidth: "20ch", textAlign: responsive ? "left" : "right" }}>
+        {label}
+      </span>
       <svg aria-hidden="true" width="8" height="8" viewBox="0 0 8 8" style={{ opacity: 0.8 }}>
         <path d="M1.5 3 4 5.5 6.5 3" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>

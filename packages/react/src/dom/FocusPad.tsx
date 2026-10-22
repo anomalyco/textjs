@@ -317,14 +317,14 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
         />
       ) : null}
       {title || top ? (
-        <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+        <div className="tx-pad-top" style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
           {title ? <span style={{ fontSize: 13, color: c.subtle, fontFamily: MONO }}>{title.startsWith("▼") ? title : `▼ ${title}`}</span> : null}
           {top}
         </div>
       ) : null}
 
       <div className="tx-pad-desk" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 28, width: "100%", minHeight: 280 }}>
-        <div style={{ display: "flex", gap: 20, flexWrap: "wrap", justifyContent: "center", fontSize: 13 }} aria-hidden="true">
+        <div className="tx-pad-steps" style={{ display: "flex", gap: 20, flexWrap: "wrap", justifyContent: "center", fontSize: 13 }} aria-hidden="true">
           {step(1, "Open the console", state !== "open", state === "open")}
           <span style={{ color: c.faint }}>—</span>
           {step(2, "Click here", state === "live", state === "click")}
@@ -334,9 +334,9 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
 
         {state === "open" ? (
           <>
-            <h2 style={headline}>Open the console</h2>
+            <h2 className="tx-pad-headline" style={headline}>Open the console</h2>
             {(platform ? [platform] : (["mac", "other"] as const)).map((p) => (
-              <div key={p} className={platform ? undefined : `tx-os-${p}`} style={{ display: "flex", gap: 10 }} aria-label={`Press ${SHORTCUT_KEYS[p].join(" ")}`}>
+              <div key={p} className={platform ? "tx-pad-keys" : `tx-pad-keys tx-os-${p}`} style={{ display: "flex", gap: 10 }} aria-label={`Press ${SHORTCUT_KEYS[p].join(" ")}`}>
                 {SHORTCUT_KEYS[p].map((k) => (
                   <Keycap key={k} size="lg" c={c}>
                     {k}
@@ -344,12 +344,12 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
                 ))}
               </div>
             ))}
-            <p style={sub}>{`It runs in DevTools, not on this page. Then click here and ${doThis}.`}</p>
+            <p className="tx-pad-sub" style={sub}>{`It runs in DevTools, not on this page. Then click here and ${doThis}.`}</p>
           </>
         ) : state === "click" ? (
           <>
-            <h2 style={headline}>Click here, then type</h2>
-            <p style={sub}>Keystrokes go to the page, not the DevTools prompt.</p>
+            <h2 className="tx-pad-headline" style={headline}>Click here, then type</h2>
+            <p className="tx-pad-sub" style={sub}>Keystrokes go to the page, not the DevTools prompt.</p>
             <p style={{ ...sub, fontSize: 13, color: c.subtle }}>
               {"Console closed? "}
               <span style={{ fontFamily: MONO, color: c.muted }}>{shortcut.join("")}</span>
@@ -361,13 +361,13 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
               <span style={{ width: 8, height: 8, borderRadius: 999, background: c.live, animation: "tx-pad-pulse 1.6s ease-in-out infinite" }} />
               Live in your console
             </span>
-            <h2 style={headline}>{hints.length > 0 ? capitalize(doThis) : "Type away"}</h2>
-            <p style={sub}>Watch the console.</p>
+            <h2 className="tx-pad-headline" style={headline}>{hints.length > 0 ? capitalize(doThis) : "Type away"}</h2>
+            <p className="tx-pad-sub" style={sub}>Watch the console.</p>
           </>
         )}
 
         {hints.length > 0 ? (
-          <div style={{ display: "flex", gap: 28, flexWrap: "wrap", justifyContent: "center", paddingTop: 4 }}>
+          <div className="tx-pad-hints" style={{ display: "flex", gap: 28, flexWrap: "wrap", justifyContent: "center", paddingTop: 4 }}>
             {hints.map((h) => (
               <span key={h.keys + h.label} style={{ display: "inline-flex", alignItems: "center", gap: 10, fontSize: 14, color: c.muted }}>
                 <span style={{ display: "inline-flex", gap: 4 }}>
@@ -383,7 +383,7 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
           </div>
         ) : null}
 
-        <div style={{ height: 20, fontFamily: MONO, fontSize: 12, color: c.subtle }} aria-live="polite">
+        <div className="tx-pad-echo" style={{ height: 20, fontFamily: MONO, fontSize: 12, color: c.subtle }} aria-live="polite">
           {last && state === "live" ? (
             <span key={last.n} style={{ display: "inline-block", animation: "tx-pad-pop 1.4s ease-out forwards" }}>{`→ ${last.label}`}</span>
           ) : null}

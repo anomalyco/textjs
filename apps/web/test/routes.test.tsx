@@ -95,6 +95,8 @@ describe("page rendering", () => {
     expect(oc).toContain("Enter");
     expect(oc).toContain("http://127.0.0.1:4096");
     expect(oc).toContain(BRIDGE_COMMAND);
+    // Prerendering can't know about a remembered server: the status line is a placeholder until hydrated.
+    expect(oc).toContain('data-status="pending"');
     expect(oc).not.toContain("data-textjs-mirror");
     const nf = renderToStaticMarkup(<RouteView route={{ name: "not-found" }} />);
     expect(nf).toContain("404");
