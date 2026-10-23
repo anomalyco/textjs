@@ -4,7 +4,8 @@ import { RuleTester } from "@typescript-eslint/rule-tester";
 RuleTester.afterAll = afterAll;
 RuleTester.describe = describe;
 RuleTester.it = it;
-RuleTester.itOnly = it.only;
+// Read `it.only` lazily: Bun throws on access when CI is set, and no rule test uses `only`.
+RuleTester.itOnly = ((...args: Parameters<typeof it>) => it.only(...args)) as typeof it;
 
 export function tester(): RuleTester {
   return new RuleTester({
