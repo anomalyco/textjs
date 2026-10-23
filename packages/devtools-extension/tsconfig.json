@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": ["bun"],
+    "paths": { "playwright-core": ["../../bench/devtools/node_modules/playwright-core"] }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "test/**/*.ts", "e2e/**/*.ts", "harness/**/*.tsx"]
+}
