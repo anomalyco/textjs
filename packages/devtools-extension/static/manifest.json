@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Text.js DevTools",
+  "short_name": "Text.js",
+  "description": "Inspect Text.js console apps: component tree, cell-level frame inspector and frame timeline. DevTools inside DevTools.",
+  "version": "0.0.0",
+  "minimum_chrome_version": "111",
+  "homepage_url": "https://textjs.org/docs/devtools-extension",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "devtools_page": "devtools.html",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["page.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
