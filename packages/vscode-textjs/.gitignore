@@ -1,0 +1,4 @@
+dist/
+.harness/
+.vscode-test/
+*.vsix

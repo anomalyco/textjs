@@ -1,0 +1,203 @@
+{
+  "Text.js page": {
+    "prefix": ["txpage", "page"],
+    "description": "▼ App Router page (app/**/page.tsx)",
+    "body": [
+      "import { Box, Text, useTheme, type Metadata } from \"@textjs/next\";",
+      "",
+      "export const metadata: Metadata = { title: \"${1:${TM_DIRECTORY/^.*[\\/\\\\]([^\\/\\\\]+)$/${1:/capitalize}/}}\" };",
+      "",
+      "export default function ${2:${TM_DIRECTORY/^.*[\\/\\\\]([^\\/\\\\]+)$/${1:/pascalcase}/}}Page() {",
+      "  const theme = useTheme();",
+      "  return (",
+      "    <Box className=\"flex-col gap-1\">",
+      "      <Text bold color={theme.fg}>",
+      "        ${1}",
+      "      </Text>",
+      "      $0",
+      "    </Box>",
+      "  );",
+      "}",
+      ""
+    ]
+  },
+  "Text.js layout": {
+    "prefix": ["txlayout", "layout"],
+    "description": "▼ App Router layout (app/**/layout.tsx)",
+    "body": [
+      "import { Box, Text, useTheme, type LayoutProps } from \"@textjs/next\";",
+      "",
+      "export default function ${1:Root}Layout({ children }: LayoutProps) {",
+      "  const theme = useTheme();",
+      "  return (",
+      "    <Box className=\"flex-col w-full h-full\">",
+      "      <Box className=\"flex-row h-1 px-2 shrink-0\">",
+      "        <Text bold color={theme.fg} wrap=\"nowrap\">",
+      "          ▼ ${2:App}",
+      "        </Text>",
+      "      </Box>",
+      "      <Box className=\"grow flex-col px-2 pt-1\">{children}</Box>",
+      "    </Box>",
+      "  );",
+      "}",
+      ""
+    ]
+  },
+  "Text.js loading": {
+    "prefix": "txloading",
+    "description": "▼ loading.tsx with a <Spinner>",
+    "body": [
+      "import { Box, Spinner } from \"@textjs/next\";",
+      "",
+      "export default function Loading() {",
+      "  return (",
+      "    <Box className=\"flex-col grow items-center justify-center\">",
+      "      <Spinner label=\"${1:Loading…}\" />",
+      "    </Box>",
+      "  );",
+      "}",
+      ""
+    ]
+  },
+  "Text.js error boundary": {
+    "prefix": "txerror",
+    "description": "▼ error.tsx boundary with retry",
+    "body": [
+      "import { Box, Text, useInput, useTheme, type ErrorComponentProps } from \"@textjs/next\";",
+      "",
+      "export default function Error({ error, reset }: ErrorComponentProps) {",
+      "  const theme = useTheme();",
+      "  useInput((e) => {",
+      "    if (e.input === \"r\") reset();",
+      "  });",
+      "  return (",
+      "    <Box className=\"flex-col gap-1 border rounded px-1\" borderColor={theme.danger}>",
+      "      <Text bold color={theme.danger}>${1:Something went wrong}</Text>",
+      "      <Text color={theme.muted}>{error.message}</Text>",
+      "      <Text color={theme.subtle}>r retry</Text>",
+      "    </Box>",
+      "  );",
+      "}",
+      ""
+    ]
+  },
+  "Text.js component": {
+    "prefix": ["txc", "txcomponent"],
+    "description": "▼ Console component",
+    "body": [
+      "import { Box, Text } from \"@textjs/next\";",
+      "",
+      "export function ${1:${TM_FILENAME_BASE/(.*)/${1:/pascalcase}/}}() {",
+      "  return (",
+      "    <Box className=\"${2:flex-col}\">",
+      "      <Text>${3:▼ Hello, console}</Text>$0",
+      "    </Box>",
+      "  );",
+      "}",
+      ""
+    ]
+  },
+  "<Box>": {
+    "prefix": "box",
+    "description": "▼ <Box> flex container",
+    "body": ["<Box className=\"${1|flex-col,flex-row|} ${2:gap-1}\">", "  $0", "</Box>"]
+  },
+  "<Box> with border": {
+    "prefix": "boxb",
+    "description": "▼ <Box> with a rounded border and title",
+    "body": ["<Box className=\"flex-col border rounded px-1\" title=\" ${1:Title} \">", "  $0", "</Box>"]
+  },
+  "<Text>": {
+    "prefix": "text",
+    "description": "▼ <Text>",
+    "body": ["<Text${1: bold}${2: color={theme.${3|fg,muted,subtle,accent,success,warning,danger|}\\}}>$0</Text>"]
+  },
+  "<ScrollBox>": {
+    "prefix": "scrollbox",
+    "description": "▼ <ScrollBox> that sticks to the bottom",
+    "body": ["<ScrollBox className=\"grow\" stickyScroll${1: focusable}>", "  $0", "</ScrollBox>"]
+  },
+  "<Input>": {
+    "prefix": "input",
+    "description": "▼ <Input> text field",
+    "body": ["<Input value={${1:value}} onChange={${2:setValue}} onSubmit={${3:(v) => {\\}}} placeholder=\"${4:Type…}\" autoFocus />"]
+  },
+  "<Select>": {
+    "prefix": "select",
+    "description": "▼ <Select> with options",
+    "body": [
+      "<Select",
+      "  options={[",
+      "    { value: \"${1:one}\", label: \"${2:One}\" },",
+      "    { value: \"${3:two}\", label: \"${4:Two}\" },",
+      "  ]}",
+      "  onChange={(value) => ${5:console.log(value)}}",
+      "  autoFocus",
+      "/>"
+    ]
+  },
+  "<Tabs>": {
+    "prefix": "tabs",
+    "description": "▼ <Tabs> with shortcuts",
+    "body": [
+      "<Tabs",
+      "  tabs={[",
+      "    { id: \"${1:overview}\", label: \"${2:Overview}\", shortcut: \"1\" },",
+      "    { id: \"${3:logs}\", label: \"${4:Logs}\", shortcut: \"2\" },",
+      "  ]}",
+      "  activeTab={${5:tab}}",
+      "  onChange={${6:setTab}}",
+      "/>"
+    ]
+  },
+  "<Link>": {
+    "prefix": "link",
+    "description": "▼ <Link> from @textjs/next/link",
+    "body": ["<Link href=\"${1:/}\"${2: shortcut=\"${3:1}\"}>${4:Home}</Link>"]
+  },
+  "<Spinner>": {
+    "prefix": "spinner",
+    "description": "▼ <Spinner>",
+    "body": ["<Spinner label=\"${1:Loading…}\" />"]
+  },
+  "useInput": {
+    "prefix": "useInput",
+    "description": "▼ Handle key presses",
+    "body": ["useInput((e) => {", "  if (e.key === \"${1|up,down,left,right,return,escape,tab,space|}\") ${2:return};", "  $0", "});"]
+  },
+  "useKeymap": {
+    "prefix": "useKeymap",
+    "description": "▼ Declarative shortcuts (shown in the ? help overlay)",
+    "body": ["useKeymap({", "  \"${1:ctrl+k}\": ${2:() => {\\}},", "  $0", "});"]
+  },
+  "useFocus": {
+    "prefix": "useFocus",
+    "description": "▼ Make a component focusable",
+    "body": ["const { isFocused } = useFocus({ ${1:autoFocus: true} });"]
+  },
+  "useTheme": {
+    "prefix": "useTheme",
+    "description": "▼ Theme colors",
+    "body": ["const theme = useTheme();"]
+  },
+  "useViewport": {
+    "prefix": "useViewport",
+    "description": "▼ Console grid size",
+    "body": ["const { width, height } = useViewport();"]
+  },
+  "useRouter": {
+    "prefix": "useRouter",
+    "description": "▼ App Router navigation (@textjs/next/navigation)",
+    "body": ["const router = useRouter();"]
+  },
+  "useInterval": {
+    "prefix": "useInterval",
+    "description": "▼ Run a callback every N ms (pauses with the page)",
+    "body": ["useInterval(() => {", "  $0", "}, ${1:1000});"]
+  },
+  "metadata": {
+    "prefix": "metadata",
+    "description": "▼ Route metadata (title)",
+    "body": ["export const metadata: Metadata = { title: \"${1:Title}\" };"]
+  }
+}

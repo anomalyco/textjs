@@ -1,0 +1,35 @@
+{
+  "Text.js route handler (GET)": {
+    "prefix": ["txroute", "route"],
+    "description": "▼ app/**/route.ts handler",
+    "body": [
+      "export async function ${1|GET,POST,PUT,PATCH,DELETE|}(request: Request) {",
+      "  ${0:return Response.json({ ok: true \\});}",
+      "}",
+      ""
+    ]
+  },
+  "Text.js route handler with params": {
+    "prefix": "txroutep",
+    "description": "▼ app/**/[param]/route.ts handler",
+    "body": [
+      "export async function ${1|GET,POST,PUT,PATCH,DELETE|}(request: Request, { params }: { params: { ${2:id}: string } }) {",
+      "  ${0:return Response.json({ ${2}: params.${2} \\});}",
+      "}",
+      ""
+    ]
+  },
+  "Text.js config": {
+    "prefix": "txconfig",
+    "description": "▼ text.config.ts",
+    "body": [
+      "import { defineConfig } from \"@textjs/next\";",
+      "",
+      "export default defineConfig({",
+      "  title: \"${1:My App}\",",
+      "  viewport: { theme: \"${2|geistDark,geistLight,opencodeDark,tokyoNight,amberCrt|}\" },$0",
+      "});",
+      ""
+    ]
+  }
+}
