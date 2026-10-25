@@ -1,0 +1,152 @@
+{
+  "name": "vscode-textjs",
+  "displayName": "Text.js",
+  "description": "Live console preview, App Router scaffolding, snippets and TX error links for Text.js — The Console Framework for the Web.",
+  "version": "0.4.0",
+  "private": true,
+  "publisher": "textjs",
+  "license": "MIT",
+  "homepage": "https://textjs.org/docs/vscode",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anomalyco/textjs",
+    "directory": "packages/vscode-textjs"
+  },
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#0a0a0a",
+    "theme": "dark"
+  },
+  "categories": ["Programming Languages", "Snippets", "Visualization", "Other"],
+  "keywords": ["textjs", "text.js", "react", "console", "devtools", "tui", "preview", "app router"],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/text.config.{ts,mts,js,mjs}",
+    "workspaceContains:**/app/page.{tsx,jsx}",
+    "onLanguage:typescriptreact",
+    "onLanguage:javascriptreact",
+    "onWebviewPanel:textjs.preview"
+  ],
+  "contributes": {
+    "commands": [
+      { "command": "textjs.startDevServer", "title": "Start Dev Server", "category": "Text.js", "icon": "$(play)" },
+      { "command": "textjs.stopDevServer", "title": "Stop Dev Server", "category": "Text.js", "icon": "$(debug-stop)" },
+      { "command": "textjs.openPreview", "title": "Open Preview", "category": "Text.js", "icon": "$(open-preview)" },
+      { "command": "textjs.openPreviewToSide", "title": "Open Preview to the Side", "category": "Text.js", "icon": "$(open-preview)" },
+      { "command": "textjs.openInBrowser", "title": "Open in Browser Console", "category": "Text.js", "icon": "$(link-external)" },
+      { "command": "textjs.newPage", "title": "New Page", "category": "Text.js" },
+      { "command": "textjs.newLayout", "title": "New Layout", "category": "Text.js" },
+      { "command": "textjs.newRouteHandler", "title": "New Route Handler", "category": "Text.js" },
+      { "command": "textjs.newLoading", "title": "New Loading UI", "category": "Text.js" },
+      { "command": "textjs.newError", "title": "New Error Boundary", "category": "Text.js" },
+      { "command": "textjs.newNotFound", "title": "New Not Found Page", "category": "Text.js" },
+      { "command": "textjs.showMenu", "title": "Show Menu", "category": "Text.js" }
+    ],
+    "submenus": [
+      { "id": "textjs.new", "label": "Text.js" }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "textjs.openPreviewToSide",
+          "when": "textjs.isProject && resourceExtname =~ /^\\.(tsx|jsx)$/ && activeWebviewPanelId != 'textjs.preview'",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        { "submenu": "textjs.new", "when": "textjs.isProject && explorerResourceIsFolder", "group": "navigation@9" },
+        { "command": "textjs.openPreview", "when": "textjs.isProject && resourceExtname =~ /^\\.(tsx|jsx)$/", "group": "navigation@9" }
+      ],
+      "textjs.new": [
+        { "command": "textjs.newPage", "group": "1_route@1" },
+        { "command": "textjs.newLayout", "group": "1_route@2" },
+        { "command": "textjs.newRouteHandler", "group": "1_route@3" },
+        { "command": "textjs.newLoading", "group": "2_ui@1" },
+        { "command": "textjs.newError", "group": "2_ui@2" },
+        { "command": "textjs.newNotFound", "group": "2_ui@3" }
+      ],
+      "commandPalette": [
+        { "command": "textjs.openPreviewToSide", "when": "false" },
+        { "command": "textjs.showMenu", "when": "false" }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "textjs.openPreviewToSide",
+        "key": "ctrl+k v",
+        "mac": "cmd+k v",
+        "when": "textjs.isProject && editorLangId =~ /^(typescriptreact|javascriptreact)$/ && !markdownPreviewFocus"
+      }
+    ],
+    "snippets": [
+      { "language": "typescriptreact", "path": "./snippets/textjs.code-snippets" },
+      { "language": "javascriptreact", "path": "./snippets/textjs.code-snippets" },
+      { "language": "typescript", "path": "./snippets/route-handler.code-snippets" },
+      { "language": "javascript", "path": "./snippets/route-handler.code-snippets" }
+    ],
+    "configuration": {
+      "title": "Text.js",
+      "properties": {
+        "textjs.devServer.url": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Dev server URL (for example `http://localhost:3000`). Leave empty to discover `text dev` on ports 3000–3010."
+        },
+        "textjs.devServer.command": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Command used by **Text.js: Start Dev Server**. Defaults to your package manager's `dev` script, or `text dev`."
+        },
+        "textjs.preview.mode": {
+          "type": "string",
+          "enum": ["auto", "live", "headless"],
+          "enumDescriptions": [
+            "Mirror the running app when a browser tab is connected to `text dev`; otherwise render the file headlessly.",
+            "Always mirror the running app.",
+            "Always render the current file headlessly in the editor."
+          ],
+          "default": "auto",
+          "description": "Where preview frames come from."
+        },
+        "textjs.preview.followEditor": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "In live mode, navigate the browser tab to the route of the `page.tsx` you are editing."
+        },
+        "textjs.preview.fontSize": {
+          "type": "number",
+          "default": 12,
+          "minimum": 8,
+          "maximum": 24,
+          "description": "Cell font size in pixels (DevTools uses 12)."
+        },
+        "textjs.preview.runtime": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Node.js binary for headless previews. Leave empty to use the runtime bundled with VS Code."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "bun scripts/build.ts",
+    "watch": "bun scripts/build.ts --watch",
+    "icon": "bun scripts/icon.ts",
+    "package": "bun scripts/build.ts --production && bun scripts/package.ts",
+    "harness": "bun scripts/build.ts && bun scripts/harness.ts",
+    "test": "bun test",
+    "test:integration": "bun scripts/build.ts && node test/integration/run.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@textjs/core": "workspace:*",
+    "@textjs/next": "workspace:*",
+    "@textjs/react": "workspace:*",
+    "@types/vscode": "~1.90.0",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^3.9.2"
+  }
+}
