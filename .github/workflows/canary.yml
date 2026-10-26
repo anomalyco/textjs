@@ -1,0 +1,82 @@
+# ▼ Text.js canary channel.
+#
+# Every push to main is verified and, when an NPM_TOKEN secret is configured,
+# published as x.y.z-canary.N under the `canary` dist-tag with npm provenance.
+# Canary versions are computed from the registry at publish time and are never
+# committed back to the repository.
+#
+# Skip a push with `[skip canary]` in the head commit message.
+
+name: Canary
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege by default; the publish job opts into OIDC for provenance.
+permissions:
+  contents: read
+
+concurrency:
+  group: canary-release
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    name: Verify and publish canary
+    # Only on the canonical repository: never on forks or pull requests.
+    if: >-
+      github.repository == 'adamdotdevin/textjs' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip canary]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: npm-canary
+    permissions:
+      contents: read
+      id-token: write # npm provenance (Sigstore OIDC)
+    env:
+      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Test
+        run: bun test packages/
+
+      - name: Version (x.y.z-canary.N)
+        id: version
+        run: |
+          bun scripts/release-version.ts canary --registry --json | tee version.json
+          echo "version=$(node -p 'require("./version.json").to')" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to npm (canary)
+        if: env.HAS_NPM_TOKEN == 'true'
+        run: bun scripts/release-publish.ts --tag canary --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+
+      - name: Dry run (no NPM_TOKEN configured)
+        if: env.HAS_NPM_TOKEN != 'true'
+        run: bun scripts/release-publish.ts --tag canary --dry-run
+
+      - name: Summary
+        run: echo "▼ Text.js ${{ steps.version.outputs.version }} (canary)" >> "$GITHUB_STEP_SUMMARY"

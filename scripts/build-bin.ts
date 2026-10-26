@@ -12,7 +12,7 @@ if (!entry || !outfile) {
   process.exit(1);
 }
 
-const EXTERNAL = ["vite", "@vitejs/plugin-react", "react", "react-dom", "react-reconciler", "yoga-layout"];
+const EXTERNAL = ["vite", "@vitejs/plugin-react", "react", "react-dom", "react-reconciler", "yoga-layout", "@modelcontextprotocol/sdk", "zod"];
 
 const result = await Bun.build({
   entrypoints: [resolve(entry)],
