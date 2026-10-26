@@ -141,4 +141,39 @@ describe("performance (100×32 dashboard)", () => {
     expect(con.clears).toBe(0);
     expect(con.logs.length).toBe(0);
   });
+
+  test("LTR frames never enter the bidi path; an RTL dashboard stays under budget", () => {
+    const { root } = buildDashboard();
+    const leaves = textLeaves(root);
+    root.calculateLayout(COLS, ROWS);
+    for (const n of leaves) expect(n.getTextModel().needsBidi).toBe(false);
+    const ltr = new FakeConsole();
+    const buf = new CellBuffer(COLS, ROWS);
+    paintScene(root, buf);
+    new CssConsoleDriver({ console: ltr }).render(buf);
+    expect(ltr.last.format).not.toContain("\u202D");
+
+    // Same scene with every text leaf in Hebrew/Arabic: full layout + bidi + paint + encode.
+    const words = ["שלום עולם (בדיקה) 42", "مرحبا بالعالم ١٢٣", "abc שלום def"];
+    leaves.forEach((n, i) => {
+      const raw = n.children[0];
+      if (raw !== undefined && raw.type === "raw-text") raw.setText(words[i % words.length] as string);
+    });
+    const con = new FakeConsole();
+    const driver = new CssConsoleDriver({ console: con });
+    const r = bench((i) => {
+      // Alternate the text so every frame re-segments, re-resolves and re-reorders every leaf.
+      leaves.forEach((n, j) => {
+        const raw = n.children[0];
+        if (raw !== undefined && raw.type === "raw-text") raw.setText(`${words[j % words.length] as string}${i % 2 === 0 ? "" : "!"}`);
+      });
+      root.calculateLayout(COLS, ROWS, true);
+      paintScene(root, buf);
+      driver.invalidate();
+      driver.render(buf);
+    });
+    console.info(`[bench] RTL full frame (${leaves.length} bidi text nodes): ${fmt(r)}`);
+    expect(con.last.format).toContain("\u202D");
+    expect(r.mean).toBeLessThan(4.0);
+  });
 });

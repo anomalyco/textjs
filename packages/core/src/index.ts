@@ -1,5 +1,6 @@
 export * from "./color";
 export * from "./text-measure";
+export * from "./bidi";
 export * from "./cell-buffer";
 export * from "./drivers/style";
 export * from "./drivers/css-console-driver";
@@ -10,6 +11,8 @@ export * from "./scene";
 export * from "./input";
 export * from "./viewport";
 export * from "./renderer";
+export * from "./errors";
+export * from "./error-docs";
 
 export const VERSION = "0.4.0";
 export const ENGINE_NAME = "Turbolog";

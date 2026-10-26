@@ -9,6 +9,7 @@ import {
   ATTR_WIDE_CONT,
   type CellBuffer,
 } from "../cell-buffer";
+import { hasRtl, LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../bidi";
 
 export interface AnsiRenderOptions {
   /** Separator between rows (default `"\n"`). */
@@ -19,7 +20,19 @@ export interface AnsiRenderOptions {
   cursorHome?: boolean;
   /** Strip trailing default-styled spaces from each row. */
   trimEnd?: boolean;
+  /**
+   * Keep terminals from reordering right-to-left text a second time (default
+   * `"pin"`). Cells are already in visual order, so a frame containing RTL
+   * characters switches terminals that implement the ECMA-48 / terminal-wg
+   * BiDi proposal (VTE, …) to explicit mode (`CSI 8 l`), and each such row is
+   * wrapped in LRO…PDF for terminals that run the Unicode bidi algorithm
+   * over the line (Konsole, mlterm, macOS Terminal). `"none"` emits cells as-is.
+   */
+  bidi?: "pin" | "none";
 }
+
+/** BDSM reset: the application presents text in display order (explicit mode). */
+export const ANSI_BIDI_EXPLICIT = "\u001b[8l";
 
 const ESC = "\u001b[";
 
@@ -54,8 +67,11 @@ export function renderToAnsi(buffer: CellBuffer, options: AnsiRenderOptions = {}
   const W = buffer.width;
   const rows: string[] = [];
   const styleMask = ATTR_BOLD | ATTR_DIM | ATTR_ITALIC | ATTR_UNDERLINE | ATTR_INVERSE | ATTR_STRIKETHROUGH;
+  const pin = (options.bidi ?? "pin") === "pin";
+  let anyRtl = false;
   for (let y = 0; y < buffer.height; y++) {
     let line = "";
+    let rtl = false;
     let pf = -1;
     let pb = -1;
     let pa = -1;
@@ -74,13 +90,18 @@ export function renderToAnsi(buffer: CellBuffer, options: AnsiRenderOptions = {}
         pa = sa;
       }
       const ch = buffer.cellText(i);
+      if (pin && !rtl && ch.charCodeAt(0) >= 0x0590 && hasRtl(ch)) rtl = true;
       line += ch;
       if (ch !== " " || (b & 255) !== 0 || sa !== 0) lastStyled = line.length;
     }
     if (options.trimEnd) line = line.slice(0, lastStyled);
+    if (rtl) {
+      anyRtl = true;
+      line = LTR_OVERRIDE + line + POP_DIRECTIONAL_FORMATTING;
+    }
     rows.push(`${line}${ESC}0m`);
   }
-  return (options.cursorHome ? `${ESC}H` : "") + rows.join(sep);
+  return (options.cursorHome ? `${ESC}H` : "") + (anyRtl ? ANSI_BIDI_EXPLICIT : "") + rows.join(sep);
 }
 
 /** Stateful ANSI driver that writes only when the frame changed. */

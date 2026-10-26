@@ -37,9 +37,11 @@ import {
   type YogaNode,
 } from "./layout";
 import { ELLIPSIS, layoutGraphemeLines, segmentGraphemes, type Grapheme, type TextLine, type WrapMode } from "./text-measure";
+import { graphemesNeedBidi, resolveGraphemeBidi, visualizeLine, type GraphemeBidi, type TextDirection, type VisualLine } from "./bidi";
 
 export type SceneNodeType = "box" | "text" | "raw-text";
-export type TextAlign = "left" | "center" | "right";
+/** `"start"`/`"end"` follow each paragraph's direction; unset text aligns to `"start"`. */
+export type TextAlign = "left" | "center" | "right" | "start" | "end";
 
 export interface ComputedRect {
   x: number;
@@ -73,6 +75,12 @@ export interface SceneNodeProps extends LayoutProps, BorderProps, TextStyleProps
   borderColor?: ColorInput;
   wrap?: WrapMode;
   textAlign?: TextAlign;
+  /**
+   * Base direction of text paragraphs (default `"auto"`: each paragraph takes
+   * the direction of its first strong character). On a nested text span,
+   * isolates the span like HTML `dir` (`"auto"` = FSI, `"ltr"` = LRI, `"rtl"` = RLI).
+   */
+  dir?: TextDirection;
   title?: string;
   titleColor?: ColorInput;
   titleAlign?: TitleAlign;
@@ -118,7 +126,17 @@ export interface TextModel {
   /** Widest unwrapped line (`-1` until computed). */
   naturalWidth: number;
   naturalHeight: number;
+  /** Whether painting goes through the bidi path (`dir: "rtl"` or any RTL/AN character or bidi control). */
+  needsBidi: boolean;
 }
+
+const ISOLATE_GRAPHEMES: Readonly<Record<TextDirection, Grapheme>> = Object.freeze({
+  auto: Object.freeze({ grapheme: "\u2068", width: 0, codePoint: 0x2068, isMulti: false }),
+  ltr: Object.freeze({ grapheme: "\u2066", width: 0, codePoint: 0x2066, isMulti: false }),
+  rtl: Object.freeze({ grapheme: "\u2067", width: 0, codePoint: 0x2067, isMulti: false }),
+});
+const PDI_GRAPHEME: Grapheme = Object.freeze({ grapheme: "\u2069", width: 0, codePoint: 0x2069, isMulti: false });
+const ELLIPSIS_GRAPHEME: Grapheme = Object.freeze({ grapheme: ELLIPSIS, width: 1, codePoint: 0x2026, isMulti: false });
 
 const FLAG_LAYOUT = 1 << 0;
 const FLAG_STYLE = 1 << 1;
@@ -229,6 +247,9 @@ export class SceneNode {
   private textModel: TextModel | null = null;
   private linesWidth = -1;
   private lines: TextLine[] | null = null;
+  private bidi: GraphemeBidi | null = null;
+  private visualLines: Array<VisualLine | undefined> | null = null;
+  private visualFor: TextLine[] | null = null;
   private paintOrderCache: SceneNode[] | null = null;
   private padded = false;
   private destroyed = false;
@@ -530,6 +551,11 @@ export class SceneNode {
       }
       if (styleChanged && this.isInline) this.invalidateText(false);
       else if (styleChanged) this.textModel = null;
+      if (prev.dir !== next.dir) {
+        // Inline `dir` adds isolate controls to the owner's graphemes; an owner's `dir` only changes levels.
+        if (this.isInline) this.invalidateText(true);
+        else this.textModel = null;
+      }
     }
     if (needsFullDamage) this.markFullDamage();
     else this.damageSelf();
@@ -587,6 +613,7 @@ export class SceneNode {
     let naturalWidth = 0;
     let curLineWidth = 0;
     let naturalHeight = 1;
+    let maybeBidi = false;
     const visit = (node: SceneNode, parent: TextRun | null): void => {
       if (node.props.display === "none") return;
       const s = node.style;
@@ -598,6 +625,11 @@ export class SceneNode {
             attrsOff: (parent.attrsOff & ~s.attrsOn) | s.attrsOff,
           }
         : { fg: s.fg, bg: s.bg, attrsOn: s.attrsOn, attrsOff: s.attrsOff };
+      const isolate = node !== this ? node.props.dir : undefined;
+      if (isolate !== undefined) {
+        graphemes.push(ISOLATE_GRAPHEMES[isolate]);
+        maybeBidi = true;
+      }
       if (node.type === "raw-text" || (node.text.length > 0 && node.children.length === 0)) {
         if (node.text.length > 0) {
           const ri = runs.length;
@@ -614,12 +646,14 @@ export class SceneNode {
               naturalHeight++;
             } else {
               curLineWidth += g.width;
+              if (g.codePoint >= 0x0590 || g.isMulti) maybeBidi = true;
             }
           }
           text += node.text;
         }
       }
       for (const c of node.children) visit(c, run);
+      if (isolate !== undefined) graphemes.push(PDI_GRAPHEME);
     };
     visit(this, null);
     if (curLineWidth > naturalWidth) naturalWidth = curLineWidth;
@@ -627,7 +661,10 @@ export class SceneNode {
     for (let b = 0; b < runBounds.length; b += 3) {
       runOf.fill(runBounds[b] as number, runBounds[b + 1] as number, runBounds[b + 2] as number);
     }
-    this.textModel = { graphemes, runOf, runs, text, naturalWidth, naturalHeight };
+    const needsBidi = this.props.dir === "rtl" || (maybeBidi && graphemesNeedBidi(graphemes));
+    this.bidi = null;
+    this.visualLines = null;
+    this.textModel = { graphemes, runOf, runs, text, naturalWidth, naturalHeight, needsBidi };
     return this.textModel;
   }
 
@@ -639,6 +676,30 @@ export class SceneNode {
     this.lines = layoutGraphemeLines(model.graphemes, w, this.props.wrap ?? "wrap");
     this.linesWidth = w;
     return this.lines;
+  }
+
+  /**
+   * @internal Line `li` of `lines` in visual order (bidi path only). Lines are
+   * wrapped in logical order first; each is then reordered on its own (L1–L4).
+   */
+  getVisualLine(lines: TextLine[], li: number): VisualLine {
+    const model = this.getTextModel();
+    if (this.visualFor !== lines || this.visualLines === null) {
+      this.visualFor = lines;
+      this.visualLines = new Array<VisualLine | undefined>(lines.length);
+    }
+    const cached = this.visualLines[li];
+    if (cached !== undefined) return cached;
+    if (this.bidi === null) this.bidi = resolveGraphemeBidi(model.graphemes, this.props.dir);
+    const line = lines[li] as TextLine;
+    const items: number[] = [];
+    for (let i = line.start; i < line.cutStart; i++) items.push(i);
+    if (line.ellipsis) items.push(-1);
+    for (let i = line.cutEnd; i < line.end; i++) items.push(i);
+    const ref = line.cutStart > line.start ? line.cutStart - 1 : Math.min(line.cutEnd, line.end - 1);
+    const vl = visualizeLine(model.graphemes, this.bidi, items, ELLIPSIS_GRAPHEME, ref);
+    this.visualLines[li] = vl;
+    return vl;
   }
 
   private computeMeasure(width: number, widthMode: MeasureMode): { width: number; height: number } {
@@ -1176,7 +1237,7 @@ class Painter {
     const model = node.getTextModel();
     if (model.graphemes.length === 0) return;
     const lines = node.getLines(sr.contentWidth);
-    const align = node.props.textAlign ?? "left";
+    const align = node.props.textAlign ?? "start";
     const cw = sr.contentWidth;
     const scissor = buf.getScissor();
     const firstRow = Math.max(0, scissor.y - sr.contentY);
@@ -1184,12 +1245,16 @@ class Painter {
     const gs = model.graphemes;
     const runOf = model.runOf;
     const runs = model.runs;
+    if (model.needsBidi) {
+      this.paintVisualLines(node, lines, firstRow, lastRow, sr, align, inhFg, inhAttrs);
+      return;
+    }
     for (let li = firstRow; li < lastRow; li++) {
       const line = lines[li] as TextLine;
       const row = sr.contentY + li;
       let col = sr.contentX;
       if (align === "center") col += Math.max(0, Math.floor((cw - line.width) / 2));
-      else if (align === "right") col += Math.max(0, cw - line.width);
+      else if (align === "right" || align === "end") col += Math.max(0, cw - line.width);
       col = this.drawRuns(gs, runOf, runs, line.start, line.cutStart, col, row, inhFg, inhAttrs);
       if (line.ellipsis) {
         const ref = line.cutStart > line.start ? line.cutStart - 1 : Math.min(line.cutEnd, line.end - 1);
@@ -1198,6 +1263,50 @@ class Painter {
         col++;
       }
       if (line.cutEnd < line.end) this.drawRuns(gs, runOf, runs, line.cutEnd, line.end, col, row, inhFg, inhAttrs);
+    }
+  }
+
+  /** Bidi path: each line reordered into visual order; `start`/`end` alignment follows the paragraph direction. */
+  private paintVisualLines(
+    node: SceneNode,
+    lines: TextLine[],
+    firstRow: number,
+    lastRow: number,
+    sr: ComputedRect,
+    align: TextAlign,
+    inhFg: PackedColor,
+    inhAttrs: number,
+  ): void {
+    const model = node.getTextModel();
+    const runOf = model.runOf;
+    const runs = model.runs;
+    const cw = sr.contentWidth;
+    for (let li = firstRow; li < lastRow; li++) {
+      const line = lines[li] as TextLine;
+      const vl = node.getVisualLine(lines, li);
+      const rtl = (vl.paragraphLevel & 1) === 1;
+      const a = align === "start" ? (rtl ? "right" : "left") : align === "end" ? (rtl ? "left" : "right") : align;
+      const row = sr.contentY + li;
+      let col = sr.contentX;
+      if (a === "center") col += Math.max(0, Math.floor((cw - line.width) / 2));
+      else if (a === "right") col += Math.max(0, cw - line.width);
+      const vgs = vl.graphemes;
+      const src = vl.source;
+      const ellipsisRun = runOf[line.cutStart > line.start ? line.cutStart - 1 : Math.min(line.cutEnd, line.end - 1)] ?? 0;
+      let k = 0;
+      while (k < vgs.length) {
+        const s0 = src[k] as number;
+        const ri = s0 >= 0 ? (runOf[s0] as number) : ellipsisRun;
+        let e = k + 1;
+        while (e < vgs.length) {
+          const se = src[e] as number;
+          if ((se >= 0 ? (runOf[se] as number) : ellipsisRun) !== ri) break;
+          e++;
+        }
+        const run = runs[ri] as TextRun;
+        col += this.buffer.drawGraphemes(col, row, vgs, k, e, run.fg ?? inhFg, run.bg ?? 0, (inhAttrs & ~run.attrsOff) | run.attrsOn);
+        k = e;
+      }
     }
   }
 

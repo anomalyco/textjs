@@ -20,6 +20,8 @@ import {
   type EffectiveStyle,
   type StyleResolveOptions,
 } from "./style";
+import { hasRtl, isRtlCodePoint, LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../bidi";
+import { codePointWidth, LruCache } from "../text-measure";
 
 /** Minimal console surface used by the driver; inject a fake for tests and benchmarks. */
 export interface ConsoleTarget {
@@ -79,6 +81,34 @@ export interface CssConsoleDriverOptions {
   curtain?: boolean;
   /** Fold blank cells into the open span when their background matches (default `true`). */
   coalesceWhitespace?: boolean;
+  /**
+   * In `"append"` mode, clear the console before the first frame (default
+   * `true`). Pass `false` when a prerendered shell already cleared it and
+   * painted a frame, so the first live frame appends beneath it in one paint.
+   */
+  initialClear?: boolean;
+  /**
+   * Measures text advance in CSS px with the console font, used to fit spans
+   * of right-to-left text to the cell grid (see `fitRtlSpans`). Defaults to a
+   * canvas measurer in browsers; `false` (and non-browser runtimes) disable fitting.
+   */
+  measureText?: TextAdvanceMeasurer | false;
+}
+
+/** Advance width in CSS px of `text` rendered with the console font. */
+export type TextAdvanceMeasurer = (text: string, bold: boolean, italic: boolean) => number;
+
+/** A canvas-backed measurer for the console font, or `null` outside browsers. */
+export function createCanvasMeasurer(fontFamily: string, fontSize: number): TextAdvanceMeasurer | null {
+  let ctx: { font: string; measureText(t: string): { width: number } } | null = null;
+  if (typeof OffscreenCanvas !== "undefined") ctx = new OffscreenCanvas(1, 1).getContext("2d");
+  else if (typeof document !== "undefined" && typeof document.createElement === "function") ctx = document.createElement("canvas").getContext("2d");
+  if (ctx === null) return null;
+  const c = ctx;
+  return (text, bold, italic) => {
+    c.font = `${italic ? "italic " : ""}${bold ? "700 " : ""}${fontSize}px ${fontFamily}`;
+    return c.measureText(text).width;
+  };
 }
 
 export interface DriverRenderOptions {
@@ -121,6 +151,45 @@ export function escapeConsoleText(text: string, allowLink = false): string {
     if (s.includes("www.") || s.includes("WWW.")) s = s.replace(/www\./gi, (m) => `${m.slice(0, 3)}\u2060.`);
   }
   return s;
+}
+
+/**
+ * Cells are already in visual order, but DevTools runs the Unicode bidi
+ * algorithm (and Arabic shaping) over every message. Spans holding R, AL or AN
+ * characters are wrapped in LRO…PDF so the browser lays them out left to right
+ * exactly as the cells are ordered. (`direction`/`unicode-bidi` CSS is stripped
+ * by DevTools' `%c` sanitizer.)
+ */
+function pinVisualOrder(text: string): string {
+  return LTR_OVERRIDE + text + POP_DIRECTIONAL_FORMATTING;
+}
+
+/** Blink stores inline sizes in LayoutUnits (1/64 px) and rounds text widths up to one. */
+const LAYOUT_UNIT = 64;
+
+/**
+ * Display cells and DOM text of an escaped span (`%%` → `%`). The pins stay in
+ * the text so a measurer sees the same (overridden) runs DevTools lays out:
+ * without them it would reorder the visual-order glyphs and form ligatures
+ * (lam-alef) that never appear on screen.
+ */
+function spanCells(escaped: string): { cells: number; plain: string } {
+  let cells = 0;
+  let plain = "";
+  for (let i = 0; i < escaped.length; i++) {
+    const c = escaped.charCodeAt(i);
+    if (c === 0x25 && escaped.charCodeAt(i + 1) === 0x25) i++;
+    if (c >= 0xd800 && c <= 0xdbff) {
+      const cp = escaped.codePointAt(i) as number;
+      cells += codePointWidth(cp);
+      plain += escaped.slice(i, i + 2);
+      i++;
+      continue;
+    }
+    cells += codePointWidth(c);
+    plain += escaped[i];
+  }
+  return { cells, plain };
 }
 
 const CURTAIN_CSS = "margin-top:100vh;";
@@ -217,6 +286,11 @@ export class CssConsoleDriver {
   private parity = false;
   private readonly curtainCss: string;
   private readonly scratch: EffectiveStyle = { fg: 0, bg: 0, flags: 0 };
+  private readonly measureOption: TextAdvanceMeasurer | false | undefined;
+  private measurer: TextAdvanceMeasurer | null | undefined;
+  private cellAdvance = 0;
+  private readonly fitCache = new LruCache<string, string>(1024);
+  private nextFitId = -2;
   private readonly blankScratch: EffectiveStyle = { fg: 0, bg: 0, flags: 0 };
 
   constructor(options: CssConsoleDriverOptions = {}) {
@@ -230,6 +304,8 @@ export class CssConsoleDriver {
     this.coalesce = options.coalesceWhitespace ?? true;
     this.baseCss = typographyCss(this.typography);
     this.curtainCss = CURTAIN_CSS;
+    if (options.initialClear === false) this.appended = 1;
+    this.measureOption = options.measureText;
   }
 
   setConsole(target: ConsoleTarget | null): void {
@@ -315,6 +391,8 @@ export class CssConsoleDriver {
     let text = "";
     let blank = true;
     let hasSpecial = false;
+    let rtl = false;
+    let rowRtl = false;
 
     // Blank run waiting to see whether the next cell shares its background.
     let pend = 0;
@@ -361,7 +439,7 @@ export class CssConsoleDriver {
                 styleId: id,
                 styleKey: key,
                 css,
-                text: blank || !hasSpecial ? text : escapeConsoleText(text, allowLink),
+                text: blank || !hasSpecial ? text : rtl ? pinVisualOrder(escapeConsoleText(text, allowLink)) : escapeConsoleText(text, allowLink),
                 bg: spanBg,
                 blank,
                 link: allowLink,
@@ -377,6 +455,7 @@ export class CssConsoleDriver {
             text = "";
             blank = true;
             hasSpecial = false;
+            rtl = false;
           }
           text += pend === 1 ? " " : " ".repeat(pend);
           pend = 0;
@@ -462,7 +541,7 @@ export class CssConsoleDriver {
                 styleId: id,
                 styleKey: key,
                 css,
-                text: blank || !hasSpecial ? text : escapeConsoleText(text, allowLink),
+                text: blank || !hasSpecial ? text : rtl ? pinVisualOrder(escapeConsoleText(text, allowLink)) : escapeConsoleText(text, allowLink),
                 bg: spanBg,
                 blank,
                 link: allowLink,
@@ -478,6 +557,7 @@ export class CssConsoleDriver {
             text = "";
             blank = true;
             hasSpecial = false;
+            rtl = false;
           }
           text += pend === 1 ? " " : " ".repeat(pend);
           pend = 0;
@@ -488,7 +568,7 @@ export class CssConsoleDriver {
                 styleId: id,
                 styleKey: key,
                 css,
-                text: blank || !hasSpecial ? text : escapeConsoleText(text, allowLink),
+                text: blank || !hasSpecial ? text : rtl ? pinVisualOrder(escapeConsoleText(text, allowLink)) : escapeConsoleText(text, allowLink),
                 bg: spanBg,
                 blank,
                 link: allowLink,
@@ -504,6 +584,7 @@ export class CssConsoleDriver {
             text = "";
             blank = true;
             hasSpecial = false;
+            rtl = false;
           }
           text += pend === 1 ? " " : " ".repeat(pend);
           pend = 0;
@@ -516,7 +597,7 @@ export class CssConsoleDriver {
             styleId: id,
             styleKey: key,
             css,
-            text: blank || !hasSpecial ? text : escapeConsoleText(text, allowLink),
+            text: blank || !hasSpecial ? text : rtl ? pinVisualOrder(escapeConsoleText(text, allowLink)) : escapeConsoleText(text, allowLink),
             bg: spanBg,
             blank,
             link: allowLink,
@@ -532,6 +613,7 @@ export class CssConsoleDriver {
         text = "";
         blank = true;
         hasSpecial = false;
+        rtl = false;
       }
       blank = false;
       if (c < 0x80) {
@@ -539,10 +621,25 @@ export class CssConsoleDriver {
         text += ASCII_CHARS[c] as string;
       } else if (c >= GRAPHEME_POOL_FLAG) {
         hasSpecial = true;
-        text += pool[c & 0x7fffffff] ?? " ";
+        const g = pool[c & 0x7fffffff] ?? " ";
+        if (!rtl && hasRtl(g)) {
+          rtl = true;
+          rowRtl = true;
+        }
+        text += g;
       } else if (c < 0x10000) {
+        if (c >= 0x0590 && (c <= 0x08ff || c >= 0xfb1d) && isRtlCodePoint(c)) {
+          rtl = true;
+          rowRtl = true;
+          hasSpecial = true;
+        }
         text += String.fromCharCode(c);
       } else {
+        if (isRtlCodePoint(c)) {
+          rtl = true;
+          rowRtl = true;
+          hasSpecial = true;
+        }
         text += String.fromCodePoint(c);
       }
     }
@@ -554,7 +651,7 @@ export class CssConsoleDriver {
             styleId: id,
             styleKey: key,
             css,
-            text: blank || !hasSpecial ? text : escapeConsoleText(text, allowLink),
+            text: blank || !hasSpecial ? text : rtl ? pinVisualOrder(escapeConsoleText(text, allowLink)) : escapeConsoleText(text, allowLink),
             bg: spanBg,
             blank,
             link: allowLink,
@@ -570,6 +667,7 @@ export class CssConsoleDriver {
         text = "";
         blank = true;
         hasSpecial = false;
+        rtl = false;
       }
       text += pend === 1 ? " " : " ".repeat(pend);
     }
@@ -578,14 +676,53 @@ export class CssConsoleDriver {
         styleId: id,
         styleKey: key,
         css,
-        text: blank || !hasSpecial ? text : escapeConsoleText(text, allowLink),
+        text: blank || !hasSpecial ? text : rtl ? pinVisualOrder(escapeConsoleText(text, allowLink)) : escapeConsoleText(text, allowLink),
         bg: spanBg,
         blank,
         link: allowLink,
         deco: spanDeco,
       });
     }
+    if (rowRtl) this.fitRtlSpans(spans);
     return spans;
+  }
+
+  /**
+   * Fallback fonts give Hebrew/Arabic glyphs a slightly different advance than
+   * the monospace cell (Courier New's 0.6em vs Menlo's 0.602em on macOS), and
+   * DevTools paints every background span with `contain: paint`, which shows
+   * 1px hairlines when span edges leave the cell grid's subpixel pattern. Pad
+   * (or pull in) each pinned span by the exact LayoutUnit difference so its box
+   * is as wide as the same number of Latin cells, and keep it from merging
+   * with neighbours, which would repeat the padding on their lines.
+   */
+  private fitRtlSpans(spans: CompiledSpan[]): void {
+    if (this.measurer === undefined) {
+      const m = this.measureOption;
+      this.measurer = m === false ? null : (m ?? createCanvasMeasurer(this.typography.fontFamily, this.typography.fontSize));
+      if (this.measurer !== null) this.cellAdvance = this.measurer("M".repeat(32), false, false) / 32;
+    }
+    const measure = this.measurer;
+    if (measure === null || !(this.cellAdvance > 0)) return;
+    for (const span of spans) {
+      if (span.blank || span.text.charCodeAt(0) !== 0x202d) continue;
+      const bold = span.css.includes("font-weight:700");
+      const italic = span.css.includes("font-style:italic");
+      const key = `${bold ? 1 : 0}${italic ? 1 : 0}${span.text}`;
+      let fit = this.fitCache.get(key);
+      if (fit === undefined) {
+        const { cells, plain } = spanCells(span.text);
+        const target = Math.ceil(cells * this.cellAdvance * LAYOUT_UNIT);
+        const natural = Math.ceil(measure(plain, bold, italic) * LAYOUT_UNIT);
+        const delta = target - natural;
+        fit = delta > 0 ? `padding-right:${delta / LAYOUT_UNIT}px;` : delta < 0 ? `margin-right:${delta / LAYOUT_UNIT}px;` : "";
+        this.fitCache.set(key, fit);
+      }
+      if (fit === "") continue;
+      span.css += fit;
+      span.styleId = this.nextFitId--;
+      span.deco = true;
+    }
   }
 
   /**

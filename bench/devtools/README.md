@@ -40,6 +40,14 @@ bun bench/devtools/run.ts --strategy=clear,noclear,clearEvery=60 --fps=60 --seco
 
 Environment hooks: `BENCH_SHOT_DIR=<dir>` saves a DevTools screenshot after each run; `BENCH_PROFILE_DIR=<dir>` saves a `.cpuprofile` of the DevTools frontend for each run.
 
+Bidirectional text in the real DevTools frontend (Hebrew, Arabic, mixed lines; see `/docs/internationalization`):
+
+```bash
+bun bench/devtools/bidi-shot.ts --out=/tmp/bidi-shots
+```
+
+It logs the same 64×21 frame four ways (cells without pinning, pinned without width fitting, an all-Latin control with every RTL glyph replaced by `x`, and the shipping driver), saves `bidi-*.png`, and reports each frame's right-edge drift across rows and the rows where console background shows through between spans (hairlines). The shipping frame should match the Latin control.
+
 > The results matrix below was recorded before the driver switched to append mode and longhand CSS; `clear` rows there use the old shorthand CSS.
 
 ---

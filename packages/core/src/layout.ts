@@ -20,6 +20,7 @@ import {
   type Node as YogaNode,
   type Yoga,
 } from "yoga-layout/load";
+import { txError } from "./errors";
 
 export type { Yoga, YogaConfig, YogaNode, MeasureFunction };
 export { MeasureMode, Direction, Edge };
@@ -53,7 +54,7 @@ export function isYogaReady(): boolean {
 
 /** Synchronous access to the loaded Yoga instance. Throws until `initYoga()` resolves. */
 export function getYoga(): Yoga {
-  if (yoga === null) throw new Error("@textjs/core: Yoga is not initialized. Call `await initYoga()` first.");
+  if (yoga === null) throw txError("TX001");
   return yoga;
 }
 

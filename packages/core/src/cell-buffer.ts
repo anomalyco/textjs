@@ -697,6 +697,15 @@ export class CellBuffer {
     return hashes;
   }
 
+  /** Invalidate cached row hashes for rows `[y0, y1)` after writing the typed arrays directly. */
+  markRowsDirty(y0: number, y1 = y0 + 1): void {
+    const lo = Math.max(0, Math.floor(y0));
+    const hi = Math.min(this.height, Math.floor(y1));
+    if (lo >= hi) return;
+    this.rowHashValid.fill(0, lo, hi);
+    this._writeVersion = (this._writeVersion + 1) | 0;
+  }
+
   /** 32-bit FNV-1a style hash per row across chars, colors and attributes. */
   computeRowHashes(out?: Uint32Array): Uint32Array {
     const hashes = this.getRowHashes();

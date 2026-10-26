@@ -45,6 +45,8 @@ export interface ConsoleRendererOptions {
   clear?: ClearMode | boolean;
   /** In `"append"` mode, clear and start over after this many frames (default 300). */
   maxFrames?: number;
+  /** Clear before the first frame (default `true`; see `CssConsoleDriverOptions.initialClear`). */
+  initialClear?: boolean;
   typography?: Partial<ConsoleTypographyOptions>;
   style?: Partial<StyleResolveOptions>;
   scheduler?: RendererScheduler;
@@ -186,6 +188,7 @@ export class ConsoleRenderer {
       console: options.console,
       clear: options.clear,
       maxFrames: options.maxFrames,
+      initialClear: options.initialClear,
       typography: options.typography,
       style: options.style,
     });
