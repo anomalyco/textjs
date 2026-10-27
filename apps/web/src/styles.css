@@ -54,6 +54,9 @@ html[data-os="mac"] .os-other {
 html {
   background: var(--bg);
   scroll-padding-top: calc(var(--header-h) + 24px);
+  /* Layout is shift-free, so anchoring has nothing to fix; on iOS Safari it pinned the
+     hero headline under the sticky header and blocked scrolling back to the top. */
+  overflow-anchor: none;
   -webkit-text-size-adjust: 100%;
 }
 

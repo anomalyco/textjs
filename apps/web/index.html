@@ -10,6 +10,7 @@
     <meta name="generator" content="Text.js 0.4 (Turbolog)" />
     <link rel="canonical" href="https://textjs.org/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate" type="application/rss+xml" title="Text.js Blog" href="https://textjs.org/blog/rss.xml" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Text.js" />
     <meta property="og:url" content="https://textjs.org/" />
@@ -74,6 +75,18 @@
         wrap(Element.prototype, "scrollTo", "el.scrollTo");
         var se0 = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTop");
         if (se0 && se0.set) Object.defineProperty(Element.prototype, "scrollTop", { get: se0.get, set: function (v) { if (this === document.scrollingElement || this === document.body) { calls.setTop = (calls.setTop || 0) + 1; last = "scrollTop=" + v; } return se0.set.call(this, v); }, configurable: true });
+        var touch = 0, lastTouch = 0, sy = scrollY, events = [], resizes = 0;
+        addEventListener("touchstart", function () { touch++; lastTouch = performance.now(); }, { passive: true });
+        addEventListener("touchmove", function () { lastTouch = performance.now(); }, { passive: true });
+        addEventListener("touchend", function () { touch--; lastTouch = performance.now(); }, { passive: true });
+        addEventListener("resize", function () { resizes++; events.push("rs" + innerHeight); if (events.length > 6) events.shift(); });
+        addEventListener("scroll", function () {
+          var d = Math.round(scrollY - sy); sy = scrollY;
+          if (!d) return;
+          var src = touch > 0 ? "t" : performance.now() - lastTouch < 1500 ? "m" : "X";
+          events.push(src + (d > 0 ? "+" : "") + d + "@" + Math.round(scrollY));
+          if (events.length > 6) events.shift();
+        }, { passive: true });
         var tick = function () {
           var v = visualViewport, h = document.querySelector(".header"), m = document.querySelector("main"), se = document.scrollingElement;
           d.textContent = "scrollY " + Math.round(scrollY) + "  se.top " + Math.round(se.scrollTop) + "\ninner " + innerWidth + "x" + innerHeight + "  outerH " + outerHeight +
@@ -81,7 +94,9 @@
             "\ndocH " + se.scrollHeight + "  hdr " + Math.round(h.getBoundingClientRect().top) + "-" + Math.round(h.getBoundingClientRect().bottom) + "  main " + Math.round(m.getBoundingClientRect().top) +
             "\ngutter " + getComputedStyle(document.documentElement).scrollbarGutter + "  html.ov " + (document.documentElement.style.overflow || "-") +
             "\nactive " + (function (a) { return a ? a.tagName.toLowerCase() + (typeof a.className === "string" && a.className ? "." + a.className.split(" ")[0] : "") + (a.getAttribute && a.getAttribute("aria-label") ? "[" + a.getAttribute("aria-label").slice(0, 20) + "]" : "") : "-"; })(document.activeElement) +
-            "\ncalls " + JSON.stringify(calls) + "\nlast " + last;
+            "\ncalls " + JSON.stringify(calls) + "\nlast " + last +
+            "\nanchor " + getComputedStyle(document.documentElement).overflowAnchor + "  resizes " + resizes +
+            "\nscroll " + events.join(" ");
           requestAnimationFrame(tick);
         };
         tick();
