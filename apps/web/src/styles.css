@@ -756,7 +756,10 @@ kbd {
 
 .file-tabs {
   display: flex;
+  /* Horizontal only: a 1px vertical overflow would make iOS Safari hand vertical swipes to the strip. */
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
   border-bottom: 1px solid var(--line);
   scrollbar-width: none;
 }
@@ -801,7 +804,9 @@ kbd {
 .code {
   margin: 0;
   padding: 20px 0;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
   font-size: 13px;
   line-height: 1.7;
   color: var(--fg);
@@ -1942,6 +1947,8 @@ kbd {
 .prose .table-wrap {
   margin: 20px 0;
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
 }
@@ -2061,8 +2068,12 @@ kbd {
   color: var(--green-2);
 }
 
-.preview .code {
-  max-height: 360px;
+/* A capped inner scroller only with a mouse; on touch it would steal page swipes. */
+@media (hover: hover) and (pointer: fine) {
+  .preview .code {
+    max-height: 360px;
+    overflow-y: auto;
+  }
 }
 
 /* Sandbox focus */
