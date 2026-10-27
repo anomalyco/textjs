@@ -42,10 +42,17 @@ html[data-os="mac"] .os-other {
   display: none !important;
 }
 
+/* Long and short pages keep the same content width (no sideways jump when navigating).
+   Mouse devices only: touch scrollbars overlay the page, and on iOS Safari a gutter on
+   the root scroller made the first scroll jump and pinned the page top under the header. */
+@media (hover: hover) and (pointer: fine) {
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+
 html {
   background: var(--bg);
-  /* Long and short pages keep the same content width (no sideways jump when navigating). */
-  scrollbar-gutter: stable;
   scroll-padding-top: calc(var(--header-h) + 24px);
   -webkit-text-size-adjust: 100%;
 }

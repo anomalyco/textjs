@@ -48,5 +48,22 @@
       </p>
     </noscript>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // `?debug=scroll`: live scroll/viewport readout for diagnosing mobile Safari.
+      if (/[?&]debug=scroll\b/.test(location.search)) {
+        var d = document.createElement("pre");
+        d.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:99999;margin:0;padding:6px 8px;font:11px/1.4 ui-monospace,monospace;color:#0f0;background:rgba(0,0,0,.85);border:1px solid #0f0;pointer-events:none";
+        document.body.appendChild(d);
+        var tick = function () {
+          var v = visualViewport, h = document.querySelector(".header"), m = document.querySelector("main"), se = document.scrollingElement;
+          d.textContent = "scrollY " + Math.round(scrollY) + "  se.top " + Math.round(se.scrollTop) + "\ninner " + innerWidth + "x" + innerHeight + "  outerH " + outerHeight +
+            "\nvv " + Math.round(v.width) + "x" + Math.round(v.height) + " off " + Math.round(v.offsetTop) + " page " + Math.round(v.pageTop) + " s " + v.scale.toFixed(2) +
+            "\ndocH " + se.scrollHeight + "  hdr " + Math.round(h.getBoundingClientRect().top) + "-" + Math.round(h.getBoundingClientRect().bottom) + "  main " + Math.round(m.getBoundingClientRect().top) +
+            "\ngutter " + getComputedStyle(document.documentElement).scrollbarGutter + "  html.ov " + (document.documentElement.style.overflow || "-");
+          requestAnimationFrame(tick);
+        };
+        tick();
+      }
+    </script>
   </body>
 </html>
