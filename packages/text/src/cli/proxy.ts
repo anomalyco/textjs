@@ -15,6 +15,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { txError } from "@textjs/core";
 import { color } from "./ui";
 
 export const DEFAULT_PROXY_PORT = 4096;
@@ -164,7 +165,7 @@ export async function discoverOpencode(target?: string): Promise<BridgeTarget | 
   if (configured) {
     const u = new URL(configured.includes("://") ? configured : `http://${configured}`);
     if (!/^https?:$/.test(u.protocol) || u.username || u.password || u.pathname !== "/" || u.search || u.hash) {
-      throw new Error("Use an HTTP(S) server origin without credentials for --target or OPENCODE_SERVER_URL.");
+      throw txError("TX021");
     }
     explicit = normalizeTargetUrl(u.origin) ?? undefined;
   }
@@ -420,7 +421,7 @@ export async function startProxy(options: BridgeOptions = {}): Promise<StartedBr
   if (target) {
     const t = new URL(target.url);
     if (LOOPBACK_HOSTNAMES.has(t.hostname) && Number(t.port) === port) {
-      throw new Error(`The OpenCode server already uses port ${port}. Pick another with --port.`);
+      throw txError("TX022", port);
     }
   }
   const server = createServer((req, res) => {
@@ -449,9 +450,9 @@ export async function startProxy(options: BridgeOptions = {}): Promise<StartedBr
         .catch(() => null);
       if (existing && typeof existing === "object" && (existing as { bridge?: unknown }).bridge === "textjs") {
         const dest = typeof (existing as { target?: unknown }).target === "string" ? ` → ${(existing as { target: string }).target}` : "";
-        throw new Error(`Bridge already running at http://${probeHost}:${port}${dest} — connect to http://${probeHost}:${port} (or pass --port ${port + 1}).`);
+        throw txError("TX023", `http://${probeHost}:${port}${dest}`, `http://${probeHost}:${port}`, port + 1);
       }
-      throw new Error(`Port ${port} is already in use — run bunx @textjs/next proxy --port ${port + 1} and connect to http://${probeHost}:${port + 1}.`);
+      throw txError("TX024", port, port + 1, `http://${probeHost}:${port + 1}`);
     }
     throw err;
   }

@@ -43,7 +43,7 @@ describe("text build (examples/dashboard)", () => {
       expect(bundle).not.toContain("virtual:textjs");
       expect(existsSync(join(dist, ".text/server/api.mjs"))).toBe(true);
       const manifest = JSON.parse(readFileSync(join(dist, ".text/routes-manifest.json"), "utf8"));
-      expect(manifest.routes.map((r: { pattern: string }) => r.pattern)).toEqual(["/", "/deployments", "/deployments/[id]", "/logs", "/settings"]);
+      expect(manifest.routes.map((r: { pattern: string }) => r.pattern)).toEqual(["/", "/deployments", "/deployments/[id]", "/logs", "/settings", "/status"]);
       expect(manifest.api.map((r: { pattern: string }) => r.pattern)).toEqual(["/api/deployments", "/api/health"]);
     },
     120_000,

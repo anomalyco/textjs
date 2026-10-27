@@ -1,6 +1,7 @@
 import { basename, relative, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { detectPackageManager, isTemplateName, runCommand, scaffold, TEMPLATES, toPackageName, validateProjectName, VERSION, type PackageManager, type TemplateName } from "./index";
+import { txMessage } from "./errors";
 
 const useColor = (): boolean => !process.env.NO_COLOR && (Boolean(process.env.FORCE_COLOR) || Boolean(process.stdout.isTTY));
 const paint =
@@ -145,14 +146,14 @@ export async function main(argv: readonly string[]): Promise<number> {
     if (dir === undefined) dir = interactive ? await ask("What is your project named?", "my-text-app") : "my-text-app";
     const nameError = validateProjectName(toPackageName(dir));
     if (nameError) {
-      console.error(`${red("⨯")} Could not create a project called ${bold(JSON.stringify(dir))}: ${nameError}`);
+      console.error(`${red("⨯")} ${txMessage("TX027", bold(JSON.stringify(dir)), nameError)}`);
       return 1;
     }
 
     let template: TemplateName;
     if (args.template !== undefined) {
       if (!isTemplateName(args.template)) {
-        console.error(`${red("⨯")} Unknown template ${bold(args.template)}. Available: ${Object.keys(TEMPLATES).join(", ")}.`);
+        console.error(`${red("⨯")} ${txMessage("TX025", bold(args.template), Object.keys(TEMPLATES).join(", "))}`);
         return 1;
       }
       template = args.template;

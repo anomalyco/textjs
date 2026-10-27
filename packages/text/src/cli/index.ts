@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { VERSION } from "@textjs/core";
+import { txError, txMessage, VERSION } from "@textjs/core";
 import { buildApp } from "./build";
 import { startDevServer } from "./dev";
 import { DEFAULT_PROXY_PORT, startProxy } from "./proxy";
@@ -15,6 +15,8 @@ export interface ParsedArgs {
   target?: string;
   /** `text proxy --allow-origin <origin>` (repeatable). */
   allowOrigins: string[];
+  /** `text build --adapter <static|bun|vercel|cloudflare>`. */
+  adapter?: string;
   /** `text run --path <pathname>`. */
   path?: string;
   help: boolean;
@@ -32,6 +34,8 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
     else if (a.startsWith("--port=")) out.port = Number(a.slice(7));
     else if (a === "--path") out.path = argv[++i];
     else if (a.startsWith("--path=")) out.path = a.slice(7);
+    else if (a === "--adapter") out.adapter = argv[++i];
+    else if (a.startsWith("--adapter=")) out.adapter = a.slice(10);
     else if (a === "--target") out.target = argv[++i];
     else if (a.startsWith("--target=")) out.target = a.slice(9);
     else if (a === "--allow-origin") {
@@ -61,10 +65,12 @@ Commands:
   start    Serve the production build
   run      Render the app in this terminal (Bun)
   proxy    Bridge your local opencode server to textjs.org (CORS)
+  mcp      Serve the app to coding agents over MCP (stdio, Bun)
 
 Options:
   -p, --port <port>   Port (default 3000; proxy 4096)
   --path <pathname>   run: initial route (default /)
+  --adapter <name>    build: static | bun | vercel | cloudflare
   --target <url>      proxy: OpenCode server URL (default: discover)
   --allow-origin <o>  proxy: allow another browser origin
   -H, --host [host]   Expose on the network (optionally bind a host)
@@ -77,6 +83,11 @@ export async function main(argv: readonly string[]): Promise<number> {
   if (args.version) {
     console.log(`Text.js v${VERSION}`);
     return 0;
+  }
+  if (args.command === "mcp") {
+    // Owns stdout (JSON-RPC) and its own flags; see `text mcp --help`.
+    const { runMcpCli } = await import("../mcp/cli");
+    return runMcpCli(argv);
   }
   if (args.help || args.command === "" || args.command === "help") {
     console.log(`\n   ${brand()} — The Console Framework for the Web\n`);
@@ -98,7 +109,7 @@ export async function main(argv: readonly string[]): Promise<number> {
         return 0;
       }
       case "build":
-        await buildApp({ root });
+        await buildApp({ root, adapter: args.adapter });
         return 0;
       case "start": {
         const s = await startProductionServer({ root, port: args.port, host: typeof args.host === "string" ? args.host : args.host ? "0.0.0.0" : undefined });
@@ -112,7 +123,7 @@ export async function main(argv: readonly string[]): Promise<number> {
         return 0;
       }
       case "run": {
-        if (typeof process.versions.bun !== "string") throw new Error("`text run` requires Bun (route files are imported as TypeScript).");
+        if (typeof process.versions.bun !== "string") throw txError("TX019");
         const { runInTerminal } = await import("./run");
         const app = await runInTerminal({ root, path: args.path });
         await app.waitUntilExit();
@@ -130,7 +141,7 @@ export async function main(argv: readonly string[]): Promise<number> {
         return 0;
       }
       default:
-        console.error(fail(`Unknown command ${color.bold(args.command)}.`));
+        console.error(fail(txMessage("TX020", color.bold(args.command))));
         console.log(HELP);
         return 1;
     }

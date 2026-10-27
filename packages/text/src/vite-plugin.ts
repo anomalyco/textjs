@@ -10,9 +10,14 @@ import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import type { Plugin, ProxyOptions, ViteDevServer } from "vite";
-import { BRAND_MARK, ENGINE_NAME, VERSION } from "@textjs/core";
+import { BRAND_MARK, ENGINE_NAME, txMessage, VERSION } from "@textjs/core";
 import { normalizeBasePath, toClientConfig, type Rewrite, type TextConfig } from "./config";
 import { applyRewrites, compileRewrite, proxyRequest, runRouteHandler, sendWebResponse, toWebRequest, type CompiledRewrite, type RouteHandlerModule } from "./server/http";
+import { attachFrameStream } from "./server/frames";
+import { createLiveDevHandler, textjsLivePlugin } from "./server/live-dev";
+import { withServerStubs } from "./server/live-routes";
+import { runRouteHandlerWithCache } from "./server/cache-route";
+import { createDevMiddleware } from "./server/middleware-node";
 import { generateRoutesModule, isRouteFile, matchApiRoute, scanApp, toApiManifest, toPosix, toStaticManifest, type AppScan } from "./server/scan";
 import { flattenRoutes, type RouteManifest, type RouteSegmentNode } from "./routing";
 
@@ -269,7 +274,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
     },
 
     load(id) {
-      if (id === RESOLVED(VIRTUAL_ROUTES)) return generateRoutesModule(scan, { hmr: true });
+      if (id === RESOLVED(VIRTUAL_ROUTES)) return generateRoutesModule(withServerStubs(scan), { hmr: true });
       if (id === RESOLVED(VIRTUAL_CONFIG)) return `export default ${JSON.stringify(toClientConfig(options))};`;
       if (id === RESOLVED(VIRTUAL_ENTRY)) return createEntryModule();
       if (id === RESOLVED(VIRTUAL_API)) return generateApiModule(scan);
@@ -303,8 +308,16 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
         if (isAllowedDevHost(server, req.headers.host)) return next();
         res.statusCode = 403;
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        res.end(`${BRAND_MARK} Text.js: blocked request. This host (${JSON.stringify((req.headers.host ?? "").replace(/:\d+$/, ""))}) is not allowed. Add it to \`vite.server.allowedHosts\` in text.config.ts.`);
+        res.end(`${BRAND_MARK} ${txMessage("TX028", JSON.stringify((req.headers.host ?? "").replace(/:\d+$/, "")))}`);
       });
+      // `middleware.ts` runs before user middleware, route handlers and pages.
+      server.middlewares.use(createDevMiddleware(server, { root, basePath, log }));
+      // Editor previews (VS Code): `/__textjs/frames`, `/__textjs/input`, `/__textjs/status`.
+      const frames = attachFrameStream(server, root);
+      server.httpServer?.once("close", () => frames.close());
+      // Server-rendered routes (`export const runtime = "server"`): live sessions + frame player HTML.
+      const live = createLiveDevHandler(server, { root, appDir: appDirName, basePath, title: title(), viewport: options.viewport, live: options.live, logger: log });
+      server.httpServer?.once("close", () => live.close());
       const userHook = await options.configureServer?.(server as never);
 
       server.middlewares.use(async (req, res, next) => {
@@ -326,11 +339,13 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
             req.url = basePath + rewritten;
           }
           const pathname = url.split("?")[0] ?? "/";
+          if (await live.handle(req, res, url)) return;
           const api = matchApiRoute(apiManifest, pathname);
           if (api) {
             const mod = (await server.ssrLoadModule(api.file)) as RouteHandlerModule;
             const request = toWebRequest(Object.assign(req, { url }), origin, res);
-            const response = await runRouteHandler(mod, request, api.params);
+            // Route segment config applies in dev, but responses are never cached (like Next.js).
+            const response = await runRouteHandlerWithCache(mod, request, { params: api.params, pattern: api.pattern, pathname, cache: false });
             await sendWebResponse(res, response, request.method);
             log?.info(` ${req.method} ${pathname} ${response.status} in ${Math.round(performance.now() - started)}ms`);
             return;
@@ -361,7 +376,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
     },
   };
 
-  return [...(react() as Plugin[]), plugin];
+  return [...(react() as Plugin[]), plugin, ...textjsLivePlugin({ appDir: appDirName, root })];
 }
 
 export { scanApp, toStaticManifest, listApiRoutes, listPages, generateRoutesModule, type AppScan } from "./server/scan";

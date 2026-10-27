@@ -5,6 +5,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { txError } from "./errors";
 
 export const VERSION = "0.4.0";
 
@@ -109,14 +110,14 @@ export function templateFiles(template: TemplateName): string[] {
 /** Copy a template into `dir`, filling in `{{name}}` and `{{textjsVersion}}`. */
 export function scaffold(options: ScaffoldOptions): ScaffoldResult {
   const template = options.template ?? "starter";
-  if (!isTemplateName(template)) throw new Error(`Unknown template "${String(template)}". Available: ${Object.keys(TEMPLATES).join(", ")}.`);
+  if (!isTemplateName(template)) throw txError("TX025", JSON.stringify(String(template)), Object.keys(TEMPLATES).join(", "));
   const dir = resolve(options.dir);
   if (!options.force && !isEmptyDir(dir)) {
-    throw new Error(`The directory ${basename(dir)} contains files that could conflict. Either try using a new directory name, or remove the files.`);
+    throw txError("TX026", basename(dir));
   }
   const name = toPackageName(dir);
   const invalid = validateProjectName(name);
-  if (invalid) throw new Error(invalid);
+  if (invalid) throw txError("TX027", JSON.stringify(name), invalid);
   const vars: Record<string, string> = { name, textjsVersion: options.textjsVersion ?? `^${VERSION}`, template };
   const src = join(TEMPLATES_DIR, template);
   const written: string[] = [];

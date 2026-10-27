@@ -1,16 +1,21 @@
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
 import { build, mergeConfig, type InlineConfig } from "vite";
 import { ENGINE_NAME, VERSION } from "@textjs/core";
 import { normalizeBasePath } from "../config";
 import { listApiRoutes, listPages, scanApp } from "../server/scan";
+import { buildLiveRoutes } from "../server/live-build";
 import { textjsVitePlugin, VIRTUAL_API } from "../vite-plugin";
+import { buildServerRuntime, resolveAdapter, runBuildAdapter, serverFiles } from "../server/adapters/build-step";
+import type { AdapterResult } from "../server/adapters/shared";
 import { loadTextConfig } from "./config";
 import { brand, color, fail, formatBytes, LEGEND, ok, routeTable, summarize, type SummaryRoute } from "./ui";
 
 export interface BuildOptions {
   root: string;
+  /** Deploy adapter (`--adapter`); defaults to `TEXTJS_ADAPTER`, or Vercel / Cloudflare Pages when building there. */
+  adapter?: string;
   /** Print the summary (default `true`). */
   log?: boolean;
 }
@@ -30,6 +35,8 @@ export interface BuildResult {
   manifest: BuildManifest;
   output: string;
   durationMs: number;
+  /** Deploy output written by `--adapter`. */
+  adapter?: AdapterResult;
 }
 
 /** `.text/` inside the output directory holds build metadata and the API server bundle. */
@@ -73,10 +80,19 @@ export async function buildApp(opts: BuildOptions): Promise<BuildResult> {
     plugins: [textjsVitePlugin({ ...config, root: opts.root })],
   };
   const scan = scanApp(opts.root, config.appDir ?? "app");
+  let adapterName: ReturnType<typeof resolveAdapter>;
+  try {
+    adapterName = resolveAdapter(opts.adapter);
+  } catch (error) {
+    print(fail(error instanceof Error ? error.message : String(error)));
+    throw error;
+  }
+  let hasMiddleware = false;
   const api = listApiRoutes(scan);
   try {
     await build(config.vite ? mergeConfig(base, config.vite) : base);
     if (api.length > 0) await buildApiServer();
+    hasMiddleware = (await buildServerRuntime(opts.root, config, outDir)) && serverFiles(opts.root, config).middlewareFile !== null;
   } catch (error) {
     print(fail(color.red("Failed to compile.")));
     print();
@@ -119,6 +135,13 @@ export async function buildApp(opts: BuildOptions): Promise<BuildResult> {
     bytes += buf.length;
     gzip += gzipSync(buf).length;
   }
+  // Partial Prerendering shells + server-rendered routes (after measuring the client bundle).
+  const live = await buildLiveRoutes({ root: opts.root, config, outDir, scan, plugins: [textjsVitePlugin({ ...config, root: opts.root })] });
+  if (live) {
+    const player = live.player ? `, frame player ${formatBytes(live.player.bytes)} (${formatBytes(live.player.gzip)} gzip)` : "";
+    print(ok(`Prerendering console shells (${live.shells}/${live.staticRoutes})${live.manifest.serverRoutes.length > 0 ? ` · ${live.manifest.serverRoutes.length} server-rendered` : ""}${player}`));
+    for (const s of live.skipped) print(color.gray(`   ${s.pattern} streams without a shell: ${s.reason.split("\n")[0]}`));
+  }
   const routes = summarize(pages, api);
   const manifest: BuildManifest = {
     version: VERSION,
@@ -134,8 +157,23 @@ export async function buildApp(opts: BuildOptions): Promise<BuildResult> {
   print();
   print(routeTable(routes));
   print(`+ First Load JS shared by all${" ".repeat(13)}${formatBytes(bytes)} ${color.gray(`(${formatBytes(gzip)} gzip)`)}`);
+  if (hasMiddleware) print(`ƒ Middleware`);
   print();
   print(LEGEND);
   print();
-  return { outDir, routes, manifest, output: lines.join("\n"), durationMs: performance.now() - started };
+  let adapter: AdapterResult | undefined;
+  if (adapterName) {
+    try {
+      adapter = await runBuildAdapter({ root: opts.root, config, outDir, scan, api, adapter: adapterName, print });
+    } catch (error) {
+      print(fail(color.red(`Adapter ${adapterName} failed.`)));
+      print();
+      print(error instanceof Error ? error.message : String(error));
+      throw error;
+    }
+    print(ok(`Adapter ${color.bold(adapter.adapter)} → ${relative(opts.root, adapter.output) || "."}`));
+    for (const note of adapter.notes) print(color.gray(`   ${note}`));
+    print();
+  }
+  return { outDir, routes, manifest, output: lines.join("\n"), durationMs: performance.now() - started, adapter };
 }

@@ -10,6 +10,7 @@ import { createConsoleRoot, type ConsoleRoot } from "@textjs/react";
 import { FocusPad } from "@textjs/react/dom";
 import { toClientConfig, type ClientConfig } from "./config";
 import { connectViteHmr, devErrors, installGlobalErrorHandlers, TextDevOverlay, type HotContextLike } from "./devtools";
+import { connectFrameMirror, type MirrorHotContext } from "./frame-mirror";
 import { createBrowserHistory, type RouterHistory } from "./history";
 import { isNavigationError } from "./navigation-errors";
 import { AppRouter } from "./router";
@@ -65,6 +66,8 @@ export async function bootTextApp(options: BootOptions): Promise<TextApp> {
     height: vp.height ?? 36,
     responsive: vp.responsive ?? true,
     theme: vp.theme,
+    // A prerendered shell (PPR) already cleared the console: append below it.
+    initialClear: typeof window === "undefined" || (window as { __TEXTJS_SHELL__?: number }).__TEXTJS_SHELL__ !== 1,
     onCaughtError: (error) => {
       if (isNavigationError(error)) return;
       if (typeof error === "object" && error !== null) {
@@ -107,6 +110,7 @@ export async function bootTextApp(options: BootOptions): Promise<TextApp> {
 
   if (dev) {
     if (options.hot) connectViteHmr(options.hot);
+    if (options.hot && typeof (options.hot as Partial<MirrorHotContext>).send === "function") connectFrameMirror(root, options.hot as MirrorHotContext, history);
     installGlobalErrorHandlers();
   }
 

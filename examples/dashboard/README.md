@@ -18,7 +18,13 @@ Open the page, press **⌘⌥J** (or **Ctrl+Shift+J**), and click back into the 
 | `/deployments/[id]`  | `app/deployments/[id]/page.tsx`    |
 | `/logs`              | `app/logs/page.tsx`                |
 | `/settings`          | `app/settings/page.tsx`            |
+| `/status`            | `app/status/page.tsx` (`runtime = "server"`) |
 | `/api/health`        | `app/api/health/route.ts`          |
 | `/api/deployments`   | `app/api/deployments/route.ts`     |
 
-Keys: `1`–`4` navigate · `Tab` focus · `Enter` open · `Esc` back · `F2` / ``Ctrl+` `` Text.js DevTools.
+Keys: `1`–`5` navigate · `Tab` focus · `Enter` open · `Esc` back · `F2` / ``Ctrl+` `` Text.js DevTools.
+
+## Server rendering
+
+`/status` opts into server rendering with `export const runtime = "server"`. Its React tree renders in `text dev` / `text start`, with async components reading the host through `node:os` (`lib/status.server.ts`); the browser loads only the ~10 kB frame player, which logs the streamed frames and sends keys back. Every static route also gets a prerendered console shell in its HTML (Partial Prerendering), so the console paints before any JavaScript loads.
+

@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import type { TextTheme, ThemeName } from "@textjs/react";
+import { txError } from "@textjs/core";
 import type { RouterHistory, RouterLocation } from "./history";
 import type { ResolvedMetadata, RouteManifest, RouteMatch } from "./routing";
 
@@ -36,7 +37,7 @@ RouterContext.displayName = "TextRouterContext";
 export function useRouterState(): RouterState {
   const state = useContext(RouterContext);
   if (state === null) {
-    throw new Error("textjs: navigation hooks must be used inside <AppRouter>. Run your app with `text dev`, or wrap it in <AppRouter routes={…}>.");
+    throw txError("TX014", "Navigation hooks");
   }
   return state;
 }
@@ -61,7 +62,7 @@ AppShellContext.displayName = "TextAppShellContext";
 /** Theme preset controls for the running app. */
 export function useAppTheme(): AppShellState {
   const state = useContext(AppShellContext);
-  if (state === null) throw new Error("textjs: useAppTheme() must be used inside <AppRouter>.");
+  if (state === null) throw txError("TX014", "useAppTheme()");
   return state;
 }
 

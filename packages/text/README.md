@@ -13,6 +13,7 @@ cd my-app && bun install && bun dev
 | `text build` | Optimized console production build + route summary            |
 | `text start` | Serve the production build (static files + route handlers)    |
 | `text proxy` | Bridge a local opencode server to textjs.org (CORS, :4096)    |
+| `text mcp`   | Serve the app headless to coding agents over MCP (stdio)      |
 
 ## Entry points
 
@@ -22,6 +23,7 @@ cd my-app && bun install && bun dev
 - `@textjs/next/router` — `<AppRouter>`, `matchAppRoutes`, `createBrowserHistory`, `createMemoryHistory`
 - `@textjs/next/devtools` — `<TextDevOverlay>` (`F2` / ``Ctrl+` ``), `<RedboxOverlay>`, `connectViteHmr`
 - `@textjs/next/vite` — `textjsVitePlugin()` for custom Vite setups
+- `@textjs/next/mcp` — `createTextMcpServer()` and `HeadlessSession` for driving apps from coding agents
 
 ## `app/` conventions
 

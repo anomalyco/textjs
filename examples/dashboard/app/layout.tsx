@@ -13,6 +13,7 @@ const NAV = [
   { key: "2", href: "/deployments", label: "Deployments" },
   { key: "3", href: "/logs", label: "Logs" },
   { key: "4", href: "/settings", label: "Settings" },
+  { key: "5", href: "/status", label: "Status" },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
@@ -22,7 +23,9 @@ function isActive(pathname: string, href: string): boolean {
 function useApiHealth(): "checking" | "healthy" | "offline" {
   const [state, setState] = useState<"checking" | "healthy" | "offline">("checking");
   useEffect(() => {
-    if (typeof fetch !== "function" || typeof window === "undefined") {
+    // Server-rendered routes (and prerendered shells) have no browser to probe from.
+    if (typeof window === "undefined") return;
+    if (typeof fetch !== "function") {
       setState("offline");
       return;
     }
@@ -62,7 +65,7 @@ export default function RootLayout({ children }: { children?: ReactNode }): Reac
       <Box className="grow flex-col px-2 pt-1 overflow-hidden">{children}</Box>
 
       <Box className="flex-row h-1 shrink-0 px-2 gap-3">
-        <KeyHint keys="1-4" label="pages" />
+        <KeyHint keys="1-5" label="pages" />
         <KeyHint keys="tab" label="focus" />
         <Box className="grow" />
         <Text color={health === "healthy" ? theme.subtle : theme.warning} wrap="nowrap">

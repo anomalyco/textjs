@@ -1,7 +1,33 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { loadConfigFromFile } from "vite";
+import { txWarn } from "@textjs/core";
 import type { TextConfig } from "../config";
+
+/** Every `TextConfig` key; the `Record` type fails typecheck when a new option is not listed. */
+const CONFIG_KEYS: Record<keyof TextConfig, true> = {
+  viewport: true,
+  devIndicators: true,
+  showMirrorDefault: true,
+  outDir: true,
+  appDir: true,
+  basePath: true,
+  title: true,
+  hints: true,
+  action: true,
+  proxy: true,
+  rewrites: true,
+  configureServer: true,
+  vite: true,
+  cacheHandler: true,
+  ppr: true,
+  live: true,
+};
+
+/** Warn (once each) about keys Text.js does not read. */
+export function warnUnknownConfigKeys(config: object, file: string): void {
+  for (const key of Object.keys(config)) if (!(key in CONFIG_KEYS)) txWarn("TX029", JSON.stringify(key), basename(file));
+}
 
 export const CONFIG_FILES = ["text.config.ts", "text.config.mts", "text.config.js", "text.config.mjs"] as const;
 
@@ -23,5 +49,7 @@ export async function loadTextConfig(root: string, command: "serve" | "build", m
   if (!file) return { config: {}, file: null };
   const loader = typeof process.versions.bun === "string" ? "bundle" : "runner";
   const loaded = await loadConfigFromFile({ command, mode }, file, root, "silent", undefined, loader);
-  return { config: (loaded?.config ?? {}) as TextConfig, file };
+  const config = (loaded?.config ?? {}) as TextConfig;
+  warnUnknownConfigKeys(config, file);
+  return { config, file };
 }

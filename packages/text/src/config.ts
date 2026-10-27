@@ -66,8 +66,25 @@ export interface TextConfig {
   rewrites?: Rewrite[] | (() => Rewrite[] | Promise<Rewrite[]>);
   /** Extend the Vite dev server (custom middleware, local service discovery, …). */
   configureServer?: (server: TextDevServer) => void | (() => void) | Promise<void | (() => void)>;
+  /** Module (relative to the root) default-exporting a `CacheStore` for `@textjs/next/cache`. */
+  cacheHandler?: string;
   /** Escape hatch merged into the generated Vite config. */
   vite?: Record<string, unknown>;
+  /**
+   * Partial Prerendering: `text build` renders each static route's first frame
+   * (with `<Suspense>` fallbacks for dynamic holes) into its HTML so the console
+   * paints before JavaScript loads (default `true`).
+   */
+  ppr?: boolean;
+  /** Server-rendered routes (`export const runtime = "server"`). */
+  live?: LiveConfig;
+}
+
+export interface LiveConfig {
+  /** Concurrent sessions per server process (default `256`). */
+  maxSessions?: number;
+  /** How long a disconnected tab's session waits to be resumed, in ms (default `30000`). */
+  reconnectGraceMs?: number;
 }
 
 /** Type-safe `text.config.ts` helper. */

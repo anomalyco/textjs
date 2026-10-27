@@ -21,6 +21,7 @@ import {
   type ReactNode,
 } from "react";
 import { Box, resolveTheme, Text, themes, ThemeProvider, useApp, useTheme, type TextTheme, type ThemeName } from "@textjs/react";
+import { txError } from "@textjs/core";
 import { AppShellContext, RouterContext, type AppRouterInstance, type AppShellState, type RouterState } from "./context";
 import { devErrors, type DevErrorStore } from "./dev-errors";
 import { TextDevOverlay } from "./devtools";
@@ -54,7 +55,7 @@ const lazyComponents = new WeakMap<() => Promise<RouteModule>, LazyExoticCompone
 
 function missingDefault(kind: string, file: string | undefined): ComponentType<any> {
   const Missing = (): ReactNode => {
-    throw new Error(`The default export is not a React Component in "${file ?? kind}".`);
+    throw txError("TX015", file ?? kind);
   };
   return Missing;
 }

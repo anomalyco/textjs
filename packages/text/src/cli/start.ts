@@ -3,10 +3,15 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
+import { txError } from "@textjs/core";
 import { normalizeBasePath, type ProxyTarget } from "../config";
 import { matchApiRoute } from "../server/scan";
+import { loadLiveProduction } from "../server/live-prod";
 import { applyRewrites, compileRewrite, proxyRequest, runRouteHandler, sendWebResponse, toWebRequest, type RouteHandlerModule } from "../server/http";
 import type { RouteManifest } from "../routing";
+import { loadServerRuntime } from "../server/adapters/runtime-node";
+import { runRouteHandlerWithCache } from "../server/cache-route";
+import { runNodeMiddleware } from "../server/middleware-node";
 import { META_DIR } from "./build";
 import { loadTextConfig } from "./config";
 import { banner, color, fail, ok } from "./ui";
@@ -47,7 +52,7 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
   const outDir = resolve(opts.root, config.outDir ?? "dist");
   const indexFile = join(outDir, "index.html");
   if (!existsSync(indexFile)) {
-    throw new Error(`Could not find a production build in the '${config.outDir ?? "dist"}' directory. Try building your app with 'text build' before starting the production server.`);
+    throw txError("TX017", config.outDir ?? "dist");
   }
   const basePath = normalizeBasePath(config.basePath);
   const rewrites = (typeof config.rewrites === "function" ? await config.rewrites() : (config.rewrites ?? [])).map(compileRewrite);
@@ -57,6 +62,10 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
   type ApiBundle = { manifest: RouteManifest; handlers: Record<string, RouteHandlerModule> };
   const api: ApiBundle | null = existsSync(apiFile) ? ((await import(pathToFileURL(apiFile).href)) as ApiBundle) : null;
   const indexHtml = readFileSync(indexFile);
+  // `middleware.ts` and `cacheHandler` (bundled by `text build`).
+  const runtime = await loadServerRuntime(outDir);
+  // Prerendered console shells (PPR) and server-rendered routes (`runtime = "server"`).
+  const live = await loadLiveProduction(outDir, { log: log ? (m) => console.log(color.gray(m)) : undefined, onError: (e) => console.error(fail(e instanceof Error ? (e.stack ?? e.message) : String(e))) });
 
   const server = createServer((req, res) => {
     const t0 = performance.now();
@@ -69,6 +78,11 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
       if (basePath) {
         if (url === basePath || url.startsWith(`${basePath}/`) || url.startsWith(`${basePath}?`)) url = url.slice(basePath.length) || "/";
       }
+      if (runtime?.middleware) {
+        const next = await runNodeMiddleware(runtime.middleware, req, res, { basePath, origin });
+        if (next === null) return;
+        url = next;
+      }
       const rewritten = rewrites.length > 0 ? applyRewrites(rewrites, url) : null;
       if (rewritten) {
         if (/^[a-z]+:\/\//i.test(rewritten)) return proxyRequest(req, res, rewritten, origin);
@@ -80,13 +94,14 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
           return proxyRequest(req, res, new URL(path, target.target).href, origin);
         }
       }
+      if (live && (await live.handle(req, res, url))) return;
       const pathname = decodeURIComponent(url.split("?")[0] ?? "/");
       if (api) {
         const m = matchApiRoute(api.manifest, pathname);
         const mod = m ? api.handlers[m.file] : undefined;
         if (m && mod) {
           const request = toWebRequest(Object.assign(req, { url }), origin, res);
-          return sendWebResponse(res, await runRouteHandler(mod, request, m.params), request.method);
+          return sendWebResponse(res, await runRouteHandlerWithCache(mod, request, { params: m.params, pattern: m.pattern, pathname }), request.method);
         }
       }
       if (req.method !== "GET" && req.method !== "HEAD") {
@@ -141,6 +156,10 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
   return {
     server,
     url,
-    close: () => new Promise<void>((r) => server.close(() => r())),
+    close: () =>
+      new Promise<void>((r) => {
+        live?.close();
+        server.close(() => r());
+      }),
   };
 }

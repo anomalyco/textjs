@@ -46,7 +46,7 @@ describe("examples/dashboard", () => {
     expect(frame).toContain("Throughput");
     expect(frame).toContain("Recent deployments");
     expect(frame).toContain("dpl_8f2kq1");
-    expect(frame).toContain("1-4 pages");
+    expect(frame).toContain("1-5 pages");
   });
 
   test("number keys navigate; <Select> + Enter opens the dynamic build-log route", async () => {

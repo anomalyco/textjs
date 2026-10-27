@@ -4,6 +4,7 @@
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { txError } from "@textjs/core";
 import type { Rewrite } from "../config";
 import type { RouteParams } from "../routing";
 
@@ -13,12 +14,26 @@ export type HttpMethod = (typeof HTTP_METHODS)[number];
 export type RouteHandler = (request: Request, context: { params: RouteParams }) => Response | Promise<Response>;
 export type RouteHandlerModule = Partial<Record<HttpMethod, RouteHandler>> & Record<string, unknown>;
 
+/** Set by `middleware.ts` handling (see `server/middleware-node.ts`). */
+const WEB_REQUEST = Symbol.for("textjs.webRequest");
+
 /**
  * Bridge a Node request into a Web `Request`. Its `signal` aborts as soon as the
  * client disconnects, so streaming handlers (SSE) can clean up immediately.
  */
 export function toWebRequest(req: IncomingMessage, origin: string, res?: ServerResponse): Request {
   const url = new URL(req.url ?? "/", origin);
+  // `middleware.ts` already bridged (and possibly re-headered) this request; reuse its body stream.
+  const forwarded = (req as unknown as Record<symbol, Request | undefined>)[WEB_REQUEST];
+  if (forwarded) {
+    delete (req as unknown as Record<symbol, Request | undefined>)[WEB_REQUEST];
+    const init: RequestInit & { duplex?: "half" } = { method: forwarded.method, headers: forwarded.headers, signal: forwarded.signal };
+    if (forwarded.body) {
+      init.body = forwarded.body;
+      init.duplex = "half";
+    }
+    return new Request(url, init);
+  }
   const controller = new AbortController();
   const abort = (): void => {
     if (!controller.signal.aborted) controller.abort();
@@ -58,7 +73,11 @@ export async function sendWebResponse(res: ServerResponse, response: Response, m
     if (key === "set-cookie") return;
     res.setHeader(key, value);
   });
-  if (cookies.length > 0) res.setHeader("set-cookie", cookies);
+  if (cookies.length > 0) {
+    // Keep cookies `middleware.ts` already set on this response.
+    const prior = res.getHeader("set-cookie");
+    res.setHeader("set-cookie", [...(prior === undefined ? [] : Array.isArray(prior) ? prior : [String(prior)]), ...cookies]);
+  }
   if (method === "HEAD" || !response.body) {
     res.end();
     return;
@@ -110,7 +129,7 @@ export async function runRouteHandler(mod: RouteHandlerModule, request: Request,
   }
   const result = await handler(request, { params });
   if (!(result instanceof Response)) {
-    throw new TypeError(`No response is returned from route handler for ${method} ${new URL(request.url).pathname}. Ensure you return a \`Response\`.`);
+    throw txError("TX016", method, new URL(request.url).pathname);
   }
   return result;
 }

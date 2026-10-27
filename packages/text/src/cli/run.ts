@@ -8,6 +8,7 @@ import { existsSync } from "node:fs";
 import { relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createElement } from "react";
+import { txError } from "@textjs/core";
 import { renderToTerminal, type TerminalInput, type TerminalOutput, type TerminalRoot } from "@textjs/react/terminal";
 import type { ThemeName } from "@textjs/react";
 import { createMemoryHistory } from "../history";
@@ -88,7 +89,7 @@ export function createLocalFetch(scan: AppScan, base: typeof fetch = fetch, orig
 /** Render the app in the terminal. Resolves once it is mounted. */
 export async function runInTerminal(opts: RunOptions): Promise<TerminalRoot> {
   const scan = scanApp(opts.root);
-  if (!existsSync(scan.appDir)) throw new Error(`No app/ directory found in ${opts.root}.`);
+  if (!existsSync(scan.appDir)) throw txError("TX018", opts.root);
   let theme = opts.theme;
   if (!opts.skipConfig && theme === undefined) {
     const { config } = await loadTextConfig(opts.root, "serve");
