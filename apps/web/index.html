@@ -52,14 +52,36 @@
       // `?debug=scroll`: live scroll/viewport readout for diagnosing mobile Safari.
       if (/[?&]debug=scroll\b/.test(location.search)) {
         var d = document.createElement("pre");
-        d.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:99999;margin:0;padding:6px 8px;font:11px/1.4 ui-monospace,monospace;color:#0f0;background:rgba(0,0,0,.85);border:1px solid #0f0;pointer-events:none";
+        d.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:99999;margin:0;padding:6px 8px;font:10px/1.35 ui-monospace,monospace;max-width:calc(100vw - 16px);white-space:pre-wrap;word-break:break-all;color:#0f0;background:rgba(0,0,0,.85);border:1px solid #0f0;pointer-events:none";
         document.body.appendChild(d);
+        // Count and attribute every programmatic focus/scroll so the culprit shows up on screen.
+        var calls = {}, last = "-";
+        var wrap = function (obj, name, label) {
+          var orig = obj[name];
+          if (!orig) return;
+          obj[name] = function () {
+            calls[label] = (calls[label] || 0) + 1;
+            var t = this && this.tagName ? this.tagName.toLowerCase() + (this.className && typeof this.className === "string" ? "." + this.className.split(" ")[0] : "") : "window";
+            var st = (new Error().stack || "").split("\n").slice(1, 4).map(function (l) { return l.replace(/^.*\//, "").slice(0, 38); }).join(" < ");
+            last = label + " " + t + " @" + Math.round(scrollY) + " " + st;
+            return orig.apply(this, arguments);
+          };
+        };
+        wrap(HTMLElement.prototype, "focus", "focus");
+        wrap(Element.prototype, "scrollIntoView", "sIV");
+        wrap(window, "scrollTo", "scrollTo");
+        wrap(window, "scrollBy", "scrollBy");
+        wrap(Element.prototype, "scrollTo", "el.scrollTo");
+        var se0 = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTop");
+        if (se0 && se0.set) Object.defineProperty(Element.prototype, "scrollTop", { get: se0.get, set: function (v) { if (this === document.scrollingElement || this === document.body) { calls.setTop = (calls.setTop || 0) + 1; last = "scrollTop=" + v; } return se0.set.call(this, v); }, configurable: true });
         var tick = function () {
           var v = visualViewport, h = document.querySelector(".header"), m = document.querySelector("main"), se = document.scrollingElement;
           d.textContent = "scrollY " + Math.round(scrollY) + "  se.top " + Math.round(se.scrollTop) + "\ninner " + innerWidth + "x" + innerHeight + "  outerH " + outerHeight +
             "\nvv " + Math.round(v.width) + "x" + Math.round(v.height) + " off " + Math.round(v.offsetTop) + " page " + Math.round(v.pageTop) + " s " + v.scale.toFixed(2) +
             "\ndocH " + se.scrollHeight + "  hdr " + Math.round(h.getBoundingClientRect().top) + "-" + Math.round(h.getBoundingClientRect().bottom) + "  main " + Math.round(m.getBoundingClientRect().top) +
-            "\ngutter " + getComputedStyle(document.documentElement).scrollbarGutter + "  html.ov " + (document.documentElement.style.overflow || "-");
+            "\ngutter " + getComputedStyle(document.documentElement).scrollbarGutter + "  html.ov " + (document.documentElement.style.overflow || "-") +
+            "\nactive " + (function (a) { return a ? a.tagName.toLowerCase() + (typeof a.className === "string" && a.className ? "." + a.className.split(" ")[0] : "") + (a.getAttribute && a.getAttribute("aria-label") ? "[" + a.getAttribute("aria-label").slice(0, 20) + "]" : "") : "-"; })(document.activeElement) +
+            "\ncalls " + JSON.stringify(calls) + "\nlast " + last;
           requestAnimationFrame(tick);
         };
         tick();
