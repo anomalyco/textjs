@@ -1,6 +1,6 @@
 import type { ReactNode, Ref } from "react";
 import { jsx } from "react/jsx-runtime";
-import type { ColorInput, LayoutProps, SceneNode, SceneNodeProps, TextAlign, TextStyleProps, WrapMode } from "@textjs/core";
+import type { ColorInput, LayoutProps, SceneNode, SceneNodeProps, TextAlign, TextDirection, TextStyleProps, WrapMode } from "@textjs/core";
 import { buildTextHostProps, TxText } from "../host";
 import { useTheme } from "../theme";
 
@@ -8,7 +8,13 @@ export interface TextProps extends TextStyleProps, LayoutProps {
   /** Alias for `fg`. Accepts colors or theme tokens (`"muted"`, `"accent"`, …). */
   color?: ColorInput;
   wrap?: WrapMode;
+  /** Default `"start"`: left in left-to-right paragraphs, right in right-to-left ones. */
   align?: TextAlign;
+  /**
+   * Paragraph direction (default `"auto"`: each paragraph follows its first
+   * strong character). On a nested `<Text>`, isolates the span like HTML `dir`.
+   */
+  dir?: TextDirection;
   zIndex?: number;
   className?: string;
   style?: Partial<SceneNodeProps>;

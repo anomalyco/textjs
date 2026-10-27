@@ -1,5 +1,5 @@
 import { memo, type CSSProperties, type ReactNode } from "react";
-import type { StyledFrame, StyledSpan } from "@textjs/core";
+import { hasRtl, type StyledFrame, type StyledSpan } from "@textjs/core";
 
 export interface ConsoleMirrorProps {
   /** Snapshot from `extractStyledFrame(renderer.buffer)`. */
@@ -34,6 +34,11 @@ function spanStyle(s: StyledSpan, linePx: number): CSSProperties {
   if (s.bold) st.fontWeight = 700;
   if (s.italic) st.fontStyle = "italic";
   if (s.underline || s.strikethrough) st.textDecoration = `${s.underline ? "underline" : ""} ${s.strikethrough ? "line-through" : ""}`.trim();
+  // Cells are already in visual order: stop the browser from reordering right-to-left text again.
+  if (hasRtl(s.text)) {
+    st.direction = "ltr";
+    st.unicodeBidi = "bidi-override";
+  }
   return st;
 }
 

@@ -50,6 +50,12 @@ const G: Record<string, readonly string[]> = {
 
 export type AsciiFontName = "block" | "compact";
 
+/** Anything that renders text into rows, e.g. a FIGlet font from `@textjs/font`. */
+export interface AsciiFontRenderer {
+  readonly name?: string;
+  render(text: string): readonly string[];
+}
+
 export const ASCII_FONT_CHARS: string = Object.keys(G).join("");
 
 function glyph(ch: string): readonly string[] {

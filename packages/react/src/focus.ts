@@ -104,6 +104,11 @@ export class FocusManager {
     this.enabled = false;
   }
 
+  /** Registered focus ids in Tab order; `tabbable` is false when inactive or outside the top focus trap. */
+  snapshot(): Array<{ id: string; tabbable: boolean }> {
+    return [...this.entries.values()].map((e) => ({ id: e.id, tabbable: this.eligible(e) }));
+  }
+
   private ordered(): FocusEntry[] {
     const out: FocusEntry[] = [];
     for (const e of this.entries.values()) if (this.eligible(e)) out.push(e);

@@ -9,6 +9,7 @@ import {
   initYoga,
   InputEngine,
   isYogaReady,
+  txError,
   type ConsoleRendererOptions,
   type FrameResult,
   type SceneNode,
@@ -21,6 +22,7 @@ import { ConcurrentRoot, injectDevTools, reconciler, type ConsoleContainer } fro
 import { StatsStore, ViewportStore } from "./stores";
 import { resolveTheme, ThemeProvider, type TextTheme, type ThemeName } from "./theme";
 import { TxBox } from "./host";
+import { connectDevTools, type DevToolsConnection } from "./devtools-hook";
 
 export interface ConsoleRootOptions extends Omit<ConsoleRendererOptions, "root" | "input" | "viewport"> {
   /** Fixed grid width in cells (shorthand for `viewport.width`). */
@@ -124,7 +126,7 @@ function defaultErrorHandler(error: unknown): void {
 /** Create a root synchronously. Requires `await initYoga()` to have resolved. */
 export function createConsoleRootSync(options: ConsoleRootOptions = {}): ConsoleRoot {
   if (!isYogaReady()) {
-    throw new Error("@textjs/react: Yoga is not initialized. Use `await createConsoleRoot()` or call `await initYoga()` first.");
+    throw txError("TX001");
   }
   injectDevTools();
   const {
@@ -149,17 +151,23 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
   let stats: StatsStore | null = null;
   const engineOption: InputEngine | boolean = input ?? (hasDom ? true : new InputEngine({ document: null }));
   const userBeforeFrame = rendererOptions.beforeFrame;
+  let devtools: DevToolsConnection | null = null;
   const renderer = new ConsoleRenderer({
     ...rendererOptions,
     root: rootNode,
     input: engineOption,
     viewport: { ...viewport, ...(width !== undefined ? { width } : {}), ...(height !== undefined ? { height } : {}), ...(responsive !== undefined ? { responsive } : {}) },
     beforeFrame: () => {
-      reconciler.flushSyncWork();
+      if (devtools !== null && devtools.active) {
+        const t = performance.now();
+        reconciler.flushSyncWork();
+        devtools.setReactMs(performance.now() - t);
+      } else reconciler.flushSyncWork();
       userBeforeFrame?.();
     },
     onFrame: (frame) => {
       stats?.handleFrame(frame);
+      if (devtools !== null) devtools.frame(frame);
       onFrame?.(frame);
     },
   });
@@ -173,7 +181,10 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
 
   const container: ConsoleContainer = {
     rootNode,
-    onCommit: () => renderer.requestRender(),
+    onCommit: () => {
+      if (devtools !== null) devtools.commit();
+      renderer.requestRender();
+    },
   };
 
   let unmounted = false;
@@ -195,12 +206,15 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
     () => undefined,
     null,
   );
+  devtools = connectDevTools({ fiberRoot, rootNode, renderer });
 
   const unmount = (): void => {
     if (unmounted) return;
     unmounted = true;
     reconciler.updateContainerSync(null, fiberRoot, null, null);
     reconciler.flushSyncWork();
+    devtools?.dispose();
+    devtools = null;
     inputManager.dispose();
     viewportStore.dispose();
     stats?.dispose();
@@ -231,7 +245,7 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
   const statsStore = stats;
   return {
     render(element: ReactNode) {
-      if (unmounted) throw new Error("@textjs/react: cannot render into an unmounted console root.");
+      if (unmounted) throw txError("TX005");
       reconciler.updateContainerSync(
         <RootShell runtime={runtime} themeStore={themeStore} transparent={transparent}>
           {element}

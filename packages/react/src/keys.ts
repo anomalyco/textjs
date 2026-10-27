@@ -11,7 +11,7 @@
  *   characters match the produced text regardless of `shift` (`"?"`).
  */
 
-import type { KeyInputEvent } from "@textjs/core";
+import { txError, type KeyInputEvent } from "@textjs/core";
 
 export interface KeyStroke {
   key: string;
@@ -76,7 +76,7 @@ function parseStroke(src: string): KeyStroke {
       else if (p === "shift") stroke.shift = true;
       else if (p === "meta" || p === "cmd" || p === "command" || p === "super") stroke.meta = true;
       else if (p === "mod") stroke.mod = true;
-      else throw new Error(`@textjs/react: unknown modifier "${raw}" in key combo "${src}".`);
+      else throw txError("TX006", raw, src);
       continue;
     }
     const named = ALIASES[p] ?? p;
@@ -88,9 +88,9 @@ function parseStroke(src: string): KeyStroke {
     else if ([...named].length === 1) {
       stroke.key = named;
       stroke.char = !stroke.ctrl && !stroke.meta && !stroke.mod && !stroke.alt;
-    } else throw new Error(`@textjs/react: unknown key "${raw}" in key combo "${src}".`);
+    } else throw txError("TX007", raw, src);
   }
-  if (stroke.key === "") throw new Error(`@textjs/react: empty key combo "${src}".`);
+  if (stroke.key === "") throw txError("TX008", src);
   return stroke;
 }
 
@@ -212,7 +212,7 @@ export function formatKeys(spec: string | readonly string[], options: FormatKeys
 /** Build the key event a combo string describes (used by test drivers). */
 export function keyEventFromCombo(combo: string): KeyInputEvent {
   const seq = parseKeys(combo)[0];
-  if (!seq || seq.length !== 1) throw new Error(`@textjs/react: "${combo}" is not a single key stroke.`);
+  if (!seq || seq.length !== 1) throw txError("TX009", combo);
   const s = seq[0] as KeyStroke;
   const printable = !NAMED.has(s.key) && !/^f\d+$/.test(s.key);
   const ctrl = s.ctrl || s.mod;

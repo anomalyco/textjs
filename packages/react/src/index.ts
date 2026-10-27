@@ -64,7 +64,7 @@ export * from "./components/index";
 export { tokenize, normalizeLanguage, type Token, type TokenKind } from "./highlight";
 export { parseMarkdown, parseInline, type MarkdownBlock, type InlineSpan, type ListItem } from "./markdown";
 export { parseUnifiedDiff, diffTexts, type DiffFile, type DiffHunk, type DiffLine, type DiffLineKind } from "./diff";
-export { renderAsciiFont, ASCII_FONT_CHARS, type AsciiFontName } from "./fonts";
+export { renderAsciiFont, ASCII_FONT_CHARS, type AsciiFontName, type AsciiFontRenderer } from "./fonts";
 export { applyEditKey, type EditState } from "./editing";
 export {
   useKeymap,
@@ -93,3 +93,17 @@ export {
   type ClipboardApi,
   type UseClipboardOptions,
 } from "./hooks/environment";
+export {
+  installDevToolsHook,
+  getDevToolsHook,
+  DEVTOOLS_HOOK_KEY,
+  DEVTOOLS_PROTOCOL,
+  type TextDevToolsHook,
+  type DevToolsRootHandle,
+  type DevToolsRootInfo,
+  type DevToolsFrameRecord,
+  type DevToolsTreeSnapshot,
+  type DevToolsTreeNode,
+  type DevToolsFrameSnapshot,
+  type DevToolsHookEvent,
+} from "./devtools-hook";

@@ -9,7 +9,7 @@
 import createReconciler from "react-reconciler";
 import { ConcurrentRoot, ContinuousEventPriority, DefaultEventPriority, DiscreteEventPriority, NoEventPriority } from "react-reconciler/constants";
 import { createContext } from "react";
-import { createNode, createRawText, type SceneNode, type SceneNodeProps } from "@textjs/core";
+import { createNode, createRawText, txError, type SceneNode, type SceneNodeProps } from "@textjs/core";
 
 export { ConcurrentRoot, ContinuousEventPriority, DefaultEventPriority, DiscreteEventPriority, NoEventPriority };
 
@@ -63,7 +63,7 @@ function hasScenePropChanges(current: SceneNodeProps, next: HostProps): boolean 
 function sceneType(type: string): "box" | "text" {
   if (type === "tx-box") return "box";
   if (type === "tx-text") return "text";
-  throw new Error(`@textjs/react: unknown host element <${type}>. Use the exported components (<Box>, <Text>, …).`);
+  throw txError("TX003", type);
 }
 
 // -----------------------------------------------------------------------------
@@ -145,7 +145,7 @@ export const reconciler = createReconciler<
   createInstance(type, props, _root, hostContext) {
     const kind = sceneType(type);
     if (kind === "box" && hostContext.insideText) {
-      throw new Error("@textjs/react: <Box> cannot be nested inside <Text>.");
+      throw txError("TX004");
     }
     return createNode(kind, toSceneProps(props));
   },

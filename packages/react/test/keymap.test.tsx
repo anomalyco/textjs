@@ -29,7 +29,7 @@ describe("key combos", () => {
     expect(parseKeys("ctrl+,")[0]?.[0]).toMatchObject({ key: ",", ctrl: true });
     expect(parseKeys("G")[0]?.[0]).toMatchObject({ key: "g", shift: true });
     expect(parseKeys("enter")[0]?.[0]?.key).toBe("return");
-    expect(() => parseKeys("hyper+k")).toThrow(/unknown modifier/);
+    expect(() => parseKeys("hyper+k")).toThrow(/Unknown modifier "hyper" in key combo "hyper\+k"\. https:\/\/textjs\.org\/errors\/TX006/);
   });
 
   test("match events", () => {

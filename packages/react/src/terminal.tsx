@@ -17,6 +17,7 @@ import {
   initYoga,
   InputEngine,
   renderToAnsi,
+  txError,
   type CellBuffer,
   type ConsoleTarget,
   type KeyInputEvent,
@@ -335,7 +336,7 @@ export async function renderToTerminal(element: ReactNode, options: TerminalOpti
     onExit,
     ...rootOptions
   } = options;
-  if (!stdout) throw new Error("@textjs/react/terminal: no stdout available.");
+  if (!stdout) throw txError("TX010");
   await initYoga();
   const write = (s: string): void => void stdout.write(s);
   const size = (): [number, number] => [cols ?? (stdout.columns || 80), rows ?? (stdout.rows || 24)];

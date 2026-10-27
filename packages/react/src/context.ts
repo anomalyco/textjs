@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { ConsoleRenderer, InputEngine, SceneNode } from "@textjs/core";
+import { txError, type ConsoleRenderer, type InputEngine, type SceneNode } from "@textjs/core";
 import type { ConsoleContainer } from "./reconciler";
 import type { FocusManager } from "./focus";
 import type { InputManager } from "./input-manager";
@@ -42,7 +42,7 @@ RuntimeContext.displayName = "TextRuntimeContext";
 export function useRuntime(): RootRuntime {
   const rt = useContext(RuntimeContext);
   if (rt === null) {
-    throw new Error("@textjs/react: hooks and components must be rendered inside a console root (createConsoleRoot / renderToConsole).");
+    throw txError("TX002");
   }
   return rt;
 }

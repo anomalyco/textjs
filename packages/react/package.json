@@ -12,6 +12,7 @@
     "./dom": "./src/dom/index.ts",
     "./testing": "./src/testing.tsx",
     "./terminal": "./src/terminal.tsx",
+    "./devtools-hook": "./src/devtools-hook.ts",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -33,6 +34,10 @@
       "./terminal": {
         "types": "./dist/terminal.d.ts",
         "default": "./dist/terminal.js"
+      },
+      "./devtools-hook": {
+        "types": "./dist/devtools-hook.d.ts",
+        "default": "./dist/devtools-hook.js"
       }
     }
   },

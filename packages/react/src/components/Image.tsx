@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { packRGBA, type CellBuffer, type ComputedRect, type LayoutProps } from "@textjs/core";
+import { packRGBA, txError, type CellBuffer, type ComputedRect, type LayoutProps } from "@textjs/core";
 import { TxBox } from "../host";
 import { useTheme } from "../theme";
 import { Text } from "./Text";
@@ -53,7 +53,7 @@ export function resamplePixels(src: PixelData, tw: number, th: number): Uint8Cla
 
 /** Load an image URL into pixels via a canvas (browser only; the server must allow CORS). */
 export function loadImagePixels(src: string, maxWidth = 256, maxHeight = 256): Promise<PixelData> {
-  if (typeof document === "undefined") return Promise.reject(new Error("@textjs/react: <Image src> needs a DOM; pass `pixels` instead."));
+  if (typeof document === "undefined") return Promise.reject(txError("TX011"));
   return new Promise((resolve, reject) => {
     const img = document.createElement("img");
     img.crossOrigin = "anonymous";
@@ -67,7 +67,7 @@ export function loadImagePixels(src: string, maxWidth = 256, maxHeight = 256): P
       canvas.height = h;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
-        reject(new Error("@textjs/react: 2D canvas unavailable."));
+        reject(txError("TX012"));
         return;
       }
       ctx.drawImage(img, 0, 0, w, h);
@@ -78,7 +78,7 @@ export function loadImagePixels(src: string, maxWidth = 256, maxHeight = 256): P
         reject(e);
       }
     };
-    img.onerror = () => reject(new Error(`@textjs/react: failed to load image "${src}".`));
+    img.onerror = () => reject(txError("TX013", src));
     img.src = src;
   });
 }
