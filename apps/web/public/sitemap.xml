@@ -7,20 +7,81 @@
   <url><loc>https://textjs.org/docs/routing</loc></url>
   <url><loc>https://textjs.org/docs/loading-and-errors</loc></url>
   <url><loc>https://textjs.org/docs/route-handlers</loc></url>
+  <url><loc>https://textjs.org/docs/server-rendering</loc></url>
+  <url><loc>https://textjs.org/docs/middleware</loc></url>
+  <url><loc>https://textjs.org/docs/caching</loc></url>
+  <url><loc>https://textjs.org/docs/deploying</loc></url>
   <url><loc>https://textjs.org/docs/styling</loc></url>
+  <url><loc>https://textjs.org/docs/internationalization</loc></url>
   <url><loc>https://textjs.org/docs/keyboard</loc></url>
   <url><loc>https://textjs.org/docs/testing</loc></url>
   <url><loc>https://textjs.org/docs/terminal</loc></url>
+  <url><loc>https://textjs.org/docs/mcp</loc></url>
+  <url><loc>https://textjs.org/docs/eslint</loc></url>
+  <url><loc>https://textjs.org/docs/devtools-extension</loc></url>
+  <url><loc>https://textjs.org/docs/vscode</loc></url>
   <url><loc>https://textjs.org/docs/components-layout</loc></url>
   <url><loc>https://textjs.org/docs/components-interactive</loc></url>
   <url><loc>https://textjs.org/docs/components-content</loc></url>
+  <url><loc>https://textjs.org/docs/fonts</loc></url>
   <url><loc>https://textjs.org/docs/components-data</loc></url>
   <url><loc>https://textjs.org/docs/components-charts</loc></url>
   <url><loc>https://textjs.org/docs/components-forms</loc></url>
   <url><loc>https://textjs.org/docs/hooks-and-repl</loc></url>
   <url><loc>https://textjs.org/docs/utility-hooks</loc></url>
   <url><loc>https://textjs.org/docs/turbolog-engine</loc></url>
+  <url><loc>https://textjs.org/docs/release-channels</loc></url>
+  <url><loc>https://textjs.org/docs/support-policy</loc></url>
   <url><loc>https://textjs.org/docs/opencode</loc></url>
   <url><loc>https://textjs.org/playground</loc><priority>0.8</priority></url>
   <url><loc>https://textjs.org/opencode</loc><priority>0.8</priority></url>
+  <url><loc>https://textjs.org/errors</loc><priority>0.5</priority></url>
+  <url><loc>https://textjs.org/errors/TX001</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX002</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX003</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX004</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX005</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX006</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX007</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX008</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX009</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX010</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX011</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX012</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX013</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX014</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX015</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX016</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX017</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX018</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX019</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX020</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX021</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX022</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX023</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX024</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX025</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX026</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX027</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX028</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX029</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/changelog</loc><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/blog</loc><priority>0.7</priority></url>
+  <url><loc>https://textjs.org/blog/text-js-1-0</loc><lastmod>2026-10-31</lastmod><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/blog/turbolog-eliminating-the-flash</loc><lastmod>2026-10-31</lastmod><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/blog/the-inverted-architecture</loc><lastmod>2026-10-31</lastmod><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/enterprise</loc><priority>0.5</priority></url>
+  <url><loc>https://textjs.org/status</loc><priority>0.5</priority></url>
+  <url><loc>https://textjs.org/learn</loc><priority>0.8</priority></url>
+  <url><loc>https://textjs.org/learn/getting-started</loc><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/learn/layout</loc><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/learn/styling</loc><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/learn/input-and-keymaps</loc><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/learn/routing</loc><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/learn/data-fetching</loc><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/learn/components</loc><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/learn/testing</loc><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/learn/terminal</loc><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/learn/shipping</loc><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/learn/certificate</loc><priority>0.3</priority></url>
 </urlset>

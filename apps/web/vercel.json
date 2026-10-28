@@ -5,7 +5,7 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "redirects": [{ "source": "/showcase", "destination": "/playground", "permanent": true }],
-  "rewrites": [{ "source": "/((?!assets/|favicon\\.svg|og\\.png|og\\.svg|robots\\.txt|sitemap\\.xml).*)", "destination": "/index.html" }],
+  "rewrites": [{ "source": "/((?!assets/|favicon\\.svg|og\\.png|og\\.svg|robots\\.txt|sitemap\\.xml|blog/rss\\.xml).*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/assets/(.*)",

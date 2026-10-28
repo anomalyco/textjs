@@ -12,6 +12,7 @@ interface ServerEntry {
   NOT_FOUND_PATH: string;
   PREFIT_MIRRORS_SCRIPT: string;
   render(pathname: string): Promise<string>;
+  renderRss(): string;
 }
 
 const server = (await import(pathToFileURL(join(ssrDir, "entry-server.js")).href)) as ServerEntry;
@@ -65,6 +66,9 @@ function writeHtml(routePath: string, html: string): void {
 }
 
 for (const r of server.ROUTES) await writeRoute(r.path, r.title, r.description, r.canonical);
+
+mkdirSync(join(distDir, "blog"), { recursive: true });
+writeFileSync(join(distDir, "blog", "rss.xml"), server.renderRss());
 
 // Showcase was folded into the Playground.
 writeHtml(

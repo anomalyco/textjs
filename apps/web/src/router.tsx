@@ -1,13 +1,24 @@
 import { useSyncExternalStore, type AnchorHTMLAttributes, type MouseEvent, type ReactNode } from "react";
 import { getDoc } from "./docs/registry";
+import { getPost } from "./blog";
 import { siteStore } from "./console-companion/store";
+import { learnRoute, learnTitle } from "./learn/routes";
 import { safeDecode } from "./url";
+import { getTxError } from "@textjs/core";
 
 export type Route =
   | { name: "home" }
   | { name: "docs"; slug: string }
   | { name: "playground" }
   | { name: "opencode" }
+  | { name: "learn"; slug: string }
+  | { name: "errors" }
+  | { name: "error"; code: string }
+  | { name: "changelog" }
+  | { name: "blog" }
+  | { name: "blog-post"; slug: string }
+  | { name: "enterprise" }
+  | { name: "status" }
   | { name: "not-found" };
 
 export function normalizePath(pathname: string): string {
@@ -26,6 +37,23 @@ export function matchRoute(pathname: string): Route {
   }
   if (p === "/playground") return { name: "playground" };
   if (p === "/opencode") return { name: "opencode" };
+  const learn = learnRoute(p);
+  if (learn) return learn;
+  if (p === "/errors") return { name: "errors" };
+  const tx = /^\/errors\/([^/]+)$/.exec(p);
+  if (tx) {
+    const code = safeDecode(tx[1] as string).toUpperCase();
+    return getTxError(code) ? { name: "error", code } : { name: "not-found" };
+  }
+  if (p === "/changelog") return { name: "changelog" };
+  if (p === "/blog") return { name: "blog" };
+  const post = /^\/blog\/([^/]+)$/.exec(p);
+  if (post) {
+    const slug = safeDecode(post[1] as string);
+    return getPost(slug) ? { name: "blog-post", slug } : { name: "not-found" };
+  }
+  if (p === "/enterprise") return { name: "enterprise" };
+  if (p === "/status") return { name: "status" };
   // Showcase was folded into the Playground.
   if (p === "/showcase") return { name: "playground" };
   return { name: "not-found" };
@@ -44,6 +72,22 @@ export function titleFor(route: Route): string {
       return `Playground | ${suffix}`;
     case "opencode":
       return `OpenCode in the Console | ${suffix}`;
+    case "learn":
+      return learnTitle(route.slug);
+    case "errors":
+      return `Error Codes | ${suffix}`;
+    case "error":
+      return `${route.code}: ${getTxError(route.code)?.title ?? "Error"} | ${suffix}`;
+    case "changelog":
+      return `Changelog | ${suffix}`;
+    case "blog":
+      return `Blog | ${suffix}`;
+    case "blog-post":
+      return `${getPost(route.slug)?.title ?? "Blog"} | ${suffix}`;
+    case "enterprise":
+      return `Enterprise | ${suffix}`;
+    case "status":
+      return `Status | ${suffix}`;
     case "not-found":
       return `404: This page could not be found | ${suffix}`;
   }

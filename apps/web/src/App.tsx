@@ -1,8 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
+import { BlogPage } from "./pages/Blog";
+import { BlogPostPage } from "./pages/BlogPost";
+import { ChangelogPage } from "./pages/Changelog";
 import { DocsPage } from "./pages/Docs";
+import { EnterprisePage } from "./pages/Enterprise";
+import { ErrorPage, ErrorsIndexPage } from "./pages/Errors";
 import { HomePage } from "./pages/Home";
+import { LearnPage } from "./pages/Learn";
 import { OpenCodePage } from "./pages/OpenCode";
 import { PlaygroundPage } from "./pages/Playground";
+import { StatusPage } from "./pages/Status";
 import { A, matchRoute, titleFor, useLocation, type Route } from "./router";
 import { ConsolePill, Footer, Header } from "./site/Chrome";
 import { SearchModal } from "./site/SearchModal";
@@ -31,6 +38,22 @@ export function RouteView({ route }: { route: Route }): ReactNode {
       return <PlaygroundPage />;
     case "opencode":
       return <OpenCodePage />;
+    case "learn":
+      return <LearnPage slug={route.slug} />;
+    case "errors":
+      return <ErrorsIndexPage />;
+    case "error":
+      return <ErrorPage code={route.code} />;
+    case "changelog":
+      return <ChangelogPage />;
+    case "blog":
+      return <BlogPage />;
+    case "blog-post":
+      return <BlogPostPage slug={route.slug} />;
+    case "enterprise":
+      return <EnterprisePage />;
+    case "status":
+      return <StatusPage />;
     case "not-found":
       return <NotFoundPage />;
   }

@@ -6,8 +6,9 @@ import { useSite } from "./useSite";
 import { hintsFor, PRESETS, type CompanionTab } from "./store";
 import { HomeTab } from "./tabs/HomeTab";
 import { DocsTab } from "./tabs/DocsTab";
+import { LearnConsole } from "../learn/apps/LearnConsole";
 
-const PAGE_LABEL: Record<CompanionTab, string> = { home: "", playground: "playground", opencode: "opencode", docs: "docs" };
+const PAGE_LABEL: Record<CompanionTab, string> = { home: "", playground: "playground", opencode: "opencode", docs: "docs", learn: "learn" };
 
 /** One quiet row of keys at the bottom of every view. */
 function HintLine({ tab }: { tab: CompanionTab }): ReactNode {
@@ -55,6 +56,8 @@ export function CompanionApp(): ReactNode {
 
   // OpenCode is a full-screen TUI of its own, like the real thing.
   if (tab === "opencode") return <OpenCodeLite active />;
+  // Each /learn page runs its chapter's app, with its own header and keys.
+  if (tab === "learn") return <LearnConsole />;
 
   return (
     <Box className="flex-col grow pt-1">

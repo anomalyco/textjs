@@ -5,7 +5,10 @@
  */
 
 import { prerender } from "react-dom/static";
+import { POSTS, postPath, renderRss } from "./blog";
 import { DOCS, docPath } from "./docs/registry";
+import { TX_ERRORS } from "@textjs/core";
+import { LEARN_ROUTES } from "./learn/routes";
 import { Root } from "./Root";
 import { matchRoute, resetLocation, titleFor } from "./router";
 
@@ -24,6 +27,14 @@ export const ROUTES: readonly PrerenderRoute[] = [
   ...DOCS.map((d) => ({ path: `/docs/${d.slug}`, title: titleFor(matchRoute(`/docs/${d.slug}`)), description: d.description, canonical: docPath(d.slug) })),
   { path: "/playground", title: titleFor({ name: "playground" }), description: "Pick a Text.js demo, open the DevTools console and press a few keys." },
   { path: "/opencode", title: titleFor({ name: "opencode" }), description: "OpenCode Lite coding-agent TUI running inside browser DevTools console.log." },
+  ...LEARN_ROUTES,
+  { path: "/errors", title: titleFor({ name: "errors" }), description: "Every Text.js error and warning code, what it means and how to fix it." },
+  ...TX_ERRORS.map((e) => ({ path: `/errors/${e.code}`, title: titleFor({ name: "error", code: e.code }), description: `${e.code}: ${e.title}. What it means and how to fix it.` })),
+  { path: "/changelog", title: titleFor({ name: "changelog" }), description: "Every notable change to Text.js, release by release." },
+  { path: "/blog", title: titleFor({ name: "blog" }), description: "Releases and engineering notes from the Text.js team." },
+  ...POSTS.map((p) => ({ path: postPath(p.slug), title: titleFor({ name: "blog-post", slug: p.slug }), description: p.summary })),
+  { path: "/enterprise", title: titleFor({ name: "enterprise" }), description: "Text.js Enterprise: console compliance, a 99.99% console.log SLA and a named console engineer." },
+  { path: "/status", title: titleFor({ name: "status" }), description: "Turbolog status: component health, a live in-browser pipeline benchmark and performance history." },
 ];
 
 /** Route path used for the static 404 page. */
@@ -40,5 +51,5 @@ export async function render(pathname: string): Promise<string> {
   return html;
 }
 
-export { titleFor, matchRoute };
+export { titleFor, matchRoute, renderRss };
 export { PREFIT_MIRRORS_SCRIPT } from "./site/DevToolsWindow";
