@@ -20,6 +20,7 @@ import { FormDemo } from "../demos/Form";
 import { SnakeDemo } from "../demos/Snake";
 import { StreamingDemo } from "../demos/Streaming";
 import { ChartsPreview, ControlsPreview, KeymapPreview, TablePreview, TreePreview } from "../demos/Kit";
+import { FontGalleryPreview } from "../demos/FontGallery";
 
 function LayoutPreview(): ReactNode {
   return (
@@ -159,6 +160,21 @@ function AsciiPreview(): ReactNode {
   );
 }
 
+function BidiPreview(): ReactNode {
+  return (
+    <Box flexDirection="column" padding={1}>
+      <Text>שלום עולם! זהו טקסט בעברית.</Text>
+      <Text>مرحبا بالعالم! هذا نص عربي.</Text>
+      <Text>
+        Order #1234 (<Text color="accent">שלום</Text>) total: 25.50 ₪
+      </Text>
+      <Text>
+        user <Text dir="auto" color="success">שלום!</Text> replied 3 times
+      </Text>
+    </Box>
+  );
+}
+
 const THEMES: ThemeName[] = ["geistDark", "opencodeDark", "tokyoNight", "amberCrt", "geistLight"];
 
 function ThemePreview(): ReactNode {
@@ -203,6 +219,7 @@ export const PREVIEWS: Record<string, PreviewSpec> = {
   streaming: { cols: 80, rows: 24, render: () => <StreamingDemo /> },
   diff: { cols: 72, rows: 12, render: () => <DiffPreview /> },
   ascii: { cols: 64, rows: 11, render: () => <AsciiPreview /> },
+  fonts: { cols: 100, rows: 19, render: () => <FontGalleryPreview /> },
   theme: { cols: 96, rows: 9, render: () => <ThemePreview /> },
   dashboard: { cols: 100, rows: 26, render: () => <DashboardDemo /> },
   snake: { cols: 96, rows: 24, render: () => <SnakeDemo reserveRows={2} /> },
@@ -211,4 +228,5 @@ export const PREVIEWS: Record<string, PreviewSpec> = {
   charts: { cols: 72, rows: 14, render: () => <ChartsPreview /> },
   controls: { cols: 72, rows: 14, render: () => <ControlsPreview /> },
   keymap: { cols: 80, rows: 18, render: () => <KeymapPreview /> },
+  bidi: { cols: 48, rows: 6, render: () => <BidiPreview /> },
 };

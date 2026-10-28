@@ -8,7 +8,7 @@ export function GET(): Response {
 }
 ```
 
-Export `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD` or `OPTIONS`. Handlers run on `text dev` and `text start`.
+Export `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD` or `OPTIONS`. Handlers run on `text dev`, `text start` and every [deploy adapter](/docs/deploying), after [middleware](/docs/middleware). Cache `GET` handlers with [route segment config](/docs/caching).
 
 ## Dynamic handlers
 

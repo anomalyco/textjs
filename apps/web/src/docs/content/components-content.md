@@ -50,4 +50,4 @@ Big pixel lettering for headers.
 <AsciiFont text="▼ TEXT.JS" color="accent" />
 ```
 
-Use `font="compact"` for a 3-row variant.
+Use `font="compact"` for a 3-row variant. Pass a FIGlet font from [`@textjs/font`](/docs/fonts), like `font={slant}`, for figlet lettering.

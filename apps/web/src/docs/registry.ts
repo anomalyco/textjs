@@ -4,6 +4,12 @@ import projectStructure from "./content/project-structure.md?raw";
 import routing from "./content/routing.md?raw";
 import loadingAndErrors from "./content/loading-and-errors.md?raw";
 import routeHandlers from "./content/route-handlers.md?raw";
+import serverRendering from "./content/server-rendering.md?raw";
+import middleware from "./content/middleware.md?raw";
+import caching from "./content/caching.md?raw";
+import deploying from "./content/deploying.md?raw";
+import releaseChannels from "./content/release-channels.md?raw";
+import supportPolicy from "./content/support-policy.md?raw";
 import styling from "./content/styling.md?raw";
 import componentsLayout from "./content/components-layout.md?raw";
 import componentsInteractive from "./content/components-interactive.md?raw";
@@ -12,12 +18,18 @@ import hooksAndRepl from "./content/hooks-and-repl.md?raw";
 import keyboard from "./content/keyboard.md?raw";
 import testing from "./content/testing.md?raw";
 import terminal from "./content/terminal.md?raw";
+import mcp from "./content/mcp.md?raw";
+import eslint from "./content/eslint.md?raw";
+import devtoolsExtension from "./content/devtools-extension.md?raw";
+import vscode from "./content/vscode.md?raw";
 import componentsData from "./content/components-data.md?raw";
 import componentsCharts from "./content/components-charts.md?raw";
 import componentsForms from "./content/components-forms.md?raw";
 import utilityHooks from "./content/utility-hooks.md?raw";
 import turbologEngine from "./content/turbolog-engine.md?raw";
 import opencode from "./content/opencode.md?raw";
+import fonts from "./content/fonts.md?raw";
+import internationalization from "./content/internationalization.md?raw";
 
 export interface DocPage {
   slug: string;
@@ -77,11 +89,49 @@ export const DOCS: readonly DocPage[] = [
     markdown: routeHandlers,
   },
   {
+    slug: "server-rendering",
+    title: "Server Rendering and Partial Prerendering",
+    nav: "Server Rendering",
+    description: "runtime = \"server\": routes rendered on the server and streamed as frames; prerendered console shells.",
+    category: "Building Your Application",
+    markdown: serverRendering,
+  },
+  {
+    slug: "middleware",
+    title: "Middleware",
+    description: "middleware.ts: redirects, rewrites, headers and cookies before every request, with config.matcher.",
+    category: "Building Your Application",
+    markdown: middleware,
+  },
+  {
+    slug: "caching",
+    title: "Caching and Revalidation",
+    nav: "Caching",
+    description: "Route segment config, unstable_cache, revalidateTag / revalidatePath and stale-while-revalidate.",
+    category: "Building Your Application",
+    markdown: caching,
+  },
+  {
+    slug: "deploying",
+    title: "Deploying",
+    description: "text build --adapter static, bun, vercel or cloudflare: deploy outputs for every platform.",
+    category: "Building Your Application",
+    markdown: deploying,
+  },
+  {
     slug: "styling",
     title: "Styling",
     description: "Cell-grid className utilities, typed props, responsive viewports and themes.",
     category: "Building Your Application",
     markdown: styling,
+  },
+  {
+    slug: "internationalization",
+    title: "Internationalization: Bidirectional Text",
+    nav: "Bidirectional Text",
+    description: "Hebrew, Arabic and mixed-direction text: UAX #9, dir, alignment, Arabic shaping and grid-exact output.",
+    category: "Building Your Application",
+    markdown: internationalization,
   },
   {
     slug: "keyboard",
@@ -107,6 +157,35 @@ export const DOCS: readonly DocPage[] = [
     markdown: terminal,
   },
   {
+    slug: "mcp",
+    title: "MCP for Coding Agents",
+    nav: "MCP",
+    description: "text mcp: let coding agents navigate, press keys and read frames over the Model Context Protocol.",
+    category: "Building Your Application",
+    markdown: mcp,
+  },
+  {
+    slug: "eslint",
+    title: "ESLint",
+    description: "eslint-plugin-textjs: console-safe JSX, cell-width glyphs, frame-paced timers and App Router checks.",
+    category: "Building Your Application",
+    markdown: eslint,
+  },
+  {
+    slug: "devtools-extension",
+    title: "DevTools Extension",
+    description: "A Text.js panel next to Console: component tree, cell-level frame inspector and frame timeline.",
+    category: "Building Your Application",
+    markdown: devtoolsExtension,
+  },
+  {
+    slug: "vscode",
+    title: "VS Code",
+    description: "Live Preview of the console frame beside your code, App Router scaffolding, snippets and TX error links.",
+    category: "Building Your Application",
+    markdown: vscode,
+  },
+  {
     slug: "components-layout",
     title: "Layout Components",
     nav: "Layout",
@@ -129,6 +208,13 @@ export const DOCS: readonly DocPage[] = [
     description: "<Markdown>, <Code>, <Diff>, <Spinner> and <AsciiFont>.",
     category: "Components",
     markdown: componentsContent,
+  },
+  {
+    slug: "fonts",
+    title: "Fonts",
+    description: "@textjs/font: FIGlet fonts as ES modules, rendered exactly like the figlet program.",
+    category: "Components",
+    markdown: fonts,
   },
   {
     slug: "components-data",
@@ -176,6 +262,20 @@ export const DOCS: readonly DocPage[] = [
     description: "Single-console.log RLE encoding, CellBuffer, Chromium internals and benchmarks.",
     category: "Architecture",
     markdown: turbologEngine,
+  },
+  {
+    slug: "release-channels",
+    title: "Release Channels",
+    description: "Stable, canary and LTS dist-tags, lockstep versions, provenance and cutting a release.",
+    category: "Architecture",
+    markdown: releaseChannels,
+  },
+  {
+    slug: "support-policy",
+    title: "Support Policy",
+    description: "Active and LTS release lines, what counts as a breaking change, and supported runtimes.",
+    category: "Architecture",
+    markdown: supportPolicy,
   },
   {
     slug: "opencode",

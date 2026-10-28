@@ -1,0 +1,114 @@
+Run code before a request completes. Redirect, rewrite, set headers and cookies, or answer the request yourself.
+
+## Convention
+
+Create `middleware.ts` in the project root (or `src/`), next to `app/`. Export a `middleware` function (or a default export) and an optional `config`.
+
+```ts@middleware.ts
+import { NextResponse, type NextRequest } from "@textjs/next/server";
+
+export function middleware(request: NextRequest) {
+  if (!request.cookies.has("session")) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/dashboard/:path*", "/api/:path*"],
+};
+```
+
+Middleware runs before [route handlers](/docs/route-handlers), static files and console pages, on `text dev`, `text start` and every [deploy adapter](/docs/deploying). It uses Web `Request` and `Response`, so the same file runs on Node, Bun, Vercel Edge and Cloudflare Workers.
+
+## Matching paths
+
+Without a `config.matcher`, middleware runs for every request. Matchers use the same syntax as Next.js:
+
+| Matcher | Matches |
+| :-- | :-- |
+| `/about` | `/about` and `/about/` |
+| `/blog/:slug` | `/blog/hello` |
+| `/docs/:path*` | `/docs`, `/docs/a/b` |
+| `/a/:rest+` | `/a/b`, not `/a` |
+| `/user/:id(\\d+)` | `/user/42`, not `/user/ada` |
+| `/((?!api/).*)` | Everything except `/api/*` |
+
+Add conditions with `has` and `missing` (header, cookie, query or host):
+
+```ts@middleware.ts
+export const config = {
+  matcher: [{ source: "/beta/:path*", has: [{ type: "cookie", key: "beta", value: "1" }] }],
+};
+```
+
+Matchers apply to the pathname without `basePath`. In `text dev`, Vite's own module requests (`/@vite/*`, source files) never run middleware.
+
+## NextResponse
+
+| API | Effect |
+| :-- | :-- |
+| `NextResponse.next()` | Continue to the route |
+| `NextResponse.redirect(url, status?)` | `307` by default; `url` must be absolute |
+| `NextResponse.rewrite(url)` | Serve another path; external origins are proxied |
+| `NextResponse.json(body, init?)` | Respond with JSON |
+| `new Response(...)` | Respond with anything |
+
+Return nothing to continue unchanged.
+
+```ts@middleware.ts
+export function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname === "/status") {
+    return NextResponse.rewrite(new URL("/api/health", request.url));
+  }
+}
+```
+
+## Headers
+
+Pass `request.headers` to change what downstream handlers receive, and `headers` to add response headers:
+
+```ts@middleware.ts
+export function middleware(request: NextRequest) {
+  const headers = new Headers(request.headers);
+  headers.set("x-user", "ada");
+  const response = NextResponse.next({ request: { headers } });
+  response.headers.set("x-frame", "▼");
+  return response;
+}
+```
+
+Response headers from middleware are added to the final response unless the route handler sets the same header.
+
+## Cookies
+
+`request.cookies` reads the `Cookie` header; `response.cookies` writes `Set-Cookie`.
+
+```ts@middleware.ts
+export function middleware(request: NextRequest) {
+  const theme = request.cookies.get("theme")?.value ?? "geistDark";
+  const response = NextResponse.next();
+  response.cookies.set("theme", theme, { httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 24 });
+  return response;
+}
+```
+
+Cookies set on a `next()` or `rewrite()` response are also visible to the route handler in the same request.
+
+## Background work
+
+The second argument has `waitUntil()`, which keeps serverless runtimes alive after the response is sent:
+
+```ts@middleware.ts
+import type { NextFetchEvent, NextRequest } from "@textjs/next/server";
+
+export function middleware(request: NextRequest, event: NextFetchEvent) {
+  event.waitUntil(fetch("https://analytics.example.com", { method: "POST", body: request.url }));
+}
+```
+
+## Notes
+
+- Pages render client-side in the console, so a rewrite to another page changes which file is served, not which route the console app renders. Rewrites to route handlers, static files and external origins behave as expected.
+- Middleware can read the request body; route handlers still receive it.
+- The [static adapter](/docs/deploying#static) cannot run middleware.
