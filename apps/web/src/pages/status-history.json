@@ -1,0 +1,24 @@
+{
+  "measuredAt": "2026-10-31",
+  "machine": "Apple M5 Pro · Bun 1.4.4",
+  "pipeline": {
+    "source": "bun test packages/core/test/perf.test.ts, run against each commit (git archive) on the same machine. 100×32 dashboard, 200 warmup + 1,000 frames, mean.",
+    "runs": [
+      { "commit": "7c91cea", "milestone": "0.1.0", "label": "@textjs/core", "fullFrameMs": 0.194, "typingMs": 0.065, "idleMs": 0.043, "spans": 205 },
+      { "commit": "92437cc", "milestone": "0.2.0", "label": "textjs.org", "fullFrameMs": 0.192, "typingMs": 0.067, "idleMs": 0.042, "spans": 205 },
+      { "commit": "8c2d1b1", "milestone": "0.3.0", "label": "10× input", "fullFrameMs": 0.205, "typingMs": 0.065, "idleMs": 0.043, "spans": 146 },
+      { "commit": "e2e6e46", "milestone": "0.3.0", "label": "Mobile pass", "fullFrameMs": 0.212, "typingMs": 0.067, "idleMs": 0.045, "spans": 146 },
+      { "commit": "f007ade", "milestone": "0.4.0", "label": "Zero-flash frames", "fullFrameMs": 0.184, "typingMs": 0.046, "idleMs": 0.028, "spans": 146 },
+      { "commit": "57968b6", "milestone": "1.0.0", "label": "Text.js 1.0", "fullFrameMs": 0.163, "typingMs": 0.011, "idleMs": 0.0, "spans": 149 }
+    ]
+  },
+  "devtools": {
+    "source": "bun bench/devtools/run.ts --strategy=native,clear --fps=15,60 --seconds=5. Real DevTools frontend (Chrome for Testing), 100×32 dashboard, 5s per run.",
+    "runs": [
+      { "strategy": "append", "driver": "native", "fps": 15, "blankPct": 1.0, "painted": 74, "emitted": 75, "lagP50Ms": 10.4, "lagP95Ms": 64.7, "dtBusyPct": 15.2 },
+      { "strategy": "clear", "driver": "clear", "fps": 15, "blankPct": 70.6, "painted": 70, "emitted": 75, "lagP50Ms": 60.4, "lagP95Ms": 67.1, "dtBusyPct": 11.7 },
+      { "strategy": "append", "driver": "native", "fps": 60, "blankPct": 0.8, "painted": 67, "emitted": 295, "lagP50Ms": 31.2, "lagP95Ms": 44.5, "dtBusyPct": 36.9 },
+      { "strategy": "clear", "driver": "clear", "fps": 60, "blankPct": 81.1, "painted": 45, "emitted": 300, "lagP50Ms": 9.8, "lagP95Ms": 16.6, "dtBusyPct": 12.8 }
+    ]
+  }
+}
