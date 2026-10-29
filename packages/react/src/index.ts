@@ -49,7 +49,7 @@ export {
   type UseInputOptions,
   type UseConsoleStatsOptions,
 } from "./hooks";
-export { useFocus, useFocusManager, FocusManager, type UseFocusOptions, type UseFocusResult, type FocusManagerApi } from "./focus";
+export { useFocus, useFocusManager, FocusManager, FOCUS_OWNER, type UseFocusOptions, type UseFocusResult, type FocusManagerApi } from "./focus";
 export {
   InputManager,
   FOCUSED_INPUT_PRIORITY,

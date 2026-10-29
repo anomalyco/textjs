@@ -170,11 +170,16 @@ export interface UseFocusResult {
   blur(): void;
 }
 
+/** Key of the hook-state marker `useFocus()` leaves on the component that registered a focus id. */
+export const FOCUS_OWNER = Symbol.for("textjs.focusOwner");
+
 export function useFocus(options: UseFocusOptions = {}): UseFocusResult {
   const { focus: manager } = useRuntime();
   const scope = useContext(ScopeContext);
   const generated = useId();
   const id = options.id ?? generated;
+  // Hook state marker: inspectors (`text mcp`) attribute the focus id to this component.
+  useMemo(() => ({ [FOCUS_OWNER]: id }), [id]);
   const controlled = options.focused !== undefined;
   const active = (options.isActive ?? true) && !controlled;
   const autoFocus = options.autoFocus ?? false;

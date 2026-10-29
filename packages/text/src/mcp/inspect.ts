@@ -11,6 +11,7 @@
 import { Component, type ReactNode } from "react";
 import type { SceneNode } from "@textjs/core";
 import type { FocusManager } from "@textjs/react";
+import { paintOwners } from "@textjs/react/devtools-hook";
 
 /** The subset of React's internal Fiber shape this module reads. */
 interface Fiber {
@@ -66,8 +67,12 @@ export interface Bounds {
 }
 
 export interface TreeNode {
-  /** `component` (React function/class), `box` / `text` (host scene nodes), `suspense`. */
-  kind: "component" | "box" | "text" | "suspense";
+  /**
+   * `component` (React function/class), `box` / `text` (host scene nodes),
+   * `suspense`, or `portal` (content `<Modal>` / `<Dialog>` / toasts render
+   * into the root layer; its bounds are not part of the parent's).
+   */
+  kind: "component" | "box" | "text" | "suspense" | "portal";
   name: string;
   key?: string;
   /** Screen bounds from the last painted frame (union of painted host descendants for components). */
@@ -156,10 +161,37 @@ function isHiddenOffscreen(fiber: Fiber): boolean {
   return (fiber.tag === OffscreenComponent || fiber.tag === ActivityComponent) && fiber.memoizedState !== null;
 }
 
-/** Strings appearing in a fiber's hook state (useId values, useCallback deps). */
+/** `Symbol.for("textjs.focusOwner")`: the marker `useFocus()` leaves in hook state (`@textjs/react` `FOCUS_OWNER`). */
+const FOCUS_OWNER = Symbol.for("textjs.focusOwner");
+
+type Hook = { memoizedState?: unknown; next?: unknown } | null;
+
+function hooksOf(fiber: Fiber): Hook {
+  if (fiber.tag !== FunctionComponent && fiber.tag !== ForwardRef && fiber.tag !== SimpleMemoComponent) return null;
+  return fiber.memoizedState as Hook;
+}
+
+/** Focus ids this component registered with `useFocus()` (tagged `useMemo` state). */
+function focusOwnerIds(fiber: Fiber): string[] {
+  const out: string[] = [];
+  let hook = hooksOf(fiber);
+  let guard = 0;
+  while (hook && typeof hook === "object" && guard++ < 200) {
+    const v = hook.memoizedState;
+    const value = Array.isArray(v) ? v[0] : undefined;
+    const id = value !== null && typeof value === "object" ? (value as Record<symbol, unknown>)[FOCUS_OWNER] : undefined;
+    if (typeof id === "string") out.push(id);
+    hook = (hook.next ?? null) as Hook;
+  }
+  return out;
+}
+
+/**
+ * Fallback for focus ids registered without the marker (older `@textjs/react`):
+ * strings in hook state (`useId()` values, `useCallback` deps).
+ */
 function hookStrings(fiber: Fiber, wanted: ReadonlySet<string>): string | undefined {
-  if (fiber.tag !== FunctionComponent && fiber.tag !== ForwardRef && fiber.tag !== SimpleMemoComponent) return undefined;
-  let hook = fiber.memoizedState as { memoizedState?: unknown; next?: unknown } | null;
+  let hook = hooksOf(fiber);
   let guard = 0;
   while (hook && typeof hook === "object" && guard++ < 200) {
     const v = hook.memoizedState;
@@ -169,9 +201,30 @@ function hookStrings(fiber: Fiber, wanted: ReadonlySet<string>): string | undefi
       const dep = (v[1] as unknown[]).find((d) => typeof d === "string" && wanted.has(d));
       if (typeof dep === "string") return dep;
     }
-    hook = (hook.next ?? null) as typeof hook;
+    hook = (hook.next ?? null) as Hook;
   }
   return undefined;
+}
+
+/** The focus id `fiber` owns: its `useFocus()` marker, else an unclaimed id seen in its hook state. */
+function focusIdOf(fiber: Fiber, wanted: ReadonlySet<string>, claimed: ReadonlySet<string>): string | undefined {
+  const tagged = focusOwnerIds(fiber).find((id) => wanted.has(id));
+  if (tagged !== undefined) return tagged;
+  if (claimed.size >= wanted.size) return undefined;
+  const fallback = hookStrings(fiber, wanted);
+  return fallback !== undefined && !claimed.has(fallback) ? fallback : undefined;
+}
+
+/** Every registered focus id claimed by a `useFocus()` marker under `start`. */
+function claimedFocusIds(start: Fiber, wanted: ReadonlySet<string>): Set<string> {
+  const out = new Set<string>();
+  const stack: Fiber[] = [start];
+  while (stack.length > 0) {
+    const f = stack.pop() as Fiber;
+    for (const id of focusOwnerIds(f)) if (wanted.has(id)) out.add(id);
+    for (let c = f.child; c; c = c.sibling) stack.push(c);
+  }
+  return out;
 }
 
 export interface InspectResult {
@@ -182,8 +235,7 @@ export interface InspectResult {
 
 /**
  * Walk the React tree under `probe`. Components are attributed to the focus id
- * they registered with `useFocus()` when the id is visible in their hook state
- * (the generated `useId()` value).
+ * they registered with `useFocus()` (its `FOCUS_OWNER` hook-state marker).
  */
 export function inspect(probe: FiberProbe | null, focus: FocusManager, options: InspectOptions = {}): InspectResult {
   const { hosts = true, maxDepth = 40, component, hideEmpty = true } = options;
@@ -194,28 +246,43 @@ export function inspect(probe: FiberProbe | null, focus: FocusManager, options: 
   const root = currentRoot(probe);
   const probeFiber = root ? findProbe(root) : null;
   const needle = component?.toLowerCase();
+  const claimed = probeFiber ? claimedFocusIds(probeFiber, wanted) : new Set<string>();
 
-  /** Returns the built nodes for `fiber` (several when the fiber itself is transparent). */
-  const visit = (fiber: Fiber, depth: number): { nodes: TreeNode[]; bounds: Bounds | null } => {
-    if (isHiddenOffscreen(fiber)) return { nodes: [], bounds: null };
+  /**
+   * Returns the built nodes for `fiber` (several when the fiber itself is
+   * transparent), its painted bounds, and the bounds of portals rendered
+   * below it (kept apart: they paint in the root layer).
+   */
+  const visit = (fiber: Fiber, depth: number): { nodes: TreeNode[]; bounds: Bounds | null; portal: Bounds | null } => {
+    if (isHiddenOffscreen(fiber)) return { nodes: [], bounds: null, portal: null };
     const name = displayName(fiber);
     const scene = sceneOf(fiber);
     const isSuspense = fiber.tag === SuspenseComponent;
-    const visible = name !== null || (hosts && scene !== null) || isSuspense;
+    const isPortal = fiber.tag === HostPortal;
+    const visible = name !== null || (hosts && scene !== null) || isSuspense || isPortal;
     const childDepth = visible ? depth + 1 : depth;
     const kids: TreeNode[] = [];
     let bounds: Bounds | null = scene ? rectOf(scene) : null;
+    let portalBounds: Bounds | null = null;
     // Raw text inside <Text> has no own layout; its owner's rect covers it.
     if (scene?.type === "raw-text") bounds = null;
     if (fiber.tag !== HostText) {
       for (let c = fiber.child; c; c = c.sibling) {
-        if (c.tag === HostPortal) continue;
         const r = visit(c, childDepth);
         kids.push(...r.nodes);
-        bounds = union(bounds, r.bounds);
+        // A portal paints in the root layer, not inside its logical parent.
+        if (c.tag === HostPortal) portalBounds = union(portalBounds, r.bounds);
+        else bounds = union(bounds, r.bounds);
+        portalBounds = union(portalBounds, r.portal);
       }
     }
-    if (!visible) return { nodes: kids, bounds };
+    if (isPortal) {
+      bounds = union(bounds, portalBounds);
+      portalBounds = null;
+    }
+    if (!visible) return { nodes: kids, bounds, portal: portalBounds };
+    // A component that only renders a portal (<Modal>) is shown where the portal paints.
+    const shown = bounds ?? portalBounds;
     const node: TreeNode = { kind: "component", name: name ?? "" };
     if (scene) {
       node.kind = scene.type === "box" ? "box" : "text";
@@ -230,26 +297,29 @@ export function inspect(probe: FiberProbe | null, focus: FocusManager, options: 
     } else if (isSuspense) {
       node.kind = "suspense";
       node.name = "Suspense";
+    } else if (isPortal) {
+      node.kind = "portal";
+      node.name = "Portal";
     }
     if (fiber.key !== null) node.key = fiber.key;
-    if (bounds) node.bounds = bounds;
+    if (shown) node.bounds = shown;
     if (name !== null) {
-      const fid = hookStrings(fiber, wanted);
+      const fid = focusIdOf(fiber, wanted, claimed);
       if (fid !== undefined) {
         node.focusId = fid;
         if (fid === activeFocusId) node.focused = true;
-        if (!focusBounds.has(fid)) focusBounds.set(fid, { component: name, bounds });
+        if (!focusBounds.has(fid)) focusBounds.set(fid, { component: name, bounds: shown });
       }
     }
     // Text hosts already carry their text; raw-text children add nothing.
     const children = node.kind === "text" ? kids.filter((k) => k.kind !== "text" || k.text !== node.text) : kids;
     if (children.length > 0) node.children = children;
-    if (hideEmpty && node.kind === "component" && !bounds && children.length === 0 && node.focusId === undefined) return { nodes: [], bounds };
+    if (hideEmpty && (node.kind === "component" || node.kind === "portal") && !shown && children.length === 0 && node.focusId === undefined) return { nodes: [], bounds, portal: portalBounds };
     if (depth >= maxDepth) {
       delete node.children;
-      return { nodes: [node], bounds };
+      return { nodes: [node], bounds, portal: portalBounds };
     }
-    return { nodes: [node], bounds };
+    return { nodes: [node], bounds, portal: portalBounds };
   };
 
   let tree: TreeNode | null = null;
@@ -301,7 +371,7 @@ function findProbe(root: Fiber): Fiber | null {
 
 /** Render a tree as indented text: `Name  [x,y w×h]  "text"  focus=id`. */
 export function formatTree(node: TreeNode, indent = ""): string {
-  let line = `${indent}${node.kind === "component" || node.kind === "suspense" ? node.name : node.kind}`;
+  let line = `${indent}${node.kind === "component" || node.kind === "suspense" || node.kind === "portal" ? node.name : node.kind}`;
   if (node.key !== undefined) line += ` key=${JSON.stringify(node.key)}`;
   if (node.label) line += ` (${node.label})`;
   if (node.bounds) line += `  [${node.bounds.x},${node.bounds.y} ${node.bounds.width}×${node.bounds.height}]`;
@@ -312,25 +382,59 @@ export function formatTree(node: TreeNode, indent = ""): string {
   return lines.join("\n");
 }
 
-/** Deepest painted host scene node containing cell `(x, y)` and the nearest component above it. */
-export function hitTest(probe: FiberProbe | null, x: number, y: number): { component: string | null; path: string[] } {
+export interface SceneGrid {
+  /** The console root's scene node (`ConsoleRoot.rootNode`). */
+  root: SceneNode;
+  cols: number;
+  rows: number;
+}
+
+export interface HitResult {
+  /** Nearest component above the topmost painted host at the cell. */
+  component: string | null;
+  /** Component names from the app root down to `component`. */
+  path: string[];
+}
+
+/**
+ * Hit-tester for cells: the topmost painted host scene node at `(x, y)` in
+ * paint order (overflow clipping, scroll offsets, absolute `zIndex` layers
+ * and portals such as `<Modal>`), attributed to its component chain.
+ * Ownership is computed once per tester.
+ */
+export function createHitTester(probe: FiberProbe | null, grid: SceneGrid): (x: number, y: number) => HitResult {
+  const none: HitResult = { component: null, path: [] };
   const root = currentRoot(probe);
   const start = root ? findProbe(root) : null;
-  if (!start) return { component: null, path: [] };
-  let best: { depth: number; path: string[] } | null = null;
-  const walk = (fiber: Fiber, path: string[], depth: number): void => {
-    if (isHiddenOffscreen(fiber)) return;
-    const name = displayName(fiber);
-    const next = name !== null ? [...path, name] : path;
-    const scene = sceneOf(fiber);
-    if (scene && scene.type !== "raw-text") {
-      const r = rectOf(scene);
-      if (r && x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height && (!best || depth >= best.depth)) best = { depth, path: next };
+  if (!start) return () => none;
+  const { cols, rows } = grid;
+  const owners = new Int32Array(cols * rows);
+  paintOwners(grid.root, cols, rows, owners);
+  const hosts = new Map<number, Fiber>();
+  const stack: Fiber[] = [];
+  for (let c = start.child; c; c = c.sibling) stack.push(c);
+  while (stack.length > 0) {
+    const f = stack.pop() as Fiber;
+    if (isHiddenOffscreen(f)) continue;
+    const scene = sceneOf(f);
+    if (scene) hosts.set(scene.id, f);
+    for (let c = f.child; c; c = c.sibling) stack.push(c);
+  }
+  return (x, y) => {
+    if (x < 0 || y < 0 || x >= cols || y >= rows) return none;
+    const host = hosts.get(owners[y * cols + x] as number);
+    if (!host) return none;
+    const path: string[] = [];
+    for (let f: Fiber | null = host; f && f !== start; f = f.return) {
+      const name = displayName(f);
+      if (name !== null) path.push(name);
     }
-    for (let c = fiber.child; c; c = c.sibling) if (c.tag !== HostPortal) walk(c, next, depth + 1);
+    path.reverse();
+    return { component: path[path.length - 1] ?? null, path };
   };
-  walk(start, [], 0);
-  const found = best as { depth: number; path: string[] } | null;
-  if (!found) return { component: null, path: [] };
-  return { component: found.path[found.path.length - 1] ?? null, path: found.path };
+}
+
+/** {@link createHitTester} for a single cell. */
+export function hitTest(probe: FiberProbe | null, grid: SceneGrid, x: number, y: number): HitResult {
+  return createHitTester(probe, grid)(x, y);
 }

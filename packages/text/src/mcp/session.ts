@@ -26,7 +26,7 @@ import { prepareServerManifest } from "../server/live-app";
 import { ServerComponentCache, ServerComponentsProvider } from "../server/server-components";
 import { loadTextConfig } from "../cli/config";
 import { frameContains, frameText, styledRows, type Region, type StyledRow } from "./frame";
-import { FiberProbe, inspect, type Bounds, type InspectOptions, type InspectResult } from "./inspect";
+import { FiberProbe, inspect, type Bounds, type InspectOptions, type InspectResult, type SceneGrid } from "./inspect";
 import { parseKeyInput, textToKeyEvents } from "./keys";
 import { LogBuffer, txCodeOf } from "./logs";
 
@@ -313,11 +313,11 @@ export class HeadlessSession {
     };
     root.render(
       createElement(
-        FiberProbe,
-        { ref: probeRef },
+        ServerComponentsProvider,
+        { cache: this.serverCache },
         createElement(
-          ServerComponentsProvider,
-          { cache: this.serverCache },
+          FiberProbe,
+          { ref: probeRef },
           createElement(AppRouter, { routes: prepareServerManifest(this.manifest), history: this.history, theme: this.theme, documentTitle: false, errorStore: null }),
         ),
       ),
@@ -482,6 +482,13 @@ export class HeadlessSession {
 
   get fiberProbe(): FiberProbe | null {
     return this.probe;
+  }
+
+  /** The mounted scene and grid size, for paint-order hit testing. */
+  get sceneGrid(): SceneGrid | null {
+    const root = this.appRoot;
+    if (!root || root.unmounted) return null;
+    return { root: root.rootNode, cols: root.renderer.buffer.width, rows: root.renderer.buffer.height };
   }
 
   inspect(options: InspectOptions = {}): InspectResult {

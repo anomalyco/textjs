@@ -459,6 +459,146 @@ export default function Home() {
   });
 });
 
+describe("text mcp · portals, focus attribution and paint order", () => {
+  const dir = join(import.meta.dir, `.tmp-mcp-portal-${process.pid}`);
+  let client: Client;
+  let close: () => Promise<void>;
+
+  beforeAll(async () => {
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(join(dir, "app/overlay"), { recursive: true });
+    writeFileSync(
+      join(dir, "app/page.tsx"),
+      `import { useState } from "react";
+import { Box, Input, Modal, Text, useFocusManager } from "@textjs/react";
+
+// String state equal to a focus id ("q") must not claim that id.
+function Label() {
+  const [label] = useState("q");
+  return <Text>{"label " + label}</Text>;
+}
+
+export default function Home() {
+  // useFocusManager() memoizes on [manager, activeId]: must not mark Home as focused.
+  const fm = useFocusManager();
+  const [q, setQ] = useState("");
+  const [name, setName] = useState("");
+  return (
+    <Box className="flex-col w-full h-full">
+      <Label />
+      <Input id="q" value={q} onChange={setQ} />
+      {Array.from({ length: 10 }, (_, i) => (
+        <Text key={i}>{"behind ".repeat(8) + i}</Text>
+      ))}
+      <Text>{"active " + String(fm.activeId)}</Text>
+      <Modal open title="Rename" width={30}>
+        <Text>modal body</Text>
+        <Input id="rename" value={name} onChange={setName} autoFocus />
+      </Modal>
+    </Box>
+  );
+}
+`,
+    );
+    writeFileSync(
+      join(dir, "app/overlay/page.tsx"),
+      `import { Box, Text } from "@textjs/react";
+
+function Deep() {
+  return (
+    <Box className="flex-col w-full">
+      <Box className="flex-col w-full">
+        <Box className="flex-col w-full">
+          <Text>{"under ".repeat(10)}</Text>
+          <Text>{"under ".repeat(10)}</Text>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+function Overlay() {
+  return (
+    <Box position="absolute" top={0} left={2} zIndex={5} bg="#202020">
+      <Text>overlay text</Text>
+    </Box>
+  );
+}
+
+export default function Page() {
+  return (
+    <Box className="flex-col w-full h-full">
+      <Deep />
+      <Overlay />
+    </Box>
+  );
+}
+`,
+    );
+    const c = await connect({ root: dir, cols: 60, rows: 16, skipConfig: true });
+    client = c.client;
+    close = c.close;
+  });
+  afterAll(async () => {
+    await close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("focus, bounds and cursor inside a <Modal> portal", async () => {
+    const r = await call(client, "read_frame");
+    const s = r.structuredContent as { focus: { id: string; component?: string; bounds?: { x: number; y: number; width: number; height: number } }; cursor: { x: number; y: number } | null; text: string };
+    expect(s.focus).toMatchObject({ id: "rename", component: "Input" });
+    expect(s.focus.bounds).toBeDefined();
+    const modal = (await call(client, "find", { text: "modal body" })).structuredContent as { matches: Array<{ x: number; y: number }> };
+    const body = modal.matches[0] as { x: number; y: number };
+    expect(s.focus.bounds?.y).toBeGreaterThan(body.y);
+    expect(s.cursor).not.toBeNull();
+    expect(s.cursor?.y).toBe(s.focus.bounds?.y as number);
+  });
+
+  test("inspect_tree traverses portals and attributes focus ids to their useFocus() owner", async () => {
+    const r = await call(client, "inspect_tree", { format: "json" });
+    const s = r.structuredContent as { tree: unknown; focusables: Array<{ id: string; component?: string; focused: boolean }> };
+    const flat = JSON.stringify(s.tree);
+    expect(flat).toContain('"kind":"portal"');
+    expect(flat).toContain('"modal body"');
+    expect(s.focusables.find((f) => f.id === "rename")).toMatchObject({ component: "Input", focused: true });
+    expect(s.focusables.find((f) => f.id === "q")).toMatchObject({ component: "Input", focused: false });
+    const owners: Array<{ name: string; focusId?: string }> = [];
+    const walk = (n: { name: string; focusId?: string; children?: unknown[] }): void => {
+      if (n.focusId !== undefined) owners.push({ name: n.name, focusId: n.focusId });
+      for (const c of n.children ?? []) walk(c as typeof n);
+    };
+    walk(s.tree as { name: string });
+    expect(owners).toEqual([
+      { name: "Input", focusId: "q" },
+      { name: "Input", focusId: "rename" },
+    ]);
+    expect(text(await call(client, "inspect_tree"))).toContain("Portal");
+  });
+
+  test("find attributes text in a portal to the modal, not the page behind it", async () => {
+    const r = await call(client, "find", { text: "modal body" });
+    const [m] = (r.structuredContent as { matches: Array<{ component?: string; path?: string[] }> }).matches;
+    expect(m?.path).toContain("Modal");
+    const path = m?.path ?? [];
+    expect(path.indexOf("Home")).toBeGreaterThanOrEqual(0);
+    expect(path.indexOf("Home")).toBeLessThan(path.indexOf("Modal"));
+    expect(path).not.toContain("FiberProbe");
+  });
+
+  test("find honors paint order: an absolute zIndex layer wins over deeper boxes beneath it", async () => {
+    await call(client, "navigate", { path: "/overlay" });
+    const r = await call(client, "find", { text: "overlay text" });
+    const [m] = (r.structuredContent as { matches: Array<{ component?: string; path?: string[] }> }).matches;
+    expect(m?.path).toContain("Overlay");
+    expect(m?.path).not.toContain("Deep");
+    const under = (await call(client, "find", { text: "under under under under under under under under" })).structuredContent as { matches: Array<{ path?: string[] }> };
+    expect(under.matches.at(-1)?.path).toContain("Deep");
+    await call(client, "navigate", { path: "/" });
+  });
+});
+
 describe("text mcp · start failures", () => {
   test("a missing app/ directory becomes a TX018 tool error, not a crash", async () => {
     const c = await connect({ root: join(import.meta.dir, "does-not-exist"), skipConfig: true });

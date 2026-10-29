@@ -855,7 +855,8 @@ function surfaceOf(node: SceneNode, overlay: boolean): Surface {
   return s.borderStyle !== "none" ? Surface.Border : Surface.None;
 }
 
-function paintOwners(root: SceneNode, cols: number, rows: number, out: Int32Array): void {
+/** Scene node id painted last (topmost) at each cell, in the painter's traversal order (clip, scroll, `zIndex`). */
+export function paintOwners(root: SceneNode, cols: number, rows: number, out: Int32Array): void {
   const deferred: Deferred[] = [];
   const fill = (id: number, x0: number, y0: number, x1: number, y1: number, clip: Clip): void => {
     const ax = Math.max(clip.x0, x0, 0);

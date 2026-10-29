@@ -8,7 +8,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { VERSION } from "@textjs/core";
 import { findText } from "./frame";
-import { formatTree, hitTest } from "./inspect";
+import { createHitTester, formatTree } from "./inspect";
 import { KeySpecError, MAX_KEYS_PER_CALL } from "./keys";
 import { captureConsole, LogBuffer, txCodeOf, type ConsoleCapture, type LogLevel } from "./logs";
 import { HeadlessSession, SessionError, type FrameSnapshot, type SessionOptions } from "./session";
@@ -371,9 +371,10 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
       } catch (error) {
         throw new SessionError(`Invalid regular expression: ${error instanceof Error ? error.message : String(error)}`);
       }
-      const probe = s.fiberProbe;
+      const grid = s.sceneGrid;
+      const hitTest = grid ? createHitTester(s.fiberProbe, grid) : () => ({ component: null, path: [] as string[] });
       const enriched = matches.map((m) => {
-        const hit = hitTest(probe, m.x, m.y);
+        const hit = hitTest(m.x, m.y);
         return { ...m, ...(hit.component ? { component: hit.component, path: hit.path } : {}) };
       });
       const text =
