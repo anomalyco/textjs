@@ -11,10 +11,11 @@ import type { StyledFrame } from "@textjs/core";
 import { postInput } from "./dev-server";
 import type { DevServerMonitor } from "./dev-monitor";
 import { HeadlessSession, type HeadlessError } from "./headless";
-import { previewTargetForFile, type PreviewTarget } from "./project";
+import type { PreviewTarget } from "./project";
 import type { RunnerTarget } from "./runner/messages";
 import { previewHtml } from "./webview-html";
 import type { HostToWebview, ModePreference, PreviewMode, PreviewState, ServerState, WebviewToHost } from "./webview-protocol";
+import { isTrusted, previewTargetInWorkspace } from "./workspace";
 
 export interface PreviewDeps {
   context: vscode.ExtensionContext;
@@ -158,10 +159,14 @@ export class PreviewController implements vscode.Disposable {
   // Targets
   // -------------------------------------------------------------------------
 
-  /** Preview `uri` when it is previewable (keeps the last target otherwise). */
+  /**
+   * Preview `uri` when it is previewable (keeps the last target otherwise).
+   * Only files inside a workspace folder qualify: the preview runs the
+   * project's code, so a stray file elsewhere on disk must never pick it.
+   */
   followDocument(uri: vscode.Uri, force = false): void {
     if (uri.scheme !== "file") return;
-    const next = previewTargetForFile(uri.fsPath);
+    const next = previewTargetInWorkspace(uri.fsPath);
     if (!next) return;
     const same = this.target && this.target.file === next.file && this.target.root === next.root;
     if (same && !force) return;
@@ -195,6 +200,8 @@ export class PreviewController implements vscode.Disposable {
   // -------------------------------------------------------------------------
 
   private computeMode(): PreviewMode {
+    // Restricted Mode: never run the project's code or connect to a dev server.
+    if (!isTrusted()) return "idle";
     const pref = this.preference();
     const snap = this.deps.monitor.snapshot();
     const tabs = snap.status?.sources ?? 0;
@@ -242,7 +249,7 @@ export class PreviewController implements vscode.Disposable {
 
   private ensureHeadless(): void {
     const target = this.target;
-    if (!target || this.headless || !this.viewport) return;
+    if (!target || this.headless || !this.viewport || !isTrusted()) return;
     const runtime = this.config().get<string>("preview.runtime", "").trim();
     const session = new HeadlessSession(
       { runnerPath: join(this.deps.context.extensionPath, "dist", "runner.mjs"), root: target.root, execPath: runtime || undefined },
@@ -320,6 +327,8 @@ export class PreviewController implements vscode.Disposable {
       if (serverState !== "running") hint = "Start the dev server to mirror the running app";
       else if (tabs === 0) hint = "Waiting for a browser tab — Open in Browser to connect one";
       else hint = `Mirroring ${tabs === 1 ? "the browser tab" : `1 of ${tabs} tabs`} · click the console to interact`;
+    } else if (!isTrusted()) {
+      hint = "Restricted Mode · trust this workspace to render previews";
     } else if (this.mode === "headless") {
       if (this.preference() === "headless") hint = "Headless render · click the console to interact";
       else if (serverState !== "running") hint = "Headless render · start the dev server to mirror the real app";
@@ -339,6 +348,7 @@ export class PreviewController implements vscode.Disposable {
       hint,
       focused: this.mode === "live" ? (live?.meta.focused ?? true) : this.webviewFocused,
       loading: this.mode === "headless" && this.loading,
+      restricted: !isTrusted(),
     };
   }
 
@@ -417,6 +427,9 @@ export class PreviewController implements vscode.Disposable {
             if (file) void vscode.window.showTextDocument(vscode.Uri.file(file.replace(/:\d+(:\d+)?$/, "")), { viewColumn: vscode.ViewColumn.One });
             break;
           }
+          case "manageTrust":
+            void vscode.commands.executeCommand("workbench.trust.manage");
+            break;
           case "openSettings":
             void vscode.commands.executeCommand("workbench.action.openSettings", "textjs.preview");
             break;
@@ -427,10 +440,15 @@ export class PreviewController implements vscode.Disposable {
     }
   }
 
+  /** Re-evaluate the mode (after Workspace Trust is granted). */
+  refresh(): void {
+    this.update();
+  }
+
   /** Mode and plain-text frame (integration tests and diagnostics). */
-  inspect(): { mode: PreviewMode; open: boolean; text: string | null; state: PreviewState } {
+  inspect(): { mode: PreviewMode; open: boolean; text: string | null; state: PreviewState; headlessRoot: string | null } {
     const f = this.currentFrame();
-    return { mode: this.mode, open: this.panel !== null, text: f ? frameToText(f) : null, state: this.state() };
+    return { mode: this.mode, open: this.panel !== null, text: f ? frameToText(f) : null, state: this.state(), headlessRoot: this.headless?.root ?? null };
   }
 
   /** The route currently shown (for "Open in Browser"). */

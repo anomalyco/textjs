@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { devCommand, detectPackageManager, findProjectRoot, isProjectRoot, previewPath, previewTargetForFile, routeFileInfo, usesTypeScript } from "../src/project";
+import { devCommand, detectPackageManager, findProjectRoot, isInside, isProjectRoot, previewPath, previewTargetForFile, previewTargetInFolder, routeFileInfo, usesTypeScript } from "../src/project";
 import { formatStatus } from "../src/status-format";
 import { findTxCodes, txHoverMarkdown, txInfo, txUrl } from "../src/tx-codes";
 import { SseParser } from "../src/sse";
@@ -31,6 +31,28 @@ describe("project detection", () => {
     expect(isProjectRoot(dir)).toBe(false);
     expect(findProjectRoot(join(app, "components/Card.tsx"))).toBe(app);
     expect(findProjectRoot(join(dir, "bun.lock"))).toBeNull();
+  });
+
+  test("stopAt keeps the search inside the workspace folder", () => {
+    // A project above the workspace folder is never picked up.
+    const nested = join(app, "components");
+    expect(findProjectRoot(join(nested, "Card.tsx"), nested)).toBeNull();
+    expect(findProjectRoot(join(app, "components/Card.tsx"), app)).toBe(app);
+    expect(findProjectRoot(join(app, "components/Card.tsx"), dir)).toBe(app);
+    // Files outside the folder have no project, even when one exists above them.
+    const outside = join(dir, "outside");
+    mkdirSync(join(outside, "app"), { recursive: true });
+    writeFileSync(join(outside, "text.config.mjs"), "");
+    writeFileSync(join(outside, "app/page.tsx"), "");
+    expect(findProjectRoot(join(outside, "app/page.tsx"))).toBe(outside);
+    expect(findProjectRoot(join(outside, "app/page.tsx"), app)).toBeNull();
+    expect(previewTargetInFolder(join(outside, "app/page.tsx"), app)).toBeNull();
+    expect(previewTargetInFolder(join(outside, "app/page.tsx"), undefined)).toBeNull();
+    expect(previewTargetInFolder(join(app, "app/page.tsx"), app)?.root).toBe(app);
+    expect(isInside(join(app, "x"), app)).toBe(true);
+    expect(isInside(app, app)).toBe(true);
+    expect(isInside(`${app}-evil/x`, app)).toBe(false);
+    expect(isInside(join(app, "../x"), app)).toBe(false);
   });
 
   test("text.config.* alone marks a project", () => {

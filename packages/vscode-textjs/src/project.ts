@@ -3,7 +3,7 @@
  */
 
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 export const CONFIG_FILES = ["text.config.ts", "text.config.mts", "text.config.js", "text.config.mjs"];
 const ROUTE_KINDS = ["page", "layout", "loading", "error", "not-found", "route"] as const;
@@ -42,12 +42,24 @@ export function isProjectRoot(dir: string): boolean {
   return pkg !== null && dependsOnText(pkg) && isDir(join(dir, "app"));
 }
 
-/** The nearest Text.js project root at or above `file`. */
+/** Whether `path` is `parent` or inside it (lexically). */
+export function isInside(path: string, parent: string): boolean {
+  const rel = relative(resolve(parent), resolve(path));
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}
+
+/**
+ * The nearest Text.js project root at or above `file`. With `stopAt` (a
+ * workspace folder) the search never leaves that folder, and files outside it
+ * have no project.
+ */
 export function findProjectRoot(file: string, stopAt?: string): string | null {
+  if (stopAt !== undefined && !isInside(file, stopAt)) return null;
   let dir = isDir(file) ? file : dirname(file);
+  const stop = stopAt === undefined ? undefined : toPosix(resolve(stopAt));
   for (;;) {
     if (isProjectRoot(dir)) return dir;
-    if (stopAt !== undefined && toPosix(dir) === toPosix(stopAt)) return null;
+    if (stop !== undefined && toPosix(resolve(dir)) === stop) return null;
     const parent = dirname(dir);
     if (parent === dir) return null;
     dir = parent;
@@ -100,6 +112,16 @@ export function previewTargetForFile(file: string, root: string | null = findPro
     return { kind: "route", root, path: previewPath(info.segments), file };
   }
   return { kind: "component", root, file };
+}
+
+/**
+ * {@link previewTargetForFile} limited to the workspace folder that contains
+ * `file`: files outside every folder (`folder` undefined) are never previewed,
+ * and the project search stops at the folder.
+ */
+export function previewTargetInFolder(file: string, folder: string | undefined): PreviewTarget | null {
+  if (folder === undefined) return null;
+  return previewTargetForFile(file, findProjectRoot(file, folder));
 }
 
 /** `"bun" | "pnpm" | "yarn" | "npm"` by lockfile, searching up from `root`. */

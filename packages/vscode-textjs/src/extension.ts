@@ -8,11 +8,12 @@ import { existsSync, readdirSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { DevServerMonitor } from "./dev-monitor";
 import { PreviewController } from "./preview";
-import { devCommand, findProjectRoot, isProjectRoot, previewTargetForFile, usesTypeScript } from "./project";
+import { devCommand, isProjectRoot, usesTypeScript } from "./project";
 import { parseRouteInput, scaffold, scaffoldConflict, SCAFFOLD_LABELS, type ScaffoldKind } from "./scaffold";
 import { StatusBar, type StatusInput } from "./status-bar";
 import { findTxCodes, txHoverMarkdown, txUrl } from "./tx-codes";
 import type { ServerState } from "./webview-protocol";
+import { isTrusted, previewTargetInWorkspace, projectRootInWorkspace } from "./workspace";
 
 const PROJECT_GLOB = "**/{text.config.ts,text.config.mts,text.config.js,text.config.mjs,app/page.tsx,app/page.jsx,app/layout.tsx,app/layout.jsx}";
 const START_TIMEOUT_MS = 60_000;
@@ -35,7 +36,7 @@ async function pickProject(hint?: string | vscode.Uri): Promise<string | undefin
   const fromHint = typeof hint === "string" ? hint : hint?.fsPath;
   const candidates = [fromHint, vscode.window.activeTextEditor?.document.uri.fsPath].filter((p): p is string => typeof p === "string");
   for (const c of candidates) {
-    const root = findProjectRoot(c);
+    const root = projectRootInWorkspace(c);
     if (root) return root;
   }
   if (projects.length === 1) return projects[0];
@@ -84,6 +85,12 @@ class DevServerLauncher implements vscode.Disposable {
   }
 
   async start(root: string): Promise<void> {
+    if (!isTrusted()) {
+      const manage = "Manage Workspace Trust";
+      const choice = await vscode.window.showWarningMessage("▼ Text.js can't start the dev server in Restricted Mode. Trust this workspace to run it.", manage);
+      if (choice === manage) void vscode.commands.executeCommand("workbench.trust.manage");
+      return;
+    }
     const running = this.monitor.snapshot();
     if (running.url) {
       const open = "Open in Browser";
@@ -274,7 +281,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<Textjs
   const refreshProjects = async (): Promise<void> => {
     projects = await findProjects();
     await vscode.commands.executeCommand("setContext", "textjs.isProject", projects.length > 0);
-    monitor.configure(projects, vscode.workspace.getConfiguration("textjs").get<string>("devServer.url", "").trim());
+    // Untrusted workspaces never talk to a dev server (`devServer.url` is a restricted setting).
+    if (isTrusted()) monitor.configure(projects, vscode.workspace.getConfiguration("textjs").get<string>("devServer.url", "").trim());
     refreshStatus();
   };
 
@@ -296,6 +304,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<Textjs
     watcher.onDidCreate(queueRefresh),
     watcher.onDidDelete(queueRefresh),
     vscode.workspace.onDidChangeWorkspaceFolders(queueRefresh),
+    vscode.workspace.onDidGrantWorkspaceTrust(async () => {
+      await refreshProjects();
+      monitor.start();
+      preview.refresh();
+    }),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("textjs.devServer")) void refreshProjects();
     }),
@@ -323,7 +336,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Textjs
       let route = typeof path === "string" ? path : preview.currentPath();
       if (!route) {
         const file = vscode.window.activeTextEditor?.document.uri.fsPath;
-        const target = file ? previewTargetForFile(file) : null;
+        const target = file ? previewTargetInWorkspace(file) : null;
         route = target?.kind === "route" ? target.path : "/";
       }
       await vscode.env.openExternal(vscode.Uri.parse(`${url}${route.startsWith("/") ? route : `/${route}`}`));
@@ -371,7 +384,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Textjs
   );
 
   await refreshProjects();
-  monitor.start();
+  if (isTrusted()) monitor.start();
 
   // Exposed for the integration test.
   return { preview, monitor, projects: () => projects };

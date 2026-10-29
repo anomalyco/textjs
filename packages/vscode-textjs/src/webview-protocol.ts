@@ -24,6 +24,8 @@ export interface PreviewState {
   focused: boolean;
   /** `true` while the headless runner is starting. */
   loading: boolean;
+  /** Workspace Trust is not granted: nothing runs. */
+  restricted: boolean;
 }
 
 export type HostToWebview =
@@ -31,7 +33,7 @@ export type HostToWebview =
   | { type: "frame"; frame: WireFrame }
   | { type: "clearFrame" };
 
-export type WebviewCommand = "reload" | "openBrowser" | "startServer" | "copyText" | "toggleFollow" | "openFile" | "openSettings";
+export type WebviewCommand = "reload" | "openBrowser" | "startServer" | "copyText" | "toggleFollow" | "openFile" | "openSettings" | "manageTrust";
 
 export type WebviewToHost =
   | { type: "ready" }

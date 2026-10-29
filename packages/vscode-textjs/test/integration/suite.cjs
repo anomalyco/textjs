@@ -60,6 +60,22 @@ test("preview follows the active editor", async () => {
   await until(() => api.preview.inspect().state.path === "/settings", 20000, "route switch");
 });
 
+test("files outside the workspace never run in the preview", async () => {
+  const outside = process.env.TEXTJS_OUTSIDE;
+  const marker = process.env.TEXTJS_OUTSIDE_MARKER;
+  const before = api.preview.inspect();
+  assert.equal(before.headlessRoot, fixture);
+  const doc = await vscode.workspace.openTextDocument(join(outside, "app/page.tsx"));
+  await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
+  await vscode.commands.executeCommand("textjs.openPreview", doc.uri);
+  await new Promise((r) => setTimeout(r, 3000));
+  const after = api.preview.inspect();
+  assert.equal(after.headlessRoot, fixture, "the runner stays on the workspace project");
+  assert.equal(after.state.target.label, "app/settings/page.tsx");
+  assert.equal(existsSync(marker), false, "the outside project's config never ran");
+  await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+});
+
 test("TX codes get hovers and document links", async () => {
   const doc = await vscode.workspace.openTextDocument({ language: "plaintext", content: "▼ TX001: Yoga is not initialized." });
   await vscode.window.showTextDocument(doc);

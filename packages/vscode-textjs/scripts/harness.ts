@@ -47,6 +47,7 @@ const base: PreviewState = {
   hint: "Mirroring the browser tab · click the console to interact",
   focused: true,
   loading: false,
+  restricted: false,
 };
 
 interface Scenario {

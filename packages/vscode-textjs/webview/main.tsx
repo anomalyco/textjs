@@ -42,6 +42,7 @@ const INITIAL: PreviewState = {
   hint: null,
   focused: true,
   loading: false,
+  restricted: false,
 };
 
 function useHost(): { state: PreviewState; frame: StyledFrame | null } {
@@ -238,6 +239,22 @@ function ErrorCard({ error }: { error: NonNullable<PreviewState["error"]> }): Re
 
 function EmptyState({ state }: { state: PreviewState }): ReactNode {
   const stopped = state.server.state !== "running";
+  if (state.restricted) {
+    return (
+      <div className="empty">
+        <div className="empty-mark" aria-hidden>
+          ▼
+        </div>
+        <h1>Previews are off in Restricted Mode</h1>
+        <p>The preview runs this project's code (its Vite config, <code>text.config.*</code> and components). Trust the workspace to render it here.</p>
+        <div className="empty-actions">
+          <button type="button" className="btn primary" onClick={() => post({ type: "command", command: "manageTrust" })}>
+            Manage Workspace Trust
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="empty">
       <div className="empty-mark" aria-hidden>

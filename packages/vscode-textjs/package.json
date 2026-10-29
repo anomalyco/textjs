@@ -23,6 +23,13 @@
     "vscode": "^1.90.0"
   },
   "main": "./dist/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In Restricted Mode, Text.js only offers snippets, scaffolding and TX error links. The Live Preview, dev server and dev server discovery run the project's code, so they need a trusted workspace.",
+      "restrictedConfigurations": ["textjs.preview.runtime", "textjs.devServer.command", "textjs.devServer.url"]
+    }
+  },
   "activationEvents": [
     "workspaceContains:**/text.config.{ts,mts,js,mjs}",
     "workspaceContains:**/app/page.{tsx,jsx}",
@@ -93,11 +100,12 @@
         "textjs.devServer.url": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Dev server URL (for example `http://localhost:3000`). Leave empty to discover `text dev` on ports 3000–3010."
+          "markdownDescription": "Dev server URL (for example `http://localhost:3000`). Leave empty to discover `text dev` on ports 3000–3010. Only `http://` loopback addresses (`localhost`, `127.0.0.1`, `[::1]`) are used."
         },
         "textjs.devServer.command": {
           "type": "string",
           "default": "",
+          "scope": "machine-overridable",
           "markdownDescription": "Command used by **Text.js: Start Dev Server**. Defaults to your package manager's `dev` script, or `text dev`."
         },
         "textjs.preview.mode": {
@@ -126,6 +134,7 @@
         "textjs.preview.runtime": {
           "type": "string",
           "default": "",
+          "scope": "machine-overridable",
           "markdownDescription": "Node.js binary for headless previews. Leave empty to use the runtime bundled with VS Code."
         }
       }
