@@ -7,7 +7,9 @@ import type { ViteDevServer } from "vite";
 import { CellBuffer, extractStyledFrame } from "@textjs/core";
 import { startDevServer } from "../src/cli/dev";
 import { FrameDecoder, FrameEncoder, FRAMES_PATH, INPUT_PATH, MIRROR_HEADER, STATUS_PATH, frameToText, type DevStatus, type WireFrame } from "../src/frame-protocol";
-import { isLoopbackAddress, isSameOriginRequest } from "../src/server/frames";
+import { request as httpRequest } from "node:http";
+import { isFetchMetadataAllowed, isLoopbackAddress, isLoopbackHost, isSameOriginRequest } from "../src/server/frames";
+import { isAllowedDevHost } from "../src/vite-plugin";
 
 const REPO = fileURLToPath(new URL("../../..", import.meta.url));
 
@@ -88,6 +90,28 @@ function subscribe(): { events: Array<{ event: string; data: unknown }>; close()
   return { events, close: () => ctrl.abort() };
 }
 
+/** A raw HTTP request (lets tests set `Host` and Fetch Metadata headers freely). */
+function raw(path: string, options: { method?: string; headers?: Record<string, string>; body?: string } = {}): Promise<{ status: number; headers: Record<string, unknown>; body: string }> {
+  const u = new URL(base);
+  return new Promise((resolve, reject) => {
+    const req = httpRequest({ host: u.hostname, port: u.port, path, method: options.method ?? "GET", headers: options.headers, agent: false }, (res) => {
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", (c: string) => {
+        body += c;
+        // SSE never ends: resolve on the first bytes.
+        if (res.statusCode === 200 && path === FRAMES_PATH) {
+          resolve({ status: res.statusCode, headers: res.headers, body });
+          req.destroy();
+        }
+      });
+      res.on("end", () => resolve({ status: res.statusCode ?? 0, headers: res.headers, body }));
+    });
+    req.on("error", reject);
+    req.end(options.body);
+  });
+}
+
 describe("dev frame mirror", () => {
   test("helpers: loopback and same-origin checks", () => {
     expect(isLoopbackAddress("127.0.0.1")).toBe(true);
@@ -97,6 +121,74 @@ describe("dev frame mirror", () => {
     expect(isSameOriginRequest({ headers: {} })).toBe(true);
     expect(isSameOriginRequest({ headers: { origin: "http://localhost:3000", host: "localhost:3000" } })).toBe(true);
     expect(isSameOriginRequest({ headers: { origin: "https://evil.example", host: "localhost:3000" } })).toBe(false);
+    for (const h of ["localhost", "localhost:3000", "LOCALHOST:3000", "app.localhost:3000", "127.0.0.1:3000", "127.1.2.3", "[::1]:3000", "[::1]"]) expect(isLoopbackHost(h)).toBe(true);
+    for (const h of [undefined, "", "evil.example", "evil.example:3000", "localhost.evil.example", "localhost:3000@evil", "10.0.0.2:3000", "0.0.0.0:3000", "[::2]:3000", "[::1]evil", "127.0.0.1.nip.io", "localhost."]) {
+      expect(isLoopbackHost(h)).toBe(false);
+    }
+    expect(isFetchMetadataAllowed({ headers: {} }, FRAMES_PATH)).toBe(true);
+    expect(isFetchMetadataAllowed({ headers: { "sec-fetch-site": "same-origin", "sec-fetch-mode": "cors" } }, FRAMES_PATH)).toBe(true);
+    expect(isFetchMetadataAllowed({ headers: { "sec-fetch-site": "none" } }, STATUS_PATH)).toBe(true);
+    expect(isFetchMetadataAllowed({ headers: { "sec-fetch-site": "cross-site" } }, STATUS_PATH)).toBe(false);
+    expect(isFetchMetadataAllowed({ headers: { "sec-fetch-site": "same-site" } }, INPUT_PATH)).toBe(false);
+    expect(isFetchMetadataAllowed({ headers: { "sec-fetch-site": "same-origin", "sec-fetch-mode": "no-cors" } }, FRAMES_PATH)).toBe(false);
+  });
+
+  test("isAllowedDevHost only accepts a bracketed IPv6 literal with an optional port", () => {
+    const srv = { config: { server: { allowedHosts: [] } } } as never;
+    expect(isAllowedDevHost(srv, "[::1]:3000")).toBe(true);
+    expect(isAllowedDevHost(srv, "[::1]")).toBe(true);
+    expect(isAllowedDevHost(srv, "[::1]evil.example")).toBe(false);
+    expect(isAllowedDevHost(srv, "[::1]:3000.evil.example")).toBe(false);
+    expect(isAllowedDevHost(srv, "[evil.example]")).toBe(false);
+    expect(isAllowedDevHost(srv, "evil.example")).toBe(false);
+  });
+
+  test("DNS rebinding: a non-loopback Host is rejected even when Vite allows every host", async () => {
+    const cfg = server.config.server as { allowedHosts: unknown };
+    const saved = cfg.allowedHosts;
+    cfg.allowedHosts = true;
+    try {
+      const port = new URL(base).port;
+      const rebound = { host: `evil.example:${port}`, origin: `http://evil.example:${port}` };
+      expect((await raw(STATUS_PATH, { headers: rebound })).status).toBe(403);
+      expect((await raw(STATUS_PATH, { headers: { host: `evil.example:${port}` } })).status).toBe(403);
+      expect((await raw(FRAMES_PATH, { headers: rebound })).status).toBe(403);
+      const input = await raw(INPUT_PATH, {
+        method: "POST",
+        headers: { ...rebound, "content-type": "application/json", [MIRROR_HEADER]: "1" },
+        body: JSON.stringify({ type: "key", key: "Enter" }),
+      });
+      expect(input.status).toBe(403);
+      // The real loopback name still works.
+      expect((await raw(STATUS_PATH, { headers: { host: `localhost:${port}` } })).status).toBe(200);
+    } finally {
+      cfg.allowedHosts = saved;
+    }
+  });
+
+  test("Fetch Metadata: cross-site and no-cors requests are rejected and never register a watcher", async () => {
+    const port = new URL(base).port;
+    const host = `localhost:${port}`;
+    // <img src> / fetch(..., { mode: "no-cors" }) from another site: no Origin header.
+    const img = await raw(FRAMES_PATH, { headers: { host, "sec-fetch-site": "cross-site", "sec-fetch-mode": "no-cors", "sec-fetch-dest": "image" } });
+    expect(img.status).toBe(403);
+    expect(img.headers["x-content-type-options"]).toBe("nosniff");
+    expect((await raw(FRAMES_PATH, { headers: { host, "sec-fetch-site": "same-origin", "sec-fetch-mode": "no-cors" } })).status).toBe(403);
+    expect((await raw(STATUS_PATH, { headers: { host, "sec-fetch-site": "cross-site", "sec-fetch-mode": "cors" } })).status).toBe(403);
+    // Cross-site POST (even a CORS-safelisted one) is rejected.
+    const post = await raw(INPUT_PATH, {
+      method: "POST",
+      headers: { host, origin: "https://evil.example", "sec-fetch-site": "cross-site", "sec-fetch-mode": "no-cors", "content-type": "text/plain" },
+      body: JSON.stringify({ type: "key", key: "Enter" }),
+    });
+    expect(post.status).toBe(403);
+    const s = (await (await fetch(`${base}${STATUS_PATH}`)).json()) as DevStatus;
+    expect(s.watchers).toBe(0);
+    // Same-origin EventSource requests are fine.
+    const ok = await raw(FRAMES_PATH, { headers: { host, "sec-fetch-site": "same-origin", "sec-fetch-mode": "cors" } });
+    expect(ok.status).toBe(200);
+    expect(ok.headers["x-content-type-options"]).toBe("nosniff");
+    await until(async () => ((await (await fetch(`${base}${STATUS_PATH}`)).json()) as DevStatus).watchers === 0);
   });
 
   test("status reports the project", async () => {

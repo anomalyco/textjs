@@ -5,13 +5,16 @@
  * - `POST /__textjs/input`  — forward an {@link InputMessage} to the browser tab(s).
  * - `GET  /__textjs/status` — {@link DevStatus} JSON.
  *
- * Loopback peers only. Browsers can't reach them cross-origin: SSE and status
- * send no CORS headers and input requires a JSON body plus a custom header, so
- * a foreign page can't send keystrokes with a simple request. Tabs only encode
- * frames while at least one editor is watching.
+ * Loopback peers only, addressed by a loopback `Host` (so DNS rebinding can't
+ * reach them even when Vite's `allowedHosts` is relaxed). Browsers can't reach
+ * them cross-origin: SSE and status send no CORS headers, Fetch Metadata
+ * rejects cross-site and `no-cors` requests, and input requires a JSON body
+ * plus a custom header, so a foreign page can't send keystrokes with a simple
+ * request. Tabs only encode frames while at least one editor is watching.
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { isIP } from "node:net";
 import type { ViteDevServer } from "vite";
 import { VERSION } from "@textjs/core";
 import {
@@ -37,6 +40,33 @@ const HEARTBEAT_MS = 15_000;
 
 export function isLoopbackAddress(address: string | undefined): boolean {
   return address !== undefined && (LOOPBACK.has(address) || address.startsWith("127."));
+}
+
+/**
+ * `Host` names the loopback interface: `localhost`, `*.localhost`, `127.x.x.x`
+ * or `[::1]`, with an optional port. Anything else may be a rebound DNS name.
+ */
+export function isLoopbackHost(host: string | undefined): boolean {
+  if (!host) return false;
+  const m = /^(\[[^\]]*\]|[^:[\]]+)(?::\d{1,5})?$/.exec(host.trim().toLowerCase());
+  if (!m) return false;
+  const name = m[1] as string;
+  if (name === "[::1]") return true;
+  if (name === "localhost" || name.endsWith(".localhost")) return true;
+  return isIP(name) === 4 && name.startsWith("127.");
+}
+
+/**
+ * Fetch Metadata: browsers label every request. Only same-origin requests and
+ * user-initiated ones (`none`) are accepted, and never `no-cors` loads of the
+ * stream (`<img>`, `fetch(..., { mode: "no-cors" })` omit `Origin`). Clients
+ * that send no metadata (editors, curl) pass.
+ */
+export function isFetchMetadataAllowed(req: Pick<IncomingMessage, "headers">, pathname: string): boolean {
+  const site = req.headers["sec-fetch-site"];
+  if (site !== undefined && site !== "same-origin" && site !== "none") return false;
+  if (pathname === FRAMES_PATH && req.headers["sec-fetch-mode"] === "no-cors") return false;
+  return true;
 }
 
 /** `Origin` is absent (editors, curl) or the dev server's own origin. */
@@ -181,7 +211,10 @@ export function attachFrameStream(server: ViteDevServer, root: string): FrameStr
   server.middlewares.use((req, res, next) => {
     const pathname = (req.url ?? "/").split("?")[0];
     if (pathname !== FRAMES_PATH && pathname !== INPUT_PATH && pathname !== STATUS_PATH) return next();
-    if (!isLoopbackAddress(req.socket.remoteAddress) || !isSameOriginRequest(req)) return reject(res, 403, "▼ Text.js: the frame mirror only accepts local requests.");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    if (!isLoopbackAddress(req.socket.remoteAddress) || !isLoopbackHost(req.headers.host) || !isSameOriginRequest(req) || !isFetchMetadataAllowed(req, pathname as string)) {
+      return reject(res, 403, "▼ Text.js: the frame mirror only accepts local requests.");
+    }
 
     if (pathname === STATUS_PATH) {
       res.setHeader("Content-Type", "application/json; charset=utf-8");

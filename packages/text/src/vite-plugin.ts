@@ -53,8 +53,9 @@ export function isAllowedDevHost(server: Pick<ViteDevServer, "config">, hostHead
   if (!hostHeader) return false;
   const host = hostHeader.trim();
   if (host.startsWith("[")) {
-    const end = host.indexOf("]");
-    return end > 0 && isIP(host.slice(1, end)) === 6;
+    // `[v6]` or `[v6]:port` only: nothing may follow the bracket but a port.
+    const m = /^\[([^\]]+)\](?::\d{1,5})?$/.exec(host);
+    return m !== null && isIP(m[1] as string) === 6;
   }
   const hostname = host.replace(/:\d+$/, "");
   if (isIP(hostname) === 4 || hostname === "localhost" || hostname.endsWith(".localhost")) return true;
