@@ -103,26 +103,42 @@ export interface FrameStream {
   close(): void;
 }
 
+class PayloadTooLarge extends Error {}
+
+/** Read a request body up to `limit` bytes. Past the limit it stops reading and rejects with {@link PayloadTooLarge}. */
 function readBody(req: IncomingMessage, limit: number): Promise<string> {
   return new Promise((resolve, reject) => {
+    const declared = Number(req.headers["content-length"]);
+    if (Number.isFinite(declared) && declared > limit) {
+      reject(new PayloadTooLarge());
+      return;
+    }
     let size = 0;
     const chunks: Buffer[] = [];
-    req.on("data", (c: Buffer) => {
+    const onData = (c: Buffer): void => {
       size += c.length;
       if (size > limit) {
-        reject(new Error("payload too large"));
-        req.destroy();
+        req.off("data", onData);
+        req.pause();
+        reject(new PayloadTooLarge());
         return;
       }
       chunks.push(c);
-    });
+    };
+    req.on("data", onData);
     req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     req.on("error", reject);
   });
 }
 
 /** Register the frame mirror middleware and HMR channel on a Vite dev server. */
-export function attachFrameStream(server: ViteDevServer, root: string): FrameStream {
+export interface FrameStreamOptions {
+  /** The app's `basePath`: reported in status, and the endpoints also answer under it. */
+  basePath?: string;
+}
+
+export function attachFrameStream(server: ViteDevServer, root: string, options: FrameStreamOptions = {}): FrameStream {
+  const basePath = options.basePath ?? "";
   const sources = new Map<string, Source>();
   const watchers = new Set<ServerResponse>();
   let latest: Source | null = null;
@@ -138,6 +154,7 @@ export function attachFrameStream(server: ViteDevServer, root: string): FrameStr
       watchers: watchers.size,
       grid: f ? { width: f.width, height: f.height } : (latest?.grid ?? null),
       path: latest?.decoder.meta.path ?? latest?.path ?? null,
+      basePath,
     };
   };
 
@@ -216,10 +233,11 @@ export function attachFrameStream(server: ViteDevServer, root: string): FrameStr
   };
 
   server.middlewares.use((req, res, next) => {
-    const pathname = (req.url ?? "/").split("?")[0];
+    let pathname = (req.url ?? "/").split("?")[0] as string;
+    if (basePath && pathname.startsWith(`${basePath}/__textjs/`)) pathname = pathname.slice(basePath.length);
     if (pathname !== FRAMES_PATH && pathname !== INPUT_PATH && pathname !== STATUS_PATH) return next();
     res.setHeader("X-Content-Type-Options", "nosniff");
-    if (!isLoopbackAddress(req.socket.remoteAddress) || !isLoopbackHost(req.headers.host) || !isSameOriginRequest(req) || !isFetchMetadataAllowed(req, pathname as string)) {
+    if (!isLoopbackAddress(req.socket.remoteAddress) || !isLoopbackHost(req.headers.host) || !isSameOriginRequest(req) || !isFetchMetadataAllowed(req, pathname)) {
       return reject(res, 403, "▼ Text.js: the frame mirror only accepts local requests.");
     }
 
@@ -284,7 +302,13 @@ export function attachFrameStream(server: ViteDevServer, root: string): FrameStr
         res.statusCode = 204;
         res.end();
       },
-      () => reject(res, 413, "Payload Too Large"),
+      (error: unknown) => {
+        if (!(error instanceof PayloadTooLarge)) return void req.destroy();
+        // Answer before dropping the connection so the client sees 413 rather than a reset.
+        res.setHeader("Connection", "close");
+        res.once("finish", () => req.destroy());
+        reject(res, 413, "Payload Too Large");
+      },
     );
   });
 

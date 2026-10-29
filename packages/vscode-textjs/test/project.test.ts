@@ -6,6 +6,7 @@ import { devCommand, detectPackageManager, findProjectRoot, isInside, isProjectR
 import { formatStatus } from "../src/status-format";
 import { findTxCodes, txHoverMarkdown, txInfo, txUrl } from "../src/tx-codes";
 import { SseParser } from "../src/sse";
+import { createNonce, previewHtml } from "../src/webview-html";
 
 let dir = "";
 let app = "";
@@ -167,5 +168,20 @@ describe("SseParser", () => {
     expect(p.push(`data: ${"x".repeat(1000)}`)).toEqual([]);
     expect(() => p.push("x".repeat(100))).toThrow(/overflow/);
     expect(p.push("data: ok\n\n")).toEqual([{ event: "message", data: "ok" }]);
+  });
+});
+
+describe("webview document", () => {
+  test("CSP nonce comes from the CSPRNG and the policy locks base and form targets", () => {
+    const nonces = new Set(Array.from({ length: 200 }, () => createNonce()));
+    expect(nonces.size).toBe(200);
+    for (const n of nonces) expect(n).toMatch(/^[A-Za-z0-9_-]{32}$/);
+    const html = previewHtml({ cspSource: "vscode-resource:", scriptUri: "s.js", styleUri: "s.css", nonce: "abc" });
+    const csp = /content="([^"]+)"/.exec(html)?.[1] ?? "";
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).toContain("script-src 'nonce-abc'");
+    expect(csp).toContain("base-uri 'none'");
+    expect(csp).toContain("form-action 'none'");
+    expect(html).toContain('<script nonce="abc" src="s.js">');
   });
 });

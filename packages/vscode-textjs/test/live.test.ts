@@ -13,7 +13,7 @@ import { CellBuffer, extractStyledFrame, type StyledFrame } from "@textjs/core";
 import { FrameEncoder, frameToText } from "@textjs/next/frame-protocol";
 import { startDevServer } from "../../text/src/cli/dev";
 import { DevServerMonitor } from "../src/dev-monitor";
-import { connectFrameStream, discover, loopbackOrigin, postInput, probe } from "../src/dev-server";
+import { appUrl, connectFrameStream, discover, DiscoveryBackoff, loopbackOrigin, postInput, probe } from "../src/dev-server";
 import { HeadlessSession } from "../src/headless";
 
 const REPO = resolve(import.meta.dir, "../../..");
@@ -111,6 +111,65 @@ describe("dev server client", () => {
       await until(() => closed === 1);
       conn.close();
     }
+  });
+
+  test("discovery tries localhost first and backs off ports that aren't this project's dev server", async () => {
+    const { createServer } = await import("node:http");
+    const hits: string[] = [];
+    const other = createServer((req, res) => {
+      hits.push(`other ${req.headers.host}`);
+      res.statusCode = 404;
+      res.end("not text.js");
+    });
+    await new Promise<void>((r) => other.listen(0, "127.0.0.1", () => r()));
+    const otherPort = (other.address() as { port: number }).port;
+    const ours = createServer((req, res) => {
+      hits.push(`ours ${req.headers.host}`);
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ name: "textjs", version: "1", root: dir, clients: 0, sources: 0, watchers: 0, grid: null, path: null }));
+    });
+    // Listening on both stacks: "localhost" answers whichever way it resolves.
+    await new Promise<void>((r) => ours.listen(0, "localhost", () => r()));
+    const ourPort = (ours.address() as { port: number }).port;
+    let now = 1_000;
+    const backoff = new DiscoveryBackoff(5_000, 20_000, () => now);
+    try {
+      const found = await discover([dir], { ports: [ourPort], backoff });
+      expect(found?.url).toBe(`http://localhost:${ourPort}`);
+      expect(hits.filter((h) => h.startsWith("ours"))).toEqual([`ours localhost:${ourPort}`]); // no second probe on 127.0.0.1
+
+      expect(await discover([dir], { ports: [otherPort], backoff })).toBeNull();
+      const first = hits.filter((h) => h.startsWith("other")).length;
+      expect(first).toBeGreaterThanOrEqual(1);
+      // Within the backoff window the foreign server isn't probed again.
+      now += 1_000;
+      expect(await discover([dir], { ports: [otherPort], backoff })).toBeNull();
+      expect(hits.filter((h) => h.startsWith("other")).length).toBe(first);
+      // After it, it is (and the delay doubles).
+      now += 5_000;
+      await discover([dir], { ports: [otherPort], backoff });
+      expect(hits.filter((h) => h.startsWith("other")).length).toBeGreaterThan(first);
+      const second = hits.filter((h) => h.startsWith("other")).length;
+      now += 6_000;
+      await discover([dir], { ports: [otherPort], backoff });
+      expect(hits.filter((h) => h.startsWith("other")).length).toBe(second);
+      backoff.clear();
+      await discover([dir], { ports: [otherPort], backoff });
+      expect(hits.filter((h) => h.startsWith("other")).length).toBeGreaterThan(second);
+    } finally {
+      for (const s of [other, ours]) {
+        s.closeAllConnections();
+        s.close();
+      }
+    }
+  });
+
+  test("appUrl puts routes under the app's basePath", () => {
+    expect(appUrl("http://localhost:3000", "", "/logs")).toBe("http://localhost:3000/logs");
+    expect(appUrl("http://localhost:3000", undefined, "logs")).toBe("http://localhost:3000/logs");
+    expect(appUrl("http://localhost:3000", "/docs", "/logs")).toBe("http://localhost:3000/docs/logs");
+    expect(appUrl("http://localhost:3000/", "/docs", "/")).toBe("http://localhost:3000/docs");
+    expect(appUrl("http://localhost:3000", "", "/")).toBe("http://localhost:3000/");
   });
 
   test("frame stream: focused tab stays active, closed tab falls back, last tab gone clears", async () => {

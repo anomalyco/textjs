@@ -1,10 +1,10 @@
 /** The preview webview document (strict CSP, nonce-gated script). */
 
+import { randomBytes } from "node:crypto";
+
+/** 192 bits from the system CSPRNG, base64url (CSP-safe characters). */
 export function createNonce(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let s = "";
-  for (let i = 0; i < 32; i++) s += chars[Math.floor(Math.random() * chars.length)];
-  return s;
+  return randomBytes(24).toString("base64url");
 }
 
 export interface WebviewHtmlOptions {
@@ -21,6 +21,8 @@ export function previewHtml({ cspSource, scriptUri, styleUri, nonce = createNonc
     `font-src ${cspSource}`,
     `img-src ${cspSource} data:`,
     `script-src 'nonce-${nonce}'`,
+    "base-uri 'none'",
+    "form-action 'none'",
   ].join("; ");
   return `<!doctype html>
 <html lang="en">

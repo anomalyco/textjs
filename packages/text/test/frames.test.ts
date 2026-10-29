@@ -8,7 +8,8 @@ import { CellBuffer, extractStyledFrame } from "@textjs/core";
 import { startDevServer } from "../src/cli/dev";
 import { encodeFullFrame, FrameDecoder, FrameEncoder, FRAMES_PATH, INPUT_PATH, MIRROR_HEADER, STATUS_PATH, frameToText, type DevStatus, type WireFrame } from "../src/frame-protocol";
 import { request as httpRequest } from "node:http";
-import { isFetchMetadataAllowed, isLoopbackAddress, isLoopbackHost, isSameOriginRequest } from "../src/server/frames";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { attachFrameStream, isFetchMetadataAllowed, isLoopbackAddress, isLoopbackHost, isSameOriginRequest } from "../src/server/frames";
 import { isAllowedDevHost } from "../src/vite-plugin";
 
 const REPO = fileURLToPath(new URL("../../..", import.meta.url));
@@ -334,6 +335,48 @@ describe("dev frame mirror", () => {
     again.ws.close();
     await until(async () => (await status()).sources === 0 && (await status()).watchers === 0);
   }, 20_000);
+
+  test("oversized input gets a 413 response, not a reset connection", async () => {
+    const big = JSON.stringify({ type: "paste", text: "x".repeat(200 * 1024) });
+    const headers = { "content-type": "application/json", [MIRROR_HEADER]: "1" };
+    // Declared length over the limit.
+    const declared = await fetch(`${base}${INPUT_PATH}`, { method: "POST", headers, body: big });
+    expect(declared.status).toBe(413);
+    expect(declared.headers.get("connection")).toBe("close");
+    // Chunked (no Content-Length): detected while streaming.
+    const port = new URL(base).port;
+    const chunked = await raw(INPUT_PATH, { method: "POST", headers: { ...headers, host: `localhost:${port}`, "transfer-encoding": "chunked" }, body: big });
+    expect(chunked.status).toBe(413);
+    expect(chunked.body).toBe("Payload Too Large");
+  });
+
+  test("basePath: status reports it and the endpoints also answer under it", async () => {
+    let handler: ((req: IncomingMessage, res: ServerResponse, next: () => void) => void) | null = null;
+    const fakeVite = {
+      ws: { clients: new Set(), on() {}, send() {} },
+      middlewares: { use: (fn: typeof handler) => (handler = fn) },
+    } as unknown as ViteDevServer;
+    const stream = attachFrameStream(fakeVite, "/project", { basePath: "/docs" });
+    const http = createServer((req, res) =>
+      handler!(req, res, () => {
+        res.statusCode = 404;
+        res.end();
+      }),
+    );
+    await new Promise<void>((r) => http.listen(0, "127.0.0.1", () => r()));
+    const origin = `http://127.0.0.1:${(http.address() as { port: number }).port}`;
+    try {
+      const s = (await (await fetch(`${origin}${STATUS_PATH}`)).json()) as DevStatus;
+      expect(s.basePath).toBe("/docs");
+      expect((await fetch(`${origin}/docs${STATUS_PATH}`)).status).toBe(200);
+      expect((await fetch(`${origin}/docsx${STATUS_PATH}`)).status).toBe(404);
+      expect((await fetch(`${origin}/docs/app`)).status).toBe(404);
+    } finally {
+      stream.close();
+      http.closeAllConnections();
+      http.close();
+    }
+  });
 
   test("rejects foreign origins on the stream", async () => {
     const res = await fetch(`${base}${FRAMES_PATH}`, { headers: { origin: "https://evil.example" } });

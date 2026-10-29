@@ -314,7 +314,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
       // `middleware.ts` runs before user middleware, route handlers and pages.
       server.middlewares.use(createDevMiddleware(server, { root, basePath, log }));
       // Editor previews (VS Code): `/__textjs/frames`, `/__textjs/input`, `/__textjs/status`.
-      const frames = attachFrameStream(server, root);
+      const frames = attachFrameStream(server, root, { basePath });
       server.httpServer?.once("close", () => frames.close());
       // Server-rendered routes (`export const runtime = "server"`): live sessions + frame player HTML.
       const live = createLiveDevHandler(server, { root, appDir: appDirName, basePath, title: title(), viewport: options.viewport, live: options.live, logger: log });

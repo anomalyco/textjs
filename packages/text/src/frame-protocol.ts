@@ -84,6 +84,8 @@ export interface DevStatus {
   /** Size of the most recent frame, if any. */
   grid: { width: number; height: number } | null;
   path: string | null;
+  /** The app's `basePath` (`""` when none): app paths are served under it. */
+  basePath?: string;
 }
 
 export type InputMessage =
@@ -330,6 +332,11 @@ export function isAppPath(v: unknown): v is string {
   return typeof v === "string" && v.length <= MAX_PATH && v.startsWith("/") && !v.startsWith("//") && !v.includes("\\");
 }
 
+/** `""` or `/segment[/segment…]` without a trailing slash. */
+export function isBasePath(v: unknown): v is string {
+  return v === "" || (isAppPath(v) && v.length <= 256 && !v.endsWith("/") && !/[?#]/.test(v));
+}
+
 /** Validate untrusted {@link FrameMeta}; returns a copy of the known fields or `null`. */
 export function parseFrameMeta(value: unknown): FrameMeta | null {
   if (!isObj(value)) return null;
@@ -423,5 +430,6 @@ export function parseDevStatus(value: unknown): DevStatus | null {
     watchers: count(value.watchers),
     grid,
     path: isAppPath(value.path) ? value.path : null,
+    basePath: isBasePath(value.basePath) ? value.basePath : "",
   };
 }

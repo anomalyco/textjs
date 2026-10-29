@@ -5,7 +5,7 @@
  */
 
 import type { DevStatus } from "@textjs/next/frame-protocol";
-import { connectFrameStream, discover, probe, type FrameStreamConnection, type LiveFrame } from "./dev-server";
+import { connectFrameStream, discover, DiscoveryBackoff, probe, type FrameStreamConnection, type LiveFrame } from "./dev-server";
 
 export interface MonitorSnapshot {
   url: string | null;
@@ -29,6 +29,7 @@ export class DevServerMonitor {
   private readonly changeListeners = new Set<Listener<MonitorSnapshot>>();
   private readonly frameListeners = new Set<Listener<LiveFrame>>();
   private readonly goneListeners = new Set<Listener<string>>();
+  private readonly backoff = new DiscoveryBackoff();
 
   constructor(private readonly intervalMs = 2500) {}
 
@@ -37,6 +38,7 @@ export class DevServerMonitor {
     this.roots = [...roots];
     this.configuredUrl = url;
     if (changed) {
+      this.backoff.clear();
       this.disconnect();
       this.poke();
     }
@@ -81,8 +83,9 @@ export class DevServerMonitor {
     }
   }
 
-  /** Probe now (after starting a server, or a save). */
+  /** Probe now, every candidate port included (after starting a server, or a save). */
   poke(): void {
+    this.backoff.clear();
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = null;
     void this.tick();
@@ -115,7 +118,7 @@ export class DevServerMonitor {
         else this.setStatus(null, null);
       }
       if (!this.url && (this.roots.length > 0 || this.configuredUrl)) {
-        const found = await discover(this.roots, { url: this.configuredUrl || undefined });
+        const found = await discover(this.roots, { url: this.configuredUrl || undefined, backoff: this.backoff });
         if (found) this.setStatus(found.url, found.status);
       }
       if (this.url && this.wantFrames) this.ensureStream();

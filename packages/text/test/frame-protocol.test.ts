@@ -143,7 +143,7 @@ describe("frame protocol", () => {
   });
 
   test("parseDevStatus validates status documents", () => {
-    const ok = { name: "textjs", version: "1.0.0", root: "/app", clients: 1, sources: 1, watchers: 0, grid: { width: 90, height: 30 }, path: "/logs" };
+    const ok = { name: "textjs", version: "1.0.0", root: "/app", clients: 1, sources: 1, watchers: 0, grid: { width: 90, height: 30 }, path: "/logs", basePath: "/docs" };
     expect(parseDevStatus(ok)).toEqual(ok);
     expect(parseDevStatus({ ...ok, path: { evil: 1 } })?.path).toBeNull();
     expect(parseDevStatus({ ...ok, path: "//evil.example" })?.path).toBeNull();
@@ -151,6 +151,9 @@ describe("frame protocol", () => {
     expect(parseDevStatus({ ...ok, sources: "9" })?.sources).toBe(0);
     expect(parseDevStatus({ ...ok, name: "other" })).toBeNull();
     expect(parseDevStatus({ ...ok, root: 1 })).toBeNull();
+    // basePath: older servers omit it; malformed values are dropped.
+    expect(parseDevStatus({ ...ok, basePath: undefined })?.basePath).toBe("");
+    for (const bad of ["docs", "/docs/", "//evil.example", "/a?b", 7]) expect(parseDevStatus({ ...ok, basePath: bad })?.basePath).toBe("");
   });
 
   test("parseInputMessage validates and normalizes untrusted input", () => {

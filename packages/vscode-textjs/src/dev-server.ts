@@ -71,14 +71,63 @@ function get(url: string, timeoutMs: number): Promise<{ status: number; body: st
   });
 }
 
+/** The browser URL of `route` (an app path) on the dev server at `origin`, under the app's `basePath`. */
+export function appUrl(origin: string, basePath: string | undefined, route: string): string {
+  const path = route.startsWith("/") ? route : `/${route}`;
+  const base = basePath && basePath !== "/" ? basePath.replace(/\/$/, "") : "";
+  return `${origin.replace(/\/$/, "")}${base}${base && path === "/" ? "" : path}`;
+}
+
+export type ProbeResult = { kind: "down" } | { kind: "other" } | { kind: "textjs"; status: DevStatus };
+
+/** What answers at `baseUrl`: nothing, something that isn't `text dev`, or a `text dev` server. */
+export async function probeDetailed(baseUrl: string, timeoutMs = 600): Promise<ProbeResult> {
+  const res = await get(`${baseUrl.replace(/\/$/, "")}${STATUS_PATH}`, timeoutMs);
+  if (!res) return { kind: "down" };
+  if (res.status !== 200) return { kind: "other" };
+  try {
+    const status = parseDevStatus(JSON.parse(res.body));
+    return status ? { kind: "textjs", status } : { kind: "other" };
+  } catch {
+    return { kind: "other" };
+  }
+}
+
 /** Fetch `/__textjs/status`, or `null` when nothing (or something else) answers. */
 export async function probe(baseUrl: string, timeoutMs = 600): Promise<DevStatus | null> {
-  const res = await get(`${baseUrl.replace(/\/$/, "")}${STATUS_PATH}`, timeoutMs);
-  if (!res || res.status !== 200) return null;
-  try {
-    return parseDevStatus(JSON.parse(res.body));
-  } catch {
-    return null;
+  const r = await probeDetailed(baseUrl, timeoutMs);
+  return r.kind === "textjs" ? r.status : null;
+}
+
+/**
+ * Exponential backoff for discovery URLs that answer but aren't this
+ * project's `text dev` (another app on :3000, another project's server), so
+ * idle polling doesn't keep hitting them. Closed ports are cheap and always
+ * re-probed, so a server that just started is found on the next tick.
+ */
+export class DiscoveryBackoff {
+  private readonly entries = new Map<string, { until: number; delay: number }>();
+
+  constructor(
+    private readonly baseMs = 5_000,
+    private readonly maxMs = 20_000,
+    private readonly now: () => number = Date.now,
+  ) {}
+
+  skip(url: string): boolean {
+    const e = this.entries.get(url);
+    return e !== undefined && e.until > this.now();
+  }
+  miss(url: string): void {
+    const prev = this.entries.get(url);
+    const delay = prev ? Math.min(prev.delay * 2, this.maxMs) : this.baseMs;
+    this.entries.set(url, { until: this.now() + delay, delay });
+  }
+  hit(url: string): void {
+    this.entries.delete(url);
+  }
+  clear(): void {
+    this.entries.clear();
   }
 }
 
@@ -100,26 +149,41 @@ export interface Discovered {
 }
 
 /** Find a `text dev` server for one of `roots` (or exactly `url` when configured). */
-export async function discover(roots: readonly string[], options: { url?: string; ports?: readonly number[]; host?: string } = {}): Promise<Discovered | null> {
+export interface DiscoverOptions {
+  url?: string;
+  ports?: readonly number[];
+  host?: string;
+  backoff?: DiscoveryBackoff;
+}
+
+export async function discover(roots: readonly string[], options: DiscoverOptions = {}): Promise<Discovered | null> {
   if (options.url) {
     const url = loopbackOrigin(options.url);
     if (!url) return null;
     const status = await probe(url);
     return status ? { url, status } : null;
   }
-  // `localhost` can resolve to ::1 while Vite listens on 127.0.0.1 (or another process owns ::1), so try both.
+  // `localhost` first; it can resolve to ::1 while Vite listens on 127.0.0.1 (or another process owns ::1), so fall back to 127.0.0.1.
   const hosts = options.host ? [options.host] : ["localhost", "127.0.0.1"];
+  const backoff = options.backoff;
+  const ours = (s: DevStatus): boolean => roots.some((r) => sameRoot(r, s.root));
   const found = await Promise.all(
-    (options.ports ?? DEFAULT_PORTS).flatMap((port) =>
-      hosts.map(async (host) => {
+    (options.ports ?? DEFAULT_PORTS).map(async (port): Promise<Discovered | null> => {
+      for (const host of hosts) {
         const url = `http://${host}:${port}`;
-        const status = await probe(url);
-        return status ? { url, status } : null;
-      }),
-    ),
+        if (backoff?.skip(url)) continue;
+        const r = await probeDetailed(url);
+        if (r.kind === "textjs" && ours(r.status)) {
+          backoff?.hit(url);
+          return { url, status: r.status };
+        }
+        if (r.kind === "down") backoff?.hit(url);
+        else backoff?.miss(url);
+      }
+      return null;
+    }),
   );
-  const hits = found.filter((d): d is Discovered => d !== null);
-  return hits.find((d) => roots.some((r) => sameRoot(r, d.status.root))) ?? null;
+  return found.find((d): d is Discovered => d !== null) ?? null;
 }
 
 export async function postInput(baseUrl: string, msg: InputMessage, source?: string): Promise<boolean> {

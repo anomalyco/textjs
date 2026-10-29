@@ -7,7 +7,7 @@ import * as vscode from "vscode";
 import { existsSync, readdirSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { DevServerMonitor } from "./dev-monitor";
-import { loopbackOrigin } from "./dev-server";
+import { appUrl, loopbackOrigin } from "./dev-server";
 import { PreviewController } from "./preview";
 import { devCommand, isProjectRoot, usesTypeScript } from "./project";
 import { parseRouteInput, scaffold, scaffoldConflict, SCAFFOLD_LABELS, type ScaffoldKind } from "./scaffold";
@@ -353,7 +353,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Textjs
         const target = file ? previewTargetInWorkspace(file) : null;
         route = target?.kind === "route" ? target.path : "/";
       }
-      await vscode.env.openExternal(vscode.Uri.parse(`${url}${route.startsWith("/") ? route : `/${route}`}`));
+      await vscode.env.openExternal(vscode.Uri.parse(appUrl(url, monitor.snapshot().status?.basePath, route)));
       const keys = process.platform === "darwin" ? "⌥⌘J" : "Ctrl+Shift+J";
       vscode.window.setStatusBarMessage(`$(triangle-down) Opened ${route} — press ${keys} in the browser to open the console`, 6000);
     }),
