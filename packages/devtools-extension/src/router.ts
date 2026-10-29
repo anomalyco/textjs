@@ -44,7 +44,8 @@ export function sanitizeRequest(raw: Record<string, unknown>): RequestMessage | 
 /** Whether a port or message came from one of this extension's own pages at `path`. */
 export function fromExtensionPage(runtime: RouterRuntime, sender: chrome.runtime.MessageSender | undefined, path: string): boolean {
   const s = sender;
-  if (!s || s.id !== runtime.id || typeof s.url !== "string" || s.tab !== undefined) return false;
+  // Content scripts share our extension id but report the web page's URL, so the URL check excludes them.
+  if (!s || s.id !== runtime.id || typeof s.url !== "string") return false;
   const base = runtime.getURL(path);
   return s.url === base || s.url.startsWith(`${base}?`) || s.url.startsWith(`${base}#`);
 }

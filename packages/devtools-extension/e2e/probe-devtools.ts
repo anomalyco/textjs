@@ -6,24 +6,16 @@
  */
 
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { build } from "../scripts/build";
+import { requireChromium } from "../scripts/chromium";
 
 const ROOT = resolve(import.meta.dir, "..");
 const REPO = resolve(ROOT, "../..");
 const headed = process.argv.includes("--headed");
 const shots = process.argv.includes("--shots");
-
-function findChromium(): string {
-  const cache = join(homedir(), "Library/Caches/ms-playwright");
-  for (const d of readdirSync(cache).filter((d) => /^chromium-\d+$/.test(d)).sort().reverse()) {
-    const p = join(cache, d, "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing");
-    if (existsSync(p)) return p;
-  }
-  throw new Error("Chromium not found");
-}
 
 const { dist } = await build({ zip: false, introspect: true });
 const port = 9300 + Math.floor(Math.random() * 500);
@@ -34,7 +26,7 @@ const profile = mkdtempSync(join(tmpdir(), "textjs-devtools-probe-"));
 mkdirSync(join(profile, "Default"), { recursive: true });
 writeFileSync(join(profile, "Default/Preferences"), JSON.stringify({ devtools: { preferences: { currentDockState: '"bottom"' } } }));
 const chrome = spawn(
-  findChromium(),
+  requireChromium(),
   [
     ...(headed ? [] : ["--headless=new"]),
     `--remote-debugging-port=${port}`,
@@ -116,7 +108,7 @@ try {
   const clicked = await poll(async () => (await evaluate(frontend.webSocketDebuggerUrl!, CLICK_TAB)) === true);
   if (!clicked) {
     const dt = (await targets()).find((t) => t.url.endsWith("/devtools.html"));
-    if (dt?.webSocketDebuggerUrl) console.log("  detect:", await evaluate(dt.webSocketDebuggerUrl, `new Promise(r => chrome.devtools.inspectedWindow.eval(${JSON.stringify("!!(window.__TEXTJS_DEVTOOLS_HOOK__ && window.__TEXTJS_DEVTOOLS_HOOK__.roots.size > 0)")}, (v, e) => r(JSON.stringify([v, e]))))`));
+    if (dt?.webSocketDebuggerUrl) console.log("  detect:", await evaluate(dt.webSocketDebuggerUrl, `chrome.runtime.sendMessage({ kind: "detect", tabId: chrome.devtools.inspectedWindow.tabId }).then((r) => JSON.stringify(r), (e) => String(e))`));
     console.log("  tabs:", await evaluate(frontend.webSocketDebuggerUrl!, `(() => { const out = []; const walk = (r) => { for (const el of r.querySelectorAll("*")) { if (el.getAttribute("role") === "tab") out.push(el.textContent.trim()); if (el.shadowRoot) walk(el.shadowRoot); } }; walk(document); return out.join(" | "); })()`));
     throw new Error("Text.js panel tab never appeared");
   }

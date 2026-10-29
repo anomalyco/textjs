@@ -3,8 +3,7 @@
   "compilerOptions": {
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["bun"],
-    "paths": { "playwright-core": ["../../bench/devtools/node_modules/playwright-core"] }
+    "types": ["bun"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "test/**/*.ts", "e2e/**/*.ts", "harness/**/*.tsx"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "test/**/*.ts", "test/**/*.tsx", "e2e/**/*.ts", "harness/**/*.tsx"]
 }

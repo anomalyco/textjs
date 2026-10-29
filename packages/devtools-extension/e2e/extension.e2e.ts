@@ -11,33 +11,18 @@
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { chromium } from "playwright-core";
 import { build } from "../scripts/build";
+import { resolveChromium } from "../scripts/chromium";
 
 const ROOT = resolve(import.meta.dir, "..");
 const REPO = resolve(ROOT, "../..");
 const headed = process.argv.includes("--headed");
 const record = process.argv.includes("--record");
-
-const { chromium } = (await import(join(REPO, "bench/devtools/node_modules/playwright-core/index.mjs"))) as typeof import("playwright-core");
-
-function findChromium(): string | undefined {
-  const cache = join(homedir(), "Library/Caches/ms-playwright");
-  if (!existsSync(cache)) return undefined;
-  const dirs = readdirSync(cache)
-    .filter((d) => /^chromium-\d+$/.test(d))
-    .sort((a, b) => Number(b.slice(9)) - Number(a.slice(9)));
-  for (const d of dirs) {
-    for (const arch of ["chrome-mac-arm64", "chrome-mac"]) {
-      const p = join(cache, d, arch, "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing");
-      if (existsSync(p)) return p;
-    }
-  }
-  return undefined;
-}
 
 function freePort(): Promise<number> {
   return new Promise((res, rej) => {
@@ -88,7 +73,7 @@ try {
   await waitFor("dev server", async () => (await fetch(url)).ok, 30_000);
 
   context = await chromium.launchPersistentContext(userDataDir, {
-    executablePath: findChromium(),
+    executablePath: resolveChromium(),
     headless: !headed,
     viewport: { width: 1280, height: 800 },
     args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`, "--no-first-run"],
@@ -174,6 +159,22 @@ try {
   await panel.locator('.popover input').nth(1).fill("28");
   await panel.locator('.popover button[type="submit"]').click();
   check("resize pins the grid", await waitFor("resize", () => page.evaluate(() => (globalThis as any).text.stats().cols === 90 && (globalThis as any).text.stats().rows === 28)));
+  // Controls on a paused root repaint the buffer (no console output) instead of leaving it blank.
+  await panel.evaluate(() => (globalThis as any).__textjsPanel.togglePause());
+  await waitFor("paused", () => page.evaluate(() => (globalThis as any).text.renderer.paused === true));
+  await panel.evaluate(() => (globalThis as any).__textjsPanel.resize(84, 26));
+  const pausedText = await waitFor("paused resize", () =>
+    page.evaluate(() => {
+      const t = (globalThis as any).text;
+      return t.stats().cols === 84 ? (t.renderer.buffer.toPlainString(true) as string) : null;
+    }),
+  );
+  check("resize while paused repaints the frozen buffer", pausedText.trim().length > 0);
+  await panel.evaluate(() => (globalThis as any).__textjsPanel.togglePause());
+  await waitFor("resumed", () => page.evaluate(() => (globalThis as any).text.renderer.paused === false));
+  await panel.evaluate(() => (globalThis as any).__textjsPanel.resize(90, 28));
+  await waitFor("resize back", () => page.evaluate(() => (globalThis as any).text.stats().cols === 90));
+
   await panel.locator('button[aria-label="Copy frame"]').click();
   await panel.locator('.toast:has-text("Copied")').waitFor();
   check("copy frame", true);
@@ -213,7 +214,17 @@ try {
     console.log("  · wrote harness/fixture.json");
   }
 
-  // 9. Closing the panel detaches: the page stops streaming.
+  // 9. DevTools hiding the panel (onHidden → visibility event) detaches; showing re-attaches.
+  const setVisible = (visible: boolean) =>
+    panel.evaluate((v) => window.dispatchEvent(new CustomEvent("textjs-devtools-visibility", { detail: v })), visible);
+  await setVisible(false);
+  check("hiding the panel deactivates the hook", await waitFor("hidden detach", () => page.evaluate(() => (globalThis as any).__TEXTJS_DEVTOOLS_HOOK__.active === false)));
+  check("hidden panel leaves the worker unpaired", await waitFor("unpaired", async () => ((await sw.evaluate(() => (globalThis as any).__textjsDevtools.panels())) as number[]).length === 0));
+  await setVisible(true);
+  check("showing the panel re-attaches", await waitFor("shown attach", () => page.evaluate(() => (globalThis as any).__TEXTJS_DEVTOOLS_HOOK__.active === true)));
+  await waitFor("roots after show", () => panel.evaluate(() => (globalThis as any).__textjsPanel.get().roots.length > 0));
+
+  // 10. Closing the panel detaches: the page stops streaming.
   await panel.close();
   check("closing the panel deactivates the hook", await waitFor("detach", () => page.evaluate(() => (globalThis as any).__TEXTJS_DEVTOOLS_HOOK__.active === false)));
 

@@ -68,7 +68,7 @@ describe("service worker router", () => {
 
   test("accepts the panel URL with a query string (panel opened as a tab in tests)", () => {
     const { router, panel } = setup();
-    const p = panel({ url: `${PANEL_URL}?tabId=3` });
+    const p = panel({ url: `${PANEL_URL}?tabId=3`, tab: { id: 9, url: `${PANEL_URL}?tabId=3` } });
     p.postMessage({ kind: "init", tabId: 3 });
     expect(router.panels()).toEqual([3]);
   });
@@ -186,7 +186,6 @@ describe("service worker: DevTools detection", () => {
     content(7);
     const q = { kind: "detect", tabId: 7 };
     expect(runtime.message(q, { id: EXTENSION_ID, url: "https://app.test/", tab: { id: 7 } })).toBeUndefined();
-    expect(runtime.message(q, { id: EXTENSION_ID, url: DEVTOOLS_URL, tab: { id: 7 } })).toBeUndefined();
     expect(runtime.message(q, { id: "someotherextensionidxxxxxxxxxxxx", url: DEVTOOLS_URL })).toBeUndefined();
     expect(runtime.message(q, { id: EXTENSION_ID, url: PANEL_URL })).toBeUndefined();
     expect(runtime.message({ kind: "detect", tabId: 0 }, { id: EXTENSION_ID, url: DEVTOOLS_URL })).toBeUndefined();
