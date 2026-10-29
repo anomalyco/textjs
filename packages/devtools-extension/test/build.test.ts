@@ -36,6 +36,8 @@ describe("extension build", () => {
       expect(code).not.toMatch(/<script[^>]+src=["']https?:/);
     }
     for (const f of ["panel.html", "devtools.html"]) expect(readFileSync(join(dist, f), "utf8")).not.toMatch(/https?:\/\//);
+    // Test-only introspection globals are compiled out of release builds.
+    expect(readFileSync(join(dist, "background.js"), "utf8")).not.toContain("__textjsDevtools");
     // The page-world script carries only the hook and bridge.
     expect(readFileSync(join(dist, "page.js")).length).toBeLessThan(8_000);
     expect(readFileSync(join(dist, "page.js"), "utf8")).not.toContain("react");

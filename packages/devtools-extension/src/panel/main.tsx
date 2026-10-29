@@ -1,15 +1,29 @@
 import { createRoot } from "react-dom/client";
+import { isTabId } from "../protocol";
 import { App } from "./App";
 import { PanelStore } from "./store";
 import { ExtensionTransport } from "./transport";
 
-function inspectedTabId(): number {
+function inspectedTabId(): number | null {
   const fromDevtools = typeof chrome !== "undefined" ? chrome.devtools?.inspectedWindow?.tabId : undefined;
-  if (typeof fromDevtools === "number") return fromDevtools;
+  if (isTabId(fromDevtools)) return fromDevtools;
   // Opened outside DevTools (end-to-end tests): `panel.html?tabId=N`.
-  return Number(new URLSearchParams(location.search).get("tabId"));
+  const fromQuery = Number(new URLSearchParams(location.search).get("tabId"));
+  return isTabId(fromQuery) ? fromQuery : null;
 }
 
-const store = new PanelStore(new ExtensionTransport(inspectedTabId()));
-(globalThis as Record<string, unknown>).__textjsPanel = store;
-createRoot(document.getElementById("root")!).render(<App store={store} />);
+const tabId = inspectedTabId();
+const root = createRoot(document.getElementById("root")!);
+if (tabId === null) {
+  root.render(
+    <div className="empty">
+      <div className="empty-mark">▼</div>
+      <p className="empty-title">No inspected tab</p>
+      <p className="empty-body">Open this panel from Chrome DevTools.</p>
+    </div>,
+  );
+} else {
+  const store = new PanelStore(new ExtensionTransport(tabId));
+  (globalThis as Record<string, unknown>).__textjsPanel = store;
+  root.render(<App store={store} />);
+}

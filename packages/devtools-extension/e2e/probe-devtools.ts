@@ -25,7 +25,7 @@ function findChromium(): string {
   throw new Error("Chromium not found");
 }
 
-const { dist } = await build({ zip: false });
+const { dist } = await build({ zip: false, introspect: true });
 const port = 9300 + Math.floor(Math.random() * 500);
 const devPort = 4400 + Math.floor(Math.random() * 500);
 const server = spawn("bun", [join(REPO, "packages/text/bin/text.ts"), "dev", "--port", String(devPort)], { cwd: join(REPO, "examples/dashboard"), stdio: "ignore" });

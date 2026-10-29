@@ -23,6 +23,9 @@ export const CONTENT_SOURCE = "textjs-devtools-content";
 export const CONTENT_PORT = "textjs-content";
 export const PANEL_PORT = "textjs-panel";
 
+/** Chrome tab ids are positive integers (`TAB_ID_NONE` is -1). */
+export const isTabId = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v > 0;
+
 export interface RequestMap {
   roots: { args: []; result: DevToolsRootInfo[] };
   tree: { args: []; result: DevToolsTreeSnapshot };

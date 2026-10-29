@@ -78,7 +78,7 @@ let context: Awaited<ReturnType<typeof chromium.launchPersistentContext>> | null
 if (record) mkdirSync(join(ROOT, "harness/shots"), { recursive: true });
 
 try {
-  const { dist } = await build({ zip: false });
+  const { dist } = await build({ zip: false, introspect: true });
   const port = await freePort();
   server = spawn("bun", [join(REPO, "packages/text/bin/text.ts"), "dev", "--port", String(port)], {
     cwd: join(REPO, "examples/dashboard"),

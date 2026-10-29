@@ -30,7 +30,12 @@ function listFiles(dir: string): string[] {
   });
 }
 
-export async function build(options: { dev?: boolean; zip?: boolean } = {}): Promise<{ dist: string; zip: string | null; version: string }> {
+/**
+ * `introspect` exposes `__textjsDevtools` (service worker) and `__textjsPanel`
+ * (panel) for the end-to-end tests. Dev builds have it; release builds never do.
+ */
+export async function build(options: { dev?: boolean; zip?: boolean; introspect?: boolean } = {}): Promise<{ dist: string; zip: string | null; version: string }> {
+  const introspect = options.introspect ?? options.dev ?? false;
   const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { version: string };
   rmSync(DIST, { recursive: true, force: true });
   mkdirSync(join(DIST, "icons"), { recursive: true });
@@ -43,7 +48,10 @@ export async function build(options: { dev?: boolean; zip?: boolean } = {}): Pro
         format: "iife",
         minify: !options.dev,
         sourcemap: "none",
-        define: { "process.env.NODE_ENV": JSON.stringify(options.dev ? "development" : "production") },
+        define: {
+          "process.env.NODE_ENV": JSON.stringify(options.dev ? "development" : "production"),
+          "process.env.TEXTJS_DEVTOOLS_INTROSPECT": JSON.stringify(introspect ? "1" : ""),
+        },
       });
       if (!result.success) throw new AggregateError(result.logs, `build failed: ${entry}`);
       writeFileSync(join(DIST, out), await result.outputs[0]!.text());
