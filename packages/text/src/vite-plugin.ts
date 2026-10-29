@@ -169,7 +169,7 @@ function findUp(start: string, rel: string): string | null {
   }
 }
 
-const OPTIMIZE = ["react", "react/jsx-runtime", "react/jsx-dev-runtime", "react-dom", "react-dom/client", "react-reconciler", "react-reconciler/constants", "scheduler", "yoga-layout/load"];
+const OPTIMIZE = ["react", "react/jsx-runtime", "react/jsx-dev-runtime", "react-dom", "react-dom/client", "react-reconciler", "react-reconciler/constants.js", "scheduler", "yoga-layout/load"];
 
 function toViteProxy(proxy: TextConfig["proxy"]): Record<string, string | ProxyOptions> | undefined {
   if (!proxy) return undefined;

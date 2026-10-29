@@ -33,6 +33,7 @@
     "./server/jsx-dev-runtime": "./src/server/jsx-dev-runtime.ts",
     "./mcp": "./src/mcp/index.ts",
     "./frame-protocol": "./src/frame-protocol.ts",
+    "./cli": "./src/cli/index.ts",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -59,12 +60,13 @@
       "./server/jsx-dev-runtime": { "types": "./dist/server/jsx-dev-runtime.d.ts", "default": "./dist/server/jsx-dev-runtime.js" },
       "./mcp": { "types": "./dist/mcp/index.d.ts", "default": "./dist/mcp/index.js" },
       "./frame-protocol": { "types": "./dist/frame-protocol.d.ts", "default": "./dist/frame-protocol.js" },
+      "./cli": { "types": "./dist/cli/index.d.ts", "default": "./dist/cli/index.js" },
       "./package.json": "./package.json"
     }
   },
   "files": ["bin", "dist", "src"],
   "scripts": {
-    "build": "tsc -b tsconfig.json && bun ../../scripts/build-bin.ts bin/text.ts dist/bin/text.js",
+    "build": "tsc -b tsconfig.json && bun ../../scripts/esm-specifiers.ts ../core/dist ../react/dist dist",
     "typecheck": "tsc -p tsconfig.typecheck.json",
     "test": "bun test"
   },

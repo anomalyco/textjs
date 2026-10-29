@@ -11,7 +11,8 @@
  * these modules never ship to the frame player.
  */
 
-import { createContext, createElement, use, useContext, type ComponentType, type ReactNode } from "react";
+import { createElement, use, useContext, type ComponentType, type ReactNode } from "react";
+import { sharedContext } from "@textjs/react";
 import { RouterContext } from "../context";
 
 type AnyComponent = (props: any) => unknown;
@@ -104,8 +105,7 @@ export function stableKey(value: unknown, cache: ServerComponentCache, depth: nu
   return `{${keys.map((k) => `${JSON.stringify(k)}:${stableKey(obj[k], cache, depth + 1)}`).join(",")}}`;
 }
 
-export const ServerComponentCacheContext = createContext<ServerComponentCache | null>(null);
-ServerComponentCacheContext.displayName = "TextServerComponentCache";
+export const ServerComponentCacheContext = sharedContext<ServerComponentCache | null>("serverComponentCache", null, "TextServerComponentCache");
 
 /** Used when an async component renders outside a live session (tests, `text run`). */
 const fallbackCache = new ServerComponentCache();

@@ -284,10 +284,13 @@ text run ./my-app
   },
   TX019: {
     package: "@textjs/next",
-    title: "text run requires Bun",
-    cause: `\`text run\` imports your \`.tsx\` route files directly, which needs Bun's native TypeScript loader. It was started with Node.`,
-    fix: `~~~bash
-bunx text run
+    title: "text run / text mcp require Bun",
+    cause: `\`text run\` and \`text mcp\` import your \`.tsx\` route files directly, which needs Bun's native TypeScript loader. Started with Node, the CLI re-runs itself with Bun when \`bun\` is on the \`PATH\`; this error means it is not.`,
+    fix: `Install [Bun](https://bun.sh), or run the command with Bun directly:
+
+~~~bash
+bunx --bun text run
+bunx --bun text mcp
 ~~~
 
 \`text dev\`, \`text build\` and \`text start\` work on Node.`,
@@ -295,7 +298,7 @@ bunx text run
   TX020: {
     package: "@textjs/next",
     title: "Unknown CLI command",
-    cause: `The \`text\` CLI has five commands: \`dev\`, \`build\`, \`start\`, \`run\` and \`proxy\`.`,
+    cause: `The \`text\` CLI has six commands: \`dev\`, \`build\`, \`start\`, \`run\`, \`proxy\` and \`mcp\`.`,
     fix: `~~~bash
 text --help
 ~~~`,

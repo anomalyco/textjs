@@ -58,7 +58,7 @@ export {
   type WheelEvent,
   type EventControl,
 } from "./input-manager";
-export { useRuntime, createScope, ScopeContext, ROOT_SCOPE, type RootRuntime, type Scope } from "./context";
+export { useRuntime, createScope, ScopeContext, ROOT_SCOPE, shared, sharedContext, type RootRuntime, type Scope } from "./context";
 export type { ConsoleStats, ViewportState } from "./stores";
 export * from "./components/index";
 export { tokenize, normalizeLanguage, type Token, type TokenKind } from "./highlight";

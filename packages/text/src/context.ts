@@ -1,5 +1,5 @@
-import { createContext, useContext } from "react";
-import type { TextTheme, ThemeName } from "@textjs/react";
+import { useContext } from "react";
+import { sharedContext, type TextTheme, type ThemeName } from "@textjs/react";
 import { txError } from "@textjs/core";
 import type { RouterHistory, RouterLocation } from "./history";
 import type { ResolvedMetadata, RouteManifest, RouteMatch } from "./routing";
@@ -31,8 +31,7 @@ export interface RouterState {
   refreshKey: number;
 }
 
-export const RouterContext = createContext<RouterState | null>(null);
-RouterContext.displayName = "TextRouterContext";
+export const RouterContext = sharedContext<RouterState | null>("routerContext", null, "TextRouterContext");
 
 export function useRouterState(): RouterState {
   const state = useContext(RouterContext);
@@ -56,8 +55,7 @@ export interface AppShellState {
   setWireframe(enabled: boolean): void;
 }
 
-export const AppShellContext = createContext<AppShellState | null>(null);
-AppShellContext.displayName = "TextAppShellContext";
+export const AppShellContext = sharedContext<AppShellState | null>("appShellContext", null, "TextAppShellContext");
 
 /** Theme preset controls for the running app. */
 export function useAppTheme(): AppShellState {

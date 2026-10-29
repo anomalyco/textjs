@@ -7,7 +7,7 @@
  */
 
 import createReconciler from "react-reconciler";
-import { ConcurrentRoot, ContinuousEventPriority, DefaultEventPriority, DiscreteEventPriority, NoEventPriority } from "react-reconciler/constants";
+import { ConcurrentRoot, ContinuousEventPriority, DefaultEventPriority, DiscreteEventPriority, NoEventPriority } from "react-reconciler/constants.js";
 import { createContext } from "react";
 import { createNode, createRawText, txError, type SceneNode, type SceneNodeProps } from "@textjs/core";
 

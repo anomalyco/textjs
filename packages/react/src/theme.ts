@@ -1,5 +1,6 @@
-import { createContext, createElement, useContext, useMemo, type ReactNode } from "react";
+import { createElement, useContext, useMemo, type ReactNode } from "react";
 import type { ColorInput } from "@textjs/core";
+import { sharedContext } from "./context";
 
 export interface SyntaxPalette {
   keyword: string;
@@ -316,8 +317,7 @@ export function resolveColor(theme: TextTheme, color: ColorInput): ColorInput {
   return themeToken(theme, color) ?? color;
 }
 
-const ThemeContext = createContext<TextTheme>(defaultTheme);
-ThemeContext.displayName = "TextThemeContext";
+const ThemeContext = sharedContext<TextTheme>("themeContext", defaultTheme, "TextThemeContext");
 
 export interface ThemeProviderProps {
   theme: TextTheme | ThemeName;

@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, type Context } from "react";
 import { txError, type ConsoleRenderer, type InputEngine, type SceneNode } from "@textjs/core";
 import type { ConsoleContainer } from "./reconciler";
 import type { FocusManager } from "./focus";
@@ -12,16 +12,38 @@ export interface Scope {
   readonly trap: boolean;
 }
 
-export const ROOT_SCOPE: Scope = Object.freeze({ id: 0, parent: null, trap: false });
-
-let nextScopeId = 1;
-
-export function createScope(parent: Scope, trap: boolean): Scope {
-  return Object.freeze({ id: nextScopeId++, parent, trap });
+/**
+ * One instance per realm, keyed on `globalThis` by `Symbol.for(key)`. Contexts
+ * are identity-compared, so a second copy of a Text.js module (a bundled CLI,
+ * mixed `src`/`dist` resolution) must reuse the first copy's context instead
+ * of creating one its providers never reach.
+ * @internal
+ */
+export function shared<T>(key: string, create: () => T): T {
+  const slot = Symbol.for(`textjs.${key}`);
+  const g = globalThis as Record<symbol, unknown>;
+  if (!(slot in g)) g[slot] = create();
+  return g[slot] as T;
 }
 
-export const ScopeContext = createContext<Scope>(ROOT_SCOPE);
-ScopeContext.displayName = "TextScopeContext";
+/** {@link shared} for React contexts. @internal */
+export function sharedContext<T>(key: string, defaultValue: T, displayName: string): Context<T> {
+  return shared(key, () => {
+    const ctx = createContext<T>(defaultValue);
+    ctx.displayName = displayName;
+    return ctx;
+  });
+}
+
+export const ROOT_SCOPE: Scope = shared("rootScope", () => Object.freeze({ id: 0, parent: null, trap: false }));
+
+const scopeIds = shared("scopeIds", () => ({ next: 1 }));
+
+export function createScope(parent: Scope, trap: boolean): Scope {
+  return Object.freeze({ id: scopeIds.next++, parent, trap });
+}
+
+export const ScopeContext = sharedContext<Scope>("scopeContext", ROOT_SCOPE, "TextScopeContext");
 
 /** Everything hooks need from the mounted console root. */
 export interface RootRuntime {
@@ -36,8 +58,7 @@ export interface RootRuntime {
   exit(error?: unknown): void;
 }
 
-export const RuntimeContext = createContext<RootRuntime | null>(null);
-RuntimeContext.displayName = "TextRuntimeContext";
+export const RuntimeContext = sharedContext<RootRuntime | null>("runtimeContext", null, "TextRuntimeContext");
 
 export function useRuntime(): RootRuntime {
   const rt = useContext(RuntimeContext);

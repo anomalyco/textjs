@@ -29,7 +29,7 @@ export const TX_MESSAGES = {
   TX016: "No response is returned from route handler for %s %s. Ensure you return a `Response`.",
   TX017: "Could not find a production build in the '%s' directory. Try building your app with 'text build' before starting the production server.",
   TX018: "No app/ directory found in %s.",
-  TX019: "`text run` requires Bun (route files are imported as TypeScript).",
+  TX019: "`text %s` requires Bun (route files are imported as TypeScript). Install Bun (https://bun.sh) or run `bunx --bun text %s`.",
   TX020: "Unknown command %s.",
   TX021: "Use an HTTP(S) server origin without credentials for --target or OPENCODE_SERVER_URL.",
   TX022: "The OpenCode server already uses port %s. Pick another with --port.",

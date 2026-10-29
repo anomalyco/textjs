@@ -1,9 +1,8 @@
+// Command modules (Vite, the dev server, the MCP server) load lazily: `text mcp`
+// must own stdout before any third-party module runs.
+import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { txError, txMessage, VERSION } from "@textjs/core";
-import { buildApp } from "./build";
-import { startDevServer } from "./dev";
-import { DEFAULT_PROXY_PORT, startProxy } from "./proxy";
-import { startProductionServer } from "./start";
 import { brand, color, fail } from "./ui";
 
 export interface ParsedArgs {
@@ -78,11 +77,45 @@ Options:
   -h, --help          Show this help
 `;
 
+/** Commands that import route files as TypeScript and so need Bun. */
+const BUN_COMMANDS = new Set(["run", "mcp"]);
+const REEXEC_ENV = "TEXTJS_REEXEC_BUN";
+
+/**
+ * Re-run this CLI under Bun (same script and arguments, inherited stdio,
+ * forwarded signals). Resolves with the child's exit code, or `null` when
+ * Bun is not installed.
+ */
+export function reexecUnderBun(argv: readonly string[], script = process.argv[1]): Promise<number | null> {
+  if (!script || process.env[REEXEC_ENV]) return Promise.resolve(null);
+  return new Promise((done) => {
+    const child = spawn("bun", [script, ...argv], { stdio: "inherit", env: { ...process.env, [REEXEC_ENV]: "1" } });
+    const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
+    const forward = (signal: NodeJS.Signals): void => void child.kill(signal);
+    for (const s of signals) process.on(s, forward);
+    const finish = (code: number | null): void => {
+      for (const s of signals) process.off(s, forward);
+      done(code);
+    };
+    child.once("error", () => finish(null));
+    child.once("exit", (code, signal) => finish(code ?? (signal ? 1 : 0)));
+  });
+}
+
 export async function main(argv: readonly string[]): Promise<number> {
   const args = parseArgs(argv);
   if (args.version) {
     console.log(`Text.js v${VERSION}`);
     return 0;
+  }
+  if (BUN_COMMANDS.has(args.command) && !args.help && typeof process.versions.bun !== "string") {
+    const code = await reexecUnderBun(argv);
+    if (code !== null) return code;
+    // No Bun: `text mcp` reports TX019 on stderr (stdout is reserved for JSON-RPC).
+    if (args.command === "mcp") {
+      process.stderr.write(`${txMessage("TX019", "mcp", "mcp")}\n`);
+      return 1;
+    }
   }
   if (args.command === "mcp") {
     // Owns stdout (JSON-RPC) and its own flags; see `text mcp --help`.
@@ -98,6 +131,7 @@ export async function main(argv: readonly string[]): Promise<number> {
   try {
     switch (args.command) {
       case "dev": {
+        const { startDevServer } = await import("./dev");
         const server = await startDevServer({ root, port: args.port, host: args.host });
         const stop = async (): Promise<void> => {
           await server.close();
@@ -108,10 +142,13 @@ export async function main(argv: readonly string[]): Promise<number> {
         await new Promise<never>(() => undefined);
         return 0;
       }
-      case "build":
+      case "build": {
+        const { buildApp } = await import("./build");
         await buildApp({ root, adapter: args.adapter });
         return 0;
+      }
       case "start": {
+        const { startProductionServer } = await import("./start");
         const s = await startProductionServer({ root, port: args.port, host: typeof args.host === "string" ? args.host : args.host ? "0.0.0.0" : undefined });
         const stop = async (): Promise<void> => {
           await s.close();
@@ -123,13 +160,14 @@ export async function main(argv: readonly string[]): Promise<number> {
         return 0;
       }
       case "run": {
-        if (typeof process.versions.bun !== "string") throw txError("TX019");
+        if (typeof process.versions.bun !== "string") throw txError("TX019", "run", "run");
         const { runInTerminal } = await import("./run");
         const app = await runInTerminal({ root, path: args.path });
         await app.waitUntilExit();
         return 0;
       }
       case "proxy": {
+        const { startProxy, DEFAULT_PROXY_PORT } = await import("./proxy");
         const b = await startProxy({ port: args.port ?? DEFAULT_PROXY_PORT, target: args.target, allowOrigins: args.allowOrigins });
         const stop = async (): Promise<void> => {
           await b.close();
