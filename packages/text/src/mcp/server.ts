@@ -7,7 +7,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { VERSION } from "@textjs/core";
-import { findText } from "./frame";
+import { findText, type StyledRow } from "./frame";
 import { createHitTester, formatTree } from "./inspect";
 import { KeySpecError, MAX_KEYS_PER_CALL } from "./keys";
 import { captureConsole, LogBuffer, txCodeOf, type ConsoleCapture, type LogLevel } from "./logs";
@@ -161,12 +161,28 @@ export function formatFrame(f: FrameSnapshot): string {
   return lines.join("\n");
 }
 
+/**
+ * Styled runs as compact lines for the text content (the JSON lives once, in
+ * `structuredContent.styles`): `y x+width fg bg attrs "text"`, skipping
+ * blank default-styled runs.
+ */
+export function formatStyles(rows: readonly StyledRow[]): string {
+  const lines = ["styles (row col+width fg bg attrs \"text\"):"];
+  for (const row of rows) {
+    for (const r of row.runs) {
+      if (r.bg === null && r.attrs === undefined && r.text.trim() === "") continue;
+      lines.push(`${row.y} ${r.x}+${r.width} ${r.fg ?? "-"} ${r.bg ?? "-"} ${r.attrs?.join(",") || "-"} ${JSON.stringify(r.text)}`);
+    }
+  }
+  return lines.join("\n");
+}
+
 function frameResult(f: FrameSnapshot, extra: Record<string, unknown> = {}, prefix?: string): CallToolResult {
   const { styles, ...rest } = f;
   let text = formatFrame(f);
   if (prefix) text = `${prefix}\n${text}`;
   const content: CallToolResult["content"] = [{ type: "text", text }];
-  if (styles) content.push({ type: "text", text: JSON.stringify(styles) });
+  if (styles) content.push({ type: "text", text: formatStyles(styles) });
   return { content, structuredContent: { ...extra, ...rest, ...(styles ? { styles } : {}) } };
 }
 

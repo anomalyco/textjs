@@ -198,6 +198,12 @@ describe("text mcp · dashboard", () => {
     const brand = s.styles[0]?.runs.find((run) => run.text.includes("Edge Console"));
     expect(brand?.attrs).toContain("bold");
     expect(brand?.fg).toMatch(/^#[0-9a-f]{6}/);
+    // The text content carries compact style lines, not a second copy of the JSON.
+    const content = (r.content as Array<{ text: string }>).map((c) => c.text);
+    expect(content).toHaveLength(2);
+    expect(content[1]).toMatch(/^styles \(/);
+    expect(content[1]).toMatch(/\n1 \d+\+\d+ #[0-9a-f]{6} \S+ bold "[^"]*Edge Console/);
+    expect(content.join("")).not.toContain('"runs"');
   });
 
   test("list_routes lists pages and route handlers", async () => {
