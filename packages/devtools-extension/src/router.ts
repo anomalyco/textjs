@@ -8,14 +8,16 @@
  * and messages are shape-checked and rebuilt before they are forwarded.
  */
 
-import { CONTENT_PORT, isTabId, PANEL_PORT, type RequestMessage, type StatusMessage } from "./protocol";
+import { CONTENT_PORT, isTabId, PANEL_PORT, type DetectResult, type RequestMessage, type StatusMessage } from "./protocol";
 
 export { isTabId };
 
 export interface RouterRuntime {
   readonly id: string;
   getURL(path: string): string;
+  sendMessage(message: unknown): Promise<unknown>;
   readonly onConnect: chrome.runtime.Event<(port: chrome.runtime.Port) => void>;
+  readonly onMessage: chrome.runtime.Event<(message: unknown, sender: chrome.runtime.MessageSender, sendResponse: (response?: unknown) => void) => boolean | void>;
 }
 
 export interface Router {
@@ -39,10 +41,10 @@ export function sanitizeRequest(raw: Record<string, unknown>): RequestMessage | 
   return { kind: "request", id, method: method as RequestMessage["method"], root, args: [...args] };
 }
 
-/** Whether `port` was opened by one of this extension's own pages at `path`. */
-export function fromExtensionPage(runtime: RouterRuntime, port: chrome.runtime.Port, path: string): boolean {
-  const s = port.sender;
-  if (!s || s.id !== runtime.id || typeof s.url !== "string") return false;
+/** Whether a port or message came from one of this extension's own pages at `path`. */
+export function fromExtensionPage(runtime: RouterRuntime, sender: chrome.runtime.MessageSender | undefined, path: string): boolean {
+  const s = sender;
+  if (!s || s.id !== runtime.id || typeof s.url !== "string" || s.tab !== undefined) return false;
   const base = runtime.getURL(path);
   return s.url === base || s.url.startsWith(`${base}?`) || s.url.startsWith(`${base}#`);
 }
@@ -86,10 +88,13 @@ export function startRouter(runtime: RouterRuntime): Router {
     });
     if (panels.has(tabId)) send(port, { kind: "attach" });
     status(tabId);
+    // Content scripts connect only once their page has a root: tell DevTools pages to add the panel.
+    const detected: DetectResult = { kind: "detected", tabId, roots: true };
+    runtime.sendMessage(detected).catch(() => undefined);
   };
 
   const onPanel = (port: chrome.runtime.Port): void => {
-    if (!fromExtensionPage(runtime, port, "panel.html")) {
+    if (!fromExtensionPage(runtime, port.sender, "panel.html")) {
       port.disconnect();
       return;
     }
@@ -124,6 +129,15 @@ export function startRouter(runtime: RouterRuntime): Router {
       send(pages.get(tabId), { kind: "detach" });
     });
   };
+
+  // DevTools pages ask once, when they open, whether their tab already has roots.
+  runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (!fromExtensionPage(runtime, sender, "devtools.html")) return;
+    const m = msg as Record<string, unknown> | null;
+    if (typeof m !== "object" || m === null || m.kind !== "detect" || !isTabId(m.tabId)) return;
+    const reply: DetectResult = { kind: "detected", tabId: m.tabId, roots: pages.has(m.tabId) };
+    sendResponse(reply);
+  });
 
   runtime.onConnect.addListener((port) => {
     if (port.name === CONTENT_PORT) onContent(port);

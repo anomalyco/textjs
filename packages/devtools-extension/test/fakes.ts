@@ -54,9 +54,23 @@ export function portPair(name: string, sender?: chrome.runtime.MessageSender): [
 
 export const EXTENSION_ID = "abcdefghijklmnopabcdefghijklmnop";
 
+type MessageListener = (message: unknown, sender: chrome.runtime.MessageSender, sendResponse: (response?: unknown) => void) => boolean | void;
+
 export class FakeRuntime {
   readonly id = EXTENSION_ID;
   readonly onConnect = new FakeEvent<(port: chrome.runtime.Port) => void>();
+  readonly onMessage = new FakeEvent<MessageListener>();
+  readonly broadcasts: unknown[] = [];
+  sendMessage(message: unknown): Promise<unknown> {
+    this.broadcasts.push(structuredClone(message));
+    return Promise.resolve(undefined);
+  }
+  /** Deliver a one-shot message to the worker as `sender`; resolves with its response (or `undefined`). */
+  message(message: unknown, sender: chrome.runtime.MessageSender): unknown {
+    let response: unknown;
+    this.onMessage.fire(structuredClone(message), sender, (r) => (response = r));
+    return response;
+  }
   getURL(path: string): string {
     return `chrome-extension://${EXTENSION_ID}/${path}`;
   }

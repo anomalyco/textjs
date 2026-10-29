@@ -170,3 +170,32 @@ describe("service worker router", () => {
     expect(sanitizeRequest(request({ args: [Number.POSITIVE_INFINITY] }))).toBeNull();
   });
 });
+
+describe("service worker: DevTools detection", () => {
+  const DEVTOOLS_URL = `chrome-extension://${EXTENSION_ID}/devtools.html`;
+
+  test("answers DevTools pages' detect queries", () => {
+    const { runtime, content } = setup();
+    expect(runtime.message({ kind: "detect", tabId: 7 }, { id: EXTENSION_ID, url: DEVTOOLS_URL })).toEqual({ kind: "detected", tabId: 7, roots: false });
+    content(7);
+    expect(runtime.message({ kind: "detect", tabId: 7 }, { id: EXTENSION_ID, url: DEVTOOLS_URL })).toEqual({ kind: "detected", tabId: 7, roots: true });
+  });
+
+  test("ignores detect queries from content scripts, other extensions or with bad tab ids", () => {
+    const { runtime, content } = setup();
+    content(7);
+    const q = { kind: "detect", tabId: 7 };
+    expect(runtime.message(q, { id: EXTENSION_ID, url: "https://app.test/", tab: { id: 7 } })).toBeUndefined();
+    expect(runtime.message(q, { id: EXTENSION_ID, url: DEVTOOLS_URL, tab: { id: 7 } })).toBeUndefined();
+    expect(runtime.message(q, { id: "someotherextensionidxxxxxxxxxxxx", url: DEVTOOLS_URL })).toBeUndefined();
+    expect(runtime.message(q, { id: EXTENSION_ID, url: PANEL_URL })).toBeUndefined();
+    expect(runtime.message({ kind: "detect", tabId: 0 }, { id: EXTENSION_ID, url: DEVTOOLS_URL })).toBeUndefined();
+  });
+
+  test("broadcasts when a tab's content script connects (roots mounted late are detected)", () => {
+    const { runtime, content } = setup();
+    expect(runtime.broadcasts).toEqual([]);
+    content(7);
+    expect(runtime.broadcasts).toEqual([{ kind: "detected", tabId: 7, roots: true }]);
+  });
+});

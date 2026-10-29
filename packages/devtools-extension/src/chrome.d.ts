@@ -24,7 +24,9 @@ declare namespace chrome {
     const lastError: { message?: string } | undefined;
     function connect(info?: { name?: string }): Port;
     function getURL(path: string): string;
+    function sendMessage(message: unknown): Promise<unknown>;
     const onConnect: Event<(port: Port) => void>;
+    const onMessage: Event<(message: unknown, sender: MessageSender, sendResponse: (response?: unknown) => void) => boolean | void>;
   }
   namespace devtools {
     namespace panels {
@@ -37,10 +39,6 @@ declare namespace chrome {
     }
     namespace inspectedWindow {
       const tabId: number;
-      function eval(expression: string, callback?: (result: unknown, exception?: unknown) => void): void;
-    }
-    namespace network {
-      const onNavigated: runtime.Event<(url: string) => void>;
     }
   }
 }

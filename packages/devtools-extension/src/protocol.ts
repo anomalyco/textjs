@@ -78,5 +78,13 @@ export type StatusMessage = { kind: "status"; page: "connected" | "disconnected"
 /** Panel → service worker. */
 export type PanelInit = { kind: "init"; tabId: number } | { kind: "ping" };
 
+/** DevTools page → service worker (`runtime.sendMessage`): does this tab have console roots? */
+export type DetectQuery = { kind: "detect"; tabId: number };
+/** Service worker → DevTools pages: the reply to `DetectQuery`, and a broadcast when a tab gains roots. */
+export type DetectResult = { kind: "detected"; tabId: number; roots: boolean };
+
+/** Dispatched on the panel's window by the DevTools page when the panel is shown or hidden (`detail: boolean`). */
+export const PANEL_VISIBILITY_EVENT = "textjs-devtools-visibility";
+
 export type PageWire = (HelloMessage | PageToPanel) & { source: typeof PAGE_SOURCE };
 export type ContentWire = (ControlMessage | PanelToPage) & { source: typeof CONTENT_SOURCE };
