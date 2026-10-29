@@ -35,7 +35,9 @@ Click the console to type into the app. Click anywhere outside it to stop. Edito
 | `textjs.preview.followEditor` | `false` | Live mode: move the browser tab to the route you're editing |
 | `textjs.preview.fontSize` | `12` | Cell font size |
 | `textjs.preview.runtime` | | Node.js binary for headless previews |
-| `textjs.devServer.url` | | Dev server URL (default: discover on ports 3000–3010) |
+| `textjs.devServer.url` | | Dev server URL (default: discover on ports 3000–3010). Only `http://` loopback addresses are used |
 | `textjs.devServer.command` | | Command for Start Dev Server |
+
+The preview and the dev server run your project's code, so they need a trusted workspace. In Restricted Mode you still get snippets, scaffolding and error links.
 
 Docs: [textjs.org/docs/vscode](https://textjs.org/docs/vscode)

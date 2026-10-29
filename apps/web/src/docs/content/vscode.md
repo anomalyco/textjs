@@ -95,12 +95,16 @@ The `▼` item shows the dev server state and the console grid size, for example
 | `textjs.preview.followEditor` | `false` | Live mode: follow the edited route |
 | `textjs.preview.fontSize` | `12` | Cell font size (DevTools uses 12) |
 | `textjs.preview.runtime` | | Node.js binary for headless previews (default: the one bundled with VS Code) |
-| `textjs.devServer.url` | | Dev server URL (default: discover on ports 3000–3010) |
+| `textjs.devServer.url` | | Dev server URL (default: discover on ports 3000–3010). Only `http://` loopback addresses are used |
 | `textjs.devServer.command` | | Command for Start Dev Server |
+
+## Workspace Trust
+
+The preview and the dev server run your project's code (its Vite config, `text.config.*` and components). In Restricted Mode the extension only offers snippets, scaffolding and error links, and ignores `textjs.preview.runtime`, `textjs.devServer.command` and `textjs.devServer.url` from workspace settings. Trust the workspace to turn the preview on. Files outside your workspace folders are never previewed.
 
 ## How it works
 
-`text dev` serves three endpoints for editors. They answer only on loopback, and only to requests with no `Origin` or the dev server's own origin:
+`text dev` serves three endpoints for editors. They answer only to loopback connections addressed to a loopback host (`localhost`, `127.0.0.1`, `[::1]`), and only to requests with no `Origin` or the dev server's own origin. Browsers' cross-site and `no-cors` requests are rejected:
 
 | Endpoint | |
 | :-- | :-- |
