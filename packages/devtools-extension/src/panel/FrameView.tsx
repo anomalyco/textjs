@@ -4,7 +4,6 @@ import { attrList, cssColor, hex } from "./format";
 import { RefreshIcon } from "./icons";
 import type { PanelState, PanelStore } from "./store";
 
-const FONT_SIZE = 12;
 const LINE = 14;
 const DEFAULT_FG = 0xd4d4d8ff;
 
@@ -59,10 +58,13 @@ function rowRuns(f: DevToolsFrameSnapshot, y: number): Run[] {
   return runs;
 }
 
-const Grid = memo(function Grid({ frame, cw }: { frame: DevToolsFrameSnapshot; cw: number }): ReactNode {
+const Grid = memo(function Grid({ frame, cw, measure }: { frame: DevToolsFrameSnapshot; cw: number; measure: (el: HTMLSpanElement | null) => void }): ReactNode {
   const rows = useMemo(() => Array.from({ length: frame.rows }, (_, y) => rowRuns(frame, y)), [frame]);
   return (
     <div className="grid-rows" style={{ width: frame.cols * cw, height: frame.rows * LINE }}>
+      <span ref={measure} aria-hidden="true" style={{ position: "absolute", visibility: "hidden", left: 0, top: 0 }}>
+        {"M".repeat(MEASURE_CHARS)}
+      </span>
       {rows.map((runs, y) => (
         <div key={y} className="grid-row" style={{ top: y * LINE }}>
           {runs.map((r) => (
@@ -76,20 +78,26 @@ const Grid = memo(function Grid({ frame, cw }: { frame: DevToolsFrameSnapshot; c
   );
 });
 
-function useCellWidth(): number {
+const MEASURE_CHARS = 100;
+
+/**
+ * Cell width measured from a hidden run inside `.grid-rows`, so it uses exactly
+ * the font the grid renders with (a canvas can resolve a different fallback font).
+ */
+function useCellWidth(): [number, (el: HTMLSpanElement | null) => void] {
   const [cw, setCw] = useState(7.2);
+  const [el, setEl] = useState<HTMLSpanElement | null>(null);
   useLayoutEffect(() => {
-    const ctx = document.createElement("canvas").getContext("2d");
-    if (!ctx) return;
-    ctx.font = `${FONT_SIZE}px "SF Mono", Menlo, Consolas, monospace`;
-    setCw(Math.round(ctx.measureText("M".repeat(100)).width) / 100);
-  }, []);
-  return cw;
+    if (!el) return;
+    const w = el.getBoundingClientRect().width / MEASURE_CHARS;
+    if (w > 0) setCw(w);
+  }, [el]);
+  return [cw, setEl];
 }
 
 export function FrameView({ store, state }: { store: PanelStore; state: PanelState }): ReactNode {
   const frame = state.frame;
-  const cw = useCellWidth();
+  const [cw, measure] = useCellWidth();
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -150,7 +158,7 @@ export function FrameView({ store, state }: { store: PanelStore; state: PanelSta
               if (id !== null) store.select(id);
             }}
           >
-            <Grid frame={frame} cw={cw} />
+            <Grid frame={frame} cw={cw} measure={measure} />
             {selectedRect ? outline(selectedRect, "selected") : null}
             {hoverOwner ? outline(hoverOwner.rect, "hover") : null}
             {hover ? outline({ x: hover.x, y: hover.y, width: 1, height: 1 }, "cell") : null}

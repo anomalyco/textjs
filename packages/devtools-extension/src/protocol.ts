@@ -60,8 +60,8 @@ export interface ResponseMessage {
 export type PageEvent =
   | { kind: "event"; event: "roots"; roots: DevToolsRootInfo[] }
   | { kind: "event"; event: "root-changed"; root: DevToolsRootInfo }
-  | { kind: "event"; event: "root-removed"; root: number }
-  | { kind: "event"; event: "frames"; records: DevToolsFrameRecord[]; committed: boolean };
+  /** Batched frame records for every root; `commits` on each record says which roots committed. */
+  | { kind: "event"; event: "frames"; records: DevToolsFrameRecord[] };
 
 /** Lifecycle control from the service worker to the page. */
 export type ControlMessage = { kind: "attach" } | { kind: "detach" };

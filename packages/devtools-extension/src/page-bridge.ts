@@ -37,7 +37,6 @@ const MAX_BATCH = 512;
 export function startPageBridge(win: BridgeWindow, target: object = win): PageBridge {
   const hook = installDevToolsHook(target);
   let batch: DevToolsFrameRecord[] = [];
-  let committed = false;
   let timer: unknown = null;
 
   const post = (msg: HelloMessage | PageToPanel): void => {
@@ -49,8 +48,7 @@ export function startPageBridge(win: BridgeWindow, target: object = win): PageBr
     if (batch.length === 0) return;
     const records = batch;
     batch = [];
-    post({ kind: "event", event: "frames", records, committed });
-    committed = false;
+    post({ kind: "event", event: "frames", records });
   };
 
   const rootsList = () => [...hook.roots.values()].map((h) => h.info());
@@ -68,7 +66,6 @@ export function startPageBridge(win: BridgeWindow, target: object = win): PageBr
     }
     if (batch.length >= MAX_BATCH) batch.shift();
     batch.push(e.record);
-    if (e.record.commits > 0) committed = true;
     if (timer === null) timer = win.setTimeout(flush, FRAME_BATCH_MS);
   };
   const unsubscribe = hook.subscribe(onHookEvent);
@@ -106,7 +103,7 @@ export function startPageBridge(win: BridgeWindow, target: object = win): PageBr
           result = root.info();
           break;
         case "resize":
-          root.resize(clampSize(a[0]), clampSize(a[1]));
+          root.resize(clampSize(a[0], MAX_COLS), clampSize(a[1], MAX_ROWS));
           result = root.info();
           break;
         case "fit":
@@ -158,7 +155,11 @@ export function startPageBridge(win: BridgeWindow, target: object = win): PageBr
   };
 }
 
-function clampSize(v: unknown): number {
-  const n = Math.floor(Number(v));
-  return Number.isFinite(n) ? Math.max(8, Math.min(400, n)) : 80;
+/** Pinned sizes stay small enough that 5 frame snapshots a second are cheap to build, send and render. */
+export const MAX_COLS = 400;
+export const MAX_ROWS = 120;
+
+function clampSize(v: unknown, max: number): number {
+  const n = typeof v === "number" ? Math.floor(v) : Number.NaN;
+  return Number.isFinite(n) ? Math.max(8, Math.min(max, n)) : 80;
 }

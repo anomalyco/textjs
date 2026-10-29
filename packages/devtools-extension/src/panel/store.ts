@@ -1,4 +1,3 @@
-import { useSyncExternalStore } from "react";
 import type { DevToolsFrameRecord, DevToolsFrameSnapshot, DevToolsRootInfo, DevToolsTreeSnapshot } from "../protocol";
 import type { Transport, TransportMessage } from "./transport";
 
@@ -25,6 +24,15 @@ export interface PanelState {
 export const MAX_RECORDS = 600;
 const TREE_THROTTLE_MS = 300;
 const FRAME_THROTTLE_MS = 200;
+/** A worker restart briefly reports the page as gone until its content script reconnects. */
+export const DISCONNECT_GRACE_MS = 1500;
+
+/** One snapshot request at a time; a request made meanwhile runs once the current one settles. */
+interface Fetcher {
+  inFlight: boolean;
+  again: boolean;
+  seq: number;
+}
 
 export class PanelStore {
   private state: PanelState = {
@@ -47,9 +55,17 @@ export class PanelStore {
   private treeTimer: ReturnType<typeof setTimeout> | null = null;
   private frameTimer: ReturnType<typeof setTimeout> | null = null;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
+  private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private highlighted: number | null = null;
+  private visible = true;
+  private readonly treeFetch: Fetcher = { inFlight: false, again: false, seq: 0 };
+  private readonly frameFetch: Fetcher = { inFlight: false, again: false, seq: 0 };
 
-  constructor(readonly transport: Transport, initial: Partial<PanelState> = {}) {
+  constructor(
+    readonly transport: Transport,
+    initial: Partial<PanelState> = {},
+    private readonly options: { disconnectGraceMs?: number } = {},
+  ) {
     this.state = { ...this.state, ...initial };
     transport.subscribe((m) => this.onMessage(m));
   }
@@ -72,12 +88,16 @@ export class PanelStore {
 
   private onMessage(m: TransportMessage): void {
     if (m.kind === "status") {
-      if (m.page === "disconnected") this.set({ status: "disconnected", roots: [], rootId: null, tree: null, frame: null });
-      else this.set({ status: "connected" });
+      if (m.page === "connected") {
+        this.cancelDisconnect();
+        this.set({ status: "connected" });
+      } else if (this.state.roots.length === 0) this.clearPage();
+      else if (this.disconnectTimer === null) this.disconnectTimer = setTimeout(() => this.clearPage(), this.options.disconnectGraceMs ?? DISCONNECT_GRACE_MS);
       return;
     }
     switch (m.event) {
       case "roots": {
+        this.cancelDisconnect();
         const rootId = m.roots.some((r) => r.id === this.state.rootId) ? this.state.rootId : (m.roots[0]?.id ?? null);
         const changed = rootId !== this.state.rootId;
         this.set({ status: "connected", roots: m.roots, rootId, ...(changed ? { tree: null, frame: null, records: [], selected: null } : {}) });
@@ -87,13 +107,6 @@ export class PanelStore {
       case "root-changed":
         this.set({ roots: this.state.roots.map((r) => (r.id === m.root.id ? m.root : r)) });
         break;
-      case "root-removed": {
-        const roots = this.state.roots.filter((r) => r.id !== m.root);
-        const rootId = m.root === this.state.rootId ? (roots[0]?.id ?? null) : this.state.rootId;
-        this.set({ roots, rootId });
-        if (m.root !== rootId) this.refresh();
-        break;
-      }
       case "frames": {
         const mine = m.records.filter((r) => r.root === this.state.rootId);
         if (mine.length === 0) break;
@@ -101,11 +114,43 @@ export class PanelStore {
           const records = this.state.records.concat(mine);
           this.set({ records: records.length > MAX_RECORDS ? records.slice(records.length - MAX_RECORDS) : records });
         }
-        if (m.committed && this.state.tab === "components") this.scheduleTree();
+        if (this.state.tab === "components" && mine.some((r) => r.commits > 0)) this.scheduleTree();
         if (this.state.liveFrame && this.state.tab === "frame" && mine.some((r) => !r.skipped)) this.scheduleFrame();
         break;
       }
     }
+  }
+
+  private cancelDisconnect(): void {
+    if (this.disconnectTimer !== null) clearTimeout(this.disconnectTimer);
+    this.disconnectTimer = null;
+  }
+
+  private clearPage(): void {
+    this.cancelDisconnect();
+    this.highlighted = null;
+    this.set({ status: "disconnected", roots: [], rootId: null, tree: null, frame: null, selected: null });
+  }
+
+  /** DevTools shows or hides the panel: hidden panels detach so the page stops streaming. */
+  setVisible(visible: boolean): void {
+    if (visible === this.visible) return;
+    this.visible = visible;
+    if (!visible) {
+      for (const t of [this.treeTimer, this.frameTimer]) if (t !== null) clearTimeout(t);
+      this.treeTimer = null;
+      this.frameTimer = null;
+      // The page clears its highlight when the panel detaches.
+      this.highlighted = null;
+      this.transport.suspend?.();
+    } else {
+      // Re-attaching sends a fresh `roots` event, which refreshes the current tab.
+      this.transport.resume?.();
+    }
+  }
+
+  get isVisible(): boolean {
+    return this.visible;
   }
 
   /** Fetch whatever the current tab shows. */
@@ -134,26 +179,46 @@ export class PanelStore {
     }, FRAME_THROTTLE_MS);
   }
 
-  fetchTree(): void {
+  /** Run `run` unless a request is already in flight, in which case run it once more afterwards. Stale replies are dropped. */
+  private fetch<T extends { root: number }>(f: Fetcher, run: (root: number) => Promise<T>, apply: (value: T) => void): void {
     const id = this.state.rootId;
-    if (id === null) return;
-    this.transport.request("tree", id).then(
-      (tree) => {
-        if (tree.root === this.state.rootId) this.set({ tree, error: null });
+    if (id === null || !this.visible) return;
+    if (f.inFlight) {
+      f.again = true;
+      return;
+    }
+    f.inFlight = true;
+    f.again = false;
+    const seq = ++f.seq;
+    const done = (): void => {
+      f.inFlight = false;
+      if (f.again) this.fetch(f, run, apply);
+    };
+    run(id).then(
+      (value) => {
+        if (seq === f.seq && value.root === this.state.rootId) apply(value);
+        done();
       },
-      (e: Error) => this.set({ error: e.message }),
+      (e: Error) => {
+        if (seq === f.seq) this.set({ error: e.message });
+        done();
+      },
     );
   }
 
+  fetchTree(): void {
+    this.fetch(this.treeFetch, (id) => this.transport.request("tree", id), (tree) => {
+      const selected = this.state.selected;
+      if (selected !== null && !tree.nodes.some((n) => n.id === selected)) {
+        // The selected component unmounted: drop the selection and its highlight.
+        this.set({ tree, selected: null, error: null });
+        this.highlight(null);
+      } else this.set({ tree, error: null });
+    });
+  }
+
   fetchFrame(): void {
-    const id = this.state.rootId;
-    if (id === null) return;
-    this.transport.request("frame", id).then(
-      (frame) => {
-        if (frame.root === this.state.rootId) this.set({ frame, error: null });
-      },
-      (e: Error) => this.set({ error: e.message }),
-    );
+    this.fetch(this.frameFetch, (id) => this.transport.request("frame", id), (frame) => this.set({ frame, error: null }));
   }
 
   setTab(tab: Tab): void {
@@ -193,7 +258,8 @@ export class PanelStore {
     const i = tree.nodes.findIndex((n) => n.id === id);
     if (i < 0) return null;
     const node = tree.nodes[i]!;
-    if (node.scene && node.kind === "host") return node.scene.id;
+    // Inline spans have no box; the owning text node is what gets highlighted.
+    if (node.scene && node.kind === "host") return node.scene.owner ?? node.scene.id;
     for (let j = i + 1; j < tree.nodes.length; j++) {
       const n = tree.nodes[j]!;
       if (n.depth <= node.depth) break;
@@ -204,7 +270,7 @@ export class PanelStore {
 
   /** Tree node that owns a scene node. */
   nodeForScene(sceneId: number): number | null {
-    return this.state.tree?.nodes.find((n) => n.kind === "host" && n.scene?.id === sceneId)?.id ?? null;
+    return this.state.tree?.nodes.find((n) => n.kind === "host" && n.scene?.id === sceneId && !n.scene.inline)?.id ?? null;
   }
 
   private control(p: Promise<DevToolsRootInfo>): void {
@@ -277,8 +343,4 @@ function copyToClipboard(text: string): void {
   } finally {
     ta.remove();
   }
-}
-
-export function usePanel<T>(store: PanelStore, pick: (s: PanelState) => T): T {
-  return useSyncExternalStore(store.subscribe, () => pick(store.get()));
 }

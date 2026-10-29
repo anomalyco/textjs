@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Component, useEffect, useRef, useState, useSyncExternalStore, type ErrorInfo, type ReactNode } from "react";
 import { Components } from "./Components";
 import { FrameView } from "./FrameView";
 import { CopyIcon, FitIcon, PauseIcon, PlayIcon, WireframeIcon } from "./icons";
@@ -63,20 +63,56 @@ export function App({ store }: { store: PanelStore }): ReactNode {
         ) : null}
       </header>
       <main className="body">
-        {root === null ? (
-          <Empty status={s.status} />
-        ) : s.tab === "components" ? (
-          <Components store={store} state={s} />
-        ) : s.tab === "frame" ? (
-          <FrameView store={store} state={s} />
-        ) : (
-          <Timeline store={store} state={s} root={root} />
-        )}
+        <PanelErrorBoundary key={s.tab} onRetry={() => store.refresh()}>
+          {root === null ? (
+            <Empty status={s.status} />
+          ) : s.tab === "components" ? (
+            <Components store={store} state={s} />
+          ) : s.tab === "frame" ? (
+            <FrameView store={store} state={s} />
+          ) : (
+            <Timeline store={store} state={s} root={root} />
+          )}
+        </PanelErrorBoundary>
       </main>
       {s.toast ? <div className="toast">{s.toast}</div> : null}
       {s.error && root ? <div className="toast error">{s.error}</div> : null}
     </div>
   );
+}
+
+/** Keeps a bad snapshot from blanking the whole panel; the toolbar stays usable. */
+export class PanelErrorBoundary extends Component<{ children: ReactNode; onRetry: () => void }, { error: Error | null }> {
+  override state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: unknown): { error: Error } {
+    return { error: error instanceof Error ? error : new Error(String(error)) };
+  }
+
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error("[Text.js DevTools]", error, info.componentStack);
+  }
+
+  override render(): ReactNode {
+    const { error } = this.state;
+    if (error === null) return this.props.children;
+    return (
+      <div className="empty" role="alert">
+        <div className="empty-mark">▼</div>
+        <p className="empty-title">This view hit an error</p>
+        <p className="empty-body mono">{error.message.slice(0, 200)}</p>
+        <button
+          className="btn"
+          onClick={() => {
+            this.setState({ error: null });
+            this.props.onRetry();
+          }}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 }
 
 function SizeControl({ cols, rows, responsive, store }: { cols: number; rows: number; responsive: boolean; store: PanelStore }): ReactNode {

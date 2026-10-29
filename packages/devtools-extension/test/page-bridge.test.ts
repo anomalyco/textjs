@@ -102,6 +102,8 @@ describe("page bridge", () => {
     expect(win.ofKind("response").at(-1)).toMatchObject({ id: 7, ok: true, result: { name: "App" } });
     win.fromContent({ kind: "request", id: 8, method: "resize", root: id, args: [9999, "x"] });
     expect(win.ofKind("response").at(-1).result).toMatchObject({ cols: 400, rows: 80, responsive: false });
+    win.fromContent({ kind: "request", id: 81, method: "resize", root: id, args: [100, 5000] });
+    expect(win.ofKind("response").at(-1).result).toMatchObject({ cols: 100, rows: 120 });
     win.fromContent({ kind: "request", id: 9, method: "copyText", root: id, args: [] });
     expect(win.ofKind("response").at(-1).result).toBe("hello");
     win.fromContent({ kind: "request", id: 10, method: "tree", root: 42, args: [] });
@@ -117,7 +119,7 @@ describe("page bridge", () => {
     expect(bridge.hook.active).toBe(false);
   });
 
-  test("batches frame records and flags commits", () => {
+  test("batches frame records; commits stay on each root's records", () => {
     const win = new FakeWindow();
     bridge = startPageBridge(win, globalThis);
     bridge.hook.register(fakeRoot());
@@ -132,7 +134,8 @@ describe("page bridge", () => {
     win.runTimers();
     const [batch] = win.ofKind("event", "frames");
     expect(batch.records.map((r: DevToolsFrameRecord) => r.frame)).toEqual([1, 2, 2]);
-    expect(batch.committed).toBe(true);
+    expect(batch.committed).toBeUndefined();
+    expect(batch.records.map((r: DevToolsFrameRecord) => r.commits)).toEqual([0, 2, 0]);
     expect(FRAME_BATCH_MS).toBeGreaterThanOrEqual(100);
   });
 

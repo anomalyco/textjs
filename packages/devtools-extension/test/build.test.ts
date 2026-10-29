@@ -38,6 +38,9 @@ describe("extension build", () => {
     for (const f of ["panel.html", "devtools.html"]) expect(readFileSync(join(dist, f), "utf8")).not.toMatch(/https?:\/\//);
     // Test-only introspection globals are compiled out of release builds.
     expect(readFileSync(join(dist, "background.js"), "utf8")).not.toContain("__textjsDevtools");
+    expect(readFileSync(join(dist, "panel.js"), "utf8")).not.toContain("__textjsPanel");
+    // Panel detection goes through the service worker, never `inspectedWindow.eval`.
+    expect(readFileSync(join(dist, "devtools.js"), "utf8")).not.toMatch(/inspectedWindow\.eval|\.eval\(/);
     // The page-world script carries only the hook and bridge.
     expect(readFileSync(join(dist, "page.js")).length).toBeLessThan(8_000);
     expect(readFileSync(join(dist, "page.js"), "utf8")).not.toContain("react");

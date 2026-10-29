@@ -66,7 +66,7 @@ export function Components({ store, state }: { store: PanelStore; state: PanelSt
 
   useEffect(() => {
     if (state.selected === null) return;
-    listRef.current?.querySelector(`[data-id="${state.selected}"]`)?.scrollIntoView({ block: "nearest" });
+    listRef.current?.querySelector(`[data-id="${CSS.escape(String(state.selected))}"]`)?.scrollIntoView({ block: "nearest" });
   }, [state.selected]);
 
   const toggle = (id: number): void => {
@@ -228,7 +228,11 @@ function Inspector({ node, store, state }: { node: DevToolsTreeNode; store: Pane
       ) : null}
       {scene ? (
         <Section title={node.scene ? "Scene node" : "Host scene node"} aside={<span className="muted small mono">{`#${scene.id} ${scene.type}${scene.label ? ` · ${scene.label}` : ""}`}</span>}>
-          <BoxModel layout={scene.layout} content={scene.content} painted={scene.painted} />
+          {scene.inline ? (
+            <p className="muted small">{`Inline span: laid out and painted by text node #${scene.owner ?? "?"}, which is highlighted instead.`}</p>
+          ) : (
+            <BoxModel layout={scene.layout} content={scene.content} painted={scene.painted} />
+          )}
         </Section>
       ) : null}
       {owners.length > 0 ? (
