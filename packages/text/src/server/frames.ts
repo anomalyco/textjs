@@ -31,8 +31,10 @@ import {
   MIRROR_HEADER,
   parseWireFrame,
   parseInputMessage,
+  shouldSwitchSource,
   STATUS_PATH,
   type DevStatus,
+  type FrameMeta,
   type WireFrame,
 } from "../frame-protocol";
 
@@ -150,25 +152,28 @@ export function attachFrameStream(server: ViteDevServer, root: string): FrameStr
   };
 
   type Client = Source["client"];
+  const mostRecent = (): Source | null => [...sources.values()].sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null;
   const sourceFor = (id: string, client: Client): Source => {
     let src = sources.get(id);
-    if (src) {
-      src.client = client;
-      return src;
+    if (src?.client === client) return src;
+    if (src) src.client = client;
+    else {
+      src = { id, decoder: new FrameDecoder(), client, updatedAt: Date.now(), grid: null, path: null };
+      sources.set(id, src);
     }
-    src = { id, decoder: new FrameDecoder(), client, updatedAt: Date.now(), grid: null, path: null };
-    sources.set(id, src);
+    // A tab that reconnects keeps its id on a new socket: only the socket that currently owns the source may remove it.
     const socket = (client as { socket?: { once?(e: string, cb: () => void): void } }).socket;
     socket?.once?.("close", () => {
       const gone = sources.get(id);
-      if (!gone) return;
+      if (!gone || gone.client !== client) return;
       sources.delete(id);
-      if (latest === gone) latest = [...sources.values()].sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null;
+      if (latest === gone) latest = mostRecent();
       broadcast("gone", { source: id });
       broadcast("status", status());
     });
     return src;
   };
+  const metaOf = (src: Source | null): FrameMeta | null => (src ? src.decoder.meta : null);
 
   server.ws.on(HMR_HELLO_EVENT, (data: unknown, client) => {
     client.send(HMR_MIRROR_EVENT, { active: watchers.size > 0 });
@@ -182,7 +187,7 @@ export function attachFrameStream(server: ViteDevServer, root: string): FrameStr
       }
       if (isAppPath(d.path)) src.path = d.path;
       src.updatedAt = Date.now();
-      latest = src;
+      if (latest === null || latest === src || shouldSwitchSource(metaOf(latest), {})) latest = src;
     }
     broadcast("status", status());
   });
@@ -193,8 +198,8 @@ export function attachFrameStream(server: ViteDevServer, root: string): FrameStr
     const src = sourceFor(data.source, client);
     if (src.decoder.apply(data) === null) return;
     src.updatedAt = Date.now();
-    const switched = latest !== src;
-    latest = src;
+    const switched = latest !== src && shouldSwitchSource(metaOf(latest), src.decoder.meta);
+    if (switched) latest = src;
     broadcast("frame", data);
     if (data.full || switched) broadcast("status", status());
   });
@@ -236,14 +241,23 @@ export function attachFrameStream(server: ViteDevServer, root: string): FrameStr
       res.write("retry: 1000\n\n");
       watchers.add(res);
       write(res, "status", status());
-      for (const src of sources.values()) {
+      // The latest source last: editors mirror whichever tab sent the most recent frame.
+      for (const src of [...sources.values()].filter((s) => s !== latest).concat(latest ? [latest] : [])) {
         const f = src.decoder.frame;
         if (f) write(res, "frame", encodeFullFrame(f, { source: src.id, meta: src.decoder.meta, seq: src.decoder.seq }) satisfies WireFrame);
       }
       if (watchers.size === 1) announce();
       req.on("close", () => {
-        watchers.delete(res);
-        if (watchers.size === 0) announce();
+        if (!watchers.delete(res) || watchers.size > 0) return;
+        // Tabs stop streaming now, so these frames go stale: keep the size and path for status, and
+        // wait for the full frames tabs send when the next editor subscribes.
+        for (const src of sources.values()) {
+          const f = src.decoder.frame;
+          if (f) src.grid = { width: f.width, height: f.height };
+          if (src.decoder.meta.path) src.path = src.decoder.meta.path;
+          src.decoder.reset();
+        }
+        announce();
       });
       return;
     }
@@ -263,9 +277,10 @@ export function attachFrameStream(server: ViteDevServer, root: string): FrameStr
         const target = (parsed as { source?: unknown })?.source;
         const msg = parseInputMessage(parsed);
         if (!msg) return reject(res, 400, "Invalid input message");
-        const src = typeof target === "string" ? sources.get(target) : latest;
-        if (src) src.client.send(HMR_INPUT_EVENT, msg);
-        else server.ws.send(HMR_INPUT_EVENT, msg);
+        // Never broadcast: input for a tab that just closed (or when no tab is connected) is dropped.
+        const src = target === undefined ? latest : typeof target === "string" ? (sources.get(target) ?? null) : null;
+        if (!src) return reject(res, 404, "Unknown source");
+        src.client.send(HMR_INPUT_EVENT, msg);
         res.statusCode = 204;
         res.end();
       },

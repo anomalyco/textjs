@@ -113,6 +113,46 @@ describe("dev server client", () => {
     }
   });
 
+  test("frame stream: focused tab stays active, closed tab falls back, last tab gone clears", async () => {
+    const { createServer } = await import("node:http");
+    let push: (event: string, data: unknown) => void = () => undefined;
+    const fake = createServer((req, res) => {
+      res.writeHead(200, { "content-type": "text/event-stream" });
+      push = (event, data) => res.write(`event: ${event}\r\ndata: ${JSON.stringify(data)}\r\n\r\n`);
+      res.write(": hi\n\n");
+    });
+    await new Promise<void>((r) => fake.listen(0, "127.0.0.1", () => r()));
+    const url = `http://127.0.0.1:${(fake.address() as { port: number }).port}`;
+    const seen: string[] = [];
+    const gone: string[] = [];
+    const conn = connectFrameStream(url, { onFrame: (f) => seen.push(f.source), onStatus: () => undefined, onSourceGone: (id) => gone.push(id), onClose: () => undefined });
+    // `push` is replaced once the client is connected.
+    await until(() => push.length === 2);
+    const frame = (source: string, text: string, focused: boolean) => {
+      const buf = new CellBuffer(10, 1);
+      buf.drawText(0, 0, text, 0xffffffff, 0, 0);
+      return new FrameEncoder().encode(extractStyledFrame(buf), { source, meta: { path: `/${source}`, focused } });
+    };
+    push("frame", frame("a", "tab a", true));
+    await until(() => conn.activeSource === "a");
+    for (let i = 0; i < 3; i++) push("frame", frame("b", `tab b ${i}`, false));
+    await until(() => seen.filter((s) => s === "b").length === 3);
+    expect(conn.activeSource).toBe("a");
+    expect(frameToText(conn.current()!.frame)).toBe("tab a");
+    push("gone", null);
+    push("gone", { source: "a" });
+    await until(() => gone.includes("a"));
+    expect(conn.activeSource).toBe("b");
+    expect(frameToText(conn.current()!.frame)).toBe("tab b 2");
+    push("gone", { source: "b" });
+    await until(() => gone.includes("b"));
+    expect(conn.activeSource).toBeNull();
+    expect(conn.current()).toBeNull();
+    conn.close();
+    fake.closeAllConnections();
+    fake.close();
+  });
+
   test("monitor streams live frames only while watching, and input reaches the tab", async () => {
     const monitor = new DevServerMonitor(200);
     monitor.configure([dir], base);

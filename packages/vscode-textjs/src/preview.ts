@@ -44,6 +44,8 @@ export class PreviewController implements vscode.Disposable {
   private reloadTimer: ReturnType<typeof setTimeout> | null = null;
   private stateTimer: ReturnType<typeof setTimeout> | null = null;
   private lastGrid = "";
+  /** The tab whose frame the live preview shows. */
+  private liveSource: string | null = null;
   private readonly disposables: vscode.Disposable[] = [];
 
   constructor(private readonly deps: PreviewDeps) {
@@ -56,14 +58,27 @@ export class PreviewController implements vscode.Disposable {
       vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration("textjs.preview")) this.update();
       }),
-      { dispose: monitor.onChange(() => this.update()) },
+      {
+        dispose: monitor.onChange(() => {
+          this.update();
+          this.syncLive();
+        }),
+      },
       {
         dispose: monitor.onFrame((f) => {
-          if (this.mode === "live" && f.source === monitor.activeSource) this.pushFrame(f.frame);
+          if (this.mode === "live" && f.source === monitor.activeSource) {
+            this.liveSource = f.source;
+            this.pushFrame(f.frame);
+          }
           if (this.mode !== "live") this.update();
         }),
       },
-      { dispose: monitor.onSourceGone(() => this.update()) },
+      {
+        dispose: monitor.onSourceGone(() => {
+          this.update();
+          this.syncLive();
+        }),
+      },
     );
   }
 
@@ -216,6 +231,7 @@ export class PreviewController implements vscode.Disposable {
     const mode = this.computeMode();
     if (mode !== this.mode) {
       this.mode = mode;
+      this.liveSource = mode === "live" ? (this.deps.monitor.live()?.source ?? null) : null;
       this.encoder.reset();
       this.post({ type: "clearFrame" });
       if (mode === "headless") this.ensureHeadless();
@@ -223,6 +239,22 @@ export class PreviewController implements vscode.Disposable {
       const f = this.currentFrame();
       if (f) this.pushFrame(f);
     } else if (mode === "headless") this.ensureHeadless();
+    this.scheduleState();
+  }
+
+  /**
+   * When the mirrored tab changes (it closed, or the stream ended) show the
+   * new active tab's frame, or clear the preview when no tab is left.
+   */
+  private syncLive(): void {
+    if (this.mode !== "live") return;
+    const live = this.deps.monitor.live();
+    const source = live?.source ?? null;
+    if (source === this.liveSource) return;
+    this.liveSource = source;
+    this.encoder.reset();
+    this.post({ type: "clearFrame" });
+    if (live) this.pushFrame(live.frame);
     this.scheduleState();
   }
 

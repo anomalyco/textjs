@@ -13,6 +13,7 @@ import {
   MIRROR_HEADER,
   parseDevStatus,
   parseWireFrame,
+  shouldSwitchSource,
   STATUS_PATH,
   type DevStatus,
   type FrameMeta,
@@ -159,7 +160,7 @@ export interface FrameStreamHandlers {
 
 export interface FrameStreamConnection {
   readonly url: string;
-  /** The tab whose frames arrived most recently. */
+  /** The mirrored tab: the most recent sender, except that a focused tab is never displaced by an unfocused one. */
   readonly activeSource: string | null;
   current(): LiveFrame | null;
   close(): void;
@@ -168,6 +169,9 @@ export interface FrameStreamConnection {
 /** Subscribe to `/__textjs/frames`. `onClose` fires once when the stream ends for any reason. */
 export function connectFrameStream(baseUrl: string, handlers: FrameStreamHandlers): FrameStreamConnection {
   const decoders = new Map<string, FrameDecoder>();
+  /** Arrival order of each source's latest frame (fallback when the active tab closes). */
+  const order = new Map<string, number>();
+  let tick = 0;
   const parser = new SseParser();
   let active: string | null = null;
   let closed = false;
@@ -212,10 +216,21 @@ export function connectFrameStream(baseUrl: string, handlers: FrameStreamHandler
           if (status) handlers.onStatus(status);
         }
         else if (ev.event === "gone") {
-          const id = (data as { source?: string }).source;
+          const id = (data as { source?: unknown } | null)?.source;
           if (typeof id === "string") {
             decoders.delete(id);
-            if (active === id) active = null;
+            order.delete(id);
+            if (active === id) {
+              // Fall back to the tab that sent a frame most recently (or none: the preview clears).
+              active = null;
+              let best = -1;
+              for (const [s, t] of order) {
+                if (t > best && decoders.get(s)?.frame) {
+                  best = t;
+                  active = s;
+                }
+              }
+            }
             handlers.onSourceGone(id);
           }
         } else if (ev.event === "frame") {
@@ -226,7 +241,9 @@ export function connectFrameStream(baseUrl: string, handlers: FrameStreamHandler
           if (!dec) decoders.set(source, (dec = new FrameDecoder()));
           const frame = dec.apply(wire);
           if (!frame) continue;
-          active = source;
+          order.set(source, ++tick);
+          const current = active === null ? undefined : decoders.get(active);
+          if (active !== source && (!current?.frame || shouldSwitchSource(current.meta, dec.meta))) active = source;
           handlers.onFrame({ source, frame, meta: dec.meta });
         }
       }

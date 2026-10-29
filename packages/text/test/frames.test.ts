@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import type { ViteDevServer } from "vite";
 import { CellBuffer, extractStyledFrame } from "@textjs/core";
 import { startDevServer } from "../src/cli/dev";
-import { FrameDecoder, FrameEncoder, FRAMES_PATH, INPUT_PATH, MIRROR_HEADER, STATUS_PATH, frameToText, type DevStatus, type WireFrame } from "../src/frame-protocol";
+import { encodeFullFrame, FrameDecoder, FrameEncoder, FRAMES_PATH, INPUT_PATH, MIRROR_HEADER, STATUS_PATH, frameToText, type DevStatus, type WireFrame } from "../src/frame-protocol";
 import { request as httpRequest } from "node:http";
 import { isFetchMetadataAllowed, isLoopbackAddress, isLoopbackHost, isSameOriginRequest } from "../src/server/frames";
 import { isAllowedDevHost } from "../src/vite-plugin";
@@ -62,6 +62,10 @@ async function until<T>(fn: () => T | undefined | false | Promise<T | undefined 
     if (Date.now() - start > timeout) throw new Error("timed out");
     await new Promise((r) => setTimeout(r, 20));
   }
+}
+
+function encodeFullFrameFor(buf: CellBuffer, source: string, meta: { path: string; focused: boolean }): WireFrame {
+  return encodeFullFrame(extractStyledFrame(buf), { source, meta });
 }
 
 /** Minimal SSE reader over fetch. */
@@ -256,6 +260,80 @@ describe("dev frame mirror", () => {
     });
     expect(after.sources).toBe(0);
   }, 15_000);
+
+  test("multiple tabs: focus wins, input is never broadcast, closed tabs fall back, reconnects keep the source", async () => {
+    const status = async (): Promise<DevStatus> => (await (await fetch(`${base}${STATUS_PATH}`)).json()) as DevStatus;
+    const post = (body: unknown) =>
+      fetch(`${base}${INPUT_PATH}`, { method: "POST", headers: { "content-type": "application/json", [MIRROR_HEADER]: "1" }, body: JSON.stringify(body) });
+    const key = { type: "key", key: "x" };
+    const inputs = (t: { messages: Array<{ event: string }> }) => t.messages.filter((m) => m.event === "textjs:input").length;
+
+    // No tab at all: dropped, not broadcast.
+    expect((await post(key)).status).toBe(404);
+
+    const focused = await connectTab();
+    const background = await connectTab();
+    const sub = subscribe();
+    await until(async () => (await status()).watchers === 1);
+    const frame = (text: string, meta: { path: string; focused: boolean }, source: string) => {
+      const buf = new CellBuffer(12, 1);
+      buf.drawText(0, 0, text, 0xffffffff, 0, 0);
+      return encodeFullFrameFor(buf, source, meta);
+    };
+    sendCustom(focused.ws, "textjs:frame", frame("focused", { path: "/focused", focused: true }, "tab-f"));
+    await until(async () => (await status()).path === "/focused");
+    // An animating background tab keeps sending frames but doesn't take over.
+    for (let i = 0; i < 3; i++) sendCustom(background.ws, "textjs:frame", frame(`bg ${i}`, { path: "/background", focused: false }, "tab-b"));
+    await until(() => sub.events.filter((e) => e.event === "frame" && (e.data as WireFrame).source === "tab-b").length === 3);
+    expect((await status()).path).toBe("/focused");
+    expect((await post(key)).status).toBe(204);
+    await until(() => inputs(focused) === 1);
+    expect(inputs(background)).toBe(0);
+
+    // A late subscriber gets the focused (active) tab's frame last.
+    const late = subscribe();
+    await until(() => late.events.filter((e) => e.event === "frame").length === 2);
+    expect(late.events.filter((e) => e.event === "frame").map((e) => (e.data as WireFrame).source)).toEqual(["tab-b", "tab-f"]);
+    late.close();
+
+    // Input addressed to an unknown or closed tab is dropped (never broadcast to every tab).
+    expect((await post({ ...key, source: "tab-gone" })).status).toBe(404);
+    expect((await post({ ...key, source: 42 })).status).toBe(404);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(inputs(focused)).toBe(1);
+    expect(inputs(background)).toBe(0);
+
+    // Closing the focused tab falls back to the remaining one.
+    focused.ws.close();
+    await until(() => sub.events.some((e) => e.event === "gone" && (e.data as { source: string }).source === "tab-f"));
+    await until(async () => (await status()).path === "/background");
+    expect((await post(key)).status).toBe(204);
+    await until(() => inputs(background) === 1);
+
+    // A reconnecting tab re-registers its id on a new socket; the old socket's close must not remove it.
+    const again = await connectTab();
+    sendCustom(again.ws, "textjs:hello", { source: "tab-b", grid: { width: 12, height: 1 }, path: "/background" });
+    await until(() => again.messages.some((m) => m.event === "textjs:mirror"));
+    background.ws.close();
+    await until(() => background.ws.readyState === WebSocket.CLOSED);
+    await new Promise((r) => setTimeout(r, 100));
+    expect((await status()).sources).toBe(1);
+    expect((await post({ ...key, source: "tab-b" })).status).toBe(204);
+    await until(() => inputs(again) === 1);
+
+    // When the last editor leaves, frames go stale: the next subscriber waits for fresh full frames.
+    sub.close();
+    await until(async () => (await status()).watchers === 0);
+    const s0 = await status();
+    expect(s0.grid).toEqual({ width: 12, height: 1 });
+    const next = subscribe();
+    await until(() => next.events.some((e) => e.event === "status"));
+    await new Promise((r) => setTimeout(r, 100));
+    expect(next.events.filter((e) => e.event === "frame")).toHaveLength(0);
+    next.close();
+    again.ws.close();
+    await until(async () => (await status()).sources === 0 && (await status()).watchers === 0);
+  }, 20_000);
 
   test("rejects foreign origins on the stream", async () => {
     const res = await fetch(`${base}${FRAMES_PATH}`, { headers: { origin: "https://evil.example" } });

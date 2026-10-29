@@ -250,6 +250,16 @@ export class FrameDecoder {
   }
 }
 
+/**
+ * Whether frames from a tab with `next` meta should become the mirrored
+ * ("active") source instead of the current one. A focused tab is never
+ * displaced by an unfocused one (background tabs that animate keep sending
+ * frames), so the preview and forwarded keystrokes stay on the tab in use.
+ */
+export function shouldSwitchSource(current: FrameMeta | null, next: FrameMeta): boolean {
+  return current === null || next.focused === true || current.focused !== true;
+}
+
 /** Plain text of a frame (trailing whitespace trimmed), for tests and copy. */
 export function frameToText(frame: StyledFrame): string {
   return frame.rows
