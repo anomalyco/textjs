@@ -416,3 +416,32 @@ describe("incremental layout & prop optimizations", () => {
     root.destroy();
   });
 });
+
+describe("painted / screenRect bookkeeping (DevTools inspector inputs)", () => {
+  test("band repaints keep flags from the last full paint; moves and scrolls force a full paint", () => {
+    const lines = [0, 1, 2, 3, 4].map((i) => text({}, `line ${i}`));
+    const scroller = box({ height: 3, overflow: "hidden", flexDirection: "column" }, ...lines);
+    const root = box({ width: 10, height: 6, flexDirection: "column" }, scroller, text({}, "footer"));
+    root.calculateLayout(10, 6, true);
+    const buf = new CellBuffer(10, 6);
+    paintScene(root, buf);
+    expect(lines.map((l) => l.painted)).toEqual([true, true, true, false, false]);
+
+    // Text-only change: incremental band paint. Nodes outside the band keep accurate flags.
+    (lines[1]!.children[0] as SceneNode).setText("LINE 1");
+    root.calculateLayout(10, 6);
+    paintScene(root, buf);
+    expect(lines.map((l) => l.painted)).toEqual([true, true, true, false, false]);
+
+    // Scrolling moves nodes, which always takes the full path and refreshes every flag.
+    scroller.updateProps({ ...scroller.props, scrollY: 2 });
+    root.calculateLayout(10, 6);
+    paintScene(root, buf);
+    expect(lines.map((l) => l.painted)).toEqual([false, false, true, true, true]);
+    expect(lines[2]!.screenRect.y).toBe(0);
+
+    lines[4]!.destroy();
+    expect(lines[4]!.painted).toBe(false);
+    expect(lines[4]!.isDestroyed).toBe(true);
+  });
+});

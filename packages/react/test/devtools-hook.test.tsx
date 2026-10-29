@@ -85,6 +85,13 @@ describe("devtools hook", () => {
     expect(reads).toBe(1);
   });
 
+  test("the hook module has no runtime imports (the extension's page script bundles it alone)", async () => {
+    const src = await Bun.file(new URL("../src/devtools-hook.ts", import.meta.url)).text();
+    const imports = src.match(/^import\s.*$/gm) ?? [];
+    expect(imports.length).toBeGreaterThan(0);
+    for (const line of imports) expect(line).toMatch(/^import type /);
+  });
+
   test("installDevToolsHook is idempotent and non-enumerable", () => {
     const a = installDevToolsHook();
     const b = installDevToolsHook();
