@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
@@ -101,8 +101,20 @@ describe("text mcp · units", () => {
     expect(logs.read({ levels: ["error"] })[0]?.code).toBe("TX004");
     expect(logs.read({ since: 3 }).map((e) => e.message)).toEqual(["i"]);
     expect(formatLogArgs(["%chello", "color:red", "world"])).toBe("hello world");
+    // Directives are consumed left to right: %c drops its style, %s keeps its argument.
+    expect(formatLogArgs(["%c%s%c done", "color:red", "build", "color:blue"])).toBe("build done");
+    expect(formatLogArgs(["%s is %c%d%%", "cpu", "font-weight:bold", 42])).toBe("cpu is 42%");
+    expect(formatLogArgs(["100%%c literal", "extra"])).toBe("100%c literal extra");
+    expect(formatLogArgs(["%c only style"])).toBe("%c only style");
+    expect(formatLogArgs(["%o and %c", { a: 1 }, "color:red", "tail"])).toBe("{ a: 1 } and  tail");
     expect(txCodeOf(new Error("Text.js error TX018: nope"))).toBe("TX018");
     expect(logs.errorsSince(0)).toBe(1);
+  });
+
+  test("`text mcp` is dispatched before Vite or any other command module loads", () => {
+    const src = readFileSync(resolve(import.meta.dir, "../src/cli/index.ts"), "utf8");
+    expect(src).not.toMatch(/^import .* from "\.\/(build|dev|start|proxy|run)";?$/m);
+    expect(src).not.toMatch(/^import .* from "vite"/m);
   });
 
   test("parses CLI args", () => {
@@ -456,10 +468,39 @@ describe("text mcp · stdio", () => {
     writeFileSync(
       join(dir, "app/page.tsx"),
       `import { Text } from "@textjs/react";
+let once = false;
 export default function Home() {
   console.log("console noise");
   console.info("more noise");
   process.stdout.write("stray stdout write\\n");
+  if (!once) {
+    once = true;
+    // Bun prints these natively to fd 1, bypassing process.stdout.write.
+    console.count();
+    console.count("hits");
+    console.countReset("hits");
+    console.count("hits");
+    console.group("group label");
+    console.log("inside group");
+    console.groupCollapsed("collapsed label");
+    console.warn("nested warn");
+    console.groupEnd();
+    console.groupEnd();
+    console.log("after group");
+    console.dirxml({ dirxml: 1 });
+    console.table([{ col: "table cell" }]);
+    console.dir({ dir: { deep: true } });
+    console.trace("trace message");
+    console.assert(false, "assert message");
+    console.assert(true, "assert never");
+    console.time("timer");
+    console.timeLog("timer", "time log extra");
+    console.timeEnd("timer");
+    console.timeEnd("missing timer");
+    (console as unknown as { write?: (s: string) => number }).write?.("console.write raw\\n");
+    console.clear();
+    console.debug("debug line");
+  }
   return <Text>stdio ok</Text>;
 }
 `,
@@ -481,9 +522,33 @@ export default function Home() {
     await client.connect(transport);
     const r = (await client.callTool({ name: "read_frame", arguments: {} })) as CallToolResult;
     expect(text(r)).toContain("stdio ok");
-    const logs = (await client.callTool({ name: "logs", arguments: {} })) as CallToolResult;
-    expect(text(logs)).toContain("console noise");
-    expect(text(logs)).toContain("stray stdout write");
+    const logs = (await client.callTool({ name: "logs", arguments: { limit: 1000 } })) as CallToolResult;
+    const out = text(logs);
+    expect(out).toContain("console noise");
+    expect(out).toContain("stray stdout write");
+    for (const line of [
+      "log: default: 1",
+      "log: hits: 1",
+      "log: group label",
+      "log:   inside group",
+      "log:   collapsed label",
+      "warn:     nested warn",
+      "log: after group",
+      "dirxml: 1",
+      "table cell",
+      "deep: true",
+      "debug: Trace: trace message",
+      "error: Assertion failed: assert message",
+      "time log extra",
+      'warn: Timer "missing timer" does not exist',
+      "console.write raw",
+      "debug: debug line",
+    ])
+      expect(out).toContain(line);
+    expect(out).not.toContain("assert never");
+    expect(out).toMatch(/log: timer: \d+\.\d{3}ms time log extra/);
+    expect(out).toMatch(/log: timer: \d+\.\d{3}ms\n/);
+    // Every stdout line parsed as JSON-RPC: a stray byte would surface as a transport error.
     expect(errors).toEqual([]);
     const pid = transport.pid;
     await client.close();
