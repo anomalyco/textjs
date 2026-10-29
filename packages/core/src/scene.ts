@@ -284,6 +284,11 @@ export class SceneNode {
     return this.type !== "box";
   }
 
+  /** `true` once `destroy()` has run; the node must not be used afterwards. */
+  get isDestroyed(): boolean {
+    return this.destroyed;
+  }
+
   /** Text and raw-text nodes nested in another text are inline spans without Yoga nodes. */
   get isInline(): boolean {
     return this.isTextLike && this.parent !== null && this.parent.isTextLike;
@@ -457,6 +462,7 @@ export class SceneNode {
   /** Free Yoga memory for this subtree. The node must not be used afterwards. */
   destroy(): void {
     this.destroyed = true;
+    this.painted = false;
     if (this.pendingTextNodes !== null) this.pendingTextNodes.clear();
     if (this.parent) this.parent.removeChild(this);
     for (const c of this.children.slice()) c.destroy();

@@ -103,6 +103,13 @@ const DRIVER_FORCE: Readonly<DriverRenderOptions> = Object.freeze({ force: true 
 
 const hasWindow = typeof window !== "undefined" && typeof document !== "undefined";
 
+function isAttached(node: SceneNode, root: SceneNode): boolean {
+  if (node.isDestroyed) return false;
+  let cur: SceneNode = node;
+  while (cur.parent !== null) cur = cur.parent;
+  return cur === root;
+}
+
 function makeFrameResult(t: RendererStats, skipped: boolean): FrameResult {
   return {
     fps: t.fps,
@@ -378,13 +385,7 @@ export class ConsoleRenderer {
       root.calculateLayout(buf.width, buf.height);
     }
     const t1 = now();
-    if (root) {
-      const po = this.paintOpts;
-      po.wireframe = this.wireframe;
-      po.highlightedNode = this.highlighted;
-      po.focusedNode = this.focusedNode;
-      paintScene(root, buf, po);
-    } else buf.clear(this.background);
+    this.paint(root);
     const t2 = now();
     const result = this.driver.render(buf, force ? DRIVER_FORCE : DRIVER_NORMAL);
     const t3 = now();
@@ -424,6 +425,36 @@ export class ConsoleRenderer {
     const frame = makeFrameResult(t, result.skipped);
     this.options.onFrame?.(frame);
     return frame;
+  }
+
+  private paint(root: SceneNode | null): void {
+    const buf = this.buffer;
+    if (!root) {
+      buf.clear(this.background);
+      return;
+    }
+    // A highlighted node that was unmounted would otherwise keep incremental painting off.
+    if (this.highlighted !== null && !isAttached(this.highlighted, root)) this.highlighted = null;
+    const po = this.paintOpts;
+    po.wireframe = this.wireframe;
+    po.highlightedNode = this.highlighted;
+    po.focusedNode = this.focusedNode;
+    paintScene(root, buf, po);
+  }
+
+  /**
+   * Lay out and paint into `buffer` without emitting a console frame, even while
+   * paused. Inspectors use it so a resize, wireframe or highlight is reflected in
+   * the buffer (and `copyText()`) while output is frozen.
+   */
+  rasterize(): void {
+    if (this.disposed) return;
+    const root = this.root;
+    if (root) {
+      root._fullDamage = true;
+      root.calculateLayout(this.buffer.width, this.buffer.height);
+    }
+    this.paint(root);
   }
 
   // ---------------------------------------------------------------------------
