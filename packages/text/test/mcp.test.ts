@@ -320,6 +320,22 @@ describe("text mcp · dashboard", () => {
     expect(JSON.parse((routes.contents[0] as { text: string }).text).current).toBe("/settings");
   });
 
+  test("async server components (`runtime = \"server\"` /status) resolve and settle", async () => {
+    const r = await call(client, "navigate", { path: "/status", settleMs: 10_000 });
+    const out = text(r);
+    expect(out).toContain("route: /status");
+    expect(out).toContain("CPUs");
+    for (const id of ["iad1", "sfo1", "fra1", "cdg1", "hnd1"]) expect(out).toMatch(new RegExp(`${id}\\s+.*p50 \\d+ms`));
+    expect(out).not.toContain("probing…");
+    expect(out).not.toContain("Application error");
+    expect((r.structuredContent as { idle: boolean }).idle).toBe(true);
+    // router.refresh() + new props re-run the async components.
+    const again = await call(client, "press", { keys: "r", settleMs: 10_000 });
+    expect(text(again)).toContain("attempt 2");
+    expect(text(again)).not.toContain("probing…");
+    expect(text(await call(client, "logs", { level: ["error"] }))).not.toContain("async");
+  }, 30_000);
+
   test("schema violations are rejected", async () => {
     const r = await call(client, "resize", { cols: "wide", rows: 10 });
     expect(r.isError).toBe(true);

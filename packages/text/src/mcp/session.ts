@@ -21,6 +21,9 @@ import { resolveMetadata, resolveRoute, searchParamsToRecord, type FlatRoute, ty
 import { listApiRoutes, listPages, matchApiRoute, scanApp, toApiManifest, type ApiRoute, type AppScan } from "../server/scan";
 import { runRouteHandler, type RouteHandlerModule } from "../server/http";
 import { loadRuntimeManifest } from "../cli/run";
+import { installServerJsxRuntime } from "../server/bun-jsx";
+import { prepareServerManifest } from "../server/live-app";
+import { ServerComponentCache, ServerComponentsProvider } from "../server/server-components";
 import { loadTextConfig } from "../cli/config";
 import { frameContains, frameText, styledRows, type Region, type StyledRow } from "./frame";
 import { FiberProbe, inspect, type Bounds, type InspectOptions, type InspectResult } from "./inspect";
@@ -103,6 +106,12 @@ export class SessionError extends Error {
 const nullConsole: ConsoleTarget = { clear() {}, log() {} };
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const MIN_FRAME_GAP_MS = 8;
+/**
+ * React throttles revealing resolved Suspense boundaries (300ms after the
+ * last fallback commit), so a settled server-component promise may commit
+ * that much later: stay busy until it can have.
+ */
+const SUSPENSE_REVEAL_MS = 350;
 
 /** `setTimeout`-driven frames, with the pending set visible for idle detection. */
 class TrackedScheduler implements RendererScheduler {
@@ -162,6 +171,8 @@ export class HeadlessSession {
   private status: FrameSnapshot["status"] = "failed";
   private loadError: unknown = null;
   private disposed = false;
+  /** Async Server Components' promises (pending ones keep the session busy). */
+  private readonly serverCache: ServerComponentCache;
   readonly quietMs: number;
 
   private constructor(options: SessionOptions) {
@@ -170,6 +181,7 @@ export class HeadlessSession {
     this.logs = options.logs ?? new LogBuffer();
     this.history = createMemoryHistory(options.path ?? "/");
     this.quietMs = options.quietMs ?? 50;
+    this.serverCache = new ServerComponentCache(() => this.touch());
     this.history.listen(() => this.touch());
   }
 
@@ -257,6 +269,8 @@ export class HeadlessSession {
   private async mount(): Promise<void> {
     this.installFetch();
     const gen = ++this.generation;
+    // `async function` components (e.g. `runtime = "server"` pages) render like in `text dev`.
+    installServerJsxRuntime(this.rootDir);
     try {
       this.manifest = await loadRuntimeManifest(this.scan);
     } catch (error) {
@@ -301,7 +315,11 @@ export class HeadlessSession {
       createElement(
         FiberProbe,
         { ref: probeRef },
-        createElement(AppRouter, { routes: this.manifest, history: this.history, theme: this.theme, documentTitle: false, errorStore: null }),
+        createElement(
+          ServerComponentsProvider,
+          { cache: this.serverCache },
+          createElement(AppRouter, { routes: prepareServerManifest(this.manifest), history: this.history, theme: this.theme, documentTitle: false, errorStore: null }),
+        ),
       ),
     );
     root.flushSyncRender();
@@ -311,6 +329,7 @@ export class HeadlessSession {
     this.generation++;
     this.scheduler?.dispose();
     this.scheduler = null;
+    this.serverCache.clear();
     const root = this.appRoot;
     this.appRoot = null;
     this.probe = null;
@@ -337,7 +356,9 @@ export class HeadlessSession {
   isIdle(quietMs = this.quietMs): boolean {
     if (!this.appRoot) return true;
     const pending = this.scheduler?.pending.size ?? 0;
-    return pending === 0 && this.inflight === 0 && Date.now() - this.lastActivity >= quietMs;
+    const now = Date.now();
+    const server = this.serverCache.pending === 0 && now - this.serverCache.lastSettled >= SUSPENSE_REVEAL_MS;
+    return pending === 0 && this.inflight === 0 && server && now - this.lastActivity >= quietMs;
   }
 
   /**

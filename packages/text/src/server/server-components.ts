@@ -23,9 +23,24 @@ export class ServerComponentCache {
   private readonly entries = new Map<string, Promise<ReactNode>>();
   private readonly ids = new WeakMap<object, number>();
   private nextId = 1;
+  private inflight = 0;
+  private settledAt = 0;
+
+  /** `onActivity` runs whenever a component's promise starts or settles (idle tracking). */
+  constructor(private readonly onActivity?: () => void) {}
 
   get size(): number {
     return this.entries.size;
+  }
+
+  /** Component promises that have not settled yet. */
+  get pending(): number {
+    return this.inflight;
+  }
+
+  /** `Date.now()` when a component promise last settled (0 = never). */
+  get lastSettled(): number {
+    return this.settledAt;
   }
 
   clear(): void {
@@ -56,7 +71,14 @@ export class ServerComponentCache {
         p = Promise.reject(error);
       }
       // Rejections surface through `use()` to the nearest error boundary.
-      p.catch(() => undefined);
+      this.inflight++;
+      this.onActivity?.();
+      const settled = (): void => {
+        this.inflight--;
+        this.settledAt = Date.now();
+        this.onActivity?.();
+      };
+      p.then(settled, settled);
       this.entries.set(key, p);
     }
     return p;

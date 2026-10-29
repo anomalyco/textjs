@@ -16,6 +16,9 @@ import { AppRouter } from "../router";
 import { ROUTE_FILE_KINDS, type RouteManifest, type RouteModule, type RouteSegmentNode } from "../routing";
 import { matchApiRoute, scanApp, toApiManifest, toPosix, type AppScan, type ScannedSegment } from "../server/scan";
 import { runRouteHandler, type RouteHandlerModule } from "../server/http";
+import { installServerJsxRuntime } from "../server/bun-jsx";
+import { prepareServerManifest } from "../server/live-app";
+import { ServerComponentCache, ServerComponentsProvider } from "../server/server-components";
 import { loadTextConfig } from "./config";
 
 export interface RunOptions {
@@ -100,8 +103,11 @@ export async function runInTerminal(opts: RunOptions): Promise<TerminalRoot> {
   const originalFetch = g.fetch;
   g.fetch = createLocalFetch(scan, originalFetch);
   const history = createMemoryHistory(opts.path ?? "/");
+  // `async function` components (e.g. `runtime = "server"` pages) render like in `text dev`.
+  installServerJsxRuntime(opts.root);
+  const routes = prepareServerManifest(await loadRuntimeManifest(scan));
   const app = await renderToTerminal(
-    createElement(AppRouter, { routes: await loadRuntimeManifest(scan), history, theme, documentTitle: false, errorStore: null }),
+    createElement(ServerComponentsProvider, { cache: new ServerComponentCache() }, createElement(AppRouter, { routes, history, theme, documentTitle: false, errorStore: null })),
     {
       stdin: opts.stdin,
       stdout: opts.stdout,
