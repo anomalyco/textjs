@@ -13,7 +13,7 @@ import { existsSync, realpathSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createElement } from "react";
-import { ATTR_INVERSE, ATTR_WIDE_CONT, initYoga, InputEngine, type ConsoleTarget, type KeyInputEvent, type RendererScheduler } from "@textjs/core";
+import { ATTR_INVERSE, ATTR_WIDE_CONT, initYoga, InputEngine, type ConsoleTarget, type KeyInputEvent, type RendererScheduler, type WheelInputEvent } from "@textjs/core";
 import { createConsoleRootSync, type ConsoleRoot, type ThemeName } from "@textjs/react";
 import { createMemoryHistory, type MemoryHistory } from "../history";
 import { isNavigationError } from "../navigation-errors";
@@ -395,7 +395,7 @@ export class HeadlessSession {
    * land before the next. Stops if the app exits or `signal` aborts (a timed
    * out tool call must not keep typing into the next call's frame).
    */
-  private async dispatch(events: ReadonlyArray<{ kind: "key"; event: KeyInputEvent } | { kind: "paste"; text: string }>, signal?: AbortSignal): Promise<void> {
+  private async dispatch(events: ReadonlyArray<{ kind: "key"; event: KeyInputEvent } | { kind: "paste"; text: string } | { kind: "wheel"; event: WheelInputEvent }>, signal?: AbortSignal): Promise<void> {
     const root = this.requireRoot();
     for (const e of events) {
       throwIfAborted(signal);
@@ -404,6 +404,7 @@ export class HeadlessSession {
       fetchScope.run(this, () => {
         try {
           if (e.kind === "key") root.input.emit("key", e.event);
+          else if (e.kind === "wheel") root.input.emit("wheel", e.event);
           else root.input.handlePaste(e.text);
         } catch (error) {
           this.logs.push("error", "react", ["Error in input handler:", error]);
@@ -433,6 +434,23 @@ export class HeadlessSession {
 
   async paste(text: string, signal?: AbortSignal): Promise<void> {
     await this.dispatch([{ kind: "paste", text }], signal);
+  }
+
+  /**
+   * Mouse-wheel scroll by `rows` (positive scrolls down) and `cols`, sent in
+   * one-row steps like a wheel. Wheel input is not positional: it reaches the
+   * focused `<ScrollBox>` first, else every wheel-enabled one.
+   */
+  async scroll(rows: number, cols = 0, signal?: AbortSignal): Promise<number> {
+    const steps = Math.max(Math.abs(Math.trunc(rows)), Math.abs(Math.trunc(cols)), 1);
+    const event = (dy: number, dx: number): WheelInputEvent => ({ type: "wheel", deltaX: dx, deltaY: dy, rows: dy, cols: dx, ctrl: false, meta: false, shift: false, alt: false });
+    const events = Array.from({ length: steps }, (_, i) => {
+      const dy = i < Math.abs(Math.trunc(rows)) ? Math.sign(rows) : 0;
+      const dx = i < Math.abs(Math.trunc(cols)) ? Math.sign(cols) : 0;
+      return { kind: "wheel" as const, event: event(dy, dx) };
+    }).filter((e) => e.event.rows !== 0 || e.event.cols !== 0);
+    await this.dispatch(events, signal);
+    return events.length;
   }
 
   resize(cols: number, rows: number): { cols: number; rows: number } {

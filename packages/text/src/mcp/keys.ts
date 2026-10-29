@@ -4,7 +4,7 @@
  * any key is sent, so a typo never leaves the app half-driven.
  */
 
-import type { KeyInputEvent } from "@textjs/core";
+import { txError, type KeyInputEvent } from "@textjs/core";
 import { keyEventFromCombo, parseKeys } from "@textjs/react";
 
 /** Upper bound on keys per `press` call (guards against `down*100000`). */
@@ -38,7 +38,7 @@ export function parseKeyInput(keys: string | readonly string[]): KeyInputEvent[]
     let event: KeyInputEvent;
     try {
       // `"a,b"` would parse as alternatives; a press is always one concrete stroke.
-      if (combo !== "," && parseKeys(combo).length !== 1) throw new Error(`"${combo}" is not a single key stroke.`);
+      if (combo !== "," && parseKeys(combo).length !== 1) throw txError("TX009", combo);
       event = keyEventFromCombo(combo);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -52,10 +52,15 @@ export function parseKeyInput(keys: string | readonly string[]): KeyInputEvent[]
   return out;
 }
 
-/** Key events that type `text` character by character (`\n` presses return, `\t` tab). */
+const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/**
+ * Key events that type `text` one grapheme at a time (`\n` presses return,
+ * `\t` tab), so an emoji with modifiers or a ZWJ sequence is one keystroke.
+ */
 export function textToKeyEvents(text: string): KeyInputEvent[] {
   const out: KeyInputEvent[] = [];
-  for (const ch of text.replace(/\r\n?/g, "\n")) {
+  for (const { segment: ch } of graphemes.segment(text.replace(/\r\n?/g, "\n"))) {
     if (ch === "\n") {
       out.push(keyEventFromCombo("return"));
       continue;

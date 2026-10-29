@@ -17,7 +17,7 @@ import { CellBuffer, initYoga } from "@textjs/core";
 const DASHBOARD = resolve(import.meta.dir, "../../../examples/dashboard");
 const BIN = resolve(import.meta.dir, "../bin/text.ts");
 
-const TOOLS = ["list_routes", "navigate", "read_frame", "press", "type", "paste", "resize", "inspect_tree", "find", "wait_for", "logs", "fetch", "reload"];
+const TOOLS = ["list_routes", "navigate", "read_frame", "press", "type", "paste", "scroll", "resize", "inspect_tree", "find", "wait_for", "logs", "fetch", "reload"];
 
 // The app runs outside act(), like production code.
 const g = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -67,7 +67,7 @@ describe("text mcp · units", () => {
     expect(parseKeyInput(" ")[0]?.key).toBe("space");
     expect(() => parseKeyInput("ctrl+zz")).toThrow(/TX007/);
     expect(() => parseKeyInput("hyper+k")).toThrow(/TX006/);
-    expect(() => parseKeyInput("a,b")).toThrow(/single key stroke/);
+    expect(() => parseKeyInput("a,b")).toThrow(/TX009.*single key stroke/);
     expect(() => parseKeyInput("down*100000")).toThrow(/Too many keys/);
     // Validation is all-or-nothing.
     expect(() => parseKeyInput("down nope*2 up")).toThrow();
@@ -76,6 +76,8 @@ describe("text mcp · units", () => {
   test("types text, mapping newlines and tabs", () => {
     expect(textToKeyEvents("Hi\r\n\t").map((e) => e.key)).toEqual(["h", "i", "return", "tab"]);
     expect(textToKeyEvents("A")[0]).toMatchObject({ input: "A", shift: true });
+    // One key per grapheme: ZWJ sequences, skin tones and combining marks stay whole.
+    expect(textToKeyEvents("👩‍💻👍🏽é").map((e) => e.input)).toEqual(["👩‍💻", "👍🏽", "é"]);
   });
 
   test("frame helpers use cell columns around wide graphemes", async () => {
@@ -145,6 +147,8 @@ describe("text mcp · units", () => {
       skipConfig: true,
     });
     expect(parseMcpArgs(["mcp"]).dir).toBe(".");
+    expect(parseMcpArgs(["mcp", "--colz", "80", "-x", "app"]).unknown).toEqual(["--colz", "-x"]);
+    expect(parseMcpArgs(["mcp", "--verbose"]).unknown).toEqual([]);
   });
 });
 
@@ -308,11 +312,20 @@ describe("text mcp · dashboard", () => {
 
   test("resize reflows the frame", async () => {
     await call(client, "navigate", { path: "/" });
-    const r = await call(client, "resize", { cols: 60, rows: 20 });
-    const s = r.structuredContent as { cols: number; rows: number; text: string };
-    expect([s.cols, s.rows]).toEqual([60, 20]);
-    expect(Math.max(...s.text.split("\n").map((l) => [...l].length))).toBeLessThanOrEqual(60);
-    await call(client, "resize", { cols: 100, rows: 32 });
+    try {
+      const r = await call(client, "resize", { cols: 60, rows: 20 });
+      const s = r.structuredContent as { cols: number; rows: number; text: string };
+      expect([s.cols, s.rows]).toEqual([60, 20]);
+      expect(Math.max(...s.text.split("\n").map((l) => [...l].length))).toBeLessThanOrEqual(60);
+    } finally {
+      await call(client, "resize", { cols: 100, rows: 32 });
+    }
+  });
+
+  test("type is capped and points long input at paste", async () => {
+    const r = await call(client, "type", { text: "x".repeat(2001) });
+    expect(r.isError).toBe(true);
+    expect(text(r)).toContain("use paste");
   });
 
   test("fetch runs route handlers in-process", async () => {
@@ -865,6 +878,47 @@ export default function Home() {
   });
 });
 
+describe("text mcp · scroll", () => {
+  const dir = join(import.meta.dir, `.tmp-mcp-scroll-${process.pid}`);
+  let client: Client;
+  let close: () => Promise<void>;
+  beforeAll(async () => {
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(join(dir, "app"), { recursive: true });
+    writeFileSync(
+      join(dir, "app/page.tsx"),
+      `import { Box, ScrollBox, Text } from "@textjs/react";
+export default function Home() {
+  return (
+    <Box className="flex-col w-full h-full">
+      <ScrollBox className="grow">
+        {Array.from({ length: 40 }, (_, i) => <Text key={i}>{"line " + i}</Text>)}
+      </ScrollBox>
+    </Box>
+  );
+}
+`,
+    );
+    const c = await connect({ root: dir, cols: 30, rows: 5, skipConfig: true });
+    client = c.client;
+    close = c.close;
+  });
+  afterAll(async () => {
+    await close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("scroll wheels an unfocused ScrollBox down and up", async () => {
+    expect(text(await call(client, "read_frame"))).toContain("line 0");
+    const down = await call(client, "scroll", { rows: 10 });
+    expect(down.isError).toBeFalsy();
+    expect((down.structuredContent as { scrolled: number }).scrolled).toBe(10);
+    expect((down.structuredContent as { text: string }).text.split("\n")[0]).toMatch(/^line 10\b/);
+    const up = await call(client, "scroll", { rows: -4 });
+    expect((up.structuredContent as { text: string }).text.split("\n")[0]).toMatch(/^line 6\b/);
+  });
+});
+
 describe("text mcp · fetch routing across sessions", () => {
   const dir = join(import.meta.dir, `.tmp-mcp-fetch-${process.pid}`);
   beforeAll(() => {
@@ -987,6 +1041,24 @@ export default function Home() {
   afterAll(() => {
     rmSync(dir, { recursive: true, force: true });
   });
+
+  test("unknown flags are a usage error on stderr", () => {
+    const r = Bun.spawnSync([process.execPath, BIN, "mcp", dir, "--colz", "80"]);
+    expect(r.exitCode).toBe(2);
+    expect(r.stdout.toString()).toBe("");
+    expect(r.stderr.toString()).toContain("unknown option --colz");
+  });
+
+  test("exits when stdout breaks (EPIPE)", async () => {
+    const proc = Bun.spawn([process.execPath, BIN, "mcp", dir, "--no-config"], { stdin: "pipe", stdout: "pipe", stderr: "pipe" });
+    // Close our end of stdout, then make the server write a response.
+    await proc.stdout.cancel();
+    proc.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } })}\n`);
+    proc.stdin.flush();
+    const code = await Promise.race([proc.exited, new Promise<"alive">((r) => setTimeout(() => r("alive"), 10_000))]);
+    if (code === "alive") proc.kill();
+    expect(code).toBe(0);
+  }, 20_000);
 
   test("speaks clean JSON-RPC over stdout and exits when the client disconnects", async () => {
     const transport = new StdioClientTransport({ command: process.execPath, args: [BIN, "mcp", dir, "--no-config", "--cols", "30", "--rows", "4"], stderr: "pipe" });

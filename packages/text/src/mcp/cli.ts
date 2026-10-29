@@ -6,6 +6,7 @@
 
 import { resolve } from "node:path";
 import type { Writable } from "node:stream";
+import { txMessage } from "@textjs/core";
 import type { ThemeName } from "@textjs/react";
 import { captureConsole, LogBuffer, type LogEntry } from "./logs";
 
@@ -18,6 +19,8 @@ export interface McpCliArgs {
   skipConfig: boolean;
   verbose: boolean;
   help: boolean;
+  /** Unrecognized `-`/`--` flags (reported as a usage error). */
+  unknown: string[];
 }
 
 export const MCP_HELP = `Usage: text mcp [dir] [options]
@@ -34,12 +37,12 @@ Options:
   --verbose           Mirror captured logs to stderr
   -h, --help          Show this help
 
-Tools: list_routes navigate read_frame press type paste resize inspect_tree
-       find wait_for logs fetch reload
+Tools: list_routes navigate read_frame press type paste scroll resize
+       inspect_tree find wait_for logs fetch reload
 `;
 
 export function parseMcpArgs(argv: readonly string[]): McpCliArgs {
-  const out: McpCliArgs = { dir: ".", skipConfig: false, verbose: false, help: false };
+  const out: McpCliArgs = { dir: ".", skipConfig: false, verbose: false, help: false, unknown: [] };
   const positional: string[] = [];
   const num = (v: string | undefined): number | undefined => {
     const n = Number(v);
@@ -58,6 +61,7 @@ export function parseMcpArgs(argv: readonly string[]): McpCliArgs {
     else if (flag === "--theme") out.theme = value();
     else if (flag === "--no-config") out.skipConfig = true;
     else if (flag === "--verbose") out.verbose = true;
+    else if (a.startsWith("-") && a !== "-") out.unknown.push(a);
     else positional.push(a);
   }
   // argv includes the command itself ("mcp") when called from `text`.
@@ -79,8 +83,12 @@ export async function runMcpCli(argv: readonly string[]): Promise<number> {
     process.stdout.write(MCP_HELP);
     return 0;
   }
+  if (args.unknown.length > 0) {
+    stderr(`text mcp: unknown option${args.unknown.length > 1 ? "s" : ""} ${args.unknown.join(", ")}. See \`text mcp --help\`.\n`);
+    return 2;
+  }
   if (typeof process.versions.bun !== "string") {
-    stderr("text mcp requires Bun (route files are imported as TypeScript). Run it with `bunx --bun text mcp`.\n");
+    stderr(`${txMessage("TX019", "mcp", "mcp")}\n`);
     return 1;
   }
 
@@ -156,13 +164,21 @@ export async function runMcpCli(argv: readonly string[]): Promise<number> {
       setTimeout(() => process.exit(code), 500).unref();
     }
   };
-  transport.onclose = () => void shutdown(0);
   process.stdin.once("end", () => void shutdown(0));
   process.stdin.once("close", () => void shutdown(0));
   process.once("SIGINT", () => void shutdown(130));
   process.once("SIGTERM", () => void shutdown(143));
 
+  // The client went away mid-write (EPIPE): nothing can be delivered any more.
+  process.stdout.on("error", () => void shutdown(0));
+
   await server.connect(transport);
+  // After connect: `Protocol.connect` installs its own transport `onclose`.
+  const onServerClose = server.server.onclose;
+  server.server.onclose = () => {
+    onServerClose?.();
+    void shutdown(0);
+  };
   stderr(`▼ Text.js MCP server · ${root}\n`);
   // Load the app in the background; tools wait for it and report load errors.
   controller.start().catch((error: unknown) => {

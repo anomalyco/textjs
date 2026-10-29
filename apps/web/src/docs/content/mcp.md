@@ -1,11 +1,11 @@
 Coding agents can't open DevTools. `text mcp` gives them the app anyway: it runs your `app/` directory headless, in-process, and serves it over the [Model Context Protocol](https://modelcontextprotocol.io). The agent navigates, presses keys, reads frames as plain text and calls route handlers, without a browser.
 
 ```bash
-text mcp              # serve ./app over stdio
-text mcp apps/console # another project
+bunx --bun text mcp              # serve ./app over stdio
+bunx --bun text mcp apps/console # another project
 ```
 
-`text mcp` needs Bun. MCP clients start it for you, so you rarely run it by hand.
+`text mcp` needs Bun. Started with Node, it re-runs itself with Bun when `bun` is on your `PATH`, and fails with [TX019](/errors/TX019) otherwise. MCP clients start it for you, so you rarely run it by hand.
 
 ## Setup
 
@@ -72,14 +72,15 @@ For a project in a subdirectory, append the path: `["--bun", "text", "mcp", "app
 | `navigate` | Push or replace a path, or go `back` / `forward` |
 | `read_frame` | The frame as text, with route, size, focus and cursor. `styles: true` adds colors and attributes per span |
 | `press` | Key combos: `"down"`, `"ctrl+k"`, `"shift+tab"`, `"tab tab enter"`, `"down*3"` |
-| `type` | Type text one key at a time. `submit: true` presses Enter after |
+| `type` | Type text one key per character (up to 2,000; use `paste` for more). `submit: true` presses Enter after |
 | `paste` | One paste event, like `⌘V` |
+| `scroll` | Mouse-wheel scroll by `rows` (and `cols`). A `<ScrollBox>` scrolls on the wheel without keyboard focus |
 | `resize` | Set the grid size in columns and rows |
 | `inspect_tree` | The component tree with screen bounds, plus every focusable id |
 | `find` | Bounds of each match, and the component under it |
 | `wait_for` | Wait for text to appear or disappear, or for the app to go idle |
 | `logs` | Captured `console.*` output and React errors |
-| `fetch` | Call a `route.ts` handler in-process |
+| `fetch` | Call a `route.ts` handler in-process. Bodies are read up to `maxBytes`; event streams for `streamMs`, then cancelled |
 | `reload` | Re-import the app after you edit files |
 
 Input tools return the new frame, so the agent doesn't need a separate `read_frame` after each key. The current frame and the route list are also available as the resources `text://frame` and `text://routes`.
@@ -111,7 +112,7 @@ Coordinates are zero-based cells: `x` is the column, `y` the row. Wide character
 
 stdout carries the protocol. Your app's `console.*` output, stray `process.stdout.write` calls and React errors go to `logs` instead, numbered so an agent can ask for only new entries with `since`. When errors were logged since the last read, the next frame header says so.
 
-Failures come back as tool errors, never as a crash. Errors with a Text.js code keep it, for example `TX007` for an unknown key. If the app fails to load, every tool explains why. Fix the file and call `reload`.
+Failures come back as tool errors, never as a crash. A tool that times out is cancelled before the next call runs, so a slow call never types into the next call's frame. Errors with a Text.js code keep it, for example `TX007` for an unknown key. If the app fails to load, every tool explains why. Fix the file and call `reload`.
 
 ## Options
 
@@ -125,7 +126,7 @@ Failures come back as tool errors, never as a crash. Errors with a Text.js code 
 
 ## How it works
 
-`text mcp` runs your app the same way [`text run`](/docs/terminal) does: every route module is imported up front, the App Router uses memory history, and same-origin `fetch("/api/…")` calls run your handlers in-process. Frames go to an offscreen cell grid instead of a terminal.
+`text mcp` runs your app the same way [`text run`](/docs/terminal) does: every route module is imported up front, the App Router uses memory history, and same-origin `fetch("/api/…")` calls run your handlers in-process. Frames go to an offscreen cell grid instead of a terminal. Server-rendered pages (`export const runtime = "server"`) and their `async function` components render in-process, as in `text dev`, and the frame is read once they resolve.
 
 `reload` unmounts the app, clears every project module from Bun's module cache (including files outside `app/`), scans `app/` again and remounts at the current location.
 

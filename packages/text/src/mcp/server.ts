@@ -25,7 +25,7 @@ export interface TextMcpServerOptions extends SessionOptions {
 }
 
 const INSTRUCTIONS = `This server runs a Text.js app (React rendered into a character grid) headlessly, in-process.
-Workflow: list_routes → navigate → read_frame. Drive the UI with press (key combos such as "down", "ctrl+k", "tab tab enter", "down*3"), type and paste. Input tools wait until the app is idle and return the new frame, so a separate read_frame is rarely needed.
+Workflow: list_routes → navigate → read_frame. Drive the UI with press (key combos such as "down", "ctrl+k", "tab tab enter", "down*3"), type, paste and scroll (mouse wheel). Input tools wait until the app is idle and return the new frame, so a separate read_frame is rarely needed.
 Coordinates are zero-based cells: x = column, y = row. Use find to locate text, inspect_tree for the component tree with bounds and focus ids, wait_for for async UI, fetch to call app/**/route.ts handlers, logs for console output and React errors, and reload after editing files.`;
 
 /** Mutex: tool calls run one at a time so input order is deterministic. */
@@ -179,6 +179,9 @@ const regionSchema = z
   })
   .describe("Cell rectangle to read (zero-based). Default: the whole frame.");
 
+/** `type` sends one key event per grapheme; longer input belongs in `paste`. */
+const MAX_TYPE_CHARS = 2000;
+
 const settleSchema = z.number().int().min(0).max(30_000).optional().describe("Max ms to wait for the app to go idle before reading (default 1500). 0 reads immediately.");
 
 /** Create the MCP server. Call `controller.start()` (or any tool) to load the app. */
@@ -305,9 +308,9 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
     "type",
     {
       title: "Type text",
-      description: "Type text one key at a time into the focused component (\\n presses enter, \\t presses tab), then return the settled frame. `submit: true` presses enter afterwards.",
+      description: `Type text one key at a time into the focused component (\\n presses enter, \\t presses tab), then return the settled frame. \`submit: true\` presses enter afterwards. Up to ${MAX_TYPE_CHARS} characters; use paste for longer text.`,
       inputSchema: {
-        text: z.string().max(10_000),
+        text: z.string().max(MAX_TYPE_CHARS, `type sends one key per character (max ${MAX_TYPE_CHARS}); use paste for longer text.`),
         submit: z.boolean().optional(),
         settleMs: settleSchema,
       },
@@ -331,6 +334,25 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
     tool<{ text: string; settleMs?: number }>(35_000, "paste", async (s, a, signal) => {
       await s.paste(a.text, signal);
       return frameResult(await settleThen(s, a.settleMs, {}, signal));
+    }),
+  );
+
+  server.registerTool(
+    "scroll",
+    {
+      title: "Scroll",
+      description:
+        "Scroll with the mouse wheel by `rows` (positive = down, negative = up) and optionally `cols`, then return the settled frame. <ScrollBox> scrolls on the wheel even when it has no keyboard focus. Wheel input is not positional: the focused ScrollBox gets it first, otherwise every wheel-enabled one.",
+      inputSchema: {
+        rows: z.number().int().min(-1000).max(1000).describe("Rows to scroll; positive scrolls down."),
+        cols: z.number().int().min(-1000).max(1000).optional().describe("Columns to scroll; positive scrolls right."),
+        settleMs: settleSchema,
+      },
+      annotations: { readOnlyHint: false, openWorldHint: false },
+    },
+    tool<{ rows: number; cols?: number; settleMs?: number }>(35_000, "scroll", async (s, a, signal) => {
+      const n = await s.scroll(a.rows, a.cols ?? 0, signal);
+      return frameResult(await settleThen(s, a.settleMs, {}, signal), { scrolled: n });
     }),
   );
 
