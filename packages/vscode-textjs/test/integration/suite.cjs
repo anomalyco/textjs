@@ -67,13 +67,34 @@ test("files outside the workspace never run in the preview", async () => {
   assert.equal(before.headlessRoot, fixture);
   const doc = await vscode.workspace.openTextDocument(join(outside, "app/page.tsx"));
   await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
-  await vscode.commands.executeCommand("textjs.openPreview", doc.uri);
+  // Asking for a preview of it explicitly doesn't run it either.
+  await vscode.commands.executeCommand("textjs.openPreviewToSide", doc.uri);
   await new Promise((r) => setTimeout(r, 3000));
   const after = api.preview.inspect();
   assert.equal(after.headlessRoot, fixture, "the runner stays on the workspace project");
   assert.equal(after.state.target.label, "app/settings/page.tsx");
   assert.equal(existsSync(marker), false, "the outside project's config never ran");
   await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+});
+
+test("a hidden preview stops the runner and restarts it when shown", async () => {
+  assert.ok(api.preview.inspect().headlessRoot, "runner is running");
+  // Cover the preview with an editor in its column.
+  const doc = await vscode.workspace.openTextDocument({ language: "plaintext", content: "cover" });
+  await vscode.window.showTextDocument(doc, api.preview.inspect().column);
+  await until(() => api.preview.inspect().headlessRoot === null, 10000, "the runner to stop").catch((e) => {
+    const { text, state, ...rest } = api.preview.inspect();
+    console.error(JSON.stringify(rest));
+    throw e;
+  });
+  await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+  await until(() => {
+    const s = api.preview.inspect();
+    return s.headlessRoot === fixture && s.text && s.state.path === "/settings" ? s : null;
+  }, 30000, "the runner to restart").catch((e) => {
+    console.error(JSON.stringify(api.preview.inspect(), null, 2));
+    throw e;
+  });
 });
 
 test("TX codes get hovers and document links", async () => {

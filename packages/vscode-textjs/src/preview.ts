@@ -47,6 +47,9 @@ export class PreviewController implements vscode.Disposable {
   /** The tab whose frame the live preview shows. */
   private liveSource: string | null = null;
   private readonly disposables: vscode.Disposable[] = [];
+  /** Listeners and timers of the current panel (released when it closes). */
+  private panelDisposables: vscode.Disposable[] = [];
+  private viewportTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly deps: PreviewDeps) {
     const { monitor } = deps;
@@ -138,28 +141,54 @@ export class PreviewController implements vscode.Disposable {
       scriptUri: panel.webview.asWebviewUri(vscode.Uri.joinPath(ext, "dist", "webview.js")).toString(),
       styleUri: panel.webview.asWebviewUri(vscode.Uri.joinPath(ext, "webview", "styles.css")).toString(),
     });
-    panel.webview.onDidReceiveMessage((m: WebviewToHost) => this.onMessage(m), null, this.disposables);
-    panel.onDidChangeViewState(() => this.deps.monitor.setWatching(panel.visible), null, this.disposables);
-    panel.onDidDispose(() => {
-      if (this.panel !== panel) return;
-      this.panel = null;
-      this.ready = false;
-      this.deps.monitor.setWatching(false);
-      this.stopHeadless();
-      this.mode = "idle";
-      this.deps.onGrid(null);
-      this.lastGrid = "";
-      void vscode.commands.executeCommand("setContext", "textjs.previewOpen", false);
-    });
+    this.releasePanel();
+    const subs = this.panelDisposables;
+    panel.webview.onDidReceiveMessage((m: WebviewToHost) => this.onMessage(m), null, subs);
+    panel.onDidChangeViewState(
+      () => {
+        if (this.panel !== panel) return;
+        this.deps.monitor.setWatching(panel.visible);
+        // Hidden previews don't keep the project's code running; showing the panel starts it again.
+        if (!panel.visible) this.stopHeadless();
+        this.update();
+      },
+      null,
+      subs,
+    );
+    panel.onDidDispose(
+      () => {
+        if (this.panel !== panel) return;
+        this.panel = null;
+        this.ready = false;
+        this.releasePanel();
+        this.deps.monitor.setWatching(false);
+        this.stopHeadless();
+        this.mode = "idle";
+        this.deps.onGrid(null);
+        this.lastGrid = "";
+        void vscode.commands.executeCommand("setContext", "textjs.previewOpen", false);
+      },
+      null,
+      subs,
+    );
     void vscode.commands.executeCommand("setContext", "textjs.previewOpen", true);
-    this.deps.monitor.setWatching(true);
+    // A panel restored after a reload may be in a background tab.
+    this.deps.monitor.setWatching(panel.visible);
     // Hidden or still-loading webviews may not report their size yet.
-    setTimeout(() => {
+    this.viewportTimer = setTimeout(() => {
+      this.viewportTimer = null;
       if (this.panel !== panel || this.viewport) return;
       this.viewport = { cols: 100, rows: 30 };
       this.update();
     }, 1500);
     this.update();
+  }
+
+  /** Drop the current panel's listeners and pending timers. */
+  private releasePanel(): void {
+    for (const d of this.panelDisposables.splice(0)) d.dispose();
+    for (const t of [this.viewportTimer, this.reloadTimer, this.stateTimer]) if (t) clearTimeout(t);
+    this.viewportTimer = this.reloadTimer = this.stateTimer = null;
   }
 
   private title(): string {
@@ -207,7 +236,10 @@ export class PreviewController implements vscode.Disposable {
     const rel = relative(this.headless.root, doc.uri.fsPath);
     if (rel.startsWith("..")) return;
     if (this.reloadTimer) clearTimeout(this.reloadTimer);
-    this.reloadTimer = setTimeout(() => this.headless?.reload(), 120);
+    this.reloadTimer = setTimeout(() => {
+      this.reloadTimer = null;
+      this.headless?.reload();
+    }, 120);
   }
 
   // -------------------------------------------------------------------------
@@ -281,7 +313,7 @@ export class PreviewController implements vscode.Disposable {
 
   private ensureHeadless(): void {
     const target = this.target;
-    if (!target || this.headless || !this.viewport || !isTrusted()) return;
+    if (!target || this.headless || !this.viewport || !isTrusted() || !this.panel?.visible) return;
     const runtime = this.config().get<string>("preview.runtime", "").trim();
     const session = new HeadlessSession(
       { runnerPath: join(this.deps.context.extensionPath, "dist", "runner.mjs"), root: target.root, execPath: runtime || undefined },
@@ -478,9 +510,17 @@ export class PreviewController implements vscode.Disposable {
   }
 
   /** Mode and plain-text frame (integration tests and diagnostics). */
-  inspect(): { mode: PreviewMode; open: boolean; text: string | null; state: PreviewState; headlessRoot: string | null } {
+  inspect(): { mode: PreviewMode; open: boolean; visible: boolean; column: number | null; text: string | null; state: PreviewState; headlessRoot: string | null } {
     const f = this.currentFrame();
-    return { mode: this.mode, open: this.panel !== null, text: f ? frameToText(f) : null, state: this.state(), headlessRoot: this.headless?.root ?? null };
+    return {
+      mode: this.mode,
+      open: this.panel !== null,
+      visible: this.panel?.visible ?? false,
+      column: this.panel?.viewColumn ?? null,
+      text: f ? frameToText(f) : null,
+      state: this.state(),
+      headlessRoot: this.headless?.root ?? null,
+    };
   }
 
   /** The route currently shown (for "Open in Browser"). */
@@ -491,7 +531,8 @@ export class PreviewController implements vscode.Disposable {
   dispose(): void {
     this.stopHeadless();
     this.panel?.dispose();
-    for (const d of this.disposables) d.dispose();
+    this.releasePanel();
+    for (const d of this.disposables.splice(0)) d.dispose();
   }
 }
 

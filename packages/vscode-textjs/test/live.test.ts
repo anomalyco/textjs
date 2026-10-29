@@ -249,6 +249,49 @@ describe("headless runner", () => {
     s.dispose();
   }, 15_000);
 
+  test("restarts a runner that stops answering, and SIGKILLs one that ignores dispose and SIGTERM", async () => {
+    const stubborn = join(dir, ".runner/stubborn-runner.mjs");
+    writeFileSync(
+      stubborn,
+      `process.on("SIGTERM", () => {});
+process.on("message", (m) => {
+  if (m.type === "init") { process.send({ type: "ready", version: "1" }); process.send({ type: "error", message: "pid " + process.pid }); }
+});
+setInterval(() => {}, 1000);\n`,
+    );
+    const alive = (pid: number): boolean => {
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const pids: number[] = [];
+    let exits = 0;
+    const s = new HeadlessSession({ runnerPath: stubborn, root: dir, execPath: node, reloadTimeoutMs: 200, exitGraceMs: 100 }, {
+      onFrame: () => undefined,
+      onError: (e) => {
+        const m = /^pid (\d+)$/.exec(e?.message ?? "");
+        if (m) pids.push(Number(m[1]));
+      },
+      onExit: () => exits++,
+      onOutput: () => undefined,
+    });
+    s.start({ kind: "route", path: "/" }, 10, 2);
+    await until(() => pids.length === 1);
+    const first = pids[0]!;
+    s.reload(); // never answered
+    await until(() => pids.length === 2, 5000);
+    expect(pids[1]).not.toBe(first);
+    expect(s.pid).toBe(pids[1]);
+    await until(() => !alive(first), 3000);
+    expect(exits).toBe(0); // the replaced runner exits quietly
+    const second = pids[1]!;
+    s.dispose();
+    await until(() => !alive(second), 3000);
+  }, 15_000);
+
   test("renders a named component export and reports component errors", async () => {
     const { s, frames, errors } = session();
     s.start({ kind: "component", file: join(dir, "components/Badge.tsx") }, 30, 2);
