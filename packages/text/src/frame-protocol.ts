@@ -306,23 +306,112 @@ function isCssColor(v: unknown): boolean {
   return v === null || (typeof v === "string" && HEX_COLOR.test(v));
 }
 
-/** Validate an untrusted {@link WireFrame} (structure, bounds and hex-only colors). */
-export function isWireFrame(value: unknown): value is WireFrame {
-  if (!isObj(value)) return false;
-  if (value.v !== FRAME_PROTOCOL_VERSION || typeof value.seq !== "number" || typeof value.full !== "boolean") return false;
+/** Largest grid side, style table and total span text accepted in one frame. */
+export const MAX_GRID = 1000;
+export const MAX_STYLES = 4096;
+export const MAX_FRAME_TEXT = 1024 * 1024;
+export const MAX_TITLE = 512;
+export const MAX_PATH = 2048;
+
+const isInt = (v: unknown, min: number, max: number): v is number => Number.isInteger(v) && (v as number) >= min && (v as number) <= max;
+
+/** A same-app pathname: starts with one `/`, no backslashes, bounded. */
+export function isAppPath(v: unknown): v is string {
+  return typeof v === "string" && v.length <= MAX_PATH && v.startsWith("/") && !v.startsWith("//") && !v.includes("\\");
+}
+
+/** Validate untrusted {@link FrameMeta}; returns a copy of the known fields or `null`. */
+export function parseFrameMeta(value: unknown): FrameMeta | null {
+  if (!isObj(value)) return null;
+  const meta: FrameMeta = {};
+  if (value.path !== undefined) {
+    if (!isAppPath(value.path)) return null;
+    meta.path = value.path;
+  }
+  if (value.title !== undefined) {
+    if (typeof value.title !== "string") return null;
+    meta.title = value.title.slice(0, MAX_TITLE);
+  }
+  if (value.focused !== undefined) {
+    if (typeof value.focused !== "boolean") return null;
+    meta.focused = value.focused;
+  }
+  return meta;
+}
+
+/** Validate a frame source id (one per browser tab). */
+export function isSourceId(v: unknown): v is string {
+  return typeof v === "string" && v.length >= 1 && v.length <= 64;
+}
+
+/**
+ * Validate an untrusted {@link WireFrame} (structure, bounds and hex-only
+ * colors) and return a clean copy, or `null`. Rows must lie inside the grid,
+ * spans must have a positive width that fits it and reference a style, and
+ * `meta` keeps only `path`, `title` and `focused`.
+ */
+export function parseWireFrame(value: unknown): WireFrame | null {
+  if (!isObj(value)) return null;
+  if (value.v !== FRAME_PROTOCOL_VERSION || !isInt(value.seq, 0, Number.MAX_SAFE_INTEGER) || typeof value.full !== "boolean") return null;
   const { width, height } = value;
-  if (!Number.isInteger(width) || !Number.isInteger(height) || (width as number) < 1 || (height as number) < 1 || (width as number) > 1000 || (height as number) > 1000) return false;
-  if (!Array.isArray(value.styles) || !Array.isArray(value.rows)) return false;
-  for (const s of value.styles) {
-    if (!Array.isArray(s) || s.length !== 3) return false;
-    if (!isCssColor(s[0]) || !isCssColor(s[1]) || typeof s[2] !== "number") return false;
+  if (!isInt(width, 1, MAX_GRID) || !isInt(height, 1, MAX_GRID)) return null;
+  if (value.source !== undefined && !isSourceId(value.source)) return null;
+  if (!Array.isArray(value.styles) || !Array.isArray(value.rows)) return null;
+  if (value.styles.length > MAX_STYLES || value.rows.length > height) return null;
+  const styles: WireStyle[] = [];
+  for (const s of value.styles as unknown[]) {
+    if (!Array.isArray(s) || s.length !== 3) return null;
+    if (!isCssColor(s[0]) || !isCssColor(s[1]) || !isInt(s[2], 0, 0xffff)) return null;
+    styles.push([s[0] as string | null, s[1] as string | null, s[2] as number]);
   }
-  for (const r of value.rows) {
-    if (!Array.isArray(r) || r.length !== 2 || !Number.isInteger(r[0]) || !Array.isArray(r[1])) return false;
-    for (const sp of r[1] as unknown[]) {
-      if (!Array.isArray(sp) || typeof sp[0] !== "string" || !Number.isInteger(sp[1])) return false;
-      if (sp.length > 2 && !Number.isInteger(sp[2])) return false;
+  let text = 0;
+  const rows: WireFrame["rows"] = [];
+  for (const r of value.rows as unknown[]) {
+    if (!Array.isArray(r) || r.length !== 2 || !isInt(r[0], 0, height - 1) || !Array.isArray(r[1])) return null;
+    const spans = r[1] as unknown[];
+    if (spans.length > width) return null;
+    const out: WireSpan[] = [];
+    for (const sp of spans) {
+      if (!Array.isArray(sp) || (sp.length !== 2 && sp.length !== 3)) return null;
+      const [t, id, w] = sp as [unknown, unknown, unknown];
+      if (typeof t !== "string" || !isInt(id, 0, styles.length - 1)) return null;
+      if (sp.length === 3 ? !isInt(w, 1, width) : t.length < 1 || t.length > width) return null;
+      text += t.length;
+      if (text > MAX_FRAME_TEXT) return null;
+      out.push(sp.length === 3 ? [t, id, w as number] : [t, id]);
     }
+    rows.push([r[0] as number, out]);
   }
-  return value.meta === undefined || isObj(value.meta);
+  const frame: WireFrame = { v: FRAME_PROTOCOL_VERSION, seq: value.seq as number, width, height, full: value.full, styles, rows };
+  if (value.source !== undefined) frame.source = value.source as string;
+  if (value.meta !== undefined) {
+    const meta = parseFrameMeta(value.meta);
+    if (!meta) return null;
+    frame.meta = meta;
+  }
+  return frame;
+}
+
+/** Whether `value` is a valid {@link WireFrame} (see {@link parseWireFrame}). */
+export function isWireFrame(value: unknown): value is WireFrame {
+  return parseWireFrame(value) !== null;
+}
+
+/** Validate an untrusted {@link DevStatus} (from `/__textjs/status` or the stream). */
+export function parseDevStatus(value: unknown): DevStatus | null {
+  if (!isObj(value) || value.name !== "textjs") return null;
+  if (typeof value.version !== "string" || value.version.length > 64 || typeof value.root !== "string" || value.root.length > 4096) return null;
+  const count = (v: unknown): number => (isInt(v, 0, 1_000_000) ? v : 0);
+  let grid: DevStatus["grid"] = null;
+  if (isObj(value.grid) && isInt(value.grid.width, 1, MAX_GRID) && isInt(value.grid.height, 1, MAX_GRID)) grid = { width: value.grid.width, height: value.grid.height };
+  return {
+    name: "textjs",
+    version: value.version,
+    root: value.root,
+    clients: count(value.clients),
+    sources: count(value.sources),
+    watchers: count(value.watchers),
+    grid,
+    path: isAppPath(value.path) ? value.path : null,
+  };
 }

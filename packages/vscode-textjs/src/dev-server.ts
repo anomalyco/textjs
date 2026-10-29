@@ -10,8 +10,9 @@ import {
   FRAMES_PATH,
   FrameDecoder,
   INPUT_PATH,
-  isWireFrame,
   MIRROR_HEADER,
+  parseDevStatus,
+  parseWireFrame,
   STATUS_PATH,
   type DevStatus,
   type FrameMeta,
@@ -74,8 +75,7 @@ export async function probe(baseUrl: string, timeoutMs = 600): Promise<DevStatus
   const res = await get(`${baseUrl.replace(/\/$/, "")}${STATUS_PATH}`, timeoutMs);
   if (!res || res.status !== 200) return null;
   try {
-    const s = JSON.parse(res.body) as DevStatus;
-    return s && s.name === "textjs" ? s : null;
+    return parseDevStatus(JSON.parse(res.body));
   } catch {
     return null;
   }
@@ -207,7 +207,10 @@ export function connectFrameStream(baseUrl: string, handlers: FrameStreamHandler
         } catch {
           continue;
         }
-        if (ev.event === "status") handlers.onStatus(data as DevStatus);
+        if (ev.event === "status") {
+          const status = parseDevStatus(data);
+          if (status) handlers.onStatus(status);
+        }
         else if (ev.event === "gone") {
           const id = (data as { source?: string }).source;
           if (typeof id === "string") {
@@ -215,11 +218,13 @@ export function connectFrameStream(baseUrl: string, handlers: FrameStreamHandler
             if (active === id) active = null;
             handlers.onSourceGone(id);
           }
-        } else if (ev.event === "frame" && isWireFrame(data)) {
-          const source = data.source ?? "default";
+        } else if (ev.event === "frame") {
+          const wire = parseWireFrame(data);
+          if (!wire) continue;
+          const source = wire.source ?? "default";
           let dec = decoders.get(source);
           if (!dec) decoders.set(source, (dec = new FrameDecoder()));
-          const frame = dec.apply(data);
+          const frame = dec.apply(wire);
           if (!frame) continue;
           active = source;
           handlers.onFrame({ source, frame, meta: dec.meta });

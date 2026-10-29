@@ -4,7 +4,7 @@
  */
 
 import { fork, type ChildProcess } from "node:child_process";
-import { FrameDecoder, type FrameMeta, type InputMessage } from "@textjs/next/frame-protocol";
+import { FrameDecoder, parseWireFrame, type FrameMeta, type InputMessage } from "@textjs/next/frame-protocol";
 import type { StyledFrame } from "@textjs/core";
 import type { HostToRunner, RunnerTarget, RunnerToHost } from "./runner/messages";
 
@@ -69,14 +69,21 @@ export class HeadlessSession {
   }
 
   private onMessage(m: RunnerToHost): void {
+    if (typeof m !== "object" || m === null) return;
     switch (m.type) {
       case "frame": {
-        const f = this.decoder.apply(m.frame);
+        const wire = parseWireFrame(m.frame);
+        if (!wire) break;
+        const f = this.decoder.apply(wire);
         if (f) this.handlers.onFrame(f, this.decoder.meta);
         break;
       }
       case "error":
-        this.handlers.onError({ message: m.message, stack: m.stack, file: m.file });
+        this.handlers.onError({
+          message: String(m.message),
+          stack: typeof m.stack === "string" ? m.stack : undefined,
+          file: typeof m.file === "string" ? m.file : undefined,
+        });
         break;
       case "clearError":
         this.handlers.onError(null);

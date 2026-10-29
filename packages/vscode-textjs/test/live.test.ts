@@ -182,6 +182,33 @@ describe("headless runner", () => {
     s.dispose();
   }, 30_000);
 
+  test("ignores malformed IPC messages from the runner", async () => {
+    const good = new FrameEncoder().encode(extractStyledFrame((() => { const b = new CellBuffer(8, 1); b.drawText(0, 0, "good", 0xffffffff, 0, 0); return b; })()), { meta: { path: "/ok" } });
+    const fake = join(dir, ".runner/fake-runner.mjs");
+    writeFileSync(
+      fake,
+      `process.on("message", (m) => {
+  if (m.type !== "init") { if (m.type === "dispose") process.exit(0); return; }
+  process.send(null);
+  process.send("frame");
+  process.send({ type: "frame", frame: { ...${JSON.stringify(good)}, meta: { path: 42 } } });
+  process.send({ type: "frame", frame: { ...${JSON.stringify(good)}, rows: [[0, [["x", 0, 0]]]] } });
+  process.send({ type: "frame", frame: ${JSON.stringify(good)} });
+});\n`,
+    );
+    const frames: Array<{ text: string; path: unknown }> = [];
+    const s = new HeadlessSession({ runnerPath: fake, root: dir, execPath: node }, {
+      onFrame: (f, meta) => frames.push({ text: frameToText(f), path: meta.path }),
+      onError: () => undefined,
+      onOutput: () => undefined,
+    });
+    s.start({ kind: "route", path: "/" }, 8, 1);
+    await until(() => frames.length > 0);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(frames).toEqual([{ text: "good", path: "/ok" }]);
+    s.dispose();
+  }, 15_000);
+
   test("renders a named component export and reports component errors", async () => {
     const { s, frames, errors } = session();
     s.start({ kind: "component", file: join(dir, "components/Badge.tsx") }, 30, 2);

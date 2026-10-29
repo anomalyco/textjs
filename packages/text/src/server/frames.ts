@@ -26,8 +26,10 @@ import {
   HMR_INPUT_EVENT,
   HMR_MIRROR_EVENT,
   INPUT_PATH,
-  isWireFrame,
+  isAppPath,
+  isSourceId,
   MIRROR_HEADER,
+  parseWireFrame,
   parseInputMessage,
   STATUS_PATH,
   type DevStatus,
@@ -167,27 +169,27 @@ export function attachFrameStream(server: ViteDevServer, root: string): FrameStr
     });
     return src;
   };
-  const validId = (id: unknown): id is string => typeof id === "string" && id.length > 0 && id.length <= 64;
 
   server.ws.on(HMR_HELLO_EVENT, (data: unknown, client) => {
     client.send(HMR_MIRROR_EVENT, { active: watchers.size > 0 });
     const d = (data ?? {}) as { source?: unknown; grid?: { width?: unknown; height?: unknown }; path?: unknown };
-    if (validId(d.source)) {
+    if (isSourceId(d.source)) {
       const src = sourceFor(d.source, client);
       const w = d.grid?.width;
       const h = d.grid?.height;
       if (Number.isInteger(w) && Number.isInteger(h) && (w as number) > 0 && (h as number) > 0 && (w as number) <= 1000 && (h as number) <= 1000) {
         src.grid = { width: w as number, height: h as number };
       }
-      if (typeof d.path === "string" && d.path.length <= 2048) src.path = d.path;
+      if (isAppPath(d.path)) src.path = d.path;
       src.updatedAt = Date.now();
       latest = src;
     }
     broadcast("status", status());
   });
 
-  server.ws.on(HMR_FRAME_EVENT, (data: unknown, client) => {
-    if (!isWireFrame(data) || !validId(data.source)) return;
+  server.ws.on(HMR_FRAME_EVENT, (raw: unknown, client) => {
+    const data = parseWireFrame(raw);
+    if (!data || data.source === undefined) return;
     const src = sourceFor(data.source, client);
     if (src.decoder.apply(data) === null) return;
     src.updatedAt = Date.now();

@@ -6,7 +6,7 @@
 
 import { extractStyledFrame } from "@textjs/core";
 import type { ConsoleRoot } from "@textjs/react";
-import { FrameEncoder, HMR_FRAME_EVENT, HMR_HELLO_EVENT, HMR_INPUT_EVENT, HMR_MIRROR_EVENT, parseInputMessage, type FrameMeta, type InputMessage } from "./frame-protocol";
+import { FrameEncoder, MAX_TITLE, HMR_FRAME_EVENT, HMR_HELLO_EVENT, HMR_INPUT_EVENT, HMR_MIRROR_EVENT, parseInputMessage, type FrameMeta, type InputMessage } from "./frame-protocol";
 import type { RouterHistory } from "./history";
 
 export interface MirrorHotContext {
@@ -45,7 +45,7 @@ export function connectFrameMirror(root: ConsoleRoot, hot: MirrorHotContext, his
 
   const meta = (): FrameMeta => ({
     path: history?.getLocation().pathname,
-    title: typeof document !== "undefined" ? document.title : undefined,
+    title: typeof document !== "undefined" ? document.title.slice(0, MAX_TITLE) : undefined,
     focused: root.renderer.focused,
   });
   const send = (): void => {

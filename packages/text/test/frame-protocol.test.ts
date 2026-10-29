@@ -8,7 +8,9 @@ import {
   FrameEncoder,
   frameToText,
   isWireFrame,
+  parseDevStatus,
   parseInputMessage,
+  parseWireFrame,
   type WireFrame,
 } from "../src/frame-protocol";
 
@@ -96,6 +98,59 @@ describe("frame protocol", () => {
     expect(isWireFrame({ ...good, styles: [["red;background:url(x)", null, 0]] })).toBe(false);
     expect(isWireFrame({ ...good, rows: [[0, [[1, 0]]]] })).toBe(false);
     expect(isWireFrame(null)).toBe(false);
+  });
+
+  test("parseWireFrame bounds every field and copies only known meta", () => {
+    const good = encodeFullFrame(extractStyledFrame(buffer(["ab", "cd"], 4)), { source: "tab1", meta: { path: "/x", title: "T", focused: true } });
+    expect(parseWireFrame(JSON.parse(JSON.stringify(good)))).toEqual(good);
+    const bad = (patch: Record<string, unknown>) => parseWireFrame({ ...good, ...patch });
+    // seq and source
+    expect(bad({ seq: 1.5 })).toBeNull();
+    expect(bad({ seq: "1" })).toBeNull();
+    expect(bad({ source: { toString: "x" } })).toBeNull();
+    expect(bad({ source: "" })).toBeNull();
+    expect(bad({ source: "x".repeat(65) })).toBeNull();
+    // meta: a non-string path used to crash the editor's address bar
+    expect(bad({ meta: { path: 42 } })).toBeNull();
+    expect(bad({ meta: { path: "https://evil.example" } })).toBeNull();
+    expect(bad({ meta: { path: "//evil.example" } })).toBeNull();
+    expect(bad({ meta: { path: `/${"a".repeat(3000)}` } })).toBeNull();
+    expect(bad({ meta: { focused: "yes" } })).toBeNull();
+    expect(bad({ meta: { title: {} } })).toBeNull();
+    expect(bad({ meta: "x" })).toBeNull();
+    expect(bad({ meta: { path: "/ok", title: "t".repeat(2000), evil: "<script>" } })?.meta).toEqual({ path: "/ok", title: "t".repeat(512) });
+    // grid, styles, rows and spans
+    expect(bad({ width: 2.5 })).toBeNull();
+    expect(bad({ styles: Array.from({ length: 4097 }, () => [null, null, 0]) })).toBeNull();
+    expect(bad({ styles: [[null, null, -1]] })).toBeNull();
+    expect(bad({ styles: [[null, null, 1.5]] })).toBeNull();
+    expect(bad({ rows: [[0, []], [1, []], [1, []]] })).toBeNull(); // more rows than the grid has
+    expect(bad({ rows: [[2, []]] })).toBeNull(); // outside the grid
+    expect(bad({ rows: [[-1, []]] })).toBeNull();
+    expect(bad({ rows: [[0, [["a", 0], ["b", 0], ["c", 0], ["d", 0], ["e", 0]]]] })).toBeNull(); // more spans than columns
+    expect(bad({ rows: [[0, [["a", 0, 0]]]] })).toBeNull(); // zero width (duplicate React keys)
+    expect(bad({ rows: [[0, [["a", 0, -3]]]] })).toBeNull();
+    expect(bad({ rows: [[0, [["a", 0, 5]]]] })).toBeNull(); // wider than the grid
+    expect(bad({ rows: [[0, [["", 0]]]] })).toBeNull(); // implicit zero width
+    expect(bad({ rows: [[0, [["abcde", 0]]]] })).toBeNull();
+    expect(bad({ rows: [[0, [["a", 9]]]] })).toBeNull(); // unknown style
+    expect(bad({ rows: [[0, [["a", 0, 1, "extra"]]]] })).toBeNull();
+    // total text is bounded
+    const huge = { ...good, width: 1000, height: 1000, rows: Array.from({ length: 1000 }, (_, y) => [y, [["x".repeat(2000), 0, 1000]]]) };
+    expect(parseWireFrame(huge)).toBeNull();
+    // a wide glyph with explicit width is fine
+    expect(bad({ rows: [[0, [["界", 0, 2], ["e", 0]]]] })).not.toBeNull();
+  });
+
+  test("parseDevStatus validates status documents", () => {
+    const ok = { name: "textjs", version: "1.0.0", root: "/app", clients: 1, sources: 1, watchers: 0, grid: { width: 90, height: 30 }, path: "/logs" };
+    expect(parseDevStatus(ok)).toEqual(ok);
+    expect(parseDevStatus({ ...ok, path: { evil: 1 } })?.path).toBeNull();
+    expect(parseDevStatus({ ...ok, path: "//evil.example" })?.path).toBeNull();
+    expect(parseDevStatus({ ...ok, grid: { width: -1, height: 2 } })?.grid).toBeNull();
+    expect(parseDevStatus({ ...ok, sources: "9" })?.sources).toBe(0);
+    expect(parseDevStatus({ ...ok, name: "other" })).toBeNull();
+    expect(parseDevStatus({ ...ok, root: 1 })).toBeNull();
   });
 
   test("parseInputMessage validates and normalizes untrusted input", () => {
