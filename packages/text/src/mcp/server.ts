@@ -379,7 +379,7 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
       inputSchema: {
         component: z.string().max(200).optional().describe("Case-insensitive component name filter."),
         hosts: z.boolean().optional().describe("Include box/text scene nodes (default true)."),
-        maxDepth: z.number().int().min(1).max(200).optional(),
+        maxDepth: z.number().int().min(1).max(200).optional().describe("Levels to return (default 40), counted from each match when `component` is set."),
         format: z.enum(["text", "json"]).optional().describe("text (indented, default) or json."),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },

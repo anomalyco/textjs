@@ -268,6 +268,18 @@ describe("text mcp · dashboard", () => {
     expect(filtered.split("\n")[1]).toMatch(/^\s+DeploymentsPage\s+\[\d+,\d+ \d+×\d+\]/);
     expect(filtered).toContain('"Deployments"');
     expect(filtered).toContain("focusables:");
+
+    // maxDepth counts from each match, so deep components are still found.
+    const shallow = await call(client, "inspect_tree", { component: "DeploymentsPage", maxDepth: 2, format: "json" });
+    const tree = (shallow.structuredContent as { tree: { children: Array<{ name: string; children?: Array<{ children?: unknown[] }> }> } }).tree;
+    expect(tree.children.map((c) => c.name)).toEqual(["DeploymentsPage"]);
+    const match = tree.children[0];
+    expect(match?.children?.length).toBeGreaterThan(0);
+    for (const c of match?.children ?? []) expect(c.children).toBeUndefined();
+    const top = await call(client, "inspect_tree", { maxDepth: 1, format: "json" });
+    for (const c of (top.structuredContent as { tree: { children: Array<{ children?: unknown[] }> } }).tree.children) expect(c.children).toBeUndefined();
+    // Paths and trees start below the inspector's probe.
+    expect(JSON.stringify((await call(client, "inspect_tree", { format: "json" })).structuredContent)).not.toContain("FiberProbe");
   });
 
   test("type, paste and wait_for on the logs page", async () => {

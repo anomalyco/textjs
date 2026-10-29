@@ -99,7 +99,7 @@ export interface FocusableInfo {
 export interface InspectOptions {
   /** Include host `box` / `text` nodes (default `true`). */
   hosts?: boolean;
-  /** Max nesting depth of the returned tree (default 40). */
+  /** Levels of the returned tree (default 40), counted from the top level, or from each match with `component`. */
   maxDepth?: number;
   /** Only return subtrees rooted at components whose name matches (case-insensitive substring). */
   component?: string;
@@ -253,14 +253,13 @@ export function inspect(probe: FiberProbe | null, focus: FocusManager, options: 
    * transparent), its painted bounds, and the bounds of portals rendered
    * below it (kept apart: they paint in the root layer).
    */
-  const visit = (fiber: Fiber, depth: number): { nodes: TreeNode[]; bounds: Bounds | null; portal: Bounds | null } => {
+  const visit = (fiber: Fiber): { nodes: TreeNode[]; bounds: Bounds | null; portal: Bounds | null } => {
     if (isHiddenOffscreen(fiber)) return { nodes: [], bounds: null, portal: null };
     const name = displayName(fiber);
     const scene = sceneOf(fiber);
     const isSuspense = fiber.tag === SuspenseComponent;
     const isPortal = fiber.tag === HostPortal;
     const visible = name !== null || (hosts && scene !== null) || isSuspense || isPortal;
-    const childDepth = visible ? depth + 1 : depth;
     const kids: TreeNode[] = [];
     let bounds: Bounds | null = scene ? rectOf(scene) : null;
     let portalBounds: Bounds | null = null;
@@ -268,7 +267,7 @@ export function inspect(probe: FiberProbe | null, focus: FocusManager, options: 
     if (scene?.type === "raw-text") bounds = null;
     if (fiber.tag !== HostText) {
       for (let c = fiber.child; c; c = c.sibling) {
-        const r = visit(c, childDepth);
+        const r = visit(c);
         kids.push(...r.nodes);
         // A portal paints in the root layer, not inside its logical parent.
         if (c.tag === HostPortal) portalBounds = union(portalBounds, r.bounds);
@@ -315,10 +314,6 @@ export function inspect(probe: FiberProbe | null, focus: FocusManager, options: 
     const children = node.kind === "text" ? kids.filter((k) => k.kind !== "text" || k.text !== node.text) : kids;
     if (children.length > 0) node.children = children;
     if (hideEmpty && (node.kind === "component" || node.kind === "portal") && !shown && children.length === 0 && node.focusId === undefined) return { nodes: [], bounds, portal: portalBounds };
-    if (depth >= maxDepth) {
-      delete node.children;
-      return { nodes: [node], bounds, portal: portalBounds };
-    }
     return { nodes: [node], bounds, portal: portalBounds };
   };
 
@@ -327,16 +322,26 @@ export function inspect(probe: FiberProbe | null, focus: FocusManager, options: 
     const nodes: TreeNode[] = [];
     let bounds: Bounds | null = null;
     for (let c = probeFiber.child; c; c = c.sibling) {
-      const r = visit(c, 0);
+      const r = visit(c);
       nodes.push(...r.nodes);
       bounds = union(bounds, r.bounds);
     }
-    tree = { kind: "component", name: "App", ...(bounds ? { bounds } : {}), children: nodes };
+    // The whole tree is walked (bounds and focus attribution need every host);
+    // `maxDepth` limits what is returned, counted from the matched roots.
+    const trim = (n: TreeNode, depth: number): TreeNode => {
+      if (!n.children) return n;
+      if (depth + 1 >= maxDepth) {
+        const { children: _children, ...rest } = n;
+        return rest;
+      }
+      return { ...n, children: n.children.map((c) => trim(c, depth + 1)) };
+    };
+    tree = { kind: "component", name: "App", ...(bounds ? { bounds } : {}), children: nodes.map((n) => trim(n, 0)) };
     if (needle) {
       const matches: TreeNode[] = [];
       const search = (n: TreeNode): void => {
         if (n.kind === "component" && n.name.toLowerCase().includes(needle)) {
-          matches.push(n);
+          matches.push(trim(n, 0));
           return;
         }
         n.children?.forEach(search);
