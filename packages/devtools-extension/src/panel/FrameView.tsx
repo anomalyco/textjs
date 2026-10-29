@@ -1,13 +1,13 @@
 import { memo, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { DevToolsFrameSnapshot } from "../protocol";
-import { attrList, cssColor, hex } from "./format";
+import { attrList, cssColor, hasRtl, hex } from "./format";
 import { RefreshIcon } from "./icons";
 import type { PanelState, PanelStore } from "./store";
 
 const LINE = 14;
 const DEFAULT_FG = 0xd4d4d8ff;
 
-interface Run {
+export interface Run {
   x: number;
   len: number;
   text: string;
@@ -28,7 +28,17 @@ function runStyle(fg: number, bg: number, attrs: number): CSSProperties {
   return style;
 }
 
-function rowRuns(f: DevToolsFrameSnapshot, y: number): Run[] {
+/**
+ * Frame cells are already in visual order (core reorders bidi text before
+ * painting). Spans holding RTL characters get an LTR override so Chromium
+ * doesn't reorder them a second time.
+ */
+function visualOrder(run: Run): Run {
+  if (hasRtl(run.text)) run.style = { ...run.style, direction: "ltr", unicodeBidi: "bidi-override" };
+  return run;
+}
+
+export function rowRuns(f: DevToolsFrameSnapshot, y: number): Run[] {
   const runs: Run[] = [];
   const base = y * f.cols;
   let x = 0;
@@ -41,7 +51,7 @@ function rowRuns(f: DevToolsFrameSnapshot, y: number): Run[] {
     let len = 0;
     // Wide graphemes get their own run so every run maps 1:1 onto cells.
     if (x + 1 < f.cols && f.chars[i + 1] === "") {
-      runs.push({ x, len: 2, text: f.chars[i] || " ", style: runStyle(fg, bg, at) });
+      runs.push(visualOrder({ x, len: 2, text: f.chars[i] || " ", style: runStyle(fg, bg, at) }));
       x += 2;
       continue;
     }
@@ -52,16 +62,16 @@ function rowRuns(f: DevToolsFrameSnapshot, y: number): Run[] {
       text += f.chars[j] || " ";
       len++;
     }
-    runs.push({ x, len, text, style: runStyle(fg, bg, at) });
+    runs.push(visualOrder({ x, len, text, style: runStyle(fg, bg, at) }));
     x += len;
   }
   return runs;
 }
 
-const Grid = memo(function Grid({ frame, cw, measure }: { frame: DevToolsFrameSnapshot; cw: number; measure: (el: HTMLSpanElement | null) => void }): ReactNode {
+export const Grid = memo(function Grid({ frame, cw, measure }: { frame: DevToolsFrameSnapshot; cw: number; measure: (el: HTMLSpanElement | null) => void }): ReactNode {
   const rows = useMemo(() => Array.from({ length: frame.rows }, (_, y) => rowRuns(frame, y)), [frame]);
   return (
-    <div className="grid-rows" style={{ width: frame.cols * cw, height: frame.rows * LINE }}>
+    <div className="grid-rows" style={{ width: frame.cols * cw, height: frame.rows * LINE, direction: "ltr" }}>
       <span ref={measure} aria-hidden="true" style={{ position: "absolute", visibility: "hidden", left: 0, top: 0 }}>
         {"M".repeat(MEASURE_CHARS)}
       </span>

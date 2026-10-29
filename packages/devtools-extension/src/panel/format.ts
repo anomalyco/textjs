@@ -34,3 +34,15 @@ export function percentile(values: number[], p: number): number {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p))] as number;
 }
+
+/**
+ * Right-to-left code point blocks (Hebrew, Arabic, Syriac, Thaana, NKo, …,
+ * presentation forms, RLM, historic RTL scripts, Arabic math). A superset of
+ * core's `isRtlCodePoint` ranges: over-matching only adds a harmless override.
+ */
+const RTL = /[\u0590-\u08FF\u200F\uFB1D-\uFDFF\uFE70-\uFEFF]|[\u{10800}-\u{10FFF}\u{1E800}-\u{1EFFF}]/u;
+
+/** Whether text could be reordered by the browser's bidi algorithm. */
+export function hasRtl(text: string): boolean {
+  return RTL.test(text);
+}
