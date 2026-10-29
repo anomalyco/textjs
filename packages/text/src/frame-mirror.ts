@@ -13,6 +13,8 @@ export interface MirrorHotContext {
   on(event: string, callback: (payload: any) => void): void;
   off?(event: string, callback: (payload: any) => void): void;
   send(event: string, data?: unknown): void;
+  /** `import.meta.hot.dispose`: the mirror disconnects when the module is replaced. */
+  dispose?(callback: (data: any) => void): void;
 }
 
 function sourceId(): string {
@@ -42,6 +44,9 @@ export function connectFrameMirror(root: ConsoleRoot, hot: MirrorHotContext, his
   const encoder = new FrameEncoder();
   let unsubscribe: (() => void) | null = null;
   let hiddenTimer: ReturnType<typeof setInterval> | null = null;
+  let sendTimer: ReturnType<typeof setTimeout> | null = null;
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
+  let disposed = false;
 
   const meta = (): FrameMeta => ({
     path: history?.getLocation().pathname,
@@ -49,6 +54,8 @@ export function connectFrameMirror(root: ConsoleRoot, hot: MirrorHotContext, his
     focused: root.renderer.focused,
   });
   const send = (): void => {
+    // Nobody is watching (stopped, or a deferred send outlived the subscription).
+    if (!unsubscribe) return;
     const msg = encoder.encode(extractStyledFrame(root.renderer.buffer), { source, meta: meta() });
     if (msg) hot.send(HMR_FRAME_EVENT, msg);
   };
@@ -59,7 +66,7 @@ export function connectFrameMirror(root: ConsoleRoot, hot: MirrorHotContext, his
   };
 
   const start = (): void => {
-    if (unsubscribe) return;
+    if (unsubscribe || disposed) return;
     encoder.reset();
     unsubscribe = root.onFrame((f) => {
       if (!f.skipped) send();
@@ -72,6 +79,8 @@ export function connectFrameMirror(root: ConsoleRoot, hot: MirrorHotContext, his
     unsubscribe = null;
     if (hiddenTimer !== null) clearInterval(hiddenTimer);
     hiddenTimer = null;
+    if (sendTimer !== null) clearTimeout(sendTimer);
+    sendTimer = null;
   };
 
   const onMirror = (payload: { active?: boolean }): void => (payload?.active ? start() : stop());
@@ -79,7 +88,12 @@ export function connectFrameMirror(root: ConsoleRoot, hot: MirrorHotContext, his
     const msg = parseInputMessage(payload);
     if (!msg) return;
     applyInputMessage(root, msg, history);
-    setTimeout(flushIfHidden, 0);
+    if (flushTimer === null) {
+      flushTimer = setTimeout(() => {
+        flushTimer = null;
+        flushIfHidden();
+      }, 0);
+    }
   };
   const hello = (): void => {
     const buf = root.renderer.buffer;
@@ -95,8 +109,13 @@ export function connectFrameMirror(root: ConsoleRoot, hot: MirrorHotContext, his
     }, 250);
   };
   const unlisten = history?.listen(() => {
-    if (unsubscribe) setTimeout(send, 0);
-    else helloSoon();
+    if (!unsubscribe) helloSoon();
+    else if (sendTimer === null) {
+      sendTimer = setTimeout(() => {
+        sendTimer = null;
+        send();
+      }, 0);
+    }
   });
   const unlistenViewport = root.renderer.viewport.subscribe(() => {
     if (!unsubscribe) helloSoon();
@@ -107,13 +126,20 @@ export function connectFrameMirror(root: ConsoleRoot, hot: MirrorHotContext, his
   hot.on("vite:ws:connect", hello);
   hello();
 
-  return () => {
+  const dispose = (): void => {
+    if (disposed) return;
+    disposed = true;
     stop();
     unlisten?.();
     unlistenViewport();
     if (helloTimer !== null) clearTimeout(helloTimer);
+    helloTimer = null;
+    if (flushTimer !== null) clearTimeout(flushTimer);
+    flushTimer = null;
     hot.off?.(HMR_MIRROR_EVENT, onMirror);
     hot.off?.(HMR_INPUT_EVENT, onInput);
     hot.off?.("vite:ws:connect", hello);
   };
+  hot.dispose?.(dispose);
+  return dispose;
 }
