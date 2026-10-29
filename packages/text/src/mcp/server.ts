@@ -29,23 +29,38 @@ Workflow: list_routes → navigate → read_frame. Drive the UI with press (key 
 Coordinates are zero-based cells: x = column, y = row. Use find to locate text, inspect_tree for the component tree with bounds and focus ids, wait_for for async UI, fetch to call app/**/route.ts handlers, logs for console output and React errors, and reload after editing files.`;
 
 /** Mutex: tool calls run one at a time so input order is deterministic. */
-class Lock {
-  private tail: Promise<unknown> = Promise.resolve();
-  run<T>(fn: () => Promise<T>): Promise<T> {
-    const next = this.tail.then(fn, fn);
-    this.tail = next.catch(() => undefined);
-    return next;
+export class Lock {
+  private tail: Promise<void> = Promise.resolve();
+
+  /** Wait for every earlier holder to release, then hold the lock until `release()` is called. */
+  async acquire(): Promise<() => void> {
+    let release!: () => void;
+    const held = new Promise<void>((r) => {
+      release = r;
+    });
+    const prev = this.tail;
+    this.tail = prev.then(() => held);
+    await prev;
+    return release;
   }
 }
 
-class TimeoutError extends Error {}
+export class TimeoutError extends Error {}
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+/**
+ * Race `work` against `ms`. On timeout the caller gets a {@link TimeoutError}
+ * at once and `controller` is aborted so cancellable work stops.
+ */
+export function withTimeout<T>(work: Promise<T>, ms: number, label: string, controller?: AbortController): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new TimeoutError(`${label} timed out after ${ms}ms.`)), ms);
+    timer = setTimeout(() => {
+      const error = new TimeoutError(`${label} timed out after ${ms}ms.`);
+      controller?.abort(error);
+      reject(error);
+    }, ms);
   });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
 }
 
 /** Owns the session lifecycle: the app loads in the background so the MCP handshake never waits on it. */
@@ -125,6 +140,12 @@ function formatBounds(b: { x: number; y: number; width: number; height: number }
   return `[${b.x},${b.y} ${b.width}×${b.height}]`;
 }
 
+const STATUS_HINTS: Record<Exclude<FrameSnapshot["status"], "running">, string> = {
+  exited: "the app called exit(); call reload to restart",
+  crashed: "uncaught error; read logs, fix it, then call reload",
+  failed: "the app failed to load; read logs, fix it, then call reload",
+};
+
 /** Header lines + the frame text, the default content of every frame-returning tool. */
 export function formatFrame(f: FrameSnapshot): string {
   const lines: string[] = [];
@@ -133,7 +154,7 @@ export function formatFrame(f: FrameSnapshot): string {
   lines.push(`size: ${f.cols}×${f.rows}  frame: ${f.frame}  ${f.idle ? "idle" : "busy (still animating; frame read after timeout)"}`);
   if (f.focus) lines.push(`focus: ${f.focus.id}${f.focus.component ? ` ${f.focus.component}` : ""}${f.focus.bounds ? ` ${formatBounds(f.focus.bounds)}` : ""}${f.cursor ? `  cursor: ${f.cursor.x},${f.cursor.y}` : ""}`);
   else lines.push("focus: none");
-  if (f.status !== "running") lines.push(`status: ${f.status}${f.status === "exited" ? " (call reload to restart)" : ""}`);
+  if (f.status !== "running") lines.push(`status: ${f.status} (${STATUS_HINTS[f.status]})`);
   if (f.newErrors > 0) lines.push(`errors: ${f.newErrors} new — call logs with level ["error"]`);
   lines.push("");
   lines.push(f.text);
@@ -169,29 +190,36 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
   );
   const lock = new Lock();
 
-  /** Run a tool body under the lock with a hard timeout; any throw becomes a tool error. */
-  const tool = <A>(timeoutMs: number | ((args: A) => number), label: string, body: (s: HeadlessSession, args: A) => Promise<CallToolResult>) => {
-    return async (args: A): Promise<CallToolResult> => {
-      const ms = typeof timeoutMs === "function" ? timeoutMs(args) : timeoutMs;
-      try {
-        return await lock.run(() =>
-          withTimeout(
-            (async () => {
-              const s = await controller.get();
-              return body(s, args);
-            })(),
-            ms,
-            label,
-          ),
-        );
-      } catch (error) {
-        return toolError(error);
-      }
-    };
+  /**
+   * Run `work` under the lock with a hard timeout; any throw becomes a tool
+   * error. A timed-out call returns at once and its work is aborted, but the
+   * lock stays held until the work has actually stopped (a remount in
+   * `reload` / start is not cancellable), so it never interleaves with the
+   * next call.
+   */
+  const locked = async (ms: number, label: string, work: (signal: AbortSignal) => Promise<CallToolResult>): Promise<CallToolResult> => {
+    const release = await lock.acquire();
+    const ac = new AbortController();
+    const running = (async () => work(ac.signal))();
+    running.then(release, release);
+    try {
+      return await withTimeout(running, ms, label, ac);
+    } catch (error) {
+      return toolError(error);
+    }
   };
 
-  const settleThen = async (s: HeadlessSession, settle: number | undefined, read: { styles?: boolean } = {}): Promise<FrameSnapshot> => {
-    if (settle !== 0) await s.settle({ timeout: settle ?? 1500 });
+  const tool = <A>(timeoutMs: number | ((args: A) => number), label: string, body: (s: HeadlessSession, args: A, signal: AbortSignal) => Promise<CallToolResult>) => {
+    return (args: A): Promise<CallToolResult> =>
+      locked(typeof timeoutMs === "function" ? timeoutMs(args) : timeoutMs, label, async (signal) => {
+        const s = await controller.get();
+        if (signal.aborted) throw signal.reason;
+        return body(s, args, signal);
+      });
+  };
+
+  const settleThen = async (s: HeadlessSession, settle: number | undefined, read: { styles?: boolean } = {}, signal?: AbortSignal): Promise<FrameSnapshot> => {
+    if (settle !== 0) await s.settle({ timeout: settle ?? 1500, signal });
     return s.frame(read);
   };
 
@@ -227,13 +255,13 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
       },
       annotations: { readOnlyHint: false, openWorldHint: false },
     },
-    tool<{ path?: string; replace?: boolean; history?: "back" | "forward"; settleMs?: number }>(35_000, "navigate", async (s, a) => {
+    tool<{ path?: string; replace?: boolean; history?: "back" | "forward"; settleMs?: number }>(35_000, "navigate", async (s, a, signal) => {
       if (a.history) s.navigate(a.history);
       else if (a.path !== undefined) {
         if (!a.path.startsWith("/")) throw new SessionError(`Paths must start with "/" (got ${JSON.stringify(a.path)}).`);
         s.navigate({ path: a.path, replace: a.replace });
       } else throw new SessionError("Pass `path` or `history`.");
-      return frameResult(await settleThen(s, a.settleMs));
+      return frameResult(await settleThen(s, a.settleMs, {}, signal));
     }),
   );
 
@@ -250,8 +278,8 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    tool<{ styles?: boolean; region?: { x: number; y: number; width: number; height: number }; settleMs?: number }>(35_000, "read_frame", async (s, a) => {
-      if (a.settleMs !== 0) await s.settle({ timeout: a.settleMs ?? 1500 });
+    tool<{ styles?: boolean; region?: { x: number; y: number; width: number; height: number }; settleMs?: number }>(35_000, "read_frame", async (s, a, signal) => {
+      if (a.settleMs !== 0) await s.settle({ timeout: a.settleMs ?? 1500, signal });
       return frameResult(s.frame({ styles: a.styles, region: a.region }));
     }),
   );
@@ -267,9 +295,9 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
       },
       annotations: { readOnlyHint: false, openWorldHint: false },
     },
-    tool<{ keys: string | string[]; settleMs?: number }>(60_000, "press", async (s, a) => {
-      const n = await s.press(a.keys);
-      return frameResult(await settleThen(s, a.settleMs), { pressed: n }, `pressed ${n} key${n === 1 ? "" : "s"}`);
+    tool<{ keys: string | string[]; settleMs?: number }>(60_000, "press", async (s, a, signal) => {
+      const n = await s.press(a.keys, signal);
+      return frameResult(await settleThen(s, a.settleMs, {}, signal), { pressed: n }, `pressed ${n} key${n === 1 ? "" : "s"}`);
     }),
   );
 
@@ -285,10 +313,10 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
       },
       annotations: { readOnlyHint: false, openWorldHint: false },
     },
-    tool<{ text: string; submit?: boolean; settleMs?: number }>(60_000, "type", async (s, a) => {
-      const n = await s.type(a.text);
-      if (a.submit) await s.press("return");
-      return frameResult(await settleThen(s, a.settleMs), { typed: n });
+    tool<{ text: string; submit?: boolean; settleMs?: number }>(60_000, "type", async (s, a, signal) => {
+      const n = await s.type(a.text, signal);
+      if (a.submit) await s.press("return", signal);
+      return frameResult(await settleThen(s, a.settleMs, {}, signal), { typed: n });
     }),
   );
 
@@ -300,9 +328,9 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
       inputSchema: { text: z.string().max(1_000_000), settleMs: settleSchema },
       annotations: { readOnlyHint: false, openWorldHint: false },
     },
-    tool<{ text: string; settleMs?: number }>(35_000, "paste", async (s, a) => {
-      await s.paste(a.text);
-      return frameResult(await settleThen(s, a.settleMs));
+    tool<{ text: string; settleMs?: number }>(35_000, "paste", async (s, a, signal) => {
+      await s.paste(a.text, signal);
+      return frameResult(await settleThen(s, a.settleMs, {}, signal));
     }),
   );
 
@@ -314,9 +342,9 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
       inputSchema: { cols: z.number().int().min(1).max(1000), rows: z.number().int().min(1).max(500), settleMs: settleSchema },
       annotations: { readOnlyHint: false, idempotentHint: true, openWorldHint: false },
     },
-    tool<{ cols: number; rows: number; settleMs?: number }>(35_000, "resize", async (s, a) => {
+    tool<{ cols: number; rows: number; settleMs?: number }>(35_000, "resize", async (s, a, signal) => {
       s.resize(a.cols, a.rows);
-      return frameResult(await settleThen(s, a.settleMs));
+      return frameResult(await settleThen(s, a.settleMs, {}, signal));
     }),
   );
 
@@ -334,8 +362,8 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    tool<{ component?: string; hosts?: boolean; maxDepth?: number; format?: "text" | "json" }>(35_000, "inspect_tree", async (s, a) => {
-      await s.settle();
+    tool<{ component?: string; hosts?: boolean; maxDepth?: number; format?: "text" | "json" }>(35_000, "inspect_tree", async (s, a, signal) => {
+      await s.settle({ signal });
       const r = s.inspect({ component: a.component, hosts: a.hosts, maxDepth: a.maxDepth });
       const structured = { tree: r.tree, focusables: r.focusables, activeFocusId: r.activeFocusId };
       if (a.format === "json") return { content: [{ type: "text", text: JSON.stringify(structured) }], structuredContent: structured as unknown as Record<string, unknown> };
@@ -361,8 +389,8 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    tool<{ text: string; regex?: boolean; ignoreCase?: boolean; limit?: number }>(35_000, "find", async (s, a) => {
-      await s.settle();
+    tool<{ text: string; regex?: boolean; ignoreCase?: boolean; limit?: number }>(35_000, "find", async (s, a, signal) => {
+      await s.settle({ signal });
       const buffer = s.buffer;
       if (!buffer) throw new SessionError("The app is not mounted.");
       let matches;
@@ -403,12 +431,15 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
     tool<{ text?: string; gone?: string; idle?: boolean; quietMs?: number; timeoutMs?: number }>(
       (a) => (a.timeoutMs ?? 5000) + 5000,
       "wait_for",
-      async (s, a) => {
+      async (s, a, signal) => {
         const timeout = a.timeoutMs ?? 5000;
         const start = Date.now();
         const textOk = (): boolean => (a.text === undefined || s.contains(a.text)) && (a.gone === undefined || !s.contains(a.gone));
         const needIdle = a.idle === true || (a.text === undefined && a.gone === undefined);
         for (;;) {
+          if (signal.aborted) throw signal.reason;
+          // Fail fast when the app exited, crashed or failed to load: nothing will change.
+          s.assertRunning();
           if (textOk() && (!needIdle || s.isIdle(a.quietMs))) break;
           if (Date.now() - start >= timeout) {
             const f = s.frame({ peek: true });
@@ -461,19 +492,21 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
         headers: z.record(z.string(), z.string()).optional(),
         body: z.string().max(1_000_000).optional(),
         timeoutMs: z.number().int().min(1).max(120_000).optional().describe("Default 30000."),
+        maxBytes: z.number().int().min(1).max(4_000_000).optional().describe("Max body bytes to read (default 65536); the rest is cancelled."),
+        streamMs: z.number().int().min(0).max(60_000).optional().describe("text/event-stream responses: read this long, then cancel the stream (default 1000)."),
       },
       annotations: { readOnlyHint: false, openWorldHint: false },
     },
-    tool<{ path: string; method?: string; headers?: Record<string, string>; body?: string; timeoutMs?: number }>(
+    tool<{ path: string; method?: string; headers?: Record<string, string>; body?: string; timeoutMs?: number; maxBytes?: number; streamMs?: number }>(
       (a) => a.timeoutMs ?? 30_000,
       "fetch",
-      async (s, a) => {
-        const r = await s.request(a.path, { method: a.method, headers: a.headers, body: a.body });
+      async (s, a, signal) => {
+        const r = await s.request(a.path, { method: a.method, headers: a.headers, body: a.body, maxBytes: a.maxBytes, streamMs: a.streamMs }, signal);
         const head = `${r.status} ${r.statusText}`.trim() + (r.route ? `  (${r.route})` : "  (no matching route handler)");
         const headers = Object.entries(r.headers)
           .map(([k, v]) => `${k}: ${v}`)
           .join("\n");
-        const text = `${head}\n${headers}\n\n${r.body}${r.truncated ? "\n… (truncated)" : ""}`;
+        const text = `${head}\n${headers}\n\n${r.body}${r.streaming ? "\n… (stream still open; cancelled after streamMs)" : r.truncated ? "\n… (truncated)" : ""}`;
         return { content: [{ type: "text", text }], structuredContent: r as unknown as Record<string, unknown> };
       },
     ),
@@ -487,22 +520,11 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
       inputSchema: { settleMs: settleSchema },
       annotations: { readOnlyHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async (a: { settleMs?: number }): Promise<CallToolResult> => {
-      try {
-        return await lock.run(() =>
-          withTimeout(
-            (async () => {
-              const { session, purged } = await controller.reload();
-              return frameResult(await settleThen(session, a.settleMs), { purged }, `reloaded (${purged} modules re-imported)`);
-            })(),
-            60_000,
-            "reload",
-          ),
-        );
-      } catch (error) {
-        return toolError(error);
-      }
-    },
+    (a: { settleMs?: number }): Promise<CallToolResult> =>
+      locked(60_000, "reload", async (signal) => {
+        const { session, purged } = await controller.reload();
+        return frameResult(await settleThen(session, a.settleMs, {}, signal), { purged }, `reloaded (${purged} modules re-imported)`);
+      }),
   );
 
   server.registerResource(
@@ -510,7 +532,7 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
     "text://frame",
     { title: "Current frame", description: "The current frame as plain text (with a route/focus header).", mimeType: "text/plain" },
     async (uri) => {
-      const s = await controller.get();
+      const s = await withTimeout(controller.get(), 35_000, "text://frame");
       return { contents: [{ uri: uri.href, mimeType: "text/plain", text: formatFrame(s.frame({ peek: true })) }] };
     },
   );
@@ -520,7 +542,7 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
     "text://routes",
     { title: "Routes", description: "Pages and route handlers in app/ (JSON).", mimeType: "application/json" },
     async (uri) => {
-      const s = await controller.get();
+      const s = await withTimeout(controller.get(), 35_000, "text://routes");
       return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(s.routes(), null, 2) }] };
     },
   );

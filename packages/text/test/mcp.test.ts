@@ -6,6 +6,8 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { createTextMcpServer, type SessionController } from "../src/mcp";
+import { Lock, withTimeout } from "../src/mcp/server";
+import { HeadlessSession, sameOriginUrl } from "../src/mcp/session";
 import { findText, frameText, styledRows } from "../src/mcp/frame";
 import { parseKeyInput, textToKeyEvents } from "../src/mcp/keys";
 import { formatLogArgs, LogBuffer, txCodeOf } from "../src/mcp/logs";
@@ -596,6 +598,259 @@ export default function Page() {
     const under = (await call(client, "find", { text: "under under under under under under under under" })).structuredContent as { matches: Array<{ path?: string[] }> };
     expect(under.matches.at(-1)?.path).toContain("Deep");
     await call(client, "navigate", { path: "/" });
+  });
+});
+
+describe("text mcp · fetch, cancellation and lifecycle", () => {
+  const dir = join(import.meta.dir, `.tmp-mcp-life-${process.pid}`);
+  let client: Client;
+  let close: () => Promise<void>;
+  const flags = globalThis as { __mcpHangAborted?: boolean; __mcpStreamCancelled?: boolean };
+
+  const write = (rel: string, body: string): void => {
+    const file = join(dir, rel);
+    mkdirSync(join(file, ".."), { recursive: true });
+    writeFileSync(file, body);
+  };
+
+  beforeAll(async () => {
+    rmSync(dir, { recursive: true, force: true });
+    write(
+      "app/page.tsx",
+      `import { Text, useApp, useInput } from "@textjs/react";
+export default function Home() {
+  const app = useApp();
+  useInput((e) => {
+    if (e.input === "q") app.exit();
+  });
+  return <Text>life home</Text>;
+}
+`,
+    );
+    write(
+      "app/hang/page.tsx",
+      `import { useEffect } from "react";
+import { Text } from "@textjs/react";
+export default function Hang() {
+  useEffect(() => {
+    void fetch("/api/hang").catch(() => undefined);
+  }, []);
+  return <Text>hanging fetch</Text>;
+}
+`,
+    );
+    write(
+      "app/api/hang/route.ts",
+      `export async function GET(request: Request): Promise<Response> {
+  await new Promise<void>((resolve) => request.signal.addEventListener("abort", () => resolve()));
+  (globalThis as { __mcpHangAborted?: boolean }).__mcpHangAborted = true;
+  return new Response("aborted");
+}
+`,
+    );
+    write(
+      "app/api/sse/route.ts",
+      `export const dynamic = "force-dynamic";
+export function GET(): Response {
+  let timer: ReturnType<typeof setInterval> | undefined;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const enc = new TextEncoder();
+      controller.enqueue(enc.encode("data: hello\\n\\n"));
+      timer = setInterval(() => controller.enqueue(enc.encode("data: tick\\n\\n")), 50);
+    },
+    cancel() {
+      clearInterval(timer);
+      (globalThis as { __mcpStreamCancelled?: boolean }).__mcpStreamCancelled = true;
+    },
+  });
+  return new Response(body, { headers: { "content-type": "text/event-stream" } });
+}
+`,
+    );
+    write("app/api/big/route.ts", `export function GET(): Response {\n  return new Response("x".repeat(1_000_000), { headers: { "content-type": "text/plain" } });\n}\n`);
+    write("app/api/static/route.ts", `export const dynamic = "force-static";\nexport function GET(request: Request): Response {\n  return Response.json({ url: request.url });\n}\n`);
+    const c = await connect({ root: dir, cols: 40, rows: 6, skipConfig: true, origin: "http://localhost:4321/" });
+    client = c.client;
+    close = c.close;
+  });
+  afterAll(async () => {
+    await close();
+    rmSync(dir, { recursive: true, force: true });
+    delete flags.__mcpHangAborted;
+    delete flags.__mcpStreamCancelled;
+  });
+
+  test("a timed-out fetch aborts the handler and releases the lock", async () => {
+    const started = Date.now();
+    const r = await call(client, "fetch", { path: "/api/hang", timeoutMs: 200 });
+    expect(r.isError).toBe(true);
+    expect((r.structuredContent as { error: { kind: string } }).error.kind).toBe("timeout");
+    const next = await call(client, "read_frame", { settleMs: 0 });
+    expect(Date.now() - started).toBeLessThan(5000);
+    expect(text(next)).toContain("life home");
+    for (let i = 0; i < 50 && !flags.__mcpHangAborted; i++) await new Promise((res) => setTimeout(res, 10));
+    expect(flags.__mcpHangAborted).toBe(true);
+  });
+
+  test("event streams return their first events and are cancelled", async () => {
+    const started = Date.now();
+    const r = await call(client, "fetch", { path: "/api/sse", streamMs: 300 });
+    expect(r.isError).toBeFalsy();
+    const s = r.structuredContent as { status: number; body: string; streaming?: boolean; truncated: boolean };
+    expect(Date.now() - started).toBeLessThan(5000);
+    expect(s).toMatchObject({ status: 200, streaming: true, truncated: true });
+    expect(s.body).toContain("data: hello");
+    expect(s.body).toContain("data: tick");
+    expect(text(r)).toContain("stream still open");
+    for (let i = 0; i < 50 && !flags.__mcpStreamCancelled; i++) await new Promise((res) => setTimeout(res, 10));
+    expect(flags.__mcpStreamCancelled).toBe(true);
+  });
+
+  test("large bodies are read only up to maxBytes", async () => {
+    const r = await call(client, "fetch", { path: "/api/big", maxBytes: 1000 });
+    const s = r.structuredContent as { body: string; truncated: boolean; streaming?: boolean };
+    expect(s.truncated).toBe(true);
+    expect(s.body.length).toBe(1000);
+    expect(s.streaming).toBeUndefined();
+  });
+
+  test("route handlers run with text dev's segment config semantics", async () => {
+    const r = await call(client, "fetch", { path: "/api/static?x=1" });
+    expect(JSON.parse((r.structuredContent as { body: string }).body).url).toBe("http://localhost:4321/api/static");
+  });
+
+  test("protocol-relative and backslash paths are not same-origin", async () => {
+    for (const path of ["/\\evil.com", "//evil.com", "/\\/evil.com"]) {
+      const r = await call(client, "fetch", { path });
+      expect(r.isError).toBe(true);
+      expect(text(r)).toContain("own route handlers");
+    }
+    expect(sameOriginUrl("/\\evil.com", "http://localhost:3000")).toBeNull();
+    expect(sameOriginUrl("http://localhost:3000.evil.com/x", "http://localhost:3000")).toBeNull();
+    expect(sameOriginUrl("http://localhost:3000/api/x?y=1", "http://localhost:3000")?.pathname).toBe("/api/x");
+    expect(sameOriginUrl("/api/x", "http://localhost:3000")?.href).toBe("http://localhost:3000/api/x");
+  });
+
+  test("an in-flight fetch from before a reload does not keep the session busy", async () => {
+    const busy = await call(client, "navigate", { path: "/hang", settleMs: 300 });
+    expect(text(busy)).toContain("hanging fetch");
+    expect((busy.structuredContent as { idle: boolean }).idle).toBe(false);
+    await call(client, "navigate", { path: "/" });
+    const reloaded = await call(client, "reload", { settleMs: 1000 });
+    expect(reloaded.isError).toBeFalsy();
+    expect((reloaded.structuredContent as { idle: boolean }).idle).toBe(true);
+  });
+
+  test("exit() then reload restarts the app; wait_for fails fast while exited", async () => {
+    const exited = await call(client, "press", { keys: "q" });
+    expect(text(exited)).toContain("status: exited (the app called exit(); call reload to restart)");
+    const started = Date.now();
+    const waited = await call(client, "wait_for", { text: "never", timeoutMs: 5000 });
+    expect(waited.isError).toBe(true);
+    expect(text(waited)).toMatch(/call `reload`/i);
+    expect(Date.now() - started).toBeLessThan(1000);
+    const back = await call(client, "reload");
+    expect(back.isError).toBeFalsy();
+    expect(text(back)).toContain("life home");
+    expect(text(back)).not.toContain("status:");
+  });
+
+  test("a reload whose config fails to load marks the session failed", async () => {
+    write("text.config.ts", `throw new Error("config exploded");\n`);
+    const c = await connect({ root: dir, cols: 40, rows: 6 });
+    try {
+      // Start fails: config is loaded.
+      const first = await call(c.client, "read_frame");
+      expect(first.isError).toBe(true);
+      rmSync(join(dir, "text.config.ts"));
+      const ok = await call(c.client, "reload");
+      expect(ok.isError).toBeFalsy();
+      write("text.config.ts", `throw new Error("config exploded again");\n`);
+      const broken = await call(c.client, "reload");
+      expect(broken.isError).toBe(true);
+      expect(text(broken)).toContain("config exploded again");
+      const frame = await c.controller.get();
+      expect(frame.frame({ peek: true }).status).toBe("failed");
+      const blocked = await call(c.client, "press", { keys: "down" });
+      expect(text(blocked)).toContain("call `reload`");
+      const waited = await call(c.client, "wait_for", { text: "life home", timeoutMs: 3000 });
+      expect(waited.isError).toBe(true);
+      expect(text(waited)).toContain("failed to load");
+      rmSync(join(dir, "text.config.ts"));
+      expect((await call(c.client, "reload")).isError).toBeFalsy();
+    } finally {
+      rmSync(join(dir, "text.config.ts"), { force: true });
+      await c.close();
+    }
+  });
+
+  test("an aborted signal stops input dispatch before any key is sent", async () => {
+    const s = await HeadlessSession.start({ root: dir, skipConfig: true });
+    try {
+      const ac = new AbortController();
+      ac.abort(new Error("cancelled"));
+      await expect(s.press("q", ac.signal)).rejects.toThrow("cancelled");
+      expect(s.frame().status).toBe("running");
+    } finally {
+      await s.dispose();
+    }
+  });
+});
+
+describe("text mcp · fetch routing across sessions", () => {
+  const dir = join(import.meta.dir, `.tmp-mcp-fetch-${process.pid}`);
+  beforeAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(join(dir, "app"), { recursive: true });
+    writeFileSync(join(dir, "app/page.tsx"), `import { Text } from "@textjs/react";\nexport default function Home() { return <Text>a</Text>; }\n`);
+  });
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  test("sessions share globalThis.fetch and restore it in any dispose order", async () => {
+    const original = globalThis.fetch;
+    const a = await HeadlessSession.start({ root: dir, skipConfig: true });
+    const router = globalThis.fetch;
+    const b = await HeadlessSession.start({ root: DASHBOARD, skipConfig: true });
+    try {
+      expect(globalThis.fetch).not.toBe(original);
+      expect(globalThis.fetch).toBe(router);
+      await a.dispose();
+      expect(globalThis.fetch).toBe(router);
+      // The remaining session still serves the app's fetch.
+      const health = await globalThis.fetch("/api/health");
+      expect((await health.json()) as object).toMatchObject({ status: "ok" });
+    } finally {
+      await a.dispose();
+      await b.dispose();
+    }
+    expect(globalThis.fetch).toBe(original);
+  }, 30_000);
+
+});
+
+describe("text mcp · Lock and withTimeout", () => {
+  test("a timed-out holder keeps the lock until its work stops", async () => {
+    const lock = new Lock();
+    const order: string[] = [];
+    const release = await lock.acquire();
+    const second = lock.acquire().then((r) => {
+      order.push("second");
+      r();
+    });
+    const ac = new AbortController();
+    let finish!: () => void;
+    const work = new Promise<void>((r) => (finish = r)).then(() => order.push("first done"));
+    const timedOut = withTimeout(work, 20, "work", ac).catch((e: Error) => e.message);
+    expect(await timedOut).toBe("work timed out after 20ms.");
+    expect(ac.signal.aborted).toBe(true);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(order).toEqual([]);
+    finish();
+    await work;
+    release();
+    await second;
+    expect(order).toEqual(["first done", "second"]);
   });
 });
 

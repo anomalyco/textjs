@@ -8,6 +8,7 @@
  * for `quietMs` — before the frame is read.
  */
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import { existsSync, realpathSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -19,7 +20,8 @@ import { isNavigationError } from "../navigation-errors";
 import { AppRouter } from "../router";
 import { resolveMetadata, resolveRoute, searchParamsToRecord, type FlatRoute, type RouteManifest } from "../routing";
 import { listApiRoutes, listPages, matchApiRoute, scanApp, toApiManifest, type ApiRoute, type AppScan } from "../server/scan";
-import { runRouteHandler, type RouteHandlerModule } from "../server/http";
+import type { RouteHandlerModule } from "../server/http";
+import { runRouteHandlerWithCache } from "../server/cache-route";
 import { loadRuntimeManifest } from "../cli/run";
 import { installServerJsxRuntime } from "../server/bun-jsx";
 import { prepareServerManifest } from "../server/live-app";
@@ -87,8 +89,10 @@ export interface FetchResult {
   statusText: string;
   headers: Record<string, string>;
   body: string;
-  /** Body was cut at `maxBytes`. */
+  /** Body was cut at `maxBytes`, or an event stream was cut after `streamMs`. */
   truncated: boolean;
+  /** The response was still streaming when reading stopped (event streams). */
+  streaming?: boolean;
   /** Matched `app/**\/route.ts` pattern. */
   route: string | null;
 }
@@ -164,10 +168,11 @@ export class HeadlessSession {
   private generation = 0;
   private frameSeq = 0;
   private lastActivity = Date.now();
-  private inflight = 0;
+  /** In-flight `fetch` calls per mount generation (a stale app's hung request never blocks idleness). */
+  private readonly inflight = new Map<number, number>();
   private errorCursor = 0;
-  private originalFetch: typeof fetch | null = null;
-  private localFetch: typeof fetch | null = null;
+  /** Normalized `options.origin` (no trailing slash). */
+  private readonly origin: string;
   private status: FrameSnapshot["status"] = "failed";
   private loadError: unknown = null;
   private disposed = false;
@@ -181,6 +186,7 @@ export class HeadlessSession {
     this.logs = options.logs ?? new LogBuffer();
     this.history = createMemoryHistory(options.path ?? "/");
     this.quietMs = options.quietMs ?? 50;
+    this.origin = new URL(options.origin ?? "http://localhost:3000").origin;
     this.serverCache = new ServerComponentCache(() => this.touch());
     this.history.listen(() => this.touch());
   }
@@ -224,39 +230,33 @@ export class HeadlessSession {
     if (!existsSync(this.scan.appDir)) throw new SessionError(`No app/ directory found in ${this.rootDir}.`, "TX018");
   }
 
-  private installFetch(): void {
-    if (this.originalFetch) return;
-    const g = globalThis as { fetch: typeof fetch };
-    const base = g.fetch;
-    this.originalFetch = base;
-    const origin = this.options.origin ?? "http://localhost:3000";
-    const local = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-      this.inflight++;
-      this.touch();
-      try {
-        const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-        const sameOrigin = raw.startsWith(origin + "/") || raw === origin;
-        if ((!raw.startsWith("/") || raw.startsWith("//")) && !sameOrigin) return await base(input, init);
-        const url = new URL(raw, origin);
-        const hit = matchApiRoute(toApiManifest(this.scan), url.pathname);
-        if (!hit) return new Response("Not Found", { status: 404 });
-        const mod = (await import(pathToFileURL(hit.file).href)) as RouteHandlerModule;
-        const request = input instanceof Request ? new Request(url, input) : new Request(url, init);
-        return await runRouteHandler(mod, request, hit.params);
-      } finally {
-        this.inflight--;
-        this.touch();
-      }
-    };
-    this.localFetch = Object.assign(local, { preconnect: () => undefined }) as unknown as typeof fetch;
-    g.fetch = this.localFetch;
+  private trackFetch(gen: number, delta: number): void {
+    const n = (this.inflight.get(gen) ?? 0) + delta;
+    if (n > 0) this.inflight.set(gen, n);
+    else this.inflight.delete(gen);
+    this.touch();
   }
 
-  private restoreFetch(): void {
-    const g = globalThis as { fetch: typeof fetch };
-    if (this.originalFetch && g.fetch === this.localFetch) g.fetch = this.originalFetch;
-    this.originalFetch = null;
-    this.localFetch = null;
+  /**
+   * The app's `fetch`: same-origin URLs (`"/api/health"`,
+   * `"http://localhost:3000/api/x"`) run `app/**\/route.ts` handlers in-process
+   * exactly like `text dev`; everything else goes to the network.
+   */
+  async handleFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const gen = this.generation;
+    this.trackFetch(gen, 1);
+    try {
+      const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      const url = sameOriginUrl(raw, this.origin);
+      if (!url) return await networkFetch()(input, init);
+      const hit = matchApiRoute(toApiManifest(this.scan), url.pathname);
+      if (!hit) return new Response("Not Found", { status: 404 });
+      const mod = (await import(pathToFileURL(hit.file).href)) as RouteHandlerModule;
+      const request = input instanceof Request ? new Request(url, init ? new Request(input, init) : input) : new Request(url, init);
+      return await runRouteHandlerWithCache(mod, request, { params: hit.params, pattern: hit.pattern, pathname: url.pathname, cache: false });
+    } finally {
+      this.trackFetch(gen, -1);
+    }
   }
 
   private recordError(source: "react", error: unknown, componentStack?: string | null): void {
@@ -267,7 +267,7 @@ export class HeadlessSession {
   }
 
   private async mount(): Promise<void> {
-    this.installFetch();
+    attachFetch(this);
     const gen = ++this.generation;
     // `async function` components (e.g. `runtime = "server"` pages) render like in `text dev`.
     installServerJsxRuntime(this.rootDir);
@@ -311,7 +311,7 @@ export class HeadlessSession {
     const probeRef = (p: FiberProbe | null): void => {
       if (gen === this.generation) this.probe = p;
     };
-    root.render(
+    const tree = (
       createElement(
         ServerComponentsProvider,
         { cache: this.serverCache },
@@ -320,9 +320,12 @@ export class HeadlessSession {
           { ref: probeRef },
           createElement(AppRouter, { routes: prepareServerManifest(this.manifest), history: this.history, theme: this.theme, documentTitle: false, errorStore: null }),
         ),
-      ),
+      )
     );
-    root.flushSyncRender();
+    fetchScope.run(this, () => {
+      root.render(tree);
+      root.flushSyncRender();
+    });
   }
 
   private unmountApp(): void {
@@ -352,13 +355,19 @@ export class HeadlessSession {
     return root;
   }
 
+  /** Throw a tool error unless the app is mounted and running (not exited, crashed or failed to load). */
+  assertRunning(): void {
+    this.requireRoot();
+    if (this.status === "crashed") throw new SessionError("The app crashed with an uncaught error (see `logs`). Fix it and call `reload`.");
+  }
+
   /** Whether the app is idle right now (see the module comment). */
   isIdle(quietMs = this.quietMs): boolean {
     if (!this.appRoot) return true;
     const pending = this.scheduler?.pending.size ?? 0;
     const now = Date.now();
     const server = this.serverCache.pending === 0 && now - this.serverCache.lastSettled >= SUSPENSE_REVEAL_MS;
-    return pending === 0 && this.inflight === 0 && server && now - this.lastActivity >= quietMs;
+    return pending === 0 && (this.inflight.get(this.generation) ?? 0) === 0 && server && now - this.lastActivity >= quietMs;
   }
 
   /**
@@ -366,11 +375,12 @@ export class HeadlessSession {
    * live chart that never stops), the pending frame is flushed so reads still
    * see the latest committed tree.
    */
-  async settle(options: { quietMs?: number; timeout?: number } = {}): Promise<SettleResult> {
+  async settle(options: { quietMs?: number; timeout?: number; signal?: AbortSignal } = {}): Promise<SettleResult> {
     const quietMs = options.quietMs ?? this.quietMs;
     const timeout = options.timeout ?? 1500;
     const start = Date.now();
     for (;;) {
+      throwIfAborted(options.signal);
       if (this.isIdle(quietMs)) return { idle: true, waitedMs: Date.now() - start };
       if (Date.now() - start >= timeout) break;
       await sleep(Math.min(10, Math.max(1, quietMs / 4)));
@@ -380,36 +390,49 @@ export class HeadlessSession {
     return { idle: false, waitedMs: Date.now() - start };
   }
 
-  /** Send events in order, letting each one's effects and follow-up commits land before the next. Stops if the app exits. */
-  private async dispatch(events: ReadonlyArray<{ kind: "key"; event: KeyInputEvent } | { kind: "paste"; text: string }>): Promise<void> {
+  /**
+   * Send events in order, letting each one's effects and follow-up commits
+   * land before the next. Stops if the app exits or `signal` aborts (a timed
+   * out tool call must not keep typing into the next call's frame).
+   */
+  private async dispatch(events: ReadonlyArray<{ kind: "key"; event: KeyInputEvent } | { kind: "paste"; text: string }>, signal?: AbortSignal): Promise<void> {
     const root = this.requireRoot();
     for (const e of events) {
+      throwIfAborted(signal);
       if (root.unmounted || root !== this.appRoot) break;
       this.touch();
-      try {
-        if (e.kind === "key") root.input.emit("key", e.event);
-        else root.input.handlePaste(e.text);
-      } catch (error) {
-        this.logs.push("error", "react", ["Error in input handler:", error]);
-      }
+      fetchScope.run(this, () => {
+        try {
+          if (e.kind === "key") root.input.emit("key", e.event);
+          else root.input.handlePaste(e.text);
+        } catch (error) {
+          this.logs.push("error", "react", ["Error in input handler:", error]);
+        }
+      });
       await sleep(0);
     }
   }
 
-  async press(keys: string | readonly string[]): Promise<number> {
+  async press(keys: string | readonly string[], signal?: AbortSignal): Promise<number> {
     const events = parseKeyInput(keys);
-    await this.dispatch(events.map((event) => ({ kind: "key" as const, event })));
+    await this.dispatch(
+      events.map((event) => ({ kind: "key" as const, event })),
+      signal,
+    );
     return events.length;
   }
 
-  async type(text: string): Promise<number> {
+  async type(text: string, signal?: AbortSignal): Promise<number> {
     const events = textToKeyEvents(text);
-    await this.dispatch(events.map((event) => ({ kind: "key" as const, event })));
+    await this.dispatch(
+      events.map((event) => ({ kind: "key" as const, event })),
+      signal,
+    );
     return events.length;
   }
 
-  async paste(text: string): Promise<void> {
-    await this.dispatch([{ kind: "paste", text }]);
+  async paste(text: string, signal?: AbortSignal): Promise<void> {
+    await this.dispatch([{ kind: "paste", text }], signal);
   }
 
   resize(cols: number, rows: number): { cols: number; rows: number } {
@@ -505,31 +528,44 @@ export class HeadlessSession {
     return { id, ...(info?.component ? { component: info.component } : {}), ...(info?.bounds ? { bounds: info.bounds } : {}) };
   }
 
-  /** Call an `app/**\/route.ts` handler in-process. */
-  async request(path: string, init: { method?: string; headers?: Record<string, string>; body?: string; maxBytes?: number } = {}): Promise<FetchResult> {
-    if (!path.startsWith("/") || path.startsWith("//")) throw new SessionError(`fetch only calls the app's own route handlers; pass a path like "/api/health" (got ${JSON.stringify(path)}).`);
-    this.installFetch();
-    const url = new URL(path, "http://text.local");
+  /**
+   * Call an `app/**\/route.ts` handler in-process. The body is read up to
+   * `maxBytes` (then cancelled); event streams are read for `streamMs` and
+   * cancelled, so an SSE route returns its first events instead of hanging.
+   */
+  async request(
+    path: string,
+    init: { method?: string; headers?: Record<string, string>; body?: string; maxBytes?: number; streamMs?: number } = {},
+    signal?: AbortSignal,
+  ): Promise<FetchResult> {
+    const url = path.startsWith("/") ? sameOriginUrl(path, this.origin) : null;
+    if (!url) throw new SessionError(`fetch only calls the app's own route handlers; pass a path like "/api/health" (got ${JSON.stringify(path)}).`);
+    attachFetch(this);
     const hit = matchApiRoute(toApiManifest(this.scan), url.pathname);
     const method = (init.method ?? "GET").toUpperCase();
-    const local = this.localFetch as typeof fetch;
-    const response = await local(path, { method, headers: init.headers, body: method === "GET" || method === "HEAD" ? undefined : init.body });
+    const response = await abortable(
+      fetchScope.run(this, () => this.handleFetch(url.href, { method, headers: init.headers, body: method === "GET" || method === "HEAD" ? undefined : init.body, signal })),
+      signal,
+    );
     const maxBytes = init.maxBytes ?? 64 * 1024;
     const headers: Record<string, string> = {};
     response.headers.forEach((v, k) => {
       headers[k] = v;
     });
     const type = response.headers.get("content-type") ?? "";
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    const stream = /event-stream/i.test(type);
+    const read = await readBody(response, maxBytes, stream ? (init.streamMs ?? 1000) : Number.POSITIVE_INFINITY, signal);
     const textual = type === "" || /^text\/|json|xml|javascript|ndjson|x-www-form-urlencoded|event-stream/i.test(type);
-    let body: string;
-    let truncated = false;
-    if (!textual) body = `<${bytes.length} bytes of ${type}>`;
-    else {
-      truncated = bytes.length > maxBytes;
-      body = new TextDecoder().decode(truncated ? bytes.subarray(0, maxBytes) : bytes);
-    }
-    return { status: response.status, statusText: response.statusText, headers, body, truncated, route: hit ? hit.pattern : null };
+    const body = textual ? new TextDecoder().decode(read.bytes) : `<${read.bytes.length}${read.truncated ? "+" : ""} bytes of ${type}>`;
+    return {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+      body,
+      truncated: read.truncated,
+      ...(stream && read.open ? { streaming: true } : {}),
+      route: hit ? hit.pattern : null,
+    };
   }
 
   /**
@@ -541,7 +577,14 @@ export class HeadlessSession {
     if (this.disposed) throw new SessionError("The session is closed.");
     this.unmountApp();
     const purged = purgeModuleCache(this.rootDir);
-    await this.loadConfig();
+    try {
+      await this.loadConfig();
+    } catch (error) {
+      this.status = "failed";
+      this.loadError = error;
+      this.logs.push("error", "server", ["Failed to load the app:", error]);
+      throw new SessionError(`Reload failed: ${errorMessage(error)}\nFix the error and call \`reload\`.`, txCodeOf(error));
+    }
     await this.mount();
     if (this.status === "failed") {
       throw new SessionError(`Reload failed: ${errorMessage(this.loadError)}`, txCodeOf(this.loadError));
@@ -554,7 +597,7 @@ export class HeadlessSession {
     if (this.disposed) return;
     this.disposed = true;
     this.unmountApp();
-    this.restoreFetch();
+    detachFetch(this);
     this.history.dispose?.();
   }
 }
@@ -615,3 +658,138 @@ export function purgeModuleCache(root: string): number {
   return n;
 }
 
+
+/** Which session an app `fetch()` belongs to, when async context propagates (input dispatch, renders, `request`). */
+const fetchScope = new AsyncLocalStorage<HeadlessSession>();
+/** Sessions routing `globalThis.fetch`, oldest first (the newest handles calls without a scope). */
+const fetchSessions: HeadlessSession[] = [];
+let nativeFetch: typeof fetch | null = null;
+let routedFetch: typeof fetch | null = null;
+
+/** The `fetch` that existed before any session installed its router. */
+function networkFetch(): typeof fetch {
+  return nativeFetch ?? (globalThis as { fetch: typeof fetch }).fetch;
+}
+
+/**
+ * Route `globalThis.fetch` through the session registry. One router serves
+ * every in-process session, and the original `fetch` comes back only when
+ * the last session detaches, whatever the dispose order.
+ */
+function attachFetch(session: HeadlessSession): void {
+  const g = globalThis as { fetch: typeof fetch };
+  if (!routedFetch || g.fetch !== routedFetch) {
+    nativeFetch = g.fetch;
+    const router = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const owner = fetchScope.getStore() ?? fetchSessions[fetchSessions.length - 1];
+      return owner ? owner.handleFetch(input, init) : (nativeFetch as typeof fetch)(input, init);
+    };
+    routedFetch = Object.assign(router, { preconnect: () => undefined }) as unknown as typeof fetch;
+    g.fetch = routedFetch;
+  }
+  if (!fetchSessions.includes(session)) fetchSessions.push(session);
+}
+
+function detachFetch(session: HeadlessSession): void {
+  const i = fetchSessions.indexOf(session);
+  if (i >= 0) fetchSessions.splice(i, 1);
+  if (fetchSessions.length > 0) return;
+  const g = globalThis as { fetch: typeof fetch };
+  if (routedFetch && g.fetch === routedFetch && nativeFetch) g.fetch = nativeFetch;
+  routedFetch = null;
+  nativeFetch = null;
+}
+
+/**
+ * `raw` as a URL on `origin`, or `null` when it targets anything else.
+ * Paths like `//evil.com` and `/\evil.com` (a backslash is a slash in
+ * special-scheme URLs) are protocol-relative, not same-origin.
+ */
+export function sameOriginUrl(raw: string, origin: string): URL | null {
+  if (raw.startsWith("/") && /^\/[\\/]/.test(raw)) return null;
+  let url: URL;
+  try {
+    url = new URL(raw, origin);
+  } catch {
+    return null;
+  }
+  return url.origin === origin ? url : null;
+}
+
+function abortReason(signal: AbortSignal): Error {
+  return signal.reason instanceof Error ? signal.reason : new SessionError("The operation was cancelled.");
+}
+
+function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) throw abortReason(signal);
+}
+
+/** `promise`, rejecting as soon as `signal` aborts. */
+function abortable<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(abortReason(signal));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = (): void => reject(abortReason(signal));
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (v) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(v);
+      },
+      (e: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(e);
+      },
+    );
+  });
+}
+
+/**
+ * Read at most `maxBytes` of a response body, for at most `windowMs`, then
+ * cancel it. `open` is set when the body was still streaming.
+ */
+export async function readBody(response: Response, maxBytes: number, windowMs: number, signal?: AbortSignal): Promise<{ bytes: Uint8Array; truncated: boolean; open: boolean }> {
+  const body = response.body;
+  if (!body) return { bytes: new Uint8Array(0), truncated: false, open: false };
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  let truncated = false;
+  let open = true;
+  const deadline = Date.now() + windowMs;
+  const TIMEOUT = Symbol("timeout");
+  try {
+    while (total <= maxBytes) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        truncated = true;
+        break;
+      }
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const tick = Number.isFinite(remaining) ? new Promise<typeof TIMEOUT>((r) => (timer = setTimeout(() => r(TIMEOUT), remaining))) : null;
+      const next = await abortable(tick ? Promise.race([reader.read(), tick]) : reader.read(), signal).finally(() => clearTimeout(timer));
+      if (next === TIMEOUT) {
+        truncated = true;
+        break;
+      }
+      if (next.done) {
+        open = false;
+        break;
+      }
+      chunks.push(next.value);
+      total += next.value.length;
+    }
+    if (total > maxBytes) truncated = true;
+  } finally {
+    if (open) await reader.cancel().catch(() => undefined);
+  }
+  const all = new Uint8Array(Math.min(total, maxBytes));
+  let offset = 0;
+  for (const c of chunks) {
+    if (offset >= all.length) break;
+    const part = c.subarray(0, all.length - offset);
+    all.set(part, offset);
+    offset += part.length;
+  }
+  return { bytes: all, truncated, open: open && truncated };
+}
