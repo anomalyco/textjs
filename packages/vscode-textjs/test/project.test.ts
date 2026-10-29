@@ -137,4 +137,35 @@ describe("SseParser", () => {
     ]);
     expect(p.push("data: plain\n\n")).toEqual([{ event: "message", data: "plain" }]);
   });
+
+  test("a CRLF split across chunks is one line break", () => {
+    const p = new SseParser();
+    // Previously the trailing \r and the leading \n became two line breaks: an empty line that ended the event early.
+    expect(p.push("event: frame\r")).toEqual([]);
+    expect(p.push("\ndata: one\r")).toEqual([]);
+    // A CR alone already ends a line, so this completes the event…
+    expect(p.push("\ndata: two\r\n\r")).toEqual([{ event: "frame", data: "one\ntwo" }]);
+    // …and the LF finishing that CRLF is not a second (empty) line.
+    expect(p.push("\nevent: status\r")).toEqual([]);
+    expect(p.push("\ndata: s\r\n\r\n")).toEqual([{ event: "status", data: "s" }]);
+    // Bare CR line endings still work, including across chunks.
+    expect(p.push("data: a\r")).toEqual([]);
+    expect(p.push("\r")).toEqual([{ event: "message", data: "a" }]);
+    // Every split point of a CRLF stream yields the same events.
+    const stream = "event: frame\r\ndata: x\r\n\r\nevent: gone\r\ndata: y\r\n\r\n";
+    for (let i = 1; i < stream.length; i++) {
+      const q = new SseParser();
+      expect([...q.push(stream.slice(0, i)), ...q.push(stream.slice(i))]).toEqual([
+        { event: "frame", data: "x" },
+        { event: "gone", data: "y" },
+      ]);
+    }
+  });
+
+  test("an unterminated event can't grow the buffer without bound", () => {
+    const p = new SseParser(1024);
+    expect(p.push(`data: ${"x".repeat(1000)}`)).toEqual([]);
+    expect(() => p.push("x".repeat(100))).toThrow(/overflow/);
+    expect(p.push("data: ok\n\n")).toEqual([{ event: "message", data: "ok" }]);
+  });
 });

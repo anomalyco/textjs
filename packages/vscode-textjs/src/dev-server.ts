@@ -20,7 +20,7 @@ import {
   type InputMessage,
 } from "@textjs/next/frame-protocol";
 import type { StyledFrame } from "@textjs/core";
-import { SseParser } from "./sse";
+import { SseParser, type SseEvent } from "./sse";
 
 export const DEFAULT_PORTS: readonly number[] = Array.from({ length: 11 }, (_, i) => 3000 + i);
 
@@ -204,7 +204,16 @@ export function connectFrameStream(baseUrl: string, handlers: FrameStreamHandler
     }
     r.setEncoding("utf8");
     r.on("data", (chunk: string) => {
-      for (const ev of parser.push(chunk)) {
+      let events: SseEvent[];
+      try {
+        events = parser.push(chunk);
+      } catch {
+        // A runaway event: drop the connection (the monitor reconnects).
+        r.destroy();
+        finish();
+        return;
+      }
+      for (const ev of events) {
         let data: unknown;
         try {
           data = JSON.parse(ev.data);
