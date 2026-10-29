@@ -8,7 +8,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { createTextMcpServer, type SessionController } from "../src/mcp";
 import { Lock, withTimeout } from "../src/mcp/server";
 import { HeadlessSession, sameOriginUrl } from "../src/mcp/session";
-import { findText, frameText, styledRows } from "../src/mcp/frame";
+import { findText, frameContains, frameText, styledRows } from "../src/mcp/frame";
 import { parseKeyInput, textToKeyEvents } from "../src/mcp/keys";
 import { formatLogArgs, LogBuffer, txCodeOf } from "../src/mcp/logs";
 import { parseMcpArgs } from "../src/mcp/cli";
@@ -91,6 +91,23 @@ describe("text mcp · units", () => {
     expect(frameText(buf, { x: 5, y: 0, width: 2, height: 1 })).toBe("ok");
     const rows = styledRows(buf, { x: 0, y: 1, width: 6, height: 1 });
     expect(rows[0]?.runs[0]).toMatchObject({ x: 0, text: "x 100%", fg: "#ff0000", bg: "#000000" });
+  });
+
+  test("frame helpers: NBSP reads as a space, wide cells at a region edge, blank rows omitted", async () => {
+    await initYoga();
+    const buf = new CellBuffer(12, 3);
+    buf.clear(0);
+    // Fields draw their block cursor on U+00A0.
+    buf.drawText(0, 0, "abc\u00a0x", 0xffffffff, 0);
+    buf.drawText(0, 2, "日本 ok", 0xffffffff, 0x101010ff);
+    expect(frameText(buf)).toBe("abc x\n\n日本 ok");
+    expect(findText(buf, "abc x")).toHaveLength(1);
+    expect(frameContains(buf, "abc ")).toBe(true);
+    // Region starting on the second cell of 日: a blank cell, not a dropped one.
+    const rows = styledRows(buf, { x: 1, y: 2, width: 4, height: 1 });
+    expect(rows[0]?.runs[0]).toMatchObject({ x: 1, width: 4, text: " 本 " });
+    // Row 1 is blank and default-styled: omitted.
+    expect(styledRows(buf).map((r) => r.y)).toEqual([0, 2]);
   });
 
   test("log buffer: cursors, levels, TX codes, %c stripping", () => {
@@ -795,6 +812,56 @@ export function GET(): Response {
     } finally {
       await s.dispose();
     }
+  });
+});
+
+describe("text mcp · cursor on wide graphemes and NBSP", () => {
+  const dir = join(import.meta.dir, `.tmp-mcp-field-${process.pid}`);
+  let client: Client;
+  let close: () => Promise<void>;
+  beforeAll(async () => {
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(join(dir, "app"), { recursive: true });
+    writeFileSync(
+      join(dir, "app/page.tsx"),
+      `import { useState } from "react";
+import { Box, Input, Text } from "@textjs/react";
+export default function Home() {
+  const [v, setV] = useState("");
+  return (
+    <Box className="flex-col">
+      <Text>field:</Text>
+      <Input id="f" value={v} onChange={setV} autoFocus />
+    </Box>
+  );
+}
+`,
+    );
+    const c = await connect({ root: dir, cols: 30, rows: 4, skipConfig: true });
+    client = c.client;
+    close = c.close;
+  });
+  afterAll(async () => {
+    await close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("find and wait_for match text before the NBSP cursor cell", async () => {
+    await call(client, "type", { text: "abc" });
+    const found = await call(client, "find", { text: "abc " });
+    expect((found.structuredContent as { matches: unknown[] }).matches).toHaveLength(1);
+    const waited = await call(client, "wait_for", { text: "abc ", timeoutMs: 500 });
+    expect(waited.isError).toBeFalsy();
+  });
+
+  test("the cursor on a wide grapheme is reported once", async () => {
+    await call(client, "press", { keys: "ctrl+u" });
+    const typed = await call(client, "type", { text: "日本" });
+    const end = (typed.structuredContent as { cursor: { x: number; y: number } | null }).cursor;
+    expect(end).not.toBeNull();
+    const left = await call(client, "press", { keys: "left" });
+    const s = left.structuredContent as { cursor: { x: number; y: number } | null; text: string };
+    expect(s.cursor).toEqual({ x: (end?.x ?? 0) - 2, y: end?.y as number });
   });
 });
 

@@ -83,6 +83,15 @@ export function clampRegion(buffer: CellBuffer, region?: Partial<Region>): Regio
   return { x, y, width, height };
 }
 
+/**
+ * Display text of a cell: empty and control cells read as a space, and so
+ * does U+00A0 (fields draw their block cursor on a no-break space), so
+ * `find` / `wait_for` match what is visible.
+ */
+function cellText(ch: string): string {
+  return ch === "" || ch === "\u00a0" || ch.charCodeAt(0) < 0x20 ? " " : ch;
+}
+
 interface RowCells {
   text: string;
   /** `cols[i]` = column of the grapheme starting at string index `i` (UTF-16 units); `cols[text.length]` = end column. */
@@ -104,7 +113,7 @@ function rowCells(buffer: CellBuffer, y: number, x0: number, x1: number): RowCel
       }
       continue;
     }
-    const ch = cell.char === "" || cell.char.charCodeAt(0) < 0x20 ? " " : cell.char;
+    const ch = cellText(cell.char);
     for (let i = 0; i < ch.length; i++) colsList.push(x);
     text += ch;
   }
@@ -121,7 +130,10 @@ export function frameText(buffer: CellBuffer, region?: Partial<Region>): string 
   return lines.join("\n");
 }
 
-/** Run-length encoded styled rows for `region`. Rows that are entirely blank default-styled cells are omitted. */
+/**
+ * Run-length encoded styled rows for `region`. Rows that are entirely blank,
+ * default-styled cells are omitted (each row carries its `y`).
+ */
 export function styledRows(buffer: CellBuffer, region?: Partial<Region>): StyledRow[] {
   const r = clampRegion(buffer, region);
   const rows: StyledRow[] = [];
@@ -131,13 +143,15 @@ export function styledRows(buffer: CellBuffer, region?: Partial<Region>): Styled
     for (let x = r.x; x < r.x + r.width; x++) {
       const cell = buffer.getCell(x, y);
       if (!cell) break;
-      if ((cell.attrs & ATTR_WIDE_CONT) !== 0) {
-        if (cur) cur.width++;
-        continue;
-      }
-      const ch = cell.char === "" || cell.char.charCodeAt(0) < 0x20 ? " " : cell.char;
       const attrs = cell.attrs & STYLE_MASK;
       const key = `${cell.fg}|${cell.bg}|${attrs}`;
+      const wideCont = (cell.attrs & ATTR_WIDE_CONT) !== 0;
+      // A wide grapheme's second cell extends its run; cut by the region's left edge, it reads as a blank.
+      if (wideCont && cur) {
+        cur.width++;
+        continue;
+      }
+      const ch = wideCont ? " " : cellText(cell.char);
       if (cur && cur.key === key) {
         cur.text += ch;
         cur.width++;
@@ -147,9 +161,14 @@ export function styledRows(buffer: CellBuffer, region?: Partial<Region>): Styled
       cur = { key, x, width: 1, text: ch, fg: colorHex(cell.fg), bg: colorHex(cell.bg), ...(attrs ? { attrs: attrNames(attrs) } : {}) };
     }
     if (cur) runs.push(stripKey(cur));
+    if (runs.every(isBlankRun)) continue;
     rows.push({ y, runs });
   }
   return rows;
+}
+
+function isBlankRun(run: StyledRun): boolean {
+  return run.bg === null && run.attrs === undefined && run.text.trim() === "";
 }
 
 function stripKey(run: StyledRun & { key: string }): StyledRun {

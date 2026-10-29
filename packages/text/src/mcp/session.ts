@@ -13,7 +13,7 @@ import { existsSync, realpathSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createElement } from "react";
-import { ATTR_INVERSE, initYoga, InputEngine, type ConsoleTarget, type KeyInputEvent, type RendererScheduler } from "@textjs/core";
+import { ATTR_INVERSE, ATTR_WIDE_CONT, initYoga, InputEngine, type ConsoleTarget, type KeyInputEvent, type RendererScheduler } from "@textjs/core";
 import { createConsoleRootSync, type ConsoleRoot, type ThemeName } from "@textjs/react";
 import { createMemoryHistory, type MemoryHistory } from "../history";
 import { isNavigationError } from "../navigation-errors";
@@ -621,7 +621,8 @@ function findCursor(root: ConsoleRoot, b: Bounds): { x: number; y: number } | nu
   for (let y = b.y; y < b.y + b.height; y++) {
     for (let x = b.x; x < b.x + b.width; x++) {
       const c = buf.getCell(x, y);
-      if (!c || (c.attrs & ATTR_INVERSE) === 0) continue;
+      // The second cell of a wide grapheme under the cursor is the same cursor.
+      if (!c || (c.attrs & ATTR_INVERSE) === 0 || (c.attrs & ATTR_WIDE_CONT) !== 0) continue;
       if (hit) return null;
       hit = { x, y };
     }
