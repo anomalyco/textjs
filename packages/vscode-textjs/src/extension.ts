@@ -7,6 +7,7 @@ import * as vscode from "vscode";
 import { existsSync, readdirSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { DevServerMonitor } from "./dev-monitor";
+import { loopbackOrigin } from "./dev-server";
 import { PreviewController } from "./preview";
 import { devCommand, isProjectRoot, usesTypeScript } from "./project";
 import { parseRouteInput, scaffold, scaffoldConflict, SCAFFOLD_LABELS, type ScaffoldKind } from "./scaffold";
@@ -278,11 +279,24 @@ export async function activate(context: vscode.ExtensionContext): Promise<Textjs
     },
   });
 
+  let warnedUrl = "";
+  const configuredDevUrl = (): string => {
+    const raw = vscode.workspace.getConfiguration("textjs").get<string>("devServer.url", "").trim();
+    if (!raw) return "";
+    const url = loopbackOrigin(raw);
+    if (url) return url;
+    if (warnedUrl !== raw) {
+      warnedUrl = raw;
+      void vscode.window.showWarningMessage(`▼ Ignoring textjs.devServer.url "${raw}": only http:// loopback addresses (localhost, 127.0.0.1, [::1]) are supported.`);
+    }
+    return "";
+  };
+
   const refreshProjects = async (): Promise<void> => {
     projects = await findProjects();
     await vscode.commands.executeCommand("setContext", "textjs.isProject", projects.length > 0);
     // Untrusted workspaces never talk to a dev server (`devServer.url` is a restricted setting).
-    if (isTrusted()) monitor.configure(projects, vscode.workspace.getConfiguration("textjs").get<string>("devServer.url", "").trim());
+    if (isTrusted()) monitor.configure(projects, configuredDevUrl());
     refreshStatus();
   };
 

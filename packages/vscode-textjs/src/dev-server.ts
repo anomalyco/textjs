@@ -4,7 +4,7 @@
  * Pure Node (no `vscode`) so it can be tested against a real dev server.
  */
 
-import { request as httpRequest, type IncomingMessage } from "node:http";
+import { request as httpRequest, type ClientRequest, type IncomingMessage } from "node:http";
 import { realpathSync } from "node:fs";
 import {
   FRAMES_PATH,
@@ -21,6 +21,25 @@ import type { StyledFrame } from "@textjs/core";
 import { SseParser } from "./sse";
 
 export const DEFAULT_PORTS: readonly number[] = Array.from({ length: 11 }, (_, i) => 3000 + i);
+
+/**
+ * The origin of a local `text dev` URL, or `null` unless it is `http:` on a
+ * loopback host (`localhost`, `*.localhost`, `127.x.x.x`, `[::1]`). The
+ * extension streams frames from, and sends keystrokes to, this server, so a
+ * workspace setting must not be able to point it anywhere else.
+ */
+export function loopbackOrigin(url: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(url.trim());
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "http:" || u.username || u.password) return null;
+  const host = u.hostname.toLowerCase();
+  const loopback = host === "localhost" || host.endsWith(".localhost") || host === "[::1]" || (/^\d+\.\d+\.\d+\.\d+$/.test(host) && host.startsWith("127."));
+  return loopback ? u.origin : null;
+}
 
 function get(url: string, timeoutMs: number): Promise<{ status: number; body: string } | null> {
   return new Promise((resolve) => {
@@ -82,8 +101,10 @@ export interface Discovered {
 /** Find a `text dev` server for one of `roots` (or exactly `url` when configured). */
 export async function discover(roots: readonly string[], options: { url?: string; ports?: readonly number[]; host?: string } = {}): Promise<Discovered | null> {
   if (options.url) {
-    const status = await probe(options.url);
-    return status ? { url: options.url.replace(/\/$/, ""), status } : null;
+    const url = loopbackOrigin(options.url);
+    if (!url) return null;
+    const status = await probe(url);
+    return status ? { url, status } : null;
   }
   // `localhost` can resolve to ::1 while Vite listens on 127.0.0.1 (or another process owns ::1), so try both.
   const hosts = options.host ? [options.host] : ["localhost", "127.0.0.1"];
@@ -101,19 +122,25 @@ export async function discover(roots: readonly string[], options: { url?: string
 }
 
 export async function postInput(baseUrl: string, msg: InputMessage, source?: string): Promise<boolean> {
+  const origin = loopbackOrigin(baseUrl);
+  if (!origin) return false;
   const body = JSON.stringify(source ? { ...msg, source } : msg);
   return new Promise((resolve) => {
-    const req = httpRequest(
-      `${baseUrl}${INPUT_PATH}`,
-      { method: "POST", agent: false, timeout: 2000, headers: { "content-type": "application/json", [MIRROR_HEADER]: "1", "content-length": Buffer.byteLength(body) } },
-      (res) => {
-        res.resume();
-        resolve(res.statusCode === 204);
-      },
-    );
-    req.on("timeout", () => req.destroy());
-    req.on("error", () => resolve(false));
-    req.end(body);
+    try {
+      const req = httpRequest(
+        `${origin}${INPUT_PATH}`,
+        { method: "POST", agent: false, timeout: 2000, headers: { "content-type": "application/json", [MIRROR_HEADER]: "1", "content-length": Buffer.byteLength(body) } },
+        (res) => {
+          res.resume();
+          resolve(res.statusCode === 204);
+        },
+      );
+      req.on("timeout", () => req.destroy());
+      req.on("error", () => resolve(false));
+      req.end(body);
+    } catch {
+      resolve(false);
+    }
   });
 }
 
@@ -152,7 +179,19 @@ export function connectFrameStream(baseUrl: string, handlers: FrameStreamHandler
     handlers.onClose();
   };
 
-  const req = httpRequest(`${baseUrl}${FRAMES_PATH}`, { method: "GET", agent: false, headers: { accept: "text/event-stream" } }, (r) => {
+  const origin = loopbackOrigin(baseUrl);
+  let req: ClientRequest | null = null;
+  try {
+    if (origin) req = httpRequest(`${origin}${FRAMES_PATH}`, { method: "GET", agent: false, headers: { accept: "text/event-stream" } }, onResponse);
+  } catch {
+    req = null;
+  }
+  if (req) {
+    req.on("error", finish);
+    req.end();
+  } else queueMicrotask(finish);
+
+  function onResponse(r: IncomingMessage): void {
     res = r;
     if (r.statusCode !== 200) {
       r.resume();
@@ -190,9 +229,7 @@ export function connectFrameStream(baseUrl: string, handlers: FrameStreamHandler
     r.on("end", finish);
     r.on("close", finish);
     r.on("error", finish);
-  });
-  req.on("error", finish);
-  req.end();
+  }
 
   return {
     url: baseUrl,
@@ -207,7 +244,7 @@ export function connectFrameStream(baseUrl: string, handlers: FrameStreamHandler
     close() {
       closed = true;
       res?.destroy();
-      req.destroy();
+      req?.destroy();
     },
   };
 }

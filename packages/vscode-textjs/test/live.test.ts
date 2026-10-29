@@ -13,7 +13,7 @@ import { CellBuffer, extractStyledFrame, type StyledFrame } from "@textjs/core";
 import { FrameEncoder, frameToText } from "@textjs/next/frame-protocol";
 import { startDevServer } from "../../text/src/cli/dev";
 import { DevServerMonitor } from "../src/dev-monitor";
-import { discover, postInput, probe } from "../src/dev-server";
+import { connectFrameStream, discover, loopbackOrigin, postInput, probe } from "../src/dev-server";
 import { HeadlessSession } from "../src/headless";
 
 const REPO = resolve(import.meta.dir, "../../..");
@@ -87,6 +87,30 @@ describe("dev server client", () => {
     expect((await discover([dir], { ports: [Number(new URL(base).port)] }))?.url).toBe(base);
     expect(await discover(["/somewhere/else"], { ports: [Number(new URL(base).port)] })).toBeNull();
     expect(await probe("http://localhost:1")).toBeNull();
+  });
+
+  test("only http loopback dev server URLs are used; bad URLs never throw", async () => {
+    expect(loopbackOrigin("http://localhost:3000/")).toBe("http://localhost:3000");
+    expect(loopbackOrigin("http://127.0.0.1:3000/some/path")).toBe("http://127.0.0.1:3000");
+    expect(loopbackOrigin("http://[::1]:3000")).toBe("http://[::1]:3000");
+    expect(loopbackOrigin("http://app.localhost:3000")).toBe("http://app.localhost:3000");
+    for (const bad of ["https://localhost:3000", "http://evil.example:3000", "http://10.0.0.2:3000", "http://0.0.0.0:3000", "http://localhost.evil.example", "http://user:pw@localhost:3000", "file:///etc/passwd", "javascript:alert(1)", "not a url", ""]) {
+      expect(loopbackOrigin(bad)).toBeNull();
+    }
+    // A workspace-configured remote URL is never probed, streamed or sent input.
+    const port = Number(new URL(base).port);
+    expect(await discover([dir], { url: `http://evil.example:${port}` })).toBeNull();
+    expect((await discover([dir], { url: `${base}/` }))?.url).toBe(base);
+    const key = { type: "key", key: "Enter", ctrlKey: false, metaKey: false, shiftKey: false, altKey: false } as const;
+    expect(await postInput("http://evil.example", key)).toBe(false);
+    expect(await postInput("http://local host:3000", key)).toBe(false);
+    expect(await postInput("::not a url::", key)).toBe(false);
+    for (const url of ["http://evil.example", "::not a url::", "http://local host:3000"]) {
+      let closed = 0;
+      const conn = connectFrameStream(url, { onFrame: () => undefined, onStatus: () => undefined, onSourceGone: () => undefined, onClose: () => closed++ });
+      await until(() => closed === 1);
+      conn.close();
+    }
   });
 
   test("monitor streams live frames only while watching, and input reaches the tab", async () => {
