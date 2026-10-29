@@ -77,6 +77,10 @@ export interface DevToolsSceneInfo {
   screen: DevToolsRect;
   painted: boolean;
   text?: string;
+  /** An inline span inside another text node: it has no layout of its own. */
+  inline?: boolean;
+  /** For inline spans, the text node that lays out and paints them. */
+  owner?: number;
 }
 
 export interface DevToolsHookValue {
@@ -254,6 +258,20 @@ export function connectDevTools(options: DevToolsConnectOptions): DevToolsConnec
   let lastEmitAt = -1;
   let lastInfoKey = -1;
 
+  /** The highlighted node, dropped once it is unmounted or detached from this root. */
+  const liveHighlight = (): SceneNode | null => {
+    if (highlighted !== null && !isAttached(highlighted, rootNode)) {
+      highlighted = null;
+      renderer.setHighlightedNode(null);
+    }
+    return highlighted;
+  };
+
+  /** Paused renderers don't schedule frames; repaint the buffer (no console output) so inspector actions show. */
+  const repaintIfPaused = (): void => {
+    if (renderer.paused) renderer.rasterize();
+  };
+
   const info = (): DevToolsRootInfo => {
     const s = renderer.stats();
     return {
@@ -268,7 +286,7 @@ export function connectDevTools(options: DevToolsConnectOptions): DevToolsConnec
       frameCount: s.frameCount,
       skippedFrames: s.skippedFrames,
       yogaNodes: s.yogaNodes,
-      highlighted: highlighted?.id ?? null,
+      highlighted: liveHighlight()?.id ?? null,
     };
   };
 
@@ -285,12 +303,15 @@ export function connectDevTools(options: DevToolsConnectOptions): DevToolsConnec
     frame: () => snapshotFrame(id, fiberRoot, rootNode, renderer, ids),
     highlight(sceneId) {
       const node = sceneId === null ? null : findScene(rootNode, sceneId);
-      highlighted = node;
-      renderer.setHighlightedNode(node);
+      // Inline spans have no box of their own; highlight the text that lays them out.
+      highlighted = node !== null && node.isInline ? node.textOwner() : node;
+      renderer.setHighlightedNode(highlighted);
+      repaintIfPaused();
       return node !== null || sceneId === null;
     },
     setWireframe(enabled) {
       renderer.setWireframe(enabled);
+      repaintIfPaused();
       changed();
     },
     pause() {
@@ -303,10 +324,12 @@ export function connectDevTools(options: DevToolsConnectOptions): DevToolsConnec
     },
     resize(cols, rows) {
       renderer.resize(cols, rows);
+      repaintIfPaused();
       changed();
     },
     fit() {
       renderer.viewport.setResponsive(true);
+      repaintIfPaused();
       changed();
     },
     copyText: () => renderer.buffer.toPlainString(true).replace(/\n+$/, ""),
@@ -329,6 +352,7 @@ export function connectDevTools(options: DevToolsConnectOptions): DevToolsConnec
         reactMs = 0;
         return;
       }
+      if (highlighted !== null) liveHighlight();
       const t = now();
       const interval = f.skipped || lastEmitAt < 0 ? 0 : t - lastEmitAt;
       if (!f.skipped) lastEmitAt = t;
@@ -375,6 +399,13 @@ function stateKey(cols: number, rows: number, paused: boolean, wireframe: boolea
 
 function readWireframe(renderer: ConsoleRenderer): boolean {
   return (renderer as unknown as { wireframe?: unknown }).wireframe === true;
+}
+
+function isAttached(node: SceneNode, root: SceneNode): boolean {
+  if (node.isDestroyed) return false;
+  let cur: SceneNode = node;
+  while (cur.parent !== null) cur = cur.parent;
+  return cur === root;
 }
 
 function findScene(node: SceneNode, id: number): SceneNode | null {
@@ -490,8 +521,11 @@ function classify(f: Fiber): Classified | null {
       const dn = ctx?.displayName ?? ctx?._context?.displayName;
       return { kind: "provider", name: `${dn || "Context"}.Provider` };
     }
-    case Tag.ContextConsumer:
-      return { kind: "provider", name: "Context.Consumer" };
+    case Tag.ContextConsumer: {
+      const t = f.type as { displayName?: string; _context?: { displayName?: string } } | null;
+      const dn = t?._context?.displayName ?? t?.displayName;
+      return { kind: "provider", name: `${dn || "Context"}.Consumer` };
+    }
     case Tag.Suspense:
       return { kind: "suspense", name: "Suspense" };
     case Tag.HostPortal:
@@ -521,28 +555,44 @@ function walk(root: Fiber, visit: (f: Fiber, parent: number | null, depth: numbe
   }
 }
 
+/** Tracks the root's display name during a preorder walk: the first component inside the `app` host box. */
+class RootNamer {
+  private seenApp = false;
+  name: string | null = null;
+  /** Returns `true` once the name is known. */
+  visit(f: Fiber): boolean {
+    if (this.name !== null) return true;
+    if (!this.seenApp) {
+      if (f.tag === Tag.HostComponent && (f.stateNode as SceneNode | null)?.props?.wireframeLabel === "app") this.seenApp = true;
+    } else if (isComponent(f)) this.name = classify(f)?.name ?? null;
+    return this.name !== null;
+  }
+}
+
 function rootName(fiberRoot: unknown): string {
   const root = currentFiber(fiberRoot);
   if (!root) return "Root";
-  let seenApp = false;
-  let name: string | null = null;
-  walk(root, (f) => {
-    if (name !== null) return null;
-    if (!seenApp) {
-      if (f.tag === Tag.HostComponent && (f.stateNode as SceneNode | null)?.props?.wireframeLabel === "app") seenApp = true;
-      return null;
-    }
-    if (isComponent(f)) name = classify(f)?.name ?? null;
-    return null;
-  });
-  return name ?? "Root";
+  const namer = new RootNamer();
+  const stack: Fiber[] = [];
+  for (let c = root.child; c; c = c.sibling) stack.push(c);
+  stack.reverse();
+  while (stack.length > 0) {
+    const f = stack.pop() as Fiber;
+    if (namer.visit(f)) break;
+    const kids: Fiber[] = [];
+    for (let c = f.child; c; c = c.sibling) kids.push(c);
+    for (let i = kids.length - 1; i >= 0; i--) stack.push(kids[i] as Fiber);
+  }
+  return namer.name ?? "Root";
 }
 
 function snapshotTree(rootId: number, fiberRoot: unknown, ids: FiberIds): DevToolsTreeSnapshot {
   const nodes: DevToolsTreeNode[] = [];
   const root = currentFiber(fiberRoot);
+  const namer = new RootNamer();
   if (root) {
     walk(root, (f, parent, depth) => {
+      namer.visit(f);
       const c = classify(f);
       if (c === null) return null;
       const id = ids.get(f);
@@ -562,7 +612,7 @@ function snapshotTree(rootId: number, fiberRoot: unknown, ids: FiberIds): DevToo
       return id;
     });
   }
-  return { root: rootId, name: rootName(fiberRoot), nodes };
+  return { root: rootId, name: namer.name ?? "Root", nodes };
 }
 
 function rect(r: { x: number; y: number; width: number; height: number }): DevToolsRect {
@@ -583,6 +633,10 @@ function sceneInfo(node: SceneNode | null): DevToolsSceneInfo | null {
     painted: node.painted,
   };
   if (node.type === "raw-text") out.text = truncate(node.text, 120);
+  if (node.isInline) {
+    out.inline = true;
+    out.owner = node.textOwner().id;
+  }
   return out;
 }
 
@@ -597,8 +651,16 @@ function truncate(s: string, n: number): string {
 const REACT_ELEMENT = Symbol.for("react.transitional.element");
 const REACT_ELEMENT_LEGACY = Symbol.for("react.element");
 
-/** A short, display-only string for any value. */
+/** A short, display-only string for any value. Never throws: getters, revoked proxies and odd objects become `"[Exception]"`. */
 export function summarize(value: unknown, depth = 0): string {
+  try {
+    return summarizeUnsafe(value, depth);
+  } catch {
+    return "[Exception]";
+  }
+}
+
+function summarizeUnsafe(value: unknown, depth: number): string {
   switch (typeof value) {
     case "string":
       return JSON.stringify(truncate(value, 80));
@@ -622,8 +684,8 @@ export function summarize(value: unknown, depth = 0): string {
   }
   if (value instanceof Map) return `Map(${value.size})`;
   if (value instanceof Set) return `Set(${value.size})`;
-  if (value instanceof Date) return value.toISOString();
-  if (value instanceof Error) return `${value.name}: ${truncate(value.message, 60)}`;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? "Invalid Date" : value.toISOString();
+  if (value instanceof Error) return `${safeString(value.name, "Error")}: ${truncate(safeString(value.message, ""), 60)}`;
   if (ArrayBuffer.isView(value)) return `${value.constructor.name}(${(value as unknown as { length?: number }).length ?? value.byteLength})`;
   const keys = Object.keys(o);
   const ctor = (Object.getPrototypeOf(o) as { constructor?: { name?: string } } | null)?.constructor?.name;
@@ -634,24 +696,49 @@ export function summarize(value: unknown, depth = 0): string {
   return truncate(`${prefix}{${shown.join(", ")}}`, 160);
 }
 
-function summarizeProps(props: unknown): Record<string, string> {
+function safeString(v: unknown, fallback: string): string {
+  if (typeof v === "string") return v;
+  try {
+    return v === undefined || v === null ? fallback : String(v);
+  } catch {
+    return fallback;
+  }
+}
+
+/** @internal Exported for tests. */
+export function summarizeProps(props: unknown): Record<string, string> {
   const out: Record<string, string> = {};
   if (!props || typeof props !== "object") return out;
   const p = props as Record<string, unknown>;
-  for (const k of Object.keys(p)) {
-    if (k === "children") {
-      const c = p[k];
-      if (typeof c === "string" || typeof c === "number") out.children = summarize(c);
-      else if (c !== undefined && c !== null) out.children = Array.isArray(c) ? `[${c.length}]` : summarize(c, 1);
+  let keys: string[];
+  try {
+    keys = Object.keys(p);
+  } catch {
+    return out;
+  }
+  // `defineProperty` so a prop named `__proto__` stays an own key instead of swapping the prototype.
+  const set = (k: string, v: string): void => void Object.defineProperty(out, k, { value: v, enumerable: true, writable: true, configurable: true });
+  for (const k of keys) {
+    let v: unknown;
+    try {
+      v = p[k];
+    } catch {
+      set(k, "[Exception]");
       continue;
     }
-    if (p[k] === undefined) continue;
-    out[k] = summarize(p[k], 0);
+    if (k === "children") {
+      if (typeof v === "string" || typeof v === "number") set(k, summarize(v));
+      else if (v !== undefined && v !== null) set(k, Array.isArray(v) ? `[${v.length}]` : summarize(v, 1));
+      continue;
+    }
+    if (v === undefined) continue;
+    set(k, summarize(v, 0));
   }
   return out;
 }
 
-interface HookNode {
+/** @internal */
+export interface HookNode {
   memoizedState: unknown;
   queue: unknown;
   next: HookNode | null;
@@ -661,22 +748,52 @@ function summarizeHooks(first: unknown): DevToolsHookValue[] {
   const out: DevToolsHookValue[] = [];
   let h = first as HookNode | null;
   let guard = 0;
-  while (h && typeof h === "object" && "next" in h && guard++ < 64) {
-    out.push(classifyHook(h));
-    h = h.next;
+  try {
+    while (h && typeof h === "object" && "next" in h && guard++ < 64) {
+      out.push(classifyHook(h));
+      h = h.next;
+    }
+  } catch {
+    out.push({ kind: "hook", value: "[Exception]" });
   }
   return out;
 }
 
-function classifyHook(h: HookNode): DevToolsHookValue {
+const stateReducers = new WeakMap<object, boolean>();
+/** React's `basicStateReducer` source: `(s, a) => typeof a === "function" ? a(s) : a` (minified names vary). */
+const BASIC_STATE_REDUCER = /^function\s*[\w$]*\s*\(\s*([\w$]+)\s*,\s*([\w$]+)\s*\)\s*\{\s*return\s*(?:typeof\s*\2\s*={2,3}\s*["']function["']|["']function["']\s*={2,3}\s*typeof\s*\2)\s*\?\s*\2\s*\(\s*\1\s*\)\s*:\s*\2\s*;?\s*\}$/;
+
+/** Whether a hook queue's reducer is `useState`'s, recognized by shape since builds minify its name. */
+function isStateReducer(reducer: unknown): boolean {
+  if (reducer === null || reducer === undefined) return true;
+  if (typeof reducer !== "function") return false;
+  let known = stateReducers.get(reducer);
+  if (known === undefined) {
+    if (reducer.name === "basicStateReducer") known = true;
+    else {
+      let src = "";
+      try {
+        src = Function.prototype.toString.call(reducer);
+      } catch {
+        // Revoked proxy or exotic function.
+      }
+      known = src.length < 200 && BASIC_STATE_REDUCER.test(src);
+    }
+    stateReducers.set(reducer, known);
+  }
+  return known;
+}
+
+/** `useId()` values across React versions and `identifierPrefix`es: `:r0:`, `:R1:`, `«r0»`, `_r_0_`, `_txr_1h_`. */
+const USE_ID = /^(?::[\w-]*r[\w-]*:|«[\w-]*r[\w-]*»|_[\w-]*r_[\w-]*_)$/i;
+
+/** @internal Exported for tests. */
+export function classifyHook(h: HookNode): DevToolsHookValue {
   const q = h.queue as { dispatch?: unknown; lastRenderedReducer?: unknown; getSnapshot?: unknown } | null;
   const ms = h.memoizedState;
   if (q && typeof q === "object") {
     if (typeof q.getSnapshot === "function") return { kind: "store", value: summarize(ms) };
-    if ("dispatch" in q) {
-      const reducer = fnName(q.lastRenderedReducer);
-      return { kind: reducer === "basicStateReducer" ? "state" : "reducer", value: summarize(ms) };
-    }
+    if ("dispatch" in q) return { kind: isStateReducer(q.lastRenderedReducer) ? "state" : "reducer", value: summarize(ms) };
   }
   if (ms && typeof ms === "object") {
     const e = ms as { tag?: unknown; deps?: unknown; next?: unknown; current?: unknown };
@@ -691,7 +808,7 @@ function classifyHook(h: HookNode): DevToolsHookValue {
     const keys = Object.keys(ms);
     if (keys.length === 1 && keys[0] === "current") return { kind: "ref", value: summarize(e.current, 1) };
   }
-  if (typeof ms === "string" && /^[«:]r/.test(ms)) return { kind: "id", value: ms };
+  if (typeof ms === "string" && q === null && ms.length <= 64 && USE_ID.test(ms)) return { kind: "id", value: ms };
   return { kind: "hook", value: summarize(ms) };
 }
 
@@ -713,22 +830,59 @@ interface Deferred {
   clip: Clip;
   z: number;
   order: number;
+  overlay: boolean;
+}
+
+const enum Surface {
+  /** Paints nothing: transparent box inside an overlay. */
+  None,
+  /** Paints only its border. */
+  Border,
+  /** Paints its whole rect. */
+  Fill,
+}
+
+/**
+ * Which cells a node owns. Text and in-flow boxes own their rect, as before.
+ * Transparent absolute boxes (a full-screen `<Toaster>` layer, `<Modal
+ * backdropDim={0}>`) paint nothing, and neither do the transparent boxes
+ * inside them, so they never steal ownership of the content underneath.
+ */
+function surfaceOf(node: SceneNode, overlay: boolean): Surface {
+  if (node.type !== "box" || !overlay) return Surface.Fill;
+  const s = node.resolved;
+  if (s.backdrop !== 0 || (s.bg !== null && (s.bg & 255) !== 0) || node.props.customPaint) return Surface.Fill;
+  return s.borderStyle !== "none" ? Surface.Border : Surface.None;
 }
 
 function paintOwners(root: SceneNode, cols: number, rows: number, out: Int32Array): void {
   const deferred: Deferred[] = [];
-  const visit = (node: SceneNode, ox: number, oy: number, clip: Clip): void => {
+  const fill = (id: number, x0: number, y0: number, x1: number, y1: number, clip: Clip): void => {
+    const ax = Math.max(clip.x0, x0, 0);
+    const ay = Math.max(clip.y0, y0, 0);
+    const bx = Math.min(clip.x1, x1, cols);
+    const by = Math.min(clip.y1, y1, rows);
+    if (bx <= ax) return;
+    for (let yy = ay; yy < by; yy++) out.fill(id, yy * cols + ax, yy * cols + bx);
+  };
+  const visit = (node: SceneNode, ox: number, oy: number, clip: Clip, inOverlay: boolean): void => {
     const p = node.props;
     if (p.display === "none" || !node.painted) return;
     const L = node.layout;
     const x = L.x + ox;
     const y = L.y + oy;
-    const x0 = Math.max(clip.x0, x, 0);
-    const y0 = Math.max(clip.y0, y, 0);
-    const x1 = Math.min(clip.x1, x + L.width, cols);
-    const y1 = Math.min(clip.y1, y + L.height, rows);
-    for (let yy = y0; yy < y1; yy++) out.fill(node.id, yy * cols + x0, yy * cols + Math.max(x0, x1));
+    const overlay = inOverlay || (node.type === "box" && p.position === "absolute");
+    const surface = surfaceOf(node, overlay);
+    if (surface === Surface.Fill) fill(node.id, x, y, x + L.width, y + L.height, clip);
+    else if (surface === Surface.Border && L.width > 0 && L.height > 0) {
+      if (p.borderTop !== false) fill(node.id, x, y, x + L.width, y + 1, clip);
+      if (p.borderBottom !== false) fill(node.id, x, y + L.height - 1, x + L.width, y + L.height, clip);
+      if (p.borderLeft !== false) fill(node.id, x, y, x + 1, y + L.height, clip);
+      if (p.borderRight !== false) fill(node.id, x + L.width - 1, y, x + L.width, y + L.height, clip);
+    }
     if (node.type !== "box") return;
+    // Children of a box that paints its whole surface are ordinary content again.
+    const childOverlay = overlay && surface !== Surface.Fill;
     let next = clip;
     let cox = ox;
     let coy = oy;
@@ -751,17 +905,17 @@ function paintOwners(root: SceneNode, cols: number, rows: number, out: Int32Arra
       if (c.yoga === null) continue;
       const cz = c.props.zIndex ?? 0;
       if (cz > 0 && c.props.position === "absolute") {
-        deferred.push({ node: c, ox: cox, oy: coy, clip: next, z: cz, order: deferred.length });
+        deferred.push({ node: c, ox: cox, oy: coy, clip: next, z: cz, order: deferred.length, overlay: childOverlay });
         continue;
       }
-      visit(c, cox, coy, next);
+      visit(c, cox, coy, next, childOverlay);
     }
   };
-  visit(root, 0, 0, { x0: 0, y0: 0, x1: cols, y1: rows });
+  visit(root, 0, 0, { x0: 0, y0: 0, x1: cols, y1: rows }, false);
   while (deferred.length > 0) {
     deferred.sort((a, b) => a.z - b.z || a.order - b.order);
     const d = deferred.shift() as Deferred;
-    visit(d.node, d.ox, d.oy, d.clip);
+    visit(d.node, d.ox, d.oy, d.clip, d.overlay);
   }
 }
 
