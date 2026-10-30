@@ -71,7 +71,7 @@ export function isAllowedDevHost(server: Pick<ViteDevServer, "config">, hostHead
 const here = dirname(realpathSync(fileURLToPath(import.meta.url)));
 const sourceExt = extname(fileURLToPath(import.meta.url)) === ".ts" ? ".tsx" : extname(fileURLToPath(import.meta.url));
 
-/** `@textjs/next/client` as the package's own `exports` map resolves it (used when this file is bundled into `dist/bin`). */
+/** `@textjs/next/client` next to this module (`src/` or `dist/`), else as the package's own `exports` map resolves it. */
 function resolveClientModule(): string {
   const sibling = join(here, `client${sourceExt}`);
   if (existsSync(sibling)) return sibling;

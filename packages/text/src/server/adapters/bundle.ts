@@ -14,7 +14,7 @@ const here = dirname(realpathSync(fileURLToPath(import.meta.url)));
 
 /**
  * Absolute path of a framework source file (`server/adapters/runtime.ts`),
- * also when this module is bundled into `dist/bin/text.js`.
+ * also when this module runs from `dist/` (the sources ship in `src/`).
  */
 export function frameworkFile(rel: string): string {
   const fromHere = join(here, "..", "..", rel);
