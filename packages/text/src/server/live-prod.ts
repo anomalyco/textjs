@@ -11,7 +11,7 @@ import { pathToFileURL } from "node:url";
 import type { ThemeName } from "@textjs/react";
 import { LIVE_PATH } from "../live-protocol";
 import { LiveServer } from "./live";
-import { LIVE_MANIFEST, type LiveManifest } from "./live-build";
+import { LIVE_MANIFEST, type LiveManifest } from "./live-manifest";
 import type { LiveEntryModule } from "./live-dev";
 
 export interface LiveProductionOptions {

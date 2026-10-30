@@ -11,11 +11,12 @@ import { isDynamicPattern, matchAppRoutes, type RouteManifest, type RouteSegment
 import { routeCacheConfig, runRouteHandlerWithCache } from "../cache-route";
 import type { RouteHandlerModule } from "../http";
 import type { MiddlewareModule } from "../middleware";
-import { removeServerBundle, type AdapterContext, type AdapterResult } from "./shared";
+import { removeServerBundle, serverRoutePatterns, type AdapterContext, type AdapterResult } from "./shared";
 
 export async function adaptStatic(ctx: AdapterContext, middleware: MiddlewareModule | null, apiBundle: string): Promise<AdapterResult> {
   const problems: string[] = [];
   if (middleware) problems.push("middleware.ts needs a server. Use --adapter bun, vercel or cloudflare (or `text start`).");
+  for (const pattern of serverRoutePatterns(ctx)) problems.push(`${pattern}: renders on the server (\`export const runtime = "server"\`). Use --adapter bun (or \`text start\`).`);
   const notes: string[] = [];
   if (ctx.rewrites.length > 0) notes.push("rewrites in text.config.ts are not applied by static hosts; configure them on your host.");
 

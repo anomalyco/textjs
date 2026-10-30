@@ -4,6 +4,7 @@
  */
 
 import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { builtinModules } from "node:module";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build, mergeConfig, type InlineConfig, type Plugin } from "vite";
@@ -53,6 +54,16 @@ export async function bundleServerEntry(opts: BundleOptions): Promise<void> {
       return id === `\0${ENTRY}` ? opts.code : null;
     },
   };
+  // Workers resolve Node built-ins only by their `node:` names (nodejs_compat); dependencies often import `fs` / `async_hooks`.
+  const builtins: Plugin = {
+    name: "textjs:node-builtins",
+    enforce: "pre",
+    resolveId(id) {
+      if (!worker) return null;
+      if (id.startsWith("node:")) return { id, external: true };
+      return builtinModules.includes(id) && !id.startsWith("_") ? { id: `node:${id}`, external: true } : null;
+    },
+  };
   const inline: InlineConfig = {
     configFile: false,
     root: opts.root,
@@ -80,7 +91,7 @@ export async function bundleServerEntry(opts: BundleOptions): Promise<void> {
         output: { entryFileNames: basename(opts.outFile), format: "es", inlineDynamicImports: true },
       },
     },
-    plugins: [entryPlugin],
+    plugins: [entryPlugin, builtins],
   };
   await build(opts.config.vite ? mergeConfig(inline, opts.config.vite) : inline);
 }

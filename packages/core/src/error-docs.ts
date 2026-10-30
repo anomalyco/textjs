@@ -407,6 +407,29 @@ export default defineConfig({
 
 \`defineConfig\` type-checks the config and catches these in your editor.`,
   },
+  TX030: {
+    package: "@textjs/next",
+    title: "Server-rendered routes need a long-lived server",
+    cause: `A page exports \`runtime = "server"\`: it renders on the server and streams frames to each open tab over a session that lives as long as the tab. Static hosts, Vercel Functions and Cloudflare Workers can't keep those sessions, so \`text build --adapter static|vercel|cloudflare\` refuses the app instead of shipping routes that can't render.`,
+    fix: `Deploy with a server that stays up:
+
+~~~bash
+text build --adapter bun
+bun dist/server.js
+
+# or
+text build && text start
+~~~
+
+Or render the route in the browser by removing the export:
+
+~~~tsx@app/ops/page.tsx
+// Before
+export const runtime = "server";
+
+// After: the default client runtime
+~~~`,
+  },
 };
 
 export const TX_ERRORS: readonly TxErrorDoc[] = (Object.keys(TX_MESSAGES) as TxCode[]).map((code) => {

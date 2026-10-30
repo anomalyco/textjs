@@ -1,3 +1,4 @@
+import { VERSION } from "@textjs/core";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
@@ -7,7 +8,7 @@ import { resolveAdapter, runBuildAdapter } from "../src/server/adapters/build-st
 import { patternRegex, rewriteRoute, matcherRegex } from "../src/server/adapters/shared";
 import { listApiRoutes, scanApp } from "../src/server/scan";
 import { __configureCache } from "../src/server/cache";
-import { createFixture, EDGE_APP, exerciseEdgeApp, STATIC_APP } from "./server-fixture";
+import { createFixture, EDGE_APP, exerciseEdgeApp, LIVE_APP, openLiveStream, STATIC_APP, until } from "./server-fixture";
 import { startVercelHarness } from "./vercel-harness";
 
 async function adapt(dir: string, adapter: "static" | "bun" | "vercel" | "cloudflare") {
@@ -109,7 +110,7 @@ describe("deploy adapters (middleware + route handlers + cache)", () => {
       expect(result.output).toBe(out);
       const config = JSON.parse(readFileSync(join(out, "config.json"), "utf8"));
       expect(config.version).toBe(3);
-      expect(config.framework.version).toBe("1.0.0");
+      expect(config.framework.version).toBe(VERSION);
       const mw = config.routes.find((r: { middlewarePath?: string }) => r.middlewarePath);
       expect(mw).toMatchObject({ middlewarePath: "_middleware", continue: true, override: true, middlewareRawSrc: ["/((?!assets/|favicon.ico).*)"] });
       expect(config.routes.some((r: { handle?: string }) => r.handle === "filesystem")).toBe(true);
@@ -231,5 +232,53 @@ describe("static adapter", () => {
       expect(existsSync(join(dist, ".text/server"))).toBe(false);
     },
     120_000,
+  );
+});
+
+describe("server-rendered routes and adapters", () => {
+  let dir = "";
+  beforeAll(async () => {
+    dir = createFixture(LIVE_APP, "textjs-live-adapters-");
+    await buildApp({ root: dir, log: false });
+  }, 120_000);
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("static, vercel and cloudflare refuse them with TX030 / a listed reason", async () => {
+    await expect(adapt(dir, "static")).rejects.toThrow(/\/ops: renders on the server/);
+    await expect(adapt(dir, "vercel")).rejects.toThrow(/TX030[\s\S]*\/ops[\s\S]*vercel adapter/);
+    await expect(adapt(dir, "cloudflare")).rejects.toThrow(/TX030[\s\S]*cloudflare adapter/);
+    expect(existsSync(join(dir, "dist/.text/server/live.mjs"))).toBe(true);
+  }, 60_000);
+
+  test(
+    "bun: dist/server.js hosts live sessions",
+    async () => {
+      await adapt(dir, "bun");
+      const proc = Bun.spawn(["bun", join(dir, "dist/server.js")], { cwd: dir, env: { ...process.env, PORT: "0", HOSTNAME: "127.0.0.1" }, stdout: "pipe", stderr: "inherit" });
+      try {
+        const url = await waitForLine(proc.stdout, /ready on (http:\/\/\S+)/, 15_000);
+        const doc = await (await fetch(`${url}/ops`, { headers: { accept: "text/html" } })).text();
+        expect(doc).toContain('data-textjs-runtime="server"');
+        const live = await openLiveStream(url, "path=/ops&cols=40&rows=4");
+        expect(live.status).toBe(200);
+        const frames = () => JSON.stringify(live.messages.filter((m) => m.t === "f"));
+        await until(() => frames().includes("server"));
+        const sid = (live.messages.find((m) => m.t === "hello") as { sid: string }).sid;
+        const input = await fetch(`${url}/__textjs/live`, { method: "POST", headers: { "content-type": "application/json", "x-textjs-live": sid }, body: JSON.stringify([{ type: "key", key: "+", input: "+" }]) });
+        expect(input.status).toBe(204);
+        const count = live.messages.length;
+        await until(() => live.messages.length > count && live.messages.slice(count).some((m) => m.t === "f"));
+        live.close();
+        const client = await openLiveStream(url, "path=/");
+        await until(() => client.messages.some((m) => m.t === "load"));
+        client.close();
+      } finally {
+        proc.kill();
+        await proc.exited;
+      }
+    },
+    60_000,
   );
 });

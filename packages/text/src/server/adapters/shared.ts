@@ -9,7 +9,9 @@ import type { Rewrite, TextConfig } from "../../config";
 import { parseSegment } from "../../routing";
 import { generateApiModule } from "../../vite-plugin";
 import type { ApiRoute, AppScan } from "../scan";
-import { compileMatcherSource } from "../middleware-runtime";
+import { txError } from "@textjs/core";
+import { compileMatcherSource, matcherKeys } from "../middleware-runtime";
+import { listServerPages } from "../live-routes";
 import { frameworkFile } from "./bundle";
 
 export const ADAPTERS = ["static", "bun", "vercel", "cloudflare"] as const;
@@ -109,7 +111,8 @@ export function matcherRegex(source: string, basePath = ""): string {
 
 /** Config rewrite `source` → `{ src, dest }` with `$n` substitutions. */
 export function rewriteRoute(rewrite: Rewrite, basePath = ""): { src: string; dest: string } {
-  const names = [...rewrite.source.matchAll(/:([A-Za-z_]\w*)/g)].map((m) => m[1] as string);
+  // Capture order, including unnamed groups (`/(.*)`) and groups inside custom patterns.
+  const names = matcherKeys(rewrite.source);
   const src = matcherRegex(rewrite.source, basePath);
   const external = /^[a-z]+:\/\//i.test(rewrite.destination);
   let dest = rewrite.destination.replace(/:([A-Za-z_]\w*)[*+?]?/g, (_, n: string) => {
@@ -138,7 +141,19 @@ export function copyStatic(from: string, to: string, skip: (rel: string) => bool
   walk(from, "");
 }
 
+/** Remove `.text/` (server bundles and build manifests) from output a static host publishes as-is. */
 export function removeServerBundle(outDir: string): void {
-  const dir = join(outDir, ".text", "server");
+  const dir = join(outDir, ".text");
   if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
+}
+
+/** Patterns of `export const runtime = "server"` pages. */
+export function serverRoutePatterns(ctx: Pick<AdapterContext, "scan">): string[] {
+  return listServerPages(ctx.scan).map((p) => p.pattern);
+}
+
+/** Server-rendered routes keep a live session per tab: refuse platforms without a long-lived server. */
+export function assertNoServerRoutes(ctx: Pick<AdapterContext, "scan">, adapter: AdapterName): void {
+  const routes = serverRoutePatterns(ctx);
+  if (routes.length > 0) throw txError("TX030", routes.join(", "), adapter);
 }
