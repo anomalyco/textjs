@@ -17,10 +17,14 @@ import { RouterContext } from "../context";
 
 type AnyComponent = (props: any) => unknown;
 
+/** Promises kept per cache (least recently used are dropped first). */
+export const SERVER_COMPONENT_CACHE_SIZE = 256;
+
 /** Per-session promise cache, cleared whenever the route or `router.refresh()` generation changes. */
 export class ServerComponentCache {
   private generation = "";
   private readonly entries = new Map<string, Promise<ReactNode>>();
+  constructor(private readonly maxEntries = SERVER_COMPONENT_CACHE_SIZE) {}
   private readonly ids = new WeakMap<object, number>();
   private nextId = 1;
   private inflight = 0;
@@ -64,7 +68,11 @@ export class ServerComponentCache {
     }
     const key = `${this.idOf(component)}|${stableKey(props, this, 0)}`;
     let p = this.entries.get(key);
-    if (p === undefined) {
+    if (p !== undefined) {
+      // Most recently used last.
+      this.entries.delete(key);
+      this.entries.set(key, p);
+    } else {
       try {
         p = Promise.resolve(component(props) as ReactNode | Promise<ReactNode>);
       } catch (error) {
@@ -80,22 +88,31 @@ export class ServerComponentCache {
       };
       p.then(settled, settled);
       this.entries.set(key, p);
+      for (const k of this.entries.keys()) {
+        if (this.entries.size <= this.maxEntries) break;
+        this.entries.delete(k);
+      }
     }
     return p;
   }
 }
 
-const MAX_DEPTH = 8;
+const MAX_DEPTH = 64;
 const REACT_ELEMENT = Symbol.for("react.transitional.element");
 const REACT_ELEMENT_LEGACY = Symbol.for("react.element");
 
+let warnedFunctionProp = false;
+
 /**
- * Structural key for props: primitives by value, plain objects / arrays /
- * React elements by structure, functions and class instances by identity.
- * Props rebuilt on every parent render (params objects, `children`) keep the
- * same key, so a retried render reuses the in-flight promise.
+ * Structural key for props: primitives, plain objects, arrays, `Date`, `URL`,
+ * `URLSearchParams`, `RegExp`, `Map`, `Set`, class instances (by constructor
+ * and own fields) and React elements by value; component types by identity
+ * (they're module-level). Function props aren't part of the key: a callback
+ * rebuilt on every render would otherwise miss on every retry and suspend
+ * forever. Props rebuilt on every parent render keep the same key, so a
+ * retried render reuses the in-flight promise.
  */
-export function stableKey(value: unknown, cache: ServerComponentCache, depth: number): string {
+export function stableKey(value: unknown, cache: ServerComponentCache, depth: number, seen: WeakSet<object> = new WeakSet()): string {
   switch (typeof value) {
     case "string":
       return JSON.stringify(value);
@@ -108,29 +125,50 @@ export function stableKey(value: unknown, cache: ServerComponentCache, depth: nu
     case "symbol":
       return `s:${String(value)}`;
     case "function":
-      return `f#${cache.idOf(value)}`;
+      if (!warnedFunctionProp) {
+        warnedFunctionProp = true;
+        console.warn("▼ Text.js: an async server component received a function prop. Functions aren't part of its cache key; pass data instead of callbacks.");
+      }
+      return "f";
   }
   if (value === null) return "n";
   const obj = value as Record<string | symbol, unknown>;
+  if (seen.has(obj)) return "cycle";
   if (depth >= MAX_DEPTH) return `o#${cache.idOf(obj)}`;
-  if (Array.isArray(obj)) return `[${obj.map((v) => stableKey(v, cache, depth + 1)).join(",")}]`;
-  const tag = obj.$$typeof;
-  if (tag === REACT_ELEMENT || tag === REACT_ELEMENT_LEGACY) {
-    const type = obj.type;
-    const t = typeof type === "string" ? type : typeof type === "object" || typeof type === "function" ? `#${cache.idOf(type as object)}` : String(type);
-    return `<${t}:${String(obj.key)}:${stableKey(obj.props, cache, depth + 1)}>`;
+  seen.add(obj);
+  try {
+    const next = (v: unknown): string => stableKey(v, cache, depth + 1, seen);
+    if (Array.isArray(obj)) return `[${obj.map(next).join(",")}]`;
+    const tag = obj.$$typeof;
+    if (tag === REACT_ELEMENT || tag === REACT_ELEMENT_LEGACY) {
+      const type = obj.type;
+      const t = typeof type === "string" ? type : typeof type === "object" || typeof type === "function" ? `#${cache.idOf(type as object)}` : String(type);
+      return `<${t}:${String(obj.key)}:${next(obj.props)}>`;
+    }
+    if (obj instanceof Date) return `d:${obj.getTime()}`;
+    if (obj instanceof URL) return `url:${JSON.stringify(obj.href)}`;
+    if (obj instanceof URLSearchParams) return `qs:${JSON.stringify(obj.toString())}`;
+    if (obj instanceof RegExp) return `re:${JSON.stringify(obj.toString())}`;
+    if (obj instanceof Map) return `map{${[...obj].map(([k, v]) => `${next(k)}=>${next(v)}`).sort().join(",")}}`;
+    if (obj instanceof Set) return `set{${[...obj].map(next).sort().join(",")}}`;
+    const proto = Object.getPrototypeOf(obj) as { constructor?: { name?: string } } | null;
+    const prefix = proto !== Object.prototype && proto !== null ? `${proto.constructor?.name ?? "?"}` : "";
+    const keys = Object.keys(obj).sort();
+    return `${prefix}{${keys.map((k) => `${JSON.stringify(k)}:${next(obj[k])}`).join(",")}}`;
+  } finally {
+    seen.delete(obj);
   }
-  if (obj instanceof Date) return `d:${obj.getTime()}`;
-  const proto = Object.getPrototypeOf(obj);
-  if (proto !== Object.prototype && proto !== null) return `o#${cache.idOf(obj)}`;
-  const keys = Object.keys(obj).sort();
-  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableKey(obj[k], cache, depth + 1)}`).join(",")}}`;
 }
 
 export const ServerComponentCacheContext = sharedContext<ServerComponentCache | null>("serverComponentCache", null, "TextServerComponentCache");
 
-/** Used when an async component renders outside a live session (tests, `text run`). */
+/** Used when an async component renders outside a live session (tests, `text run`); bounded like a session's. */
 const fallbackCache = new ServerComponentCache();
+
+/** Drop every promise cached outside live sessions (`text run` between apps, tests). */
+export function clearFallbackServerComponentCache(): void {
+  fallbackCache.clear();
+}
 
 const AsyncFunction = (async () => undefined).constructor;
 
@@ -159,8 +197,21 @@ export function serverComponent<P extends object>(component: (props: P) => Promi
 }
 
 /** `type` with async function components swapped for their wrappers. */
+const REACT_MEMO = Symbol.for("react.memo");
+const memoWrappers = new WeakMap<object, object>();
+
 export function resolveServerType<T>(type: T): T {
-  return (isAsyncComponent(type) ? serverComponent(type as never) : type) as T;
+  if (isAsyncComponent(type)) return serverComponent(type as never) as T;
+  // `React.memo(async function …)`: wrap the inner component, keep the memo.
+  if (typeof type === "object" && type !== null && (type as { $$typeof?: symbol }).$$typeof === REACT_MEMO && isAsyncComponent((type as { type?: unknown }).type)) {
+    let wrapped = memoWrappers.get(type);
+    if (wrapped === undefined) {
+      wrapped = { ...(type as object), type: serverComponent((type as unknown as { type: never }).type) };
+      memoWrappers.set(type, wrapped);
+    }
+    return wrapped as T;
+  }
+  return type;
 }
 
 /** Provide a session's cache to every async component below. */

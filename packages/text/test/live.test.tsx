@@ -131,9 +131,50 @@ describe("server components", () => {
     const cache = new ServerComponentCache();
     expect(stableKey({ params: { id: "1" }, children: <Text>a</Text> }, cache, 0)).toBe(stableKey({ children: <Text>a</Text>, params: { id: "1" } }, cache, 0));
     expect(stableKey({ id: "1" }, cache, 0)).not.toBe(stableKey({ id: 1 }, cache, 0));
-    const f = (): void => undefined;
-    expect(stableKey({ f }, cache, 0)).toBe(stableKey({ f }, cache, 0));
-    expect(stableKey({ f }, cache, 0)).not.toBe(stableKey({ f: (): void => undefined }, cache, 0));
+    // Fresh callbacks every render must not change the key (that would retry forever).
+    const warn = console.warn;
+    console.warn = () => undefined;
+    try {
+      expect(stableKey({ f: (): void => undefined }, cache, 0)).toBe(stableKey({ f: (): void => undefined }, cache, 0));
+    } finally {
+      console.warn = warn;
+    }
+  });
+
+  test("keys by value at any depth (deep JSX, Map, Set, URL, class instances); cycles terminate; the cache is bounded", () => {
+    const cache = new ServerComponentCache(3);
+    const deep = (label: string) => (
+      <Box>
+        <Box>
+          <Box>
+            <Box>
+              <Box>
+                <Text>{label}</Text>
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+    );
+    expect(stableKey({ c: deep("a") }, cache, 0)).toBe(stableKey({ c: deep("a") }, cache, 0));
+    expect(stableKey({ c: deep("a") }, cache, 0)).not.toBe(stableKey({ c: deep("b") }, cache, 0));
+    expect(stableKey({ m: new Map([["k", 1]]), s: new Set([1, 2]), u: new URL("https://a.dev/x"), r: /x/g }, cache, 0)).toBe(
+      stableKey({ m: new Map([["k", 1]]), s: new Set([2, 1]), u: new URL("https://a.dev/x"), r: /x/g }, cache, 0),
+    );
+    expect(stableKey({ u: new URL("https://a.dev/x") }, cache, 0)).not.toBe(stableKey({ u: new URL("https://a.dev/y") }, cache, 0));
+    class Point {
+      constructor(
+        readonly x: number,
+        readonly y: number,
+      ) {}
+    }
+    expect(stableKey({ p: new Point(1, 2) }, cache, 0)).toBe(stableKey({ p: new Point(1, 2) }, cache, 0));
+    const cyclic: Record<string, unknown> = { a: 1 };
+    cyclic.self = cyclic;
+    expect(stableKey(cyclic, cache, 0)).toContain("cycle");
+    const fn = async ({ n }: { n: number }): Promise<ReactNode> => <Text>{String(n)}</Text>;
+    for (let n = 0; n < 10; n++) void cache.read(fn, { n }, "g");
+    expect(cache.size).toBe(3);
   });
 
   test("async components suspend once and resolve (no retry loop)", async () => {
