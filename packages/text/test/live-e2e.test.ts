@@ -6,8 +6,8 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
@@ -15,7 +15,18 @@ import { buildApp } from "../src/cli/build";
 import { startProductionServer, type StartedServer } from "../src/cli/start";
 
 const REPO = fileURLToPath(new URL("../../..", import.meta.url));
-const DASHBOARD = join(REPO, "examples/dashboard");
+const SOURCE = join(REPO, "examples/dashboard");
+/** A private copy of examples/dashboard, so this build never races build.test.ts on examples/dashboard/dist. */
+let DASHBOARD = "";
+
+function copyDashboard(): string {
+  const dir = mkdtempSync(join(tmpdir(), "textjs-e2e-dashboard-"));
+  cpSync(SOURCE, dir, { recursive: true, filter: (src) => !/[\\/](dist|node_modules)$/.test(src) });
+  mkdirSync(join(dir, "node_modules/@textjs"), { recursive: true });
+  symlinkSync(join(REPO, "packages/text"), join(dir, "node_modules/@textjs/next"));
+  for (const dep of ["react", "react-dom"]) symlinkSync(join(REPO, "node_modules", dep), join(dir, "node_modules", dep));
+  return dir;
+}
 const PLAYWRIGHT = join(REPO, "bench/devtools/node_modules/playwright-core/index.mjs");
 
 function findChromium(): string | null {
@@ -83,6 +94,7 @@ describe.skipIf(!enabled)("server rendering + PPR in Chromium (text start)", () 
   let browser: Browser;
 
   beforeAll(async () => {
+    DASHBOARD = copyDashboard();
     await buildApp({ root: DASHBOARD, log: false });
     server = await startProductionServer({ root: DASHBOARD, port: 0, log: false });
     const pw = (await import(PLAYWRIGHT)) as PW;
@@ -92,6 +104,7 @@ describe.skipIf(!enabled)("server rendering + PPR in Chromium (text start)", () 
   afterAll(async () => {
     await browser?.close();
     await server?.close();
+    if (DASHBOARD) rmSync(DASHBOARD, { recursive: true, force: true });
   });
 
   async function open(path: string): Promise<{ page: Page; calls: Call[]; logs: () => string[] }> {
@@ -128,12 +141,24 @@ describe.skipIf(!enabled)("server rendering + PPR in Chromium (text start)", () 
       await page.keyboard.press("r");
       await until(() => logs().some((l) => l.includes("attempt 2")));
 
-      // Frames are paced like the client renderer (≥ ~66ms apart).
-      const times: number[] = [];
-      page.on("console", () => times.push(performance.now()));
-      await sleep(1500);
+      // Frames are paced like the client renderer (≥ ~66ms apart), measured in the page (not across CDP).
+      await page.evaluate(() => {
+        const w = window as unknown as { __logTimes: number[] };
+        w.__logTimes = [];
+        const log = console.log.bind(console);
+        console.log = (...args: unknown[]) => {
+          w.__logTimes.push(performance.now());
+          log(...args);
+        };
+      });
+      for (let i = 0; i < 6; i++) {
+        await page.keyboard.press("r");
+        await sleep(120);
+      }
+      await sleep(500);
+      const times = await page.evaluate(() => (window as unknown as { __logTimes: number[] }).__logTimes);
       const gaps = times.slice(1).map((t, i) => t - (times[i] as number));
-      if (gaps.length > 3) expect(Math.min(...gaps)).toBeGreaterThan(40);
+      if (gaps.length > 3) expect(Math.min(...gaps)).toBeGreaterThan(50);
       await page.close();
     },
     60_000,

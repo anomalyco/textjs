@@ -9,6 +9,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildApp } from "../src/cli/build";
+import { prerenderInChild } from "../src/server/live-build";
 import { replaceWithMap } from "../src/server/live-dev";
 import { readRuntimeExport } from "../src/server/live-routes";
 import { createFixture } from "./server-fixture";
@@ -96,4 +97,32 @@ describe("server JSX runtime rewrite", () => {
     expect(out?.map.mappings).toBe("AAAA,qCAAuC;AACvC");
     expect(replaceWithMap("const s = 'react/jsx-runtime';", re, () => "x", "a.ts")).toBeNull();
   });
+});
+
+describe("prerendering in a child process", () => {
+  test("hung routes time out, module side effects can't keep the build alive, fetch stays untouched", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "textjs-prerender-"));
+    dirs.push(dir);
+    const bundle = join(dir, "live.mjs");
+    writeFileSync(
+      bundle,
+      `setInterval(() => {}, 1000);
+globalThis.fetch = () => { throw new Error("patched"); };
+export const routes = {};
+export async function prerenderShell({ path }) {
+  if (path === "/slow") return new Promise(() => {});
+  if (path === "/boom") throw new Error("db down");
+  return [{ method: "log", args: ["%c" + path, ""] }];
+}
+`,
+    );
+    const realFetch = globalThis.fetch;
+    const t0 = Date.now();
+    const results = await prerenderInChild(bundle, { paths: ["/fast", "/slow", "/boom"], cols: 10, rows: 2, timeoutMs: 300 });
+    expect(Date.now() - t0).toBeLessThan(10_000);
+    expect(results["/fast"]).toEqual({ calls: [{ method: "log", args: ["%c/fast", ""] }] });
+    expect(results["/slow"]).toEqual({ error: "timed out after 300ms" });
+    expect(results["/boom"]).toEqual({ error: "db down" });
+    expect(globalThis.fetch).toBe(realFetch);
+  }, 20_000);
 });

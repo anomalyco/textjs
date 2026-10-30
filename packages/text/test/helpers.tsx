@@ -145,11 +145,13 @@ export async function createTestRoot(options: ConsoleRootOptions = {}): Promise<
 /** Run outside the act() test environment, like production code. */
 export async function withoutActEnvironment<T>(fn: () => Promise<T> | T): Promise<T> {
   const g = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+  const prev = g.IS_REACT_ACT_ENVIRONMENT;
   g.IS_REACT_ACT_ENVIRONMENT = false;
   try {
     return await fn();
   } finally {
-    g.IS_REACT_ACT_ENVIRONMENT = true;
+    // Restore whatever the surrounding test file set (not unconditionally `true`).
+    g.IS_REACT_ACT_ENVIRONMENT = prev;
   }
 }
 

@@ -11,13 +11,14 @@
  * 4. `.text/live-manifest.json` — what `text start` needs to serve them.
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { gzipSync } from "node:zlib";
 import { build, mergeConfig, type InlineConfig, type Rollup } from "vite";
 import { normalizeBasePath, type TextConfig } from "../config";
-import type { LiveEntryModule } from "./live-dev";
+import type { ShellCall } from "./live-app";
 import { textjsLivePlugin } from "./live-dev";
 import { createLiveHtml, listServerPages, VIRTUAL_LIVE, VIRTUAL_PLAYER } from "./live-routes";
 import { injectShell, shellPath, shellScript } from "./ppr";
@@ -26,6 +27,73 @@ import { listPages, type AppScan } from "./scan";
 
 export { LIVE_MANIFEST, type LiveManifest } from "./live-manifest";
 
+/** How long one route may take to prerender before it streams without a shell. */
+export const PRERENDER_TIMEOUT_MS = 10_000;
+
+type PrerenderResult = { calls: ShellCall[] } | { error: string };
+
+const RESULT_MARK = "\u0000textjs-prerender:";
+
+/**
+ * Prerender shells in a disposable child process: route modules' top-level
+ * side effects (timers, sockets, a patched `fetch`) can't hang or leak into the
+ * build, and each route gets `timeoutMs`. The child exits once its results are
+ * written.
+ */
+export async function prerenderInChild(
+  liveBundle: string,
+  job: { paths: string[]; cols: number; rows: number; theme?: string; timeoutMs: number },
+): Promise<Record<string, PrerenderResult>> {
+  if (job.paths.length === 0) return {};
+  const runner = join(dirname(liveBundle), `prerender-${process.pid}-${Date.now()}.mjs`);
+  writeFileSync(
+    runner,
+    `const job = JSON.parse(process.argv[3]);
+const out = {};
+const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error("timed out after " + ms + "ms")), ms).unref?.());
+try {
+  const entry = await Promise.race([import(process.argv[2]), timeout(job.timeoutMs)]);
+  for (const path of job.paths) {
+    try {
+      const calls = await Promise.race([entry.prerenderShell({ routes: entry.routes, path, cols: job.cols, rows: job.rows, theme: job.theme }), timeout(job.timeoutMs)]);
+      out[path] = { calls };
+    } catch (error) {
+      out[path] = { error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+} catch (error) {
+  for (const path of job.paths) out[path] ??= { error: error instanceof Error ? error.message : String(error) };
+}
+process.stdout.write(${JSON.stringify(RESULT_MARK)} + JSON.stringify(out) + "\\n", () => process.exit(0));
+`,
+  );
+  try {
+    const budget = job.timeoutMs * job.paths.length + 30_000;
+    const output = await new Promise<string>((resolveRun) => {
+      const child = spawn(process.execPath, [runner, pathToFileURL(liveBundle).href, JSON.stringify(job)], { stdio: ["ignore", "pipe", "inherit"], env: process.env });
+      let stdout = "";
+      child.stdout.setEncoding("utf8");
+      child.stdout.on("data", (chunk: string) => {
+        stdout += chunk;
+      });
+      const timer = setTimeout(() => child.kill("SIGKILL"), budget);
+      child.on("close", () => {
+        clearTimeout(timer);
+        resolveRun(stdout);
+      });
+      child.on("error", () => {
+        clearTimeout(timer);
+        resolveRun(stdout);
+      });
+    });
+    const line = output.split("\n").find((l) => l.startsWith(RESULT_MARK));
+    if (line === undefined) return Object.fromEntries(job.paths.map((p) => [p, { error: "the prerender process exited without results" }]));
+    return JSON.parse(line.slice(RESULT_MARK.length)) as Record<string, PrerenderResult>;
+  } finally {
+    rmSync(runner, { force: true });
+  }
+}
+
 export interface LiveBuildOptions {
   root: string;
   config: TextConfig;
@@ -33,6 +101,8 @@ export interface LiveBuildOptions {
   scan: AppScan;
   /** Build plugins (the caller passes `textjsVitePlugin(config)`). */
   plugins: InlineConfig["plugins"];
+  /** Per-route prerender budget (default {@link PRERENDER_TIMEOUT_MS}). */
+  prerenderTimeoutMs?: number;
 }
 
 export interface LiveBuildResult {
@@ -144,26 +214,21 @@ export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildRes
   if (staticPages.length > 0) {
     const indexFile = join(outDir, "index.html");
     const template = existsSync(indexFile) ? readFileSync(indexFile, "utf8") : null;
-    let entry: LiveEntryModule | null = null;
-    try {
-      // A fresh URL per build: `text build` may run twice in one process (tests, watch scripts).
-      entry = (await import(`${pathToFileURL(join(serverDir, "live.mjs")).href}?t=${Date.now()}`)) as LiveEntryModule;
-    } catch (error) {
-      for (const p of staticPages) skipped.push({ pattern: p.pattern, reason: error instanceof Error ? error.message : String(error) });
-    }
     const vp = config.viewport ?? {};
-    for (const page of entry ? staticPages : []) {
+    const wanted = staticPages.filter((p) => serverSet.has(p.pattern) || template !== null);
+    const results = await prerenderInChild(join(serverDir, "live.mjs"), {
+      paths: wanted.map((p) => p.pattern),
+      cols: vp.width ?? 120,
+      rows: vp.height ?? 36,
+      theme: vp.theme,
+      timeoutMs: o.prerenderTimeoutMs ?? PRERENDER_TIMEOUT_MS,
+    });
+    for (const page of wanted) {
       const server = serverSet.has(page.pattern);
-      if (!server && template === null) continue;
       try {
-        const calls = await (entry as LiveEntryModule).prerenderShell({
-          routes: (entry as LiveEntryModule).routes,
-          path: page.pattern,
-          cols: vp.width ?? 120,
-          rows: vp.height ?? 36,
-          theme: vp.theme,
-        });
-        const script = shellScript(calls, shellPath(basePath, page.pattern));
+        const result = results[page.pattern] ?? { error: "prerendering did not finish" };
+        if ("error" in result) throw new Error(result.error);
+        const script = shellScript(result.calls, shellPath(basePath, page.pattern));
         const rel = htmlFileFor(page.pattern, server);
         write(rel, server ? liveDoc(script) : injectShell(template as string, script));
         manifest.pages[page.pattern] = rel;
