@@ -178,6 +178,21 @@ describe("scene rendering", () => {
     for (let x = 0; x < 13; x++) expect(((b2.attrs[x] as number) & ATTR_BOLD) !== 0).toBe(x >= 4 && x < 8);
   });
 
+  test("box titles are drawn in visual order, shaped, and truncated logically", () => {
+    const top = (props: SceneNodeProps, w: number): string => render(box({ width: w, height: 3, border: true, ...props }), w, 3).rowText(0);
+    expect(top({ title: "שלום abc" }, 14)).toBe("┌─ abc םולש ─┐");
+    expect(top({ title: "مرحبا" }, 11)).toBe("┌─ \ufe8e\ufe92\ufea3\ufeae\ufee3 ─┐");
+    // Truncation keeps the logical start (the rightmost glyphs in an RTL title).
+    expect(top({ title: "אבגדהוז" }, 9)).toBe("┌─ …דגבא ");
+    const bottom = render(box({ width: 10, height: 3, border: true, bottomTitle: "(שלום)" }), 10, 3).rowText(2);
+    expect(bottom).toBe("└─ (םולש) ");
+    // Pure-LTR titles take the unchanged drawText path.
+    expect(top({ title: "Hello (1)" }, 15)).toBe("┌─ Hello (1) ─┐");
+    const buf = new CellBuffer(8, 1);
+    expect(buf.drawLogicalText(0, 0, "abc שלום", 0, 0, 0, 6)).toBe(6);
+    expect(buf.rowText(0)).toBe("abc לש  ");
+  });
+
   test("pure-LTR text models skip the bidi path", () => {
     const t = text({}, "Hello ▼ world ✓ 漢字");
     render(box({ width: 30, height: 1 }, t), 30, 1);

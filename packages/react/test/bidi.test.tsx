@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ATTR_INVERSE, CellBuffer, extractStyledFrame, type SceneNode } from "@textjs/core";
 import { ConsoleMirror } from "../src/dom";
 import { CURSOR_SPACE, renderCursor } from "../src/components/field";
-import { Box, Input, Text } from "../src/index";
+import { Box, Divider, Input, Text } from "../src/index";
 import type { TextTheme } from "../src/theme";
 import { cleanup, render } from "../src/testing";
 
@@ -89,6 +89,25 @@ describe("Input cursor on a space in RTL text", () => {
     walk(app.root.rootNode);
     expect(texts.length).toBeGreaterThan(0);
     for (const t of texts) expect(t.getTextModel().needsBidi).toBe(false);
+  });
+});
+
+describe("<Divider title> and <Box title>", () => {
+  test("RTL labels are drawn in visual order and shaped", async () => {
+    const app = await render(
+      <Box flexDirection="column" width={16}>
+        <Divider title="שלום abc" />
+        <Divider title="مرحبا" />
+        <Divider title="plain" />
+        <Box borderStyle="single" title="عالم" height={3} />
+      </Box>,
+      { cols: 16, rows: 6 },
+    );
+    const lines = app.lines();
+    expect(lines[0]).toBe("── abc םולש ────");
+    expect(lines[1]).toBe("── \ufe8e\ufe92\ufea3\ufeae\ufee3 ───────");
+    expect(lines[2]).toBe("── plain ───────");
+    expect(lines[3]).toBe("┌─ \ufee2\ufedf\ufe8e\ufecb ───────┐");
   });
 });
 

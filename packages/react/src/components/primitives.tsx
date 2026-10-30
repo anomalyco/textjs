@@ -48,7 +48,7 @@ export const Divider: NamedExoticComponent<DividerProps> = memo(function Divider
         const label = ` ${title} `;
         const w = Math.min(stringWidth(label), r.width - 2);
         const x = titleAlign === "center" ? Math.floor((r.width - w) / 2) : titleAlign === "right" ? r.width - w - 2 : 2;
-        buf.drawText(r.x + x, r.y, label, labelColor, 0, ATTR_BOLD, w);
+        buf.drawLogicalText(r.x + x, r.y, label, labelColor, 0, ATTR_BOLD, w);
       }
     },
     [ch, lineColor, labelColor, title, titleAlign, vertical],

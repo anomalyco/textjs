@@ -2,6 +2,7 @@
  * Flat TypedArray framebuffer of terminal-style cells.
  */
 
+import { textNeedsBidi, visualizeText, type TextDirection } from "./bidi";
 import { blendOver, type PackedColor } from "./color";
 import {
   codePointWidth,
@@ -557,6 +558,28 @@ export class CellBuffer {
     return col;
   }
 
+  /**
+   * Draw one line of logical-order text, like `drawText`, with right-to-left
+   * runs reordered, mirrored and shaped for display (cells hold visual order).
+   * `maxWidth` keeps the logical start. Text with no right-to-left content
+   * goes straight to `drawText`.
+   */
+  drawLogicalText(
+    x: number,
+    y: number,
+    text: string,
+    fg: PackedColor,
+    bg: PackedColor,
+    attrs = 0,
+    maxWidth = Infinity,
+    dir: TextDirection = "auto",
+  ): number {
+    if (dir !== "rtl" && !textNeedsBidi(text)) return this.drawText(x, y, text, fg, bg, attrs, maxWidth);
+    if (maxWidth <= 0 || text.length === 0) return 0;
+    const gs = visualizeText(text, dir, maxWidth);
+    return this.drawGraphemes(x, y, gs, 0, gs.length, fg, bg, attrs);
+  }
+
   /** Draw a border box with optional titles. */
   drawBox(options: DrawBoxOptions): void {
     const style = options.style ?? "single";
@@ -634,7 +657,7 @@ export class CellBuffer {
     else if (align === "right") start = x + w - 2 - padded;
     else start = x + 2;
     this.setCell(start, y, CHAR_SPACE, fg, bg, attrs);
-    this.drawText(start + 1, y, text, fg, bg, attrs, avail);
+    this.drawLogicalText(start + 1, y, text, fg, bg, attrs, avail);
     this.setCell(start + 1 + tw, y, CHAR_SPACE, fg, bg, attrs);
   }
 

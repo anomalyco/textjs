@@ -11,7 +11,7 @@
  */
 
 import { ARABIC_FORMS, BIDI_BRACKETS, BIDI_CLASS_RANGES, BIDI_MIRRORS, JOINING_TYPE_RANGES } from "./bidi-data";
-import type { Grapheme } from "./text-measure";
+import { segmentGraphemes, type Grapheme } from "./text-measure";
 
 export { BIDI_UNICODE_VERSION } from "./bidi-data";
 
@@ -193,6 +193,16 @@ function isReorderTrigger(cp: number): boolean {
   if (cp < 0x0590) return false;
   if (cp === 0x202b || cp === 0x202e || cp === 0x2067) return true;
   return isRtlCodePoint(cp);
+}
+
+/** True when displaying `text` requires reordering (it contains R, AL or AN, or an RLE/RLO/RLI control). */
+export function textNeedsBidi(text: string): boolean {
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    if (c < 0x0590) continue;
+    if (isReorderTrigger(c >= 0xd800 && c <= 0xdbff ? (text.codePointAt(i) as number) : c)) return true;
+  }
+  return false;
 }
 
 /** True when `text` contains any R, AL or AN character (the strings that need bidi neutralization when emitted). */
@@ -992,6 +1002,28 @@ export function visualizeLine(
     graphemes[v] = g;
   }
   return { graphemes, source, paragraphLevel };
+}
+
+/**
+ * One line of logical text as graphemes in visual order (mirrored and
+ * shaped), for drawing labels outside the scene's text layout. Stops at the
+ * first newline and keeps the logical prefix that fits `maxWidth` cells,
+ * then reorders it like a wrapped line.
+ */
+export function visualizeText(text: string, dir: TextDirection = "auto", maxWidth = Infinity): Grapheme[] {
+  const gs = segmentGraphemes(text);
+  let n = 0;
+  while (n < gs.length && (gs[n] as Grapheme).codePoint !== 0x0a) n++;
+  if (n < gs.length) gs.length = n;
+  const items: number[] = [];
+  let col = 0;
+  for (let i = 0; i < n; i++) {
+    const w = (gs[i] as Grapheme).width;
+    if (col + w > maxWidth) break;
+    col += w;
+    items.push(i);
+  }
+  return visualizeLine(gs, resolveGraphemeBidi(gs, dir), items).graphemes;
 }
 
 function hasZwj(g: Grapheme): boolean {
