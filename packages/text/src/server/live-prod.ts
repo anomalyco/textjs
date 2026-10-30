@@ -10,13 +10,22 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ThemeName } from "@textjs/react";
 import { LIVE_PATH } from "../live-protocol";
-import { LiveServer } from "./live";
+import { LiveServer, type LiveServerOptions } from "./live";
+import type { MiddlewareModule } from "./middleware";
+import { createLiveAuthorizer } from "./middleware-runtime";
 import { LIVE_MANIFEST, type LiveManifest } from "./live-manifest";
 import type { LiveEntryModule } from "./live-dev";
 
 export interface LiveProductionOptions {
   log?(message: string): void;
   onError?(error: unknown): void;
+  /** `middleware.ts`: authorizes every server route a session renders (unless `authorize` is given). */
+  middleware?: MiddlewareModule;
+  authorize?: LiveServerOptions["authorize"];
+  /** Behind a reverse proxy: trust `X-Forwarded-*` (also for the origin middleware sees). */
+  trustProxy?: boolean;
+  /** Fixed public origin for middleware's `request.url`. */
+  origin?: string;
 }
 
 export interface LiveProduction {
@@ -69,6 +78,10 @@ export async function loadLiveProduction(outDir: string, options: LiveProduction
       runtimeOf,
       log: options.log,
       onError: options.onError,
+      trustProxy: options.trustProxy,
+      authorize:
+        options.authorize ??
+        (options.middleware ? createLiveAuthorizer(() => options.middleware, { basePath: manifest.basePath, trustProxy: options.trustProxy, origin: options.origin }) : undefined),
       createApp: (init) =>
         entry.createLiveApp({ ...init, routes: entry.routes, theme: manifest.viewport?.theme as ThemeName | undefined, defaultTitle: manifest.title || undefined }),
     });

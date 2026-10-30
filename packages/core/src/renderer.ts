@@ -47,6 +47,12 @@ export interface ConsoleRendererOptions {
   maxFrames?: number;
   /** Clear before the first frame (default `true`; see `CssConsoleDriverOptions.initialClear`). */
   initialClear?: boolean;
+  /**
+   * `performance.now()` of a frame logged (and cleared) before this renderer
+   * started, e.g. a prerendered shell: the first frame keeps the post-clear
+   * pacing window it opened.
+   */
+  previousFrameAt?: number;
   typography?: Partial<ConsoleTypographyOptions>;
   style?: Partial<StyleResolveOptions>;
   scheduler?: RendererScheduler;
@@ -205,6 +211,10 @@ export class ConsoleRenderer {
       options.minFrameInterval === undefined && options.scheduler === undefined ? POST_CLEAR_INTERVAL_MS : this.frameInterval;
     this.background = parseColor(options.background);
     this.wireframe = options.wireframe ?? false;
+    if (options.previousFrameAt !== undefined && Number.isFinite(options.previousFrameAt)) {
+      this.lastEmitAt = options.previousFrameAt;
+      this.lastEmitCleared = true;
+    }
     this.paintOpts = {
       clearBg: this.background,
       wireframe: this.wireframe,

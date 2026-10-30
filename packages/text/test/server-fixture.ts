@@ -253,6 +253,41 @@ export default function Ops() {
 `,
 };
 
+/** Server routes behind async middleware (`/ops` needs the `auth=1` cookie). */
+export const LIVE_AUTH_APP: Record<string, string> = {
+  "text.config.ts": `import { defineConfig } from "@textjs/next";
+export default defineConfig({ title: "Live Auth Fixture" });
+`,
+  "app/page.tsx": `import { Text, useInput } from "@textjs/next";
+import { useRouter } from "@textjs/next/navigation";
+import { useState } from "react";
+export const runtime = "server";
+export default function Home() {
+  const router = useRouter();
+  const [n, setN] = useState(0);
+  useInput((e) => {
+    if (e.input === "o") router.push("/ops");
+    if (e.input === "+") setN((v) => v + 1);
+  });
+  return <Text>{"home " + n}</Text>;
+}
+`,
+  "app/ops/page.tsx": `import { Text } from "@textjs/next";
+export const runtime = "server";
+export default function Ops() { return <Text>ops secret</Text>; }
+`,
+  "middleware.ts": `import { NextResponse, type NextRequest } from "@textjs/next/server";
+export async function middleware(request: NextRequest) {
+  await new Promise((r) => setTimeout(r, 1));
+  if (request.nextUrl.pathname.startsWith("/ops") && request.cookies.get("auth")?.value !== "1") {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+  return NextResponse.next();
+}
+export const config = { matcher: ["/((?!assets/).*)"] };
+`,
+};
+
 export interface LiveStream {
   messages: Array<Record<string, unknown>>;
   /** Concatenated text of every frame's cells (good enough for `toContain`). */

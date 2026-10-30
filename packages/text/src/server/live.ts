@@ -4,7 +4,7 @@
  * deltas over server-sent events. Input comes back as JSON POSTs.
  *
  * - `GET  /__textjs/live?path=&cols=&rows=` opens (or, with `Last-Event-ID` /
- *   `sid`, resumes) a session and streams {@link LiveServerMessage}s.
+ *   `x-textjs-live: <sid>`, resumes) a session and streams {@link LiveServerMessage}s.
  * - `POST /__textjs/live` with `x-textjs-live: <sid>` and a JSON array of
  *   {@link LiveInput}s.
  *
@@ -12,13 +12,15 @@
  * coalesced: each frame is diffed against what this connection was last sent,
  * so a slow socket (`write()` returning `false`) just skips intermediate
  * states until `drain`. Disconnected sessions survive `reconnectGraceMs`, then
- * unmount. Session ids are 192-bit random capabilities; requests must be
- * same-origin; only routes in the app manifest can be rendered.
+ * unmount. Session ids are 192-bit random capabilities, bound to the
+ * credentials (cookies, `Authorization`) they were opened with; requests must
+ * be same-origin; only routes in the app manifest can be rendered, and
+ * `authorize` (middleware) runs for every server route a session renders.
  */
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { LIVE_PATH, LIVE_PROTOCOL_VERSION, LIVE_SESSION_HEADER, LiveFrameEncoder, MAX_COLS, MAX_ROWS, parseLiveInput, sseEvent, type LiveInput, type LiveServerMessage } from "../live-protocol";
+import { isAppPath, LIVE_PATH, LIVE_PROTOCOL_VERSION, LIVE_SESSION_HEADER, LiveFrameEncoder, MAX_COLS, MAX_ROWS, parseLiveInput, sseEvent, type LiveInput, type LiveServerMessage } from "../live-protocol";
 import type { LiveApp, LiveAppOptions, RouteRuntime } from "./live-app";
 import { readRequestBody } from "./http";
 
@@ -41,28 +43,74 @@ export interface LiveServerOptions {
   heartbeatMs?: number;
   /** Forward render errors to the browser console (dev). */
   exposeErrors?: boolean;
+  /**
+   * May a session render `href`? Called with the visitor's request headers
+   * before a session opens, before every server-side route transition, and
+   * when a session's credentials change. Wire it to `middleware.ts`.
+   */
+  authorize?(href: string, headers: Headers): Promise<boolean>;
+  /** Trust `X-Forwarded-Host` / `-Proto` / `-For` (behind a reverse proxy). */
+  trustProxy?: boolean;
+  /** Concurrent sessions per client address (default 32). */
+  maxSessionsPerClient?: number;
   log?(message: string): void;
   onError?(error: unknown): void;
 }
 
 const MAX_BODY = 512 * 1024;
-const MAX_EVENTS = 1024;
+export const MAX_EVENTS = 64;
+const BODY_TIMEOUT_MS = 5000;
+/** Input events per second per session (token bucket), with a burst allowance. */
+const INPUT_RATE = 240;
+const INPUT_BURST = 480;
 const SID_RE = /^[A-Za-z0-9_-]{32}$/;
 
+function first(value: string | string[] | undefined): string | undefined {
+  const v = Array.isArray(value) ? value[0] : value;
+  return v?.split(",")[0]?.trim() || undefined;
+}
+
 /** `true` unless the request is (or claims to be) from another site. */
-export function isSameOriginRequest(req: IncomingMessage): boolean {
+export function isSameOriginRequest(req: Pick<IncomingMessage, "headers">, trustProxy = false): boolean {
   const site = req.headers["sec-fetch-site"];
   if (site !== undefined && site !== "same-origin" && site !== "none") return false;
   const origin = req.headers.origin;
   if (origin === undefined || origin === "null") return origin === undefined;
   try {
-    const host = new URL(origin).host;
-    // Behind a proxy that rewrites Host. A cross-site page can't set this header without a preflight.
-    const forwarded = req.headers["x-forwarded-host"];
-    return host === req.headers.host || (typeof forwarded === "string" && forwarded.split(",")[0]?.trim() === host);
+    const u = new URL(origin);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    if (u.host === req.headers.host) return true;
+    if (!trustProxy) return false;
+    // Behind a trusted proxy that rewrites Host.
+    const proto = first(req.headers["x-forwarded-proto"]);
+    return u.host === first(req.headers["x-forwarded-host"]) && (proto === undefined || `${proto}:` === u.protocol);
   } catch {
     return false;
   }
+}
+
+/** The request headers of a Node request as Web `Headers`. */
+function headersOf(req: Pick<IncomingMessage, "headers">): Headers {
+  const out = new Headers();
+  for (const [k, v] of Object.entries(req.headers)) {
+    if (v === undefined) continue;
+    if (Array.isArray(v)) for (const item of v) out.append(k, item);
+    else out.set(k, v);
+  }
+  return out;
+}
+
+/** What a session's identity is bound to. */
+function credentialsOf(req: Pick<IncomingMessage, "headers">): string {
+  const h = req.headers;
+  return createHash("sha256")
+    .update(`${h.cookie ?? ""}\u0000${h.authorization ?? ""}`)
+    .digest("base64url");
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | "timeout"> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([p, new Promise<"timeout">((r) => (timer = setTimeout(() => r("timeout"), ms)))]).finally(() => clearTimeout(timer));
 }
 
 function newSessionId(): string {
@@ -95,7 +143,20 @@ export class LiveSession {
   private grace: ReturnType<typeof setTimeout> | null = null;
   private lastSent = -Infinity;
   private title: string | null = null;
+  /** The last address-bar update and a pending document load, replayed to a reconnecting browser. */
+  private lastUrl: LiveServerMessage | null = null;
+  private pendingLoad: LiveServerMessage | null = null;
   disposed = false;
+  /** Hash of the cookies / `Authorization` the session was authorized with. */
+  credentials = "";
+  /** Request headers used to authorize route transitions. */
+  headers = new Headers();
+  /** Client address (per-client session cap). */
+  client = "";
+  /** When the browser detached (`0` while connected). */
+  detachedAt = 0;
+  private tokens = INPUT_BURST;
+  private refilledAt = performance.now();
   /** Frames and bytes written (telemetry, tests). */
   framesSent = 0;
   bytesSent = 0;
@@ -122,23 +183,47 @@ export class LiveSession {
     this.encoder.reset();
     this.dirty = true;
     this.lastSent = -Infinity;
+    this.detachedAt = 0;
     this.write(sseEvent({ t: "hello", v: LIVE_PROTOCOL_VERSION, sid: this.id, resumed }, this.id));
     if (this.title !== null) this.write(sseEvent({ t: "title", title: this.title }));
+    // Messages a disconnected browser missed.
+    if (resumed && this.lastUrl !== null) this.write(sseEvent({ ...(this.lastUrl as { t: "url"; href: string }), replace: true }));
+    if (this.pendingLoad !== null) {
+      this.write(sseEvent(this.pendingLoad));
+      res.end();
+      return;
+    }
     res.on("close", () => this.detach(res));
+    this.app?.setActive?.(true);
     this.schedule();
+  }
+
+  /** Take `cost` input events from the rate bucket (`false` when the session is over its rate). */
+  takeTokens(cost: number): boolean {
+    const now = performance.now();
+    this.tokens = Math.min(INPUT_BURST, this.tokens + ((now - this.refilledAt) / 1000) * INPUT_RATE);
+    this.refilledAt = now;
+    if (this.tokens < cost) return false;
+    this.tokens -= cost;
+    return true;
   }
 
   private detach(res: ServerResponse): void {
     if (this.stream !== res) return;
     this.stream = null;
+    this.detachedAt = performance.now();
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = null;
+    // Nobody is watching: stop painting until a browser reattaches.
+    this.app?.setActive?.(false);
     if (!this.disposed) this.grace = setTimeout(() => this.server.dispose(this), this.server.reconnectGraceMs);
   }
 
   /** Send a non-frame message (written immediately, in order with frames). */
   send(message: LiveServerMessage): void {
     if (message.t === "title") this.title = message.title;
+    if (message.t === "url") this.lastUrl = message;
+    if (message.t === "load") this.pendingLoad = message;
     if (this.stream !== null) this.write(sseEvent(message));
   }
 
@@ -185,7 +270,8 @@ export class LiveSession {
   input(events: readonly LiveInput[]): void {
     const app = this.app;
     if (app === null) return;
-    for (const e of events) app.input(e);
+    if (app.inputMany) app.inputMany(events);
+    else for (const e of events) app.input(e);
   }
 
   close(): void {
@@ -207,6 +293,7 @@ export class LiveServer {
   readonly reconnectGraceMs: number;
   private readonly options: LiveServerOptions;
   private readonly maxSessions: number;
+  private readonly maxPerClient: number;
   private readonly interval: number;
   private readonly heartbeatTimer: ReturnType<typeof setInterval>;
   private readonly basePath: string;
@@ -214,6 +301,7 @@ export class LiveServer {
   constructor(options: LiveServerOptions) {
     this.options = options;
     this.maxSessions = options.maxSessions ?? 256;
+    this.maxPerClient = options.maxSessionsPerClient ?? 32;
     this.reconnectGraceMs = options.reconnectGraceMs ?? 30_000;
     this.interval = options.frameIntervalMs ?? 66;
     this.basePath = options.basePath ?? "";
@@ -231,7 +319,7 @@ export class LiveServer {
     const q = url.indexOf("?");
     const pathname = q < 0 ? url : url.slice(0, q);
     if (pathname !== LIVE_PATH) return false;
-    if (!isSameOriginRequest(req)) {
+    if (!isSameOriginRequest(req, this.options.trustProxy)) {
       res.statusCode = 403;
       res.end();
       return true;
@@ -257,11 +345,61 @@ export class LiveServer {
     res.write("retry: 1000\n\n");
   }
 
+  /** End a stream with a document load: the browser requests `href`, and middleware answers over HTTP. */
+  private sendLoad(res: ServerResponse, href: string): void {
+    this.startStream(res);
+    res.end(sseEvent({ t: "load", href: this.basePath + href }));
+  }
+
+  private clientOf(req: IncomingMessage): string {
+    const forwarded = this.options.trustProxy ? first(req.headers["x-forwarded-for"]) : undefined;
+    return forwarded ?? (req as { socket?: { remoteAddress?: string } }).socket?.remoteAddress ?? "";
+  }
+
+  private async authorized(href: string, headers: Headers): Promise<boolean> {
+    if (!this.options.authorize) return true;
+    try {
+      return await this.options.authorize(href, headers);
+    } catch (error) {
+      this.options.onError?.(error);
+      return false;
+    }
+  }
+
+  /**
+   * A session's cookies or `Authorization` changed since it was authorized:
+   * re-run `authorize` for what it currently shows before trusting the request.
+   */
+  private async recheck(session: LiveSession, req: IncomingMessage): Promise<boolean> {
+    const credentials = credentialsOf(req);
+    if (credentials === session.credentials) return true;
+    const headers = headersOf(req);
+    const href = session.app?.history.location.href ?? "/";
+    if (!(await this.authorized(href, headers))) return false;
+    session.credentials = credentials;
+    session.headers = headers;
+    return true;
+  }
+
+  /** Make room for a new session: drop the longest-disconnected one. */
+  private evictDisconnected(): boolean {
+    let oldest: LiveSession | null = null;
+    for (const s of this.sessions.values()) if (!s.connected && s.detachedAt > 0 && (oldest === null || s.detachedAt < oldest.detachedAt)) oldest = s;
+    if (oldest === null) return false;
+    this.dispose(oldest);
+    return true;
+  }
+
   private async openStream(req: IncomingMessage, res: ServerResponse, params: URLSearchParams): Promise<void> {
-    const lastId = req.headers["last-event-id"];
-    const resumeId = (typeof lastId === "string" ? lastId : null) ?? params.get("sid");
-    const existing = resumeId !== null && SID_RE.test(resumeId) ? this.sessions.get(resumeId) : undefined;
+    const lastId = first(req.headers["last-event-id"]) ?? first(req.headers[LIVE_SESSION_HEADER]);
+    const existing = lastId !== undefined && SID_RE.test(lastId) ? this.sessions.get(lastId) : undefined;
     if (existing && !existing.disposed) {
+      if (!(await this.recheck(existing, req))) {
+        const href = existing.app?.history.location.href ?? "/";
+        this.dispose(existing);
+        this.sendLoad(res, href);
+        return;
+      }
       this.startStream(res);
       existing.attach(res, true);
       return;
@@ -269,17 +407,28 @@ export class LiveServer {
     const href = safePath(params.get("path"));
     if (this.options.runtimeOf(pathOf(href)) === "client") {
       // Not a server route: let the browser load it as a document.
-      this.startStream(res);
-      res.end(sseEvent({ t: "load", href: this.basePath + href }));
+      this.sendLoad(res, href);
       return;
     }
-    if (this.sessions.size >= this.maxSessions) {
+    const client = this.clientOf(req);
+    let perClient = 0;
+    for (const s of this.sessions.values()) if (s.client === client) perClient++;
+    if ((client !== "" && perClient >= this.maxPerClient) || (this.sessions.size >= this.maxSessions && !this.evictDisconnected())) {
       res.statusCode = 503;
       res.setHeader("Retry-After", "5");
       res.end();
       return;
     }
+    const headers = headersOf(req);
+    if (!(await this.authorized(href, headers))) {
+      // Middleware would redirect / reject this route: let the browser ask for it over HTTP.
+      this.sendLoad(res, href);
+      return;
+    }
     const session = new LiveSession(this, this.interval);
+    session.credentials = credentialsOf(req);
+    session.headers = headers;
+    session.client = client;
     this.sessions.set(session.id, session);
     let closedEarly = false;
     res.once("close", () => {
@@ -292,12 +441,15 @@ export class LiveServer {
         rows: intParam(params.get("rows"), 1, MAX_ROWS, 36),
         focused: params.get("focused") !== "0",
         onFrame: () => session.markDirty(),
-        onNavigate: (to, action, runtime) => {
+        authorize: this.options.authorize ? (target) => this.authorized(target, session.headers) : undefined,
+        onNavigate: (to, action, runtime, delta) => {
+          if (!isAppPath(to)) return;
           if (runtime === "client") {
-            // The browser loads the client route as a new document; this session is done.
+            // The browser loads the route as a new document (client route, or middleware's call); this session is done.
             session.send({ t: "load", href: this.basePath + to });
             setTimeout(() => this.dispose(session), 0);
-          } else session.send({ t: "url", href: this.basePath + to, replace: action === "replace" || action === "pop" });
+          } else if (action === "pop" && delta !== undefined && delta !== 0) session.send({ t: "go", delta });
+          else session.send({ t: "url", href: this.basePath + to, replace: action === "replace" || action === "pop" });
         },
         onTitle: (title) => session.send({ t: "title", title }),
         onError: (error) => {
@@ -335,9 +487,9 @@ export class LiveServer {
       res.end();
       return;
     }
-    const raw = await readRequestBody(req, MAX_BODY);
-    if (raw === null) {
-      res.statusCode = 413;
+    const raw = await withTimeout(readRequestBody(req, MAX_BODY), BODY_TIMEOUT_MS);
+    if (raw === null || raw === "timeout") {
+      res.statusCode = raw === null ? 413 : 408;
       res.setHeader("Connection", "close");
       res.end();
       req.destroy();
@@ -350,7 +502,21 @@ export class LiveServer {
       body = null;
     }
     if (!Array.isArray(body) || body.length > MAX_EVENTS) {
-      res.statusCode = 400;
+      res.statusCode = body === null || !Array.isArray(body) ? 400 : 413;
+      res.end();
+      return;
+    }
+    if (!session.takeTokens(Math.max(1, body.length))) {
+      res.statusCode = 429;
+      res.setHeader("Retry-After", "1");
+      res.end();
+      return;
+    }
+    if (!(await this.recheck(session, req))) {
+      const href = session.app?.history.location.href ?? "/";
+      session.send({ t: "load", href: this.basePath + href });
+      this.dispose(session);
+      res.statusCode = 403;
       res.end();
       return;
     }

@@ -43,6 +43,8 @@ export type LiveServerMessage =
   | LiveFrame
   /** The app navigated: mirror it into the address bar. */
   | { t: "url"; href: string; replace?: boolean }
+  /** The app went back / forward (`router.back()`): move the browser's history by `delta`. */
+  | { t: "go"; delta: number }
   | { t: "title"; title: string }
   /** The next route renders on the client: load it as a document. */
   | { t: "load"; href: string }
@@ -66,8 +68,8 @@ export type LiveInput =
   | { type: "wheel"; deltaX: number; deltaY: number; rows: number; cols: number; ctrl: boolean; meta: boolean; shift: boolean; alt: boolean }
   | { type: "resize"; cols: number; rows: number }
   | { type: "focus"; focused: boolean }
-  /** Browser Back / Forward. */
-  | { type: "nav"; href: string };
+  /** Browser Back / Forward (`delta` entries from the previous one, when known). */
+  | { type: "nav"; href: string; delta?: number };
 
 export const MAX_COLS = 400;
 export const MAX_ROWS = 200;
@@ -78,6 +80,14 @@ const clampInt = (v: unknown, lo: number, hi: number): number | null =>
   typeof v === "number" && Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.floor(v))) : null;
 const finite = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? Math.max(-1e6, Math.min(1e6, v)) : 0);
 const str = (v: unknown, max: number): string | null => (typeof v === "string" && v.length <= max ? v : null);
+
+/**
+ * `true` for a same-origin app path: one leading `/`, no `//` or `/\` prefix
+ * (which browsers resolve to another host), no backslashes or control characters.
+ */
+export function isAppPath(href: string): boolean {
+  return href.startsWith("/") && !/^\/[/\\]/.test(href) && !/[\u0000-\u001f\u007f\\]/.test(href);
+}
 
 /** Validate one untrusted input event (returns `null` when malformed). */
 export function parseLiveInput(raw: unknown): LiveInput | null {
@@ -101,7 +111,7 @@ export function parseLiveInput(raw: unknown): LiveInput | null {
     }
     case "paste": {
       const text = str(m.text, MAX_PASTE);
-      return text === null ? null : { type: "paste", text };
+      return text === null ? null : { type: "paste", text: text.replace(/\r\n?/g, "\n") };
     }
     case "wheel":
       return {
@@ -124,7 +134,9 @@ export function parseLiveInput(raw: unknown): LiveInput | null {
       return typeof m.focused === "boolean" ? { type: "focus", focused: m.focused } : null;
     case "nav": {
       const href = str(m.href, 2048);
-      return href !== null && href.startsWith("/") && !href.startsWith("//") ? { type: "nav", href } : null;
+      if (href === null || !isAppPath(href)) return null;
+      const delta = clampInt(m.delta, -1000, 1000);
+      return delta === null || delta === 0 ? { type: "nav", href } : { type: "nav", href, delta };
     }
     default:
       return null;
@@ -284,6 +296,7 @@ export class LiveFrameDecoder {
             k++;
           } else if (cp === 2) {
             const semi = item.indexOf(";", k);
+            if (semi < 0) return false;
             code = Number.parseInt(item.slice(k + 1, semi), 16) >>> 0;
             k = semi + 1;
           } else {

@@ -9,7 +9,7 @@ import { ATTR_BOLD, ATTR_UNDERLINE, CellBuffer, initYoga } from "@textjs/core";
 import { Box, Text, useInput } from "@textjs/react";
 import { useRouter } from "../src/navigation";
 import { AppRouter, createMemoryHistory, type RouteManifest } from "../src/router";
-import { FramePlayerCore } from "../src/live-player";
+import { FramePlayerCore, safeHref } from "../src/live-player";
 import { LiveFrameDecoder, LiveFrameEncoder, LIVE_PATH, LIVE_SESSION_HEADER, parseLiveInput, type LiveFrame, type LiveServerMessage } from "../src/live-protocol";
 import { LiveServer, LiveSession, isSameOriginRequest } from "../src/server/live";
 import { createLiveApp, isServerPage, prerenderShell, routeRuntime, type LiveApp } from "../src/server/live-app";
@@ -383,7 +383,10 @@ describe("live server (SSE + POST)", () => {
       expect(frames(b)[0]?.k).toBe(1);
       expect(decode(b).toPlainString()).toContain("count 1");
       // A second stream for the same session replaces the first (newest wins).
-      const c = await openStream(base, `sid=${sid}`);
+      // The session id travels in a header (never the URL, which ends up in logs).
+      const c = await openStream(base, "path=/", { [LIVE_SESSION_HEADER]: sid });
+      // A sid in the query string is ignored: this opens /client (a document load), not the session.
+      expect(await (await fetch(`${base}${LIVE_PATH}?sid=${sid}&path=/client`)).text()).toContain('"t":"load"');
       await until(() => frames(c).length > 0);
       await b.done;
       expect(live?.sessions.size).toBe(1);
@@ -570,5 +573,126 @@ describe("partial prerendering", () => {
     // Same frame, minus the curtain the test console doesn't use.
     expect(`%c\u200b%c\n${client.console.logs[0]?.[0]}`).toBe(calls[1]?.args[0] as string);
     await act(async () => client.root.unmount());
+  });
+});
+
+describe("live hardening", () => {
+  test("nav hrefs can't leave the origin; pastes normalize CRLF; malformed escapes don't throw", () => {
+    for (const href of ["/\\evil.example/x", "/\u0000x", "/a\\b", "/x\ny"]) expect(parseLiveInput({ type: "nav", href })).toBeNull();
+    expect(parseLiveInput({ type: "nav", href: "/ops?x=1", delta: -1 })).toEqual({ type: "nav", href: "/ops?x=1", delta: -1 });
+    expect(parseLiveInput({ type: "paste", text: "a\r\nb\rc" })).toEqual({ type: "paste", text: "a\nb\nc" });
+    expect(safeHref("/ok")).toBe("/ok");
+    for (const bad of ["//evil.example", "/\\evil.example", "javascript:alert(1)", "https://evil.example/", 42]) expect(safeHref(bad)).toBeNull();
+    expect(safeHref("/other", "/console")).toBeNull();
+    expect(safeHref("/console/x", "/console")).toBe("/console/x");
+    const buf = new CellBuffer(4, 1);
+    expect(new LiveFrameDecoder().apply(buf, { t: "f", w: 4, h: 1, k: 1, s: [[0, 0, 0]], r: [[0, [0, "\u0002ff"]]] })).toBe(false);
+  });
+
+  test("X-Forwarded-Host only counts behind a trusted proxy; origins must be http(s)", () => {
+    const req = (headers: Record<string, string>) => ({ headers: { host: "internal:3000", ...headers } }) as never;
+    expect(isSameOriginRequest(req({ origin: "https://app.dev", "x-forwarded-host": "app.dev" }))).toBe(false);
+    expect(isSameOriginRequest(req({ origin: "https://app.dev", "x-forwarded-host": "app.dev", "x-forwarded-proto": "https" }), true)).toBe(true);
+    expect(isSameOriginRequest(req({ origin: "http://app.dev", "x-forwarded-host": "app.dev", "x-forwarded-proto": "https" }), true)).toBe(false);
+    expect(isSameOriginRequest(req({ origin: "ftp://internal:3000" }))).toBe(false);
+  });
+
+  test("history stays aligned: server back sends go(delta); client Back with delta moves through entries", async () => {
+    await withoutActEnvironment(async () => {
+      const navs: Array<[string, string, number | undefined]> = [];
+      const app = await createLiveApp({ routes: routes(), path: "/", cols: 40, rows: 8, onNavigate: (href, action, _r, delta) => navs.push([href, action, delta]) });
+      try {
+        app.history.push("/other");
+        app.history.back();
+        expect(navs).toEqual([
+          ["/other", "push", undefined],
+          ["/", "pop", -1],
+        ]);
+        // Browser Forward onto the existing entry: no new entry, no echo.
+        app.input({ type: "nav", href: "/other", delta: 1 });
+        expect(app.history.index).toBe(1);
+        expect(app.history.entries.length).toBe(2);
+        expect(navs.length).toBe(2);
+      } finally {
+        app.dispose();
+      }
+    });
+  });
+
+  test("authorize gates server-side transitions; denials become document loads", async () => {
+    await withoutActEnvironment(async () => {
+      const navs: Array<[string, string]> = [];
+      const app = await createLiveApp({
+        routes: routes(),
+        path: "/",
+        cols: 40,
+        rows: 8,
+        authorize: async (href) => !href.startsWith("/other"),
+        onNavigate: (href, _a, runtime) => navs.push([href, runtime]),
+      });
+      try {
+        app.history.push("/other");
+        await sleep(10);
+        app.input({ type: "nav", href: "/other" });
+        await sleep(10);
+        expect(app.history.location.pathname).toBe("/");
+        expect(navs).toEqual([
+          ["/other", "client"],
+          ["/other", "client"],
+        ]);
+        app.history.push("/async");
+        await sleep(10);
+        expect(app.history.location.pathname).toBe("/async");
+      } finally {
+        app.dispose();
+      }
+    });
+  });
+
+  test("the server evicts disconnected sessions before refusing, caps per client, rate-limits input", async () => {
+    await withoutActEnvironment(async () => {
+      const live = new LiveServer({ maxSessions: 1, reconnectGraceMs: 60_000, frameIntervalMs: 20, runtimeOf: () => "server", createApp: (init) => createLiveApp({ ...init, routes: routes() }) });
+      const http = createServer((req, res) => void live.handle(req, res, req.url ?? "/"));
+      await new Promise<void>((r) => http.listen(0, "127.0.0.1", r));
+      const base = `http://127.0.0.1:${(http.address() as AddressInfo).port}`;
+      try {
+        const a = await openStream(base, "path=/");
+        await until(() => a.messages.some((m) => m.t === "f"));
+        const sidA = (a.messages[0] as { sid: string }).sid;
+        a.close();
+        await until(() => [...live.sessions.values()].every((s) => !s.connected));
+        const b = await openStream(base, "path=/other");
+        expect(b.status).toBe(200);
+        await until(() => b.messages.some((m) => m.t === "f"));
+        expect(live.sessions.has(sidA)).toBe(false);
+        const sidB = (b.messages[0] as { sid: string }).sid;
+        const post = (events: unknown[]) => fetch(`${base}${LIVE_PATH}`, { method: "POST", headers: { "content-type": "application/json", [LIVE_SESSION_HEADER]: sidB }, body: JSON.stringify(events) });
+        expect((await post(Array.from({ length: 65 }, () => ({ type: "focus", focused: true })))).status).toBe(413);
+        let limited = false;
+        for (let i = 0; i < 12 && !limited; i++) limited = (await post(Array.from({ length: 64 }, () => ({ type: "focus", focused: true })))).status === 429;
+        expect(limited).toBe(true);
+        b.close();
+      } finally {
+        live.close();
+        await new Promise<void>((r) => http.close(() => r()));
+      }
+    });
+  });
+});
+
+describe("prerendering errors", () => {
+  test("a route that throws (or redirects) while prerendering gets no shell", async () => {
+    const boom: RouteManifest = {
+      segment: "",
+      page: {
+        default: () => {
+          throw new Error("db down");
+        },
+      },
+    };
+    await expect(prerenderShell({ routes: boom, path: "/", cols: 20, rows: 4 })).rejects.toThrow(/db down/);
+    const ok = await prerenderShell({ routes: routes(), path: "/other", cols: 30, rows: 4 });
+    expect(ok.some((c) => c.args.join("").includes("other server page"))).toBe(true);
+    expect(shellScript(ok, "/other")).toContain("__TEXTJS_SHELL_AT__=");
   });
 });

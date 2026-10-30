@@ -15,7 +15,7 @@ import {
   type ConsoleTarget,
   type InputEvent,
 } from "@textjs/core";
-import { LIVE_PATH, LIVE_SESSION_HEADER, LiveFrameDecoder, type LiveInput, type LiveServerMessage } from "./live-protocol";
+import { isAppPath, LIVE_PATH, LIVE_SESSION_HEADER, LiveFrameDecoder, type LiveInput, type LiveServerMessage } from "./live-protocol";
 
 export interface FramePlayerConfig {
   /** Mount point (`""` or `"/console"`). */
@@ -36,6 +36,11 @@ export interface FramePlayerCoreOptions {
   /** Paint scheduler (default: timers + `requestAnimationFrame`). `null` paints only on `paint()`. */
   schedule?: ((cb: () => void, delay: number) => void) | null;
   now?: () => number;
+  /**
+   * When the shell's frame was logged (`performance.now()`): the first server
+   * frame then respects the post-clear pacing window the shell's clear opened.
+   */
+  shellPaintedAt?: number;
 }
 
 const DEFAULT_FRAME_INTERVAL = 66;
@@ -64,7 +69,14 @@ export class FramePlayerCore {
     this.postClear = options.frameInterval ?? POST_CLEAR_INTERVAL;
     this.now = options.now ?? (() => performance.now());
     this.schedule = options.schedule === undefined ? defaultSchedule : options.schedule;
+    if (options.shell === true && options.shellPaintedAt !== undefined) {
+      this.lastEmit = options.shellPaintedAt;
+      this.lastCleared = true;
+    }
   }
+
+  /** Stop / restart painting (`text.pause()`: select and copy freely). */
+  paused = false;
 
   /** Apply a server frame. Returns `false` when the delta didn't match the buffer (a reconnect will resync). */
   applyFrame(msg: Extract<LiveServerMessage, { t: "f" }>, size = 0): boolean {
@@ -84,7 +96,7 @@ export class FramePlayerCore {
   }
 
   requestPaint(): void {
-    if (this.hidden) {
+    if (this.hidden || this.paused) {
       this.pendingWhileHidden = true;
       return;
     }
@@ -122,8 +134,9 @@ export interface FramePlayer {
 
 declare global {
   interface Window {
-    /** Set by a prerendered shell once it painted. */
+    /** Set by a prerendered shell once it painted (`1`, or its `performance.now()` timestamp). */
     __TEXTJS_SHELL__?: number;
+    __TEXTJS_SHELL_AT__?: number;
   }
 }
 
@@ -136,11 +149,49 @@ function readConfig(doc: Document): FramePlayerConfig {
   }
 }
 
+const STUB_GUARD_KEY = "textjs:server-route";
+const LOAD_GUARD_KEY = "textjs:live-load";
+
+/** Same-origin app path or `null` (never follow `//host`, `/\\host`, `javascript:` or other origins). */
+export function safeHref(href: unknown, base = ""): string | null {
+  if (typeof href !== "string" || !isAppPath(href)) return null;
+  return base && href !== base && !href.startsWith(`${base}/`) && !href.startsWith(`${base}?`) ? null : href;
+}
+
+/** Read Server-Sent Events from a `fetch()` body (the session id travels in a header, never the URL). */
+async function readEvents(body: ReadableStream<Uint8Array>, onData: (data: string) => void): Promise<void> {
+  const reader = body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) return;
+    buf += dec.decode(value, { stream: true }).replace(/\r\n?/g, "\n");
+    let i: number;
+    while ((i = buf.indexOf("\n\n")) >= 0) {
+      const block = buf.slice(0, i);
+      buf = buf.slice(i + 2);
+      const data = block
+        .split("\n")
+        .filter((l) => l.startsWith("data:"))
+        .map((l) => l.slice(l.startsWith("data: ") ? 6 : 5))
+        .join("\n");
+      if (data) onData(data);
+    }
+  }
+}
+
 /** Boot the player on a server-rendered route's page. */
 export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)): FramePlayer {
   const base = config.basePath;
   const endpoint = `${base}${LIVE_PATH}`;
-  const core = new FramePlayerCore({ shell: window.__TEXTJS_SHELL__ === 1 });
+  try {
+    // We reached the server route: the client stub's reload guard has done its job.
+    sessionStorage.removeItem(STUB_GUARD_KEY);
+  } catch {
+    // storage blocked
+  }
+  const core = new FramePlayerCore({ shell: window.__TEXTJS_SHELL__ !== undefined, shellPaintedAt: window.__TEXTJS_SHELL_AT__ });
   const vp = config.viewport ?? {};
   const viewport = new ViewportController({ width: vp.width ?? 120, height: vp.height ?? 36, responsive: vp.responsive ?? true });
   const engine = new InputEngine();
@@ -151,12 +202,21 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
   };
 
   let sid: string | null = null;
-  let es: EventSource | null = null;
+  let stream: AbortController | null = null;
   let retry = 500;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
   let queue: LiveInput[] = [];
   let inFlight = false;
+
+  // Our position in the browser's history, so Back / Forward map onto the server's entries.
+  const stateIndex = (): number => {
+    const st = history.state as { textjsIdx?: unknown } | null;
+    return typeof st?.textjsIdx === "number" ? st.textjsIdx : 0;
+  };
+  let index = stateIndex();
+  if ((history.state as { textjsIdx?: unknown } | null)?.textjsIdx === undefined) history.replaceState({ ...(history.state ?? {}), textjsIdx: index }, "");
+  let expectedPops = 0;
 
   const appPath = (): string => {
     const p = location.pathname;
@@ -166,8 +226,7 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
 
   const flushInput = (): void => {
     if (inFlight || queue.length === 0 || sid === null || disposed) return;
-    const batch = queue;
-    queue = [];
+    const batch = queue.splice(0, 64);
     inFlight = true;
     fetch(endpoint, {
       method: "POST",
@@ -175,10 +234,17 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
       body: JSON.stringify(batch),
       credentials: "same-origin",
     })
+      .then((res) => {
+        // The session expired (grace period, server restart): start a new one.
+        if (res.status === 410) {
+          sid = null;
+          reconnect();
+        } else if (res.status === 429) queue.unshift(...batch);
+      })
       .catch(() => undefined)
       .finally(() => {
         inFlight = false;
-        flushInput();
+        if (queue.length > 0) setTimeout(flushInput, 0);
       });
   };
 
@@ -194,37 +260,67 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
     queueMicrotask(flushInput);
   };
 
-  const onMessage = (e: MessageEvent<string>): void => {
+  /** Load `href` as a document, at most once per URL every few seconds (middleware might keep bouncing the stream). */
+  const load = (href: string): void => {
+    const target = new URL(href, location.href).href;
+    try {
+      const last = sessionStorage.getItem(LOAD_GUARD_KEY);
+      const at = last ? Number(last.slice(0, last.indexOf(" "))) : 0;
+      if (last && last.slice(last.indexOf(" ") + 1) === target && target === location.href && Date.now() - at < 3000) {
+        disposed = true;
+        stream?.abort();
+        setStatus("unavailable");
+        return;
+      }
+      sessionStorage.setItem(LOAD_GUARD_KEY, `${Date.now()} ${target}`);
+    } catch {
+      // storage blocked
+    }
+    disposed = true;
+    stream?.abort();
+    location.assign(href);
+  };
+
+  const onMessage = (data: string): void => {
     let msg: LiveServerMessage;
     try {
-      msg = JSON.parse(e.data) as LiveServerMessage;
+      msg = JSON.parse(data) as LiveServerMessage;
     } catch {
       return;
     }
     switch (msg.t) {
       case "f":
-        if (!core.applyFrame(msg, e.data.length)) reconnect();
+        if (!core.applyFrame(msg, data.length)) reconnect();
         break;
       case "hello":
         sid = msg.sid;
         retry = 500;
         setStatus("live");
-        // The stream URL may be stale after a native reconnect; resend what the server can't see.
+        // The stream URL may be stale after a reconnect; resend what the server can't see.
         send({ type: "resize", cols: viewport.cols, rows: viewport.rows });
         send({ type: "focus", focused: engine.focused && document.visibilityState !== "hidden" });
         break;
-      case "url":
-        if (msg.replace) history.replaceState(null, "", msg.href);
-        else history.pushState(null, "", msg.href);
+      case "url": {
+        const href = safeHref(msg.href, base);
+        if (href === null || href === location.pathname + location.search + location.hash) break;
+        if (msg.replace) history.replaceState({ textjsIdx: index }, "", href);
+        else history.pushState({ textjsIdx: ++index }, "", href);
+        break;
+      }
+      case "go":
+        if (Number.isInteger(msg.delta) && msg.delta !== 0) {
+          expectedPops++;
+          history.go(msg.delta);
+        }
         break;
       case "title":
         document.title = msg.title;
         break;
-      case "load":
-        disposed = true;
-        es?.close();
-        location.assign(msg.href);
+      case "load": {
+        const href = safeHref(msg.href, base);
+        if (href !== null) load(href);
         break;
+      }
       case "error":
         console.error(`▼ Text.js (server): ${msg.message}`);
         break;
@@ -239,16 +335,20 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
       rows: String(viewport.rows),
       focused: engine.focused ? "1" : "0",
     });
-    if (sid) q.set("sid", sid);
     setStatus(sid ? "reconnecting" : "connecting");
-    const source = new EventSource(`${endpoint}?${q}`);
-    es = source;
-    source.onmessage = onMessage;
-    source.onerror = () => {
-      // CONNECTING: the browser retries on its own (resuming via Last-Event-ID).
-      if (source.readyState === EventSource.CLOSED && es === source) scheduleReconnect();
-      else setStatus("reconnecting");
-    };
+    const ctrl = new AbortController();
+    stream = ctrl;
+    const headers: Record<string, string> = { accept: "text/event-stream" };
+    if (sid) headers[LIVE_SESSION_HEADER] = sid;
+    fetch(`${endpoint}?${q}`, { headers, credentials: "same-origin", cache: "no-store", signal: ctrl.signal })
+      .then(async (res) => {
+        if (!res.ok || !res.body) throw new Error(`live stream: ${res.status}`);
+        await readEvents(res.body, onMessage);
+        throw new Error("live stream ended");
+      })
+      .catch(() => {
+        if (stream === ctrl && !disposed) scheduleReconnect();
+      });
   };
 
   const scheduleReconnect = (): void => {
@@ -261,10 +361,11 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
     retry = Math.min(retry * 2, 10_000);
   };
 
-  /** Drop the stream and resume the session with a fresh keyframe. */
+  /** Drop the stream and resume the session (or open a new one) with a fresh keyframe. */
   const reconnect = (): void => {
-    es?.close();
-    es = null;
+    const s = stream;
+    stream = null;
+    s?.abort();
     scheduleReconnect();
   };
 
@@ -274,7 +375,17 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
   });
   engine.attach();
   const offViewport = viewport.subscribe((size) => send({ type: "resize", cols: size.cols, rows: size.rows }));
-  const onPop = (): void => send({ type: "nav", href: appPath() });
+  const onPop = (): void => {
+    const next = stateIndex();
+    const delta = next - index;
+    index = next;
+    // The server asked for this move (`router.back()`): it is already there.
+    if (expectedPops > 0) {
+      expectedPops--;
+      return;
+    }
+    send(delta !== 0 ? { type: "nav", href: appPath(), delta } : { type: "nav", href: appPath() });
+  };
   const onVisibility = (): void => {
     const hidden = document.visibilityState === "hidden";
     core.setHidden(hidden);
@@ -289,7 +400,7 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
     core,
     dispose() {
       disposed = true;
-      es?.close();
+      stream?.abort();
       if (retryTimer !== null) clearTimeout(retryTimer);
       offInput();
       engine.detach();
@@ -299,11 +410,40 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
       document.removeEventListener("visibilitychange", onVisibility);
     },
   };
+  const HELP = `▼ Text.js console API (server-rendered route)
+  text.resize(cols, rows)   pin the console grid
+  text.responsive(on)       follow the docked DevTools size
+  text.pause() / resume()   freeze output (select & copy freely)
+  text.stats()              frames, bytes, grid size
+  text.copyText()           copy the current frame as plain text
+  text.help()               this message`;
+  const stats = () => ({ cols: core.buffer.width, rows: core.buffer.height, frames: core.frames, bytes: core.bytes, paused: core.paused, runtime: "server" as const });
   (window as unknown as { text?: unknown }).text = {
-    stats: () => ({ cols: core.buffer.width, rows: core.buffer.height, frames: core.frames, bytes: core.bytes, runtime: "server" }),
-    copyText: () => core.buffer.toPlainString(true).replace(/\n+$/, ""),
-    resize: (cols: number, rows: number) => viewport.setSize(cols, rows),
-    responsive: (on = true) => viewport.setResponsive(on),
+    stats,
+    copyText: () => {
+      const text = core.buffer.toPlainString(true).replace(/\n+$/, "");
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(text).catch(() => undefined);
+      return text;
+    },
+    resize: (cols: number, rows: number) => {
+      viewport.setSize(cols, rows);
+      return stats();
+    },
+    responsive: (on = true) => {
+      viewport.setResponsive(on);
+      return stats();
+    },
+    pause: () => {
+      core.paused = true;
+    },
+    resume: () => {
+      core.paused = false;
+      core.requestPaint();
+    },
+    help: () => {
+      console.log(HELP);
+      return HELP;
+    },
   };
   return player;
 }

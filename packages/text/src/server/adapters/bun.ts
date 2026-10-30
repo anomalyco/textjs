@@ -22,6 +22,8 @@ const self = join(dir, ${JSON.stringify(BUN_SERVER_FILE)});
 const live = existsSync(join(dir, ".text", "live-manifest.json"))
   ? await loadLiveProduction(dir, {
       middleware: options.middleware,
+      trustProxy: process.env.TRUST_PROXY === "1",
+      origin: process.env.TEXTJS_ORIGIN,
       onError: (error) => console.error(error),
     })
   : null;
@@ -38,7 +40,7 @@ function fileResponse(path, immutable) {
 
 export const handler = createRequestHandler({
   ...options,
-  live: live ? (request, url) => runNodeStyle(request, url, (req, res) => live.handle(req, res, url)) : undefined,
+  live: live ? (request, url, context) => runNodeStyle(request, url, (req, res) => live.handle(req, res, url), context.clientAddress) : undefined,
   assets(pathname) {
     let path = normalize(join(dir, pathname));
     if ((path !== dir && !path.startsWith(dir + sep)) || path === self) return null;
@@ -66,8 +68,8 @@ if (import.meta.main) {
     idleTimeout: 60,
     port: Number(process.env.PORT ?? 3000),
     hostname: process.env.HOSTNAME ?? "0.0.0.0",
-    fetch(request) {
-      return handler(request).catch((error) => {
+    fetch(request, server) {
+      return handler(request, { clientAddress: server.requestIP(request)?.address }).catch((error) => {
         console.error(error);
         return new Response("500 | Internal Server Error", { status: 500 });
       });

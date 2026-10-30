@@ -29,6 +29,9 @@ import {
   VIRTUAL_PLAYER,
 } from "./live-routes";
 import { scanApp } from "./scan";
+import type { MiddlewareModule } from "./middleware";
+import { findMiddlewareFile } from "./middleware-node";
+import { createLiveAuthorizer } from "./middleware-runtime";
 
 const RESOLVED_LIVE = `\0${VIRTUAL_LIVE}`;
 const RESOLVED_PLAYER = `\0${VIRTUAL_PLAYER}`;
@@ -156,6 +159,14 @@ export function createLiveDevHandler(vite: ViteDevServer, o: LiveDevOptions): Li
   const live = new LiveServer({
     basePath: o.basePath,
     exposeErrors: true,
+    // middleware.ts guards server routes a session renders (opening, in-app navigation, credential changes).
+    authorize: createLiveAuthorizer(
+      async () => {
+        const file = findMiddlewareFile(o.root);
+        return file ? ((await vite.ssrLoadModule(file)) as MiddlewareModule) : null;
+      },
+      { basePath: o.basePath },
+    ),
     maxSessions: o.live?.maxSessions,
     reconnectGraceMs: o.live?.reconnectGraceMs,
     runtimeOf: (p) => runtimeOf(p),

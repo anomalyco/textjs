@@ -18,6 +18,8 @@ export interface RequestContext {
   waitUntil?: (promise: Promise<unknown>) => void;
   /** Platform bindings (Cloudflare `env`). */
   env?: unknown;
+  /** The client's address, when the platform knows it. */
+  clientAddress?: string;
 }
 
 export interface RequestHandlerOptions {

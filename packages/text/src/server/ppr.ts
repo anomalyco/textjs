@@ -49,7 +49,7 @@ export function shellScript(calls: readonly ShellCall[], path: string): string {
   const body =
     `(function(p,c,s){var l=location.pathname;if(l.length>1&&l.charAt(l.length-1)==="/")l=l.slice(0,-1);if(l!==p||typeof console==="undefined")return;` +
     `for(var i=0;i<s.length;i++){var o=s[i];if(o===0){console.clear();continue}var a=[o[0]];for(var j=0;j<o[1].length;j++)a.push(c[o[1][j]]);console.log.apply(console,a)}` +
-    `window.__TEXTJS_SHELL__=1})(${inlineJson(path)},${inlineJson(table)},${inlineJson(ops)});`;
+    `window.__TEXTJS_SHELL__=1;window.__TEXTJS_SHELL_AT__=typeof performance!=="undefined"?performance.now():void 0})(${inlineJson(path)},${inlineJson(table)},${inlineJson(ops)});`;
   return `<script data-textjs-shell>${body}</script>`;
 }
 

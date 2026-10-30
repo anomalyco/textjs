@@ -18,9 +18,11 @@ class RequestShim extends EventEmitter {
   readonly url: string;
   readonly headers: Record<string, string> = {};
   destroyed = false;
+  readonly socket: { remoteAddress?: string };
 
-  constructor(request: Request, url: string) {
+  constructor(request: Request, url: string, remoteAddress?: string) {
     super();
+    this.socket = { remoteAddress };
     this.method = request.method.toUpperCase();
     this.url = url;
     request.headers.forEach((value, key) => {
@@ -157,8 +159,8 @@ class ResponseShim extends EventEmitter {
  * the response, or `null` when the handler declined the request (`false`)
  * without writing anything.
  */
-export async function runNodeStyle(request: Request, url: string, handler: NodeStyleHandler): Promise<Response | null> {
-  const req = new RequestShim(request, url);
+export async function runNodeStyle(request: Request, url: string, handler: NodeStyleHandler, remoteAddress?: string): Promise<Response | null> {
+  const req = new RequestShim(request, url, remoteAddress);
   const res = new ResponseShim(request.signal);
   const handled = Promise.resolve(handler(req as unknown as IncomingMessage, res as unknown as ServerResponse));
   const first = await Promise.race([res.ready.then((r) => ({ response: r })), handled.then((ok) => ({ ok }))]);

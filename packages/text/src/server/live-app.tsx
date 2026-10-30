@@ -18,7 +18,7 @@ import {
 } from "@textjs/core";
 import { createConsoleRootSync, type ConsoleRoot, type ThemeName } from "@textjs/react";
 import { RouterContext } from "../context";
-import { createMemoryHistory, type HistoryAction, type MemoryHistory } from "../history";
+import { createMemoryHistory, parseHref, type HistoryAction, type MemoryHistory } from "../history";
 import type { LiveInput } from "../live-protocol";
 import { AppRouter } from "../router";
 import { resolveRoute, type RouteManifest, type RouteModule, type RouteModuleRef, type RouteSegmentNode } from "../routing";
@@ -40,8 +40,17 @@ export interface LiveAppOptions {
   focused?: boolean;
   /** A frame with changed cells was painted into {@link LiveApp.buffer}. */
   onFrame?: () => void;
-  /** The app navigated. `runtime` is the target route's runtime. */
-  onNavigate?: (href: string, action: HistoryAction, runtime: RouteRuntime) => void;
+  /**
+   * The app navigated. `runtime` is the target route's runtime; `delta` is how
+   * far a `"pop"` moved through the history.
+   */
+  onNavigate?: (href: string, action: HistoryAction, runtime: RouteRuntime, delta?: number) => void;
+  /**
+   * May the session render `href` (a server route)? Runs `middleware.ts` for
+   * the target before every server-side route transition. Denied transitions
+   * are handed to the browser as a document load, where middleware answers.
+   */
+  authorize?: (href: string) => Promise<boolean>;
   onTitle?: (title: string) => void;
   onError?: (error: unknown) => void;
 }
@@ -51,6 +60,10 @@ export interface LiveApp {
   readonly buffer: CellBuffer;
   readonly history: MemoryHistory;
   input(event: LiveInput): void;
+  /** Apply a batch of input events (one POST) and paint once. */
+  inputMany?(events: readonly LiveInput[]): void;
+  /** Pause rendering while no browser is attached; resume (and repaint) on attach. */
+  setActive?(active: boolean): void;
   /** Swap the manifest (dev: a route module changed). Keeps the history. */
   setRoutes(routes: RouteManifest): void;
   /** Lay out and paint synchronously. */
@@ -141,15 +154,58 @@ export async function createLiveApp(options: LiveAppOptions): Promise<LiveApp> {
     onUncaughtError: (error) => options.onError?.(error),
     onRecoverableError: () => undefined,
   });
-  const history = createMemoryHistory(options.path);
+  const inner = createMemoryHistory(options.path);
   const cache = new ServerComponentCache();
   let routes = prepareServerManifest(options.routes);
   let fromClient = false;
+  let disposed = false;
+  let lastIndex = inner.index;
+  let navSeq = 0;
 
-  const unlisten = history.listen((location, action) => {
+  const unlisten = inner.listen((location, action) => {
+    const delta = inner.index - lastIndex;
+    lastIndex = inner.index;
     if (fromClient) return;
-    options.onNavigate?.(location.href, action, routeRuntime(routes, location.pathname));
+    options.onNavigate?.(location.href, action, routeRuntime(routes, location.pathname), action === "pop" ? delta : undefined);
   });
+
+  /**
+   * Route transitions to server pages wait for `authorize` (middleware for the
+   * target). Denied ones become a document load of the target, which runs
+   * middleware over HTTP (redirects, 401s, rewrites).
+   */
+  const guard = (href: string, action: HistoryAction, apply: () => void): void => {
+    const target = parseHref(href, inner.location.pathname).href;
+    if (!options.authorize || routeRuntime(routes, pathOf(target)) === "client") {
+      navSeq++;
+      apply();
+      return;
+    }
+    const seq = ++navSeq;
+    options.authorize(target).then(
+      (ok) => {
+        if (disposed || seq !== navSeq) return;
+        if (ok) apply();
+        else options.onNavigate?.(target, action, "client");
+      },
+      (error: unknown) => {
+        options.onError?.(error);
+        if (!disposed && seq === navSeq) options.onNavigate?.(target, action, "client");
+      },
+    );
+  };
+  const history: MemoryHistory = Object.create(inner, {
+    push: { value: (href: string) => guard(href, "push", () => inner.push(href)) },
+    replace: { value: (href: string) => guard(href, "replace", () => inner.replace(href)) },
+    go: {
+      value: (delta: number) => {
+        const target = inner.entries[inner.index + delta];
+        if (target) guard(target.href, "pop", () => inner.go(delta));
+      },
+    },
+    back: { value: () => history.go(-1) },
+    forward: { value: () => history.go(1) },
+  }) as MemoryHistory;
 
   const render = (): void => {
     root.render(
@@ -162,39 +218,68 @@ export async function createLiveApp(options: LiveAppOptions): Promise<LiveApp> {
   };
   render();
 
+  let active = true;
+  const applyInput = (event: LiveInput): void => {
+    if (root.unmounted) return;
+    switch (event.type) {
+      case "key":
+      case "paste":
+      case "wheel":
+        engine.emit(event.type, event as never);
+        break;
+      case "focus":
+        engine.setFocused(event.focused);
+        break;
+      case "resize":
+        root.renderer.resize(event.cols, event.rows);
+        break;
+      case "nav": {
+        const href = parseHref(event.href, inner.location.pathname).href;
+        if (href === inner.location.href) break;
+        // Browser Back / Forward: move through the same entries when they line up, so both histories agree.
+        const delta = event.delta;
+        const aligned = delta !== undefined && inner.entries[inner.index + delta]?.href === href;
+        guard(href, "pop", () => {
+          fromClient = true;
+          try {
+            if (aligned) inner.go(delta);
+            else inner.push(href);
+          } finally {
+            fromClient = false;
+          }
+          // Onto a client-rendered route: hand the document over.
+          if (routeRuntime(routes, inner.location.pathname) === "client") options.onNavigate?.(inner.location.href, "pop", "client");
+        });
+        break;
+      }
+    }
+  };
+
   return {
     root,
     history,
     get buffer() {
       return root.renderer.buffer;
     },
-    input(event) {
-      if (root.unmounted) return;
-      switch (event.type) {
-        case "key":
-        case "paste":
-        case "wheel":
-          engine.emit(event.type, event as never);
-          break;
-        case "focus":
-          engine.setFocused(event.focused);
-          break;
-        case "resize":
-          root.renderer.resize(event.cols, event.rows);
-          break;
-        case "nav": {
-          if (event.href === history.location.href) break;
-          fromClient = true;
-          try {
-            history.push(event.href);
-          } finally {
-            fromClient = false;
-          }
-          // Back / Forward onto a client-rendered route: hand the document over.
-          if (routeRuntime(routes, pathOf(event.href)) === "client") options.onNavigate?.(event.href, "pop", "client");
-          break;
-        }
+    input: applyInput,
+    inputMany(events) {
+      if (events.length <= 1 || !active) {
+        for (const e of events) applyInput(e);
+        return;
       }
+      // One paint for the whole batch; React still commits between events.
+      root.renderer.pause();
+      try {
+        for (const e of events) applyInput(e);
+      } finally {
+        if (!root.unmounted) root.renderer.resume();
+      }
+    },
+    setActive(next) {
+      if (next === active || root.unmounted) return;
+      active = next;
+      if (next) root.renderer.resume();
+      else root.renderer.pause();
     },
     setRoutes(next) {
       routes = prepareServerManifest(next);
@@ -205,6 +290,7 @@ export async function createLiveApp(options: LiveAppOptions): Promise<LiveApp> {
       if (!root.unmounted) root.flushSyncRender();
     },
     dispose() {
+      disposed = true;
       unlisten();
       cache.clear();
       if (!root.unmounted) root.unmount();
@@ -243,6 +329,9 @@ export async function prerenderShell(options: PrerenderShellOptions): Promise<Sh
   const g = globalThis as { fetch?: typeof fetch };
   const realFetch = g.fetch;
   g.fetch = (() => new Promise<Response>(() => undefined)) as unknown as typeof fetch;
+  // Any error the render hit (caught by an error boundary, `redirect()` / `notFound()` included)
+  // means the first frame is not the route's shell: never bake it into HTML.
+  const errors: unknown[] = [];
   const root = createConsoleRootSync({
     width: options.cols,
     height: options.rows,
@@ -254,8 +343,8 @@ export async function prerenderShell(options: PrerenderShellOptions): Promise<Sh
     scheduler: { request: () => null, cancel: () => undefined },
     minFrameInterval: 0,
     registerGlobal: false,
-    onCaughtError: () => undefined,
-    onUncaughtError: () => undefined,
+    onCaughtError: (error) => void errors.push(error),
+    onUncaughtError: (error) => void errors.push(error),
     onRecoverableError: () => undefined,
   });
   try {
@@ -266,6 +355,11 @@ export async function prerenderShell(options: PrerenderShellOptions): Promise<Sh
       </ServerComponentsProvider>,
     );
     root.flushSyncRender();
+    if (errors.length > 0) {
+      const first = errors[0];
+      throw new Error(`rendering ${options.path} threw: ${first instanceof Error ? first.message : String(first)}`, { cause: first });
+    }
+    if (history.location.href !== parseHref(options.path).href) throw new Error(`rendering ${options.path} navigated to ${history.location.href}`);
     const calls: ShellCall[] = [];
     const capture: ConsoleTarget = {
       clear: () => void calls.push({ method: "clear", args: [] }),

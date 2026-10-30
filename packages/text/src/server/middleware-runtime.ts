@@ -4,7 +4,7 @@
  * `text dev`, `text start` and every deploy adapter.
  */
 
-import { hasGeneratedCacheControl, PRIVATE_CACHE_CONTROL } from "./http";
+import { hasGeneratedCacheControl, PRIVATE_CACHE_CONTROL, requestOrigin, type OriginOptions } from "./http";
 import {
   isMiddlewareControl,
   MIDDLEWARE_NEXT,
@@ -440,4 +440,39 @@ export function withMiddlewareHeaders(response: Response, headers: Headers, merg
   const body = status === 204 || status === 205 || status === 304 ? null : response.body;
   if (body === null && response.body) response.body.cancel().catch(() => undefined);
   return new Response(body, { status, statusText: merge.status === undefined ? response.statusText : "", headers: out });
+}
+
+/**
+ * Would `middleware.ts` let a document request for `href` (an app path,
+ * without basePath) through unchanged? Used to authorize what a live session
+ * renders: anything else (redirect, 401, rewrite elsewhere) is handed back to
+ * the browser as a document load, where middleware answers over HTTP.
+ */
+export async function authorizeWithMiddleware(mod: MiddlewareModule, href: string, init: { origin: string; basePath?: string; headers: Headers }): Promise<boolean> {
+  const basePath = init.basePath ?? "";
+  const url = new URL(basePath + href, init.origin);
+  if (url.origin !== new URL(init.origin).origin) return false;
+  const headers = new Headers(init.headers);
+  for (const h of ["content-type", "content-length", "last-event-id", "x-textjs-live", "origin"]) headers.delete(h);
+  headers.set("accept", "text/html,application/xhtml+xml,*/*;q=0.8");
+  headers.set("sec-fetch-dest", "document");
+  headers.set("sec-fetch-mode", "navigate");
+  const outcome = await runMiddleware(mod, new Request(url, { method: "GET", headers }), { basePath });
+  if (outcome.type === "response") return false;
+  if (outcome.rewrite) return outcome.rewrite.origin === url.origin && outcome.rewrite.pathname === url.pathname;
+  return outcome.status === undefined || outcome.status < 400;
+}
+
+export interface LiveAuthorizerOptions extends OriginOptions {
+  basePath?: string;
+}
+
+/** `LiveServer` `authorize` backed by a middleware module (`null` = no middleware: allow). */
+export function createLiveAuthorizer(load: () => MiddlewareModule | null | undefined | Promise<MiddlewareModule | null | undefined>, options: LiveAuthorizerOptions = {}): (href: string, headers: Headers) => Promise<boolean> {
+  return async (href, headers) => {
+    const mod = await load();
+    if (!mod) return true;
+    const origin = requestOrigin({ headers: Object.fromEntries(headers) }, options);
+    return authorizeWithMiddleware(mod, href, { origin, basePath: options.basePath, headers });
+  };
 }

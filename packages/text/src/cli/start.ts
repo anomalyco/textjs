@@ -65,7 +65,13 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
   // `middleware.ts` and `cacheHandler` (bundled by `text build`).
   const runtime = await loadServerRuntime(outDir);
   // Prerendered console shells (PPR) and server-rendered routes (`runtime = "server"`).
-  const live = await loadLiveProduction(outDir, { log: log ? (m) => console.log(color.gray(m)) : undefined, onError: (e) => console.error(fail(e instanceof Error ? (e.stack ?? e.message) : String(e))) });
+  const live = await loadLiveProduction(outDir, {
+    log: log ? (m) => console.log(color.gray(m)) : undefined,
+    onError: (e) => console.error(fail(e instanceof Error ? (e.stack ?? e.message) : String(e))),
+    middleware: runtime?.middleware,
+    trustProxy: config.server?.trustProxy ?? process.env.TRUST_PROXY === "1",
+    origin: config.server?.origin ?? process.env.TEXTJS_ORIGIN,
+  });
 
   const port = opts.port ?? 3000;
   // Loopback only unless `--host` is passed explicitly.
