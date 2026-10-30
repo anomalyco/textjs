@@ -5,7 +5,7 @@ bunx --bun text mcp              # serve ./app over stdio
 bunx --bun text mcp apps/console # another project
 ```
 
-`text mcp` needs Bun. Started with Node, it re-runs itself with Bun when `bun` is on your `PATH`, and fails with [TX019](/errors/TX019) otherwise. MCP clients start it for you, so you rarely run it by hand.
+`text mcp` needs Bun. Started with Node, it re-runs itself with Bun when `bun` is on your `PATH`, and fails with `TX019` otherwise. MCP clients start it for you, so you rarely run it by hand.
 
 ## Setup
 
