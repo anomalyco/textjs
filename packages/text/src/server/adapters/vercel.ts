@@ -15,7 +15,7 @@ import { VERSION } from "@textjs/core";
 import type { MiddlewareModule } from "../middleware";
 import { middlewareMatchers } from "../middleware-runtime";
 import { bundleServerEntry, frameworkFile } from "./bundle";
-import { copyStatic, escapeRegex, matcherRegex, patternRegex, rewriteRoute, serverEntry, type AdapterContext, type AdapterResult } from "./shared";
+import { assertNoServerRoutes, copyStatic, escapeRegex, matcherRegex, patternRegex, rewriteRoute, serverEntry, type AdapterContext, type AdapterResult } from "./shared";
 
 export const VERCEL_FUNCTION = "_textjs/server";
 export const VERCEL_MIDDLEWARE = "_middleware";
@@ -23,22 +23,30 @@ export const VERCEL_MIDDLEWARE = "_middleware";
 export const PATH_PARAM = "__textjs_path";
 export const VERCEL_NODE_RUNTIME = "nodejs22.x";
 
-const FUNCTION_BODY = `
-import { sendWebResponse, toWebRequest } from ${JSON.stringify(frameworkFile("server/http.ts"))};
+/** A routed path the function accepts: one leading slash, no backslashes or control characters. */
+export const ROUTED_PATH = /^\/(?![/\\])[^\\\u0000-\u001f\u007f]*$/;
 
+const FUNCTION_BODY = `
+import { normalizeRequestTarget, requestOrigin, sendWebResponse, toWebRequest } from ${JSON.stringify(frameworkFile("server/http.ts"))};
+
+// Middleware already ran in Vercel's router. The function is only reachable
+// through the handler routes in config.json, which reject client-supplied
+// ${PATH_PARAM} parameters and direct requests to /_textjs/*.
 const handler = createRequestHandler({ ...options, skipMiddleware: true });
 const REQUEST_CONTEXT = Symbol.for("@vercel/request-context");
+const ROUTED_PATH = ${ROUTED_PATH.toString()};
 
 export default async function textjs(req, res) {
-  const url = new URL(req.url ?? "/", "http://vercel.internal");
-  const routed = url.searchParams.get(${JSON.stringify(PATH_PARAM)});
-  if (routed) {
-    url.searchParams.delete(${JSON.stringify(PATH_PARAM)});
-    req.url = routed + url.search;
+  const url = new URL(normalizeRequestTarget(req.url), "http://vercel.internal");
+  const routed = url.searchParams.getAll(${JSON.stringify(PATH_PARAM)});
+  if (routed.length !== 1 || !ROUTED_PATH.test(routed[0])) {
+    res.statusCode = 400;
+    res.end();
+    return;
   }
-  const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "localhost";
-  const proto = req.headers["x-forwarded-proto"] ?? "https";
-  const request = toWebRequest(req, proto + "://" + host, res);
+  url.searchParams.delete(${JSON.stringify(PATH_PARAM)});
+  req.url = routed[0] + url.search;
+  const request = toWebRequest(req, requestOrigin(req, { trustProxy: true, protocol: "https" }), res);
   const vercel = globalThis[REQUEST_CONTEXT]?.get?.();
   try {
     const response = await handler(request, { waitUntil: (p) => vercel?.waitUntil?.(p) });
@@ -83,7 +91,12 @@ export interface VercelConfig {
 
 export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule | null): VercelConfig {
   const base = ctx.basePath;
-  const routes: VercelRoute[] = [{ src: `^${escapeRegex(base)}\\/assets\\/(.*)$`, headers: { "cache-control": "public, max-age=31536000, immutable" }, continue: true }];
+  const routes: VercelRoute[] = [
+    // The handler function is internal: only the handler routes below may reach it, with a path they set.
+    { src: `^\\/${escapeRegex(VERCEL_FUNCTION.split("/")[0] as string)}(?:\\/.*)?$`, status: 404 },
+    { src: "^.*$", has: [{ type: "query", key: PATH_PARAM }], status: 400 },
+    { src: `^${escapeRegex(base)}\\/assets\\/(.*)$`, headers: { "cache-control": "public, max-age=31536000, immutable" }, continue: true },
+  ];
   if (middleware) {
     const matchers = middlewareMatchers(middleware);
     const list = matchers ?? [{ source: "/:path*", regex: "", has: undefined, missing: undefined }];
@@ -111,6 +124,7 @@ export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule |
 }
 
 export async function adaptVercel(ctx: AdapterContext, middleware: MiddlewareModule | null): Promise<AdapterResult> {
+  assertNoServerRoutes(ctx, "vercel");
   const out = join(ctx.root, ".vercel", "output");
   if (existsSync(out)) rmSync(out, { recursive: true, force: true });
   copyStatic(ctx.outDir, join(out, "static", ...ctx.basePath.split("/").filter(Boolean)));

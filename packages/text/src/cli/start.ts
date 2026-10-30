@@ -1,5 +1,5 @@
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
-import { createServer, type Server } from "node:http";
+import { createServer, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -7,7 +7,7 @@ import { txError } from "@textjs/core";
 import { normalizeBasePath, type ProxyTarget } from "../config";
 import { matchApiRoute } from "../server/scan";
 import { loadLiveProduction } from "../server/live-prod";
-import { applyRewrites, compileRewrite, proxyRequest, runRouteHandler, sendWebResponse, toWebRequest, type RouteHandlerModule } from "../server/http";
+import { applyRewrites, compileRewrite, isAllowedHost, isValidHostHeader, normalizeRequestTarget, proxyRequest, requestOrigin, sendWebResponse, toWebRequest, type RouteHandlerModule } from "../server/http";
 import type { RouteManifest } from "../routing";
 import { loadServerRuntime } from "../server/adapters/runtime-node";
 import { runRouteHandlerWithCache } from "../server/cache-route";
@@ -67,16 +67,40 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
   // Prerendered console shells (PPR) and server-rendered routes (`runtime = "server"`).
   const live = await loadLiveProduction(outDir, { log: log ? (m) => console.log(color.gray(m)) : undefined, onError: (e) => console.error(fail(e instanceof Error ? (e.stack ?? e.message) : String(e))) });
 
+  const port = opts.port ?? 3000;
+  // Loopback only unless `--host` is passed explicitly.
+  const host = opts.host ?? "127.0.0.1";
+  const loopback = host === "127.0.0.1" || host === "localhost" || host === "::1" || host === "[::1]";
+  const originOptions = {
+    origin: config.server?.origin ?? process.env.TEXTJS_ORIGIN,
+    trustProxy: config.server?.trustProxy ?? process.env.TRUST_PROXY === "1",
+  };
+  // DNS rebinding: a loopback-bound server only answers loopback / IP / allowed host names.
+  const allowedHosts = config.server?.allowedHosts ?? [];
+  const notFound = (res: ServerResponse): void => {
+    res.statusCode = 404;
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.end("404 | This page could not be found.");
+  };
+
   const server = createServer((req, res) => {
     const t0 = performance.now();
-    const origin = `http://${req.headers.host ?? "localhost"}`;
     const done = (): void => {
-      if (log) console.log(color.gray(` ${req.method} ${req.url} ${res.statusCode} in ${Math.round(performance.now() - t0)}ms`));
+      if (log) console.log(color.gray(` ${req.method} ${(req.url ?? "/").split("?")[0]} ${res.statusCode} in ${Math.round(performance.now() - t0)}ms`));
     };
     void (async () => {
-      let url = req.url ?? "/";
+      if (loopback ? !isAllowedHost(req.headers.host, allowedHosts) : !isValidHostHeader(req.headers.host)) {
+        res.statusCode = loopback ? 403 : 400;
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.end(loopback ? `▼ Blocked request. This host (${JSON.stringify((req.headers.host ?? "").replace(/:\d+$/, ""))}) is not allowed. Add it to \`server.allowedHosts\` in text.config.ts.` : "400 | Bad Request");
+        return;
+      }
+      req.url = normalizeRequestTarget(req.url);
+      const origin = requestOrigin(req, originOptions);
+      let url = req.url;
       if (basePath) {
         if (url === basePath || url.startsWith(`${basePath}/`) || url.startsWith(`${basePath}?`)) url = url.slice(basePath.length) || "/";
+        else return notFound(res);
       }
       if (runtime?.middleware) {
         const next = await runNodeMiddleware(runtime.middleware, req, res, { basePath, origin });
@@ -95,7 +119,13 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
         }
       }
       if (live && (await live.handle(req, res, url))) return;
-      const pathname = decodeURIComponent(url.split("?")[0] ?? "/");
+      let pathname: string;
+      try {
+        pathname = decodeURIComponent(url.split("?")[0] ?? "/");
+      } catch {
+        res.statusCode = 400;
+        return res.end("400 | Bad Request");
+      }
       if (api) {
         const m = matchApiRoute(api.manifest, pathname);
         const mod = m ? api.handlers[m.file] : undefined;
@@ -110,7 +140,7 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
       }
       const filePath = normalize(join(outDir, pathname));
       const inside = filePath === outDir || filePath.startsWith(outDir + sep);
-      const hidden = pathname.split("/").some((p) => p.startsWith(".") && p.length > 1);
+      const hidden = pathname.split(/[/\\]/).some((p) => p.startsWith(".") && p.length > 1);
       if (inside && !hidden && existsSync(filePath) && statSync(filePath).isFile()) {
         res.statusCode = 200;
         res.setHeader("Content-Type", MIME[extname(filePath)] ?? "application/octet-stream");
@@ -120,11 +150,7 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
         return;
       }
       const last = pathname.split("/").pop() ?? "";
-      if (last.includes(".") || hidden) {
-        res.statusCode = 404;
-        res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        return res.end("404 | This page could not be found.");
-      }
+      if (last.includes(".") || hidden) return notFound(res);
       res.statusCode = 200;
       res.setHeader("Content-Type", MIME[".html"] as string);
       res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
@@ -138,9 +164,6 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
       .finally(done);
   });
 
-  const port = opts.port ?? 3000;
-  // Loopback only unless `--host` is passed explicitly.
-  const host = opts.host ?? "127.0.0.1";
   await new Promise<void>((resolveListen, reject) => {
     server.once("error", reject);
     server.listen(port, host, () => resolveListen());

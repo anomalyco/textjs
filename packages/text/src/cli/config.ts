@@ -22,6 +22,7 @@ const CONFIG_KEYS: Record<keyof TextConfig, true> = {
   cacheHandler: true,
   ppr: true,
   live: true,
+  server: true,
 };
 
 /** Warn (once each) about keys Text.js does not read. */

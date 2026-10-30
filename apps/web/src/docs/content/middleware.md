@@ -54,7 +54,9 @@ Matchers apply to the pathname without `basePath`. In `text dev`, Vite's own mod
 | `NextResponse.json(body, init?)` | Respond with JSON |
 | `new Response(...)` | Respond with anything |
 
-Return nothing to continue unchanged.
+Return nothing to continue unchanged. `next()` and `rewrite()` accept `{ status }` to change the final response's status. Only responses created by `NextResponse.next()` / `NextResponse.rewrite()` steer routing: any other `Response`, including one returned from `fetch()`, is sent to the client as-is with its `x-middleware-*` headers removed.
+
+`request.nextUrl` excludes `basePath` from `pathname`, while its `href` and `toString()` include it. To stay inside the app, clone it: `const url = request.nextUrl.clone(); url.pathname = "/login"; return NextResponse.redirect(url);`.
 
 ```ts@middleware.ts
 export function middleware(request: NextRequest) {
@@ -110,5 +112,6 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
 ## Notes
 
 - Pages render client-side in the console, so a rewrite to another page changes which file is served, not which route the console app renders. Rewrites to route handlers, static files and external origins behave as expected.
-- Middleware can read the request body; route handlers still receive it.
+- Middleware can read the request body; route handlers still receive it. Requests a matcher excludes never have their body touched.
+- `request.url` always has the server's origin: request targets such as `//other.host/x` are normalized to a single leading slash.
 - The [static adapter](/docs/deploying#static) cannot run middleware.

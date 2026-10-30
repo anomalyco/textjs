@@ -6,18 +6,18 @@
 
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { isIP } from "node:net";
-import { dirname, extname, join, relative, resolve } from "node:path";
+import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import type { Plugin, ProxyOptions, ViteDevServer } from "vite";
 import { BRAND_MARK, ENGINE_NAME, txMessage, VERSION } from "@textjs/core";
 import { normalizeBasePath, toClientConfig, type Rewrite, type TextConfig } from "./config";
-import { applyRewrites, compileRewrite, proxyRequest, runRouteHandler, sendWebResponse, toWebRequest, type CompiledRewrite, type RouteHandlerModule } from "./server/http";
+import { applyRewrites, compileRewrite, normalizeRequestTarget, proxyRequest, requestOrigin, runRouteHandler, sendWebResponse, toWebRequest, type CompiledRewrite, type RouteHandlerModule } from "./server/http";
 import { attachFrameStream } from "./server/frames";
 import { createLiveDevHandler, textjsLivePlugin } from "./server/live-dev";
 import { withServerStubs } from "./server/live-routes";
 import { runRouteHandlerWithCache } from "./server/cache-route";
-import { createDevMiddleware } from "./server/middleware-node";
+import { createDevMiddleware, isServerOnlySource } from "./server/middleware-node";
 import { generateRoutesModule, isRouteFile, matchApiRoute, scanApp, toApiManifest, toPosix, toStaticManifest, type AppScan } from "./server/scan";
 import { flattenRoutes, type RouteManifest, type RouteSegmentNode } from "./routing";
 
@@ -305,11 +305,26 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
 
       const rewrites = await resolveRewrites(options.rewrites);
       // Registered before user middleware and API routes so neither bypasses the host check.
+      const serverOnly = options.cacheHandler ? [resolve(root, options.cacheHandler)] : [];
       server.middlewares.use((req, res, next) => {
-        if (isAllowedDevHost(server, req.headers.host)) return next();
-        res.statusCode = 403;
-        res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        res.end(`${BRAND_MARK} ${txMessage("TX028", JSON.stringify((req.headers.host ?? "").replace(/:\d+$/, "")))}`);
+        if (!isAllowedDevHost(server, req.headers.host)) {
+          res.statusCode = 403;
+          res.setHeader("Content-Type", "text/plain; charset=utf-8");
+          res.end(`${BRAND_MARK} ${txMessage("TX028", JSON.stringify((req.headers.host ?? "").replace(/:\d+$/, "")))}`);
+          return;
+        }
+        // `//evil.com/x` must not become `request.url` → http://evil.com/x.
+        req.url = normalizeRequestTarget(req.url);
+        let pathname = req.url.split("?")[0] ?? "/";
+        if (basePath && (pathname === basePath || pathname.startsWith(`${basePath}/`))) pathname = pathname.slice(basePath.length) || "/";
+        if (pathname.startsWith("/@fs/")) pathname = `/${relative(root, pathname.slice(4)).split(sep).join("/")}`;
+        if (isServerOnlySource(pathname, root, appDirName, serverOnly)) {
+          res.statusCode = 404;
+          res.setHeader("Content-Type", "text/plain; charset=utf-8");
+          res.end("404 | This page could not be found.");
+          return;
+        }
+        next();
       });
       // `middleware.ts` runs before user middleware, route handlers and pages.
       server.middlewares.use(createDevMiddleware(server, { root, basePath, log }));
@@ -323,7 +338,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
 
       server.middlewares.use(async (req, res, next) => {
         const started = performance.now();
-        const origin = `http://${req.headers.host ?? "localhost"}`;
+        const origin = requestOrigin(req);
         let url = req.url ?? "/";
         if (basePath) {
           if (url === basePath || url.startsWith(`${basePath}/`) || url.startsWith(`${basePath}?`)) url = url.slice(basePath.length) || "/";

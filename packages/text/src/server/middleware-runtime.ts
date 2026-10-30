@@ -4,12 +4,13 @@
  * `text dev`, `text start` and every deploy adapter.
  */
 
+import { hasGeneratedCacheControl, PRIVATE_CACHE_CONTROL } from "./http";
 import {
+  isMiddlewareControl,
   MIDDLEWARE_NEXT,
   MIDDLEWARE_OVERRIDE_HEADERS,
   MIDDLEWARE_REQUEST_PREFIX,
   MIDDLEWARE_REWRITE,
-  MIDDLEWARE_SET_COOKIE,
   NextRequest,
   parseCookieHeader,
   parseSetCookie,
@@ -21,6 +22,8 @@ import {
 } from "./middleware";
 
 /** Candidate file names, relative to the project root (first match wins). */
+export { proxyFetch } from "./http";
+
 export const MIDDLEWARE_FILES = ["middleware.ts", "middleware.tsx", "middleware.js", "middleware.mjs", "src/middleware.ts", "src/middleware.js"] as const;
 
 // ---------------------------------------------------------------------------
@@ -60,12 +63,39 @@ function readGroup(src: string, i: number): [string, number] {
   throw new SyntaxError(`Unbalanced parentheses in middleware matcher ${JSON.stringify(src)}`);
 }
 
+/** Capturing groups in a regular-expression source (escapes and character classes skipped). */
+function capturingGroups(src: string): number {
+  let n = 0;
+  let inClass = false;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (ch === "\\") {
+      i++;
+      continue;
+    }
+    if (inClass) {
+      if (ch === "]") inClass = false;
+      continue;
+    }
+    if (ch === "[") inClass = true;
+    else if (ch === "(" && (src[i + 1] !== "?" || (src[i + 2] === "<" && src[i + 3] !== "=" && src[i + 3] !== "!"))) n++;
+  }
+  return n;
+}
+
+/** Parameter names in capture-group order (`null` for unnamed groups) of a matcher source. */
+export function matcherKeys(source: string): Array<string | null> {
+  const keys: Array<string | null> = [];
+  compileMatcherSource(source, keys);
+  return keys;
+}
+
 /**
  * Compile a matcher source: `/about`, `/blog/:slug`, `/docs/:path*`,
  * `/a/:rest+`, `/:locale?/x`, `/user/:id(\\d+)` and raw groups such as
  * `/((?!api|assets|favicon.ico).*)`. A trailing slash is optional.
  */
-export function compileMatcherSource(source: string): string {
+export function compileMatcherSource(source: string, keys: Array<string | null> = []): string {
   if (!source.startsWith("/")) throw new SyntaxError(`Middleware matcher must start with "/": ${JSON.stringify(source)}`);
   let re = "";
   let i = 0;
@@ -76,9 +106,11 @@ export function compileMatcherSource(source: string): string {
     const c = source[j] as string;
     if (c === ":" || c === "(") {
       let pattern = DEFAULT_SEGMENT;
+      let key: string | null = null;
       if (c === ":") {
         const m = /^:([A-Za-z_]\w*)/.exec(source.slice(j));
         if (!m) throw new SyntaxError(`Missing parameter name at ${j} in ${JSON.stringify(source)}`);
+        key = m[1] as string;
         j += m[0].length;
         if (source[j] === "(") {
           const [inner, end] = readGroup(source, j);
@@ -92,6 +124,15 @@ export function compileMatcherSource(source: string): string {
       }
       const mod = source[j];
       const p = escapeRe(prefix);
+      keys.push(key);
+      // `*` / `+` repeat the pattern once more in the emitted regex.
+      for (let n = capturingGroups(pattern) * (mod === "*" || mod === "+" ? 2 : 1); n > 0; n--) keys.push(null);
+      if (!prefix && pattern === DEFAULT_SEGMENT && (mod === "*" || mod === "+")) {
+        // No separator between repetitions: `(?:x+?)*` would backtrack exponentially.
+        re += mod === "*" ? "([^/#?]*)" : "([^/#?]+)";
+        i = j + 1;
+        continue;
+      }
       if (mod === "*") {
         re += `(?:${p}((?:${pattern})(?:${p}(?:${pattern}))*))?`;
         j++;
@@ -134,6 +175,12 @@ function conditionHolds(cond: MatcherCondition, request: Request, url: URL, cook
 
 const regexCache = new Map<string, RegExp>();
 
+/** `true` when some matcher's path pattern covers `pathname`, ignoring `has` / `missing` (build-time routing decisions). */
+export function matcherCouldMatch(matchers: readonly CompiledMatcher[] | null, pathname: string): boolean {
+  if (matchers === null) return true;
+  return matchers.some((m) => new RegExp(m.regex).test(pathname));
+}
+
 /** `true` when `pathname` (without basePath) is covered by the compiled matchers (`null` = every path). */
 export function matchesMiddleware(matchers: readonly CompiledMatcher[] | null, pathname: string, request?: Request): boolean {
   if (matchers === null) return true;
@@ -167,7 +214,17 @@ export type MiddlewareOutcome =
    * Continue. `request` carries overridden headers / cookies; `headers` must be
    * merged into the final response; `rewrite` is set for `NextResponse.rewrite()`.
    */
-  | { type: "next"; request: Request; headers: Headers; rewrite?: URL; matched: boolean };
+  | {
+      type: "next";
+      request: Request;
+      headers: Headers;
+      rewrite?: URL;
+      matched: boolean;
+      /** `NextResponse.next({ status })` / `rewrite(url, { status })`. */
+      status?: number;
+      /** The response depends on this request's cookies or identity (set cookies, rewrote, overrode headers). */
+      private?: boolean;
+    };
 
 export interface RunMiddlewareOptions {
   basePath?: string;
@@ -199,7 +256,23 @@ function stripBase(pathname: string, basePath: string): string {
   return pathname.startsWith(`${basePath}/`) ? pathname.slice(basePath.length) : pathname;
 }
 
-const INTERNAL: string[] = [MIDDLEWARE_NEXT, MIDDLEWARE_REWRITE, MIDDLEWARE_OVERRIDE_HEADERS, MIDDLEWARE_SET_COOKIE];
+const INTERNAL: string[] = [MIDDLEWARE_NEXT, MIDDLEWARE_REWRITE, MIDDLEWARE_OVERRIDE_HEADERS];
+
+function cancelUnread(request: Request): void {
+  if (request.body && !request.bodyUsed && !request.body.locked) request.body.cancel().catch(() => undefined);
+}
+
+/** Drop `x-middleware-*` headers from a response that is returned to the client as-is. */
+function stripInternal(response: Response): Response {
+  let found = false;
+  response.headers.forEach((_, key) => {
+    if (key.startsWith("x-middleware-")) found = true;
+  });
+  if (!found) return response;
+  const headers = new Headers(response.headers);
+  for (const key of [...headers.keys()]) if (key.startsWith("x-middleware-")) headers.delete(key);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
 
 /**
  * Run middleware for `request`. `request` is never consumed: middleware gets a
@@ -222,7 +295,15 @@ export async function runMiddleware(mod: MiddlewareModule, request: Request, opt
       else pending.push(p.catch(() => undefined));
     },
   };
-  const result = await fn(nextRequest, event);
+  let result: Awaited<ReturnType<NextMiddleware>>;
+  try {
+    result = await fn(nextRequest, event);
+  } finally {
+    // The tee buffers whatever one branch doesn't read: release middleware's copy
+    // (Bun keeps the wrapped request's own stream separate, so release both).
+    cancelUnread(nextRequest);
+    if (forwarded !== request) cancelUnread(request);
+  }
 
   // Cookies the middleware set on `request.cookies` are forwarded, like Next.js.
   const requestHeaders = new Headers(forwarded.headers);
@@ -233,11 +314,18 @@ export async function runMiddleware(mod: MiddlewareModule, request: Request, opt
   }
 
   if (!result) return { type: "next", request: rebuild(forwarded, requestHeaders), headers: new Headers(), matched: true };
-  if (!(result instanceof Response)) throw new TypeError("Middleware must return a `Response`, `NextResponse` or nothing.");
+  if (!(result instanceof Response)) {
+    cancelUnread(forwarded);
+    throw new TypeError("Middleware must return a `Response`, `NextResponse` or nothing.");
+  }
 
-  const rewriteTo = result.headers.get(MIDDLEWARE_REWRITE);
-  const isNext = result.headers.get(MIDDLEWARE_NEXT) === "1";
-  if (!rewriteTo && !isNext) return { type: "response", response: result };
+  const control = isMiddlewareControl(result);
+  const rewriteTo = control ? result.headers.get(MIDDLEWARE_REWRITE) : null;
+  const isNext = control && result.headers.get(MIDDLEWARE_NEXT) === "1";
+  if (!rewriteTo && !isNext) {
+    cancelUnread(forwarded);
+    return { type: "response", response: stripInternal(result) };
+  }
 
   const override = result.headers.get(MIDDLEWARE_OVERRIDE_HEADERS);
   let finalHeaders = requestHeaders;
@@ -274,7 +362,16 @@ export async function runMiddleware(mod: MiddlewareModule, request: Request, opt
   const target = rewriteTo ? new URL(rewriteTo, url) : undefined;
   const nextUrl = target && target.origin === url.origin ? target : undefined;
   if (pending.length > 0) void Promise.all(pending);
-  return { type: "next", request: rebuild(forwarded, finalHeaders, nextUrl), headers: responseHeaders, rewrite: target, matched: true };
+  const isPrivate = setCookies.length > 0 || target !== undefined || override !== null;
+  return {
+    type: "next",
+    request: rebuild(forwarded, finalHeaders, nextUrl),
+    headers: responseHeaders,
+    rewrite: target,
+    matched: true,
+    ...(result.status !== 200 ? { status: result.status } : {}),
+    ...(isPrivate ? { private: true } : {}),
+  };
 }
 
 /** Copy `request` with new headers (and optionally a new URL), moving its body. */
@@ -298,7 +395,7 @@ function sameHeaders(a: Headers, b: Headers): boolean {
  * platforms that run middleware at the edge and route afterwards (Vercel).
  */
 export function toMiddlewareResponse(outcome: MiddlewareOutcome, original: Request): Response {
-  if (outcome.type === "response") return outcome.response;
+  if (outcome.type === "response") return stripInternal(outcome.response);
   const headers = new Headers(outcome.headers);
   if (outcome.rewrite) headers.set(MIDDLEWARE_REWRITE, outcome.rewrite.href);
   else headers.set(MIDDLEWARE_NEXT, "1");
@@ -310,49 +407,37 @@ export function toMiddlewareResponse(outcome: MiddlewareOutcome, original: Reque
     });
     headers.set(MIDDLEWARE_OVERRIDE_HEADERS, keys.join(","));
   }
-  return new Response(null, { headers });
+  return new Response(null, { headers, status: outcome.status ?? 200 });
 }
 
-/** Return a copy of `response` with middleware headers applied (`Set-Cookie` appended, others only when absent). */
-export function withMiddlewareHeaders(response: Response, headers: Headers): Response {
+export interface MiddlewareMerge {
+  status?: number;
+  private?: boolean;
+}
+
+/**
+ * Return a copy of `response` with middleware headers applied: middleware
+ * cookies first, then the response's own; other headers only when absent.
+ */
+export function withMiddlewareHeaders(response: Response, headers: Headers, merge: MiddlewareMerge = {}): Response {
   let empty = true;
   headers.forEach(() => {
     empty = false;
   });
-  if (empty) return response;
-  const out = new Headers(response.headers);
+  const downgrade = merge.private === true && hasGeneratedCacheControl(response);
+  if (empty && merge.status === undefined && !downgrade) return response;
+  const out = new Headers();
   headers.forEach((value, key) => {
-    if (key === "set-cookie") return;
-    if (!out.has(key)) out.set(key, value);
+    if (key !== "set-cookie") out.set(key, value);
+  });
+  response.headers.forEach((value, key) => {
+    if (key !== "set-cookie") out.set(key, value);
   });
   for (const c of headers.getSetCookie()) out.append("set-cookie", c);
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers: out });
-}
-
-/** Forward `request` to an external URL (a middleware or config rewrite). Credentials are stripped for third-party origins. */
-export async function proxyFetch(request: Request, target: string | URL, options: { stripCredentials?: boolean } = {}): Promise<Response> {
-  const headers = new Headers(request.headers);
-  headers.delete("host");
-  headers.delete("connection");
-  if (options.stripCredentials !== false) {
-    headers.delete("cookie");
-    headers.delete("authorization");
-  }
-  const init: RequestInit & { duplex?: "half" } = { method: request.method, headers, redirect: "manual", signal: request.signal };
-  if (request.body && request.method !== "GET" && request.method !== "HEAD") {
-    init.body = request.body;
-    init.duplex = "half";
-  }
-  try {
-    const upstream = await fetch(target, init);
-    const out = new Headers(upstream.headers);
-    out.delete("content-encoding");
-    out.delete("content-length");
-    return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers: out });
-  } catch (error) {
-    return new Response(`▼ Text.js proxy error: ${String(target)}\n${error instanceof Error ? error.message : String(error)}`, {
-      status: 502,
-      headers: { "content-type": "text/plain; charset=utf-8" },
-    });
-  }
+  for (const c of response.headers.getSetCookie()) out.append("set-cookie", c);
+  if (downgrade) out.set("cache-control", PRIVATE_CACHE_CONTROL);
+  const status = merge.status ?? response.status;
+  const body = status === 204 || status === 205 || status === 304 ? null : response.body;
+  if (body === null && response.body) response.body.cancel().catch(() => undefined);
+  return new Response(body, { status, statusText: merge.status === undefined ? response.statusText : "", headers: out });
 }

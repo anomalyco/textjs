@@ -2,8 +2,11 @@
  * A minimal local emulation of Vercel's Build Output API v3 router, enough to
  * exercise `.vercel/output` from `text build --adapter vercel` without a
  * deploy: `config.json` routes (`src`, `dest`, `headers`, `continue`,
- * `middlewarePath`, `handle: "filesystem"`), static files, Node.js functions
+ * `middlewarePath`, `has` / `missing`, `status`, `handle: "filesystem"`,
+ * external `dest` proxying), static files, Node.js functions
  * (`launcherType: "Nodejs"`) and Edge middleware speaking `x-middleware-*`.
+ * Functions are part of the filesystem: a request for a function's path
+ * invokes it directly (as on Vercel) unless a route stops it first.
  *
  * Functions see the *original* request URL with `dest` query parameters
  * merged in (the stricter of Vercel's behaviors for the Text.js adapter).
@@ -15,13 +18,48 @@ import type { AddressInfo } from "node:net";
 import { extname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+interface Condition {
+  type: "header" | "cookie" | "query" | "host";
+  key?: string;
+  value?: string;
+}
+
 interface Route {
   src?: string;
   dest?: string;
   headers?: Record<string, string>;
   continue?: boolean;
+  status?: number;
   middlewarePath?: string;
+  has?: Condition[];
+  missing?: Condition[];
   handle?: string;
+}
+
+function cookieValue(header: string | null, name: string): string | undefined {
+  for (const part of (header ?? "").split(";")) {
+    const eq = part.indexOf("=");
+    if (eq > 0 && part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
+  }
+  return undefined;
+}
+
+function holds(c: Condition, headers: Headers, query: URLSearchParams): boolean {
+  let actual: string | null | undefined;
+  if (c.type === "header") actual = headers.get(c.key ?? "");
+  else if (c.type === "cookie") actual = cookieValue(headers.get("cookie"), c.key ?? "");
+  else if (c.type === "query") actual = query.get(c.key ?? "");
+  else actual = (headers.get("host") ?? "").replace(/:\d+$/, "");
+  if (actual === null || actual === undefined) return false;
+  return c.value === undefined || new RegExp(`^(?:${c.value})$`).test(actual);
+}
+
+/** The raw request target as a URL on the router's own origin (never another host). */
+function routerUrl(raw: string | undefined): URL {
+  const target = raw ?? "/";
+  if (target.startsWith("/")) return new URL(`http://vercel.local${target}`);
+  const u = new URL(target);
+  return new URL(`http://vercel.local${u.pathname}${u.search}`);
 }
 
 type NodeHandler = (req: IncomingMessage, res: ServerResponse) => unknown;
@@ -83,7 +121,7 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
 
   const router = createServer((req, res) => {
     void (async () => {
-      const original = new URL(req.url ?? "/", "http://vercel.local");
+      const original = routerUrl(req.url);
       let pathname = original.pathname;
       const query = new URLSearchParams(original.search);
       const headers = new Headers();
@@ -92,8 +130,10 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
       const out = new Headers();
       let phase: "main" | "filesystem" = "main";
 
+      // `NextResponse.next({ status })` / `rewrite(url, { status })`.
+      let middlewareStatus: number | undefined;
       const send = async (response: Response): Promise<void> => {
-        res.statusCode = response.status;
+        res.statusCode = middlewareStatus ?? response.status;
         response.headers.forEach((v, k) => {
           if (k !== "set-cookie") res.setHeader(k, v);
         });
@@ -113,9 +153,12 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
       const resolve = async (): Promise<void> => {
         const fn = functionUrls.get(pathname);
         if (fn) {
-          const target = new URL(original.pathname, fn);
+          const target = new URL(`${fn}${original.pathname}`);
           target.search = query.toString();
-          const response = await fetch(target, { method: req.method, headers, body, redirect: "manual" });
+          const forwarded = new Headers(headers);
+          forwarded.set("x-forwarded-host", req.headers.host ?? "vercel.local");
+          forwarded.set("x-forwarded-proto", "http");
+          const response = await fetch(target, { method: req.method, headers: forwarded, body, redirect: "manual" });
           return send(response);
         }
         if (await serveStatic()) return;
@@ -126,21 +169,27 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
         if (route.handle) {
           if (route.handle === "filesystem") {
             phase = "filesystem";
+            if (functionUrls.has(pathname)) return resolve();
             if (await serveStatic()) return;
           }
           continue;
         }
         const m = new RegExp(route.src ?? "^$").exec(pathname);
         if (!m) continue;
+        if (route.has && !route.has.every((c) => holds(c, headers, query))) continue;
+        if (route.missing && route.missing.some((c) => holds(c, headers, query))) continue;
+        if (route.status !== undefined && !route.dest) return send(new Response(null, { status: route.status }));
         if (route.headers) for (const [k, v] of Object.entries(route.headers)) out.set(k, v);
         if (route.middlewarePath) {
           const fn = edge.get(route.middlewarePath) as EdgeHandler;
           middlewareCalls.push(pathname);
-          const url = new URL(pathname, "http://vercel.local");
+          // The edge sees the public host, as on Vercel.
+          const url = new URL(`http://${req.headers.host ?? "vercel.local"}${pathname}`);
           url.search = query.toString();
           const result = await fn(new Request(url, { method: req.method, headers, body }), { waitUntil: () => undefined });
           const rewrite = result.headers.get("x-middleware-rewrite");
           if (!rewrite && result.headers.get("x-middleware-next") !== "1") return send(result);
+          if (result.status !== 200) middlewareStatus = result.status;
           const override = result.headers.get("x-middleware-override-headers");
           if (override !== null) {
             for (const k of [...headers.keys()]) if (!override.split(",").includes(k)) headers.delete(k);
@@ -159,9 +208,19 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
         }
         if (route.dest) {
           const dest = route.dest.replace(/\$(\d+)/g, (_, i: string) => m[Number(i)] ?? "");
-          const u = new URL(dest, "http://vercel.local");
+          if (/^[a-z]+:\/\//i.test(dest)) {
+            const upstream = new URL(dest);
+            query.forEach((v, k) => {
+              if (!upstream.searchParams.has(k)) upstream.searchParams.set(k, v);
+            });
+            const forwarded = new Headers(headers);
+            forwarded.delete("host");
+            return send(await fetch(upstream, { method: req.method, headers: forwarded, body, redirect: "manual" }));
+          }
+          const u = new URL(`http://vercel.local${dest.startsWith("/") ? "" : "/"}${dest}`);
           pathname = u.pathname;
-          u.searchParams.forEach((v, k) => query.set(k, v));
+          // Vercel appends the dest's query to the request's (the first value of a repeated key wins).
+          u.searchParams.forEach((v, k) => query.append(k, v));
           if (!route.continue) return resolve();
         }
         if (!route.continue && phase === "main") return resolve();

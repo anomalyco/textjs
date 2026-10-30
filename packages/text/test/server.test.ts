@@ -1,3 +1,4 @@
+import { VERSION } from "@textjs/core";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,7 +7,7 @@ import { flattenRoutes, matchAppRoutes } from "../src/routing";
 import { generateRoutesModule, isRouteFile, listApiRoutes, matchApiRoute, scanApp, toApiManifest, toStaticManifest } from "../src/server/scan";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { applyRewrites, compileRewrite, isLoopbackUrl, proxyRequest, runRouteHandler, sendWebResponse, toWebRequest } from "../src/server/http";
+import { applyRewrites, compileRewrite, isAllowedHost, isLoopbackUrl, isValidHostHeader, normalizeRequestTarget, proxyRequest, readRequestBody, requestOrigin, requestUrl, runRouteHandler, sendWebResponse, toWebRequest } from "../src/server/http";
 import { createEntryModule, createIndexHtml, generateApiModule, textjsVitePlugin } from "../src/vite-plugin";
 import { parseArgs } from "../src/cli/index";
 import { LEGEND, routeTable, stripAnsi, summarize } from "../src/cli/ui";
@@ -118,7 +119,7 @@ describe("vite plugin", () => {
     expect(html).toContain('id="__textjs"');
     expect(html).toContain('src="/@textjs/entry"');
     expect(html).toContain('rel="icon" href="data:image/svg+xml,');
-    expect(html).toContain("Text.js 0.4.0 (Turbolog)");
+    expect(html).toContain(`Text.js ${VERSION} (Turbolog)`);
   });
 
   test("config helpers", () => {
@@ -283,3 +284,69 @@ describe("node http bridge", () => {
   });
 });
 
+
+describe("request targets, origins and hosts", () => {
+  test("request targets keep one leading slash and never change the origin", () => {
+    expect(normalizeRequestTarget("//evil.com/x?y=1")).toBe("/evil.com/x?y=1");
+    expect(normalizeRequestTarget("/\\evil.com/x")).toBe("/evil.com/x");
+    expect(normalizeRequestTarget("http://evil.com/x?q")).toBe("/x?q");
+    expect(normalizeRequestTarget("*")).toBe("/");
+    expect(normalizeRequestTarget(undefined)).toBe("/");
+    expect(requestUrl("//evil.com/login", "http://localhost:3000").href).toBe("http://localhost:3000/evil.com/login");
+    expect(new URL("/login", requestUrl("/\\evil.com/a", "https://app.dev").href).host).toBe("app.dev");
+  });
+
+  test("origins come from validated headers; X-Forwarded-* only when trusted", () => {
+    const req = (headers: Record<string, string>) => ({ headers }) as never;
+    expect(requestOrigin(req({ host: "localhost:3000" }))).toBe("http://localhost:3000");
+    expect(requestOrigin(req({ host: "evil.com/x" }))).toBe("http://localhost");
+    expect(requestOrigin(req({ host: "app.dev", "x-forwarded-host": "evil.com", "x-forwarded-proto": "https" }))).toBe("http://app.dev");
+    expect(requestOrigin(req({ host: "internal:8080", "x-forwarded-host": "app.dev, proxy.local", "x-forwarded-proto": "https,http" }), { trustProxy: true })).toBe("https://app.dev");
+    expect(requestOrigin(req({ host: "x" }), { origin: "https://console.example.com/ignored" })).toBe("https://console.example.com");
+    expect(isAllowedHost("localhost:3000")).toBe(true);
+    expect(isAllowedHost("127.0.0.1")).toBe(true);
+    expect(isAllowedHost("[::1]:3000")).toBe(true);
+    expect(isAllowedHost("app.localhost")).toBe(true);
+    expect(isAllowedHost("attacker.example")).toBe(false);
+    expect(isAllowedHost("a.example.com", [".example.com"])).toBe(true);
+    expect(isAllowedHost("bad host")).toBe(false);
+    expect(isValidHostHeader("evil.com@x")).toBe(false);
+  });
+
+  test("Node request bodies: cancelling mid-upload is safe, readRequestBody caps size", async () => {
+    let seen = 0;
+    const errors: unknown[] = [];
+    const onError = (e: unknown): void => {
+      errors.push(e);
+    };
+    process.on("uncaughtException", onError);
+    const server = createServer((req, res) => {
+      void (async () => {
+        if (req.url === "/cap") {
+          const body = await readRequestBody(req, 10);
+          res.end(body === null ? "too large" : body);
+          return;
+        }
+        const request = toWebRequest(req, "http://127.0.0.1", res);
+        const reader = (request.body as ReadableStream<Uint8Array>).getReader();
+        seen = ((await reader.read()).value?.byteLength ?? 0) > 0 ? 1 : 0;
+        await reader.cancel();
+        res.end("cancelled");
+      })();
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    try {
+      const res = await fetch(`${origin}/upload`, { method: "POST", body: new Uint8Array(4 * 1024 * 1024) });
+      expect(await res.text()).toBe("cancelled");
+      expect(seen).toBe(1);
+      expect(await (await fetch(`${origin}/cap`, { method: "POST", body: "0123456789abc" })).text()).toBe("too large");
+      expect(await (await fetch(`${origin}/cap`, { method: "POST", body: "short ▼" })).text()).toBe("short ▼");
+      await new Promise((r) => setTimeout(r, 50));
+      expect(errors).toEqual([]);
+    } finally {
+      process.off("uncaughtException", onError);
+      await new Promise<void>((r) => server.close(() => r()));
+    }
+  });
+});

@@ -20,6 +20,7 @@ import { randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { LIVE_PATH, LIVE_PROTOCOL_VERSION, LIVE_SESSION_HEADER, LiveFrameEncoder, MAX_COLS, MAX_ROWS, parseLiveInput, sseEvent, type LiveInput, type LiveServerMessage } from "../live-protocol";
 import type { LiveApp, LiveAppOptions, RouteRuntime } from "./live-app";
+import { readRequestBody } from "./http";
 
 export type LiveAppInit = Omit<LiveAppOptions, "routes" | "theme" | "defaultTitle">;
 
@@ -334,19 +335,8 @@ export class LiveServer {
       res.end();
       return;
     }
-    let raw = "";
-    let size = 0;
-    let tooLarge = false;
-    req.setEncoding("utf8");
-    for await (const chunk of req as AsyncIterable<string>) {
-      size += chunk.length;
-      if (size > MAX_BODY) {
-        tooLarge = true;
-        break;
-      }
-      raw += chunk;
-    }
-    if (tooLarge) {
+    const raw = await readRequestBody(req, MAX_BODY);
+    if (raw === null) {
       res.statusCode = 413;
       res.setHeader("Connection", "close");
       res.end();

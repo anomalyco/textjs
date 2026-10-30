@@ -10,9 +10,9 @@ import type { Rewrite } from "../../config";
 import { matchAppRoutes, type RouteManifest, type RouteSegmentNode } from "../../routing";
 import { runRouteHandlerWithCache } from "../cache-route";
 import { setCacheStore, type CacheStore } from "../cache";
-import { applyRewrites, compileRewrite, isLoopbackUrl, type RouteHandlerModule } from "../http";
+import { applyRewrites, compileRewrite, isLoopbackUrl, normalizeRequestTarget, proxyFetch, type RouteHandlerModule } from "../http";
 import type { MiddlewareModule } from "../middleware";
-import { proxyFetch, rebuild, runMiddleware, withMiddlewareHeaders } from "../middleware-runtime";
+import { rebuild, runMiddleware, withMiddlewareHeaders, type MiddlewareMerge } from "../middleware-runtime";
 
 export interface RequestContext {
   waitUntil?: (promise: Promise<unknown>) => void;
@@ -34,6 +34,11 @@ export interface RequestHandlerOptions {
   assets?: (pathname: string, request: Request, context: RequestContext) => Promise<Response | null> | Response | null;
   /** The SPA document (`index.html`) for page routes. */
   document?: (request: Request, context: RequestContext) => Promise<Response | null> | Response | null;
+  /**
+   * Server-rendered routes (`runtime = "server"`) and prerendered shells, after
+   * middleware and rewrites. `url` is the path and query without basePath.
+   */
+  live?: (request: Request, url: string, context: RequestContext) => Promise<Response | null> | Response | null;
 }
 
 export type TextRequestHandler = (request: Request, context?: RequestContext) => Promise<Response>;
@@ -69,7 +74,11 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
   const rewrites = (options.rewrites ?? []).map(compileRewrite);
   if (options.cacheStore) setCacheStore(options.cacheStore);
 
-  return async (incoming, context = {}) => {
+  return async (raw, context = {}) => {
+    // `//evil.com/x` (and `/\evil.com/x`) must never resolve to another origin downstream.
+    const rawUrl = new URL(raw.url);
+    const normalized = normalizeRequestTarget(`${rawUrl.pathname}${rawUrl.search}`);
+    const incoming = normalized === `${rawUrl.pathname}${rawUrl.search}` ? raw : rebuild(raw, new Headers(raw.headers), new URL(normalized, rawUrl.origin));
     const url = new URL(incoming.url);
     const stripped = stripBase(url.pathname, basePath);
     if (stripped === null) return notFound();
@@ -77,13 +86,15 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
     let search = url.search;
     let request = incoming;
     let extra: Headers | null = null;
-    const finish = (response: Response): Response => (extra ? withMiddlewareHeaders(response, extra) : response);
+    let merge: MiddlewareMerge = {};
+    const finish = (response: Response): Response => (extra ? withMiddlewareHeaders(response, extra, merge) : response);
 
     if (options.middleware && !options.skipMiddleware) {
       const outcome = await runMiddleware(options.middleware, request, { basePath, waitUntil: context.waitUntil });
       if (outcome.type === "response") return outcome.response;
       request = outcome.request;
       extra = outcome.headers;
+      merge = { status: outcome.status, private: outcome.private };
       if (outcome.rewrite) {
         if (outcome.rewrite.origin !== url.origin) return finish(await proxyFetch(request, outcome.rewrite, { stripCredentials: !isLoopbackUrl(outcome.rewrite.href) }));
         const p = stripBase(outcome.rewrite.pathname, basePath);
@@ -102,6 +113,11 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
       }
     }
 
+    if (options.live) {
+      const live = await options.live(request, pathname + search, context);
+      if (live) return finish(live);
+    }
+
     const decoded = safeDecode(pathname);
     if (decoded === null) return finish(new Response("400 | Bad Request", { status: 400 }));
     const api = matchApi(options.manifest, decoded);
@@ -114,7 +130,7 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
 
     const method = request.method.toUpperCase();
     if (method !== "GET" && method !== "HEAD") return finish(new Response(null, { status: 405, headers: { allow: "GET, HEAD" } }));
-    const hidden = decoded.split("/").some((p) => p.startsWith(".") && p.length > 1);
+    const hidden = decoded.split(/[/\\]/).some((p) => p.startsWith(".") && p.length > 1);
     if (!hidden && options.assets) {
       const asset = await options.assets(decoded, request, context);
       if (asset) return finish(asset);

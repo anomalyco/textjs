@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { NextRequest, NextResponse, parseCookieHeader, parseSetCookie, RequestCookies, ResponseCookies, serializeCookie, type MiddlewareModule } from "../src/server/middleware";
-import { compileMatcher, compileMatcherSource, matchesMiddleware, runMiddleware, toMiddlewareResponse, withMiddlewareHeaders } from "../src/server/middleware-runtime";
+import { NextRequest, NextResponse, NextURL, parseCookieHeader, parseSetCookie, RequestCookies, ResponseCookies, serializeCookie, type MiddlewareModule } from "../src/server/middleware";
+import { compileMatcher, compileMatcherSource, matcherKeys, matchesMiddleware, runMiddleware, toMiddlewareResponse, withMiddlewareHeaders } from "../src/server/middleware-runtime";
+import { rewriteRoute } from "../src/server/adapters/shared";
 
 const match = (matcher: Parameters<typeof compileMatcher>[0], path: string, request?: Request): boolean => matchesMiddleware(compileMatcher(matcher), path, request);
 
@@ -222,18 +223,90 @@ describe("runMiddleware", () => {
     expect(plain.headers.has("x-middleware-override-headers")).toBe(false);
   });
 
-  test("withMiddlewareHeaders appends cookies and never clobbers handler headers", () => {
+  test("withMiddlewareHeaders puts middleware cookies first (as on Node) and never clobbers handler headers", () => {
     const h = new Headers({ "x-a": "mw", "x-b": "mw" });
     h.append("set-cookie", "m=1; Path=/");
     const res = withMiddlewareHeaders(new Response("ok", { headers: { "x-a": "handler", "set-cookie": "h=1; Path=/" } }), h);
     expect(res.headers.get("x-a")).toBe("handler");
     expect(res.headers.get("x-b")).toBe("mw");
-    expect(res.headers.getSetCookie()).toEqual(["h=1; Path=/", "m=1; Path=/"]);
+    expect(res.headers.getSetCookie()).toEqual(["m=1; Path=/", "h=1; Path=/"]);
   });
 
   test("rejects modules without a function and non-Response results", async () => {
     await expect(runMiddleware({}, new Request("http://x.dev/"))).rejects.toThrow(/must export a `middleware` function/);
     await expect(runMiddleware(mod((() => "nope") as never), new Request("http://x.dev/"))).rejects.toThrow(/must return a `Response`/);
     expect((await runMiddleware({ default: () => NextResponse.json({ d: 1 }) }, new Request("http://x.dev/"))).type).toBe("response");
+  });
+});
+
+describe("middleware hardening", () => {
+  test("unprefixed :param* / :param+ compile without nested quantifiers (no ReDoS)", () => {
+    const re = new RegExp(compileMatcherSource("/files-:name*"));
+    const input = `/files-${"a".repeat(40)}/x`;
+    const t0 = performance.now();
+    expect(re.test(input)).toBe(false);
+    expect(performance.now() - t0).toBeLessThan(50);
+    expect(re.test("/files-abc")).toBe(true);
+    expect(re.test("/files-")).toBe(true);
+    expect(new RegExp(compileMatcherSource("/v:ver+")).test("/v")).toBe(false);
+    expect(new RegExp(compileMatcherSource("/v:ver+")).test("/v12")).toBe(true);
+  });
+
+  test("capture keys count unnamed groups (Vercel rewrite $n)", () => {
+    expect(matcherKeys("/(a|b)/:id")).toEqual([null, "id"]);
+    expect(matcherKeys("/user/:id(\\d+)/:tab")).toEqual(["id", "tab"]);
+    expect(matcherKeys("/x/:p((a)|b)")).toEqual(["p", null]);
+    expect(rewriteRoute({ source: "/(en|fr)/docs/:slug", destination: "/docs/:slug" }).dest).toBe("/docs/$2");
+  });
+
+  test("only NextResponse.next() / rewrite() steer routing; other responses lose x-middleware-* headers", async () => {
+    const plain = await runMiddleware(mod(() => new Response("upstream", { headers: { "x-middleware-rewrite": "http://x.dev/admin", "x-middleware-next": "1" } })), new Request("http://x.dev/"));
+    expect(plain.type).toBe("response");
+    if (plain.type !== "response") throw new Error("unreachable");
+    expect(plain.response.headers.has("x-middleware-rewrite")).toBe(false);
+    expect(await plain.response.text()).toBe("upstream");
+    const vercel = toMiddlewareResponse(plain, new Request("http://x.dev/"));
+    expect(vercel.headers.has("x-middleware-next")).toBe(false);
+    const next = await runMiddleware(mod(() => NextResponse.rewrite(new URL("http://x.dev/y"), { status: 404 })), new Request("http://x.dev/"));
+    expect(next).toMatchObject({ type: "next", status: 404, private: true });
+    const plainNext = await runMiddleware(mod(() => NextResponse.next()), new Request("http://x.dev/"));
+    expect(plainNext).toMatchObject({ type: "next", matched: true });
+    expect("private" in plainNext).toBe(false);
+  });
+
+  test("NextURL: href includes basePath, instanceof works across module copies", () => {
+    const u = new NextURL("http://x.dev/console/a?q=1", undefined, "/console");
+    expect(u.pathname).toBe("/a");
+    expect(u.href).toBe("http://x.dev/console/a?q=1");
+    expect(String(u)).toBe(u.href);
+    expect(u.clone().href).toBe(u.href);
+    u.href = "http://x.dev/console/b";
+    expect(u.pathname).toBe("/b");
+    const foreign = Object.assign(new URL("http://x.dev/console/a"), { [Symbol.for("textjs.nextUrl")]: true });
+    expect(foreign instanceof NextURL).toBe(true);
+    expect(NextResponse.redirect(u).headers.get("location")).toBe("http://x.dev/console/b");
+  });
+
+  test("cookie path / domain can't inject attributes or headers", () => {
+    expect(() => serializeCookie({ name: "a", value: "1", path: "/; Domain=evil.example" })).toThrow(/Invalid cookie path/);
+    expect(() => serializeCookie({ name: "a", value: "1", domain: "x.dev\r\nSet-Cookie: b=2" })).toThrow(/Invalid cookie domain/);
+    expect(serializeCookie({ name: "a", value: "1; b=2" })).toBe("a=1%3B%20b%3D2; Path=/");
+  });
+
+  test("the tee'd body copies are released when middleware answers or ignores the body", async () => {
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      pull(c) {
+        c.enqueue(new Uint8Array(1024));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const req = new Request("http://x.dev/upload", { method: "POST", body, duplex: "half" } as RequestInit);
+    const out = await runMiddleware(mod(() => new Response("no", { status: 401 })), req);
+    expect(out.type).toBe("response");
+    await new Promise((r) => setTimeout(r, 10));
+    expect(cancelled).toBe(true);
   });
 });

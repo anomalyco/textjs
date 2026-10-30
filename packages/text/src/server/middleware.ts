@@ -15,8 +15,20 @@ export const MIDDLEWARE_NEXT = "x-middleware-next";
 export const MIDDLEWARE_REWRITE = "x-middleware-rewrite";
 export const MIDDLEWARE_OVERRIDE_HEADERS = "x-middleware-override-headers";
 export const MIDDLEWARE_REQUEST_PREFIX = "x-middleware-request-";
-/** Cookies set on a `next()` / `rewrite()` response, forwarded to the downstream request. */
-export const MIDDLEWARE_SET_COOKIE = "x-middleware-set-cookie";
+
+/**
+ * Brands `NextResponse.next()` / `NextResponse.rewrite()` results. Only these
+ * steer routing: an arbitrary `Response` (say, a proxied `fetch()`) carrying
+ * `x-middleware-*` headers is returned to the client as-is.
+ */
+export const MIDDLEWARE_CONTROL = Symbol.for("textjs.middlewareControl");
+const NEXT_URL_BRAND = Symbol.for("textjs.nextUrl");
+const NEXT_RESPONSE_BRAND = Symbol.for("textjs.nextResponse");
+
+/** `true` for responses created by `NextResponse.next()` / `NextResponse.rewrite()` (from any copy of this module). */
+export function isMiddlewareControl(response: Response): boolean {
+  return (response as unknown as Record<symbol, unknown>)[MIDDLEWARE_CONTROL] === true;
+}
 
 // ---------------------------------------------------------------------------
 // Cookies
@@ -71,6 +83,9 @@ const COOKIE_NAME = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
 export function serializeCookie(cookie: ResponseCookie): string {
   if (!COOKIE_NAME.test(cookie.name)) throw new TypeError(`Invalid cookie name: ${JSON.stringify(cookie.name)}`);
   const parts = [`${cookie.name}=${encodeURIComponent(cookie.value)}`];
+  for (const [attr, v] of [["path", cookie.path], ["domain", cookie.domain]] as const) {
+    if (v !== undefined && /[;\u0000-\u001f\u007f]/.test(v)) throw new TypeError(`Invalid cookie ${attr}: ${JSON.stringify(v)}`);
+  }
   parts.push(`Path=${cookie.path ?? "/"}`);
   if (cookie.domain) parts.push(`Domain=${cookie.domain}`);
   if (cookie.expires !== undefined) parts.push(`Expires=${new Date(cookie.expires).toUTCString()}`);
@@ -234,29 +249,37 @@ export class ResponseCookies {
 // NextURL / NextRequest
 // ---------------------------------------------------------------------------
 
-/** A `URL` whose `pathname` excludes the app's `basePath` (re-added when passed to `redirect()` / `rewrite()`). */
+/**
+ * A `URL` whose `pathname` excludes the app's `basePath`. `href`, `toString()`
+ * and `toJSON()` include it, so `new URL("/x", request.nextUrl)` and
+ * `redirect(request.nextUrl)` stay inside the app.
+ */
 export class NextURL extends URL {
   basePath: string;
 
   constructor(input: string | URL, base?: string | URL, basePath = "") {
     super(input, base);
     this.basePath = basePath;
+    (this as unknown as Record<symbol, boolean>)[NEXT_URL_BRAND] = true;
     if (basePath && (this.pathname === basePath || this.pathname.startsWith(`${basePath}/`))) {
       this.pathname = this.pathname.slice(basePath.length) || "/";
     }
   }
 
+  /** Recognizes `NextURL`s from other copies of this module (dev SSR vs the CLI). */
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return typeof value === "object" && value !== null && (value as Record<symbol, unknown>)[NEXT_URL_BRAND] === true;
+  }
+
   /** The full URL including `basePath`. */
   toAbsolute(): URL {
-    const u = new URL(this.href);
+    const u = new URL(rawHref(this));
     if (this.basePath) u.pathname = this.basePath + (this.pathname === "/" ? "" : this.pathname) || "/";
     return u;
   }
 
   clone(): NextURL {
-    const c = new NextURL(this.href);
-    c.basePath = this.basePath;
-    return c;
+    return new NextURL(this.toAbsolute(), undefined, this.basePath);
   }
 
   override toString(): string {
@@ -267,6 +290,25 @@ export class NextURL extends URL {
     return this.toString();
   }
 }
+
+const URL_HREF = Object.getOwnPropertyDescriptor(URL.prototype, "href") as PropertyDescriptor;
+
+function rawHref(url: URL): string {
+  return URL_HREF.get?.call(url) as string;
+}
+
+Object.defineProperty(NextURL.prototype, "href", {
+  configurable: true,
+  enumerable: true,
+  get(this: NextURL) {
+    return this.toAbsolute().href;
+  },
+  set(this: NextURL, value: string) {
+    URL_HREF.set?.call(this, value);
+    const { basePath } = this;
+    if (basePath && (this.pathname === basePath || this.pathname.startsWith(`${basePath}/`))) this.pathname = this.pathname.slice(basePath.length) || "/";
+  },
+});
 
 export interface NextRequestInit extends RequestInit {
   basePath?: string;
@@ -301,6 +343,7 @@ export interface MiddlewareResponseInit extends ResponseInit {
 function destination(url: string | URL): string {
   if (url instanceof NextURL) return url.toAbsolute().href;
   if (url instanceof URL) return url.href;
+  if (typeof url === "object" && url !== null && typeof (url as { toAbsolute?: unknown }).toAbsolute === "function") return (url as NextURL).toAbsolute().href;
   try {
     return new URL(url).href;
   } catch {
@@ -319,6 +362,11 @@ function applyRequestOverride(headers: Headers, init: MiddlewareResponseInit | u
   headers.set(MIDDLEWARE_OVERRIDE_HEADERS, keys.join(","));
 }
 
+function control(response: NextResponse): NextResponse {
+  (response as unknown as Record<symbol, boolean>)[MIDDLEWARE_CONTROL] = true;
+  return response;
+}
+
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 
 export class NextResponse<Body = unknown> extends Response {
@@ -329,6 +377,11 @@ export class NextResponse<Body = unknown> extends Response {
   constructor(body?: BodyInit | null, init?: ResponseInit) {
     super(body, init);
     this.cookies = new ResponseCookies(this.headers);
+    (this as unknown as Record<symbol, boolean>)[NEXT_RESPONSE_BRAND] = true;
+  }
+
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return typeof value === "object" && value !== null && (value as Record<symbol, unknown>)[NEXT_RESPONSE_BRAND] === true;
   }
 
   static override json<T>(body: T, init?: ResponseInit): NextResponse<T> {
@@ -351,7 +404,7 @@ export class NextResponse<Body = unknown> extends Response {
     const headers = new Headers(init?.headers);
     headers.set(MIDDLEWARE_REWRITE, destination(url));
     applyRequestOverride(headers, init);
-    return new NextResponse(null, { ...init, headers });
+    return control(new NextResponse(null, { ...init, headers }));
   }
 
   /** Continue to the route handler / page, optionally adding response or request headers. */
@@ -359,7 +412,7 @@ export class NextResponse<Body = unknown> extends Response {
     const headers = new Headers(init?.headers);
     headers.set(MIDDLEWARE_NEXT, "1");
     applyRequestOverride(headers, init);
-    return new NextResponse(null, { ...init, headers });
+    return control(new NextResponse(null, { ...init, headers }));
   }
 }
 

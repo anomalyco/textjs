@@ -4,10 +4,11 @@
 
 import { existsSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { join } from "node:path";
-import { isLoopbackUrl, sendWebResponse, toWebRequest } from "./http";
+import { join, relative, sep } from "node:path";
+import { LIVE_PATH } from "../live-protocol";
+import { isLoopbackUrl, proxyFetch, requestOrigin, requestUrl, sendWebResponse, setMiddlewareState, toWebRequest } from "./http";
 import type { MiddlewareModule } from "./middleware";
-import { MIDDLEWARE_FILES, proxyFetch, runMiddleware } from "./middleware-runtime";
+import { matchesMiddleware, MIDDLEWARE_FILES, middlewareMatchers, runMiddleware } from "./middleware-runtime";
 
 /** `toWebRequest()` returns this request (once) instead of re-reading the Node stream. */
 export const WEB_REQUEST = Symbol.for("textjs.webRequest");
@@ -31,23 +32,35 @@ export interface NodeMiddlewareOptions {
   origin: string;
 }
 
+/** Request headers of a Node request, for matching before the body is touched. */
+export function nodeHeaders(req: IncomingMessage): Headers {
+  const headers = new Headers();
+  for (const [k, v] of Object.entries(req.headers)) {
+    if (v === undefined) continue;
+    if (Array.isArray(v)) for (const item of v) headers.append(k, item);
+    else headers.set(k, v);
+  }
+  return headers;
+}
+
 /**
  * Run middleware for a Node request (`req.url` must still include basePath).
  * Resolves to the app URL to continue with (no basePath, may be rewritten),
  * or `null` once middleware has sent the response itself.
  */
 export async function runNodeMiddleware(mod: MiddlewareModule, req: IncomingMessage, res: ServerResponse, options: NodeMiddlewareOptions): Promise<string | null> {
+  const url = requestUrl(req.url, options.origin);
+  const pathname = stripBase(url.pathname, options.basePath);
+  // Match on the URL and headers first: unmatched requests keep their Node body stream untouched.
+  const probe = new Request(url, { method: "GET", headers: nodeHeaders(req) });
+  if (pathname === null || !matchesMiddleware(middlewareMatchers(mod), pathname, probe)) {
+    return `${pathname ?? url.pathname}${url.search}`;
+  }
   const request = toWebRequest(req, options.origin, res);
-  const outcome = await runMiddleware(mod, request, { basePath: options.basePath });
-  const url = new URL(request.url);
+  const outcome = await runMiddleware(mod, request, { basePath: options.basePath, matchers: null });
   if (outcome.type === "response") {
     await sendWebResponse(res, outcome.response, request.method);
     return null;
-  }
-  if (!outcome.matched) {
-    // Untouched: let downstream re-read the original request.
-    (req as unknown as Record<symbol, Request>)[WEB_REQUEST] = outcome.request;
-    return `${stripBase(url.pathname, options.basePath) ?? url.pathname}${url.search}`;
   }
 
   outcome.headers.forEach((value, key) => {
@@ -55,6 +68,7 @@ export async function runNodeMiddleware(mod: MiddlewareModule, req: IncomingMess
   });
   const cookies = outcome.headers.getSetCookie();
   if (cookies.length > 0) res.setHeader("set-cookie", cookies);
+  if (outcome.private || outcome.status !== undefined) setMiddlewareState(res, { private: outcome.private, status: outcome.status });
 
   // Mirror forwarded headers onto the Node request (Vite and proxies read `req.headers`).
   const forwarded = outcome.request.headers;
@@ -73,14 +87,45 @@ export async function runNodeMiddleware(mod: MiddlewareModule, req: IncomingMess
   return `${stripBase(target.pathname, options.basePath) ?? target.pathname}${target.search}`;
 }
 
-/** Vite-served module and tooling requests never run middleware in `text dev` (they don't exist in production). */
+const SOURCE_EXT = /\.(?:[cm]?[jt]sx?)$/;
+
+/**
+ * Server-only sources `text dev` must never hand to the browser as modules:
+ * `middleware.ts`, `text.config.*`, the cache handler, route handlers,
+ * `*.server.*` modules and `.env` files.
+ */
+export function isServerOnlySource(pathname: string, root: string, appDir = "app", extra: readonly string[] = []): boolean {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return false;
+  }
+  const rel = decoded.replace(/^[/\\]+/, "").replace(/\\/g, "/");
+  const name = rel.split("/").pop() ?? "";
+  if (/^\.env(?:\..*)?$/.test(name)) return true;
+  if ((MIDDLEWARE_FILES as readonly string[]).includes(rel) || /^text\.config\.[cm]?[jt]s$/.test(rel)) return true;
+  if (/\.server\.[cm]?[jt]sx?$/.test(name)) return true;
+  if (rel.startsWith(`${appDir.replace(/^\.?\//, "")}/`) && /^route\.[cm]?[jt]sx?$/.test(name)) return true;
+  return extra.some((file) => {
+    const r = relative(root, file).split(sep).join("/");
+    return r === rel && SOURCE_EXT.test(r);
+  });
+}
+
+/**
+ * Vite-served module and tooling requests never run middleware in `text dev`
+ * (they don't exist in production). `pathname` excludes basePath. The live
+ * session endpoint is not internal: it serves app routes.
+ */
 export function isDevInternalRequest(rawUrl: string, root: string): boolean {
   const pathname = rawUrl.split("?")[0] ?? "/";
+  if (pathname === LIVE_PATH) return false;
   if (pathname.startsWith("/@") || pathname.startsWith("/node_modules/") || pathname.startsWith("/__")) return true;
   // Source files Vite serves as modules (`/app/page.tsx?t=…`); `public/` files still run middleware, as in production.
   try {
     const file = join(root, decodeURIComponent(pathname));
-    return file.startsWith(root) && statSync(file).isFile();
+    return file.startsWith(root + sep) && statSync(file).isFile();
   } catch {
     return false;
   }
@@ -98,12 +143,13 @@ export function createDevMiddleware(server: DevServerLike, options: { root: stri
   return async (req: IncomingMessage, res: ServerResponse, next: Next): Promise<void> => {
     const file = findMiddlewareFile(options.root);
     const raw = req.url ?? "/";
-    if (!file || isDevInternalRequest(raw, options.root)) return next();
-    if (stripBase(raw.split("?")[0] ?? "/", options.basePath) === null) return next();
+    if (!file) return next();
+    const stripped = stripBase(raw.split("?")[0] ?? "/", options.basePath);
+    if (stripped === null || isDevInternalRequest(stripped, options.root)) return next();
     const started = performance.now();
     try {
       const mod = (await server.ssrLoadModule(file)) as MiddlewareModule;
-      const url = await runNodeMiddleware(mod, req, res, { basePath: options.basePath, origin: `http://${req.headers.host ?? "localhost"}` });
+      const url = await runNodeMiddleware(mod, req, res, { basePath: options.basePath, origin: requestOrigin(req) });
       if (url === null) {
         options.log?.info(` ${req.method} ${raw} ${res.statusCode} (middleware) in ${Math.round(performance.now() - started)}ms`);
         return;

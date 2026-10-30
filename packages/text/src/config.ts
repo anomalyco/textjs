@@ -78,6 +78,27 @@ export interface TextConfig {
   ppr?: boolean;
   /** Server-rendered routes (`export const runtime = "server"`). */
   live?: LiveConfig;
+  /** `text start` request handling: public origin, reverse proxies and allowed hosts. */
+  server?: ServerConfig;
+}
+
+export interface ServerConfig {
+  /**
+   * The public origin (`https://console.example.com`). When set, `request.url`
+   * always uses it instead of the `Host` header. Also `TEXTJS_ORIGIN`.
+   */
+  origin?: string;
+  /**
+   * Trust `X-Forwarded-Host` / `X-Forwarded-Proto` from a reverse proxy in
+   * front of `text start` (default `false`; also `TRUST_PROXY=1`).
+   */
+  trustProxy?: boolean;
+  /**
+   * Extra `Host` names `text start` answers when bound to loopback (default:
+   * `localhost`, `*.localhost` and IP addresses). `true` disables the check.
+   * A leading `.` allows subdomains.
+   */
+  allowedHosts?: string[] | true;
 }
 
 export interface LiveConfig {
