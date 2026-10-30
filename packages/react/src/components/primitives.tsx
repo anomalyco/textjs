@@ -1,5 +1,5 @@
 import { memo, useCallback, type NamedExoticComponent, type ReactNode } from "react";
-import { ATTR_BOLD, parseColor, stringWidth, type CellBuffer, type ColorInput, type ComputedRect } from "@textjs/core";
+import { ATTR_BOLD, drawLogicalText, parseColor, stringWidth, type CellBuffer, type ColorInput, type ComputedRect } from "@textjs/core";
 import { TxBox } from "../host";
 import { resolveColor, useTheme } from "../theme";
 import { Text } from "./Text";
@@ -48,7 +48,7 @@ export const Divider: NamedExoticComponent<DividerProps> = memo(function Divider
         const label = ` ${title} `;
         const w = Math.min(stringWidth(label), r.width - 2);
         const x = titleAlign === "center" ? Math.floor((r.width - w) / 2) : titleAlign === "right" ? r.width - w - 2 : 2;
-        buf.drawLogicalText(r.x + x, r.y, label, labelColor, 0, ATTR_BOLD, w);
+        drawLogicalText(buf, r.x + x, r.y, label, labelColor, 0, ATTR_BOLD, w);
       }
     },
     [ch, lineColor, labelColor, title, titleAlign, vertical],

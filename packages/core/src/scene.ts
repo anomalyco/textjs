@@ -37,7 +37,7 @@ import {
   type YogaNode,
 } from "./layout";
 import { ELLIPSIS, layoutGraphemeLines, segmentGraphemes, type Grapheme, type TextLine, type WrapMode } from "./text-measure";
-import { graphemesNeedBidi, resolveGraphemeBidi, visualizeLine, type GraphemeBidi, type TextDirection, type VisualLine } from "./bidi";
+import { drawLogicalText, graphemesNeedBidi, resolveGraphemeBidi, visualizeLine, type GraphemeBidi, type TextDirection, type VisualLine } from "./bidi";
 
 export type SceneNodeType = "box" | "text" | "raw-text";
 /** `"start"`/`"end"` follow each paragraph's direction; unset text aligns to `"start"`. */
@@ -1234,6 +1234,7 @@ class Painter {
       bx.bottomTitleColor = s.bottomTitleColor ?? bx.fg;
       bx.bottomTitleAlign = p.bottomTitleAlign;
       bx.bottomTitleAttrs = 0;
+      bx.drawTitleText = drawLogicalText;
       buf.drawBox(bx);
     }
     if (p.customPaint) p.customPaint(buf, sr, this.options.focusedNode === node);

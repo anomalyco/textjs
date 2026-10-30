@@ -9,6 +9,7 @@ import {
   CellBuffer,
   createCanvasMeasurer,
   CssConsoleDriver,
+  drawLogicalText,
   hasRtl,
   initYoga,
   joiningType,
@@ -307,7 +308,7 @@ describe("scene rendering", () => {
     // Pure-LTR titles take the unchanged drawText path.
     expect(top({ title: "Hello (1)" }, 15)).toBe("┌─ Hello (1) ─┐");
     const buf = new CellBuffer(8, 1);
-    expect(buf.drawLogicalText(0, 0, "abc שלום", 0, 0, 0, 6)).toBe(6);
+    expect(drawLogicalText(buf, 0, 0, "abc שלום", 0, 0, 0, 6)).toBe(6);
     expect(buf.rowText(0)).toBe("abc לש  ");
   });
 

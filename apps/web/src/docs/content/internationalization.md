@@ -53,7 +53,7 @@ On a nested `<Text>`, `dir` isolates the span like HTML's `<bdi>`: its content i
 | Terminals (`AnsiDriver`, `text run`) | Rows with right-to-left text are wrapped in `LRO … PDF` for terminals that run bidi per line. `renderToTerminal` switches to ECMA-48 BDSM explicit mode (`CSI 8 l`, honoured by VTE-based terminals) once on entry and back to implicit mode (`CSI 8 h`) on exit; one-shot `renderToAnsi` frames that contain right-to-left text start with `CSI 8 l`. Pass `bidi: "none"` to emit cells as-is. |
 | DOM mirrors (`<ConsoleMirror>`) | The mirror is `direction: ltr` (so an RTL host page can't flip it), and spans containing right-to-left text get `unicode-bidi: bidi-override`. |
 
-`<Box title>`, `<Box bottomTitle>` and `<Divider title>` go through the same steps (`CellBuffer.drawLogicalText` draws any single line this way), so their labels display in order and joined.
+`<Box title>`, `<Box bottomTitle>` and `<Divider title>` go through the same steps (`drawLogicalText(buffer, x, y, text, …)` draws any single line this way), so their labels display in order and joined.
 
 Text without right-to-left characters skips all of this. A pure left-to-right text model is detected while its graphemes are segmented (one comparison per grapheme) and paints through the unchanged path; console frames are byte-identical.
 

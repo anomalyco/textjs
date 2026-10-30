@@ -11,6 +11,8 @@
  */
 
 import { ARABIC_FORMS, BIDI_BRACKETS, BIDI_CLASS_RANGES, BIDI_MIRRORS, JOINING_TYPE_RANGES } from "./bidi-data";
+import type { CellBuffer } from "./cell-buffer";
+import type { PackedColor } from "./color";
 import { LruCache, segmentGraphemes, type Grapheme } from "./text-measure";
 
 export { BIDI_UNICODE_VERSION } from "./bidi-data";
@@ -1083,6 +1085,30 @@ export function visualizeText(text: string, dir: TextDirection = "auto", maxWidt
     items.push(i);
   }
   return visualizeLine(gs, resolveGraphemeBidi(gs, dir), items).graphemes;
+}
+
+/**
+ * Draw one line of logical-order text into `buffer`, like `buffer.drawText`,
+ * with right-to-left runs reordered, mirrored and shaped for display (cells
+ * hold visual order). `maxWidth` keeps the logical start. Text with no
+ * right-to-left content goes straight to `drawText`. Box titles use it via
+ * `DrawBoxOptions.drawTitleText`.
+ */
+export function drawLogicalText(
+  buffer: CellBuffer,
+  x: number,
+  y: number,
+  text: string,
+  fg: PackedColor,
+  bg: PackedColor,
+  attrs = 0,
+  maxWidth = Infinity,
+  dir: TextDirection = "auto",
+): number {
+  if (dir !== "rtl" && !textNeedsBidi(text)) return buffer.drawText(x, y, text, fg, bg, attrs, maxWidth);
+  if (maxWidth <= 0 || text.length === 0) return 0;
+  const gs = visualizeText(text, dir, maxWidth);
+  return buffer.drawGraphemes(x, y, gs, 0, gs.length, fg, bg, attrs);
 }
 
 /** Shaped base code point per line item (`-1` when unchanged). Every code point of a cluster takes the cluster's level. */

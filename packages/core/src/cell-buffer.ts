@@ -2,7 +2,6 @@
  * Flat TypedArray framebuffer of terminal-style cells.
  */
 
-import { textNeedsBidi, visualizeText, type TextDirection } from "./bidi";
 import { blendOver, type PackedColor } from "./color";
 import {
   codePointWidth,
@@ -132,7 +131,15 @@ export interface DrawBoxOptions {
   bottomTitleColor?: PackedColor;
   bottomTitleAlign?: TitleAlign;
   bottomTitleAttrs?: number;
+  /**
+   * Draws the (already truncated) title text. Defaults to `drawText`; the
+   * scene passes `drawLogicalText` so right-to-left titles display in order.
+   */
+  drawTitleText?: TitleTextDrawer;
 }
+
+/** Draws one line of title text at `(x, y)`, at most `maxWidth` cells; returns the columns used. */
+export type TitleTextDrawer = (buffer: CellBuffer, x: number, y: number, text: string, fg: PackedColor, bg: PackedColor, attrs: number, maxWidth: number) => number;
 
 /** Default foreground assumed for default-colored text when it must be blended (e.g. modal dimming). */
 export const ASSUMED_DEFAULT_FG: PackedColor = 0xd4d4d8ff;
@@ -558,28 +565,6 @@ export class CellBuffer {
     return col;
   }
 
-  /**
-   * Draw one line of logical-order text, like `drawText`, with right-to-left
-   * runs reordered, mirrored and shaped for display (cells hold visual order).
-   * `maxWidth` keeps the logical start. Text with no right-to-left content
-   * goes straight to `drawText`.
-   */
-  drawLogicalText(
-    x: number,
-    y: number,
-    text: string,
-    fg: PackedColor,
-    bg: PackedColor,
-    attrs = 0,
-    maxWidth = Infinity,
-    dir: TextDirection = "auto",
-  ): number {
-    if (dir !== "rtl" && !textNeedsBidi(text)) return this.drawText(x, y, text, fg, bg, attrs, maxWidth);
-    if (maxWidth <= 0 || text.length === 0) return 0;
-    const gs = visualizeText(text, dir, maxWidth);
-    return this.drawGraphemes(x, y, gs, 0, gs.length, fg, bg, attrs);
-  }
-
   /** Draw a border box with optional titles. */
   drawBox(options: DrawBoxOptions): void {
     const style = options.style ?? "single";
@@ -630,7 +615,7 @@ export class CellBuffer {
       }
     }
     if (top && options.title) {
-      this.drawBorderTitle(x, y, w, options.title, options.titleAlign ?? "left", options.titleColor ?? fg, bg, options.titleAttrs ?? attrs);
+      this.drawBorderTitle(x, y, w, options.title, options.titleAlign ?? "left", options.titleColor ?? fg, bg, options.titleAttrs ?? attrs, options.drawTitleText);
     }
     if (bottom && options.bottomTitle && h > 1) {
       this.drawBorderTitle(
@@ -642,11 +627,22 @@ export class CellBuffer {
         options.bottomTitleColor ?? fg,
         bg,
         options.bottomTitleAttrs ?? attrs,
+        options.drawTitleText,
       );
     }
   }
 
-  private drawBorderTitle(x: number, y: number, w: number, title: string, align: TitleAlign, fg: PackedColor, bg: PackedColor, attrs: number): void {
+  private drawBorderTitle(
+    x: number,
+    y: number,
+    w: number,
+    title: string,
+    align: TitleAlign,
+    fg: PackedColor,
+    bg: PackedColor,
+    attrs: number,
+    draw: TitleTextDrawer | undefined,
+  ): void {
     const avail = w - 4;
     if (avail <= 0) return;
     const text = truncateText(title, avail);
@@ -657,7 +653,8 @@ export class CellBuffer {
     else if (align === "right") start = x + w - 2 - padded;
     else start = x + 2;
     this.setCell(start, y, CHAR_SPACE, fg, bg, attrs);
-    this.drawLogicalText(start + 1, y, text, fg, bg, attrs, avail);
+    if (draw === undefined) this.drawText(start + 1, y, text, fg, bg, attrs, avail);
+    else draw(this, start + 1, y, text, fg, bg, attrs, avail);
     this.setCell(start + 1 + tw, y, CHAR_SPACE, fg, bg, attrs);
   }
 
