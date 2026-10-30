@@ -7,9 +7,10 @@ import {
   ATTR_STRIKETHROUGH,
   ATTR_UNDERLINE,
   ATTR_WIDE_CONT,
+  GRAPHEME_POOL_FLAG,
   type CellBuffer,
 } from "../cell-buffer";
-import { hasRtl, LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../bidi";
+import { hasRtl, isRtlCodePoint, LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../bidi";
 
 export interface AnsiRenderOptions {
   /** Separator between rows (default `"\n"`). */
@@ -29,10 +30,18 @@ export interface AnsiRenderOptions {
    * over the line (Konsole, mlterm, macOS Terminal). `"none"` emits cells as-is.
    */
   bidi?: "pin" | "none";
+  /**
+   * Prefix frames that contain RTL text with `CSI 8 l` (default `true`).
+   * Long-lived writers turn this off and switch the mode once instead: on
+   * entry, then back with `ANSI_BIDI_IMPLICIT` on exit.
+   */
+  bidiMode?: boolean;
 }
 
 /** BDSM reset: the application presents text in display order (explicit mode). */
 export const ANSI_BIDI_EXPLICIT = "\u001b[8l";
+/** BDSM set: the terminal's default implicit bidi mode, restored on exit. */
+export const ANSI_BIDI_IMPLICIT = "\u001b[8h";
 
 const ESC = "\u001b[";
 
@@ -90,7 +99,11 @@ export function renderToAnsi(buffer: CellBuffer, options: AnsiRenderOptions = {}
         pa = sa;
       }
       const ch = buffer.cellText(i);
-      if (pin && !rtl && ch.charCodeAt(0) >= 0x0590 && hasRtl(ch)) rtl = true;
+      if (pin && !rtl) {
+        const c = buffer.chars[i] as number;
+        // A pooled cluster can carry RTL after a low first code point (a mark or a Prepend character).
+        if (c >= GRAPHEME_POOL_FLAG ? hasRtl(ch) : c >= 0x0590 && isRtlCodePoint(c)) rtl = true;
+      }
       line += ch;
       if (ch !== " " || (b & 255) !== 0 || sa !== 0) lastStyled = line.length;
     }
@@ -101,7 +114,7 @@ export function renderToAnsi(buffer: CellBuffer, options: AnsiRenderOptions = {}
     }
     rows.push(`${line}${ESC}0m`);
   }
-  return (options.cursorHome ? `${ESC}H` : "") + (anyRtl ? ANSI_BIDI_EXPLICIT : "") + rows.join(sep);
+  return (options.cursorHome ? `${ESC}H` : "") + (anyRtl && (options.bidiMode ?? true) ? ANSI_BIDI_EXPLICIT : "") + rows.join(sep);
 }
 
 /** Stateful ANSI driver that writes only when the frame changed. */

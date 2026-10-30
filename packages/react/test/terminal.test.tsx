@@ -69,6 +69,20 @@ describe("TerminalFrameWriter", () => {
     expect(w.render(buf)).toBe(0);
     expect(out.length).toBe(2);
   });
+
+  test("RTL frames pin rows without re-sending the bidi mode on row 0", () => {
+    const out: string[] = [];
+    const w = new TerminalFrameWriter((s) => out.push(s));
+    const buf = new CellBuffer(6, 2);
+    buf.drawText(0, 0, "abc", parseColor("#ffffff"), 0);
+    buf.drawText(0, 1, "םולש", parseColor("#ffffff"), 0);
+    expect(w.render(buf)).toBe(2);
+    expect(out[0]).not.toContain("\x1b[8l");
+    expect(out[0]).toContain("\x1b[2;1H\u202D");
+    buf.drawText(0, 1, "abcd", parseColor("#ffffff"), 0);
+    expect(w.render(buf)).toBe(1);
+    expect(out[1]).not.toContain("\x1b[1;1H");
+  });
 });
 
 function fakeStreams(cols = 30, rows = 4) {
@@ -156,6 +170,8 @@ describe("renderToTerminal", () => {
     const boot = written.join("");
     expect(boot).toContain("\x1b[?1049h");
     expect(boot).toContain("\x1b[?25l");
+    // Explicit bidi mode once on entry (cells are in visual order); implicit restored on exit.
+    expect(boot.split("\x1b[8l").length).toBe(2);
     expect(boot).toContain("count 0");
     written.length = 0;
     stdin.send("\x1b[A");
@@ -175,6 +191,7 @@ describe("renderToTerminal", () => {
     const bye = written.join("");
     expect(bye).toContain("\x1b[?1049l");
     expect(bye).toContain("\x1b[?25h");
+    expect(bye).toContain("\x1b[8h");
     expect(stdin.raw).toBe(false);
     expect(stdin.listeners).toBe(0);
   });

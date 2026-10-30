@@ -14,6 +14,8 @@
 
 import type { ReactNode } from "react";
 import {
+  ANSI_BIDI_EXPLICIT,
+  ANSI_BIDI_IMPLICIT,
   initYoga,
   InputEngine,
   renderToAnsi,
@@ -295,7 +297,8 @@ export class TerminalFrameWriter {
 
   /** Write the changed rows of `buffer`. Returns the number of rows written. */
   render(buffer: CellBuffer): number {
-    const lines = renderToAnsi(buffer, { lineSeparator: "\n", trimEnd: false }).split("\n");
+    // `renderToTerminal` switches bidi mode once; a per-frame prefix would make row 0 look changed.
+    const lines = renderToAnsi(buffer, { lineSeparator: "\n", trimEnd: false, bidiMode: false }).split("\n");
     let out = "";
     let changed = 0;
     for (let y = 0; y < lines.length; y++) {
@@ -414,7 +417,7 @@ export async function renderToTerminal(element: ReactNode, options: TerminalOpti
     p?.off?.("exit", onProcessExit);
     let s = `${CSI}0m`;
     if (mouse) s += `${CSI}?1006l${CSI}?1000l`;
-    s += `${CSI}?2004l${CSI}?25h`;
+    s += `${CSI}?2004l${CSI}?25h${ANSI_BIDI_IMPLICIT}`;
     s += altScreen ? `${CSI}?1049l` : `${CSI}${size()[1]};1H\n`;
     write(s);
     for (const [m, original] of originals) console[m] = original as Console[ConsoleMethod];
@@ -430,7 +433,8 @@ export async function renderToTerminal(element: ReactNode, options: TerminalOpti
   // Enter full-screen mode.
   let enter = "";
   if (altScreen) enter += `${CSI}?1049h`;
-  enter += `${CSI}?25l${CSI}2J${CSI}H${CSI}?2004h`;
+  // Cells are in visual order: explicit bidi mode stops VTE-style terminals from reordering them.
+  enter += `${CSI}?25l${CSI}2J${CSI}H${CSI}?2004h${ANSI_BIDI_EXPLICIT}`;
   if (mouse) enter += `${CSI}?1000h${CSI}?1006h`;
   write(enter);
   if (stdin) {

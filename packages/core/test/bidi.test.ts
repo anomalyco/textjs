@@ -313,6 +313,15 @@ describe("drivers pin visual order", () => {
     const ltr = new CellBuffer(4, 1);
     ltr.drawText(0, 0, "abcd", 0, 0);
     expect(renderToAnsi(ltr)).not.toContain("\u001b[8l");
+    // Long-lived writers switch the mode once themselves: rows are still pinned, but no prefix.
+    const noMode = renderToAnsi(rtl, { bidiMode: false });
+    expect(noMode).not.toContain("\u001b[8l");
+    expect(noMode.startsWith("\u202D")).toBe(true);
+    // Pooled clusters are checked in full, whatever their first code point.
+    const pooled = new CellBuffer(2, 1);
+    pooled.setCell(0, 0, "\u0301\u05d0", 0, 0);
+    expect(pooled.chars[0]! >= 0x80000000).toBe(true);
+    expect(renderToAnsi(pooled).includes("\u202D")).toBe(true);
   });
 
   test("hasRtl", () => {
