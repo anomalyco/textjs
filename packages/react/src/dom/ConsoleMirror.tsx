@@ -97,6 +97,8 @@ export function ConsoleMirror({
     <div
       data-textjs-mirror=""
       style={{
+        // Cells are in visual order: an RTL host page (<html dir="rtl">) must not reverse the span flow.
+        direction: "ltr",
         fontFamily: FONT,
         fontSize,
         lineHeight: `${lineHeight}px`,
@@ -119,7 +121,7 @@ export function ConsoleMirror({
   );
   if (!chrome) {
     return (
-      <div className={className} style={{ display: "inline-block", maxWidth: "100%", ...style }}>
+      <div className={className} style={{ display: "inline-block", maxWidth: "100%", direction: "ltr", ...style }}>
         {body}
       </div>
     );
@@ -137,6 +139,7 @@ export function ConsoleMirror({
         fontSize: 12,
         color: c.text,
         maxWidth: "100%",
+        direction: "ltr",
         ...style,
       }}
     >

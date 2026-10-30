@@ -120,4 +120,17 @@ describe("<ConsoleMirror>", () => {
     expect(html.match(/unicode-bidi:bidi-override/g)?.length).toBe(1);
     expect(html).toContain("direction:ltr");
   });
+
+  test("the mirror flows left to right even on an RTL host page", () => {
+    const buf = new CellBuffer(4, 1);
+    buf.drawText(0, 0, "ab", 0xffffffff, 0x000000ff);
+    const frame = extractStyledFrame(buf);
+    for (const chrome of [false, true]) {
+      const html = renderToStaticMarkup(<ConsoleMirror frame={frame} chrome={chrome} />);
+      const mirror = /<div data-textjs-mirror="" style="([^"]*)"/.exec(html)?.[1] ?? "";
+      expect(mirror).toContain("direction:ltr");
+      // The outer wrapper too, so the chrome layout and inline-block box don't mirror.
+      expect(/^<div[^>]*style="[^"]*direction:ltr/.test(html)).toBe(true);
+    }
+  });
 });
