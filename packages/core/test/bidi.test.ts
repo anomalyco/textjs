@@ -7,6 +7,7 @@ import {
   BIDI_NSM,
   bidiClass,
   CellBuffer,
+  createCanvasMeasurer,
   CssConsoleDriver,
   hasRtl,
   initYoga,
@@ -165,6 +166,25 @@ describe("Arabic shaping", () => {
     expect(cps(reorderLine(input, "ltr", { shape: true }))).toEqual([0x200e, ...visual]);
     // The same through the scene painter.
     expect(rows({ dir: "ltr" }, [input], 4)).toEqual([str(visual)]);
+  });
+
+  test("substituted graphemes live in an LRU, so hot glyphs survive churn", () => {
+    const gsA = segmentGraphemes("א(");
+    const bidiA = resolveGraphemeBidi(gsA);
+    const mirrored = (): unknown => visualizeLine(gsA, bidiA, [0, 1]).graphemes[0];
+    const first = mirrored() as { grapheme: string };
+    expect(first.grapheme).toBe(")");
+    let k = 0;
+    for (let a = 0; a < 21 && k < 2600; a++) {
+      for (let b = 0; b < 21 && k < 2600; b++) {
+        for (let c = 0; c < 6 && k < 2600; c++, k++) {
+          const gs = segmentGraphemes(String.fromCharCode(0x0628, 0x064b + a, 0x064b + b, 0x064b + c));
+          visualizeLine(gs, resolveGraphemeBidi(gs), [0]);
+          if (k % 64 === 0) expect(mirrored()).toBe(first);
+        }
+      }
+    }
+    expect(mirrored()).toBe(first);
   });
 
   test("shaped glyphs are emitted in visual order, one cell each", () => {
@@ -373,6 +393,64 @@ describe("drivers pin visual order", () => {
     // Wide CJK and blanks folded into the span count as cells too.
     const mixed = render(box({ width: 10, height: 1 }, text({ textAlign: "left" }, "漢字 שלום")), 10, 1);
     expect(driver.compileRow(mixed, 0).reduce((n, sp) => n + sp.cells, 0)).toBe(10);
+  });
+
+  test("createCanvasMeasurer degrades instead of throwing and sets the font only when it changes", () => {
+    const g = globalThis as { OffscreenCanvas?: unknown };
+    const saved = g.OffscreenCanvas;
+    try {
+      g.OffscreenCanvas = class {
+        getContext(): never {
+          throw new Error("no 2d");
+        }
+      };
+      expect(createCanvasMeasurer("monospace", 12)).toBeNull();
+      let fontSets = 0;
+      let fail = false;
+      g.OffscreenCanvas = class {
+        getContext() {
+          let font = "";
+          return {
+            get font() {
+              return font;
+            },
+            set font(v: string) {
+              fontSets++;
+              font = v;
+            },
+            measureText: (t: string) => {
+              if (fail) throw new Error("detached");
+              return { width: t.length * 7 };
+            },
+          };
+        }
+      };
+      const m = createCanvasMeasurer("monospace", 12);
+      expect(m?.("ab", false, false)).toBe(14);
+      expect(m?.("abc", false, false)).toBe(21);
+      expect(fontSets).toBe(1);
+      expect(m?.("a", true, false)).toBe(7);
+      expect(fontSets).toBe(2);
+      fail = true;
+      expect(m?.("a", true, false)).toBeNaN();
+      // A failing measurer leaves spans unfitted rather than breaking the frame.
+      const buf = render(box({ width: 4, height: 1 }, text({}, "שלום")), 4, 1);
+      let calls = 0;
+      const nan = (t: string): number => (calls++ === 0 ? t.length * 7 : Number.NaN);
+      const [span] = new CssConsoleDriver({ console: { clear() {}, log() {} }, clear: "never", measureText: nan }).compileRow(buf, 0);
+      expect(span?.css).not.toContain("margin-right");
+      expect(span?.css).not.toContain("padding-right");
+    } finally {
+      g.OffscreenCanvas = saved;
+    }
+  });
+
+  test("U+200F in a cell pins its span", () => {
+    const buf = new CellBuffer(3, 1);
+    buf.drawText(0, 0, "ab", 0xffffffff, 0);
+    buf.put(2, 0, 0x200f, 1, 0xffffffff, 0, 0);
+    const [span] = new CssConsoleDriver({ console: { clear() {}, log() {} }, clear: "never", measureText: false }).compileRow(buf, 0);
+    expect(span?.text).toBe("\u202Dab\u200f\u202C");
   });
 
   test("negative fitting margins are capped at half a cell", () => {

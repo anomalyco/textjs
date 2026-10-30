@@ -100,16 +100,33 @@ export interface CssConsoleDriverOptions {
 /** Advance width in CSS px of `text` rendered with the console font. */
 export type TextAdvanceMeasurer = (text: string, bold: boolean, italic: boolean) => number;
 
-/** A canvas-backed measurer for the console font, or `null` outside browsers. */
+/**
+ * A canvas-backed measurer for the console font, or `null` outside browsers
+ * (or when no 2D context is available). The measurer returns `NaN` if
+ * measuring fails, which disables fitting for that span.
+ */
 export function createCanvasMeasurer(fontFamily: string, fontSize: number): TextAdvanceMeasurer | null {
   let ctx: { font: string; measureText(t: string): { width: number } } | null = null;
-  if (typeof OffscreenCanvas !== "undefined") ctx = new OffscreenCanvas(1, 1).getContext("2d");
-  else if (typeof document !== "undefined" && typeof document.createElement === "function") ctx = document.createElement("canvas").getContext("2d");
-  if (ctx === null) return null;
+  try {
+    if (typeof OffscreenCanvas !== "undefined") ctx = new OffscreenCanvas(1, 1).getContext("2d");
+    else if (typeof document !== "undefined" && typeof document.createElement === "function") ctx = document.createElement("canvas").getContext("2d");
+  } catch {
+    ctx = null;
+  }
+  if (ctx === null || ctx === undefined) return null;
   const c = ctx;
+  let font = "";
   return (text, bold, italic) => {
-    c.font = `${italic ? "italic " : ""}${bold ? "700 " : ""}${fontSize}px ${fontFamily}`;
-    return c.measureText(text).width;
+    try {
+      const f = `${italic ? "italic " : ""}${bold ? "700 " : ""}${fontSize}px ${fontFamily}`;
+      if (f !== font) {
+        c.font = f;
+        font = f;
+      }
+      return c.measureText(text).width;
+    } catch {
+      return Number.NaN;
+    }
   };
 }
 
@@ -633,7 +650,8 @@ export class CssConsoleDriver {
         }
         text += g;
       } else if (c < 0x10000) {
-        if (c >= 0x0590 && (c <= 0x08ff || c >= 0xfb1d) && isRtlCodePoint(c)) {
+        // Inline pre-filter (box drawing, CJK skip the call); U+200F RLM is the one R inside the gap.
+        if (c >= 0x0590 && (c <= 0x08ff || c >= 0xfb1d || c === 0x200f) && isRtlCodePoint(c)) {
           rtl = true;
           rowRtl = true;
           hasSpecial = true;
@@ -723,7 +741,8 @@ export class CssConsoleDriver {
       let fit = this.fitCache.get(key);
       if (fit === undefined) {
         const target = Math.ceil(span.cells * this.cellAdvance * LAYOUT_UNIT);
-        const natural = Math.ceil(measure(unescapeConsoleText(span.text), bold, italic) * LAYOUT_UNIT);
+        const advance = measure(unescapeConsoleText(span.text), bold, italic);
+        const natural = Number.isFinite(advance) ? Math.ceil(advance * LAYOUT_UNIT) : target;
         // Pull in by at most half a cell: a much wider fallback font (Courier New next to
         // Consolas on Windows) would otherwise drag the following spans over these glyphs.
         const delta = Math.max(target - natural, -Math.floor((this.cellAdvance * LAYOUT_UNIT) / 2));

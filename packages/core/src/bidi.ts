@@ -11,7 +11,7 @@
  */
 
 import { ARABIC_FORMS, BIDI_BRACKETS, BIDI_CLASS_RANGES, BIDI_MIRRORS, JOINING_TYPE_RANGES } from "./bidi-data";
-import { segmentGraphemes, type Grapheme } from "./text-measure";
+import { LruCache, segmentGraphemes, type Grapheme } from "./text-measure";
 
 export { BIDI_UNICODE_VERSION } from "./bidi-data";
 
@@ -224,6 +224,11 @@ export function hasRtl(text: string): boolean {
 const MAX_DEPTH = 125;
 const MAX_BRACKET_STACK = 63;
 
+// Directional status stack (X1–X8), shared: only entries up to the stack pointer are ever read.
+const ST_LEVEL = new Uint8Array(MAX_DEPTH + 2);
+const ST_OVERRIDE = new Int8Array(MAX_DEPTH + 2); // -1 none, 0 L, 1 R
+const ST_ISOLATE = new Uint8Array(MAX_DEPTH + 2);
+
 function isRemovedByX9(t: number): boolean {
   return t === BIDI_BN || (t >= BIDI_LRE && t <= BIDI_PDF);
 }
@@ -296,9 +301,9 @@ export function resolveParagraphLevels(
 
   // X1–X8.
   const lv = new Uint8Array(n);
-  const stLevel = new Uint8Array(MAX_DEPTH + 2);
-  const stOverride = new Int8Array(MAX_DEPTH + 2); // -1 none, 0 L, 1 R
-  const stIsolate = new Uint8Array(MAX_DEPTH + 2);
+  const stLevel = ST_LEVEL;
+  const stOverride = ST_OVERRIDE;
+  const stIsolate = ST_ISOLATE;
   let sp = 0;
   stLevel[0] = paraLevel;
   stOverride[0] = -1;
@@ -974,7 +979,7 @@ export function resolveGraphemeBidi(gs: readonly Grapheme[], dir: TextDirection 
   return { levels, paragraphLevels, types: gTypes };
 }
 
-const graphemeCache = new Map<string, Grapheme>();
+const graphemeCache = new LruCache<string, Grapheme>(2048);
 
 function substituted(g: Grapheme, cp: number): Grapheme {
   const rest = g.grapheme.slice(g.codePoint > 0xffff ? 2 : 1);
@@ -982,7 +987,6 @@ function substituted(g: Grapheme, cp: number): Grapheme {
   let out = graphemeCache.get(s);
   if (out === undefined) {
     out = Object.freeze({ grapheme: s, width: g.width, codePoint: cp, isMulti: g.isMulti });
-    if (graphemeCache.size >= 2048) graphemeCache.clear();
     graphemeCache.set(s, out);
   }
   return out;

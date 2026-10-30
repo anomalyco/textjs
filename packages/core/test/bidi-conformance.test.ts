@@ -5,6 +5,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import {
   applyLineRules,
   BIDI_BN,
@@ -20,7 +21,7 @@ import {
 
 function fixture(name: string): string {
   const gz = readFileSync(new URL(`./unicode/${name}-${BIDI_UNICODE_VERSION}.txt.gz`, import.meta.url));
-  return new TextDecoder().decode(Bun.gunzipSync(gz));
+  return new TextDecoder().decode(gunzipSync(gz));
 }
 
 const removed = (t: number): boolean => t === BIDI_BN || (t >= BIDI_LRE && t <= BIDI_PDF);
