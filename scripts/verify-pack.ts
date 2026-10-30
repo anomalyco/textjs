@@ -233,7 +233,11 @@ async function main(argv: string[]): Promise<number> {
   const results: Result[] = [];
   for (const rt of ["node", "bun"] as const) {
     const cmd = textCmd(rt, app);
-    results.push(runSync(`${rt}: text build`, [...cmd, "build"], app));
+    const build = runSync(`${rt}: text build`, [...cmd, "build"], app);
+    // Production builds must not ship React's development bundles.
+    const assets = join(app, "dist", "assets");
+    const dev = readdirSync(assets).some((f) => f.endsWith(".js") && readFileSync(join(assets, f), "utf8").includes("not wrapped in act("));
+    results.push(dev ? { ...build, ok: false, detail: `${build.detail}\nclient bundle contains React development builds` } : build);
     results.push(await runServer(`${rt}: text start`, [...cmd, "start"], app, rt === "node" ? 3911 : 3912));
     // `run` and `mcp` import route files as TypeScript: under Node the CLI re-runs itself with Bun.
     results.push(await runTerminal(`${rt}: text run`, cmd, app));

@@ -40,6 +40,22 @@ export function findConfigFile(root: string): string | null {
 }
 
 /**
+ * Run `fn` and put `process.env.NODE_ENV` back afterwards. Vite's module
+ * runner (the Node config loader) sets an unset `NODE_ENV` to
+ * `"development"`, which would make the following `vite build` bundle
+ * React's development builds.
+ */
+export async function preservingNodeEnv<T>(fn: () => Promise<T>): Promise<T> {
+  const before = process.env.NODE_ENV;
+  try {
+    return await fn();
+  } finally {
+    if (before === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = before;
+  }
+}
+
+/**
  * Load `text.config.ts`. Bun runs TypeScript dependencies natively, so the
  * config is bundled with esbuild; on Node, Vite's module runner transforms
  * TypeScript workspace packages (`@textjs/next` sources) imported by the config.
@@ -48,7 +64,7 @@ export async function loadTextConfig(root: string, command: "serve" | "build", m
   const file = findConfigFile(root);
   if (!file) return { config: {}, file: null };
   const loader = typeof process.versions.bun === "string" ? "bundle" : "runner";
-  const loaded = await loadConfigFromFile({ command, mode }, file, root, "silent", undefined, loader);
+  const loaded = await preservingNodeEnv(() => loadConfigFromFile({ command, mode }, file, root, "silent", undefined, loader));
   const config = (loaded?.config ?? {}) as TextConfig;
   warnUnknownConfigKeys(config, file);
   return { config, file };

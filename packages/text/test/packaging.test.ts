@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { sharedContext } from "@textjs/react";
 import { externals } from "../../../scripts/build-bin";
 import { rewriteDir, rewriteSource } from "../../../scripts/esm-specifiers";
+import { preservingNodeEnv } from "../src/cli/config";
 import { AppShellContext, RouterContext } from "../src/context";
 import { ServerComponentCacheContext } from "../src/server/server-components";
 
@@ -82,5 +83,29 @@ describe("Node-loadable dist", () => {
     expect(rewriteDir(dist)).toBe(0);
     // Unresolvable specifiers are left alone.
     expect(rewriteSource(join(dist, "index.js"), 'import "./missing";')).toBe('import "./missing";');
+  });
+});
+
+describe("Node CLI", () => {
+  test("loading text.config.ts leaves NODE_ENV as it was (Vite's runner sets it to development)", async () => {
+    const before = process.env.NODE_ENV;
+    try {
+      delete process.env.NODE_ENV;
+      await preservingNodeEnv(async () => {
+        process.env.NODE_ENV = "development";
+      });
+      expect(process.env.NODE_ENV).toBeUndefined();
+      process.env.NODE_ENV = "production";
+      await expect(
+        preservingNodeEnv(async () => {
+          process.env.NODE_ENV = "development";
+          throw new Error("load failed");
+        }),
+      ).rejects.toThrow("load failed");
+      expect(process.env.NODE_ENV).toBe("production");
+    } finally {
+      if (before === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = before;
+    }
   });
 });
