@@ -6,7 +6,7 @@
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { join, sep } from "node:path";
+import { join, relative, sep } from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
 import type { ViewportConfig } from "../config";
 import { LIVE_PATH } from "../live-protocol";
@@ -24,6 +24,7 @@ import {
   LIVE_STUB_MODULE,
   listServerPages,
   PLAYER_URL,
+  SERVER_ONLY_QUERY,
   SERVER_STUB_QUERY,
   VIRTUAL_LIVE,
   VIRTUAL_PLAYER,
@@ -36,6 +37,9 @@ import { createLiveAuthorizer } from "./middleware-runtime";
 const RESOLVED_LIVE = `\0${VIRTUAL_LIVE}`;
 const RESOLVED_PLAYER = `\0${VIRTUAL_PLAYER}`;
 const STUB_PREFIX = "\0textjs-server-stub:";
+const SERVER_ONLY_PREFIX = "\0textjs-server-only:";
+/** `*.server.ts`, `*.server.tsx`, `foo.server` (any extension or none). */
+const SERVER_MODULE = /\.server(?:\.[cm]?[jt]sx?)?$/;
 
 export interface LiveEntryModule {
   routes: RouteManifest;
@@ -47,6 +51,11 @@ export interface LiveEntryModule {
 
 const JSX_IMPORT = /(["'])react\/(jsx-runtime|jsx-dev-runtime)\1/g;
 const SHIM_FILE = /[\\/]server[\\/]jsx-(dev-)?runtime\.[cm]?[jt]s$/;
+
+function toPosixPath(file: string, root: string): string {
+  const rel = relative(root, file);
+  return (rel.startsWith("..") ? file : rel).split(sep).join("/");
+}
 
 /** Vite plugins (dev, client build and SSR builds). */
 export function textjsLivePlugin(options: { appDir?: string; root?: string } = {}): Plugin[] {
@@ -65,16 +74,29 @@ export function textjsLivePlugin(options: { appDir?: string; root?: string } = {
     configResolved(config) {
       root = config.root;
     },
-    resolveId(id) {
+    resolveId(id, importer, opts) {
       if (id === VIRTUAL_LIVE || id.endsWith(`/${VIRTUAL_LIVE}`)) return RESOLVED_LIVE;
       if (id === VIRTUAL_PLAYER || id === PLAYER_URL || id.endsWith(PLAYER_URL)) return RESOLVED_PLAYER;
       if (id.endsWith(SERVER_STUB_QUERY)) return `${STUB_PREFIX}${id.slice(0, -SERVER_STUB_QUERY.length)}`;
+      if (id.endsWith(SERVER_ONLY_QUERY)) return `${SERVER_ONLY_PREFIX}${id.slice(0, -SERVER_ONLY_QUERY.length)}`;
+      // Client graph guard: browser code (yours, not dependencies') must not import server-only modules.
+      if (!opts?.ssr && importer && !importer.startsWith("\0") && !importer.includes(`${sep}node_modules${sep}`) && !importer.includes("/node_modules/")) {
+        const bare = id.split("?")[0] as string;
+        if (bare.startsWith("node:") || SERVER_MODULE.test(bare)) {
+          this.error(
+            `▼ Text.js: ${toPosixPath(importer.split("?")[0] as string, root)} imports ${JSON.stringify(id)}, which only runs on the server, from code that ships to the browser. ` +
+              `Import it from a page with \`export const runtime = "server"\` (or its server components), or from a route handler.`,
+          );
+        }
+      }
       return null;
     },
     load(id) {
       if (id === RESOLVED_LIVE) return generateLiveEntryModule(scanApp(root, appDir));
       if (id === RESOLVED_PLAYER) return generatePlayerEntryModule();
       if (id.startsWith(STUB_PREFIX)) return `export { default, runtime } from ${JSON.stringify(LIVE_STUB_MODULE)};\n`;
+      // Layouts / boundaries of server-only segments: the browser never renders them.
+      if (id.startsWith(SERVER_ONLY_PREFIX)) return "export default function ServerOnly(props) { return props.children ?? null; }\n";
       return null;
     },
   };

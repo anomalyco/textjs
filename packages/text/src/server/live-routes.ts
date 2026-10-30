@@ -4,8 +4,10 @@
  * the HTML document that boots the frame player.
  */
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join, resolve } from "node:path";
+import { parseAst } from "vite";
 import { BRAND_MARK, ENGINE_NAME, VERSION } from "@textjs/core";
 import { matchAppRoutes, type RouteManifest } from "../routing";
 import { generateRoutesModule, listPages, toStaticManifest, type AppScan, type ScannedSegment } from "./scan";
@@ -15,7 +17,6 @@ export const VIRTUAL_PLAYER = "virtual:textjs/player";
 /** Script `src` of the frame player in `text dev`. */
 export const PLAYER_URL = "/@textjs/player";
 
-const SERVER_RUNTIME = /export\s+const\s+runtime\s*=\s*["']server["']/;
 
 /**
  * Framework modules are imported by package specifier (not file path) so the
@@ -27,16 +28,151 @@ export const LIVE_PLAYER_MODULE = "@textjs/next/live-player";
 export const LIVE_STUB_MODULE = "@textjs/next/live-stub";
 /** Suffix marking a server page import in the client manifest; the plugin loads the stub instead. */
 export const SERVER_STUB_QUERY = "?textjs-server-stub";
+/**
+ * Suffix for layouts / loading / error / not-found files of segments that only
+ * contain server pages: the browser never renders them, so they (and what they
+ * import) stay out of the client bundle.
+ */
+export const SERVER_ONLY_QUERY = "?textjs-server-only";
 export const JSX_RUNTIME_MODULE = "@textjs/next/server/jsx-runtime";
 export const JSX_DEV_RUNTIME_MODULE = "@textjs/next/server/jsx-dev-runtime";
 
-export function isServerRuntimeFile(file: string | undefined): boolean {
-  if (!file) return false;
-  try {
-    return SERVER_RUNTIME.test(readFileSync(file, "utf8"));
-  } catch {
-    return false;
+type EsbuildTransformSync = (code: string, options: { loader: string; format: string; jsx: string; sourcefile: string }) => { code: string };
+let transformSync: EsbuildTransformSync | null = null;
+
+/** esbuild's `transformSync` (a dependency of Vite, which Text.js depends on). */
+function esbuild(): EsbuildTransformSync {
+  if (transformSync === null) {
+    const require = createRequire(import.meta.url);
+    const fromVite = createRequire(require.resolve("vite/package.json"));
+    transformSync = (fromVite("esbuild") as { transformSync: EsbuildTransformSync }).transformSync;
   }
+  return transformSync;
+}
+
+const LOADERS: Record<string, string> = { ".ts": "ts", ".mts": "ts", ".cts": "ts", ".tsx": "tsx", ".js": "jsx", ".mjs": "js", ".cjs": "js", ".jsx": "jsx" };
+
+interface AstNode {
+  type: string;
+  [key: string]: unknown;
+}
+
+function stringValue(node: unknown): string | undefined {
+  const n = node as AstNode | null;
+  if (!n) return undefined;
+  if (n.type === "Literal" && typeof n.value === "string") return n.value;
+  if (n.type === "TemplateLiteral" && (n.expressions as unknown[]).length === 0) return ((n.quasis as AstNode[])[0]?.value as { cooked?: string })?.cooked;
+  return undefined;
+}
+
+function exportName(node: unknown): string | undefined {
+  const n = node as AstNode;
+  return n.type === "Identifier" ? (n.name as string) : stringValue(n);
+}
+
+const runtimeCache = new Map<string, { mtime: number; value: string | undefined }>();
+
+/**
+ * The value of a module's `runtime` export when it is a static string, read
+ * with a real parser: `export const runtime = "server"`, with a type
+ * annotation or `as const`, a template literal, `export { runtime }`,
+ * `export { x as runtime }` and re-exports (`export { runtime } from "./x"`).
+ * Comments and strings never match.
+ */
+export function readRuntimeExport(file: string, depth = 0): string | undefined {
+  let mtime: number;
+  let code: string;
+  try {
+    mtime = statSync(file).mtimeMs;
+    const hit = runtimeCache.get(file);
+    if (hit && hit.mtime === mtime) return hit.value;
+    code = readFileSync(file, "utf8");
+  } catch {
+    return undefined;
+  }
+  let value: string | undefined;
+  if (/\bruntime\b/.test(code)) {
+    try {
+      const ext = /\.[^.\\/]+$/.exec(file)?.[0] ?? ".ts";
+      const js = esbuild()(code, { loader: LOADERS[ext] ?? "tsx", format: "esm", jsx: "automatic", sourcefile: file }).code;
+      value = exportedString(parseAst(js) as unknown as AstNode, file, "runtime", depth);
+    } catch {
+      value = undefined;
+    }
+  }
+  runtimeCache.set(file, { mtime, value });
+  return value;
+}
+
+/** The static string value of export `name` in a (transpiled) module, following relative re-exports. */
+function exportedString(program: AstNode, file: string, name: string, depth: number): string | undefined {
+  const body = program.body as AstNode[];
+  const constants = new Map<string, string | undefined>();
+  // esbuild turns `export { runtime } from "./x"` into an import plus a local export.
+  const imports = new Map<string, { source: string; name: string }>();
+  for (const node of body) {
+    if (node.type !== "ImportDeclaration") continue;
+    for (const spec of node.specifiers as AstNode[]) {
+      if (spec.type === "ImportSpecifier") imports.set((spec.local as AstNode).name as string, { source: stringValue(node.source) as string, name: exportName(spec.imported) as string });
+    }
+  }
+  const follow = (source: string, name: string): string | undefined => {
+    if (depth >= 8 || !source.startsWith(".")) return undefined;
+    const target = resolveRelative(dirname(file), source);
+    return target ? readRuntimeExportNamed(target, name, depth + 1) : undefined;
+  };
+  for (const node of body) {
+    const decl = (node.type === "ExportNamedDeclaration" ? node.declaration : node) as AstNode | null;
+    if (decl?.type !== "VariableDeclaration") continue;
+    for (const d of decl.declarations as AstNode[]) {
+      const id = d.id as AstNode;
+      if (id.type === "Identifier") constants.set(id.name as string, decl.kind === "const" ? stringValue(d.init) : undefined);
+    }
+  }
+  for (const node of body) {
+    if (node.type !== "ExportNamedDeclaration") continue;
+    const decl = node.declaration as AstNode | null;
+    if (decl?.type === "VariableDeclaration") {
+      for (const d of decl.declarations as AstNode[]) if ((d.id as AstNode).type === "Identifier" && (d.id as AstNode).name === name) return constants.get(name);
+      continue;
+    }
+    for (const spec of (node.specifiers as AstNode[] | undefined) ?? []) {
+      if (exportName(spec.exported) !== name) continue;
+      const local = exportName(spec.local) as string;
+      const source = stringValue(node.source);
+      if (source !== undefined) return follow(source, local);
+      const imported = imports.get(local);
+      return imported ? follow(imported.source, imported.name) : constants.get(local);
+    }
+  }
+  return undefined;
+}
+
+function readRuntimeExportNamed(file: string, name: string, depth: number): string | undefined {
+  if (name === "runtime") return readRuntimeExport(file, depth);
+  try {
+    const ext = /\.[^.\\/]+$/.exec(file)?.[0] ?? ".ts";
+    const js = esbuild()(readFileSync(file, "utf8"), { loader: LOADERS[ext] ?? "tsx", format: "esm", jsx: "automatic", sourcefile: file }).code;
+    return exportedString(parseAst(js) as unknown as AstNode, file, name, depth);
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveRelative(dir: string, spec: string): string | null {
+  const base = resolve(dir, spec);
+  for (const candidate of [base, ...Object.keys(LOADERS).map((e) => base + e), ...Object.keys(LOADERS).map((e) => join(base, `index${e}`))]) {
+    try {
+      if (statSync(candidate).isFile()) return candidate;
+    } catch {
+      // try the next
+    }
+  }
+  return null;
+}
+
+export function isServerRuntimeFile(file: string | undefined): boolean {
+  return file ? readRuntimeExport(file) === "server" : false;
 }
 
 export interface ServerPage {
@@ -70,9 +206,18 @@ export function createRuntimeMatcher(scan: AppScan): (pathname: string) => "serv
  * bundle never contains server route modules (or anything they import).
  */
 export function withServerStubs(scan: AppScan): AppScan {
+  const hasClientPage = (s: ScannedSegment): boolean => (s.files.page !== undefined && !isServerRuntimeFile(s.files.page)) || s.children.some(hasClientPage);
   const swap = (s: ScannedSegment): ScannedSegment => {
+    const files: ScannedSegment["files"] = { ...s.files };
     const page = s.files.page;
-    const files = page && isServerRuntimeFile(page) ? { ...s.files, page: `${page}${SERVER_STUB_QUERY}` } : s.files;
+    if (page && isServerRuntimeFile(page)) files.page = `${page}${SERVER_STUB_QUERY}`;
+    // Nothing under this segment renders in the browser: keep its boundaries and layout out of the bundle too.
+    if (!hasClientPage(s)) {
+      for (const kind of ["layout", "loading", "error", "not-found"] as const) {
+        const f = s.files[kind];
+        if (f) files[kind] = `${f}${SERVER_ONLY_QUERY}`;
+      }
+    }
     return { ...s, files, children: s.children.map(swap) };
   };
   return { ...scan, tree: swap(scan.tree) };
