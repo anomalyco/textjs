@@ -2080,6 +2080,33 @@ kbd {
   color: var(--green-2);
 }
 
+.preview-run {
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.preview-run:hover {
+  color: var(--fg);
+  background: var(--bg-2);
+}
+
+.preview.in-console {
+  border-color: var(--line-2);
+}
+
+.preview.in-console .preview-stage .devtools {
+  cursor: text;
+}
+
 /* A capped inner scroller only with a mouse; on touch it would steal page swipes. */
 @media (hover: hover) and (pointer: fine) {
   .preview .code {

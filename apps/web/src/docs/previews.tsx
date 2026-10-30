@@ -207,6 +207,8 @@ export interface PreviewSpec {
   cols: number;
   rows: number;
   render: () => ReactNode;
+  /** Display name (defaults to the capitalized id). */
+  label?: string;
 }
 
 export const PREVIEWS: Record<string, PreviewSpec> = {
@@ -214,12 +216,12 @@ export const PREVIEWS: Record<string, PreviewSpec> = {
   layout: { cols: 64, rows: 14, render: () => <LayoutPreview /> },
   spinner: { cols: 56, rows: 10, render: () => <SpinnerPreview /> },
   form: { cols: 84, rows: 19, render: () => <FormDemo /> },
-  scrollbox: { cols: 60, rows: 12, render: () => <ScrollBoxPreview /> },
+  scrollbox: { label: "ScrollBox", cols: 60, rows: 12, render: () => <ScrollBoxPreview /> },
   modal: { cols: 72, rows: 14, render: () => <ModalPreview /> },
   streaming: { cols: 80, rows: 24, render: () => <StreamingDemo /> },
   diff: { cols: 72, rows: 12, render: () => <DiffPreview /> },
-  ascii: { cols: 64, rows: 11, render: () => <AsciiPreview /> },
-  fonts: { cols: 100, rows: 19, render: () => <FontGalleryPreview /> },
+  ascii: { label: "AsciiFont", cols: 64, rows: 11, render: () => <AsciiPreview /> },
+  fonts: { label: "Font gallery", cols: 100, rows: 19, render: () => <FontGalleryPreview /> },
   theme: { cols: 96, rows: 9, render: () => <ThemePreview /> },
   dashboard: { cols: 100, rows: 26, render: () => <DashboardDemo /> },
   snake: { cols: 96, rows: 24, render: () => <SnakeDemo reserveRows={2} /> },
@@ -228,5 +230,9 @@ export const PREVIEWS: Record<string, PreviewSpec> = {
   charts: { cols: 72, rows: 14, render: () => <ChartsPreview /> },
   controls: { cols: 72, rows: 14, render: () => <ControlsPreview /> },
   keymap: { cols: 80, rows: 18, render: () => <KeymapPreview /> },
-  bidi: { cols: 48, rows: 6, render: () => <BidiPreview /> },
+  bidi: { label: "Bidirectional text", cols: 48, rows: 6, render: () => <BidiPreview /> },
 };
+
+export function previewLabel(id: string): string {
+  return PREVIEWS[id]?.label ?? id.charAt(0).toUpperCase() + id.slice(1);
+}
