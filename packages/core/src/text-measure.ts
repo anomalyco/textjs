@@ -238,7 +238,8 @@ export function graphemeWidth(grapheme: string): CellWidth {
       const c = grapheme.codePointAt(i) ?? 0;
       i += c > 0xffff ? 2 : 1;
       if (
-        c === 0x200d ||
+        // ZWJ widens emoji/pictograph sequences only: after a letter it just requests joining.
+        (c === 0x200d && cp >= 0x2000) ||
         c === 0xfe0f ||
         c === 0x20e3 ||
         (c >= 0x1f3fb && c <= 0x1f3ff) ||

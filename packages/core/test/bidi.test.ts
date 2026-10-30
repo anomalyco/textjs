@@ -89,6 +89,31 @@ describe("Arabic shaping", () => {
     expect(str(shapeArabicCodePoints(cps("پ")))).toBe("\ufb56");
   });
 
+  test("ZWJ/ZWNJ join by position; emoji-internal ZWJ does not join the next letter", () => {
+    const shapedRow = (s: string, w: number): string => rows({ textAlign: "left" }, [s], w)[0] as string;
+    // Meem after a ZWJ emoji sequence: its neighbour is 💻 (non-joining), so it is initial, not medial.
+    const emoji = shapedRow("👨‍💻مر", 4);
+    expect(emoji).toContain("\ufee3");
+    expect(emoji).not.toContain("\ufee4");
+    // ZWJ then ZWNJ after beh: beh joins forward (initial), teh's neighbour is the ZWNJ (isolated).
+    expect(Array.from(shapedRow("ب\u200d\u200cت", 2), (c) => c.codePointAt(0))).toEqual([0xfe95, 0xfe91, 0x200d, 0x200c]);
+    // A trailing ZWJ still requests joining.
+    expect(shapedRow("ب\u200d ", 2)).toBe(" \ufe91\u200d");
+    // Letter + ZWJ is one cell; emoji ZWJ sequences are two.
+    expect(segmentGraphemes("ب\u200d")[0]?.width).toBe(1);
+    expect(segmentGraphemes("👨‍💻")[0]?.width).toBe(2);
+  });
+
+  test("shaping stays within level runs and reverses in LTR override runs (UAX #9 §3.5)", () => {
+    // LRM, LRO ج ع PDF, RLO ل م PDF: levels 2 2 1 1, so the override run ج ع is displayed right of م ل.
+    // Each pair joins only within its own run: ج final + ع initial (reversed, LTR run), ل initial + م final.
+    const input = "\u200E\u202D\u062C\u0639\u202C\u202E\u0644\u0645\u202C";
+    const visual = [0xfee2, 0xfedf, 0xfe9e, 0xfecb];
+    expect(cps(reorderLine(input, "ltr", { shape: true }))).toEqual([0x200e, ...visual]);
+    // The same through the scene painter.
+    expect(rows({ dir: "ltr" }, [input], 4)).toEqual([str(visual)]);
+  });
+
   test("shaped glyphs are emitted in visual order, one cell each", () => {
     expect(reorderLine("مرحبا", "auto", { shape: true })).toBe("\ufe8e\ufe92\ufea3\ufeae\ufee3");
     const [row] = rows({}, ["مرحبا"], 5);

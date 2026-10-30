@@ -764,7 +764,7 @@ export function reorderLine(text: string, dir: TextDirection = "auto", options: 
   if (!trigger) return text;
   const { levels, paragraphLevels } = resolveLevels(types, cps, directionOf(dir));
   applyLineRules(types, levels, paragraphLevels, 0, n);
-  const shaped = options.shape ? shapeArabicCodePoints(cps) : cps;
+  const shaped = options.shape ? shapeCodePoints(cps, levels) : cps;
   let out = "";
   for (const i of reorderIndices(levels, 0, n)) {
     const t = types[i] as number;
@@ -823,18 +823,50 @@ function contextualForm(cp: number, jt: number, prevJoins: boolean, nextJoins: b
 
 /** Replace Arabic letters in a logical-order code point array with contextual presentation forms. */
 export function shapeArabicCodePoints(cps: readonly number[]): number[] {
+  return shapeCodePoints(cps, null);
+}
+
+function isJoiningLetter(jt: number): boolean {
+  return jt === JT_D || jt === JT_R || jt === JT_L;
+}
+
+/**
+ * Contextual shaping over code points in logical order. Transparent marks are
+ * skipped; ZWJ (join causing) and ZWNJ (non-joining) take part as code points,
+ * wherever they sit inside grapheme clusters. With `levels`, letters join only
+ * within their level run (UAX #9 §3.5), and in even-level (left-to-right
+ * override) runs the joining direction is reversed, since the logically first
+ * letter is displayed leftmost.
+ */
+function shapeCodePoints(cps: readonly number[], levels: ArrayLike<number> | null): number[] {
   const n = cps.length;
   const out = cps.slice();
   const jts = new Uint8Array(n);
-  for (let i = 0; i < n; i++) jts[i] = joiningType(cps[i] as number);
+  let any = false;
+  for (let i = 0; i < n; i++) {
+    const cp = cps[i] as number;
+    if (cp < 0x0300) continue;
+    const jt = joiningType(cp);
+    jts[i] = jt;
+    if (isJoiningLetter(jt)) any = true;
+  }
+  if (!any) return out;
   for (let i = 0; i < n; i++) {
     const jt = jts[i] as number;
-    if (jt === JT_U || jt === JT_T || jt === JT_C) continue;
+    if (!isJoiningLetter(jt)) continue;
+    const lv = levels === null ? 1 : (levels[i] as number);
     let p = i - 1;
-    while (p >= 0 && jts[p] === JT_T) p--;
+    while (p >= 0 && jts[p] === JT_T && (levels === null || levels[p] === lv)) p--;
     let q = i + 1;
-    while (q < n && jts[q] === JT_T) q++;
-    out[i] = contextualForm(cps[i] as number, jt, p >= 0 && joinsForward(jts[p] as number), q < n && joinsBackward(jts[q] as number));
+    while (q < n && jts[q] === JT_T && (levels === null || levels[q] === lv)) q++;
+    let before = p >= 0 && (levels === null || levels[p] === lv) ? (jts[p] as number) : JT_U;
+    let after = q < n && (levels === null || levels[q] === lv) ? (jts[q] as number) : JT_U;
+    if ((lv & 1) === 0) {
+      const t = before;
+      before = after;
+      after = t;
+    }
+    out[i] = contextualForm(cps[i] as number, jt, joinsForward(before), joinsBackward(after));
   }
   return out;
 }
@@ -916,10 +948,6 @@ function substituted(g: Grapheme, cp: number): Grapheme {
   return out;
 }
 
-function graphemeJoining(g: Grapheme): number {
-  return joiningType(g.codePoint);
-}
-
 /** Item in a line to reorder: a grapheme index, or `-1` for a synthetic grapheme (the truncation ellipsis). */
 export interface VisualLine {
   /** Graphemes in visual order (mirrored and shaped). */
@@ -957,28 +985,15 @@ export function visualizeLine(
   }
   applyLineRules(types, levels, paras, 0, n);
 
-  // Shaping in logical order within the line.
-  const shapedCp = new Int32Array(n).fill(-1);
+  // Shaping in logical order within the line, per code point and level run.
+  let shapedCp: Int32Array | null = null;
   for (let j = 0; j < n; j++) {
     const i = items[j] as number;
     if (i < 0) continue;
     const g = gs[i] as Grapheme;
-    if (g.codePoint < 0x0600) continue;
-    const jt = graphemeJoining(g);
-    if (jt !== JT_D && jt !== JT_R && jt !== JT_L) continue;
-    let p = j - 1;
-    while (p >= 0 && (items[p] as number) >= 0 && graphemeJoining(gs[items[p] as number] as Grapheme) === JT_T) p--;
-    let q = j + 1;
-    while (q < n && (items[q] as number) >= 0 && graphemeJoining(gs[items[q] as number] as Grapheme) === JT_T) q++;
-    const pi = p >= 0 ? (items[p] as number) : -1;
-    const qi = q < n ? (items[q] as number) : -1;
-    let prevJoins = pi >= 0 && joinsForward(graphemeJoining(gs[pi] as Grapheme)) && !hasZwnj(gs[pi] as Grapheme);
-    let nextJoins = qi >= 0 && joinsBackward(graphemeJoining(gs[qi] as Grapheme));
-    if (pi >= 0 && hasZwj(gs[pi] as Grapheme)) prevJoins = true;
-    if (hasZwj(g)) nextJoins = true;
-    if (hasZwnj(g)) nextJoins = false;
-    const cp = contextualForm(g.codePoint, jt, prevJoins, nextJoins);
-    if (cp !== g.codePoint) shapedCp[j] = cp;
+    if (g.codePoint < 0x0600 || !isJoiningLetter(joiningType(g.codePoint))) continue;
+    shapedCp = shapeLine(gs, items, levels);
+    break;
   }
 
   const order = reorderIndices(levels, 0, n);
@@ -993,7 +1008,7 @@ export function visualizeLine(
       continue;
     }
     let g = gs[i] as Grapheme;
-    const sc = shapedCp[j] as number;
+    const sc = shapedCp === null ? -1 : (shapedCp[j] as number);
     if (sc >= 0) g = substituted(g, sc);
     else if (((levels[j] as number) & 1) === 1) {
       const m = mirrorGlyph(g.codePoint);
@@ -1026,10 +1041,37 @@ export function visualizeText(text: string, dir: TextDirection = "auto", maxWidt
   return visualizeLine(gs, resolveGraphemeBidi(gs, dir), items).graphemes;
 }
 
-function hasZwj(g: Grapheme): boolean {
-  return g.isMulti && g.grapheme.includes("\u200d");
-}
-
-function hasZwnj(g: Grapheme): boolean {
-  return g.isMulti && g.grapheme.includes("\u200c");
+/** Shaped base code point per line item (`-1` when unchanged). Every code point of a cluster takes the cluster's level. */
+function shapeLine(gs: readonly Grapheme[], items: readonly number[], levels: Uint8Array): Int32Array {
+  const n = items.length;
+  const cps: number[] = [];
+  const cpLevels: number[] = [];
+  const baseAt = new Int32Array(n).fill(-1);
+  for (let j = 0; j < n; j++) {
+    const i = items[j] as number;
+    const lv = levels[j] as number;
+    if (i < 0) {
+      cps.push(0x2026);
+      cpLevels.push(lv);
+      continue;
+    }
+    const g = gs[i] as Grapheme;
+    baseAt[j] = cps.length;
+    if (!g.isMulti) {
+      cps.push(g.codePoint);
+      cpLevels.push(lv);
+    } else {
+      for (const ch of g.grapheme) {
+        cps.push(ch.codePointAt(0) as number);
+        cpLevels.push(lv);
+      }
+    }
+  }
+  const shaped = shapeCodePoints(cps, cpLevels);
+  const out = new Int32Array(n).fill(-1);
+  for (let j = 0; j < n; j++) {
+    const b = baseAt[j] as number;
+    if (b >= 0 && shaped[b] !== cps[b]) out[j] = shaped[b] as number;
+  }
+  return out;
 }
