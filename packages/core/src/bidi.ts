@@ -781,15 +781,22 @@ export function reorderLine(text: string, dir: TextDirection = "auto", options: 
   }
   if (!trigger) return text;
   const { levels, paragraphLevels } = resolveLevels(types, cps, directionOf(dir));
-  applyLineRules(types, levels, paragraphLevels, 0, n);
-  const shaped = options.shape ? shapeCodePoints(cps, levels) : cps;
   let out = "";
-  for (const i of reorderIndices(levels, 0, n)) {
-    const t = types[i] as number;
-    if (isRemovedByX9(t) || (t >= BIDI_LRI && t <= BIDI_PDI)) continue;
-    let cp = shaped[i] as number;
-    if (((levels[i] as number) & 1) === 1) cp = mirrorGlyph(cp) || cp;
-    out += String.fromCodePoint(cp);
+  // Each paragraph is a line of its own; separators stay where they are.
+  for (let s = 0; s <= n; ) {
+    let e = s;
+    while (e < n && types[e] !== BIDI_B) e++;
+    applyLineRules(types, levels, paragraphLevels, s, e);
+    const shaped = options.shape ? shapeCodePoints(cps.slice(s, e), levels.subarray(s, e)) : null;
+    for (const i of reorderIndices(levels, s, e)) {
+      const t = types[i] as number;
+      if (isRemovedByX9(t) || (t >= BIDI_LRI && t <= BIDI_PDI)) continue;
+      let cp = shaped === null ? (cps[i] as number) : (shaped[i - s] as number);
+      if (((levels[i] as number) & 1) === 1) cp = mirrorGlyph(cp) || cp;
+      out += String.fromCodePoint(cp);
+    }
+    if (e < n) out += String.fromCodePoint(cps[e] as number);
+    s = e + 1;
   }
   return out;
 }
@@ -899,7 +906,7 @@ export interface GraphemeBidi {
   levels: Uint8Array;
   /** Paragraph embedding level per grapheme. */
   paragraphLevels: Uint8Array;
-  /** Bidi_Class of each grapheme's first code point. */
+  /** Bidi_Class of each grapheme's last code point that X9 keeps. */
   types: Uint8Array;
 }
 
@@ -926,7 +933,13 @@ export function graphemesNeedBidi(gs: readonly Grapheme[], dir: TextDirection = 
   return false;
 }
 
-/** Resolve levels for a grapheme array. Newlines separate paragraphs; each `auto` paragraph picks its own direction. */
+/**
+ * Resolve levels for a grapheme array. Newlines separate paragraphs; each
+ * `auto` paragraph picks its own direction. A cluster takes the level and
+ * class of its last code point that X9 keeps, so a space carrying a combining
+ * mark is not trailing whitespace (L1), and a Prepend cluster (U+0600 + digit)
+ * follows its base.
+ */
 export function resolveGraphemeBidi(gs: readonly Grapheme[], dir: TextDirection = "auto"): GraphemeBidi {
   const cps: number[] = [];
   const firstCp = new Int32Array(gs.length);
@@ -944,7 +957,16 @@ export function resolveGraphemeBidi(gs: readonly Grapheme[], dir: TextDirection 
   const paragraphLevels = new Uint8Array(n);
   const gTypes = new Uint8Array(n);
   for (let i = 0; i < n; i++) {
-    const c = firstCp[i] as number;
+    const first = firstCp[i] as number;
+    let c = first;
+    if ((gs[i] as Grapheme).isMulti) {
+      for (let k = (i + 1 < n ? (firstCp[i + 1] as number) : cps.length) - 1; k > first; k--) {
+        if (!isRemovedByX9(types[k] as number)) {
+          c = k;
+          break;
+        }
+      }
+    }
     levels[i] = r.levels[c] as number;
     paragraphLevels[i] = r.paragraphLevels[c] as number;
     gTypes[i] = types[c] as number;

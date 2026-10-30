@@ -2,7 +2,9 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import {
   applyLineRules,
   ATTR_BOLD,
+  BIDI_AN,
   BIDI_L,
+  BIDI_NSM,
   bidiClass,
   CellBuffer,
   CssConsoleDriver,
@@ -14,6 +16,7 @@ import {
   parseColor,
   renderToAnsi,
   reorderLine,
+  resolveGraphemeBidi,
   resolveLevels,
   segmentGraphemes,
   shapeArabicCodePoints,
@@ -21,6 +24,7 @@ import {
   type ConsoleTarget,
   type SceneNode,
   type SceneNodeProps,
+  visualizeLine,
 } from "../src/index";
 import { box, text } from "./fixtures";
 
@@ -71,6 +75,13 @@ describe("reorderLine", () => {
     expect(paragraphDirection("123 שלום")).toBe("rtl");
     expect(paragraphDirection("\u2067שלום\u2069 abc")).toBe("ltr");
     expect(paragraphDirection("1 + 2")).toBe("ltr");
+  });
+
+  test("paragraph separators stay in place", () => {
+    expect(reorderLine("שלום\n")).toBe("םולש\n");
+    expect(reorderLine("שלום\nabc (1)")).toBe("םולש\nabc (1)");
+    expect(reorderLine("א ב\r\nג ד", "rtl")).toBe("ב א\r\nד ג");
+    expect(reorderLine("\nשלום")).toBe("\nםולש");
   });
 
   test("pure LTR text is returned untouched", () => {
@@ -207,6 +218,26 @@ describe("scene rendering", () => {
     const leaf = text({ dir: "auto" });
     leaf.text = "שלום!";
     expect(rows({}, ["user ", leaf, " 3"], 13)).toEqual(["user !םולש 3 "]);
+  });
+
+  test("a dir span keeps its isolation across newlines", () => {
+    // Paragraph 2 is FSI "שלום!" PDI " 3": no strong character outside the isolate, so it stays LTR.
+    expect(rows({}, [text({ dir: "auto" }, "a\nשלום!"), " 3"], 8, 2)).toEqual(["a       ", "!םולש 3 "]);
+    // Nested isolates and newlines in a child span close and reopen in order.
+    expect(rows({}, [text({ dir: "rtl" }, text({ dir: "auto" }, "x\nשלום!")), " 3"], 8, 2)).toEqual(["x       ", "!םולש 3 "]);
+  });
+
+  test("a cluster's bidi class follows its last kept code point", () => {
+    // "abc" + space with a combining acute + "def" in an RTL paragraph, wrapped after the cluster.
+    const gs = segmentGraphemes("abc \u0301def");
+    expect(gs[3]?.grapheme).toBe(" \u0301");
+    const bidi = resolveGraphemeBidi(gs, "rtl");
+    expect(bidi.types[3]).toBe(BIDI_NSM);
+    // The visible mark is not trailing whitespace (L1), so it stays with "abc" instead of jumping to the far side.
+    const line = visualizeLine(gs, bidi, [0, 1, 2, 3]);
+    expect(line.graphemes.map((g) => g.grapheme).join("")).toBe("abc \u0301");
+    // A Prepend cluster (number sign + digit) takes the digit's class.
+    expect(resolveGraphemeBidi(segmentGraphemes("\u0600\u0661 x"), "ltr").types[0]).toBe(BIDI_AN);
   });
 
   test("updating dir repaints", () => {

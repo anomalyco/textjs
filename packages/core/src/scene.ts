@@ -631,6 +631,9 @@ export class SceneNode {
     let curLineWidth = 0;
     let naturalHeight = 1;
     let maybeBidi = false;
+    // Isolate initiators of the enclosing `dir` spans: a newline ends every isolate (it is a
+    // paragraph separator), so they are closed before it and reopened after.
+    const isolates: Grapheme[] = [];
     const visit = (node: SceneNode, parent: TextRun | null): void => {
       if (node.props.display === "none") return;
       const s = node.style;
@@ -645,6 +648,7 @@ export class SceneNode {
       const isolate = node !== this ? node.props.dir : undefined;
       if (isolate !== undefined) {
         graphemes.push(ISOLATE_GRAPHEMES[isolate]);
+        isolates.push(ISOLATE_GRAPHEMES[isolate]);
         // LTR and auto isolates only matter around right-to-left text, which the scan below finds.
         if (isolate === "rtl") maybeBidi = true;
       }
@@ -653,7 +657,17 @@ export class SceneNode {
           const ri = runs.length;
           runs.push(run);
           const before = graphemes.length;
-          segmentGraphemes(node.text, graphemes);
+          if (isolates.length > 0 && node.text.includes("\n")) {
+            for (const g of segmentGraphemes(node.text)) {
+              if (g.codePoint !== 0x0a) {
+                graphemes.push(g);
+                continue;
+              }
+              for (let k = 0; k < isolates.length; k++) graphemes.push(PDI_GRAPHEME);
+              graphemes.push(g);
+              for (const o of isolates) graphemes.push(o);
+            }
+          } else segmentGraphemes(node.text, graphemes);
           const after = graphemes.length;
           if (ri > 0 && after > before) runBounds.push(ri, before, after);
           for (let i = before; i < after; i++) {
@@ -671,7 +685,10 @@ export class SceneNode {
         }
       }
       for (const c of node.children) visit(c, run);
-      if (isolate !== undefined) graphemes.push(PDI_GRAPHEME);
+      if (isolate !== undefined) {
+        graphemes.push(PDI_GRAPHEME);
+        isolates.pop();
+      }
     };
     visit(this, null);
     if (curLineWidth > naturalWidth) naturalWidth = curLineWidth;
