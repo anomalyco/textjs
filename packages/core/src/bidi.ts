@@ -113,7 +113,8 @@ let formMap: Map<number, Uint32Array> | null = null;
 
 /** Bidi_Class of a code point (`BIDI_*` constant). */
 export function bidiClass(cp: number): number {
-  if (cp < 0x41) return LATIN_LOW[cp] as number;
+  if (cp < 0x41) return cp >= 0 ? (LATIN_LOW[cp] as number) : BIDI_L;
+  if (!(cp <= 0x10ffff)) return BIDI_L;
   if (classTable === null) classTable = decodeRanges(BIDI_CLASS_RANGES);
   return lookup(classTable, cp);
 }
@@ -574,7 +575,8 @@ function resolveBrackets(
     const b = table.get(codePoints[base + i] as number);
     if (b === undefined) continue;
     if (b.open) {
-      if (stackPair.length === MAX_BRACKET_STACK) break;
+      // BD16: on overflow, stop and pair nothing in this isolating run sequence.
+      if (stackPair.length === MAX_BRACKET_STACK) return;
       const closer = table.get(b.pair);
       stackPair.push(closer !== undefined ? closer.canon : b.pair);
       stackPos.push(j);
@@ -667,6 +669,8 @@ function isL1Whitespace(t: number): boolean {
 /**
  * L1: reset segment/paragraph separators, whitespace before them and trailing
  * whitespace of the line `[start, end)` to the paragraph level, in place.
+ * X9-removed characters (BN, embeddings, overrides) outside those sequences
+ * then take the level of the preceding character (UAX #9 §5.2).
  */
 export function applyLineRules(
   types: ArrayLike<number>,
@@ -676,15 +680,29 @@ export function applyLineRules(
   end: number,
 ): void {
   let trailing = true;
+  let removed = false;
   for (let i = end - 1; i >= start; i--) {
     const t = types[i] as number;
     if (t === BIDI_S || t === BIDI_B) {
       levels[i] = paragraphLevels[i] as number;
       trailing = true;
     } else if (trailing && isL1Whitespace(t)) levels[i] = paragraphLevels[i] as number;
-    else trailing = false;
+    else {
+      trailing = false;
+      if (isRemovedByX9(t)) {
+        levels[i] = REMOVED_LEVEL;
+        removed = true;
+      }
+    }
+  }
+  if (!removed) return;
+  for (let i = start; i < end; i++) {
+    if (levels[i] === REMOVED_LEVEL) levels[i] = i > start ? (levels[i - 1] as number) : (paragraphLevels[i] as number);
   }
 }
+
+/** Placeholder for X9-removed characters awaiting the post-L1 level of their predecessor (real levels are ≤ 126). */
+const REMOVED_LEVEL = 255;
 
 /**
  * L2: visual order of `[start, end)` given final levels. Returns logical
@@ -789,7 +807,7 @@ const JT_L = 5;
 
 /** Joining_Type (0 U, 1 T, 2 C, 3 D, 4 R, 5 L). */
 export function joiningType(cp: number): number {
-  if (cp < 0x0600) return cp >= 0x0300 && cp <= 0x036f ? JT_T : cp === 0xad ? JT_T : JT_U;
+  if (cp < 0x0300) return cp === 0xad ? JT_T : JT_U;
   if (joiningTable === null) joiningTable = decodeRanges(JOINING_TYPE_RANGES);
   return lookup(joiningTable, cp);
 }

@@ -1,15 +1,20 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import {
+  applyLineRules,
   ATTR_BOLD,
+  BIDI_L,
+  bidiClass,
   CellBuffer,
   CssConsoleDriver,
   hasRtl,
   initYoga,
+  joiningType,
   paintScene,
   paragraphDirection,
   parseColor,
   renderToAnsi,
   reorderLine,
+  resolveLevels,
   segmentGraphemes,
   shapeArabicCodePoints,
   graphemesNeedBidi,
@@ -74,6 +79,43 @@ describe("reorderLine", () => {
     expect(graphemesNeedBidi(segmentGraphemes("ünïcödé ▼ 漢字 🚀 — box ┌─┐"))).toBe(false);
     expect(graphemesNeedBidi(segmentGraphemes("x \u202Eabc"))).toBe(true);
     expect(graphemesNeedBidi(segmentGraphemes("plain"), "rtl")).toBe(true);
+  });
+});
+
+describe("conformance details outside the test files", () => {
+  const levelsOf = (s: string, dir: 0 | 1 | -1): number[] => {
+    const cp = cps(s);
+    const types = Uint8Array.from(cp.map(bidiClass));
+    const { levels, paragraphLevels } = resolveLevels(types, cp, dir);
+    applyLineRules(types, levels, paragraphLevels, 0, cp.length);
+    return Array.from(levels);
+  };
+
+  test("BD16: a bracket stack overflow pairs nothing in the sequence", () => {
+    // N0 pairs "(ב)" after א, making ")" R; once 64 openers overflow the stack, no pair survives.
+    expect(levelsOf(`א(ב)a${"(".repeat(63)}`, 0)[3]).toBe(1);
+    expect(levelsOf(`א(ב)a${"(".repeat(64)}`, 0)[3]).toBe(0);
+  });
+
+  test("joiningType: marks below U+0600 are transparent", () => {
+    expect(joiningType(0x0591)).toBe(1);
+    expect(joiningType(0x0483)).toBe(1);
+    expect(joiningType(0x0300)).toBe(1);
+    expect(joiningType(0x05d0)).toBe(0);
+    expect(shapeArabicCodePoints([0x0628, 0x0591, 0x062a])).toEqual([0xfe91, 0x0591, 0xfe96]);
+  });
+
+  test("bidiClass is total", () => {
+    expect(bidiClass(-1)).toBe(BIDI_L);
+    expect(bidiClass(0x110000)).toBe(BIDI_L);
+    expect(bidiClass(Number.NaN)).toBe(BIDI_L);
+  });
+
+  test("X9-removed characters take the post-L1 level of their predecessor", () => {
+    // The tab resets to 0 (L1); the word joiner after it follows the tab, not its pre-L1 level 1.
+    expect(levelsOf("א\t\u2060ב", 0)).toEqual([1, 0, 0, 1]);
+    // Trailing removed characters still reset with the trailing whitespace.
+    expect(levelsOf("אב \u200b", 0)).toEqual([1, 1, 0, 0]);
   });
 });
 
