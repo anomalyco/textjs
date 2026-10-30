@@ -124,12 +124,25 @@ export function cursorText(glyph: string, mode: CursorMode): string {
 
 export function renderCursor(glyph: string, mode: CursorMode, theme: TextTheme): ReactNode {
   const text = cursorText(glyph, mode);
+  // The blank cursor cell is a no-break space (Bidi_Class CS), which would join
+  // the numbers on either side into one (W4) and swap their order in RTL text.
+  // Isolated, it stays neutral like the space it stands for. Letters are never
+  // isolated, so Arabic keeps joining across the cursor.
+  const dir = glyph === CURSOR_SPACE ? "auto" : undefined;
   switch (mode) {
     case "block":
-      return <TxText inverse>{text}</TxText>;
+      return (
+        <TxText inverse dir={dir}>
+          {text}
+        </TxText>
+      );
     case "hollow":
-      return <TxText bg={theme.selection}>{text}</TxText>;
+      return (
+        <TxText bg={theme.selection} dir={dir}>
+          {text}
+        </TxText>
+      );
     default:
-      return text;
+      return dir === undefined || text === "" ? text : <TxText dir={dir}>{text}</TxText>;
   }
 }

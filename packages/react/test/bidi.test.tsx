@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ATTR_INVERSE, CellBuffer, extractStyledFrame } from "@textjs/core";
+import { ATTR_INVERSE, CellBuffer, extractStyledFrame, type SceneNode } from "@textjs/core";
 import { ConsoleMirror } from "../src/dom";
+import { CURSOR_SPACE, renderCursor } from "../src/components/field";
 import { Box, Input, Text } from "../src/index";
+import type { TextTheme } from "../src/theme";
 import { cleanup, render } from "../src/testing";
 
 afterEach(cleanup);
@@ -51,6 +54,41 @@ describe("<Text dir>", () => {
     await app.press("left");
     expect(inverseAt()).toEqual([1]);
     expect(app.cell(1, 0)?.char).toBe("ו");
+  });
+});
+
+describe("Input cursor on a space in RTL text", () => {
+  test("numbers keep their order while the cursor sits between them, in every blink phase", async () => {
+    const app = await render(<Input autoFocus />, { cols: 14, rows: 1 });
+    await app.type("שלום 12 34");
+    expect(app.lines()[0]?.trim()).toBe("34 12 םולש");
+    // Onto the space between the numbers: the cursor's no-break space must not join "12" and "34" (W4).
+    for (let i = 0; i < 3; i++) await app.press("left");
+    expect(app.lines()[0]?.trim()).toBe("34\u00a012 םולש");
+  });
+
+  test("the blank cursor cell is isolated in every mode; letters never are", () => {
+    const theme = { selection: "#333333" } as TextTheme;
+    for (const mode of ["block", "hollow", "off"] as const) {
+      expect((renderCursor(CURSOR_SPACE, mode, theme) as ReactElement<{ dir?: string }>).props.dir).toBe("auto");
+      const letter = renderCursor("ب", mode, theme);
+      expect(typeof letter === "string" || (letter as ReactElement<{ dir?: string }>).props.dir === undefined).toBe(true);
+    }
+    expect(renderCursor(CURSOR_SPACE, "hidden", theme)).toBe("");
+  });
+
+  test("an LTR Input stays on the zero-cost path", async () => {
+    const app = await render(<Input autoFocus />, { cols: 14, rows: 1 });
+    await app.type("hello 12 34");
+    expect(app.lines()[0]).toBe("hello 12 34");
+    const texts: SceneNode[] = [];
+    const walk = (n: SceneNode): void => {
+      if (n.type === "text") texts.push(n);
+      for (const c of n.children) walk(c);
+    };
+    walk(app.root.rootNode);
+    expect(texts.length).toBeGreaterThan(0);
+    for (const t of texts) expect(t.getTextModel().needsBidi).toBe(false);
   });
 });
 

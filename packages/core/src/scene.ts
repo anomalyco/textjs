@@ -645,7 +645,8 @@ export class SceneNode {
       const isolate = node !== this ? node.props.dir : undefined;
       if (isolate !== undefined) {
         graphemes.push(ISOLATE_GRAPHEMES[isolate]);
-        maybeBidi = true;
+        // LTR and auto isolates only matter around right-to-left text, which the scan below finds.
+        if (isolate === "rtl") maybeBidi = true;
       }
       if (node.type === "raw-text" || (node.text.length > 0 && node.children.length === 0)) {
         if (node.text.length > 0) {

@@ -183,6 +183,18 @@ function isBidiTrigger(cp: number): boolean {
   return isRtlCodePoint(cp);
 }
 
+/**
+ * Code points that can raise text to a right-to-left (odd) level: R, AL, AN
+ * and RLE, RLO, RLI. Without one, every resolved level is even, so LTR
+ * embeddings, overrides and isolates (LRE, LRO, LRI, FSI, PDF, PDI) alone
+ * never reorder, mirror or shape anything.
+ */
+function isReorderTrigger(cp: number): boolean {
+  if (cp < 0x0590) return false;
+  if (cp === 0x202b || cp === 0x202e || cp === 0x2067) return true;
+  return isRtlCodePoint(cp);
+}
+
 /** True when `text` contains any R, AL or AN character (the strings that need bidi neutralization when emitted). */
 export function hasRtl(text: string): boolean {
   for (let i = 0; i < text.length; i++) {
@@ -833,21 +845,21 @@ export interface GraphemeBidi {
 
 /**
  * Whether a grapheme sequence needs the bidi path: `dir === "rtl"` or any
- * R/AL/AN character or explicit RTL/override/isolate control. Pure-LTR text
- * returns `false` after one cheap scan (every code point below U+0590 is
- * rejected by a single comparison).
+ * R/AL/AN character or RLE/RLO/RLI control (LTR-only controls and isolates
+ * cannot reorder anything). Pure-LTR text returns `false` after one cheap
+ * scan (every code point below U+0590 is rejected by a single comparison).
  */
 export function graphemesNeedBidi(gs: readonly Grapheme[], dir: TextDirection = "auto"): boolean {
   if (dir === "rtl") return true;
   for (let i = 0; i < gs.length; i++) {
     const g = gs[i] as Grapheme;
     if (g.codePoint < 0x0590 && !g.isMulti) continue;
-    if (isBidiTrigger(g.codePoint)) return true;
+    if (isReorderTrigger(g.codePoint)) return true;
     if (g.isMulti) {
       const s = g.grapheme;
       for (let j = 0; j < s.length; j++) {
         const c = s.charCodeAt(j);
-        if (c >= 0x0590 && isBidiTrigger(s.codePointAt(j) as number)) return true;
+        if (c >= 0x0590 && isReorderTrigger(s.codePointAt(j) as number)) return true;
       }
     }
   }

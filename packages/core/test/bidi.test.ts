@@ -182,6 +182,15 @@ describe("scene rendering", () => {
     const t = text({}, "Hello ▼ world ✓ 漢字");
     render(box({ width: 30, height: 1 }, t), 30, 1);
     expect(t.getTextModel().needsBidi).toBe(false);
+    // LTR and auto isolates around LTR text cannot reorder anything; an RTL isolate can.
+    expect(graphemesNeedBidi(segmentGraphemes("a \u2068b\u2069 \u2066c\u2069 \u202Ad\u202C"))).toBe(false);
+    expect(graphemesNeedBidi(segmentGraphemes("a \u2067b\u2069"))).toBe(true);
+    const iso = text({}, "12", text({ dir: "auto" }, "\u00a0"), "34", text({ dir: "ltr" }, "x"));
+    expect(rows({}, [iso], 6)).toEqual(["12\u00a034x"]);
+    expect(iso.getTextModel().needsBidi).toBe(false);
+    const rtlIso = text({}, text({ dir: "rtl" }, "ab!"));
+    expect(rows({}, [rtlIso], 4)).toEqual(["!ab "]);
+    expect(rtlIso.getTextModel().needsBidi).toBe(true);
   });
 });
 
