@@ -20,7 +20,7 @@ export async function GET() {
 | `revalidate = N` | Cached; stale after `N` seconds |
 | `revalidate = 0` or `dynamic = "force-dynamic"` | Runs on every request |
 
-Cached handlers get one entry per pathname, and their `request` looks like it would at build time: no query string, headers, cookies or body. Read those in a dynamic handler instead. Only `GET` and `HEAD` are cached. Responses with a `5xx` status are never stored.
+Cached handlers get one entry per pathname, and their `request` looks like it would at build time: no query string, headers, cookies or body. Read those in a dynamic handler instead. Only `GET` and `HEAD` are cached. Responses with a `5xx` status, a `Set-Cookie` header, or `Cache-Control: private` / `no-store` are returned but never stored.
 
 ## Headers
 
@@ -31,7 +31,9 @@ Cached responses carry:
 | `x-textjs-cache` | `MISS`, `HIT` or `STALE` |
 | `Cache-Control` | `s-maxage=N, stale-while-revalidate=<1 year − N>`, or `s-maxage=31536000` for `force-static` |
 
-A `Cache-Control` header set by the handler is kept. In `text dev`, segment config applies but nothing is stored, so every request runs the handler.
+When [middleware](/docs/middleware) sets cookies, rewrites or overrides request headers for the request, the generated header becomes `private, no-cache, no-store, max-age=0, must-revalidate`, so shared caches never replay a per-visitor decision. A `Cache-Control` header set by the handler is kept.
+
+In `text dev`, segment config applies but nothing is stored, so every request runs the handler.
 
 ## Data cache
 
@@ -47,7 +49,7 @@ export const getPosts = unstable_cache(
 );
 ```
 
-The key is the key parts plus the JSON-encoded arguments. Results are JSON-serialized, so every call returns a fresh copy (and `Date` objects come back as strings). `cache(fn, { key, tags, revalidate })` is the same thing with an options object.
+The key is the key parts plus the arguments, encoded by value (`undefined` and `null`, `Map`, `Set`, `Date` and `URL` arguments stay distinct). Without key parts, the function's source and the place it was created identify it; pass key parts whenever the function closes over values, for example when it's created per request or in a loop. Results are JSON-serialized, so every call returns a fresh copy (and `Date` objects come back as strings); a result that can't be serialized throws. `cache(fn, { key, tags, revalidate })` is the same thing with an options object.
 
 Inside a cached route handler, data entries pass their tags and their shortest `revalidate` up to the route: revalidating `"posts"` also refreshes `/api/posts`. A data call with `revalidate: 0` makes the route dynamic.
 
@@ -66,9 +68,13 @@ On Vercel and Cloudflare, background refreshes are registered with `waitUntil()`
 ```ts@app/api/revalidate/route.ts
 import { revalidatePath, revalidateTag } from "@textjs/next/cache";
 
-export async function POST() {
-  revalidateTag("posts");
-  revalidatePath("/api/feed");
+export async function POST(request: Request) {
+  // Anyone can POST here: require a secret shared with your CMS or webhook.
+  if (request.headers.get("authorization") !== `Bearer ${process.env.REVALIDATE_SECRET}`) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+  await revalidateTag("posts");
+  await revalidatePath("/api/feed");
   return Response.json({ revalidated: true });
 }
 ```

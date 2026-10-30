@@ -47,6 +47,8 @@ export interface MemoryCacheStoreOptions {
   maxEntries?: number;
   /** Approximate maximum size in bytes (default 50 MB). */
   maxSize?: number;
+  /** Maximum remembered tag revalidations before the oldest are dropped (default `10000`). */
+  maxTags?: number;
 }
 
 function sizeOf(value: unknown): number {
@@ -64,11 +66,13 @@ export class MemoryCacheStore implements CacheStore {
   readonly #tags = new Map<string, TagState>();
   readonly #maxEntries: number;
   readonly #maxSize: number;
+  readonly #maxTags: number;
   #size = 0;
 
   constructor(options: MemoryCacheStoreOptions = {}) {
     this.#maxEntries = options.maxEntries ?? 1000;
     this.#maxSize = options.maxSize ?? 50 * 1024 * 1024;
+    this.#maxTags = options.maxTags ?? 10_000;
   }
 
   get size(): number {
@@ -108,7 +112,15 @@ export class MemoryCacheStore implements CacheStore {
       const s = this.#tags.get(tag) ?? { expiredAt: 0, staleAt: 0 };
       if (mode === "expire") s.expiredAt = Math.max(s.expiredAt, at);
       else s.staleAt = Math.max(s.staleAt, at);
+      this.#tags.delete(tag);
       this.#tags.set(tag, s);
+    }
+    // Forgetting the oldest revalidation is safe for entries written after it;
+    // drop the entries that may still predate it too.
+    for (const [tag, st] of this.#tags) {
+      if (this.#tags.size <= this.#maxTags) break;
+      this.#tags.delete(tag);
+      for (const [key, hit] of this.#entries) if (hit.entry.lastModified <= Math.max(st.expiredAt, st.staleAt) && hit.entry.tags.includes(tag)) this.delete(key);
     }
   }
 
@@ -145,7 +157,9 @@ export interface CacheScope {
 
 interface CacheState {
   store: CacheStore;
-  inflight: Map<string, Promise<ResolvedEntry>>;
+  inflight: Map<string, { generation: number; promise: Promise<ResolvedEntry> }>;
+  /** Bumped by every `revalidateTag()` / `revalidatePath()`: refreshes started before it can't serve readers after it. */
+  generation: number;
   scope: AsyncLocalStorage<CacheScope>;
   clock: () => number;
   last: number;
@@ -161,6 +175,7 @@ function state(): CacheState {
     s = {
       store: new MemoryCacheStore(),
       inflight: new Map(),
+      generation: 0,
       scope: new AsyncLocalStorage<CacheScope>(),
       clock: Date.now,
       last: 0,
@@ -174,8 +189,8 @@ function state(): CacheState {
 /** Strictly increasing timestamps, so a revalidation in the same millisecond as a write still wins. */
 export function cacheNow(): number {
   const s = state();
-  let t = s.clock();
-  if (t <= s.last) t = s.last + 0.001;
+  let t = Math.floor(s.clock());
+  if (t <= s.last) t = s.last + 1;
   s.last = t;
   return t;
 }
@@ -262,11 +277,12 @@ async function compute(key: string, fn: () => Promise<Computed>): Promise<Resolv
 function dedupe(key: string, fn: () => Promise<Computed>): Promise<ResolvedEntry> {
   const s = state();
   const running = s.inflight.get(key);
-  if (running) return running;
+  if (running && running.generation === s.generation) return running.promise;
+  const generation = s.generation;
   const p = compute(key, fn).finally(() => {
-    if (s.inflight.get(key) === p) s.inflight.delete(key);
+    if (s.inflight.get(key)?.promise === p) s.inflight.delete(key);
   });
-  s.inflight.set(key, p);
+  s.inflight.set(key, { generation, promise: p });
   return p;
 }
 
@@ -281,7 +297,7 @@ export async function getOrCompute(key: string, fn: () => Promise<Computed>, wai
     const verdict = classifyEntry(entry, await s.store.getTagState(entry.tags), cacheNow());
     if (verdict === "fresh") return { entry, status: "HIT" };
     if (verdict === "stale") {
-      if (!s.inflight.has(key)) {
+      if (s.inflight.get(key)?.generation !== s.generation) {
         const refresh = dedupe(key, fn).catch((error: unknown) => {
           s.onError(error, key);
         });
@@ -316,6 +332,52 @@ function validateTags(tags: unknown, where: string): string[] {
   return tags as string[];
 }
 
+/** A collision-free cache key for arguments (`undefined` ≠ `null`, `Map` / `Set` / `Date` / `bigint` by value). */
+export function serializeCacheArgs(value: unknown, seen = new Set<object>()): string {
+  if (value === undefined) return "u";
+  if (value === null) return "n";
+  switch (typeof value) {
+    case "string":
+      return JSON.stringify(value);
+    case "number":
+      return Object.is(value, -0) ? "-0" : Number.isNaN(value) ? "NaN" : String(value);
+    case "boolean":
+      return value ? "t" : "f";
+    case "bigint":
+      return `${value}n`;
+    case "function":
+    case "symbol":
+      throw new TypeError(`unstable_cache arguments must be serializable; got a ${typeof value}.`);
+  }
+  const obj = value as object;
+  if (seen.has(obj)) throw new TypeError("unstable_cache arguments must not be circular.");
+  seen.add(obj);
+  try {
+    if (Array.isArray(obj)) return `[${obj.map((v) => serializeCacheArgs(v, seen)).join(",")}]`;
+    if (obj instanceof Date) return `D${obj.getTime()}`;
+    if (obj instanceof URL) return `L${JSON.stringify(obj.href)}`;
+    if (obj instanceof URLSearchParams) return `Q${JSON.stringify(obj.toString())}`;
+    if (obj instanceof RegExp) return `R${JSON.stringify(obj.toString())}`;
+    if (obj instanceof Map) return `M[${[...obj].map(([k, v]) => `${serializeCacheArgs(k, seen)}:${serializeCacheArgs(v, seen)}`).sort().join(",")}]`;
+    if (obj instanceof Set) return `S[${[...obj].map((v) => serializeCacheArgs(v, seen)).sort().join(",")}]`;
+    const keys = Object.keys(obj).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${serializeCacheArgs((obj as Record<string, unknown>)[k], seen)}`).join(",")}}`;
+  } finally {
+    seen.delete(obj);
+  }
+}
+
+/** `file:line:col` of the code that called `unstable_cache()` (stable across processes running one build). */
+function callSite(): string {
+  const frames = (new Error().stack ?? "").split("\n").map((l) => l.trim()).filter((l) => l.startsWith("at "));
+  // [callSite, unstable_cache, (cache), caller, …]
+  let i = 2;
+  if (frames[i]?.startsWith("at cache ")) i++;
+  return (frames[i] ?? "").replace(/^at\s+/, "");
+}
+
+const warnedKeys = new Map<string, WeakRef<object>>();
+
 function hashString(s: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) {
@@ -334,21 +396,36 @@ export function unstable_cache<Args extends unknown[], R>(fn: (...args: Args) =>
   const where = `unstable_cache(${keyParts?.join(", ") ?? fn.name ?? "anonymous"})`;
   const revalidate = validateRevalidate(options.revalidate, where);
   const tags = validateTags(options.tags, where);
-  const base = keyParts && keyParts.length > 0 ? keyParts.join("\u0000") : `fn:${hashString(fn.toString())}`;
+  let base: string;
+  if (keyParts && keyParts.length > 0) base = keyParts.join("\u0000");
+  else {
+    base = `fn:${hashString(fn.toString())}:${hashString(callSite())}`;
+    // Closures created at one call site (in a loop, per request) share source and site: they'd share entries.
+    const prior = warnedKeys.get(base)?.deref();
+    if (prior && prior !== fn) {
+      console.warn(`▼ Text.js: unstable_cache(${fn.name || "anonymous"}) was created more than once from the same code without keyParts; the instances share cache entries. Pass keyParts that identify what the function closes over.`);
+    }
+    warnedKeys.set(base, new WeakRef(fn));
+  }
   return async (...args: Args): Promise<R> => {
     const parent = currentCacheScope();
     if (revalidate === 0) {
       track(parent, tags, 0);
       return fn(...args);
     }
-    const key = `data:${base}:${JSON.stringify(args)}`;
+    const key = `data:${base}:${serializeCacheArgs(args)}`;
     const inherited = parent?.implicitTags ?? [];
     const resolved = await getOrCompute(
       key,
       async () => {
         const child: CacheScope = { tags: new Set([...tags, ...inherited]), revalidate, implicitTags: inherited, waitUntil: parent?.waitUntil };
         const value = await runInCacheScope(child, () => fn(...args));
-        const json = value === undefined ? null : JSON.stringify(value);
+        let json: string | null;
+        try {
+          json = value === undefined ? null : (JSON.stringify(value) ?? null);
+        } catch (error) {
+          throw new TypeError(`${where} returned a value that can't be cached as JSON: ${error instanceof Error ? error.message : String(error)}`);
+        }
         return { value: json, tags: [...child.tags], revalidate: child.revalidate };
       },
       parent?.waitUntil,
@@ -378,12 +455,18 @@ function after(promise: Promise<void>): Promise<void> {
  */
 export function revalidateTag(tag: string | readonly string[], profile?: "max"): Promise<void> {
   const tags = typeof tag === "string" ? [tag] : [...tag];
+  state().generation++;
   return after(Promise.resolve(state().store.markTags(tags, profile === "max" ? "stale" : "expire", cacheNow())));
 }
 
 export function normalizeCachePath(path: string): string {
-  const p = (path.startsWith("/") ? path : `/${path}`).split(/[?#]/)[0] as string;
-  return p.length > 1 ? p.replace(/\/+$/, "") : p;
+  let p = (path.startsWith("/") ? path : `/${path}`).split(/[?#]/)[0] as string;
+  try {
+    p = decodeURIComponent(p);
+  } catch {
+    // keep the raw path
+  }
+  return p.length > 1 ? p.replace(/\/+$/, "") || "/" : p;
 }
 
 /** Tags a route entry carries: `_P:<path>` for itself and `_L:<prefix>` for every enclosing segment. */
@@ -408,6 +491,7 @@ export function implicitTags(pathname: string, pattern?: string): string[] {
  */
 export function revalidatePath(path: string, type: "page" | "layout" = "page"): Promise<void> {
   const p = normalizeCachePath(path);
+  state().generation++;
   return after(Promise.resolve(state().store.markTags([type === "layout" ? `_L:${p}` : `_P:${p}`], "expire", cacheNow())));
 }
 

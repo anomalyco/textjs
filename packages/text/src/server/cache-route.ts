@@ -8,7 +8,7 @@
  * - Default, `"force-dynamic"` or `revalidate = 0`: run on every request.
  */
 
-import { runRouteHandler, type RouteHandlerModule } from "./http";
+import { markGeneratedCacheControl, PRIVATE_CACHE_CONTROL, runRouteHandler, type RouteHandlerModule } from "./http";
 import type { RouteParams } from "../routing";
 import { __validateRevalidate, EXPIRE_SECONDS, getOrCompute, implicitTags, normalizeCachePath, runInCacheScope, type CacheScope } from "./cache";
 
@@ -74,8 +74,17 @@ export function staticRequest(request: Request): Request {
 
 /** `Cache-Control` for a cached route (Next.js: `s-maxage=N, stale-while-revalidate=<expire - N>`). */
 export function cacheControlFor(revalidate: number | false): string {
-  if (revalidate === false) return `s-maxage=${EXPIRE_SECONDS}`;
-  return `s-maxage=${revalidate}, stale-while-revalidate=${EXPIRE_SECONDS - revalidate}`;
+  if (revalidate === false || !Number.isFinite(revalidate)) return `s-maxage=${EXPIRE_SECONDS}`;
+  const seconds = Math.min(EXPIRE_SECONDS, Math.max(1, Math.ceil(revalidate)));
+  return `s-maxage=${seconds}, stale-while-revalidate=${EXPIRE_SECONDS - seconds}`;
+}
+
+/** Responses a shared cache must never replay to other visitors. */
+export function isUncacheableResponse(res: Response): boolean {
+  if (res.status >= 500) return true;
+  if (res.headers.has("set-cookie")) return true;
+  const cc = (res.headers.get("cache-control") ?? "").toLowerCase();
+  return /(?:^|,)\s*(?:private|no-store)\b/.test(cc);
 }
 
 /** Run a route handler with route segment config caching. */
@@ -106,19 +115,25 @@ export async function runRouteHandlerWithCache(mod: RouteHandlerModule, request:
       }
       const body = new Uint8Array(await res.arrayBuffer());
       const value: StoredResponse = { status: res.status, statusText: res.statusText, headers: [...res.headers], body: toBase64(body) };
-      // Server errors are returned but never cached.
-      return { value, tags: [...s.tags], revalidate: res.status >= 500 ? 0 : s.revalidate };
+      // Server errors, cookies and private responses are returned to this request but never stored.
+      return { value, tags: [...s.tags], revalidate: isUncacheableResponse(res) ? 0 : s.revalidate };
     },
     ctx.waitUntil,
   );
   const stored = resolved.entry.value as StoredResponse;
   const headers = new Headers();
   for (const [k, v] of stored.headers) headers.append(k, v);
-  if (resolved.entry.revalidate === 0) headers.set("cache-control", "private, no-cache, no-store, max-age=0, must-revalidate");
-  else {
+  let generated = false;
+  if (resolved.entry.revalidate === 0) {
+    if (stored.status >= 500 || !headers.has("cache-control")) headers.set("cache-control", PRIVATE_CACHE_CONTROL);
+  } else {
     headers.set(CACHE_HEADER, resolved.status);
-    if (!headers.has("cache-control")) headers.set("cache-control", cacheControlFor(resolved.entry.revalidate));
+    if (!headers.has("cache-control")) {
+      headers.set("cache-control", cacheControlFor(resolved.entry.revalidate));
+      generated = true;
+    }
   }
   const body = method === "HEAD" || stored.status === 204 || stored.status === 304 ? null : fromBase64(stored.body);
-  return new Response(body, { status: stored.status, statusText: stored.statusText, headers });
+  const response = new Response(body, { status: stored.status, statusText: stored.statusText, headers });
+  return generated ? markGeneratedCacheControl(response) : response;
 }

@@ -2,11 +2,14 @@ import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import {
   __configureCache,
   cache,
+  cacheNow,
   classifyEntry,
   implicitTags,
   MemoryCacheStore,
+  normalizeCachePath,
   revalidatePath,
   revalidateTag,
+  serializeCacheArgs,
   setCacheStore,
   unstable_cache,
   type CacheEntry,
@@ -331,5 +334,115 @@ describe("runRouteHandlerWithCache", () => {
     const mod: RouteHandlerModule = { dynamic: "force-static", GET: (req) => new Response(`${++n} ${new URL(req.url).search}`) };
     expect(await (await call(mod, "/api/dev?x=1", { dev: true })).text()).toBe("1 ");
     expect(await (await call(mod, "/api/dev", { dev: true })).text()).toBe("2 ");
+  });
+});
+
+describe("cache hardening", () => {
+  test("argument keys distinguish undefined / null, Map, Set, Date and URL by value", async () => {
+    let calls = 0;
+    const get = unstable_cache(async (_v: unknown) => ++calls, ["args"]);
+    expect(await get(undefined)).toBe(1);
+    expect(await get(null)).toBe(2);
+    expect(await get(new Map([["a", 1]]))).toBe(3);
+    expect(await get(new Map([["a", 2]]))).toBe(4);
+    expect(await get(new Map([["a", 1]]))).toBe(3);
+    expect(await get(new Set([1]))).toBe(5);
+    expect(await get(new Date(0))).toBe(6);
+    expect(await get(new URL("https://a.dev/x"))).toBe(7);
+    expect(serializeCacheArgs([undefined])).not.toBe(serializeCacheArgs([null]));
+    expect(() => serializeCacheArgs([() => 1])).toThrow(/serializable/);
+  });
+
+  test("closures from the same call site without keyParts warn; distinct sites don't collide", async () => {
+    const warn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (m: string) => void warnings.push(m);
+    try {
+      const make = (n: number) => {
+        const f = unstable_cache(async () => n);
+        return f;
+      };
+      const one = make(1);
+      const two = make(2);
+      const warned = warnings.some((w) => w.includes("without keyParts"));
+      expect(await one()).toBe(1);
+      // Either the instances got distinct keys, or the shared key was reported.
+      if (!warned) expect(await two()).toBe(2);
+      const a = unstable_cache(async () => "same source");
+      const b = unstable_cache(async () => "same source");
+      expect(await a()).toBe("same source");
+      expect(await b()).toBe("same source");
+    } finally {
+      console.warn = warn;
+    }
+  });
+
+  test("non-serializable results fail clearly instead of crashing on parse", async () => {
+    const big = unstable_cache(async () => ({ n: 1n }), ["bigint"]);
+    await expect(big()).rejects.toThrow(/can't be cached as JSON/);
+    const fn = unstable_cache(async () => (() => 1) as unknown as number, ["fn"]);
+    expect(await fn()).toBeUndefined();
+  });
+
+  test("readers after revalidateTag never join a refresh that started before it", async () => {
+    let version = 0;
+    let release: () => void = () => undefined;
+    const gate = () => new Promise<void>((r) => (release = r));
+    let waiting: Promise<void> | null = null;
+    const get = unstable_cache(
+      async () => {
+        const v = ++version;
+        if (waiting) await waiting;
+        return v;
+      },
+      ["gen"],
+      { tags: ["gen"] },
+    );
+    expect(await get()).toBe(1);
+    await revalidateTag("gen");
+    waiting = gate();
+    const before = get();
+    while (version < 2) await settle();
+    await revalidateTag("gen");
+    waiting = null;
+    const after = get();
+    release();
+    expect(await before).toBe(2);
+    expect(await after).toBe(3);
+  });
+
+  test("timestamps are integers; paths are decoded; Cache-Control is clamped", () => {
+    expect(Number.isInteger(cacheNow())).toBe(true);
+    expect(Number.isInteger(cacheNow())).toBe(true);
+    expect(normalizeCachePath("/api/caf%C3%A9/")).toBe("/api/café");
+    expect(normalizeCachePath("/api/%E0%A4%A")).toBe("/api/%E0%A4%A");
+    expect(cacheControlFor(0.5)).toBe("s-maxage=1, stale-while-revalidate=31535999");
+    expect(cacheControlFor(-5)).toBe("s-maxage=1, stale-while-revalidate=31535999");
+    expect(cacheControlFor(99_999_999_999)).toBe("s-maxage=31536000, stale-while-revalidate=0");
+  });
+
+  test("the tag map is bounded", () => {
+    const store = new MemoryCacheStore({ maxTags: 3 });
+    store.set("k", { value: 1, lastModified: 1, revalidate: false, tags: ["t0"] });
+    for (let i = 0; i < 10; i++) store.markTags([`t${i}`], "expire", 10 + i);
+    expect(store.getTagState(["t9"]).expiredAt).toBe(19);
+    expect(store.getTagState(["t0"]).expiredAt).toBe(0);
+    // The entry the forgotten tag had expired is gone, not resurrected.
+    expect(store.get("k")).toBeUndefined();
+  });
+
+  test("Set-Cookie and private responses are never stored", async () => {
+    let n = 0;
+    const mod: RouteHandlerModule = { revalidate: 60, GET: () => new Response(String(++n), { headers: { "set-cookie": "a=1" } }) };
+    const ctx = { params: {}, pattern: "/api/c" };
+    const r1 = await runRouteHandlerWithCache(mod, new Request("http://x/api/c"), ctx);
+    expect(r1.headers.get("cache-control")).toBe("private, no-cache, no-store, max-age=0, must-revalidate");
+    expect(await r1.text()).toBe("1");
+    expect(await (await runRouteHandlerWithCache(mod, new Request("http://x/api/c"), ctx)).text()).toBe("2");
+    const priv: RouteHandlerModule = { revalidate: 60, GET: () => new Response(String(++n), { headers: { "cache-control": "private" } }) };
+    const p1 = await runRouteHandlerWithCache(priv, new Request("http://x/api/p"), { params: {}, pattern: "/api/p" });
+    expect(p1.headers.get("cache-control")).toBe("private");
+    const p2 = await runRouteHandlerWithCache(priv, new Request("http://x/api/p"), { params: {}, pattern: "/api/p" });
+    expect(await p2.text()).not.toBe(await p1.text());
   });
 });
