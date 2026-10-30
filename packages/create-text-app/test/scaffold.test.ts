@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseCliArgs, successMessage } from "../src/cli";
-import { detectPackageManager, runCommand, scaffold, templateFiles, TEMPLATES, toPackageName, validateProjectName, type TemplateName } from "../src/index";
+import { detectPackageManager, runCommand, scaffold, templateFiles, TEMPLATES, toPackageName, validateProjectName, VERSION, type TemplateName } from "../src/index";
 
 const REPO = fileURLToPath(new URL("../../..", import.meta.url));
 const BIN = fileURLToPath(new URL("../bin/create-text-app.ts", import.meta.url));
@@ -76,7 +76,7 @@ describe("scaffold", () => {
       expect(result.name).toBe(`valid-${template}`);
       const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
       expect(pkg.name).toBe(`valid-${template}`);
-      expect(pkg.dependencies["@textjs/next"]).toBe("^1.0.0");
+      expect(pkg.dependencies["@textjs/next"]).toBe(`^${VERSION}`);
       expect(pkg.scripts).toEqual({ dev: "text dev", build: "text build", start: "text start" });
       JSON.parse(readFileSync(join(dir, "tsconfig.json"), "utf8"));
       const tsx = new Bun.Transpiler({ loader: "tsx" });

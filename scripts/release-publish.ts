@@ -1,7 +1,7 @@
 /**
  * Build, pack and publish every publishable workspace package.
  *
- *   bun scripts/release-publish.ts --tag <latest|canary|lts|v<major>-lts> [--provenance] [--dry-run] [--skip-build]
+ *   bun scripts/release-publish.ts --tag <latest|canary|next|lts|v<major>-lts> [--provenance] [--dry-run] [--skip-build]
  *
  * Packages are packed with `bun pm pack` (resolving `workspace:*` to the
  * lockstep version), `publishConfig` field overrides (`main`, `types`,
@@ -11,10 +11,10 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { parseVersion, workspacePackages, type WorkspacePackage } from "./release-version";
+import { isNpmNotFound, parseVersion, workspacePackages, type NpmView, type WorkspacePackage } from "./release-version";
 
 /** `publishConfig` keys npm itself understands; everything else is a manifest override. */
 const NPM_PUBLISH_KEYS = new Set(["registry", "access", "tag", "provenance"]);
@@ -29,11 +29,17 @@ export function checkChannel(version: string, tag: string): void {
     if (m && Number(m[1]) !== v.major) throw new Error(`${version} does not belong on "${tag}".`);
     return;
   }
+  const canary = v.pre[0] === "canary" && typeof v.pre[1] === "number" && v.pre.length === 2;
   if (tag === "canary") {
-    if (!(v.pre[0] === "canary" && typeof v.pre[1] === "number" && v.pre.length === 2)) throw new Error(`Canary releases must be x.y.z-canary.N (got ${version}).`);
+    if (!canary) throw new Error(`Canary releases must be x.y.z-canary.N (got ${version}).`);
     return;
   }
-  throw new Error(`Unknown dist-tag "${tag}". Use latest, canary, lts or v<major>-lts.`);
+  if (tag === "next") {
+    // Release candidates and betas (what `release-version` proposes for non-canary prereleases).
+    if (!pre || canary) throw new Error(`"next" is for non-canary prereleases such as x.y.z-rc.N (got ${version}).`);
+    return;
+  }
+  throw new Error(`Unknown dist-tag "${tag}". Use latest, canary, next, lts or v<major>-lts.`);
 }
 
 /** Hoist `publishConfig` overrides into the manifest (pnpm semantics) and check nothing still says `workspace:`. */
@@ -82,10 +88,29 @@ function run(cmd: string, args: string[], cwd: string, env?: Record<string, stri
   if (r.status !== 0) throw new Error(`${cmd} ${args.join(" ")} failed (exit ${r.status})`);
 }
 
-function alreadyPublished(name: string, version: string): boolean {
-  const r = spawnSync("npm", ["view", `${name}@${version}`, "version"], { encoding: "utf8" });
-  return r.status === 0 && r.stdout.trim() === version;
+/** `true` when `name@version` is on npm; `false` on E404; throws on any other registry failure. */
+export function alreadyPublished(name: string, version: string, view: NpmView = defaultView): boolean {
+  const r = view([`${name}@${version}`, "version", "--json"]);
+  if (r.error) throw new Error(`npm view ${name}@${version} failed: ${r.error.message}`);
+  if (r.status !== 0) {
+    if (isNpmNotFound(r.stdout, r.stderr)) return false;
+    throw new Error(`npm view ${name}@${version} failed (exit ${r.status}):\n${(r.stderr || r.stdout).trim()}`);
+  }
+  // `npm view` prints nothing (exit 0) for a missing version of an existing package.
+  const out = r.stdout.trim();
+  if (out === "") return false;
+  try {
+    const parsed = JSON.parse(out) as string | string[];
+    return Array.isArray(parsed) ? parsed.includes(version) : parsed === version;
+  } catch {
+    return out === version;
+  }
 }
+
+const defaultView: NpmView = (args) => {
+  const r = spawnSync("npm", ["view", ...args], { encoding: "utf8" });
+  return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "", error: r.error };
+};
 
 function main(argv: string[]): number {
   const get = (flag: string): string | undefined => {
@@ -94,7 +119,7 @@ function main(argv: string[]): number {
   };
   const tag = get("--tag");
   if (!tag) {
-    console.log("usage: bun scripts/release-publish.ts --tag <latest|canary|lts|v<major>-lts> [--provenance] [--dry-run] [--skip-build]");
+    console.log("usage: bun scripts/release-publish.ts --tag <latest|canary|next|lts|v<major>-lts> [--provenance] [--dry-run] [--skip-build]");
     return 1;
   }
   const dryRun = argv.includes("--dry-run");
@@ -104,17 +129,30 @@ function main(argv: string[]): number {
   if (versions.size !== 1) throw new Error(`Packages are not in lockstep: ${packages.map((p) => `${p.name}@${p.version}`).join(", ")}`);
   const version = (packages[0] as WorkspacePackage).version;
   checkChannel(version, tag);
+  const publishTag: string = tag;
   console.log(`▼ Publishing ${packages.length} packages @ ${version} → ${tag}${dryRun ? " (dry run)" : ""}`);
 
+  // Build everything first: a failing build must not leave a half-published release.
+  if (!argv.includes("--skip-build")) {
+    for (const p of packages) {
+      const manifest = JSON.parse(readFileSync(p.manifest, "utf8")) as { scripts?: Record<string, string> };
+      if (manifest.scripts?.build) run("bun", ["run", "build"], p.dir);
+    }
+  }
   const staging = mkdtempSync(join(tmpdir(), "textjs-release-"));
-  for (const p of packages) {
+  try {
+    for (const p of packages) publishOne(p);
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
+  return 0;
+
+  function publishOne(p: WorkspacePackage): void {
     console.log(`\n▼ ${p.name}@${version}`);
     if (!dryRun && alreadyPublished(p.name, version)) {
       console.log("  already on npm, skipping");
-      continue;
+      return;
     }
-    const manifest = JSON.parse(readFileSync(p.manifest, "utf8")) as { scripts?: Record<string, string> };
-    if (!argv.includes("--skip-build") && manifest.scripts?.build) run("bun", ["run", "build"], p.dir);
     const dest = join(staging, p.name.replace("/", "__"));
     mkdirSync(dest, { recursive: true });
     run("bun", ["pm", "pack", "--destination", dest, "--ignore-scripts", "--quiet"], p.dir);
@@ -123,12 +161,11 @@ function main(argv: string[]): number {
     run("tar", ["xzf", tarball], dest);
     const packed = join(dest, "package", "package.json");
     writeFileSync(packed, `${JSON.stringify(preparePackedManifest(JSON.parse(readFileSync(packed, "utf8")) as Record<string, unknown>), null, 2)}\n`);
-    const args = ["publish", join(dest, "package"), "--tag", tag, "--access", "public"];
+    const args = ["publish", join(dest, "package"), "--tag", publishTag, "--access", "public"];
     if (argv.includes("--provenance")) args.push("--provenance");
     if (dryRun) args.push("--dry-run");
     run("npm", args, root);
   }
-  return 0;
 }
 
 if (import.meta.main) {

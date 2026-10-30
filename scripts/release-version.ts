@@ -14,7 +14,8 @@
  *   --force                 allow packages whose versions have drifted apart
  *
  * Also rewrites version constants that mirror package.json
- * (`export const VERSION = "…"`, `rendererVersion: "…"`).
+ * (`export const VERSION = "…"`, `rendererVersion: "…"`) and `peerDependencies`
+ * ranges on sibling packages (`"@textjs/react": "^1.0.0"` → `"^<new>"`).
  */
 
 import { spawnSync } from "node:child_process";
@@ -92,6 +93,15 @@ export function distTagFor(version: string): "latest" | "canary" {
   throw new Error(`${version} is not a stable or canary version; publish it under an explicit dist-tag.`);
 }
 
+/** The dist-tag `planBump` proposes: `latest`, `canary`, or `next` for other prereleases (`-rc.N`, `-beta.N`). */
+export function proposedDistTag(version: string): "latest" | "canary" | "next" {
+  try {
+    return distTagFor(version);
+  } catch {
+    return "next";
+  }
+}
+
 export interface WorkspacePackage {
   name: string;
   version: string;
@@ -145,6 +155,16 @@ function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** Point `peerDependencies` on lockstep siblings at `^<version>` (`workspace:` ranges are left to the packer). */
+export function bumpPeerRanges(manifest: string, names: ReadonlySet<string>, version: string): string {
+  const m = /("peerDependencies"\s*:\s*\{)([^}]*)(\})/.exec(manifest);
+  if (!m) return manifest;
+  const body = (m[2] as string).replace(/("([^"]+)"\s*:\s*")([^"]*)(")/g, (all, pre: string, name: string, range: string, post: string) =>
+    names.has(name) && !range.startsWith("workspace:") ? `${pre}^${version}${post}` : all,
+  );
+  return manifest.slice(0, m.index) + m[1] + body + m[3] + manifest.slice(m.index + m[0].length);
+}
+
 export function planBump(root: string, kind: string, options: { published?: readonly string[]; force?: boolean } = {}): BumpPlan {
   const packages = workspacePackages(root);
   if (packages.length === 0) throw new Error("No publishable packages found under packages/");
@@ -156,9 +176,10 @@ export function planBump(root: string, kind: string, options: { published?: read
   const to = nextVersion(from, kind, options.published);
   if (to === from && versions.size === 1) throw new Error(`Version is already ${to}`);
   const changes: FileChange[] = [];
+  const names = new Set(packages.map((p) => p.name));
   for (const p of packages) {
     const before = readFileSync(p.manifest, "utf8");
-    const after = before.replace(/("version"\s*:\s*")[^"]+(")/, `$1${to}$2`);
+    const after = bumpPeerRanges(before.replace(/("version"\s*:\s*")[^"]+(")/, `$1${to}$2`), names, to);
     changes.push({ file: p.manifest, before, after });
   }
   for (const p of packages) {
@@ -173,12 +194,7 @@ export function planBump(root: string, kind: string, options: { published?: read
       if (after !== before) changes.push({ file, before, after });
     }
   }
-  let distTag: string;
-  try {
-    distTag = distTagFor(to);
-  } catch {
-    distTag = "next";
-  }
+  const distTag = proposedDistTag(to);
   return { from, to, distTag, packages: packages.map((p) => p.name), changes };
 }
 
@@ -186,18 +202,45 @@ export function applyBump(plan: BumpPlan): void {
   for (const c of plan.changes) writeFileSync(c.file, c.after);
 }
 
-/** Every version of the lockstep packages already published to npm (empty when offline / unpublished). */
-export function publishedVersions(names: readonly string[]): string[] {
+/** `true` when `npm view` failed because the package or version doesn't exist (as opposed to a network or registry error). */
+export function isNpmNotFound(stdout: string, stderr: string): boolean {
+  if (/\bE404\b/.test(stderr)) return true;
+  try {
+    const parsed = JSON.parse(stdout) as { error?: { code?: string } };
+    return parsed?.error?.code === "E404";
+  } catch {
+    return false;
+  }
+}
+
+export type NpmView = (args: string[]) => { status: number | null; stdout: string; stderr: string; error?: Error };
+
+const npmView: NpmView = (args) => {
+  const r = spawnSync("npm", ["view", ...args], { encoding: "utf8" });
+  return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "", error: r.error };
+};
+
+/**
+ * Every version of the lockstep packages already published to npm. Unpublished
+ * packages (E404) contribute nothing; any other failure throws, so a registry
+ * outage can't restart canary numbering at `.0`.
+ */
+export function publishedVersions(names: readonly string[], view: NpmView = npmView): string[] {
   const out = new Set<string>();
   for (const name of names) {
-    const r = spawnSync("npm", ["view", name, "versions", "--json"], { encoding: "utf8" });
-    if (r.status !== 0) continue;
-    try {
-      const parsed = JSON.parse(r.stdout) as string | string[];
-      for (const v of Array.isArray(parsed) ? parsed : [parsed]) out.add(v);
-    } catch {
-      // ignore malformed output
+    const r = view([name, "versions", "--json"]);
+    if (r.error) throw new Error(`npm view ${name} failed: ${r.error.message}`);
+    if (r.status !== 0) {
+      if (isNpmNotFound(r.stdout, r.stderr)) continue;
+      throw new Error(`npm view ${name} failed (exit ${r.status}):\n${(r.stderr || r.stdout).trim()}`);
     }
+    let parsed: string | string[];
+    try {
+      parsed = JSON.parse(r.stdout) as string | string[];
+    } catch {
+      throw new Error(`npm view ${name} returned malformed output:\n${r.stdout.trim()}`);
+    }
+    for (const v of Array.isArray(parsed) ? parsed : [parsed]) out.add(v);
   }
   return [...out];
 }

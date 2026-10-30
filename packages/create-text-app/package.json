@@ -14,6 +14,14 @@
     ".": "./src/index.ts",
     "./package.json": "./package.json"
   },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "./package.json": "./package.json"
+    }
+  },
   "files": ["bin", "dist", "src", "templates"],
   "scripts": {
     "build": "tsc -b tsconfig.json && bun ../../scripts/build-bin.ts bin/create-text-app.ts dist/bin/create-text-app.js",

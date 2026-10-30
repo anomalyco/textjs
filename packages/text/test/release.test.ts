@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkChannel, preparePackedManifest, publishOrder } from "../../../scripts/release-publish";
-import { applyBump, distTagFor, nextVersion, planBump, workspacePackages } from "../../../scripts/release-version";
+import { alreadyPublished, checkChannel, preparePackedManifest, publishOrder } from "../../../scripts/release-publish";
+import { applyBump, bumpPeerRanges, distTagFor, nextVersion, planBump, proposedDistTag, publishedVersions, workspacePackages } from "../../../scripts/release-version";
 
 describe("nextVersion", () => {
   test("stable bumps (prereleases graduate like npm semver.inc)", () => {
@@ -105,5 +105,62 @@ describe("packed manifests", () => {
     expect(out.publishConfig).toEqual({ access: "public" });
     expect(out.devDependencies).toBeUndefined();
     expect(() => preparePackedManifest({ name: "x", dependencies: { y: "workspace:*" } })).toThrow(/still "workspace:\*"/);
+  });
+});
+
+describe("registry failures and channels", () => {
+  const view = (status: number, stdout: string, stderr = "") => () => ({ status, stdout, stderr });
+
+  test("only E404 means unpublished; any other npm failure throws", () => {
+    expect(publishedVersions(["@textjs/x"], view(1, '{"error":{"code":"E404"}}', "npm error code E404"))).toEqual([]);
+    expect(publishedVersions(["@textjs/x"], view(0, '["1.0.0","1.0.1-canary.0"]'))).toEqual(["1.0.0", "1.0.1-canary.0"]);
+    expect(() => publishedVersions(["@textjs/x"], view(1, "", "npm error code E503 Service Unavailable"))).toThrow(/E503/);
+    expect(() => publishedVersions(["@textjs/x"], view(0, "<html>"))).toThrow(/malformed/);
+    expect(alreadyPublished("@textjs/x", "1.0.0", view(0, '"1.0.0"'))).toBe(true);
+    expect(alreadyPublished("@textjs/x", "1.0.1", view(0, ""))).toBe(false);
+    expect(alreadyPublished("@textjs/x", "1.0.1", view(1, "", "npm error code E404"))).toBe(false);
+    expect(() => alreadyPublished("@textjs/x", "1.0.1", view(1, "", "npm error code ETIMEDOUT"))).toThrow(/ETIMEDOUT/);
+  });
+
+  test("rc prereleases get the next tag, which publish accepts", () => {
+    expect(proposedDistTag("1.4.0-rc.1")).toBe("next");
+    expect(() => checkChannel("1.4.0-rc.1", "next")).not.toThrow();
+    expect(() => checkChannel("1.4.0", "next")).toThrow(/non-canary prereleases/);
+    expect(() => checkChannel("1.4.0-canary.1", "next")).toThrow(/non-canary prereleases/);
+  });
+
+  test("peer ranges on sibling packages follow the bump", () => {
+    const manifest = '{\n  "name": "@textjs/font",\n  "peerDependencies": {\n    "@textjs/react": "^1.0.0",\n    "react": "^19.0.0"\n  }\n}\n';
+    expect(bumpPeerRanges(manifest, new Set(["@textjs/react"]), "1.0.1-canary.0")).toContain('"@textjs/react": "^1.0.1-canary.0"');
+    expect(bumpPeerRanges(manifest, new Set(["@textjs/react"]), "1.0.1-canary.0")).toContain('"react": "^19.0.0"');
+  });
+});
+
+describe("the real workspace", () => {
+  const REPO = join(import.meta.dir, "../../..");
+  const leaves = (v: unknown): string[] => (typeof v === "string" ? [v] : v && typeof v === "object" ? Object.values(v).flatMap(leaves) : []);
+
+  test("every public package publishes dist/ entry points built from existing sources", () => {
+    const plan = planBump(REPO, "canary");
+    expect(plan.packages.length).toBeGreaterThan(3);
+    for (const p of workspacePackages(REPO)) {
+      const m = JSON.parse(readFileSync(p.manifest, "utf8")) as Record<string, unknown> & { publishConfig?: Record<string, unknown>; files?: string[] };
+      const packed = preparePackedManifest({ ...m, dependencies: undefined, peerDependencies: undefined, optionalDependencies: undefined });
+      expect({ pkg: p.name, main: String(packed.main) }).toEqual({ pkg: p.name, main: expect.stringMatching(/^\.\/dist\//) });
+      for (const target of [packed.main, packed.types, ...leaves(packed.exports)].filter((t): t is string => typeof t === "string")) {
+        if (target === "./package.json") continue;
+        expect({ pkg: p.name, target, dist: target.startsWith("./dist/") }).toEqual({ pkg: p.name, target, dist: true });
+        const src = target.replace(/^\.\/dist\//, "src/").replace(/\.d\.ts$|\.js$/, "");
+        if (src.includes("*")) continue;
+        const exists = [".ts", ".tsx"].some((ext) => existsSync(join(p.dir, `${src}${ext}`)));
+        expect({ pkg: p.name, target, exists }).toEqual({ pkg: p.name, target, exists: true });
+      }
+      expect(m.files ?? []).toContain("dist");
+    }
+    // Version constants and sibling peer ranges move with the packages.
+    const files = plan.changes.map((c) => c.file);
+    expect(files.some((f) => f.endsWith("packages/font/package.json"))).toBe(true);
+    expect(plan.changes.find((c) => c.file.endsWith("packages/font/package.json"))?.after).toContain(`"@textjs/react": "^${plan.to}"`);
+    expect(files.some((f) => f.endsWith("packages/eslint-plugin-textjs/src/index.ts"))).toBe(true);
   });
 });

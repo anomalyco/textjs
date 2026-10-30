@@ -58,7 +58,10 @@ const STRICT: Readonly<Record<RuleName, Severity>> = {
   "prefer-use-keymap": "warn",
 };
 
-const pkg = { name: "eslint-plugin-textjs", version: "1.0.0" };
+/** Mirrors package.json (bumped by `scripts/release-version.ts`). */
+export const VERSION = "0.4.0";
+
+const pkg = { name: "eslint-plugin-textjs", version: VERSION };
 
 /** Files the configs apply to. */
 export const FILES = ["**/*.{js,jsx,mjs,ts,tsx,mts}"];
