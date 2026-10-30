@@ -91,7 +91,7 @@ compatibility_flags = ["nodejs_compat"]
 
 ## Server-rendered routes
 
-[Server-rendered routes](/docs/server-rendering) keep a session per open tab, so they need a long-lived server: `text start` or the `bun` adapter. The `static`, `vercel` and `cloudflare` adapters fail the build with [TX030](/errors/TX030) when a page exports `runtime = "server"`.
+[Server-rendered routes](/docs/server-rendering) keep a session per open tab, so they need a long-lived server: `text start` or the `bun` adapter. The `static`, `vercel` and `cloudflare` adapters fail the build with `TX030` when a page exports `runtime = "server"`.
 
 ## Behind a proxy
 

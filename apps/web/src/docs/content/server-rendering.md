@@ -138,4 +138,4 @@ The shell is rendered at `viewport.width × viewport.height` (default `120 × 36
 | `.text/server/live.mjs` | Server routes, the App Router and the console renderer. |
 | `.text/pages/…`, `.text/live.html` | Server-route documents. |
 
-`text start` and the [`bun` adapter](/docs/deploying#bun) serve all of them. Server routes need a long-lived process: the `static`, `vercel` and `cloudflare` adapters fail the build ([TX030](/errors/TX030)).
+`text start` and the [`bun` adapter](/docs/deploying#bun) serve all of them. Server routes need a long-lived process: the `static`, `vercel` and `cloudflare` adapters fail the build (`TX030`).
