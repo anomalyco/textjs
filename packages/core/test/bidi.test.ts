@@ -302,6 +302,24 @@ describe("drivers pin visual order", () => {
     expect(driver.compileRow(mixed, 0).reduce((n, sp) => n + sp.cells, 0)).toBe(10);
   });
 
+  test("negative fitting margins are capped at half a cell", () => {
+    // Windows: Consolas Latin cells (6.6 px) next to a Courier New fallback for Hebrew (7.2 px).
+    const measure = (t: string): number => {
+      let w = 0;
+      for (const ch of t) w += ch === "\u202D" || ch === "\u202C" ? 0 : hasRtl(ch) ? 7.2 : 6.6;
+      return w;
+    };
+    const s = "אבגדהוזחטי".repeat(4);
+    const buf = render(box({ width: 40, height: 1 }, text({}, s)), 40, 1);
+    const [span] = new CssConsoleDriver({ console: { clear() {}, log() {} }, clear: "never", measureText: measure }).compileRow(buf, 0);
+    // Uncapped this would be −24 px; half a 6.6 px cell is floor(211.2) / 64 = 3.296875 px.
+    expect(span?.css).toContain("margin-right:-3.296875px;");
+    // Drift within the cap is still corrected exactly: ceil(6.6 × 64) − ceil(7.2 × 64) = 423 − 461 = −38 LayoutUnits.
+    const small = render(box({ width: 1, height: 1 }, text({}, "א")), 1, 1);
+    const [one] = new CssConsoleDriver({ console: { clear() {}, log() {} }, clear: "never", measureText: measure }).compileRow(small, 0);
+    expect(one?.css).toContain("margin-right:-0.59375px;");
+  });
+
   test("AnsiDriver switches to explicit bidi mode and pins RTL rows", () => {
     const rtl = render(box({ width: 6, height: 2, flexDirection: "column" }, text({}, "שלום\nabc")), 6, 2);
     const out = renderToAnsi(rtl);

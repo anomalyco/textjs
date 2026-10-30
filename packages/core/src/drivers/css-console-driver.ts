@@ -703,7 +703,9 @@ export class CssConsoleDriver {
    * 1px hairlines when span edges leave the cell grid's subpixel pattern. Pad
    * (or pull in) each pinned span by the exact LayoutUnit difference so its box
    * is as wide as the same number of Latin cells, and keep it from merging
-   * with neighbours, which would repeat the padding on their lines.
+   * with neighbours, which would repeat the padding on their lines. Negative
+   * margins are capped at half a cell, so only drift is corrected; a span
+   * whose fallback font is much wider overflows rather than being overlapped.
    */
   private fitRtlSpans(spans: CompiledSpan[]): void {
     if (this.measurer === undefined) {
@@ -722,7 +724,9 @@ export class CssConsoleDriver {
       if (fit === undefined) {
         const target = Math.ceil(span.cells * this.cellAdvance * LAYOUT_UNIT);
         const natural = Math.ceil(measure(unescapeConsoleText(span.text), bold, italic) * LAYOUT_UNIT);
-        const delta = target - natural;
+        // Pull in by at most half a cell: a much wider fallback font (Courier New next to
+        // Consolas on Windows) would otherwise drag the following spans over these glyphs.
+        const delta = Math.max(target - natural, -Math.floor((this.cellAdvance * LAYOUT_UNIT) / 2));
         fit = delta > 0 ? `padding-right:${delta / LAYOUT_UNIT}px;` : delta < 0 ? `margin-right:${delta / LAYOUT_UNIT}px;` : "";
         this.fitCache.set(key, fit);
       }
