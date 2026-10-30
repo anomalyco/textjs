@@ -50,11 +50,11 @@ function scene(title: string): SceneNode {
       { flexDirection: "row", height: 7, marginTop: 1, flexShrink: 0 },
       label("wrap"),
       box(
-        { width: 26, border: true, borderStyle: "single", borderColor: "#3f3f46", paddingX: 1 },
+        { width: 26, border: true, borderStyle: "single", borderColor: "#3f3f46", paddingX: 1, title: "עברית (1)", titleColor: "#fafafa" },
         text({ fg: "#fafafa" }, "זהו משפט ארוך בעברית שעובר גלישה לשורות, עם מספר 42 ו-(סוגריים)."),
       ),
       box(
-        { width: 26, border: true, borderStyle: "single", borderColor: "#3f3f46", paddingX: 1, marginLeft: 1 },
+        { width: 26, border: true, borderStyle: "single", borderColor: "#3f3f46", paddingX: 1, marginLeft: 1, title: "العربية", titleColor: "#fafafa" },
         text({ fg: "#fafafa" }, "هذه جملة طويلة باللغة العربية تلتف على عدة أسطر مع رقم ٤٢."),
       ),
     ),

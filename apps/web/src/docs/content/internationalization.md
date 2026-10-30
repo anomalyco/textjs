@@ -44,14 +44,16 @@ On a nested `<Text>`, `dir` isolates the span like HTML's `<bdi>`: its content i
 
 1. **Wrap in logical order.** Lines break exactly as they do for left-to-right text, by cell width.
 2. **Reorder each line.** The algorithm resolves embedding levels for the whole paragraph (explicit embeddings and isolates, weak and neutral types, paired brackets), then each wrapped line is reordered on its own (rules L1–L2). Brackets and other mirrored characters swap at right-to-left levels (L4), so `(abc)` stays `(abc)` inside Hebrew.
-3. **Shape Arabic.** Letters take their contextual forms (isolated, initial, medial, final) from the Arabic Presentation Forms blocks, computed in logical order within the line. One letter is one cell, joined forms survive any span boundary (a cursor, a color change), and the console never has to shape them.
+3. **Shape Arabic.** Letters take their contextual forms (isolated, initial, medial, final) from the Arabic Presentation Forms blocks, computed in logical order within each level run of the line (ZWJ and ZWNJ count where they sit). One letter is one cell, joined forms survive any span boundary (a cursor, a color change), and the console never has to shape them.
 4. **Pin the order.** Cells now hold glyphs in display order. Browsers and many terminals would run bidi over them a second time, so drivers lock the order:
 
 | Output | How the order is pinned |
 | :-- | :-- |
 | DevTools (`CssConsoleDriver`) | Spans containing right-to-left characters are wrapped in `LRO … PDF` (U+202D / U+202C). DevTools' `%c` sanitizer drops `direction` and `unicode-bidi`. |
-| Terminals (`AnsiDriver`, `text run`) | Frames that contain right-to-left text start with `CSI 8 l` (ECMA-48 BDSM explicit mode, honoured by VTE-based terminals) and each such row is wrapped in `LRO … PDF` for terminals that run bidi per line. Pass `bidi: "none"` to emit cells as-is. |
-| DOM mirrors (`<ConsoleMirror>`) | Spans containing right-to-left text get `unicode-bidi: bidi-override; direction: ltr`. |
+| Terminals (`AnsiDriver`, `text run`) | Rows with right-to-left text are wrapped in `LRO … PDF` for terminals that run bidi per line. `renderToTerminal` switches to ECMA-48 BDSM explicit mode (`CSI 8 l`, honoured by VTE-based terminals) once on entry and back to implicit mode (`CSI 8 h`) on exit; one-shot `renderToAnsi` frames that contain right-to-left text start with `CSI 8 l`. Pass `bidi: "none"` to emit cells as-is. |
+| DOM mirrors (`<ConsoleMirror>`) | The mirror is `direction: ltr` (so an RTL host page can't flip it), and spans containing right-to-left text get `unicode-bidi: bidi-override`. |
+
+`<Box title>`, `<Box bottomTitle>` and `<Divider title>` go through the same steps (`CellBuffer.drawLogicalText` draws any single line this way), so their labels display in order and joined.
 
 Text without right-to-left characters skips all of this. A pure left-to-right text model is detected while its graphemes are segmented (one comparison per grapheme) and paints through the unchanged path; console frames are byte-identical.
 
@@ -59,22 +61,22 @@ Text without right-to-left characters skips all of this. A pure left-to-right te
 
 The shipping font stack is `"SF Mono", Menlo, Consolas, monospace`. Neither SF Mono nor Menlo has Hebrew or Arabic glyphs, so browsers fall back per character. On macOS that is Courier New, which is monospaced at 0.6 em: 7.2012 px per glyph at 12 px against Menlo's 7.2246 px. It's 0.3% narrower, enough to drift a full row of Hebrew by about half a cell. DevTools also paints every `%c` span with `contain: paint`, which shows a 1 px hairline when a span edge leaves the grid's sub-pixel pattern.
 
-`CssConsoleDriver` measures each right-to-left span with a canvas in the console font (the same Blink shaping and font fallback DevTools uses), then pads it by the exact LayoutUnit (1/64 px) difference. The span ends up as wide as the same number of Latin cells. Measured in the real DevTools frontend (Chromium 151) on a 64×21 frame of Hebrew, Arabic and mixed lines (`bun bench/devtools/bidi-shot.ts`):
+`CssConsoleDriver` measures each right-to-left span with a canvas in the console font (the same Blink shaping and font fallback DevTools uses), then pads it by the exact LayoutUnit (1/64 px) difference. The span ends up as wide as the grid cells it covers (a wide grapheme such as an emoji counts two). A span is pulled in by at most half a cell, so a much wider fallback font (Courier New next to Consolas on Windows) overflows instead of letting the next span overlap its glyphs. Measured in the real DevTools frontend (Chromium 151) on a 64×21 frame of Hebrew, Arabic, mixed and emoji-in-Hebrew lines and RTL box titles (`bun bench/devtools/bidi-shot.ts`):
 
 | Frame | Right-edge drift across rows | Rows with hairlines |
 | :-- | --: | --: |
 | Cells logged without pinning | 14.5 px (DevTools reorders and re-shapes) | 2 |
-| Pinned, no width fitting | 0.83 px | 4 |
+| Pinned, no width fitting | 2.22 px | 5 |
 | Shipping driver | 0.156 px | 2 |
-| Control: same cells, every RTL glyph replaced by `x` | 0.156 px | 2 |
+| Control: same cells, every RTL glyph replaced by `x` | 1.67 px | 2 |
 
-The shipping frame matches the all-Latin control exactly. The two remaining hairline rows come from DevTools' span painting and appear with Latin text in the same positions.
+The shipping frame matches the all-Latin control on every row except the emoji one, where it does better: emoji are fitted with the right-to-left span around them (0.03 px), while the control's left-to-right emoji row isn't fitted (1.66 px). The two remaining hairline rows come from DevTools' span painting and appear with Latin text in the same positions.
 
 Pass `measureText: false` to turn fitting off, or supply your own `(text, bold, italic) => px` measurer.
 
 ## Input and editing
 
-`<Input>` and `<Textarea>` keep a logical cursor. Arrow keys move through the text in storage order, so in right-to-left text ← moves visually right. The block cursor sits on the logical character it covers, wherever reordering puts it. Within a right-to-left run that's the cell to the left of the previous character. Selection is a logical range too, and its highlight can therefore cover non-contiguous cells in mixed-direction lines. The horizontal scroll of a single-line `<Input>` follows the logical column, so a long right-to-left value can scroll the cursor out of view.
+`<Input>` and `<Textarea>` keep a logical cursor. Arrow keys move through the text in storage order, so in right-to-left text ← moves visually right. The block cursor sits on the logical character it covers, wherever reordering puts it. Within a right-to-left run that's the cell to the left of the previous character. Selection is a logical range too, and its highlight can therefore cover non-contiguous cells in mixed-direction lines. The horizontal scroll of a single-line `<Input>` follows the logical column, so a long right-to-left value can scroll the cursor out of view. A cursor on a space or at the end of the text is drawn as an isolated no-break space, so it stays neutral and never joins the numbers on either side.
 
 ## Limits
 

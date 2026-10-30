@@ -46,7 +46,7 @@ Bidirectional text in the real DevTools frontend (Hebrew, Arabic, mixed lines; s
 bun bench/devtools/bidi-shot.ts --out=/tmp/bidi-shots
 ```
 
-It logs the same 64×21 frame four ways (cells without pinning, pinned without width fitting, an all-Latin control with every RTL glyph replaced by `x`, and the shipping driver), saves `bidi-*.png`, and reports each frame's right-edge drift across rows and the rows where console background shows through between spans (hairlines). The shipping frame should match the Latin control.
+It logs the same 64×21 frame four ways (cells without pinning, pinned without width fitting, an all-Latin control with every RTL glyph replaced by `x`, and the shipping driver), saves `bidi-*.png`, and reports each frame's right-edge drift across rows, each row's offset from the top border (`rowOffsets`) and the rows where console background shows through between spans (hairlines). The shipping frame should match the Latin control, except on the emoji-in-Hebrew row, where it should do better (only right-to-left spans are fitted).
 
 > The results matrix below was recorded before the driver switched to append mode and longhand CSS; `clear` rows there use the old shorthand CSS.
 
