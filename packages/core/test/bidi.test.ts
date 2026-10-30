@@ -7,6 +7,7 @@ import {
   initYoga,
   paintScene,
   paragraphDirection,
+  parseColor,
   renderToAnsi,
   reorderLine,
   segmentGraphemes,
@@ -152,6 +153,29 @@ describe("scene rendering", () => {
     root.calculateLayout(6, 1);
     paintScene(root, buf);
     expect(buf.rowText(0)).toBe("םולש! ");
+  });
+
+  test("an empty isolated span paints nothing instead of crashing", () => {
+    expect(rows({}, [text({ dir: "auto" }, "")], 4)).toEqual(["    "]);
+    expect(rows({}, [text({ dir: "rtl" }, text({ dir: "ltr" }, ""))], 4)).toEqual(["    "]);
+    expect(rows({ dir: "rtl" }, [text({ dir: "auto" }, "")], 4)).toEqual(["    "]);
+  });
+
+  test("isolate controls never split style runs or pick the ellipsis style", () => {
+    const red = parseColor("#ff0000");
+    const blue = parseColor("#0000ff");
+    // ג ד FSI א ב PDI ה ו ז ח truncated to 5 cells: the ellipsis follows ב (blue), not the PDI.
+    const t = text({ wrap: "truncate-end" }, text({ fg: "#ff0000" }, "גד"), text({ fg: "#0000ff", dir: "auto" }, "אב"), "הוזח");
+    const buf = render(box({ width: 5, height: 1 }, t), 5, 1);
+    expect(buf.rowText(0)).toBe("…באדג");
+    expect(buf.fg[0]).toBe(blue);
+    expect([buf.fg[1], buf.fg[2]]).toEqual([blue, blue]);
+    expect([buf.fg[3], buf.fg[4]]).toEqual([red, red]);
+    // Bold isolated run between two plain runs keeps its own style on both sides of the isolate controls.
+    const u = text({}, "שלום ", text({ bold: true, dir: "rtl" }, "עולם"), " טוב");
+    const b2 = render(box({ width: 13, height: 1 }, u), 13, 1);
+    expect(b2.rowText(0)).toBe("בוט םלוע םולש");
+    for (let x = 0; x < 13; x++) expect(((b2.attrs[x] as number) & ATTR_BOLD) !== 0).toBe(x >= 4 && x < 8);
   });
 
   test("pure-LTR text models skip the bidi path", () => {

@@ -138,6 +138,17 @@ const ISOLATE_GRAPHEMES: Readonly<Record<TextDirection, Grapheme>> = Object.free
 const PDI_GRAPHEME: Grapheme = Object.freeze({ grapheme: "\u2069", width: 0, codePoint: 0x2069, isMulti: false });
 const ELLIPSIS_GRAPHEME: Grapheme = Object.freeze({ grapheme: ELLIPSIS, width: 1, codePoint: 0x2026, isMulti: false });
 
+/**
+ * Grapheme whose style (and bidi level) a truncation ellipsis takes: the last
+ * visible one before the cut, else the first after it. Zero-width isolate
+ * controls belong to no style run, so they are skipped.
+ */
+function ellipsisRef(gs: readonly Grapheme[], line: TextLine): number {
+  for (let i = line.cutStart - 1; i >= line.start; i--) if ((gs[i] as Grapheme).width > 0) return i;
+  for (let i = line.cutEnd; i < line.end; i++) if ((gs[i] as Grapheme).width > 0) return i;
+  return line.cutStart > line.start ? line.cutStart - 1 : Math.min(line.cutEnd, line.end - 1);
+}
+
 const FLAG_LAYOUT = 1 << 0;
 const FLAG_STYLE = 1 << 1;
 const FLAG_BORDER = 1 << 2;
@@ -702,7 +713,7 @@ export class SceneNode {
     for (let i = line.start; i < line.cutStart; i++) items.push(i);
     if (line.ellipsis) items.push(-1);
     for (let i = line.cutEnd; i < line.end; i++) items.push(i);
-    const ref = line.cutStart > line.start ? line.cutStart - 1 : Math.min(line.cutEnd, line.end - 1);
+    const ref = ellipsisRef(model.graphemes, line);
     const vl = visualizeLine(model.graphemes, this.bidi, items, ELLIPSIS_GRAPHEME, ref);
     this.visualLines[li] = vl;
     return vl;
@@ -1241,7 +1252,8 @@ class Painter {
   private paintText(node: SceneNode, sr: ComputedRect, inhFg: PackedColor, inhAttrs: number): void {
     const buf = this.buffer;
     const model = node.getTextModel();
-    if (model.graphemes.length === 0) return;
+    // Empty isolated spans leave only zero-width isolate controls and no run to style.
+    if (model.graphemes.length === 0 || model.runs.length === 0) return;
     const lines = node.getLines(sr.contentWidth);
     const align = node.props.textAlign ?? "start";
     const cw = sr.contentWidth;
@@ -1263,8 +1275,7 @@ class Painter {
       else if (align === "right" || align === "end") col += Math.max(0, cw - line.width);
       col = this.drawRuns(gs, runOf, runs, line.start, line.cutStart, col, row, inhFg, inhAttrs);
       if (line.ellipsis) {
-        const ref = line.cutStart > line.start ? line.cutStart - 1 : Math.min(line.cutEnd, line.end - 1);
-        const run = runs[runOf[ref] ?? 0] as TextRun;
+        const run = runs[runOf[ellipsisRef(gs, line)] ?? 0] as TextRun;
         buf.setCell(col, row, ELLIPSIS, run.fg ?? inhFg, run.bg ?? 0, (inhAttrs & ~run.attrsOff) | run.attrsOn);
         col++;
       }
@@ -1298,13 +1309,22 @@ class Painter {
       else if (a === "right") col += Math.max(0, cw - line.width);
       const vgs = vl.graphemes;
       const src = vl.source;
-      const ellipsisRun = runOf[line.cutStart > line.start ? line.cutStart - 1 : Math.min(line.cutEnd, line.end - 1)] ?? 0;
+      const ellipsisRun = line.ellipsis ? (runOf[ellipsisRef(model.graphemes, line)] ?? 0) : 0;
       let k = 0;
       while (k < vgs.length) {
+        // Isolate controls are zero-width and outside every run: never let them split or style a batch.
+        if ((vgs[k] as Grapheme).width === 0) {
+          k++;
+          continue;
+        }
         const s0 = src[k] as number;
         const ri = s0 >= 0 ? (runOf[s0] as number) : ellipsisRun;
         let e = k + 1;
         while (e < vgs.length) {
+          if ((vgs[e] as Grapheme).width === 0) {
+            e++;
+            continue;
+          }
           const se = src[e] as number;
           if ((se >= 0 ? (runOf[se] as number) : ellipsisRun) !== ri) break;
           e++;
