@@ -6,11 +6,12 @@ import { ENGINE_NAME, VERSION } from "@textjs/core";
 import { normalizeBasePath } from "../config";
 import { listApiRoutes, listPages, scanApp } from "../server/scan";
 import { buildLiveRoutes } from "../server/live-build";
+import { listServerPages } from "../server/live-routes";
 import { textjsVitePlugin, VIRTUAL_API } from "../vite-plugin";
 import { buildServerRuntime, resolveAdapter, runBuildAdapter, serverFiles } from "../server/adapters/build-step";
 import type { AdapterResult } from "../server/adapters/shared";
 import { loadTextConfig } from "./config";
-import { brand, color, fail, formatBytes, LEGEND, ok, routeTable, summarize, type SummaryRoute } from "./ui";
+import { brand, color, fail, formatBytes, LEGEND, ok, routeTable, SERVER_LEGEND, summarize, type SummaryRoute } from "./ui";
 
 export interface BuildOptions {
   root: string;
@@ -142,7 +143,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuildResult> {
     print(ok(`Prerendering console shells (${live.shells}/${live.staticRoutes})${live.manifest.serverRoutes.length > 0 ? ` · ${live.manifest.serverRoutes.length} server-rendered` : ""}${player}`));
     for (const s of live.skipped) print(color.gray(`   ${s.pattern} streams without a shell: ${s.reason.split("\n")[0]}`));
   }
-  const routes = summarize(pages, api);
+  const routes = summarize(pages, api, new Set(listServerPages(scan).map((p) => p.pattern)));
   const manifest: BuildManifest = {
     version: VERSION,
     engine: ENGINE_NAME,
@@ -159,7 +160,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuildResult> {
   print(`+ First Load JS shared by all${" ".repeat(13)}${formatBytes(bytes)} ${color.gray(`(${formatBytes(gzip)} gzip)`)}`);
   if (hasMiddleware) print(`ƒ Middleware`);
   print();
-  print(LEGEND);
+  print(routes.some((r) => r.server) ? `${LEGEND}\n${SERVER_LEGEND}` : LEGEND);
   print();
   let adapter: AdapterResult | undefined;
   if (adapterName) {

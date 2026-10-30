@@ -9,6 +9,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildApp } from "../src/cli/build";
+import { replaceWithMap } from "../src/server/live-dev";
 import { readRuntimeExport } from "../src/server/live-routes";
 import { createFixture } from "./server-fixture";
 
@@ -83,4 +84,16 @@ describe("client bundle", () => {
     },
     120_000,
   );
+});
+
+describe("server JSX runtime rewrite", () => {
+  test("only import specifiers are rewritten, with JSON-escaped paths and a column-exact source map", () => {
+    const re = /(\bfrom\s*|\bimport\s*\(?\s*)(["'])react\/(jsx-runtime|jsx-dev-runtime)\2/g;
+    const code = 'import { jsx } from "react/jsx-runtime"; const s = "react/jsx-runtime";\nconst x = 1;';
+    const out = replaceWithMap(code, re, (m) => `${m[1]}${JSON.stringify('/a "b"/jsx.ts')}`, "page.tsx");
+    expect(out?.code).toBe('import { jsx } from "/a \\"b\\"/jsx.ts"; const s = "react/jsx-runtime";\nconst x = 1;');
+    // Line 1: col 0 → 0, then the code after the specifier → its original column; line 2 identity.
+    expect(out?.map.mappings).toBe("AAAA,qCAAuC;AACvC");
+    expect(replaceWithMap("const s = 'react/jsx-runtime';", re, () => "x", "a.ts")).toBeNull();
+  });
 });

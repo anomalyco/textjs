@@ -49,7 +49,64 @@ export interface LiveEntryModule {
   isServerPage(routes: RouteManifest, pathname: string): boolean;
 }
 
-const JSX_IMPORT = /(["'])react\/(jsx-runtime|jsx-dev-runtime)\1/g;
+/** `react/jsx-runtime` / `react/jsx-dev-runtime` as an import or re-export specifier (not any string in the code). */
+const JSX_IMPORT = /(\bfrom\s*|\bimport\s*\(?\s*)(["'])react\/(jsx-runtime|jsx-dev-runtime)\2/g;
+
+const VLQ = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+function vlq(value: number): string {
+  let v = value < 0 ? (-value << 1) | 1 : value << 1;
+  let out = "";
+  do {
+    let digit = v & 31;
+    v >>>= 5;
+    if (v > 0) digit |= 32;
+    out += VLQ[digit];
+  } while (v > 0);
+  return out;
+}
+
+/**
+ * Apply same-line replacements and return a source map back to the original:
+ * every line maps column 0 to itself, and code after each replacement maps to
+ * where it was before (so stack traces and breakpoints stay exact).
+ */
+export function replaceWithMap(code: string, re: RegExp, replace: (match: RegExpExecArray) => string | null, source: string): { code: string; map: { version: 3; sources: string[]; names: string[]; mappings: string } } | null {
+  const lines = code.split("\n");
+  let changed = false;
+  let prevLine = 0;
+  let prevCol = 0;
+  const mappings: string[] = [];
+  const out = lines.map((line, y) => {
+    const segments: Array<[number, number]> = [[0, 0]];
+    let result = "";
+    let last = 0;
+    re.lastIndex = 0;
+    for (let m = re.exec(line); m !== null; m = re.exec(line)) {
+      const next = replace(m);
+      if (next === null) continue;
+      changed = true;
+      result += line.slice(last, m.index) + next;
+      last = m.index + m[0].length;
+      segments.push([result.length, last]);
+    }
+    result += line.slice(last);
+    let genCol = 0;
+    mappings.push(
+      segments
+        .map(([gen, orig]) => {
+          const seg = vlq(gen - genCol) + vlq(0) + vlq(y - prevLine) + vlq(orig - prevCol);
+          genCol = gen;
+          prevLine = y;
+          prevCol = orig;
+          return seg;
+        })
+        .join(","),
+    );
+    return result;
+  });
+  return changed ? { code: out.join("\n"), map: { version: 3, sources: [source], names: [], mappings: mappings.join(";") } } : null;
+}
 const SHIM_FILE = /[\\/]server[\\/]jsx-(dev-)?runtime\.[cm]?[jt]s$/;
 
 function toPosixPath(file: string, root: string): string {
@@ -127,14 +184,15 @@ export function textjsLivePlugin(options: { appDir?: string; root?: string } = {
       };
       const runtime = await resolveShim(JSX_RUNTIME_MODULE);
       const dev = await resolveShim(JSX_DEV_RUNTIME_MODULE);
-      JSX_IMPORT.lastIndex = 0;
-      return {
-        code: code.replace(JSX_IMPORT, (m, q: string, kind: string) => {
-          const target = kind === "jsx-runtime" ? runtime : dev;
-          return target ? `${q}${target}${q}` : m;
-        }),
-        map: null,
-      };
+      return replaceWithMap(
+        code,
+        JSX_IMPORT,
+        (m) => {
+          const target = m[3] === "jsx-runtime" ? runtime : dev;
+          return target ? `${m[1]}${JSON.stringify(target)}` : null;
+        },
+        id.split("?")[0] as string,
+      );
     },
   };
 
@@ -203,14 +261,32 @@ export function createLiveDevHandler(vite: ViteDevServer, o: LiveDevOptions): Li
     },
   });
 
-  /** Re-execute changed project modules in the SSR graph and re-render every session. */
+  /**
+   * Re-execute the changed files (and what imports them) in the SSR graph and
+   * re-render every session. A route structure change also regenerates the
+   * virtual live module.
+   */
+  const changed = new Set<string>();
+  let structureChanged = false;
   const reloadSessions = async (): Promise<void> => {
+    const files = [...changed];
+    changed.clear();
+    const structure = structureChanged;
+    structureChanged = false;
     if (live.sessions.size === 0) return;
     const graph = vite.environments?.ssr?.moduleGraph ?? vite.moduleGraph;
-    const rootPrefix = o.root.endsWith(sep) ? o.root : o.root + sep;
-    for (const mod of graph.idToModuleMap.values()) {
-      const file = mod.file ?? "";
-      if (mod.id === `\0${VIRTUAL_LIVE}` || (file.startsWith(rootPrefix) && !file.includes(`${sep}node_modules${sep}`))) graph.invalidateModule(mod);
+    type GraphModule = { id: string | null; importers: Set<GraphModule> };
+    const seen = new Set<GraphModule>();
+    const invalidate = (mod: GraphModule): void => {
+      if (seen.has(mod)) return;
+      seen.add(mod);
+      graph.invalidateModule(mod as never);
+      for (const importer of mod.importers) invalidate(importer);
+    };
+    for (const file of files) for (const mod of graph.getModulesByFile(file) ?? []) invalidate(mod as unknown as GraphModule);
+    if (structure) {
+      const virtual = graph.getModuleById(`\0${VIRTUAL_LIVE}`);
+      if (virtual) invalidate(virtual as unknown as GraphModule);
     }
     try {
       const mod = await loadEntry();
@@ -222,12 +298,16 @@ export function createLiveDevHandler(vite: ViteDevServer, o: LiveDevOptions): Li
   };
 
   let timer: ReturnType<typeof setTimeout> | null = null;
-  const onChange = (file: string): void => {
-    if (!file.startsWith(o.root) || file.includes(`${sep}node_modules${sep}`)) return;
+  const rootPrefix = o.root.endsWith(sep) ? o.root : o.root + sep;
+  const appPrefix = appDir.endsWith(sep) ? appDir : appDir + sep;
+  const onChange = (file: string, kind: "change" | "add" | "unlink"): void => {
+    if (!file.startsWith(rootPrefix) || file.includes(`${sep}node_modules${sep}`)) return;
+    changed.add(file);
+    if (kind !== "change" && file.startsWith(appPrefix)) structureChanged = true;
     if (timer !== null) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
-      if (file.startsWith(appDir)) {
+      if (file.startsWith(appPrefix)) {
         scan = scanApp(o.root, appDirName);
         runtimeOf = createRuntimeMatcher(scan);
         const sig = JSON.stringify(listServerPages(scan));
@@ -242,9 +322,12 @@ export function createLiveDevHandler(vite: ViteDevServer, o: LiveDevOptions): Li
       void reloadSessions();
     }, 50);
   };
-  vite.watcher.on("change", onChange);
-  vite.watcher.on("add", onChange);
-  vite.watcher.on("unlink", onChange);
+  const onFileChange = (file: string): void => onChange(file, "change");
+  const onAdd = (file: string): void => onChange(file, "add");
+  const onUnlink = (file: string): void => onChange(file, "unlink");
+  vite.watcher.on("change", onFileChange);
+  vite.watcher.on("add", onAdd);
+  vite.watcher.on("unlink", onUnlink);
   vite.httpServer?.once("close", () => live.close());
 
   return {
@@ -263,9 +346,9 @@ export function createLiveDevHandler(vite: ViteDevServer, o: LiveDevOptions): Li
     },
     close() {
       if (timer !== null) clearTimeout(timer);
-      vite.watcher.off("change", onChange);
-      vite.watcher.off("add", onChange);
-      vite.watcher.off("unlink", onChange);
+      vite.watcher.off("change", onFileChange);
+      vite.watcher.off("add", onAdd);
+      vite.watcher.off("unlink", onUnlink);
       live.close();
     },
   };

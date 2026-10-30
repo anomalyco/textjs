@@ -46,6 +46,8 @@ export interface SummaryRoute {
   pattern: string;
   dynamic: boolean;
   target: string;
+  /** `export const runtime = "server"`. */
+  server?: boolean;
 }
 
 const ROUTE_COL = 37;
@@ -56,17 +58,22 @@ export function routeTable(routes: readonly SummaryRoute[]): string {
   const lines = [`${color.bold("Route (app)".padEnd(ROUTE_COL + 4))}${color.bold("Type".padEnd(TYPE_COL))}${color.bold("Target")}`];
   routes.forEach((r, i) => {
     const corner = routes.length === 1 ? "─" : i === 0 ? "┌" : i === routes.length - 1 ? "└" : "├";
-    const sym = r.dynamic ? "ƒ" : "○";
+    const sym = r.server ? "◇" : r.dynamic ? "ƒ" : "○";
     const pattern = r.pattern.length > ROUTE_COL - 1 ? `${r.pattern.slice(0, ROUTE_COL - 2)}…` : r.pattern;
-    lines.push(`${color.gray(corner)} ${sym} ${pattern.padEnd(ROUTE_COL)}${(r.dynamic ? "Dynamic" : "Static").padEnd(TYPE_COL)}${color.gray(r.target)}`);
+    const type = r.server ? "Server" : r.dynamic ? "Dynamic" : "Static";
+    lines.push(`${color.gray(corner)} ${sym} ${pattern.padEnd(ROUTE_COL)}${type.padEnd(TYPE_COL)}${color.gray(r.target)}`);
   });
   return lines.join("\n");
 }
 
 export const LEGEND = ["○  (Static)   prerendered as static console cells", "ƒ  (Dynamic)  on-demand console reconciliation"].join("\n");
+/** Appended to {@link LEGEND} when the app has server-rendered routes. */
+export const SERVER_LEGEND = "◇  (Server)   rendered on the server, streamed as frames";
 
-export function summarize(pages: readonly FlatRoute[], api: ReadonlyArray<{ pattern: string }>): SummaryRoute[] {
-  const out: SummaryRoute[] = pages.map((p) => ({ pattern: p.pattern, dynamic: p.dynamic, target: "console.log (%c)" }));
+export function summarize(pages: readonly FlatRoute[], api: ReadonlyArray<{ pattern: string }>, serverPatterns: ReadonlySet<string> = new Set()): SummaryRoute[] {
+  const out: SummaryRoute[] = pages.map((p) =>
+    serverPatterns.has(p.pattern) ? { pattern: p.pattern, dynamic: true, server: true, target: "frame player (SSE)" } : { pattern: p.pattern, dynamic: p.dynamic, target: "console.log (%c)" },
+  );
   if (!out.some((r) => r.pattern === "/_not-found")) {
     const nf = { pattern: "/_not-found", dynamic: false, target: "console.log (%c)" };
     out.splice(out[0]?.pattern === "/" ? 1 : 0, 0, nf);

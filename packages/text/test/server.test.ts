@@ -192,6 +192,9 @@ describe("CLI", () => {
       "├ ○ /logs                                Static     console.log (%c)",
       "└ ƒ /api/health                          Dynamic    Route Handler",
     ]);
+    const live = stripAnsi(routeTable(summarize([{ pattern: "/ops", dynamic: false, layouts: [] }], [], new Set(["/ops"]))));
+    expect(live).toContain("◇ /ops");
+    expect(live).toContain("Server     frame player (SSE)");
     expect(LEGEND).toBe("○  (Static)   prerendered as static console cells\nƒ  (Dynamic)  on-demand console reconciliation");
   });
 });

@@ -4,6 +4,8 @@ import { stripVTControlCharacters } from "node:util";
 import { createLocalFetch, runInTerminal, toRuntimeManifest } from "../src/cli/run";
 import { parseArgs } from "../src/cli/index";
 import { scanApp } from "../src/server/scan";
+import { rmSync } from "node:fs";
+import { createFixture } from "./server-fixture";
 
 const DASHBOARD = resolve(import.meta.dir, "../../../examples/dashboard");
 
@@ -82,21 +84,29 @@ describe("text run", () => {
     expect(app.root.unmounted).toBe(true);
   }, 20_000);
 
-  test("renders async server components (`runtime = \"server\"` /status)", async () => {
-    const term = fakeTerminal(100, 32);
-    const app = await runInTerminal({ root: DASHBOARD, path: "/status", stdin: term.stdin, stdout: term.stdout, skipConfig: true });
+  test("async server components render (no retry loop) in text run", async () => {
+    const dir = createFixture({
+      "app/page.tsx": `import { Suspense } from "react";
+import { Box, Text } from "@textjs/next";
+export const runtime = "server";
+async function Rows() {
+  await new Promise((r) => setTimeout(r, 20));
+  return <Text>rows loaded</Text>;
+}
+export default async function Page() {
+  return <Box flexDirection="column"><Text>async page</Text><Suspense fallback={<Text>loading rows</Text>}><Rows /></Suspense></Box>;
+}
+`,
+    });
     try {
-      for (let i = 0; i < 500; i++) {
-        const screen = term.screen.join("\n");
-        if (screen.includes("hnd1") && !screen.includes("probing…") && screen.includes("CPUs")) break;
-        await new Promise((r) => setTimeout(r, 10));
-      }
-      const screen = term.screen.join("\n");
-      expect(screen).toContain("CPUs");
-      expect(screen).toMatch(/hnd1\s+Tokyo\s+p50 \d+ms/);
-      expect(screen).not.toContain("Application error");
-    } finally {
+      const term = fakeTerminal(60, 8);
+      const app = await runInTerminal({ root: dir, stdin: term.stdin, stdout: term.stdout, skipConfig: true });
+      for (let i = 0; i < 200 && !term.screen.join("\n").includes("rows loaded"); i++) await new Promise((r) => setTimeout(r, 10));
+      expect(term.screen.join("\n")).toContain("async page");
+      expect(term.screen.join("\n")).toContain("rows loaded");
       app.unmount();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   }, 20_000);
 });
