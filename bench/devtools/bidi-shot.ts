@@ -147,7 +147,10 @@ try {
           hairlinePx += n;
           ri++;
         }
-        return { label, rows: rights.length, drift: +(Math.max(...rights) - Math.min(...rights)).toFixed(3), hairlinePx, hairlineRows };
+        // Each row's right edge relative to the border rows (row 0 is the top border).
+        const ref = rights[0] ?? 0;
+        const rowOffsets = rights.map((r) => +(r - ref).toFixed(3));
+        return { label, rows: rights.length, drift: +(Math.max(...rights) - Math.min(...rights)).toFixed(3), hairlinePx, hairlineRows, rowOffsets };
       },
       [shot.toString("base64"), label] as const,
     );

@@ -21,7 +21,7 @@ import {
   type StyleResolveOptions,
 } from "./style";
 import { hasRtl, isRtlCodePoint, LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../bidi";
-import { codePointWidth, LruCache } from "../text-measure";
+import { LruCache } from "../text-measure";
 
 /** Minimal console surface used by the driver; inject a fake for tests and benchmarks. */
 export interface ConsoleTarget {
@@ -42,6 +42,8 @@ export interface CompiledSpan {
   link: boolean;
   /** Underline or strikethrough: visible on blank cells, so blanks never join. */
   deco: boolean;
+  /** Grid cells the span covers (a wide grapheme counts 2). */
+  cells: number;
 }
 
 export interface ConsoleFrame {
@@ -168,28 +170,13 @@ function pinVisualOrder(text: string): string {
 const LAYOUT_UNIT = 64;
 
 /**
- * Display cells and DOM text of an escaped span (`%%` → `%`). The pins stay in
- * the text so a measurer sees the same (overridden) runs DevTools lays out:
- * without them it would reorder the visual-order glyphs and form ligatures
- * (lam-alef) that never appear on screen.
+ * DOM text of an escaped span (`%%` → `%`). The pins stay in the text so a
+ * measurer sees the same (overridden) runs DevTools lays out: without them it
+ * would reorder the visual-order glyphs and form ligatures (lam-alef) that
+ * never appear on screen.
  */
-function spanCells(escaped: string): { cells: number; plain: string } {
-  let cells = 0;
-  let plain = "";
-  for (let i = 0; i < escaped.length; i++) {
-    const c = escaped.charCodeAt(i);
-    if (c === 0x25 && escaped.charCodeAt(i + 1) === 0x25) i++;
-    if (c >= 0xd800 && c <= 0xdbff) {
-      const cp = escaped.codePointAt(i) as number;
-      cells += codePointWidth(cp);
-      plain += escaped.slice(i, i + 2);
-      i++;
-      continue;
-    }
-    cells += codePointWidth(c);
-    plain += escaped[i];
-  }
-  return { cells, plain };
+function unescapeConsoleText(escaped: string): string {
+  return escaped.includes("%%") ? escaped.replaceAll("%%", "%") : escaped;
 }
 
 const CURTAIN_CSS = "margin-top:100vh;";
@@ -393,6 +380,7 @@ export class CssConsoleDriver {
     let hasSpecial = false;
     let rtl = false;
     let rowRtl = false;
+    let cells = 0;
 
     // Blank run waiting to see whether the next cell shares its background.
     let pend = 0;
@@ -412,7 +400,11 @@ export class CssConsoleDriver {
 
     for (let i = y * W, end = i + W; i < end; i++) {
       const a = A[i] as number;
-      if (a & ATTR_WIDE_CONT) continue;
+      if (a & ATTR_WIDE_CONT) {
+        // The right half of the wide grapheme just appended to the open span.
+        cells++;
+        continue;
+      }
       const f = F[i] as number;
       const b = B[i] as number;
       const c = C[i] as number;
@@ -426,6 +418,7 @@ export class CssConsoleDriver {
         }
         if (pend === 0 && id !== -1 && !spanDeco && effBg === spanBg && link === allowLink) {
           text += " ";
+          cells++;
           continue;
         }
         if (pend > 0 && effBg === pBg && link === pLink) {
@@ -444,6 +437,7 @@ export class CssConsoleDriver {
                 blank,
                 link: allowLink,
                 deco: spanDeco,
+                cells,
               });
             }
             id = pId;
@@ -456,8 +450,10 @@ export class CssConsoleDriver {
             blank = true;
             hasSpecial = false;
             rtl = false;
+            cells = 0;
           }
           text += pend === 1 ? " " : " ".repeat(pend);
+          cells += pend;
           pend = 0;
         }
         // A blank run that opens its own span only needs its background.
@@ -546,6 +542,7 @@ export class CssConsoleDriver {
                 blank,
                 link: allowLink,
                 deco: spanDeco,
+                cells,
               });
             }
             id = rId;
@@ -558,8 +555,10 @@ export class CssConsoleDriver {
             blank = true;
             hasSpecial = false;
             rtl = false;
+            cells = 0;
           }
           text += pend === 1 ? " " : " ".repeat(pend);
+          cells += pend;
           pend = 0;
         } else {
           if (pId !== id) {
@@ -573,6 +572,7 @@ export class CssConsoleDriver {
                 blank,
                 link: allowLink,
                 deco: spanDeco,
+                cells,
               });
             }
             id = pId;
@@ -585,8 +585,10 @@ export class CssConsoleDriver {
             blank = true;
             hasSpecial = false;
             rtl = false;
+            cells = 0;
           }
           text += pend === 1 ? " " : " ".repeat(pend);
+          cells += pend;
           pend = 0;
         }
       }
@@ -602,6 +604,7 @@ export class CssConsoleDriver {
             blank,
             link: allowLink,
             deco: spanDeco,
+            cells,
           });
         }
         id = rId;
@@ -614,8 +617,10 @@ export class CssConsoleDriver {
         blank = true;
         hasSpecial = false;
         rtl = false;
+        cells = 0;
       }
       blank = false;
+      cells++;
       if (c < 0x80) {
         if (c === 0x25 || c === 0x3a || c === 0x77 || c === 0x57) hasSpecial = true;
         text += ASCII_CHARS[c] as string;
@@ -656,6 +661,7 @@ export class CssConsoleDriver {
             blank,
             link: allowLink,
             deco: spanDeco,
+            cells,
           });
         }
         id = pId;
@@ -668,8 +674,10 @@ export class CssConsoleDriver {
         blank = true;
         hasSpecial = false;
         rtl = false;
+        cells = 0;
       }
       text += pend === 1 ? " " : " ".repeat(pend);
+      cells += pend;
     }
     if (text.length > 0) {
       spans.push({
@@ -681,6 +689,7 @@ export class CssConsoleDriver {
         blank,
         link: allowLink,
         deco: spanDeco,
+        cells,
       });
     }
     if (rowRtl) this.fitRtlSpans(spans);
@@ -708,12 +717,11 @@ export class CssConsoleDriver {
       if (span.blank || span.text.charCodeAt(0) !== 0x202d) continue;
       const bold = span.css.includes("font-weight:700");
       const italic = span.css.includes("font-style:italic");
-      const key = `${bold ? 1 : 0}${italic ? 1 : 0}${span.text}`;
+      const key = `${bold ? 1 : 0}${italic ? 1 : 0}${span.cells}:${span.text}`;
       let fit = this.fitCache.get(key);
       if (fit === undefined) {
-        const { cells, plain } = spanCells(span.text);
-        const target = Math.ceil(cells * this.cellAdvance * LAYOUT_UNIT);
-        const natural = Math.ceil(measure(plain, bold, italic) * LAYOUT_UNIT);
+        const target = Math.ceil(span.cells * this.cellAdvance * LAYOUT_UNIT);
+        const natural = Math.ceil(measure(unescapeConsoleText(span.text), bold, italic) * LAYOUT_UNIT);
         const delta = target - natural;
         fit = delta > 0 ? `padding-right:${delta / LAYOUT_UNIT}px;` : delta < 0 ? `margin-right:${delta / LAYOUT_UNIT}px;` : "";
         this.fitCache.set(key, fit);

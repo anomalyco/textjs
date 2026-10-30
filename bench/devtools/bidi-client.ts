@@ -45,6 +45,7 @@ function scene(title: string): SceneNode {
     row("cells", text({ flexGrow: 1, textAlign: "left" }, ...cells)),
     row("dir=rtl", text({ flexGrow: 1, dir: "rtl", fg: "#a1a1aa" }, "hello, world!")),
     row("ltr", text({ flexGrow: 1, fg: "#a1a1aa" }, "Plain LTR text: (a) [b] {c} 100% ─│▼")),
+    row("emoji", text({ flexGrow: 1, fg: "#fafafa", bg: "#18181b" }, "שלום 👨‍👩‍👧‍👦 עולם ❤️ 1️⃣ סוף")),
     box(
       { flexDirection: "row", height: 7, marginTop: 1, flexShrink: 0 },
       label("wrap"),

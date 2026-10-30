@@ -231,6 +231,28 @@ describe("drivers pin visual order", () => {
     expect((plain[0] as string[]).some((c) => c.includes("padding-right"))).toBe(false);
   });
 
+  test("RTL span fitting counts grid cells, not code points (ZWJ, VS16 and keycap emoji)", () => {
+    const LATIN = 7.224609375;
+    const HEBREW = 7.201171875;
+    // An ideal font: emoji clusters advance exactly two Latin cells, Hebrew letters a fallback 0.6em.
+    const measure = (t: string): number => {
+      let w = 0;
+      for (const g of segmentGraphemes(t.replace(/[\u202d\u202c]/g, ""))) w += hasRtl(g.grapheme) ? HEBREW : g.width * LATIN;
+      return w;
+    };
+    const s = "שלום 👨‍👩‍👧‍👦 ❤️ 1️⃣";
+    const buf = render(box({ width: 13, height: 1 }, text({}, s)), 13, 1);
+    const driver = new CssConsoleDriver({ console: { clear() {}, log() {} }, clear: "never", measureText: measure });
+    const [span, ...rest] = driver.compileRow(buf, 0);
+    expect(rest).toEqual([]);
+    expect(span?.cells).toBe(13);
+    // Only the four Hebrew letters drift: ceil(13 × 7.2246 × 64) − ceil((4 × 7.2012 + 9 × 7.2246) × 64) = 6 LayoutUnits.
+    expect(span?.css).toContain("padding-right:0.09375px;");
+    // Wide CJK and blanks folded into the span count as cells too.
+    const mixed = render(box({ width: 10, height: 1 }, text({ textAlign: "left" }, "漢字 שלום")), 10, 1);
+    expect(driver.compileRow(mixed, 0).reduce((n, sp) => n + sp.cells, 0)).toBe(10);
+  });
+
   test("AnsiDriver switches to explicit bidi mode and pins RTL rows", () => {
     const rtl = render(box({ width: 6, height: 2, flexDirection: "column" }, text({}, "שלום\nabc")), 6, 2);
     const out = renderToAnsi(rtl);
