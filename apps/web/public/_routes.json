@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "description": "Only the Terminal sign in + API proxy run as Functions; everything else is static.",
+  "include": ["/api/terminal", "/api/terminal/*", "/terminal/callback"],
+  "exclude": []
+}
