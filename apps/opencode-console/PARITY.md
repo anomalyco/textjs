@@ -25,3 +25,16 @@ Only use ephemeral mock listeners, `opencode --standalone` with a disposable HOM
 | Idle/streaming frame cost and DevTools presentation | 15 fps renderer | Real DevTools + one-log/no-op assertions |
 
 Native DevTools does not expose pointer hit-testing inside logged spans to the page, nor its actual console viewport or OS terminal/editor integration. These constraints do not prevent keyboard equivalents; other unchecked items are open work, not platform limitations.
+
+## `text mcp` dogfood log
+
+`scripts/capture-mcp.ts` is a real stdio SDK client, not an in-process substitute. `scripts/compare-pty.py` provisions its authenticated throwaway target. Standalone `bun apps/opencode-console/scripts/capture-mcp.ts` runs the same interaction loop in demo mode.
+
+| Friction encountered | Resolution |
+| --- | --- |
+| `reload` after `resize 80×24` silently returned a 120×40 frame, making comparisons incorrect. | Fixed: an explicit runtime size survives reload. Config still reloads when no resize was requested. |
+| `read_frame` trimmed trailing cells/rows, so capture code had to guess padding for blank rows. Crops still reported full viewport dimensions. | Added `trim: false` plus effective clamped `region` bounds. Default human-readable output is unchanged. |
+| A crop ending halfway through a wide glyph could return two columns of text in a one-cell run. | Fixed text and styled extraction at the right edge; tested alongside the existing left-edge case. |
+| `busy (still animating; frame read after timeout)` on immediate reads suggested a timeout or an animation even when neither happened. | Report `busy` without guessing the cause. |
+| Picker and composer accepted keys but `inspect_tree` reported no focused component or cursor. | App used forced `focused`, deliberately outside the focus manager. Switched to stable ids and managed autofocus; MCP capture asserts the actual focus target. |
+| Private server worked under `text run` but MCP stdin isn't a TTY. | Both now honor a pinned loopback `OPENCODE_SERVER_URL` via the app's own in-process route. No variable means offline demo in both. |

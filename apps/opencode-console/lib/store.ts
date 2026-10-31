@@ -260,7 +260,7 @@ export class OpenCodeStore {
     if (sess?.agent) this.set({ agent: sess.agent });
     if (sess?.model) this.set({ model: sess.model });
     await this.reloadMessages(id);
-    void client.view(id).catch(() => undefined);
+    if (client === this.client) void client.view(id).catch(() => undefined);
   }
 
   async reloadMessages(id: string): Promise<void> {
@@ -294,21 +294,24 @@ export class OpenCodeStore {
     const client = this.client;
     const body = text.trim();
     if (!client || body.length === 0) return null;
+    const { agent, model } = this.state;
     let id = sessionID;
     try {
       if (!id) {
-        const s = await client.create({ agent: this.state.agent, model: this.state.model });
+        const s = await client.create({ agent, model });
+        if (client !== this.client) return null;
         id = s.id;
         const created = s;
         this.set((st) => ({ sessions: [created, ...st.sessions.filter((x) => x.id !== created.id)], messages: { ...st.messages, [created.id]: [] }, loaded: { ...st.loaded, [created.id]: true } }));
       } else {
         const sess = this.session(id);
-        if (sess && sess.agent !== this.state.agent) await client.setAgent(id, this.state.agent).catch(() => undefined);
-        const m = this.state.model;
-        if (sess && m && (sess.model?.id !== m.id || sess.model?.providerID !== m.providerID)) await client.setModel(id, m).catch(() => undefined);
+        if (sess && sess.agent !== agent) await client.setAgent(id, agent);
+        if (client !== this.client) return null;
+        if (sess && model && (sess.model?.id !== model.id || sess.model?.providerID !== model.providerID || sess.model.variant !== model.variant)) await client.setModel(id, model);
+        if (client !== this.client) return null;
       }
     } catch (error) {
-      this.notify(`Couldn't create session: ${error instanceof Error ? error.message : String(error)}`, "danger");
+      if (client === this.client) this.notify(`Couldn't prepare session: ${error instanceof Error ? error.message : String(error)}`, "danger");
       return null;
     }
     const target = id;
@@ -317,9 +320,10 @@ export class OpenCodeStore {
       messages: { ...s.messages, [target]: [...(s.messages[target] ?? []), pending] },
       history: s.history.at(-1) === text ? s.history : [...s.history.slice(-99), text],
       busy: { ...s.busy, [target]: true },
-      sessions: s.sessions.map((x) => (x.id === target ? { ...x, agent: s.agent, model: s.model ?? x.model, title: x.title || truncateTitle(body), time: { ...x.time, updated: Date.now() } } : x)),
+      sessions: s.sessions.map((x) => (x.id === target ? { ...x, agent, model: model ?? x.model, title: x.title || truncateTitle(body), time: { ...x.time, updated: Date.now() } } : x)),
     }));
-    void client.prompt(target, body, { agent: this.state.agent, model: this.state.model }).catch((error) => {
+    void client.prompt(target, body, { agent, model }).catch((error) => {
+      if (client !== this.client) return;
       this.set((s) => ({ busy: { ...s.busy, [target]: false }, messages: { ...s.messages, [target]: (s.messages[target] ?? []).filter((m) => m !== pending) } }));
       this.notify(`Prompt failed: ${error instanceof Error ? error.message : String(error)}`, "danger");
     });

@@ -46,6 +46,7 @@ export function CompanionApp(): ReactNode {
   const wireframe = useRef(false);
 
   useInput((e) => {
+    if (tab === "opencode") return;
     if (e.key === "f2") {
       e.stopPropagation();
       wireframe.current = !wireframe.current;

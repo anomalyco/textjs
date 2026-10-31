@@ -30,6 +30,9 @@
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
       },
+      "devDependencies": {
+        "@modelcontextprotocol/sdk": "^1.32.2",
+      },
     },
     "apps/terminal-shop": {
       "name": "@textjs/terminal-shop",

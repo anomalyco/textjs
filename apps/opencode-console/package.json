@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2"
+  },
   "dependencies": {
     "@textjs/core": "workspace:*",
     "@textjs/react": "workspace:*",

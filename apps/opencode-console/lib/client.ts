@@ -771,7 +771,23 @@ export async function connectOpenCode(options: ConnectOptions = {}): Promise<Con
     }
   }
 
-  if (typeof window === "undefined" || !window.location) return { client: createDemoClient(), reason: "No browser origin" };
+  if (typeof window === "undefined" || !window.location) {
+    // text run dispatches relative fetches directly to app/api handlers. Stay
+    // offline unless explicitly pointed at a server; the handler, not this
+    // browser-shared module, owns its credentials. Pin every request to the
+    // supplied target (never silently pick the managed service).
+    const target = typeof process !== "undefined" && process.env.OPENCODE_SERVER_URL;
+    if (target && isLoopbackEndpoint(target)) {
+      const url = normalizeUrl(target);
+      try {
+        const client = await detect(createTransport("/api/opencode", hostLabel(url), { "x-opencode-target": url }), "direct");
+        return { client, targetUrl: url };
+      } catch {
+        return offline(`Can't connect to ${hostLabel(url)}`, url);
+      }
+    }
+    return { client: createDemoClient(), reason: "No browser origin" };
+  }
   for (const prefix of options.proxyPrefixes ?? PROXY_PREFIXES) {
     let status: ProxyCheck | null = null;
     try {

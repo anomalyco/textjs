@@ -10,7 +10,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children?: ReactNode }): ReactNode {
   const [store] = useState(getOpenCodeStore);
-  useEffect(() => store.start(), [store]);
+  useEffect(() => {
+    store.start();
+    return () => store.dispose();
+  }, [store]);
   return (
     <OpenCodeProvider store={store}>
       <Shell>{children}</Shell>

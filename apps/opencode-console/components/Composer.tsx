@@ -96,7 +96,7 @@ export function Composer({ onSubmit, busy = false, interruptArmed, placeholder }
     <Box flexDirection="column" flexShrink={0} width="100%">
       <Box flexDirection="column" flexShrink={0} border="heavy" borderTop={false} borderRight={false} borderBottom={false} borderColor={color}>
         <Box flexDirection="column" flexShrink={0} bg={theme.panel} paddingX={2} paddingTop={1}>
-          <Textarea value={value} onChange={setValue} onSubmit={submit} history={history} focused placeholder={placeholder ?? PLACEHOLDER} minRows={1} maxRows={6} />
+          <Textarea id="opencode-prompt" value={value} onChange={setValue} onSubmit={submit} history={history} autoFocus placeholder={placeholder ?? PLACEHOLDER} minRows={1} maxRows={6} />
           <Box flexDirection="row" height={1} flexShrink={0} gap={1} marginTop={1}>
             <Text color={color} wrap="nowrap" flexShrink={0}>
               {capitalize(agent)}

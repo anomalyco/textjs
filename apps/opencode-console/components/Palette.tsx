@@ -107,7 +107,8 @@ export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: 
         value={current}
         onChange={(v) => choose(v)}
         searchable
-        focused
+        autoFocus
+        id={`opencode-picker-${kind}`}
         limit={Math.max(6, Math.min(14, vp.rows - 14))}
         searchPlaceholder={kind === "models" ? "Search models…" : kind === "sessions" ? "Search sessions…" : "Type a command or session…"}
         emptyText={kind === "models" && state.models.length === 0 ? "No models reported by the server" : "No matches"}
