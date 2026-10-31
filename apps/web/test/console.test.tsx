@@ -5,7 +5,8 @@ import { PAGE_HINTS, PRESETS, siteStore } from "../src/console-companion/store";
 import { PREVIEWS } from "../src/docs/previews";
 import { newGame, step } from "../src/demos/Snake";
 import { scriptFor, partsFromSteps, initialSessions } from "../src/demos/opencode/model";
-import { normalizeServerUrl, toPart } from "../src/demos/opencode/live";
+import { normalizeServerUrl } from "../src/demos/opencode/live";
+import { v1Message } from "../../opencode-console/lib/client";
 import { shouldRouteToConsole } from "../src/console-companion/boot";
 import { mount, type Harness } from "./helpers";
 
@@ -141,7 +142,9 @@ describe("console companion (104×32)", () => {
     await h.key("p", { ctrl: true });
     f = h.frame();
     expect(f).toContain("Commands");
-    expect(f).toContain("Fix flaky SSE reconnect test");
+    await h.type("flaky");
+    expect(h.frame()).toContain("Fix flaky SSE reconnect test");
+    await h.key("escape"); // clear the search
     await h.key("escape");
     expect(h.frame()).not.toContain("Search sessions, models and commands");
     await h.key("escape");
@@ -189,15 +192,9 @@ describe("demo logic", () => {
   test("live client helpers", () => {
     expect(normalizeServerUrl("localhost:4096/")).toBe("http://localhost:4096");
     expect(normalizeServerUrl(" http://127.0.0.1:49374 ")).toBe("http://127.0.0.1:49374");
-    expect(toPart({ type: "text", text: "hi" })).toEqual({ type: "text", text: "hi" });
-    expect(toPart({ type: "tool", tool: "bash", state: { status: "completed", input: { command: "ls" }, output: "a" } })).toEqual({
-      type: "tool",
-      tool: "bash",
-      title: "ls",
-      status: "completed",
-      output: "a",
+    expect(v1Message({ info: { id: "m", role: "assistant" }, parts: [{ type: "step-start" }, { type: "text", text: "hi" }, { type: "tool", tool: "bash", state: { status: "completed", input: { command: "ls" }, output: "a" } }] })).toMatchObject({
+      content: [{ type: "text", text: "hi" }, { type: "tool", name: "bash", state: { status: "completed", input: { command: "ls" }, content: [{ type: "text", text: "a" }] } }],
     });
-    expect(toPart({ type: "step-start" })).toBeNull();
   });
 
   test("input coexistence gate", () => {

@@ -1,14 +1,14 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { PAGE_HINTS, siteStore, type OpenCodeConnection } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
-import { autoConnectTarget, BRIDGE_COMMAND, DEFAULT_SERVER_URL, normalizeServerUrl, OpenCodeClient, rememberServer } from "../demos/opencode/live";
+import { autoConnectTarget, BRIDGE_COMMAND, DEFAULT_SERVER_URL, discoverServer, normalizeServerUrl, rememberServer } from "../demos/opencode/live";
 import { CopyCommand } from "../site/CodeBlock";
 import { ConsolePad } from "../site/ConsolePad";
 
 async function connectTo(target: string, quiet: boolean): Promise<void> {
   if (!quiet) siteStore.set({ opencode: { mode: "connecting", url: target } });
   try {
-    const info = await OpenCodeClient.discover(target, quiet ? 1500 : 3000);
+    const info = await discoverServer(target, quiet ? 1500 : 3000);
     siteStore.set({ opencode: { mode: "live", url: info.apiBase, version: info.version, protocol: info.protocol, bridge: info.bridge } });
     rememberServer(info.apiBase);
   } catch (err) {

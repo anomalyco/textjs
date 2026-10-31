@@ -4,13 +4,19 @@
  * so the console is fully usable on static previews with no server.
  */
 
-import type { AppEvent, AssistantMessage, JsonRecord, ModelRef, OpenCodeClient, SessionInfo, SessionMessage, ToolContent, ToolPart } from "./types";
+import type { AppEvent, AssistantMessage, AssistantPart, JsonRecord, ModelRef, OpenCodeClient, SessionInfo, SessionMessage, ToolContent, ToolPart } from "./types";
 
 export interface DemoOptions {
   /** Milliseconds per simulated chunk (default `28`). */
   tick?: number;
   /** Override "now" for deterministic seeds. */
   now?: number;
+  /** Embeds can supply their own example project; transport, timing and SSE remain shared. */
+  scenario?: {
+    directory: string;
+    seed: (now: number) => ReturnType<typeof seed>;
+    script: (text: string, agent: string) => AssistantPart[];
+  };
 }
 
 const MODEL: ModelRef = { id: "claude-opus-5-5", providerID: "anthropic" };
@@ -133,7 +139,8 @@ type Step = () => void;
 
 export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
   const tick = options.tick ?? 28;
-  const db = seed(options.now ?? Date.now());
+  const db = (options.scenario?.seed ?? seed)(options.now ?? Date.now());
+  const directory = options.scenario?.directory ?? DIR;
   const listeners = new Set<(e: AppEvent) => void>();
   const runs = new Map<string, { timer: ReturnType<typeof setTimeout> | null; finish: () => void }>();
   let currentModel = MODEL;
@@ -202,7 +209,12 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
       list(sessionID).push(msg);
       emit({ type: "step.started", sessionID, messageID, agent, model, started: msg.time.created });
     });
-    if (agent === "plan" || /\b(plan|how|why|explain|what)\b/.test(lower)) {
+    if (options.scenario) {
+      for (const p of options.scenario.script(prompt, agent)) {
+        if (p.type === "text" || p.type === "reasoning") part(p.type, p.text, p.type === "text" ? 6 : 12);
+        else if (p.state.status === "completed") tool(p.name, p.state.input, p.state.content.map((c) => c.type === "text" ? c.text : c.uri).join("\n"), p.state.metadata);
+      }
+    } else if (agent === "plan" || /\b(plan|how|why|explain|what)\b/.test(lower)) {
       part("reasoning", `The user asked: "${prompt.slice(0, 80)}". I'll look at the relevant code before proposing an approach, and keep this read-only since I'm in ${agent} mode.`, 12);
       tool("grep", { pattern: "export function", path: "src" }, "src/lib/cart.ts:12:export function addToCart(item: Item) {\nsrc/lib/cart.ts:31:export function cartTotal(items: Item[]) {\nsrc/components/cart-badge.tsx:1:export function CartBadge({ count }: { count: number }) {", { matches: 3 });
       part(
@@ -257,7 +269,7 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
     mode: "demo",
     label: "demo",
     async info() {
-      return { version: "demo", directory: DIR };
+      return { version: "demo", directory };
     },
     async sessions() {
       return [...db.sessions].sort((a, b) => b.time.updated - a.time.updated).map((s) => ({ ...s, time: { ...s.time } }));
@@ -271,7 +283,7 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
     },
     async create(input) {
       const now = Date.now();
-      const s: SessionInfo = { id: id("ses"), title: input.title, agent: input.agent ?? "build", model: input.model ?? currentModel, directory: DIR, time: { created: now, updated: now } };
+      const s: SessionInfo = { id: id("ses"), title: input.title, agent: input.agent ?? "build", model: input.model ?? currentModel, directory, time: { created: now, updated: now } };
       db.sessions.unshift(s);
       db.messages.set(s.id, []);
       emit({ type: "sessions.changed" });
@@ -324,6 +336,7 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
       queueMicrotask(() => onEvent({ type: "connected" }));
       return () => {
         listeners.delete(onEvent);
+        if (!listeners.size) for (const run of runs.values()) run.finish();
       };
     },
   };

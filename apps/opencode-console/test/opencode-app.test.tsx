@@ -10,7 +10,7 @@ import { getOpenCodeStore, OpenCodeStore, resetOpenCodeStore } from "../lib/stor
 import type { AssistantMessage, ToolPart } from "../lib/types";
 import { createOpencodeProxy, normalizeTargetUrl, opencodeDevMiddleware } from "../server/opencode-proxy";
 import { createBridgeHandler, isAllowedOrigin, selectsTarget, startProxy } from "../../../packages/text/src/cli/proxy";
-import { normalizeServerUrl, OpenCodeClient as WebOpenCodeClient } from "../../web/src/demos/opencode/live";
+import { discoverServer, normalizeServerUrl } from "../../web/src/demos/opencode/live";
 import { createTestRoot, type TestRoot } from "./helpers";
 import { startMockOpenCode, type MockOpenCode } from "./mock-opencode";
 
@@ -510,10 +510,10 @@ describe("dev proxy (/__opencode)", () => {
 
       // 3. Web /opencode client normalizes 0.0.0.0 and gives actionable 1-line errors.
       expect(normalizeServerUrl("http://0.0.0.0:49374")).toBe("http://127.0.0.1:49374");
-      await expect(WebOpenCodeClient.discover("http://opencode:pw@127.0.0.1:49374")).rejects.toThrow("Don't put credentials in the URL — run bunx @textjs/next proxy and connect to http://127.0.0.1:4096.");
+      await expect(discoverServer("http://opencode:pw@127.0.0.1:49374")).rejects.toThrow("Don't put credentials in the URL — run bunx @textjs/next proxy and connect to http://127.0.0.1:4096.");
 
       g.fetch = (async (_input: RequestInfo | URL) => new Response("{}", { status: 401, headers: { "content-type": "application/json" } })) as typeof fetch;
-      await expect(WebOpenCodeClient.discover("http://0.0.0.0:49374")).rejects.toThrow("Auth required — run bunx @textjs/next proxy and connect to http://127.0.0.1:4096.");
+      await expect(discoverServer("http://0.0.0.0:49374")).rejects.toThrow("Auth required — run bunx @textjs/next proxy and connect to http://127.0.0.1:4096.");
 
       expect(warns.every((w) => !w.includes("\n"))).toBe(true);
     } finally {

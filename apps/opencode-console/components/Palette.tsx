@@ -55,7 +55,7 @@ export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: 
           { value: "thinking", label: state.ui.thinking ? "Collapse thinking" : "Expand thinking", hint: "ctrl+t" },
           { value: "theme", label: "Toggle theme", description: shell.theme.name },
           { value: "viewport", label: vp.responsive ? `Viewport: fixed ${vp.cols}×${vp.rows}` : "Viewport: follow DevTools size" },
-          { value: "connect", label: "Connect to server…", description: state.connection.label || undefined },
+          ...(!store.hostManagesConnection ? [{ value: "connect", label: "Connect to server…", description: state.connection.label || undefined }] : []),
           { value: "reload", label: "Reload sessions" },
           ...sessions.slice(0, 12),
         ];

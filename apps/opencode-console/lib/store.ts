@@ -129,6 +129,10 @@ export class OpenCodeStore {
     return this.client;
   }
 
+  get hostManagesConnection(): boolean {
+    return this.options.client !== undefined;
+  }
+
   // -- connection ------------------------------------------------------------
 
   /** Connect once (idempotent). */
@@ -150,6 +154,7 @@ export class OpenCodeStore {
     const client = conn.client;
     this.client = client;
     const info = await client.info().catch(() => ({ version: "?", directory: undefined as string | undefined }));
+    if (seq !== this.connectSeq) return this.state.connection;
     this.set({
       connection: {
         status: "ready",
@@ -184,6 +189,7 @@ export class OpenCodeStore {
     if (client !== this.client) return;
     const primary = agents.length > 0 ? agents : DEFAULT_AGENTS;
     const directory = this.state.connection.directory ?? (await client.info().catch(() => null))?.directory;
+    if (client !== this.client) return;
     this.set((s) => ({
       agents: primary,
       models,
@@ -214,6 +220,8 @@ export class OpenCodeStore {
 
   dispose(): void {
     this.connectSeq++;
+    this.client = null;
+    this.started = false;
     this.unsubscribe?.();
     this.unsubscribe = null;
     for (const t of this.refetchTimers.values()) clearTimeout(t);

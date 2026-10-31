@@ -57,7 +57,7 @@ export function CompanionApp(): ReactNode {
   });
 
   // OpenCode is a full-screen TUI of its own, like the real thing.
-  if (tab === "opencode") return <OpenCodeLite active />;
+  if (tab === "opencode") return <OpenCodeLite />;
   // Each /learn page runs its chapter's app, with its own header and keys.
   if (tab === "learn") return <LearnConsole />;
   // A docs example clicked on the page runs here instead of the Docs view.
