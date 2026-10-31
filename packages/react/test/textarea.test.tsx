@@ -109,4 +109,19 @@ describe("<Textarea>", () => {
     expect(t.lines().slice(0, 3)).toEqual(["hello wide", "world"]);
     await t.unmount();
   });
+
+  test("up/down use visual rows and cell columns, not UTF-16 units or logical line starts", async () => {
+    const t = await createTestRoot({ width: 8, height: 7 });
+    await t.render(<Textarea autoFocus maxRows={6} />);
+    await t.paste("abcdefghijk\n日本abc");
+    expect(cursor(t)).toEqual({ x: 7, y: 2 });
+    await t.press("ArrowUp");
+    expect(cursor(t)).toEqual({ x: 3, y: 1 });
+    await t.press("ArrowUp");
+    expect(cursor(t)).toEqual({ x: 7, y: 0 });
+    await t.press("ArrowDown");
+    await t.press("ArrowDown");
+    expect(cursor(t)).toEqual({ x: 7, y: 2 });
+    await t.unmount();
+  });
 });

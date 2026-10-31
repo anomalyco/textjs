@@ -1,6 +1,6 @@
 import { useMemo, useRef, type ReactNode, type Ref } from "react";
 import { layoutGraphemeLines, segmentGraphemes, type ColorInput, type LayoutProps, type SceneNode, type SceneNodeProps } from "@textjs/core";
-import { applyEditKey, insert, lineStart, verticalMove } from "../editing";
+import { applyEditKey, insert, visualMove } from "../editing";
 import { useFocus } from "../focus";
 import { mergeStyleProps, TxBox, TxText } from "../host";
 import { useInput, usePaste } from "../hooks";
@@ -102,11 +102,10 @@ export function Textarea(props: TextareaProps): ReactNode {
             return;
           }
         }
-        const col = goalCol.current ?? cur.cursor - lineStart(cur.value, cur.cursor);
-        const target = verticalMove(cur.value, cur.cursor, e.key === "up" ? -1 : 1, col);
+        const target = visualMove(cur.value, cur.cursor, boxRef.current?.layout.contentWidth ?? 80, up ? -1 : 1, goalCol.current);
         e.stopPropagation();
-        editor.apply({ value: cur.value, cursor: target });
-        goalCol.current = col;
+        editor.apply({ value: cur.value, cursor: target.cursor });
+        goalCol.current = target.col;
         return;
       }
       goalCol.current = null;

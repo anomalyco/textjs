@@ -3,6 +3,8 @@
  * Cursor positions are UTF-16 offsets that always sit on grapheme boundaries.
  */
 
+import { layoutGraphemeLines, segmentGraphemes, type Grapheme } from "@textjs/core";
+
 // Unlike display segmentation, cursor offsets must not expand tabs into cells.
 const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
@@ -110,6 +112,45 @@ export function verticalMove(text: string, i: number, dir: -1 | 1, goalCol?: num
   const nextStart = end + 1;
   const nextLen = lineEnd(text, nextStart) - nextStart;
   return snap(text, nextStart + Math.min(col, nextLen));
+}
+
+/** Move by a painted row, preserving a *cell* column across soft wraps,
+ * wide clusters and short hard lines. Only built for a vertical key press. */
+export function visualMove(value: string, cursor: number, width: number, dir: -1 | 1, goal: number | null) {
+  const gs: Grapheme[] = [];
+  const offsets: number[] = [];
+  let caret = 0;
+  // Mirror the focused field: a blank cursor at a newline/EOF takes one cell;
+  // on a space it uses a nonbreaking space so wrapping can't hide the cursor.
+  for (const { index, segment } of segmenter.segment(value)) {
+    if (index === cursor) caret = gs.length;
+    if (index === cursor && segment === "\n") {
+      offsets.push(index);
+      segmentGraphemes("\u00a0", gs);
+    }
+    const start = gs.length;
+    segmentGraphemes(index === cursor && segment === " " ? "\u00a0" : segment, gs);
+    for (let g = start; g < gs.length; g++) offsets.push(index);
+  }
+  if (cursor === value.length) {
+    caret = gs.length;
+    offsets.push(cursor);
+    segmentGraphemes("\u00a0", gs);
+  }
+  offsets.push(value.length);
+  const lines = layoutGraphemeLines(gs, Math.max(1, width), "wrap");
+  const row = lines.findIndex((l) => caret >= l.start && (caret < l.end || l.start === l.end && caret === l.start));
+  const current = lines[row];
+  let col = goal ?? 0;
+  if (goal === null && current) for (let i = current.start; i < caret; i++) col += gs[i]!.width;
+  const next = lines[row + dir];
+  if (!next || !current) return { cursor: dir === -1 ? 0 : value.length, col };
+  let idx = next.start, x = 0;
+  while (idx < next.end && x + gs[idx]!.width <= col) x += gs[idx++]!.width;
+  // Adjacent lines with no separator (long unbroken word): end belongs to
+  // the following row, not the last editable cell in this one.
+  if (idx > next.start && idx === next.end && lines[row + dir + 1]?.start === idx) idx--;
+  return { cursor: offsets[idx] ?? value.length, col };
 }
 
 /** Snap an offset back onto a grapheme boundary. */
