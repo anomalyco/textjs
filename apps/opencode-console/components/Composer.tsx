@@ -6,6 +6,7 @@ import { DispatchAction, slashAction } from "../lib/commands";
 export interface ComposerProps {
   onSubmit: (text: string, mode: "prompt" | "shell") => void;
   busy?: boolean;
+  disabled?: boolean;
   interruptArmed?: boolean;
   placeholder?: string;
 }
@@ -54,7 +55,7 @@ export function Hints({ items }: { items: Array<[string, string]> }): ReactNode 
  * The TUI's split-border prompt: `┃` in the agent color, a raised panel, a
  * growing multiline editor and the metadata row.
  */
-export function Composer({ onSubmit, busy = false, interruptArmed, placeholder }: ComposerProps): ReactNode {
+export function Composer({ onSubmit, busy = false, disabled = false, interruptArmed, placeholder }: ComposerProps): ReactNode {
   const theme = useTheme();
   const [value, setValue] = useState("");
   const [shell, setShell] = useState(false);
@@ -72,7 +73,7 @@ export function Composer({ onSubmit, busy = false, interruptArmed, placeholder }
     else if (e.ctrl && e.key === "c" && value) setValue("");
     else return;
     e.stopPropagation();
-  }, { priority: 12 });
+  }, { priority: 12, isActive: !disabled });
 
   const submit = (text: string): void => {
     if (text.trim().length === 0) return;
@@ -109,7 +110,7 @@ export function Composer({ onSubmit, busy = false, interruptArmed, placeholder }
     <Box flexDirection="column" flexShrink={0} width="100%">
       <Box flexDirection="column" flexShrink={0} border="heavy" borderTop={false} borderRight={false} borderBottom={false} borderColor={color}>
         <Box flexDirection="column" flexShrink={0} bg={theme.panel} paddingX={2} paddingTop={1}>
-          <Textarea id="opencode-prompt" value={value} onChange={setValue} onSubmit={submit} history={shell ? undefined : history} autoFocus placeholder={shell ? 'Run a command… "pwd"' : placeholder ?? PLACEHOLDER} minRows={1} maxRows={6} />
+          <Textarea id="opencode-prompt" value={value} onChange={setValue} onSubmit={submit} history={shell ? undefined : history} isActive={!disabled} autoFocus placeholder={shell ? 'Run a command… "pwd"' : placeholder ?? PLACEHOLDER} minRows={1} maxRows={6} />
           <Box flexDirection="row" height={1} flexShrink={0} gap={1} marginTop={1}>
             <Text color={color} wrap="nowrap" flexShrink={0}>
               {shell ? "Shell" : capitalize(agent)}

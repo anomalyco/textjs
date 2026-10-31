@@ -127,6 +127,8 @@ export function startMockOpenCode(options: { password?: string } = {}): MockOpen
           ],
         });
       if (path === "/api/model/default") return Response.json({ location: { directory: DIR }, data: { id: "claude-opus-5-5", providerID: "anthropic", name: "Claude Opus 5.5" } });
+      if (/^\/api\/session\/[^/]+\/(permission|form)$/.test(path)) return Response.json({ data: [] });
+      if (/^\/api\/session\/[^/]+\/(permission|form)\/[^/]+(\/reply)?$/.test(path)) return new Response(null, { status: 204 });
       if (path === "/api/session" && req.method === "GET") {
         const sorted = [...sessions].sort((a, b) => ((b.time as Json).updated as number) - ((a.time as Json).updated as number));
         return Response.json({ data: sorted, cursor: { previous: null, next: null } });

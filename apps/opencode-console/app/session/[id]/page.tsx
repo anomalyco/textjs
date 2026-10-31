@@ -3,7 +3,8 @@ import { Box, Text, useInput, useTheme, type Metadata } from "@textjs/next";
 import { useRouter } from "@textjs/next/navigation";
 import { Composer } from "../../../components/Composer";
 import { Timeline } from "../../../components/Timeline";
-import { useStore, useStoreState } from "../../../lib/store";
+import { pendingForms, pendingPermissions, useStore, useStoreState } from "../../../lib/store";
+import { FormPrompt, PermissionPrompt } from "../../../components/Requests";
 import type { SessionMessage } from "../../../lib/types";
 
 export const metadata: Metadata = { title: "Session" };
@@ -20,6 +21,8 @@ export default function SessionPage({ params }: { params: Record<string, string 
   const loaded = useStoreState((s) => s.loaded[id] === true);
   const missing = useStoreState((s) => s.missing[id] === true);
   const busy = useStoreState((s) => s.busy[id] === true);
+  const permission = useStoreState((s) => pendingPermissions(s, id)[0]);
+  const form = useStoreState((s) => pendingForms(s, id)[0]);
   const ui = useStoreState((s) => s.ui);
   const directory = useStoreState((s) => s.sessions.find((x) => x.id === id)?.directory);
   const options = useMemo(() => ({ ...ui, directory }), [ui, directory]);
@@ -36,7 +39,7 @@ export default function SessionPage({ params }: { params: Record<string, string 
   }, [store, id, ready]);
 
   useInput((e) => {
-    if (!busy || e.key !== "escape" || e.repeat) return;
+    if (!busy || permission || form || e.key !== "escape" || e.repeat) return;
     e.stopPropagation();
     setArmed(!armed);
     if (armed) void store.interrupt(id);
@@ -55,10 +58,11 @@ export default function SessionPage({ params }: { params: Record<string, string 
   }
 
   return (
-    <Box flexDirection="column" flexGrow={1} minHeight={0} paddingX={2}>
+    <Box flexDirection="column" flexGrow={1} minHeight={0} paddingX={2} paddingBottom={1}>
       <Timeline messages={messages} options={options} busy={busy} loading={!loaded && messages.length === 0} />
       <Box height={1} flexShrink={0} />
-      <Composer busy={busy} interruptArmed={armed} placeholder="" onSubmit={(text, mode) => void store.send(id, text, mode)} />
+      <Box display={permission || form ? "none" : "flex"} flexDirection="column" flexShrink={0}><Composer disabled={!!permission || !!form} busy={busy} interruptArmed={armed} placeholder="" onSubmit={(text, mode) => void store.send(id, text, mode)} /></Box>
+      {permission ? <PermissionPrompt key={permission.id} request={permission} child={permission.sessionID !== id} /> : form ? <FormPrompt key={form.id} form={form} /> : null}
     </Box>
   );
 }

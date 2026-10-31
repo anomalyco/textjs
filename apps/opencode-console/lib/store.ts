@@ -130,6 +130,11 @@ export class OpenCodeStore {
   private connectSeq = 0;
   private recentModels: ModelRef[] = [];
   private commands = new Set<string>();
+  private requestReads = new Map<string, Set<string>>();
+
+  private touchRequest(id: string) {
+    for (const changes of this.requestReads.values()) changes.add(id);
+  }
   private drafts = new Map<string, { agent?: string; model?: ModelRef }>();
 
   constructor(private readonly options: StoreOptions = {}) {
@@ -196,6 +201,7 @@ export class OpenCodeStore {
     const seq = ++this.connectSeq;
     this.recentModels = [];
     this.commands.clear();
+    this.requestReads.clear();
     this.drafts.clear();
     this.tabs.clear();
     this.client = null;
@@ -312,6 +318,7 @@ export class OpenCodeStore {
       this.set((s) => ({ sessions: s.sessions.some((x) => x.id === id) ? s.sessions : [info, ...s.sessions] }));
     }
     const sess = this.session(id);
+    if (sess) this.set((s) => ({ parents: { ...s.parents, [id]: sess.parentID ?? null } }));
     this.tabs.visit(id);
     const draft = this.drafts.get(id);
     const agent = draft?.agent ?? sess?.agent, model = draft?.model ?? sess?.model;
@@ -326,6 +333,8 @@ export class OpenCodeStore {
   async syncRequests(id: string): Promise<void> {
     const client = this.client;
     if (!client?.permissions && !client?.forms) return;
+    const touched = new Set<string>();
+    this.requestReads.set(id, touched);
     const children = await client.children?.(id).catch(() => []) ?? [];
     if (client !== this.client) return;
     const ids = [id, ...children.map((c) => c.id)];
@@ -333,15 +342,19 @@ export class OpenCodeStore {
       Promise.all(ids.map((sid) => client.permissions?.(sid).catch(() => null) ?? null)),
       Promise.all(ids.map((sid) => client.forms?.(sid).catch(() => null) ?? null)),
     ]);
-    if (client !== this.client) return;
+    if (client !== this.client || this.requestReads.get(id) !== touched) return;
+    this.requestReads.delete(id);
+    const merge = <T extends { id: string }>(remote: readonly T[], live: readonly T[] = []) => [
+      ...remote.filter((r) => !touched.has(r.id)), ...live.filter((r) => touched.has(r.id)),
+    ];
     this.set((s) => {
       const nextPermissions = { ...s.permissions };
       const nextForms = { ...s.forms };
       const parents = { ...s.parents };
       for (const c of children) parents[c.id] = id;
       ids.forEach((sid, i) => {
-        if (permissions[i]) nextPermissions[sid] = permissions[i]!;
-        if (forms[i]) nextForms[sid] = forms[i]!;
+        if (permissions[i]) nextPermissions[sid] = merge(permissions[i]!.filter((p) => p.sessionID === sid), s.permissions[sid]);
+        if (forms[i]) nextForms[sid] = merge(forms[i]!.filter((f) => f.sessionID === sid), s.forms[sid]);
       });
       return { permissions: nextPermissions, forms: nextForms, parents };
     });
@@ -364,6 +377,8 @@ export class OpenCodeStore {
   async replyPermission(request: PermissionRequest, decision: PermissionReply, message?: string): Promise<void> {
     const client = this.client;
     if (!client?.replyPermission) return;
+    if (!this.state.permissions[request.sessionID]?.some((p) => p.id === request.id)) return;
+    if (decision === "always" && !request.save?.length) return;
     try {
       await client.replyPermission(request.sessionID, request.id, decision, message);
     } catch (error) {
@@ -402,12 +417,14 @@ export class OpenCodeStore {
   }
 
   private dropPermission(sessionID: string, requestID: string): void {
+    this.touchRequest(requestID);
     const list = this.state.permissions[sessionID];
     if (!list?.some((r) => r.id === requestID)) return;
     this.set((s) => ({ permissions: { ...s.permissions, [sessionID]: (s.permissions[sessionID] ?? []).filter((r) => r.id !== requestID) } }));
   }
 
   private dropForm(sessionID: string, formID: string): void {
+    this.touchRequest(formID);
     const list = this.state.forms[sessionID];
     if (!list?.some((f) => f.id === formID)) return;
     this.set((s) => ({ forms: { ...s.forms, [sessionID]: (s.forms[sessionID] ?? []).filter((f) => f.id !== formID) } }));
@@ -615,6 +632,7 @@ export class OpenCodeStore {
         return;
       case "permission.asked": {
         const { request } = e;
+        this.touchRequest(request.id);
         if (this.state.permissions[request.sessionID]?.some((r) => r.id === request.id)) return;
         this.set((s) => ({ permissions: { ...s.permissions, [request.sessionID]: [...(s.permissions[request.sessionID] ?? []), request] } }));
         void this.learnParents(request.sessionID);
@@ -625,6 +643,7 @@ export class OpenCodeStore {
         return;
       case "form.created": {
         const { form } = e;
+        this.touchRequest(form.id);
         if (this.state.forms[form.sessionID]?.some((f) => f.id === form.id)) return;
         this.set((s) => ({ forms: { ...s.forms, [form.sessionID]: [...(s.forms[form.sessionID] ?? []), form] } }));
         void this.learnParents(form.sessionID);

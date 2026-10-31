@@ -231,6 +231,32 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     await t.waitFor(() => t.frame().includes("Session ses_nope not found"), "missing session");
   });
 
+  test("queued permission and form prompts retain owners, choices and the unsent draft", async () => {
+    const { t } = await mount("/session/ses_alpha");
+    await t.waitFor(() => t.frame().includes("It lives in"));
+    await t.type("my draft");
+    const sessionID = "ses_alpha";
+    for (const id of ["per_a", "per_b"]) mock.emit({ type: "permission.asked", data: { id, sessionID, action: "shell", resources: [`echo ${id}`], save: ["echo *"] } });
+    mock.emit({ type: "form.created", data: { form: { id: "frm_c", sessionID, title: "Pick a branch", fields: [{ key: "branch", type: "string", options: [{value:"main",label:"main"},{value:"next",label:"next"}] }] } } });
+    await t.waitFor(() => t.frame().includes("echo per_a"));
+    await t.press("ArrowRight");
+    expect(t.frame()).toContain("This will always allow the following patterns");
+    await t.press("f", {ctrlKey:true});
+    expect(t.frame()).toContain("minimize");
+    await t.press("Escape");
+    expect(requested("POST", `/api/session/${sessionID}/permission`)).toBe(false);
+    await t.press("Enter");
+    await t.waitFor(() => t.frame().includes("echo per_b"));
+    await t.press("Escape");
+    await t.waitFor(() => t.frame().includes("2. next"));
+    await t.press("2");
+    await t.waitFor(() => t.frame().includes("my draft"));
+    expect(mock.requests.filter((r) => r.path.endsWith("/reply")).map((r) => [r.path, r.body])).toEqual([
+      [`/api/session/${sessionID}/permission/per_a/reply`, {decision:"always"}], [`/api/session/${sessionID}/permission/per_b/reply`, {decision:"reject"}],
+      [`/api/session/${sessionID}/form/frm_c/reply`, {answer:{branch:"next"}}],
+    ]);
+  });
+
   test("session tab cycling, numeric selection, closing and reopening never delete a session", async () => {
     const { t, history } = await mount("/session/ses_alpha");
     await t.waitFor(() => t.frame().includes("It lives in"));
