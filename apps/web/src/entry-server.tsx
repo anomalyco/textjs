@@ -53,4 +53,4 @@ export async function render(pathname: string): Promise<string> {
 }
 
 export { titleFor, matchRoute, renderRss };
-export { PREFIT_MIRRORS_SCRIPT } from "./site/DevToolsWindow";
+export { PREFIT_MIRRORS_SCRIPT, PREFIT_MIRRORS_WHILE_PARSING_SCRIPT } from "./site/DevToolsWindow";

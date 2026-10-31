@@ -11,6 +11,7 @@ interface ServerEntry {
   ROUTES: ReadonlyArray<{ path: string; title: string; description: string; canonical?: string }>;
   NOT_FOUND_PATH: string;
   PREFIT_MIRRORS_SCRIPT: string;
+  PREFIT_MIRRORS_WHILE_PARSING_SCRIPT: string;
   render(pathname: string): Promise<string>;
   renderRss(): string;
 }
@@ -44,8 +45,13 @@ async function withMarkup(html: string, routePath: string): Promise<string> {
   const markup = await server.render(routePath);
   const root = '<div id="root"></div>';
   if (!html.includes(root)) throw new Error("index.html is missing the #root mount point");
-  const prefit = markup.includes("mirror-scale") ? `<script>${server.PREFIT_MIRRORS_SCRIPT}</script>` : "";
-  return html.replace(root, `<div id="root" data-route="${escapeAttr(routePath)}">${markup}</div>${prefit}`);
+  const mirrors = markup.includes("mirror-scale");
+  const prefit = mirrors ? `<script>${server.PREFIT_MIRRORS_SCRIPT}</script>` : "";
+  const watch = mirrors ? `<script>${server.PREFIT_MIRRORS_WHILE_PARSING_SCRIPT}</script>` : "";
+  // A page that marks its fold holds first paint until everything above it is parsed (Chrome
+  // 124+), so a long page arriving in several chunks never paints a half-built hero.
+  const fold = markup.includes('id="fold"') ? '<link rel="expect" href="#fold" blocking="render">\n  </head>' : "</head>";
+  return html.replace("</head>", fold).replace(root, `${watch}<div id="root" data-route="${escapeAttr(routePath)}">${markup}</div>${prefit}`);
 }
 
 async function writeRoute(routePath: string, title: string, description: string, canonical = routePath): Promise<void> {

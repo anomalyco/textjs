@@ -1382,6 +1382,11 @@ kbd {
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 
+/* Prerendered HTML streams in: a half-parsed pill would grow leftwards (a layout shift) as its children arrive. */
+.console-pill:not(:has(> kbd + span)) {
+  visibility: hidden;
+}
+
 .console-pill:hover {
   border-color: var(--line-3);
   color: var(--fg);

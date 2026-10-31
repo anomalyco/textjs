@@ -22,7 +22,16 @@ export function fitMirror(outer: HTMLElement, inner: HTMLElement): { scale: numb
  * Inline script for prerendered pages, run right after the markup: applies the same fit
  * `ScaledMirror` computes on hydration, so scaled mirrors never resize after first paint.
  */
-export const PREFIT_MIRRORS_SCRIPT = `(function(){var fit=${fitMirror.toString()};document.querySelectorAll(".mirror-scale").forEach(function(o){var i=o.firstElementChild;if(!i)return;var f=fit(o,i);o.style.height=f.height+"px";if(f.scale!==1)i.style.transform="scale("+f.scale+")"})})()`;
+const FIT_ALL = `document.querySelectorAll(".mirror-scale").forEach(function(o){var i=o.firstElementChild;if(!i)return;var f=fit(o,i);o.style.height=f.height+"px";if(f.scale!==1)i.style.transform="scale("+f.scale+")"})`;
+export const PREFIT_MIRRORS_SCRIPT = `(function(){var fit=${fitMirror.toString()};${FIT_ALL}})()`;
+
+/**
+ * Inline script for prerendered pages, run before the markup. A long page reaches the browser in
+ * several chunks and may paint between them, before `PREFIT_MIRRORS_SCRIPT` has arrived. Mutation
+ * callbacks run before the next paint, so refitting on every parsed chunk means a mirror is never
+ * painted at its unscaled height.
+ */
+export const PREFIT_MIRRORS_WHILE_PARSING_SCRIPT = `(function(){if(typeof MutationObserver==="undefined")return;var fit=${fitMirror.toString()};var run=function(){${FIT_ALL}};var mo=new MutationObserver(run);mo.observe(document.documentElement,{childList:true,subtree:true});document.addEventListener("DOMContentLoaded",function(){mo.disconnect()})})()`;
 
 /** Scales a fixed-width console mirror down to fit its container (never up). */
 export function ScaledMirror({
