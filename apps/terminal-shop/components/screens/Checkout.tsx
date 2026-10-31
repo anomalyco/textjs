@@ -398,6 +398,25 @@ export function confirmLines(store: ShopStore, t: Theme): Line[] {
   return indent(out, 1);
 }
 
+/** The second, explicit confirmation for a real order. */
+export function realOrderLines(store: ShopStore, t: Theme): Line[] {
+  const s = store.s;
+  const sub = s.subscribing;
+  const total = sub ? (sub.product.variants[sub.selected]?.price ?? 0) : s.cart.amount.subtotal + (s.cart.amount.shipping ?? 0);
+  const card = store.selectedCard();
+  return indent(
+    [
+      [t.error("this is a real order", { bold: true })],
+      [],
+      [t.base(`${formatUSD(total)}${sub ? " a month" : ""} will be charged to cc ${formatLast4(card?.last4 ?? "")}`)],
+      [t.base(sub ? "and coffee ships every month until you cancel." : "and your coffee ships to the address above.")],
+      [],
+      [t.base("place it? "), t.accent("(y/n)")],
+    ],
+    1,
+  );
+}
+
 export function ConfirmScreen(): ReactNode {
   const store = useShop();
   const nav = useNav();
@@ -405,14 +424,52 @@ export function ConfirmScreen(): ReactNode {
   const [submitting, run] = useBusy();
   const key = useRef(store.s.subscribing ? "" : uuid());
   const [offset, setOffset] = useState(0);
-  useHeaderMode("confirm", !submitting);
+  // textjs.org: one more explicit y/n before a real (production) order or subscription.
+  const [armed, setArmed] = useState(false);
+  const askTwice = store.confirmRealOrders && store.s.env === "prod";
+  useHeaderMode("confirm", !submitting && !armed);
 
   useEffect(() => {
     if (!store.s.subscribing && (store.isCartEmpty() || !store.s.cart.cardID || !store.s.cart.addressID)) nav("/cart");
   }, []);
 
+  const submit = (): void => {
+    store.setError(null);
+    void run(async () => {
+      try {
+        const s = store.s;
+        if (s.subscribing) {
+          const variant = s.subscribing.product.variants[s.subscribing.selected];
+          await store.createSubscription({
+            productVariantID: s.subscription.productVariantID ?? variant?.id ?? "",
+            quantity: 1,
+            addressID: s.subscription.addressID ?? "",
+            cardID: s.subscription.cardID ?? "",
+          });
+          store.stopSubscribing();
+          store.clearLocalCart();
+          nav("/order/complete");
+        } else {
+          await store.placeOrder(key.current);
+          key.current = "";
+          store.clearLocalCart();
+          nav("/order/subscribe");
+        }
+      } catch (error) {
+        store.fail(error);
+      }
+    });
+  };
+
   useKeys((k) => {
     if (submitting) return true;
+    if (armed) {
+      if (k === "y") {
+        setArmed(false);
+        submit();
+      } else if (k === "n" || k === "esc") setArmed(false);
+      return true;
+    }
     switch (k) {
       case "esc":
         nav("/payment");
@@ -426,31 +483,8 @@ export function ConfirmScreen(): ReactNode {
         setOffset((o) => o + 1);
         return true;
       case "enter":
-        store.setError(null);
-        void run(async () => {
-          try {
-            const s = store.s;
-            if (s.subscribing) {
-              const variant = s.subscribing.product.variants[s.subscribing.selected];
-              await store.createSubscription({
-                productVariantID: s.subscription.productVariantID ?? variant?.id ?? "",
-                quantity: 1,
-                addressID: s.subscription.addressID ?? "",
-                cardID: s.subscription.cardID ?? "",
-              });
-              store.stopSubscribing();
-              store.clearLocalCart();
-              nav("/order/complete");
-            } else {
-              await store.placeOrder(key.current);
-              key.current = "";
-              store.clearLocalCart();
-              nav("/order/subscribe");
-            }
-          } catch (error) {
-            store.fail(error);
-          }
-        });
+        if (askTwice) setArmed(true);
+        else submit();
         return true;
     }
     return false;
@@ -463,7 +497,7 @@ export function ConfirmScreen(): ReactNode {
         { key: "esc", value: "back" },
         { key: "enter", value: "next" },
       ]}
-      body={(h, t) => (submitting ? [[t.base("  submitting order...")]] : centered(viewport(confirmLines(store, t), h, offset)))}
+      body={(h, t) => (submitting ? [[t.base("  submitting order...")]] : centered(armed ? realOrderLines(store, t) : viewport(confirmLines(store, t), h, offset)))}
     />
   );
 }

@@ -4,7 +4,8 @@ import { scanApp, toStaticManifest } from "@textjs/next/vite";
 import type { KeyValueStorage } from "../lib/auth";
 import { resetShopStore, type ShopStore } from "../lib/store";
 import { createTestRoot, type TestRoot } from "./helpers";
-import { MOCK_TOKEN, startMockProxy, startMockTerminal, type MockProxy, type MockTerminal } from "./mock-terminal";
+import { MOCK_TOKEN, startMockProxy, startMockSiteProxy, startMockTerminal, type MockProxy, type MockSiteProxy, type MockTerminal } from "./mock-terminal";
+import type { StoreOptions } from "../lib/store";
 
 const APP = fileURLToPath(new URL("..", import.meta.url));
 
@@ -30,7 +31,7 @@ export function memoryStorage(seed: Record<string, string> = {}): KeyValueStorag
 export interface Harness {
   t: TestRoot;
   api: MockTerminal;
-  proxy: MockProxy;
+  proxy: MockProxy | MockSiteProxy;
   store: ShopStore;
   history: ReturnType<typeof createMemoryHistory>;
   storage: ReturnType<typeof memoryStorage>;
@@ -40,11 +41,21 @@ export interface Harness {
   stop(): Promise<void>;
 }
 
-export async function mountShop(opts: { path?: string; signedIn?: boolean; email?: string | null; env?: Record<string, string | undefined> } = {}): Promise<Harness> {
+export async function mountShop(
+  opts: {
+    path?: string;
+    signedIn?: boolean;
+    email?: string | null;
+    env?: Record<string, string | undefined>;
+    /** Behind a textjs.org-style site proxy (session held server-side). */
+    site?: { configured?: boolean };
+    store?: StoreOptions;
+  } = {},
+): Promise<Harness> {
   const api = startMockTerminal({ email: opts.email });
-  const proxy = startMockProxy(api, opts.env);
-  const storage = memoryStorage(opts.signedIn === false ? {} : { "terminal-shop:auth:dev": JSON.stringify({ kind: "token", access: MOCK_TOKEN }) });
-  const store = resetShopStore({ storage, bases: [proxy.base], splashMs: 0, pollMs: 20 });
+  const proxy = opts.site ? startMockSiteProxy(api, { signedIn: opts.signedIn ?? true, configured: opts.site.configured }) : startMockProxy(api, opts.env);
+  const storage = memoryStorage(opts.signedIn === false || opts.site ? {} : { "terminal-shop:auth:dev": JSON.stringify({ kind: "token", access: MOCK_TOKEN }) });
+  const store = resetShopStore({ storage, bases: [proxy.base], splashMs: 0, pollMs: 20, ...opts.store });
   const routes = await loadRoutes();
   const history = createMemoryHistory(opts.path ?? "/");
   const t = await createTestRoot({ width: 80, height: 30, onCaughtError: (e) => console.error(e) });

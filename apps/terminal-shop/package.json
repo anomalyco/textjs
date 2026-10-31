@@ -17,5 +17,9 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "@textjs/next": "workspace:*"
+  },
+  "exports": {
+    "./embed": "./embed.tsx",
+    "./package.json": "./package.json"
   }
 }

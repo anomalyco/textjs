@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { CONTENT, HEIGHT, WIDTH } from "../../lib/frame";
 import { notEmpty } from "../../lib/form";
-import { useShop, useShopState } from "../../lib/store";
+import { usePathname } from "@textjs/next/navigation";
+import { PUBLIC_PATHS, useShop, useShopState } from "../../lib/store";
 import { defaultTheme } from "../../lib/theme";
-import { fit, place, span, type Line } from "../../lib/ui";
+import { fit, place, span, wrap, type Line } from "../../lib/ui";
 import { useBlink, useBusy, useKeys } from "../chrome";
 import { Screen } from "../Screen";
 import { useForm } from "../useForm";
@@ -16,7 +17,73 @@ const TOKEN_FORM = [[{ key: "token", title: "personal access token", validate: n
  * personal access token (`ssh terminal.shop -t tokens`) or sign in through Terminal's
  * OAuth 2.0 server. Styled after the shop's `EmailGateView`.
  */
-export function LoginScreen(): ReactNode {
+export function LoginScreen({ prompt, onDismiss }: { prompt?: string; onDismiss?: () => void } = {}): ReactNode {
+  const site = useShopState((s) => s.proxy?.mode === "site");
+  if (site) return <SiteLoginScreen prompt={prompt} onDismiss={onDismiss} />;
+  return <TokenLoginScreen />;
+}
+
+/**
+ * textjs.org: sign in only through Terminal's OAuth server. The site's proxy runs the
+ * authorization code + PKCE flow and keeps the session in an httpOnly cookie, so there's
+ * no token to paste and nothing for this page to store.
+ */
+function SiteLoginScreen({ prompt, onDismiss }: { prompt?: string; onDismiss?: () => void }): ReactNode {
+  const store = useShop();
+  const error = useShopState((s) => s.error);
+  const proxy = useShopState((s) => s.proxy);
+  const initialPath = useShopState((s) => s.initialPath);
+  const pathname = usePathname();
+  const cursor = useBlink();
+  const [busy, run] = useBusy();
+  const configured = proxy?.session?.configured ?? false;
+
+  useKeys((key) => {
+    if (busy) return true;
+    switch (key) {
+      case "esc":
+        if (!onDismiss) return false;
+        onDismiss();
+        return true;
+      case "enter":
+        store.setError(null);
+        if (!configured) return true;
+        void run(async () => {
+          try {
+            const returnTo = PUBLIC_PATHS.has(pathname) || pathname === "/" ? initialPath : pathname;
+            await store.signInWithBrowser(returnTo === "/" ? "/shop" : returnTo);
+          } catch (e) {
+            store.fail(e);
+          }
+        });
+        return true;
+    }
+    return false;
+  });
+
+  const t = defaultTheme;
+  const env = proxy?.environments[proxy.defaultEnv];
+  const authHost = (env?.api ?? "https://api.terminal.shop").replace(/^https:\/\/api\./, "auth.");
+  const text = (v: string): Line[] => wrap(v, CONTENT - 2).map((l) => [t.base(l)]);
+  const lines: Line[] = [[span("terminal", { fg: "#FFFFFF", bold: true }), span(" ", cursor ? { bg: "#FF5C00" } : {})], [], [t.bold("sign in")], []];
+  if (prompt) lines.push([t.accent(prompt)], []);
+  lines.push(...text("sign in to your terminal account to order, see your cart and manage your account. no api key needed."), []);
+  if (configured) {
+    lines.push(...listItem("sign in with terminal (oauth 2.0)", true, t, CONTENT - 4));
+    lines.push(...text(`opens ${authHost}: password, email code, github or twitch.`));
+  } else {
+    lines.push([t.error("sign in isn't set up on this deployment yet.")], ...text("you can still browse the shop."));
+  }
+  lines.push([]);
+  if (env && proxy?.defaultEnv === "prod") lines.push([t.base("this is the real terminal.shop: orders are charged and shipped.")]);
+  else if (env) lines.push([t.base("environment: "), t.accent(env.label), t.base(" · stripe test cards, nothing ships")]);
+  const keys = [configured ? "enter sign in" : null, onDismiss ? "esc back to the shop" : null, "ctrl+c quit"].filter(Boolean).join(" · ");
+  lines.push([], [t.base(busy ? "opening sign in..." : keys)]);
+  if (error) lines.push([], [t.error(error)]);
+  return <Screen lines={place(lines.map((l) => fit(l, CONTENT)), WIDTH, HEIGHT)} />;
+}
+
+function TokenLoginScreen(): ReactNode {
   const store = useShop();
   const env = useShopState((s) => s.env);
   const error = useShopState((s) => s.error);
@@ -71,8 +138,7 @@ export function LoginScreen(): ReactNode {
           setView("token");
         } else {
           void run(async () => {
-            const url = await store.beginOAuth(window.location.origin);
-            window.location.assign(url);
+            await store.signInWithBrowser();
           });
         }
         return true;

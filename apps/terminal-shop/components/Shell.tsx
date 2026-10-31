@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "@textjs/next/navigation";
 import { HEIGHT, WIDTH } from "../lib/frame";
 import { useKeys } from "../lib/keys";
-import { useShop, useShopState } from "../lib/store";
+import { PUBLIC_PATHS, useShop, useShopState } from "../lib/store";
 import { defaultTheme, palette } from "../lib/theme";
 import { centerLines, place, span, type Line } from "../lib/ui";
 import { HeaderModeContext, useBlink, type HeaderMode } from "./chrome";
@@ -40,13 +40,14 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
   const pathname = usePathname();
   const phase = useShopState((s) => s.phase);
   const error = useShopState((s) => s.error);
+  const signInPrompt = useShopState((s) => s.signInPrompt);
+  const signedOut = useShopState((s) => s.proxy?.mode === "site" && s.auth !== "session");
   const headerMode = useRef<HeaderMode>({ enabled: true, claims: [], page: null });
   const [routed, setRouted] = useState(false);
   const lastPage = useRef("/shop");
 
   useEffect(() => {
-    const initial = typeof window !== "undefined" ? window.location.pathname + window.location.search : pathname;
-    void store.start(initial.startsWith("/") ? initial : pathname);
+    void store.start(store.initialLocation(pathname));
   }, [store]);
 
   // `routeToInitialPage`: honor the requested path once data has loaded.
@@ -85,6 +86,13 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
     { priority: 50, isActive: phase !== "quit" },
   );
 
+  // Site mode, signed out: account pages ask you to sign in first.
+  const gated = phase === "ready" && signedOut && !PUBLIC_PATHS.has(pathname);
+  const dismissSignIn = (): void => {
+    store.dismissSignIn();
+    if (gated) router.replace("/shop");
+  };
+
   // `HeaderUpdate`: reserved keys navigate unless a form has focus.
   useKeys(
     (key) => {
@@ -110,13 +118,14 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
       }
       return false;
     },
-    { priority: 40, isActive: phase === "ready" && routed },
+    { priority: 40, isActive: phase === "ready" && routed && !signInPrompt && !gated },
   );
 
   let content: ReactNode;
   if (pathname.startsWith("/auth/callback") && phase !== "ready" && phase !== "quit") content = children;
   else if (phase === "quit") content = <Quit />;
   else if (phase === "login") content = <LoginScreen />;
+  else if (phase === "ready" && routed && (signInPrompt || gated)) content = <LoginScreen prompt={signInPrompt ?? "sign in to see your cart and account"} onDismiss={dismissSignIn} />;
   else if (phase === "ready" && routed && pathname !== "/") content = children;
   else content = <Splash />;
 

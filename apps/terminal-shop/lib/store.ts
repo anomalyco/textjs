@@ -25,9 +25,26 @@ import { EMPTY_CART, type Address, type AddressInput, type App, type Card, type 
 
 export type Phase = "boot" | "login" | "splash" | "ready" | "quit";
 
+/**
+ * What the proxy says about itself (`<base>/_status`). The local dev proxy is `mode: "local"`
+ * (or no mode). On textjs.org the proxy is `mode: "site"`: it holds the OAuth session in an
+ * httpOnly cookie, so the page never sees a token, and `session` says whether you're signed in.
+ */
 export interface ProxyStatus {
+  mode?: "local" | "site";
   defaultEnv: Env;
   environments: Record<Env, { label: string; api: string; enabled: boolean; serverToken: boolean }>;
+  session?: SiteSession;
+}
+
+export interface SiteSession {
+  signedIn: boolean;
+  /** Whether the OAuth client is configured on this deployment. */
+  configured: boolean;
+  /** Top-level navigation target that starts the OAuth flow (`?return=<in-app path>`). */
+  signInUrl: string;
+  /** `POST` here (with `x-terminal-client: 1`) to sign out. */
+  signOutUrl: string;
 }
 
 export interface StoreState {
@@ -35,8 +52,10 @@ export interface StoreState {
   env: Env;
   base: string | null;
   proxy: ProxyStatus | null;
-  /** Where the bearer token comes from. */
-  auth: "browser-token" | "oauth" | "server" | null;
+  /** Where the bearer token comes from (`session`: an httpOnly cookie held by the site's proxy). */
+  auth: "browser-token" | "oauth" | "server" | "session" | null;
+  /** Set when a signed-out visitor tries something that needs an account (site mode). */
+  signInPrompt: string | null;
   error: string | null;
   user: User | null;
   products: Product[];
@@ -71,7 +90,18 @@ export interface StoreOptions {
   bases?: string[];
   pollMs?: number;
   now?: () => number;
+  /** Where the app starts (defaults to `window.location`). Embeds pass their own. */
+  initialPath?: string;
+  /** An error to show on the sign in screen right away (e.g. a failed OAuth callback). */
+  initialError?: string | null;
+  /** Ask once more (y/n) before placing a production order. */
+  confirmRealOrders?: boolean;
+  /** Leave the page for sign in (defaults to `window.location.assign`). */
+  assign?: (url: string) => void;
 }
+
+/** Pages a signed-out visitor can browse in site mode. */
+export const PUBLIC_PATHS: ReadonlySet<string> = new Set(["/shop", "/menu"]);
 
 const BASES = ["/__terminal", "/api/terminal"];
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -96,6 +126,10 @@ export class ShopStore {
   private readonly splashMs: number;
   private readonly bases: string[];
   readonly pollMs: number;
+  readonly confirmRealOrders: boolean;
+  private readonly initialPathOption: string | undefined;
+  private readonly initialError: string | null;
+  private readonly assign: (url: string) => void;
   private readonly now: () => number;
   private creds: Credentials | null = null;
   private lastCartUpdate = 0;
@@ -109,6 +143,10 @@ export class ShopStore {
     this.splashMs = options.splashMs ?? 2000;
     this.bases = options.bases ?? BASES;
     this.pollMs = options.pollMs ?? 1000;
+    this.confirmRealOrders = options.confirmRealOrders ?? false;
+    this.initialPathOption = options.initialPath;
+    this.initialError = options.initialError ?? null;
+    this.assign = options.assign ?? ((url) => window.location.assign(url));
     this.now = options.now ?? Date.now;
     this.state = {
       phase: "boot",
@@ -116,6 +154,7 @@ export class ShopStore {
       base: null,
       proxy: null,
       auth: null,
+      signInPrompt: null,
       error: null,
       user: null,
       products: [],
@@ -160,6 +199,30 @@ export class ShopStore {
 
   // ── lifecycle ───────────────────────────────────────────────────────────
   /** Find the proxy, load credentials and show the splash. Idempotent. */
+  /** The path to open first: the embed's choice, else the browser's location. */
+  initialLocation(fallback: string): string {
+    if (this.initialPathOption !== undefined) return this.initialPathOption;
+    if (typeof window === "undefined") return fallback;
+    const here = window.location.pathname + window.location.search;
+    return here.startsWith("/") ? here : fallback;
+  }
+
+  /** Site mode: the proxy keeps the OAuth session, the page never sees a token. */
+  get siteMode(): boolean {
+    return this.state.proxy?.mode === "site";
+  }
+
+  /** Resolve a proxy-relative path (`/api/terminal/login`) against an absolute base (tests, embeds). */
+  private proxyUrl(path: string): string {
+    const base = this.state.base ?? "";
+    return /^https?:\/\//.test(base) && path.startsWith("/") ? new URL(path, base).toString() : path;
+  }
+
+  /** Signed out in site mode: products are public, everything else asks you to sign in. */
+  get signedOut(): boolean {
+    return this.siteMode && this.state.auth !== "session";
+  }
+
   async start(initialPath = "/shop"): Promise<void> {
     if (this.started) return;
     this.started = true;
@@ -181,8 +244,15 @@ export class ShopStore {
       return;
     }
     let env = this.state.env;
-    if (env === "prod" && !this.state.proxy?.environments.prod.enabled) env = "dev";
+    const proxy = this.state.proxy;
+    if (proxy && !proxy.environments[env]?.enabled) env = proxy.defaultEnv;
     this.useEnv(env);
+    if (this.siteMode) {
+      if (this.initialError) this.set({ signInPrompt: this.initialError });
+      await this.load();
+      return;
+    }
+    if (this.initialError) this.set({ error: this.initialError });
     if (!this.creds && !this.state.proxy?.environments[env].serverToken) {
       this.set({ phase: "login" });
       return;
@@ -191,9 +261,15 @@ export class ShopStore {
   }
 
   private useEnv(env: Env): void {
-    this.creds = loadCredentials(this.storage, env);
-    const server = this.state.proxy?.environments[env].serverToken ?? false;
-    this.set({ env, auth: this.creds ? (this.creds.kind === "oauth" ? "oauth" : "browser-token") : server ? "server" : null });
+    if (this.siteMode) {
+      // Tokens never reach this page; the proxy attaches them from its httpOnly cookie.
+      this.creds = null;
+      this.set({ env, auth: this.state.proxy?.session?.signedIn ? "session" : null });
+    } else {
+      this.creds = loadCredentials(this.storage, env);
+      const server = this.state.proxy?.environments[env].serverToken ?? false;
+      this.set({ env, auth: this.creds ? (this.creds.kind === "oauth" ? "oauth" : "browser-token") : server ? "server" : null });
+    }
     this.client = createClient({
       base: this.state.base ?? BASES[0]!,
       env,
@@ -205,6 +281,11 @@ export class ShopStore {
   }
 
   private refresh(): Promise<boolean> {
+    if (this.siteMode) {
+      // The proxy already tried its refresh token; the session is gone.
+      if (this.state.auth === "session") void this.sessionEnded("your terminal session ended, sign in again");
+      return Promise.resolve(false);
+    }
     const creds = this.creds;
     if (!creds?.refresh || !this.state.base) return Promise.resolve(false);
     this.refreshing ??= refreshOAuth(this.state.base, this.state.env, creds.refresh, this.doFetch)
@@ -224,6 +305,10 @@ export class ShopStore {
   async load(): Promise<void> {
     this.set({ phase: "splash", error: null });
     const delay = sleep(this.splashMs);
+    if (this.signedOut) {
+      await this.loadPublic(delay);
+      return;
+    }
     try {
       const data = await this.api.view.init();
       await delay;
@@ -243,6 +328,8 @@ export class ShopStore {
       });
     } catch (error) {
       await delay;
+      // Site mode: `onUnauthorized` already fell back to signed-out browsing.
+      if (error instanceof TerminalError && error.status === 401 && this.siteMode) return;
       if (error instanceof TerminalError && error.status === 401) {
         this.set({ phase: "login", error: this.state.auth === "server" ? "the server token was rejected, check TERMINAL_DEV_TOKEN" : "that token was rejected, paste a new one" });
         if (this.creds) this.signOutLocal();
@@ -252,12 +339,72 @@ export class ShopStore {
     }
   }
 
+  /** Signed out on the site: the public product list, no cart or account. */
+  private async loadPublic(delay: Promise<void> = Promise.resolve()): Promise<void> {
+    try {
+      const products = await this.api.product.list();
+      await delay;
+      this.set({
+        phase: "ready",
+        user: null,
+        products: reorder(products),
+        cart: EMPTY_CART,
+        cards: [],
+        addresses: [],
+        subscriptions: [],
+        tokens: [],
+        apps: [],
+        orders: [],
+        shopSelected: 0,
+      });
+    } catch (error) {
+      await delay;
+      this.set({ error: errorMessage(error) });
+    }
+  }
+
+  /** Re-read the proxy status (site mode: after sign out or an expired session). */
+  private async refreshStatus(): Promise<void> {
+    if (!this.state.base) return;
+    try {
+      const res = await this.doFetch(`${this.state.base}/_status`, { headers: { accept: "application/json" } });
+      if (res.ok) this.set({ proxy: (await res.json()) as ProxyStatus });
+    } catch {
+      // keep the last status
+    }
+    this.useEnv(this.state.env);
+  }
+
+  private async sessionEnded(message: string | null): Promise<void> {
+    await this.refreshStatus();
+    const proxy = this.state.proxy;
+    if (proxy?.session?.signedIn) this.set({ proxy: { ...proxy, session: { ...proxy.session, signedIn: false } } });
+    this.useEnv(this.state.env);
+    this.set({ signInPrompt: message });
+    await this.loadPublic();
+  }
+
+  /** Site mode: show the sign in screen over the current page. */
+  requireSignIn(message: string): void {
+    this.set({ signInPrompt: message, error: null });
+  }
+
+  dismissSignIn(): void {
+    this.set({ signInPrompt: null, error: null });
+  }
+
   setError(message: string | null): void {
     this.set({ error: message });
   }
 
   fail(error: unknown): void {
+    // Site mode: a 401 means the session ended, and `sessionEnded` already says so.
+    if (this.isSessionEnd(error)) return;
     this.set({ error: errorMessage(error) });
+  }
+
+  private isSessionEnd(error: unknown): boolean {
+    return this.siteMode && error instanceof TerminalError && error.status === 401;
   }
 
   showLogin(error: string | null = null): void {
@@ -271,18 +418,22 @@ export class ShopStore {
   /** Reconnect after "quit": back to the splash, like opening a new ssh session. */
   reconnect(): void {
     this.set({ subscribing: null, subscription: {}, order: null, cartSelected: 0, newToken: null, newApp: null, initialPath: "/shop" });
-    if (!this.creds && !this.state.proxy?.environments[this.state.env].serverToken) this.set({ phase: "login" });
+    if (this.siteMode) void this.load();
+    else if (!this.creds && !this.state.proxy?.environments[this.state.env].serverToken) this.set({ phase: "login" });
     else void this.load();
   }
 
   // ── environment + auth ──────────────────────────────────────────────────
   canUse(env: Env): boolean {
-    return env === "dev" || !!this.state.proxy?.environments.prod.enabled;
+    const proxy = this.state.proxy;
+    if (!proxy) return env === "dev";
+    return !!proxy.environments[env]?.enabled;
   }
 
   switchEnv(env: Env): boolean {
     if (!this.canUse(env)) {
-      this.set({ error: "production is disabled, restart the dev server with TERMINAL_ENABLE_PRODUCTION=1" });
+      const label = this.state.proxy?.environments[this.state.env]?.label ?? this.state.env;
+      this.set({ error: this.siteMode ? `this site only connects to ${label}` : "production is disabled, restart the dev server with TERMINAL_ENABLE_PRODUCTION=1" });
       return false;
     }
     saveEnv(this.storage, env);
@@ -292,7 +443,7 @@ export class ShopStore {
   }
 
   hasCredentials(): boolean {
-    return !!this.creds || this.state.auth === "server";
+    return !!this.creds || this.state.auth === "server" || this.state.auth === "session";
   }
 
   async signInWithToken(input: string): Promise<boolean> {
@@ -313,8 +464,20 @@ export class ShopStore {
     return this.state.phase === "ready";
   }
 
-  async beginOAuth(origin: string): Promise<string> {
-    return beginOAuth(this.state.env, origin, this.state.initialPath);
+  /** Start signing in: navigate this tab to Terminal's sign in (via the proxy in site mode). */
+  async signInWithBrowser(returnTo?: string): Promise<void> {
+    const origin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+    this.assign(await this.beginOAuth(origin, returnTo));
+  }
+
+  /** The URL to open for "sign in with the browser". `returnTo` is the in-app path to come back to. */
+  async beginOAuth(origin: string, returnTo = this.state.initialPath): Promise<string> {
+    const session = this.state.proxy?.session;
+    if (this.siteMode && session) {
+      if (!session.configured) throw new Error("sign in isn't set up on this deployment yet");
+      return `${this.proxyUrl(session.signInUrl)}?${new URLSearchParams({ return: returnTo })}`;
+    }
+    return beginOAuth(this.state.env, origin, returnTo);
   }
 
   async completeOAuth(params: URLSearchParams): Promise<string> {
@@ -335,6 +498,14 @@ export class ShopStore {
   }
 
   signOut(): void {
+    const session = this.state.proxy?.session;
+    if (this.siteMode && session) {
+      this.set({ user: null, cart: EMPTY_CART, error: null, subscribing: null, subscription: {}, order: null });
+      void this.doFetch(this.proxyUrl(session.signOutUrl), { method: "POST", headers: { "x-terminal-client": "1" } })
+        .catch(() => undefined)
+        .then(() => this.sessionEnded(null));
+      return;
+    }
     this.signOutLocal();
     this.set({ phase: this.state.auth === "server" ? this.state.phase : "login", user: null, cart: EMPTY_CART, error: null });
   }
@@ -388,6 +559,10 @@ export class ShopStore {
   updateCart(variantID: string, offset: number): void {
     const product = this.productFor(variantID);
     if (!product) return;
+    if (this.signedOut) {
+      if (offset > 0) this.requireSignIn("sign in to add coffee to your cart");
+      return;
+    }
     const price = product.variants[0]?.price ?? 0;
     const items = this.state.cart.items.map((i) => ({ ...i }));
     let item = items.find((i) => i.productVariantID === variantID);
@@ -409,6 +584,7 @@ export class ShopStore {
         if (this.lastCartUpdate === updateID) this.set({ cart });
       },
       (error) => {
+        if (this.isSessionEnd(error)) return;
         this.fail(error);
         void this.api.cart.get().then(
           (cart) => this.set({ cart }),
@@ -424,6 +600,14 @@ export class ShopStore {
     const cur = this.state.region ?? "na";
     const next = order[(order.indexOf(cur) + 1) % order.length] as Region;
     this.set({ region: next });
+    if (this.signedOut) {
+      try {
+        this.set({ products: reorder(await this.api.product.list()), shopSelected: 0 });
+      } catch (error) {
+        this.fail(error);
+      }
+      return;
+    }
     try {
       await this.api.cart.clear();
       const data = await this.api.view.init();

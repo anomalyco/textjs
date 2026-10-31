@@ -17,9 +17,21 @@ export interface MockRequest {
   body: unknown;
 }
 
+export interface MockAuthorization {
+  clientID: string;
+  redirectURI: string;
+  state: string | null;
+  challenge: string | null;
+  method: string | null;
+}
+
 export interface MockTerminal {
   url: string;
   requests: MockRequest[];
+  /** Every `GET /auth/authorize` (a stand-in OpenAuth server that approves at once). */
+  authorizations: MockAuthorization[];
+  /** Every `POST /auth/token` form. */
+  tokenRequests: Array<Record<string, string>>;
   state: {
     user: User;
     products: Product[];
@@ -40,7 +52,7 @@ let seq = 0;
 const id = (prefix: string): string => `${prefix}_${String(++seq).padStart(26, "0")}`;
 const err = (status: number, type: string, code: string, message: string): Response => Response.json({ type, code, message }, { status });
 
-export function startMockTerminal(opts: { token?: string; email?: string | null; delayMs?: number } = {}): MockTerminal {
+export function startMockTerminal(opts: { token?: string; email?: string | null; delayMs?: number; port?: number } = {}): MockTerminal {
   const token = opts.token ?? MOCK_TOKEN;
   const requests: MockRequest[] = [];
   const state: MockTerminal["state"] = {
@@ -55,6 +67,53 @@ export function startMockTerminal(opts: { token?: string; email?: string | null;
     apps: [],
   };
   const converted = new Map<string, Order>();
+  const authorizations: MockAuthorization[] = [];
+  const tokenRequests: Array<Record<string, string>> = [];
+  const codes = new Map<string, MockAuthorization>();
+  const refreshTokens = new Set<string>();
+  const s256 = async (v: string): Promise<string> =>
+    Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v))).toString("base64url");
+
+  /** OpenAuth's /authorize + /token, enough for the code + PKCE flow (no secret, like Terminal's issuer). */
+  const auth = async (req: Request, url: URL): Promise<Response> => {
+    if (url.pathname === "/auth/authorize" && req.method === "GET") {
+      const q = url.searchParams;
+      const a: MockAuthorization = { clientID: q.get("client_id") ?? "", redirectURI: q.get("redirect_uri") ?? "", state: q.get("state"), challenge: q.get("code_challenge"), method: q.get("code_challenge_method") };
+      authorizations.push(a);
+      if (!a.redirectURI || !a.clientID) return new Response("Missing redirect_uri", { status: 400 });
+      const code = `code_${++seq}`;
+      codes.set(code, a);
+      const back = new URL(a.redirectURI);
+      back.searchParams.set("code", code);
+      if (a.state) back.searchParams.set("state", a.state);
+      return new Response(null, { status: 302, headers: { location: back.toString() } });
+    }
+    if (url.pathname === "/auth/token" && req.method === "POST") {
+      const form = Object.fromEntries(new URLSearchParams(await req.text())) as Record<string, string>;
+      tokenRequests.push(form);
+      const bad = (error: string, status = 400): Response => Response.json({ error, error_description: error }, { status, headers: { "access-control-allow-origin": "*" } });
+      const issue = (): Response => {
+        const refresh = `rt_${++seq}`;
+        refreshTokens.add(refresh);
+        return Response.json({ access_token: token, refresh_token: refresh, expires_in: 1800 }, { headers: { "access-control-allow-origin": "*" } });
+      };
+      if (form.grant_type === "authorization_code") {
+        const a = codes.get(form.code ?? "");
+        if (!a) return bad("invalid_grant");
+        codes.delete(form.code ?? "");
+        if (a.redirectURI !== form.redirect_uri) return bad("invalid_redirect_uri");
+        if (a.clientID !== form.client_id) return bad("unauthorized_client", 403);
+        if (a.challenge && (!form.code_verifier || (await s256(form.code_verifier)) !== a.challenge)) return bad("invalid_grant");
+        return issue();
+      }
+      if (form.grant_type === "refresh_token") {
+        if (!refreshTokens.delete(form.refresh_token ?? "")) return bad("invalid_grant");
+        return issue();
+      }
+      return bad("unsupported_grant_type");
+    }
+    return new Response("not found", { status: 404 });
+  };
 
   const price = (variantID: string): number => {
     for (const p of state.products) for (const v of p.variants) if (v.id === variantID) return v.price;
@@ -75,10 +134,11 @@ export function startMockTerminal(opts: { token?: string; email?: string | null;
   };
 
   const server = Bun.serve({
-    port: 0,
+    port: opts.port ?? 0,
     hostname: "127.0.0.1",
     async fetch(req) {
       const url = new URL(req.url);
+      if (url.pathname.startsWith("/auth/")) return auth(req, url);
       const path = url.pathname;
       const method = req.method;
       const body = method === "GET" || method === "DELETE" ? undefined : await req.json().catch(() => undefined);
@@ -252,6 +312,8 @@ export function startMockTerminal(opts: { token?: string; email?: string | null;
   return {
     url: `http://127.0.0.1:${server.port}`,
     requests,
+    authorizations,
+    tokenRequests,
     state,
     completeCollect(last4 = "4242") {
       const card: Card = { id: id("crd"), brand: "Visa", last4, expiration: { month: 12, year: 2030 }, created: "2026-10-31T22:00:00.000Z" };
@@ -281,4 +343,68 @@ export function startMockProxy(api: MockTerminal, env: Record<string, string | u
     },
   });
   return { base: `http://127.0.0.1:${server.port}/__terminal`, proxy, stop: () => server.stop(true) };
+}
+
+export interface MockSiteProxy extends MockProxy {
+  signedIn: boolean;
+  signOuts: number;
+}
+
+/**
+ * A stand-in for textjs.org's Pages Function (`apps/web/server/terminal-session.ts`):
+ * `mode: "site"`, the session lives server-side (here: a flag), public product reads.
+ */
+export function startMockSiteProxy(api: MockTerminal, opts: { signedIn?: boolean; configured?: boolean } = {}): MockSiteProxy {
+  const state = { signedIn: opts.signedIn ?? false, signOuts: 0 };
+  const server = Bun.serve({
+    port: 0,
+    hostname: "127.0.0.1",
+    async fetch(req) {
+      const url = new URL(req.url);
+      const sub = url.pathname.replace(/^\/api\/terminal/, "");
+      if (sub === "/_status") {
+        return Response.json({
+          mode: "site",
+          defaultEnv: "prod",
+          environments: {
+            prod: { label: "production", api: "https://api.terminal.shop", enabled: true, serverToken: false },
+            dev: { label: "dev sandbox", api: "https://api.dev.terminal.shop", enabled: false, serverToken: false },
+          },
+          session: { signedIn: state.signedIn, configured: opts.configured ?? true, signInUrl: "/api/terminal/login", signOutUrl: "/api/terminal/logout" },
+        });
+      }
+      if (sub === "/logout" && req.method === "POST") {
+        if (req.headers.get("x-terminal-client") !== "1") return new Response(null, { status: 403 });
+        state.signedIn = false;
+        state.signOuts++;
+        return Response.json({ ok: true });
+      }
+      const m = /^\/prod\/api(\/.*)$/.exec(sub);
+      if (!m) return Response.json({ message: "not found" }, { status: 404 });
+      const path = m[1] as string;
+      if (!state.signedIn && !(req.method === "GET" && path.startsWith("/product"))) return Response.json({ type: "error", code: "signed_out", message: "sign in to continue" }, { status: 401 });
+      const headers = new Headers();
+      for (const k of ["accept", "content-type", "idempotency-key", "x-terminal-region"]) {
+        const v = req.headers.get(k);
+        if (v) headers.set(k, v);
+      }
+      if (state.signedIn) headers.set("authorization", `Bearer ${MOCK_TOKEN}`);
+      const body = req.method === "GET" || req.method === "HEAD" ? undefined : await req.arrayBuffer();
+      return fetch(`${api.url}${path}${url.search}`, { method: req.method, headers, body });
+    },
+  });
+  return {
+    base: `http://127.0.0.1:${server.port}/api/terminal`,
+    proxy: createTerminalProxy(),
+    stop: () => server.stop(true),
+    get signedIn() {
+      return state.signedIn;
+    },
+    set signedIn(v: boolean) {
+      state.signedIn = v;
+    },
+    get signOuts() {
+      return state.signOuts;
+    },
+  };
 }

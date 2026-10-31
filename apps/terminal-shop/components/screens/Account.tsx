@@ -306,9 +306,20 @@ function aboutView(cursor: boolean, t: Theme): Line[] {
 function debugView(s: StoreState, confirmProd: boolean, t: Theme): Line[] {
   const value = (v: string | null | undefined): string => (v && v.trim() ? v : "none");
   const row = (k: string, v: string | null | undefined): Line => [t.base(`${k}: `), t.accent(value(v))];
-  const mode = s.auth === "oauth" ? "oauth 2.0 (browser sign in)" : s.auth === "browser-token" ? "personal access token" : s.auth === "server" ? "server token (env)" : "none";
+  const mode =
+    s.auth === "session"
+      ? "oauth 2.0 (terminal sign in)"
+      : s.auth === "oauth"
+        ? "oauth 2.0 (browser sign in)"
+        : s.auth === "browser-token"
+          ? "personal access token"
+          : s.auth === "server"
+            ? "server token (env)"
+            : "none";
   const env = s.proxy?.environments[s.env];
-  const lines: Line[] = [[t.accent(s.auth === "server" ? "connected with a server-side token" : "connected with a token in this browser")], []];
+  const site = s.proxy?.mode === "site";
+  const headline = s.auth === "session" ? "signed in with terminal, the token stays on the server" : s.auth === "server" ? "connected with a server-side token" : "connected with a token in this browser";
+  const lines: Line[] = [[t.accent(headline)], []];
   lines.push(
     [t.accent("session")],
     row("  mode", mode),
@@ -327,7 +338,8 @@ function debugView(s: StoreState, confirmProd: boolean, t: Theme): Line[] {
   if (confirmProd) {
     lines.push([t.error("switch to production?", { bold: true })], ...wordWrap("orders there are real: your card is charged and coffee ships.", DETAIL_WIDTH).map((l) => [t.base(l)]), [t.base("are you sure? "), t.accent("(y/n)")]);
   } else {
-    lines.push([t.bold("e"), t.base(s.env === "dev" ? " switch to production" : " switch to dev sandbox"), t.base("   "), t.bold("x"), t.base(" sign out")]);
+    if (site) lines.push([t.bold("x"), t.base(" sign out")]);
+    else lines.push([t.bold("e"), t.base(s.env === "dev" ? " switch to production" : " switch to dev sandbox"), t.base("   "), t.bold("x"), t.base(" sign out")]);
   }
   return lines;
 }
