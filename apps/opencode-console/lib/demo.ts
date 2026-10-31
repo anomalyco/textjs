@@ -219,7 +219,7 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
       tool("grep", { pattern: "export function", path: "src" }, "src/lib/cart.ts:12:export function addToCart(item: Item) {\nsrc/lib/cart.ts:31:export function cartTotal(items: Item[]) {\nsrc/components/cart-badge.tsx:1:export function CartBadge({ count }: { count: number }) {", { matches: 3 });
       part(
         "text",
-        `Here's how I'd approach it:\n\n1. **Find the hot path** — \`cartTotal\` recomputes on every render.\n2. **Memoize** it with \`useMemo\` keyed on \`items\`.\n3. **Verify** with the existing cart tests.\n\n\`\`\`ts\nconst total = useMemo(() => cartTotal(items), [items]);\n\`\`\`\n\nPress **Tab** to switch to \`build\` and I'll make the change.`,
+        `Here's how I'd approach it:\n\n1. **Find the hot path** — \`cartTotal\` recomputes on every render.\n2. **Memoize** it with \`useMemo\` keyed on \`items\`.\n3. **Verify** with the existing cart tests.\n\n\`\`\`ts\nconst total = useMemo(() => cartTotal(items), [items]);\n\`\`\`\n\nPress **Shift+Tab** to cycle agents.`,
         6,
       );
     } else {

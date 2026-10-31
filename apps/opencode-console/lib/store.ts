@@ -41,6 +41,7 @@ export interface UiState {
   sidebar: boolean;
   toolDetails: boolean;
   thinking: boolean;
+  groupExploration: boolean;
 }
 
 export interface Toast {
@@ -106,7 +107,7 @@ export class OpenCodeStore {
       models: [],
       agent: "build",
       model: null,
-      ui: { sidebar: false, toolDetails: false, thinking: false },
+      ui: { sidebar: false, toolDetails: false, thinking: false, groupExploration: true },
       toast: null,
       history: [],
     };

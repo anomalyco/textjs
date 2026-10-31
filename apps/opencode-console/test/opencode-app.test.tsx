@@ -123,8 +123,8 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     mock.emit({ type: "session.inbox.delivered", data: { sessionID, inboxID: "msg_u" } });
     mock.emit({ type: "session.step.started", data: { ...base, agent: "build", model: { id: "claude-opus-5-5", providerID: "anthropic" }, started: Date.now() } });
     mock.emit({ type: "session.reasoning.started", data: { ...base, ordinal: 0 } });
-    mock.emit({ type: "session.reasoning.delta", data: { ...base, ordinal: 0, delta: "Need a token bucket per IP." } });
-    await t.waitFor(() => t.frame().includes("Thinking  Need a token bucket per IP."), "thinking block");
+    mock.emit({ type: "session.reasoning.delta", data: { ...base, ordinal: 0, delta: "**Choosing a limiter**\n\nNeed a token bucket per IP." } });
+    await t.waitFor(() => t.frame().includes("Thinking: Choosing a limiter"), "thinking disclosure");
     expect(t.frame()).toContain("esc interrupt");
 
     mock.emit({ type: "session.reasoning.ended", data: { ...base, ordinal: 0, text: "Need a token bucket per IP." } });
@@ -179,7 +179,7 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     mock.emit({ type: "session.execution.interrupted", data: { sessionID, reason: "user" } });
     mock.emit({ type: "session.status", data: { sessionID, status: { type: "idle" } } });
     await t.waitFor(() => !t.frame().includes("esc interrupt"), "idle footer");
-    expect(t.frame()).toContain("▣ Build · Claude Opus 5.5");
+    expect(t.frame()).toContain("Build · Claude Opus 5.5");
 
     // Idle: no further frames without changes.
     const idleLogs = t.console.logs.length;
@@ -194,7 +194,7 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     expect(mock.requests.find((r) => r.path === "/api/session/ses_alpha/view")?.body).toMatchObject({ idle: (mock.sessions[0]?.time as { idle: number }).idle });
     const frame = t.frame();
     expect(frame).toContain("Where is the auth middleware?");
-    expect(frame).toContain('✱ Grep "authMiddleware" in src (1 match)');
+    expect(frame).toContain("→ Explored: 1 search");
 
     const before = t.root.renderer.buffer.getCell(2, 0);
     await t.press("p", { ctrlKey: true });

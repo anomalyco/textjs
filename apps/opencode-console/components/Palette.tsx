@@ -59,6 +59,7 @@ export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: 
           ...(store.variants().length ? [{ value: "variants", label: "Switch model variant" }] : []),
           { value: "sidebar", label: state.ui.sidebar ? "Hide sidebar" : "Show sidebar", hint: "ctrl+x b" },
           { value: "tools", label: state.ui.toolDetails ? "Compact tool output" : "Expand tool output" },
+          { value: "group", label: state.ui.groupExploration ? "Show tool calls individually" : "Group related tool calls" },
           { value: "thinking", label: state.ui.thinking ? "Collapse thinking" : "Expand thinking" },
           { value: "themes", label: "Switch theme", description: shell.theme.name },
           { value: "help", label: "Help" },
@@ -85,6 +86,7 @@ export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: 
     else if (value === "help" || value === "copy") dispatch(value);
     else if (value === "sidebar") store.toggle("sidebar");
     else if (value === "tools") store.toggle("toolDetails");
+    else if (value === "group") store.toggle("groupExploration");
     else if (value === "thinking") store.toggle("thinking");
     else if (value.startsWith("theme:")) shell.setTheme(value.slice(6) as ThemeName);
     else if (value.startsWith("variant:") && state.model) void store.setModel({ ...state.model, variant: value === "variant:default" ? undefined : value.slice(8) }, active);
