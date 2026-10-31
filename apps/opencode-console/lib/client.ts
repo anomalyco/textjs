@@ -13,10 +13,12 @@ import type {
   AppEvent,
   AssistantPart,
   ConnectionMode,
+  FormInfo,
   JsonRecord,
   ModelOption,
   ModelRef,
   OpenCodeClient,
+  PermissionRequest,
   SessionInfo,
   SessionMessage,
   ToolContent,
@@ -291,6 +293,21 @@ export function v2Message(v: unknown): SessionMessage | null {
   }
 }
 
+export function v2Permission(v: unknown): PermissionRequest | null {
+  if (!isRecord(v) || typeof v.id !== "string" || typeof v.sessionID !== "string" || typeof v.action !== "string") return null;
+  const strings = (x: unknown): string[] | undefined => (Array.isArray(x) ? x.filter((i): i is string => typeof i === "string") : undefined);
+  const source = isRecord(v.source) && v.source.type === "tool" && typeof v.source.messageID === "string" && typeof v.source.id === "string"
+    ? { type: "tool" as const, messageID: v.source.messageID, id: v.source.id }
+    : undefined;
+  return { id: v.id, sessionID: v.sessionID, action: v.action, resources: strings(v.resources) ?? [], save: strings(v.save), metadata: isRecord(v.metadata) ? v.metadata : undefined, source, message: str(v.message) };
+}
+
+export function v2Form(v: unknown): FormInfo | null {
+  if (!isRecord(v) || typeof v.id !== "string" || typeof v.sessionID !== "string" || !Array.isArray(v.fields)) return null;
+  const fields = v.fields.filter((f): f is FormInfo["fields"][number] => isRecord(f) && typeof f.key === "string" && typeof f.type === "string");
+  return { id: v.id, sessionID: v.sessionID, title: str(v.title) ?? "", metadata: isRecord(v.metadata) ? v.metadata : undefined, fields };
+}
+
 /** Parse a raw V2 SSE payload (`V2Event`) into an `AppEvent`. Unknown events are dropped. */
 export function parseV2Event(raw: unknown): AppEvent | null {
   if (!isRecord(raw) || typeof raw.type !== "string") return null;
@@ -368,6 +385,19 @@ export function parseV2Event(raw: unknown): AppEvent | null {
       return { type: "tool.success", sessionID, messageID, toolID: str(d.id) ?? "", content: toolContent(d.content), metadata: isRecord(d.metadata) ? d.metadata : undefined };
     case "session.tool.failed":
       return { type: "tool.failed", sessionID, messageID, toolID: str(d.id) ?? "", error: errorMessage(d.error) };
+    case "permission.asked": {
+      const request = v2Permission(d);
+      return request ? { type: "permission.asked", request } : null;
+    }
+    case "permission.replied":
+      return { type: "permission.replied", sessionID, requestID: str(d.requestID) ?? "" };
+    case "form.created": {
+      const form = v2Form(d.form);
+      return form ? { type: "form.created", form } : null;
+    }
+    case "form.replied":
+    case "form.cancelled":
+      return { type: "form.settled", sessionID, formID: str(d.id) ?? "" };
     default:
       return null;
   }
@@ -463,9 +493,10 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     async agents() {
       const res = await t.json<{ location?: { directory?: string }; data?: unknown[] }>("GET", "/api/agent");
       directory ??= res?.location?.directory;
-      return (res?.data ?? []).flatMap((a): AgentOption[] => {
-        if (!isRecord(a) || typeof a.id !== "string" || a.hidden === true || a.mode === "subagent") return [];
-        return [{ id: a.id, name: str(a.name) ?? a.id, description: str(a.description) }];
+      const visible = (res?.data ?? []).filter((a): a is JsonRecord => isRecord(a) && typeof a.id === "string" && a.hidden !== true);
+      return visible.flatMap((a, colorIndex): AgentOption[] => {
+        if (a.mode === "subagent") return [];
+        return [{ id: a.id as string, name: str(a.name) ?? (a.id as string), description: str(a.description), color: str(a.color), colorIndex }];
       });
     },
     async models() {
@@ -474,6 +505,27 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
         if (!isRecord(m) || typeof m.id !== "string" || typeof m.providerID !== "string" || m.enabled === false || (m.type && m.type !== "chat")) return [];
         return [{ id: m.id, providerID: m.providerID, name: str(m.name) ?? m.id, context: num(rec(m.limit).context), variants: Array.isArray(m.variants) ? m.variants.flatMap((v) => typeof v?.id === "string" && v.id !== "default" ? [v.id] : []) : [] }];
       });
+    },
+    async children(sessionID) {
+      const res = await t.json<{ data?: unknown[] }>("GET", `/api/session?limit=50&order=desc&parentID=${encodeURIComponent(sessionID)}`);
+      return (res?.data ?? []).map(session).filter((s): s is SessionInfo => s !== null && s.parentID === sessionID);
+    },
+    async permissions(sessionID) {
+      const res = await t.json<{ data?: unknown[] }>("GET", `/api/session/${encodeURIComponent(sessionID)}/permission`);
+      return (res?.data ?? []).map(v2Permission).filter((p): p is PermissionRequest => p !== null);
+    },
+    async replyPermission(sessionID, requestID, decision, message) {
+      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/permission/${encodeURIComponent(requestID)}/reply`, message ? { decision, message } : { decision });
+    },
+    async forms(sessionID) {
+      const res = await t.json<{ data?: unknown[] }>("GET", `/api/session/${encodeURIComponent(sessionID)}/form`);
+      return (res?.data ?? []).map(v2Form).filter((f): f is FormInfo => f !== null);
+    },
+    async replyForm(sessionID, formID, answer) {
+      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/form/${encodeURIComponent(formID)}/reply`, { answer });
+    },
+    async cancelForm(sessionID, formID) {
+      await t.json("DELETE", `/api/session/${encodeURIComponent(sessionID)}/form/${encodeURIComponent(formID)}`);
     },
     async defaultModel() {
       try {

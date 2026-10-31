@@ -15,9 +15,13 @@ import type {
   AssistantPart,
   BackendKind,
   ConnectionMode,
+  FormAnswer,
+  FormInfo,
   ModelOption,
   ModelRef,
   OpenCodeClient,
+  PermissionReply,
+  PermissionRequest,
   SessionInfo,
   SessionMessage,
   ToolPart,
@@ -65,6 +69,40 @@ export interface StoreState {
   ui: UiState;
   toast: Toast | null;
   history: readonly string[];
+  /** Pending permission requests and forms by owning session (children included). */
+  permissions: Readonly<Record<string, readonly PermissionRequest[]>>;
+  forms: Readonly<Record<string, readonly FormInfo[]>>;
+  /** Known parent of each session (`null` = top level), for routing child requests to their root. */
+  parents: Readonly<Record<string, string | null>>;
+}
+
+const NO_PERMISSIONS: readonly PermissionRequest[] = [];
+const NO_FORMS: readonly FormInfo[] = [];
+
+/** The top-level session that owns `id` (itself when the parent chain is unknown). */
+export function rootSession(state: Pick<StoreState, "parents">, id: string): string {
+  let current = id;
+  for (let i = 0; i < 32; i++) {
+    const parent = state.parents[current];
+    if (!parent) return current;
+    current = parent;
+  }
+  return current;
+}
+
+/** Permission requests the TUI would surface while `sessionID` is open: its own and its descendants'. */
+export function pendingPermissions(state: StoreState, sessionID: string): readonly PermissionRequest[] {
+  if (state.parents[sessionID]) return NO_PERMISSIONS;
+  const out: PermissionRequest[] = [];
+  for (const [id, list] of Object.entries(state.permissions)) if (list.length && rootSession(state, id) === sessionID) out.push(...list);
+  return out.length ? out : NO_PERMISSIONS;
+}
+
+export function pendingForms(state: StoreState, sessionID: string): readonly FormInfo[] {
+  if (state.parents[sessionID]) return NO_FORMS;
+  const out: FormInfo[] = [];
+  for (const [id, list] of Object.entries(state.forms)) if (list.length && rootSession(state, id) === sessionID) out.push(...list);
+  return out.length ? out : NO_FORMS;
 }
 
 const DEFAULT_AGENTS: AgentOption[] = [
@@ -110,6 +148,9 @@ export class OpenCodeStore {
       ui: { sidebar: false, toolDetails: false, thinking: false, groupExploration: true },
       toast: null,
       history: [],
+      permissions: {},
+      forms: {},
+      parents: {},
     };
   }
 
@@ -188,6 +229,9 @@ export class OpenCodeStore {
       busy: {},
       model: null,
       history: [],
+      permissions: {},
+      forms: {},
+      parents: {},
     });
     this.unsubscribe = client.subscribe(
       (e) => this.handle(e),
@@ -226,7 +270,9 @@ export class OpenCodeStore {
         const sessions = fetched.map((x) => (x.title ? x : { ...x, title: s.sessions.find((p) => p.id === x.id)?.title }));
         const busy = { ...s.busy };
         for (const x of sessions) if (x.time.busy !== undefined && (x.time.idle ?? 0) < x.time.busy && busy[x.id] === undefined) busy[x.id] = true;
-        return { sessions, sessionsLoaded: true, busy };
+        const parents = { ...s.parents };
+        for (const x of sessions) parents[x.id] = x.parentID ?? null;
+        return { sessions, sessionsLoaded: true, busy, parents };
       });
     } catch (error) {
       this.set({ sessionsLoaded: true });
@@ -271,8 +317,100 @@ export class OpenCodeStore {
     const agent = draft?.agent ?? sess?.agent, model = draft?.model ?? sess?.model;
     if (agent) this.set({ agent });
     if (model) this.set({ model });
+    void this.syncRequests(id);
     await this.reloadMessages(id);
     if (client === this.client) void client.view(id).catch(() => undefined);
+  }
+
+  /** Load pending permission requests and forms for a session and its child sessions. */
+  async syncRequests(id: string): Promise<void> {
+    const client = this.client;
+    if (!client?.permissions && !client?.forms) return;
+    const children = await client.children?.(id).catch(() => []) ?? [];
+    if (client !== this.client) return;
+    const ids = [id, ...children.map((c) => c.id)];
+    const [permissions, forms] = await Promise.all([
+      Promise.all(ids.map((sid) => client.permissions?.(sid).catch(() => null) ?? null)),
+      Promise.all(ids.map((sid) => client.forms?.(sid).catch(() => null) ?? null)),
+    ]);
+    if (client !== this.client) return;
+    this.set((s) => {
+      const nextPermissions = { ...s.permissions };
+      const nextForms = { ...s.forms };
+      const parents = { ...s.parents };
+      for (const c of children) parents[c.id] = id;
+      ids.forEach((sid, i) => {
+        if (permissions[i]) nextPermissions[sid] = permissions[i]!;
+        if (forms[i]) nextForms[sid] = forms[i]!;
+      });
+      return { permissions: nextPermissions, forms: nextForms, parents };
+    });
+  }
+
+  /** Learn the parent chain of a session that raised a request, so it reaches its root's screen. */
+  private async learnParents(id: string): Promise<void> {
+    const client = this.client;
+    let current: string | undefined = id;
+    for (let i = 0; i < 8 && current && this.state.parents[current] === undefined; i++) {
+      const info: SessionInfo | null = await client?.session(current).catch(() => null) ?? null;
+      if (client !== this.client || !info) return;
+      const parent: string | null = info.parentID ?? null;
+      const key: string = current;
+      this.set((s) => ({ parents: { ...s.parents, [key]: parent } }));
+      current = parent ?? undefined;
+    }
+  }
+
+  async replyPermission(request: PermissionRequest, decision: PermissionReply, message?: string): Promise<void> {
+    const client = this.client;
+    if (!client?.replyPermission) return;
+    try {
+      await client.replyPermission(request.sessionID, request.id, decision, message);
+    } catch (error) {
+      if (client !== this.client) return;
+      if (!(error instanceof Error && /→ 404/.test(error.message))) {
+        this.notify(error instanceof Error ? error.message : String(error), "danger");
+        return;
+      }
+    }
+    if (client === this.client) this.dropPermission(request.sessionID, request.id);
+  }
+
+  /** Resolves `true` once the server accepted the answer. */
+  async replyForm(form: FormInfo, answer: FormAnswer): Promise<string | null> {
+    const client = this.client;
+    if (!client?.replyForm) return "Forms are unavailable on this server";
+    try {
+      await client.replyForm(form.sessionID, form.id, answer);
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+    if (client === this.client) this.dropForm(form.sessionID, form.id);
+    return null;
+  }
+
+  async cancelForm(form: FormInfo): Promise<string | null> {
+    const client = this.client;
+    if (!client?.cancelForm) return "Forms are unavailable on this server";
+    try {
+      await client.cancelForm(form.sessionID, form.id);
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+    if (client === this.client) this.dropForm(form.sessionID, form.id);
+    return null;
+  }
+
+  private dropPermission(sessionID: string, requestID: string): void {
+    const list = this.state.permissions[sessionID];
+    if (!list?.some((r) => r.id === requestID)) return;
+    this.set((s) => ({ permissions: { ...s.permissions, [sessionID]: (s.permissions[sessionID] ?? []).filter((r) => r.id !== requestID) } }));
+  }
+
+  private dropForm(sessionID: string, formID: string): void {
+    const list = this.state.forms[sessionID];
+    if (!list?.some((f) => f.id === formID)) return;
+    this.set((s) => ({ forms: { ...s.forms, [sessionID]: (s.forms[sessionID] ?? []).filter((f) => f.id !== formID) } }));
   }
 
   async reloadMessages(id: string): Promise<void> {
@@ -474,6 +612,26 @@ export class OpenCodeStore {
         return;
       case "messages.changed":
         this.scheduleReload(e.sessionID);
+        return;
+      case "permission.asked": {
+        const { request } = e;
+        if (this.state.permissions[request.sessionID]?.some((r) => r.id === request.id)) return;
+        this.set((s) => ({ permissions: { ...s.permissions, [request.sessionID]: [...(s.permissions[request.sessionID] ?? []), request] } }));
+        void this.learnParents(request.sessionID);
+        return;
+      }
+      case "permission.replied":
+        this.dropPermission(e.sessionID, e.requestID);
+        return;
+      case "form.created": {
+        const { form } = e;
+        if (this.state.forms[form.sessionID]?.some((f) => f.id === form.id)) return;
+        this.set((s) => ({ forms: { ...s.forms, [form.sessionID]: [...(s.forms[form.sessionID] ?? []), form] } }));
+        void this.learnParents(form.sessionID);
+        return;
+      }
+      case "form.settled":
+        this.dropForm(e.sessionID, e.formID);
         return;
       default:
         this.applyStream(e);

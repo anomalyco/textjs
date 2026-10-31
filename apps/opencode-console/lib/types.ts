@@ -50,7 +50,35 @@ export type ShellMessage = { type: "shell"; id: string; time: { created: number 
 
 export type SessionMessage = UserMessage | AssistantMessage | NoteMessage | ShellMessage;
 
-export type AgentOption = { id: string; name: string; description?: string };
+/** A pending V2 permission request (`Permission.Request`). */
+export type PermissionRequest = {
+  id: string;
+  sessionID: string;
+  action: string;
+  resources: string[];
+  save?: string[];
+  metadata?: JsonRecord;
+  source?: { type: "tool"; messageID: string; id: string };
+  message?: string;
+};
+export type PermissionReply = "once" | "always" | "reject";
+
+export type FormOption = { value: string; label: string; description?: string };
+export type FormWhen = { key: string; op: "eq" | "neq"; value: string | number | boolean };
+type FormFieldBase = { key: string; title?: string; description?: string; required?: boolean; hidden?: boolean; when?: FormWhen[] };
+export type FormField =
+  | (FormFieldBase & { type: "string"; format?: "email" | "uri" | "date" | "date-time"; minLength?: number; maxLength?: number; pattern?: string; placeholder?: string; default?: string; options?: FormOption[]; custom?: boolean })
+  | (FormFieldBase & { type: "number" | "integer"; minimum?: number; maximum?: number; default?: number })
+  | (FormFieldBase & { type: "boolean"; default?: boolean })
+  | (FormFieldBase & { type: "multiselect"; options: FormOption[]; minItems?: number; maxItems?: number; custom?: boolean; default?: string[] })
+  | { key: string; type: "external"; url: string; title?: string; description?: string };
+export type FormValue = string | number | boolean | string[];
+export type FormAnswer = Record<string, FormValue>;
+/** A pending V2 form (`Form.Info`): structured questions from a tool, MCP elicitation or plugin. */
+export type FormInfo = { id: string; sessionID: string; title: string; metadata?: JsonRecord; fields: FormField[] };
+
+/** `colorIndex` is the agent's position among all visible agents (subagents included), as the TUI colors them. */
+export type AgentOption = { id: string; name: string; description?: string; color?: string; colorIndex?: number };
 export type ModelOption = { id: string; providerID: string; name: string; context?: number; variants?: string[] };
 
 export type ServerInfo = { version: string; directory?: string };
@@ -75,7 +103,11 @@ export type AppEvent =
   | { type: "tool.progress"; sessionID: string; messageID: string; toolID: string; metadata: JsonRecord }
   | { type: "tool.success"; sessionID: string; messageID: string; toolID: string; content: ToolContent[]; metadata?: JsonRecord }
   | { type: "tool.failed"; sessionID: string; messageID: string; toolID: string; error: string }
-  | { type: "execution.ended"; sessionID: string; outcome: "succeeded" | "failed" | "interrupted"; error?: string };
+  | { type: "execution.ended"; sessionID: string; outcome: "succeeded" | "failed" | "interrupted"; error?: string }
+  | { type: "permission.asked"; request: PermissionRequest }
+  | { type: "permission.replied"; sessionID: string; requestID: string }
+  | { type: "form.created"; form: FormInfo }
+  | { type: "form.settled"; sessionID: string; formID: string };
 
 export type BackendKind = "v2" | "v1" | "demo";
 export type ConnectionMode = "service" | "direct" | "custom" | "demo";
@@ -103,6 +135,13 @@ export interface OpenCodeClient {
   compact?(sessionID: string, model: ModelRef | null): Promise<void>;
   shell?(sessionID: string, command: string): Promise<void>;
   defaultModel(): Promise<ModelRef | null>;
+  /** Child sessions (subagents) whose requests surface in the parent. */
+  children?(sessionID: string): Promise<SessionInfo[]>;
+  permissions?(sessionID: string): Promise<PermissionRequest[]>;
+  replyPermission?(sessionID: string, requestID: string, decision: PermissionReply, message?: string): Promise<void>;
+  forms?(sessionID: string): Promise<FormInfo[]>;
+  replyForm?(sessionID: string, formID: string, answer: FormAnswer): Promise<void>;
+  cancelForm?(sessionID: string, formID: string): Promise<void>;
   /** Live events. Returns an unsubscribe function; reconnects on its own. */
   subscribe(onEvent: (event: AppEvent) => void, onState?: (state: "open" | "closed") => void): () => void;
 }
