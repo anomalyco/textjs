@@ -88,3 +88,36 @@ export function useBusy(): [boolean, <T>(fn: () => Promise<T>) => Promise<T | un
 }
 
 export { useKeys };
+
+/** Keys a confirmation code can be: none of the shop's own keys, and never y/n. */
+export const CONFIRM_LETTERS = "bfgiloptuvwz";
+
+export function confirmLetter(random: () => number = Math.random): string {
+  return CONFIRM_LETTERS[Math.floor(random() * CONFIRM_LETTERS.length)] ?? "b";
+}
+
+/**
+ * The extra step before money moves on textjs.org: press a letter shown only in the
+ * console frame. It changes every time, so a script of keys ("press enter, then y")
+ * can't place an order for someone who can't see the console.
+ */
+export function useRealMoneyConfirm(): { code: string | null; arm(): void; disarm(): void; answer(key: string): "confirm" | "cancel" | null } {
+  const [code, setCode] = useState<string | null>(null);
+  return {
+    code,
+    arm: () => setCode(confirmLetter()),
+    disarm: () => setCode(null),
+    answer: (key) => {
+      if (code === null) return null;
+      if (key === code) {
+        setCode(null);
+        return "confirm";
+      }
+      if (key === "n" || key === "esc") {
+        setCode(null);
+        return "cancel";
+      }
+      return null;
+    },
+  };
+}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "@textjs/next/navigation";
+import { isSafeExternalUrl } from "../../lib/entry";
 import { ADDRESS_FORM, addressFromValues, newAddressValues, validateAddress } from "../../lib/address";
 import { CONTENT, CONTENT_HEIGHT, HEIGHT, WIDTH } from "../../lib/frame";
 import { addressLine, dollars, formatExpiration, formatLast4, formatUSD } from "../../lib/format";
@@ -8,7 +9,7 @@ import { useShop, useShopState, uuid, type ShopStore } from "../../lib/store";
 import { defaultTheme, palette, type Theme } from "../../lib/theme";
 import type { Address } from "../../lib/types";
 import { centerLines, concat, fit, indent, place, span, viewport, width, wrap, type Line } from "../../lib/ui";
-import { Page, useBusy, useHeaderMode, useKeys, useNav } from "../chrome";
+import { Page, useBusy, useHeaderMode, useKeys, useNav, useRealMoneyConfirm } from "../chrome";
 import { Screen } from "../Screen";
 import { useForm } from "../useForm";
 import { listBox, listItem } from "./Cart";
@@ -168,8 +169,9 @@ export function costsLine(store: ShopStore, t: Theme): Line {
   return [t.base(` subtotal: ${formatUSD(price)}, `), t.base(`shipping: ${formatUSD(shipping)}, `), t.accent(`total: ${formatUSD(price + shipping)}`)];
 }
 
+/** Opens Terminal's hosted card page. Only https links, whatever the API returned. */
 export function openExternal(url: string): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !isSafeExternalUrl(url)) return;
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
@@ -398,8 +400,26 @@ export function confirmLines(store: ShopStore, t: Theme): Line[] {
   return indent(out, 1);
 }
 
+/** The explicit confirmation before subscribing to the order just placed. */
+export function realSubscriptionLines(store: ShopStore, weeks: number, t: Theme, code: string): Line[] {
+  const order = store.s.order;
+  const each = (order?.items ?? []).reduce((n, i) => n + (i.amount ?? 0), 0);
+  const card = store.selectedCard();
+  return indent(
+    [
+      [t.error("this is a real subscription", { bold: true })],
+      [],
+      [t.base(`${each ? `${formatUSD(each)} ` : ""}every ${weeks} week${weeks === 1 ? "" : "s"} on cc ${formatLast4(card?.last4 ?? "")},`)],
+      [t.base("until you cancel it in account → subscriptions.")],
+      [],
+      [t.base("to subscribe, press "), t.brand(code, { bold: true }), t.base(" · n to cancel")],
+    ],
+    1,
+  );
+}
+
 /** The second, explicit confirmation for a real order. */
-export function realOrderLines(store: ShopStore, t: Theme): Line[] {
+export function realOrderLines(store: ShopStore, t: Theme, code: string): Line[] {
   const s = store.s;
   const sub = s.subscribing;
   const total = sub ? (sub.product.variants[sub.selected]?.price ?? 0) : s.cart.amount.subtotal + (s.cart.amount.shipping ?? 0);
@@ -411,7 +431,7 @@ export function realOrderLines(store: ShopStore, t: Theme): Line[] {
       [t.base(`${formatUSD(total)}${sub ? " a month" : ""} will be charged to cc ${formatLast4(card?.last4 ?? "")}`)],
       [t.base(sub ? "and coffee ships every month until you cancel." : "and your coffee ships to the address above.")],
       [],
-      [t.base("place it? "), t.accent("(y/n)")],
+      [t.base("to place it, press "), t.brand(code, { bold: true }), t.base(" · n to cancel")],
     ],
     1,
   );
@@ -424,10 +444,10 @@ export function ConfirmScreen(): ReactNode {
   const [submitting, run] = useBusy();
   const key = useRef(store.s.subscribing ? "" : uuid());
   const [offset, setOffset] = useState(0);
-  // textjs.org: one more explicit y/n before a real (production) order or subscription.
-  const [armed, setArmed] = useState(false);
+  // textjs.org: one more explicit step before a real (production) order or subscription.
+  const confirm = useRealMoneyConfirm();
   const askTwice = store.confirmRealOrders && store.s.env === "prod";
-  useHeaderMode("confirm", !submitting && !armed);
+  useHeaderMode("confirm", !submitting && confirm.code === null);
 
   useEffect(() => {
     if (!store.s.subscribing && (store.isCartEmpty() || !store.s.cart.cardID || !store.s.cart.addressID)) nav("/cart");
@@ -461,13 +481,12 @@ export function ConfirmScreen(): ReactNode {
     });
   };
 
-  useKeys((k) => {
+  useKeys((k, e) => {
     if (submitting) return true;
-    if (armed) {
-      if (k === "y") {
-        setArmed(false);
-        submit();
-      } else if (k === "n" || k === "esc") setArmed(false);
+    // A held key never confirms anything.
+    if (e.repeat && (confirm.code !== null || k === "enter")) return true;
+    if (confirm.code !== null) {
+      if (confirm.answer(k) === "confirm") submit();
       return true;
     }
     switch (k) {
@@ -483,7 +502,7 @@ export function ConfirmScreen(): ReactNode {
         setOffset((o) => o + 1);
         return true;
       case "enter":
-        if (askTwice) setArmed(true);
+        if (askTwice) confirm.arm();
         else submit();
         return true;
     }
@@ -497,7 +516,7 @@ export function ConfirmScreen(): ReactNode {
         { key: "esc", value: "back" },
         { key: "enter", value: "next" },
       ]}
-      body={(h, t) => (submitting ? [[t.base("  submitting order...")]] : centered(armed ? realOrderLines(store, t) : viewport(confirmLines(store, t), h, offset)))}
+      body={(h, t) => (submitting ? [[t.base("  submitting order...")]] : centered(confirm.code !== null ? realOrderLines(store, t, confirm.code) : viewport(confirmLines(store, t), h, offset)))}
     />
   );
 }
@@ -511,14 +530,32 @@ export function FinalSubScreen(): ReactNode {
   const [weeks, setWeeks] = useState(3);
   const [complete, setComplete] = useState(false);
   const [submitting, run] = useBusy();
-  useHeaderMode("final-sub", !submitting);
+  const confirm = useRealMoneyConfirm();
+  const askTwice = store.confirmRealOrders && store.s.env === "prod";
+  useHeaderMode("final-sub", !submitting && confirm.code === null);
 
   useEffect(() => {
     if (!store.s.order) nav("/shop");
   }, []);
 
-  useKeys((key) => {
+  const subscribe = (): void => {
+    void run(async () => {
+      try {
+        await store.subscribeToOrder(weeks);
+        setComplete(true);
+      } catch (error) {
+        store.fail(error);
+      }
+    });
+  };
+
+  useKeys((key, e) => {
     if (submitting) return true;
+    if (e.repeat && (confirm.code !== null || key === "enter")) return true;
+    if (confirm.code !== null) {
+      if (confirm.answer(key) === "confirm") subscribe();
+      return true;
+    }
     switch (key) {
       case "esc":
         nav("/order/complete");
@@ -528,14 +565,8 @@ export function FinalSubScreen(): ReactNode {
           nav("/order/complete");
           return true;
         }
-        void run(async () => {
-          try {
-            await store.subscribeToOrder(weeks);
-            setComplete(true);
-          } catch (error) {
-            store.fail(error);
-          }
-        });
+        if (askTwice) confirm.arm();
+        else subscribe();
         return true;
       case "+":
       case "=":
@@ -565,6 +596,7 @@ export function FinalSubScreen(): ReactNode {
       body={(_h, t) => {
         if (submitting) return centered([[t.base(" creating subscription...")]]);
         if (complete) return centered([[t.base(" subscribed! press enter to continue...")]]);
+        if (confirm.code !== null) return centered(realSubscriptionLines(store, weeks, t, confirm.code));
         const ls: Line[] = [[t.base("order complete!")], [], [t.accent("subscribe to your order?")], []];
         for (const item of order?.items ?? []) {
           const product = store.productFor(item.productVariantID ?? "");

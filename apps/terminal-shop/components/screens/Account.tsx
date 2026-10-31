@@ -237,8 +237,18 @@ function tokensView(s: StoreState, ui: { selected: number; deleting: number | nu
     out.push(...detailBox(content, focused && i === ui.selected, t));
   });
   const addSel = ui.selected === s.tokens.length;
-  out.push(...detailBox(listItem("add access token", addSel, t, DETAIL_WIDTH, false), focused && addSel, t));
+  if (s.proxy?.mode === "site") out.push(...sshOnly(s, "tokens", "new access tokens are made in the ssh shop:", t));
+  else out.push(...detailBox(listItem("add access token", addSel, t, DETAIL_WIDTH, false), focused && addSel, t));
   return out;
+}
+
+/**
+ * textjs.org never mints long-lived credentials (its proxy doesn't forward `POST /token`
+ * or `POST /app`), so creating them points at the ssh shop. Listing and revoking still work.
+ */
+function sshOnly(s: StoreState, command: "tokens" | "apps", text: string, t: Theme): Line[] {
+  const host = s.env === "dev" ? "dev.terminal.shop" : "terminal.shop";
+  return [[], ...wordWrap(text, DETAIL_WIDTH).map((l) => [t.base(l)]), [t.accent(`  ssh ${host} -t ${command}`)]];
 }
 
 function appsView(s: StoreState, ui: { selected: number; deleting: number | null; editing: boolean; submitting: boolean }, focused: boolean, form: Line[], t: Theme): Line[] {
@@ -251,7 +261,8 @@ function appsView(s: StoreState, ui: { selected: number; deleting: number | null
     out.push(...detailBox(content, focused && i === ui.selected, t));
   });
   const addSel = ui.selected === s.apps.length;
-  if (ui.editing && !ui.submitting) out.push(...form);
+  if (s.proxy?.mode === "site") out.push(...sshOnly(s, "apps", "new oauth apps are made in the ssh shop:", t));
+  else if (ui.editing && !ui.submitting) out.push(...form);
   else out.push(...detailBox(listItem(ui.submitting ? "submitting app..." : "create app", addSel, t, DETAIL_WIDTH, false), focused && addSel, t));
   return out;
 }
@@ -544,7 +555,7 @@ export function AccountScreen(): ReactNode {
       }
     } else if (key === "n" || key === "esc") set({ deleting: null });
     else if (key === "enter") {
-      if (tokens.deleting === null && tokens.selected === s.tokens.length) store.createToken().catch((e) => store.fail(e));
+      if (tokens.deleting === null && tokens.selected === s.tokens.length && !store.siteMode) store.createToken().catch((e) => store.fail(e));
     } else return false;
     return true;
   };
@@ -566,7 +577,7 @@ export function AccountScreen(): ReactNode {
       }
     } else if (key === "n" || key === "esc") set({ deleting: null, editing: false });
     else if (key === "enter") {
-      if (apps.deleting === null && apps.selected === s.apps.length) {
+      if (apps.deleting === null && apps.selected === s.apps.length && !store.siteMode) {
         appForm.reset({});
         set({ editing: true });
       }

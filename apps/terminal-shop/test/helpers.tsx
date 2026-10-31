@@ -40,7 +40,7 @@ export interface TestRoot {
   render(element: ReactNode): Promise<void>;
   /** Flush pending frames and return the plain-text grid. */
   frame(): string;
-  press(key: string, mods?: { ctrlKey?: boolean; shiftKey?: boolean; metaKey?: boolean; altKey?: boolean }): Promise<void>;
+  press(key: string, mods?: { ctrlKey?: boolean; shiftKey?: boolean; metaKey?: boolean; altKey?: boolean; repeat?: boolean }): Promise<void>;
   type(text: string): Promise<void>;
   /** Let timers / fetches settle inside act() without flushing frames. */
   settle(ms?: number): Promise<void>;

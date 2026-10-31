@@ -21,6 +21,7 @@ import {
   type Credentials,
   type KeyValueStorage,
 } from "./auth";
+import { isSafeExternalUrl, safeEntryPath } from "./entry";
 import { EMPTY_CART, type Address, type AddressInput, type App, type Card, type Cart, type Env, type Order, type Product, type Region, type Subscription, type SubscriptionInput, type Token, type User } from "./types";
 
 export type Phase = "boot" | "login" | "splash" | "ready" | "quit";
@@ -136,6 +137,7 @@ export class ShopStore {
   private client: TerminalClient | null = null;
   private refreshing: Promise<boolean> | null = null;
   private started = false;
+  private readonly subscribedItems = new Set<string>();
 
   constructor(options: StoreOptions = {}) {
     this.storage = options.storage ?? browserStorage();
@@ -248,6 +250,8 @@ export class ShopStore {
     if (proxy && !proxy.environments[env]?.enabled) env = proxy.defaultEnv;
     this.useEnv(env);
     if (this.siteMode) {
+      // Links only open browsing pages; checkout is never an entry point.
+      this.set({ initialPath: safeEntryPath(this.state.initialPath) });
       if (this.initialError) this.set({ signInPrompt: this.initialError });
       await this.load();
       return;
@@ -340,23 +344,30 @@ export class ShopStore {
   }
 
   /** Signed out on the site: the public product list, no cart or account. */
+  /** Everything that belongs to an account, reset when there's no longer one. */
+  private static readonly SIGNED_OUT: Partial<StoreState> = {
+    user: null,
+    cart: EMPTY_CART,
+    cards: [],
+    addresses: [],
+    subscriptions: [],
+    tokens: [],
+    apps: [],
+    orders: [],
+    newToken: null,
+    newApp: null,
+    order: null,
+    subscribing: null,
+    subscription: {},
+    cartSelected: 0,
+  };
+
   private async loadPublic(delay: Promise<void> = Promise.resolve()): Promise<void> {
+    this.set(ShopStore.SIGNED_OUT);
     try {
       const products = await this.api.product.list();
       await delay;
-      this.set({
-        phase: "ready",
-        user: null,
-        products: reorder(products),
-        cart: EMPTY_CART,
-        cards: [],
-        addresses: [],
-        subscriptions: [],
-        tokens: [],
-        apps: [],
-        orders: [],
-        shopSelected: 0,
-      });
+      this.set({ ...ShopStore.SIGNED_OUT, phase: "ready", products: reorder(products), shopSelected: 0 });
     } catch (error) {
       await delay;
       this.set({ error: errorMessage(error) });
@@ -475,7 +486,7 @@ export class ShopStore {
     const session = this.state.proxy?.session;
     if (this.siteMode && session) {
       if (!session.configured) throw new Error("sign in isn't set up on this deployment yet");
-      return `${this.proxyUrl(session.signInUrl)}?${new URLSearchParams({ return: returnTo })}`;
+      return `${this.proxyUrl(session.signInUrl)}?${new URLSearchParams({ return: safeEntryPath(returnTo) })}`;
     }
     return beginOAuth(this.state.env, origin, returnTo);
   }
@@ -500,14 +511,36 @@ export class ShopStore {
   signOut(): void {
     const session = this.state.proxy?.session;
     if (this.siteMode && session) {
-      this.set({ user: null, cart: EMPTY_CART, error: null, subscribing: null, subscription: {}, order: null });
-      void this.doFetch(this.proxyUrl(session.signOutUrl), { method: "POST", headers: { "x-terminal-client": "1" } })
-        .catch(() => undefined)
-        .then(() => this.sessionEnded(null));
+      void this.signOutSite(session);
       return;
     }
     this.signOutLocal();
     this.set({ phase: this.state.auth === "server" ? this.state.phase : "login", user: null, cart: EMPTY_CART, error: null });
+  }
+
+  /**
+   * Site mode: only the server can forget the httpOnly session. Account data leaves this
+   * page right away; if the server didn't confirm, say so and stay signed in.
+   */
+  private async signOutSite(session: SiteSession): Promise<void> {
+    const keep = { user: this.state.user };
+    this.set({ ...ShopStore.SIGNED_OUT, error: null });
+    let ok = false;
+    try {
+      ok = (await this.doFetch(this.proxyUrl(session.signOutUrl), { method: "POST", headers: { "x-terminal-client": "1" } })).ok;
+    } catch {
+      ok = false;
+    }
+    if (ok) {
+      await this.sessionEnded(null);
+      return;
+    }
+    await this.refreshStatus();
+    if (this.state.proxy?.session?.signedIn) {
+      this.set({ user: keep.user, error: "couldn't sign out, check your connection and try again" });
+      await this.load();
+      this.set({ error: "couldn't sign out, check your connection and try again" });
+    } else await this.sessionEnded(null);
   }
 
   // ── shop + cart ─────────────────────────────────────────────────────────
@@ -689,8 +722,10 @@ export class ShopStore {
     this.set({ cards: await this.api.card.list() });
   }
 
-  collectCard(): Promise<{ url: string }> {
-    return this.api.card.collect();
+  async collectCard(): Promise<{ url: string }> {
+    const res = await this.api.card.collect();
+    if (!isSafeExternalUrl(res.url)) throw new Error("terminal sent an unexpected card link, try again");
+    return res;
   }
 
   /** One `PollPaymentStatusMsg` tick: resolves the new card list once a card was added. */
@@ -723,10 +758,14 @@ export class ShopStore {
   /** `FinalSub`: subscribe to every item of the order just placed. */
   async subscribeToOrder(weeks: number): Promise<void> {
     const order = this.state.order;
-    if (!order) return;
+    if (!order) throw new Error("no order to subscribe to");
     const { addressID, cardID } = this.state.cart;
+    if (!addressID || !cardID) throw new Error("this order has no address or card to subscribe with");
     for (const item of order.items) {
-      if (!item.productVariantID || !addressID || !cardID) continue;
+      if (!item.productVariantID) continue;
+      // A retry after a partial failure doesn't subscribe twice.
+      const key = `${order.id}:${item.id ?? item.productVariantID}`;
+      if (this.subscribedItems.has(key)) continue;
       await this.api.subscription.create({
         productVariantID: item.productVariantID,
         quantity: item.quantity,
@@ -734,6 +773,7 @@ export class ShopStore {
         cardID,
         schedule: { type: "weekly", interval: weeks },
       });
+      this.subscribedItems.add(key);
     }
     this.set({ subscriptions: await this.api.subscription.list() });
   }
@@ -763,6 +803,7 @@ export class ShopStore {
   }
 
   async createToken(): Promise<void> {
+    if (this.siteMode) throw new Error("create access tokens in the ssh shop: ssh terminal.shop -t tokens");
     const created = await this.api.token.create();
     this.set({ newToken: created, tokens: await this.api.token.list() });
   }
@@ -773,6 +814,7 @@ export class ShopStore {
   }
 
   async createApp(name: string, redirectURI: string): Promise<void> {
+    if (this.siteMode) throw new Error("create oauth apps in the ssh shop: ssh terminal.shop -t apps");
     const created = await this.api.app.create(name, redirectURI);
     this.set({ newApp: created, apps: await this.api.app.list() });
   }
@@ -800,6 +842,11 @@ const StoreContext = createContext<ShopStore | null>(null);
 
 export function ShopProvider({ store, children }: { store: ShopStore; children?: ReactNode }): ReactNode {
   return createElement(StoreContext.Provider, { value: store }, children);
+}
+
+/** The store an embedder provided, if any. */
+export function useProvidedShop(): ShopStore | null {
+  return useContext(StoreContext);
 }
 
 export function useShop(): ShopStore {

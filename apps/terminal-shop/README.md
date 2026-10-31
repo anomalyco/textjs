@@ -45,16 +45,17 @@ Then go to **a account → debug info**, press **e**, answer **y**, and sign in 
 
 [textjs.org/terminal](https://textjs.org/terminal) runs this same app in the site's console companion (`embed.tsx` → `apps/web/src/demos/terminal.tsx`). It differs in three ways:
 
-- **Sign in is Terminal's OAuth, nothing else.** No token paste, no API key. Cloudflare Pages Functions in `apps/web/functions/` (logic in `apps/web/server/terminal-session.ts`) run the authorization code + PKCE flow and keep the tokens in an httpOnly, Secure, SameSite=Lax cookie scoped to `/api/terminal`, so page JavaScript never sees one. Terminal's OpenAuth issuer treats apps as public clients: the token exchange sends `client_id`, `redirect_uri` and the PKCE verifier, with no client secret.
-- **Production by default.** It's the real store. Products are public, so you can browse signed out. Cart, account and checkout ask you to sign in. The confirm screen asks once more (`y`/`n`) before placing a real order or subscription. Cards are still entered only on Terminal's hosted card page.
+- **Sign in is Terminal's OAuth, nothing else.** No token paste, no API key. Cloudflare Pages Functions in `apps/web/functions/` (logic in `apps/web/server/terminal-session.ts`) run the authorization code + PKCE flow. They keep the tokens in a `__Host-` cookie (httpOnly, Secure, SameSite=Lax), so page JavaScript never sees one. The cookie is sealed with AES-256-GCM, so other `*.textjs.org` hosts can't plant, read or forge it. The proxy never forwards anything that mints a long-lived credential: new access tokens and OAuth apps come from `ssh terminal.shop -t tokens` / `-t apps`. Terminal's OpenAuth issuer treats apps as public clients: the token exchange sends `client_id`, `redirect_uri` and the PKCE verifier, with no client secret.
+- **Production by default.** It's the real store. Products are public, so you can browse signed out. Cart, account and checkout ask you to sign in. Placing a real order, or subscribing to one, needs one more key: a letter that changes every time and appears only in the console frame. A key script like "press enter, then y" can't buy anything for someone who can't see the console, and held-down keys never confirm. Links (and the sign in round trip) only open the shop, cart, account or menu, never a checkout step. Cards are still entered only on Terminal's hosted card page.
 - **Fixed environment.** A deployment talks to one Terminal (`TERMINAL_ENVIRONMENT`, default `prod`), so `e` doesn't switch.
 
 Configuration (Pages environment):
 
 | Variable | |
 | --- | --- |
+| `TERMINAL_COOKIE_SECRET` | Required in production (a Pages secret): at least 32 random bytes, e.g. `openssl rand -base64 32`. Seals the session cookies. Without it, sign in stays off (browsing still works). On `localhost`, a random key is generated per process. Changing it signs everyone out. |
 | `TERMINAL_CLIENT_ID` | Required in production. The id of the registered "textjs.org" Terminal app (below). Without it, sign in says it isn't set up and browsing still works. On `localhost`, `textjs-local` is used, because Terminal accepts localhost redirects for any client id. |
-| `TERMINAL_ENVIRONMENT` | `prod` (default) or `dev` (sandbox, for preview deployments) |
+| `TERMINAL_ENVIRONMENT` | `prod` (default) or `dev` (sandbox, for preview deployments). Anything else fails closed. |
 | `TERMINAL_API_URL`, `TERMINAL_AUTH_URL` | Local e2e only: point at `apps/web/scripts/terminal-mock.ts` |
 
 There's no `TERMINAL_CLIENT_SECRET`. The app's secret is never used, so don't store it anywhere.
@@ -63,6 +64,7 @@ There's no `TERMINAL_CLIENT_SECRET`. The app's secret is never used, so don't st
 
 ```bash
 cd apps/web
+openssl rand -base64 32 | bunx wrangler pages secret put TERMINAL_COOKIE_SECRET --project-name textjs
 bunx wrangler pages secret put TERMINAL_CLIENT_ID --project-name textjs   # paste the cli_… id
 bun run build                                                               # after `bun run build:packages` at the root
 bunx wrangler pages deploy dist --project-name textjs                       # run from apps/web so ./functions is uploaded

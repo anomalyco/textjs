@@ -38,3 +38,12 @@ export type SigninError = keyof typeof SIGNIN_ERRORS;
 export function signinErrorMessage(code: string | null | undefined): string | null {
   return code && Object.hasOwn(SIGNIN_ERRORS, code) ? SIGNIN_ERRORS[code as SigninError] : null;
 }
+
+/** Links the shop opens or prints (Terminal's hosted card page): https only. */
+export function isSafeExternalUrl(url: string): boolean {
+  try {
+    return new URL(url).protocol === "https:";
+  } catch {
+    return false;
+  }
+}

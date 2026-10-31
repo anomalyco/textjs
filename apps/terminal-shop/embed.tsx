@@ -23,7 +23,7 @@ import * as payment from "./app/payment/page";
 import * as shipping from "./app/shipping/page";
 import * as shop from "./app/shop/page";
 import * as subscribe from "./app/subscribe/page";
-import { resetShopStore, type ShopStore, type StoreOptions } from "./lib/store";
+import { ShopProvider, ShopStore, type StoreOptions } from "./lib/store";
 
 export { WIDTH, HEIGHT } from "./lib/frame";
 export type { ShopStore, StoreOptions } from "./lib/store";
@@ -56,13 +56,17 @@ export interface EmbeddedShop {
   history: RouterHistory;
 }
 
-/** A fresh shop store (shared with the app's layout) and an in-memory history. */
+/** A fresh shop store (handed to the app through context) and an in-memory history. */
 export function createEmbeddedShop(options: StoreOptions = {}): EmbeddedShop {
-  const store = resetShopStore(options);
+  const store = new ShopStore(options);
   return { store, history: createMemoryHistory("/") };
 }
 
 /** Renders the whole 80 × 30 shop. Keep `shop` across mounts to resume where you were. */
 export function TerminalShop({ shop }: { shop: EmbeddedShop }): ReactNode {
-  return <AppRouter routes={routes} history={shop.history} errorStore={null} documentTitle={false} theme="geistDark" />;
+  return (
+    <ShopProvider store={shop.store}>
+      <AppRouter routes={routes} history={shop.history} errorStore={null} documentTitle={false} theme="geistDark" />
+    </ShopProvider>
+  );
 }

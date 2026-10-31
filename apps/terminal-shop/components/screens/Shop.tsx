@@ -120,6 +120,11 @@ export function ShopScreen(): ReactNode {
         setDetailOffset((o) => Math.max(0, o - 10));
         return true;
       case "enter": {
+        // Signed out on textjs.org: ask to sign in here, and come back to the shop.
+        if (store.signedOut) {
+          store.requireSignIn(product.subscription === "required" ? "sign in to subscribe" : "sign in to see your cart");
+          return true;
+        }
         if (product.subscription === "required") {
           const subscriptionID = isSubscribed(product, subscriptions);
           if (subscriptionID) {

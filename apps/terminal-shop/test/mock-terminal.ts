@@ -348,6 +348,8 @@ export function startMockProxy(api: MockTerminal, env: Record<string, string | u
 export interface MockSiteProxy extends MockProxy {
   signedIn: boolean;
   signOuts: number;
+  /** Make `POST /logout` fail with a 500 (the session survives). */
+  failLogout: boolean;
 }
 
 /**
@@ -355,7 +357,7 @@ export interface MockSiteProxy extends MockProxy {
  * `mode: "site"`, the session lives server-side (here: a flag), public product reads.
  */
 export function startMockSiteProxy(api: MockTerminal, opts: { signedIn?: boolean; configured?: boolean } = {}): MockSiteProxy {
-  const state = { signedIn: opts.signedIn ?? false, signOuts: 0 };
+  const state = { signedIn: opts.signedIn ?? false, signOuts: 0, failLogout: false };
   const server = Bun.serve({
     port: 0,
     hostname: "127.0.0.1",
@@ -375,6 +377,7 @@ export function startMockSiteProxy(api: MockTerminal, opts: { signedIn?: boolean
       }
       if (sub === "/logout" && req.method === "POST") {
         if (req.headers.get("x-terminal-client") !== "1") return new Response(null, { status: 403 });
+        if (state.failLogout) return Response.json({ message: "boom" }, { status: 500 });
         state.signedIn = false;
         state.signOuts++;
         return Response.json({ ok: true });
@@ -405,6 +408,12 @@ export function startMockSiteProxy(api: MockTerminal, opts: { signedIn?: boolean
     },
     get signOuts() {
       return state.signOuts;
+    },
+    get failLogout() {
+      return state.failLogout;
+    },
+    set failLogout(v: boolean) {
+      state.failLogout = v;
     },
   };
 }

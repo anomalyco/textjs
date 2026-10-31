@@ -34,6 +34,23 @@ describe("embed", () => {
   });
 });
 
+describe("embed store", () => {
+  test("F-13: an embedded shop uses its own store, not the module-global one", async () => {
+    const { createEmbeddedShop } = await import("../embed");
+    const { getShopStore } = await import("../lib/store");
+    const global = getShopStore();
+    const shop = createEmbeddedShop({ bases: ["/api/terminal"] });
+    expect(shop.store).not.toBe(global);
+    expect(getShopStore()).toBe(global);
+  });
+
+  test("F-13: odd initial paths open the shop instead of throwing", async () => {
+    const { parseInitial } = await import("../components/Shell");
+    expect(parseInitial("/account?page=faq").href).toBe("http://x/account?page=faq");
+    for (const odd of ["/\\evil.com", "//evil.com", "/\\[::", "http://evil.com/cart"]) expect(parseInitial(odd).pathname).toBe("/shop");
+  });
+});
+
 describe("site mode, signed out", () => {
   test("browses public products without signing in", async () => {
     h = await mountShop({ site: {}, signedIn: false });
@@ -91,6 +108,24 @@ describe("site mode, signed out", () => {
     await h.until("~ featured ~");
   });
 
+  test("F-09: enter on cron (or any product) asks to sign in and comes back to the shop", async () => {
+    assigned.length = 0;
+    h = await mountShop({ site: {}, signedIn: false, store: { assign: (u) => assigned.push(u) } });
+    await h.until("~ featured ~");
+    expect(h.screen()).toContain("subscribe");
+    await h.press("enter");
+    await h.until("sign in to subscribe");
+    expect(h.history.getLocation().pathname).toBe("/shop");
+    await h.press("enter");
+    await h.t.waitFor(() => assigned.length === 1, "sign in redirect");
+    expect(new URL(assigned[0]!).searchParams.get("return")).toBe("/shop");
+    await h.stop();
+    h = await mountShop({ site: {}, signedIn: false });
+    await h.until("~ featured ~");
+    await h.press("down", "down", "enter");
+    await h.until("sign in to see your cart");
+  });
+
   test("a failed callback shows its error on the sign in screen", async () => {
     h = await mountShop({ site: {}, signedIn: false, store: { initialError: "sign in was cancelled" } });
     await h.until("sign in was cancelled");
@@ -100,39 +135,131 @@ describe("site mode, signed out", () => {
 });
 
 describe("site mode, signed in", () => {
-  test("cart → shipping → payment → confirm asks y/n before a real order", async () => {
-    h = await mountShop({ site: {}, signedIn: true, store: { confirmRealOrders: true } });
-    await h.until("~ featured ~");
-    expect(h.store.s.auth).toBe("session");
-    // Every API call carried the server-side session, none sent a token from the page.
-    expect(h.api.requests.every((r) => r.authorized)).toBe(true);
-    await h.press("down", "down", "+", "+");
-    await h.t.waitFor(() => h!.api.state.cart.items[0]?.quantity === 2, "cart synced");
-    await h.press("c");
-    await h.until("segfault");
-    // Seed an address and a card so checkout goes straight to confirm.
+  /** Walk a seeded cart to the confirm screen. */
+  async function toConfirm(x: Harness): Promise<void> {
+    await x.until("~ featured ~");
+    await x.press("down", "down", "+", "+");
+    await x.t.waitFor(() => x.api.state.cart.items[0]?.quantity === 2, "cart synced");
     const addr = { id: "shp_1", name: "Ada Lovelace", street1: "1 Infinite Loop", city: "Cupertino", province: "CA", country: "US", zip: "95014" };
-    h.api.state.addresses.push(addr);
-    const card = h.api.completeCollect("4242");
-    await act(async () => h!.store["set"]({ addresses: [addr], cards: [card] }));
-    await h.press("enter");
-    await h.until("1 Infinite Loop");
-    await h.press("enter");
-    await h.until(/4242/);
-    await h.press("enter");
-    await h.until("press enter to confirm");
+    x.api.state.addresses.push(addr);
+    const card = x.api.completeCollect("4242");
+    await act(async () => x.store["set"]({ addresses: [addr], cards: [card] }));
+    await x.press("c");
+    await x.until("segfault");
+    await x.press("enter");
+    await x.until("1 Infinite Loop");
+    await x.press("enter");
+    await x.until(/4242/);
+    await x.press("enter");
+    await x.until("press enter to confirm");
+  }
+
+  const codeOn = (screen: string): string => /to (?:place it|subscribe), press (\w) · n to cancel/.exec(screen)?.[1] ?? "";
+  const converts = (x: Harness): number => x.api.requests.filter((r) => r.path === "/cart/convert").length;
+
+  test("F-03: a real order needs a letter shown only in the console; y, repeats and scripts don't place it", async () => {
+    h = await mountShop({ site: {}, signedIn: true, store: { confirmRealOrders: true } });
+    await toConfirm(h);
+    expect(h.store.s.auth).toBe("session");
+    expect(h.api.requests.every((r) => r.authorized)).toBe(true);
     expect(h.screen()).not.toContain("dev sandbox");
+    // A held enter key neither arms nor confirms.
+    await h.t.press("Enter", { repeat: true });
+    await h.t.settle(5);
+    expect(h.screen()).not.toContain("this is a real order");
     await h.press("enter");
     await h.until("this is a real order");
-    expect(h.screen()).toContain("place it? (y/n)");
+    const code = codeOn(h.screen());
+    expect(code).toMatch(/^[bfgiloptuvwz]$/);
+    // The old blind script: enter, y.
+    await h.press("y", "enter");
+    expect(converts(h)).toBe(0);
+    expect(h.screen()).toContain("this is a real order");
+    // The right letter, held down (auto-repeat), doesn't count either.
+    await h.t.press(code, { repeat: true });
+    await h.t.settle(5);
+    expect(converts(h)).toBe(0);
     await h.press("n");
     await h.until("press enter to confirm");
-    expect(h.api.requests.some((r) => r.path === "/cart/convert")).toBe(false);
     await h.press("enter");
     await h.until("this is a real order");
-    await h.press("y");
-    await h.t.waitFor(() => h!.api.requests.some((r) => r.path === "/cart/convert"), "order placed");
-    expect(h.api.requests.filter((r) => r.path === "/cart/convert")).toHaveLength(1);
+    await h.press(codeOn(h.screen()));
+    await h.t.waitFor(() => converts(h!) === 1, "order placed");
+    // F-03: subscribing to the order needs its own confirmation.
+    await h.until("subscribe to your order?");
+    await h.press("enter");
+    await h.until("this is a real subscription");
+    expect(h.api.requests.some((r) => r.path === "/subscription" && r.method === "POST")).toBe(false);
+    await h.press("y", "enter");
+    expect(h.api.requests.some((r) => r.path === "/subscription" && r.method === "POST")).toBe(false);
+    await h.press(codeOn(h.screen()));
+    await h.until("subscribed!");
+    expect(h.api.requests.filter((r) => r.path === "/subscription" && r.method === "POST")).toHaveLength(1);
+  });
+
+  test("F-03: checkout can't be an entry point", async () => {
+    for (const path of ["/confirm", "/payment", "/shipping", "/order/subscribe", "/subscribe"]) {
+      h = await mountShop({ site: {}, signedIn: true, store: { confirmRealOrders: true, initialPath: path } });
+      await h.until("~ featured ~");
+      expect(h.history.getLocation().pathname).toBe("/shop");
+      await h.stop();
+      h = null;
+    }
+  });
+
+  test("F-13: the initial path keeps its query (/account?page=faq opens the faq)", async () => {
+    h = await mountShop({ site: {}, signedIn: true, store: { initialPath: "/account?page=faq" } });
+    await h.until("faq");
+    expect(h.history.getLocation().pathname).toBe("/account");
+    expect(h.history.getLocation().search).toBe("?page=faq");
+  });
+
+  test("F-02: tokens and apps are made in the ssh shop, never from the page", async () => {
+    h = await mountShop({ site: {}, signedIn: true, store: { initialPath: "/account?page=tokens" } });
+    await h.until("new access tokens are made in the ssh shop:");
+    expect(h.screen()).toContain("ssh terminal.shop -t tokens");
+    expect(h.screen()).not.toContain("add access token");
+    await h.press("enter", "down", "enter");
+    expect(h.api.requests.some((r) => r.method === "POST" && (r.path === "/token" || r.path === "/app"))).toBe(false);
+    await expect(h.store.createToken()).rejects.toThrow("ssh terminal.shop -t tokens");
+    await expect(h.store.createApp("x", "https://example.com/cb")).rejects.toThrow("ssh terminal.shop -t apps");
+    await h.press("esc", "down");
+    await h.until("new oauth apps are made in the ssh shop:");
+    expect(h.screen()).toContain("ssh terminal.shop -t apps");
+  });
+
+  test("F-12: a non-https card link from the API is refused", async () => {
+    h = await mountShop({ site: {}, signedIn: true });
+    await h.until("~ featured ~");
+    await expect(h.store.collectCard()).resolves.toMatchObject({ url: expect.stringMatching(/^https:/) });
+    const original = h.store.api.card.collect;
+    h.store.api.card.collect = async () => ({ url: "javascript:alert(1)" });
+    await expect(h.store.collectCard()).rejects.toThrow("unexpected card link");
+    h.store.api.card.collect = original;
+  });
+
+  test("F-13: subscribing to an order needs its address and card, and a retry doesn't double up", async () => {
+    h = await mountShop({ site: {}, signedIn: true });
+    await h.until("~ featured ~");
+    const order = { id: "ord_1", items: [{ id: "itm_1", amount: 2200, quantity: 1, productVariantID: h.store.s.products[1]!.variants[0]!.id }, { id: "itm_2", amount: 2200, quantity: 1, productVariantID: h.store.s.products[2]!.variants[0]!.id }] };
+    await act(async () => h!.store["set"]({ order: order as never }));
+    await expect(h.store.subscribeToOrder(3)).rejects.toThrow("no address or card");
+    const addr = { id: "shp_1", name: "Ada", street1: "1 Loop", city: "Cupertino", province: "CA", country: "US", zip: "95014" };
+    h.api.state.addresses.push(addr);
+    const card = h.api.completeCollect("4242");
+    await act(async () => h!.store["set"]({ cart: { ...h!.store.s.cart, addressID: "shp_1", cardID: card.id } }));
+    let calls = 0;
+    const create = h.store.api.subscription.create;
+    h.store.api.subscription.create = async (input) => {
+      if (++calls === 2) throw new Error("flaky");
+      return create(input);
+    };
+    await act(async () => {
+      await expect(h!.store.subscribeToOrder(3)).rejects.toThrow("flaky");
+      await h!.store.subscribeToOrder(3);
+    });
+    const posts = h.api.requests.filter((r) => r.path === "/subscription" && r.method === "POST");
+    expect(posts.map((r) => (r.body as { productVariantID: string }).productVariantID)).toEqual(order.items.map((i) => i.productVariantID));
   });
 
   test("the environment can't be switched; sign out goes back to browsing", async () => {
@@ -152,6 +279,28 @@ describe("site mode, signed in", () => {
     await h.until("sign in to see your cart and account");
     await h.press("esc");
     await h.until("~ featured ~");
+  });
+
+  test("F-11: a failed sign out says so and stays signed in", async () => {
+    h = await mountShop({ site: {}, signedIn: true, path: "/account?page=debug" });
+    await h.until("signed in with terminal, the token stays on the server");
+    site(h).failLogout = true;
+    await h.press("x");
+    await h.until("couldn't sign out, check your connection and try again");
+    expect(h.store.s.auth).toBe("session");
+    expect(site(h).signedIn).toBe(true);
+  });
+
+  test("F-02: signing out clears account data from the page", async () => {
+    h = await mountShop({ site: {}, signedIn: true, path: "/account?page=debug" });
+    await h.until("signed in with terminal");
+    await act(async () => h!.store["set"]({ newToken: { id: "pat_1", token: "trm_live_secret" }, newApp: { id: "cli_1", secret: "sec_x" } }));
+    expect(h.store.s.tokens.length).toBeGreaterThan(0);
+    await h.press("x");
+    await h.t.waitFor(() => site(h!).signOuts === 1 && h!.store.s.auth === null, "signed out");
+    const s = h.store.s;
+    expect([s.newToken, s.newApp, s.user, s.order]).toEqual([null, null, null, null]);
+    expect([s.tokens, s.apps, s.cards, s.addresses, s.orders, s.subscriptions].every((a) => a.length === 0)).toBe(true);
   });
 
   test("an expired session falls back to signed-out browsing", async () => {

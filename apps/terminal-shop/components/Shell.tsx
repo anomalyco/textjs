@@ -34,6 +34,17 @@ function Quit(): ReactNode {
   return <Screen lines={[[t.base("Connection to terminal.shop closed.")], [], [t.bold("enter"), t.base(" reconnect")]]} />;
 }
 
+/** The initial path as a same-origin URL; anything odd (`/\\host`, bad escapes) opens the shop. */
+export function parseInitial(target: string): URL {
+  try {
+    const url = new URL(target, "http://x");
+    if (url.origin === "http://x") return url;
+  } catch {
+    // fall through
+  }
+  return new URL("/shop", "http://x");
+}
+
 export function Shell({ children }: { children?: ReactNode }): ReactNode {
   const store = useShop();
   const router = useRouter();
@@ -58,11 +69,11 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
     }
     if (routed) return;
     setRouted(true);
-    const target = store.s.initialPath;
-    const url = new URL(target, "http://x");
+    const url = parseInitial(store.s.initialPath);
     const p = url.searchParams.get("p");
     if (p) store.selectProductByName(p);
-    if (pathname === "/" || pathname === "/login" || pathname.startsWith("/auth") || pathname !== url.pathname) router.replace(url.pathname === "/" ? "/shop" : url.pathname);
+    // Keep the query (`/account?page=faq`), it picks the section.
+    if (pathname === "/" || pathname === "/login" || pathname.startsWith("/auth") || pathname !== url.pathname) router.replace(url.pathname === "/" ? "/shop" : `${url.pathname}${url.search}`);
   }, [phase, routed, store, router, pathname]);
 
   useEffect(() => {
