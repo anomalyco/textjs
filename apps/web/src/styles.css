@@ -2289,6 +2289,16 @@ kbd {
   padding-bottom: 96px;
 }
 
+.pad-note {
+  max-width: 520px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--subtle);
+  text-wrap: balance;
+}
+
 .pad-connect {
   width: 100%;
   max-width: 640px;
@@ -2444,6 +2454,7 @@ kbd {
   }
   .pad-picker,
   .pad-source,
+  .pad-note,
   .pad-connect {
     display: none;
   }

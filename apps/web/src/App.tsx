@@ -10,6 +10,7 @@ import { LearnPage } from "./pages/Learn";
 import { OpenCodePage } from "./pages/OpenCode";
 import { PlaygroundPage } from "./pages/Playground";
 import { StatusPage } from "./pages/Status";
+import { TerminalPage } from "./pages/Terminal";
 import { A, matchRoute, titleFor, useLocation, type Route } from "./router";
 import { ConsolePill, Footer, Header } from "./site/Chrome";
 import { SearchModal } from "./site/SearchModal";
@@ -38,6 +39,8 @@ export function RouteView({ route }: { route: Route }): ReactNode {
       return <PlaygroundPage />;
     case "opencode":
       return <OpenCodePage />;
+    case "terminal":
+      return <TerminalPage />;
     case "learn":
       return <LearnPage slug={route.slug} />;
     case "errors":

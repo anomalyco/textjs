@@ -35,6 +35,7 @@
   <url><loc>https://textjs.org/docs/opencode</loc></url>
   <url><loc>https://textjs.org/playground</loc><priority>0.8</priority></url>
   <url><loc>https://textjs.org/opencode</loc><priority>0.8</priority></url>
+  <url><loc>https://textjs.org/terminal</loc><priority>0.7</priority></url>
   <url><loc>https://textjs.org/errors</loc><priority>0.5</priority></url>
   <url><loc>https://textjs.org/errors/TX001</loc><priority>0.3</priority></url>
   <url><loc>https://textjs.org/errors/TX002</loc><priority>0.3</priority></url>

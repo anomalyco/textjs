@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from "react";
+import { lazy, Suspense, useRef, type ReactNode } from "react";
 import { Box, KeyHint, Text, useApp, useFocusManager, useInput } from "@textjs/react";
 import { OpenCodeLite } from "../demos/opencode/OpenCodeLite";
 import { PresetView } from "../demos/presets";
@@ -6,10 +6,12 @@ import { useSite } from "./useSite";
 import { hintsFor, PRESETS, type CompanionTab } from "./store";
 import { HomeTab } from "./tabs/HomeTab";
 import { DocsTab } from "./tabs/DocsTab";
-import { exampleGrid, ExampleTab } from "./tabs/ExampleTab";
 import { LearnConsole } from "../learn/apps/LearnConsole";
 
-const PAGE_LABEL: Record<CompanionTab, string> = { home: "", playground: "playground", opencode: "opencode", docs: "docs", learn: "learn" };
+// Only /terminal needs the shop, so it loads on first visit.
+const TerminalConsole = lazy(() => import("../demos/terminal").then((m) => ({ default: m.TerminalConsole })));
+
+const PAGE_LABEL: Record<CompanionTab, string> = { home: "", playground: "playground", opencode: "opencode", docs: "docs", learn: "learn", terminal: "terminal" };
 
 /** One quiet row of keys at the bottom of every view. */
 function HintLine({ tab }: { tab: CompanionTab }): ReactNode {
@@ -42,27 +44,34 @@ export function CompanionApp(): ReactNode {
   const app = useApp();
   const focus = useFocusManager();
   const tab = site.tab;
-  const example = tab === "docs" && site.example !== null && exampleGrid(site.example) ? site.example : null;
   const wireframe = useRef(false);
 
-  useInput((e) => {
-    if (tab === "opencode") return;
+  useInput(
+    (e) => {
     if (e.key === "f2") {
       e.stopPropagation();
       wireframe.current = !wireframe.current;
       app.renderer.setWireframe(wireframe.current);
-    } else if (e.key === "escape" && example === null) {
+    } else if (e.key === "escape") {
       e.stopPropagation();
       focus.blur();
     }
-  });
+    },
+    // terminal.shop owns every key, esc included.
+    { isActive: tab !== "terminal" },
+  );
 
   // OpenCode is a full-screen TUI of its own, like the real thing.
-  if (tab === "opencode") return <OpenCodeLite />;
+  if (tab === "opencode") return <OpenCodeLite active />;
   // Each /learn page runs its chapter's app, with its own header and keys.
   if (tab === "learn") return <LearnConsole />;
-  // A docs example clicked on the page runs here instead of the Docs view.
-  if (example !== null) return <ExampleTab key={example} id={example} />;
+  // terminal.shop's ssh storefront, 80 × 30, signed in through the site's proxy.
+  if (tab === "terminal")
+    return (
+      <Suspense fallback={null}>
+        <TerminalConsole />
+      </Suspense>
+    );
 
   return (
     <Box className="flex-col grow pt-1">

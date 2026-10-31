@@ -27,6 +27,7 @@ export const ROUTES: readonly PrerenderRoute[] = [
   ...DOCS.map((d) => ({ path: `/docs/${d.slug}`, title: titleFor(matchRoute(`/docs/${d.slug}`)), description: d.description, canonical: docPath(d.slug) })),
   { path: "/playground", title: titleFor({ name: "playground" }), description: "Pick a Text.js demo, open the DevTools console and press a few keys." },
   { path: "/opencode", title: titleFor({ name: "opencode" }), description: "OpenCode Lite coding-agent TUI running inside browser DevTools console.log." },
+  { path: "/terminal", title: titleFor({ name: "terminal" }), description: "The terminal.shop storefront in your DevTools console. Sign in with Terminal and order coffee from console.log." },
   ...LEARN_ROUTES,
   { path: "/errors", title: titleFor({ name: "errors" }), description: "Every Text.js error and warning code, what it means and how to fix it." },
   ...TX_ERRORS.map((e) => ({ path: `/errors/${e.code}`, title: titleFor({ name: "error", code: e.code }), description: `${e.code}: ${e.title}. What it means and how to fix it.` })),

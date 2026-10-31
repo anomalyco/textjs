@@ -53,6 +53,7 @@
         "@textjs/font": "workspace:*",
         "@textjs/next": "workspace:*",
         "@textjs/react": "workspace:*",
+        "@textjs/terminal-shop": "workspace:*",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
       },

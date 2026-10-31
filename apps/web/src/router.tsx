@@ -11,6 +11,7 @@ export type Route =
   | { name: "docs"; slug: string }
   | { name: "playground" }
   | { name: "opencode" }
+  | { name: "terminal" }
   | { name: "learn"; slug: string }
   | { name: "errors" }
   | { name: "error"; code: string }
@@ -37,6 +38,7 @@ export function matchRoute(pathname: string): Route {
   }
   if (p === "/playground") return { name: "playground" };
   if (p === "/opencode") return { name: "opencode" };
+  if (p === "/terminal") return { name: "terminal" };
   const learn = learnRoute(p);
   if (learn) return learn;
   if (p === "/errors") return { name: "errors" };
@@ -72,6 +74,8 @@ export function titleFor(route: Route): string {
       return `Playground | ${suffix}`;
     case "opencode":
       return `OpenCode in the Console | ${suffix}`;
+    case "terminal":
+      return `terminal.shop in the Console | ${suffix}`;
     case "learn":
       return learnTitle(route.slug);
     case "errors":

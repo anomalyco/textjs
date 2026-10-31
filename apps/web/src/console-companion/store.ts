@@ -8,7 +8,7 @@ import type { ThemeName } from "@textjs/react";
 import { safeDecode } from "../url";
 
 /** The console app shows exactly one view: the one for the current page. */
-export type CompanionTab = "home" | "playground" | "opencode" | "docs" | "learn";
+export type CompanionTab = "home" | "playground" | "opencode" | "docs" | "learn" | "terminal";
 
 /** A key worth pressing: `{ keys: "↑ ↓", label: "count" }` (space-separated keycaps). */
 export interface Hint {
@@ -42,6 +42,7 @@ export const PAGE_HINTS: Record<Exclude<CompanionTab, "playground">, { action: s
   docs: { action: "press ↑ ↓", hints: [{ keys: "↑ ↓", label: "browse" }, { keys: "Enter", label: "read" }, { keys: "/", label: "search" }] },
   // Each /learn page brings its own keys (learn/course.ts); the course view uses these.
   learn: { action: "press ↓", hints: [{ keys: "↑ ↓", label: "chapters" }, { keys: "Enter", label: "open" }] },
+  terminal: { action: "press ↑ ↓ to browse", hints: [{ keys: "↑ ↓", label: "products" }, { keys: "+ −", label: "qty" }, { keys: "c", label: "cart" }] },
 };
 
 export function hintsFor(tab: CompanionTab, preset: PresetId): { action: string; hints: readonly Hint[] } {
@@ -51,7 +52,7 @@ export function hintsFor(tab: CompanionTab, preset: PresetId): { action: string;
 
 /** Routes whose page is one big focus pad: console input stays engaged while moving between them. */
 export function isPadRoute(pathname: string): boolean {
-  return pathname.startsWith("/playground") || pathname.startsWith("/opencode");
+  return pathname.startsWith("/playground") || pathname.startsWith("/opencode") || pathname === "/terminal" || pathname.startsWith("/terminal/");
 }
 
 export const THEME_ORDER: readonly ThemeName[] = ["geistDark", "opencodeDark", "tokyoNight", "amberCrt", "geistLight"];
@@ -84,6 +85,7 @@ function tabForPath(pathname: string): CompanionTab {
   if (pathname.startsWith("/docs")) return "docs";
   if (pathname.startsWith("/playground")) return "playground";
   if (pathname.startsWith("/opencode")) return "opencode";
+  if (pathname === "/terminal" || pathname.startsWith("/terminal/")) return "terminal";
   if (pathname === "/learn" || pathname.startsWith("/learn/")) return "learn";
   return "home";
 }
