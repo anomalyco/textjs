@@ -27,7 +27,7 @@ import { installServerJsxRuntime } from "../server/bun-jsx";
 import { prepareServerManifest } from "../server/live-app";
 import { ServerComponentCache, ServerComponentsProvider } from "../server/server-components";
 import { loadTextConfig } from "../cli/config";
-import { frameContains, frameText, styledRows, type Region, type StyledRow } from "./frame";
+import { clampRegion, frameContains, frameText, styledRows, type Region, type StyledRow } from "./frame";
 import { FiberProbe, inspect, type Bounds, type InspectOptions, type InspectResult, type SceneGrid } from "./inspect";
 import { parseKeyInput, textToKeyEvents } from "./keys";
 import { LogBuffer, txCodeOf } from "./logs";
@@ -82,6 +82,8 @@ export interface FrameSnapshot {
   /** Set when the app is not mounted (it called `exit()`, crashed, or failed to load). */
   status: "running" | "exited" | "crashed" | "failed";
   styles?: StyledRow[];
+  /** Effective (clamped) rectangle for region reads. */
+  region?: Region;
 }
 
 export interface FetchResult {
@@ -165,6 +167,7 @@ export class HeadlessSession {
   private theme: ThemeName | undefined;
   private cols = 100;
   private rows = 32;
+  private resized = false;
   private generation = 0;
   private frameSeq = 0;
   private lastActivity = Date.now();
@@ -224,8 +227,10 @@ export class HeadlessSession {
       if (typeof config.appDir === "string") appDir = config.appDir;
     }
     if (this.options.theme !== undefined) this.theme = this.options.theme;
-    this.cols = clampCols(this.options.cols ?? cfgCols ?? 100);
-    this.rows = clampRows(this.options.rows ?? cfgRows ?? 32);
+    if (!this.resized) {
+      this.cols = clampCols(this.options.cols ?? cfgCols ?? 100);
+      this.rows = clampRows(this.options.rows ?? cfgRows ?? 32);
+    }
     this.scan = scanApp(this.rootDir, appDir);
     if (!existsSync(this.scan.appDir)) throw new SessionError(`No app/ directory found in ${this.rootDir}.`, "TX018");
   }
@@ -455,6 +460,7 @@ export class HeadlessSession {
 
   resize(cols: number, rows: number): { cols: number; rows: number } {
     const root = this.requireRoot();
+    this.resized = true;
     this.cols = clampCols(cols);
     this.rows = clampRows(rows);
     this.touch();
@@ -484,7 +490,7 @@ export class HeadlessSession {
   }
 
   /** Read the current frame. Errors logged since the previous read are counted in `newErrors`. */
-  frame(options: { styles?: boolean; region?: Partial<Region>; /** Don't reset the `newErrors` counter. */ peek?: boolean } = {}): FrameSnapshot {
+  frame(options: { styles?: boolean; region?: Partial<Region>; trim?: boolean; /** Don't reset the `newErrors` counter. */ peek?: boolean } = {}): FrameSnapshot {
     const root = this.appRoot;
     const loc = this.history.location;
     let route = loc.pathname;
@@ -502,7 +508,8 @@ export class HeadlessSession {
     const focus = this.focusSummary();
     return {
       ...base,
-      text: frameText(buffer, options.region),
+      text: frameText(buffer, options.region, options.trim),
+      ...(options.region ? { region: clampRegion(buffer, options.region) } : {}),
       cols: buffer.width,
       rows: buffer.height,
       idle: this.isIdle(),

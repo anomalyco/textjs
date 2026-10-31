@@ -151,7 +151,8 @@ export function formatFrame(f: FrameSnapshot): string {
   const lines: string[] = [];
   const route = f.route === f.href ? f.href : `${f.href}  (route ${f.route})`;
   lines.push(`route: ${route}${f.title ? `  title: ${JSON.stringify(f.title)}` : ""}`);
-  lines.push(`size: ${f.cols}×${f.rows}  frame: ${f.frame}  ${f.idle ? "idle" : "busy (still animating; frame read after timeout)"}`);
+  lines.push(`size: ${f.cols}×${f.rows}  frame: ${f.frame}  ${f.idle ? "idle" : "busy"}`);
+  if (f.region) lines.push(`region: ${formatBounds(f.region)}`);
   if (f.focus) lines.push(`focus: ${f.focus.id}${f.focus.component ? ` ${f.focus.component}` : ""}${f.focus.bounds ? ` ${formatBounds(f.focus.bounds)}` : ""}${f.cursor ? `  cursor: ${f.cursor.x},${f.cursor.y}` : ""}`);
   else lines.push("focus: none");
   if (f.status !== "running") lines.push(`status: ${f.status} (${STATUS_HINTS[f.status]})`);
@@ -292,14 +293,15 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
         "Return the current frame as plain text, with route, size, focus and cursor. Waits for the app to go idle first. `styles: true` adds run-length encoded styled spans per row (fg/bg hex colors, bold/dim/italic/underline/strikethrough/inverse).",
       inputSchema: {
         styles: z.boolean().optional(),
+        trim: z.boolean().optional().describe("Trim trailing spaces and blank rows (default true). Set false for a rectangular cell-grid snapshot."),
         region: regionSchema.optional(),
         settleMs: settleSchema,
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    tool<{ styles?: boolean; region?: { x: number; y: number; width: number; height: number }; settleMs?: number }>(35_000, "read_frame", async (s, a, signal) => {
+    tool<{ styles?: boolean; trim?: boolean; region?: { x: number; y: number; width: number; height: number }; settleMs?: number }>(35_000, "read_frame", async (s, a, signal) => {
       if (a.settleMs !== 0) await s.settle({ timeout: a.settleMs ?? 1500, signal });
-      return frameResult(s.frame({ styles: a.styles, region: a.region }));
+      return frameResult(s.frame({ styles: a.styles, region: a.region, trim: a.trim }));
     }),
   );
 

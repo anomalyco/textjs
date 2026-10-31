@@ -113,7 +113,10 @@ function rowCells(buffer: CellBuffer, y: number, x0: number, x1: number): RowCel
       }
       continue;
     }
-    const ch = cellText(cell.char);
+    // The lead half of a wide glyph cut by the right edge must occupy one
+    // blank column (the symmetric case of a continuation at the left edge).
+    const clipped = x === x1 - 1 && ((buffer.getCell(x + 1, y)?.attrs ?? 0) & ATTR_WIDE_CONT) !== 0;
+    const ch = clipped ? " " : cellText(cell.char);
     for (let i = 0; i < ch.length; i++) colsList.push(x);
     text += ch;
   }
@@ -122,11 +125,14 @@ function rowCells(buffer: CellBuffer, y: number, x0: number, x1: number): RowCel
 }
 
 /** Plain text of `region`, one line per row (trailing spaces and blank rows trimmed). */
-export function frameText(buffer: CellBuffer, region?: Partial<Region>): string {
+export function frameText(buffer: CellBuffer, region?: Partial<Region>, trim = true): string {
   const r = clampRegion(buffer, region);
   const lines: string[] = [];
-  for (let y = r.y; y < r.y + r.height; y++) lines.push(rowCells(buffer, y, r.x, r.x + r.width).text.trimEnd());
-  while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  for (let y = r.y; y < r.y + r.height; y++) {
+    const text = rowCells(buffer, y, r.x, r.x + r.width).text;
+    lines.push(trim ? text.trimEnd() : text);
+  }
+  if (trim) while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
   return lines.join("\n");
 }
 
@@ -151,7 +157,8 @@ export function styledRows(buffer: CellBuffer, region?: Partial<Region>): Styled
         cur.width++;
         continue;
       }
-      const ch = wideCont ? " " : cellText(cell.char);
+      const clipped = x === r.x + r.width - 1 && ((buffer.getCell(x + 1, y)?.attrs ?? 0) & ATTR_WIDE_CONT) !== 0;
+      const ch = wideCont || clipped ? " " : cellText(cell.char);
       if (cur && cur.key === key) {
         cur.text += ch;
         cur.width++;

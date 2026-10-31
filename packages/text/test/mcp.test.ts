@@ -110,6 +110,9 @@ describe("text mcp · units", () => {
     expect(rows[0]?.runs[0]).toMatchObject({ x: 1, width: 4, text: " 本 " });
     // Row 1 is blank and default-styled: omitted.
     expect(styledRows(buf).map((r) => r.y)).toEqual([0, 2]);
+    const cut = { x: 0, y: 2, width: 3, height: 1 };
+    expect(frameText(buf, cut, false)).toBe("日 ");
+    expect(styledRows(buf, cut)[0]?.runs[0]).toMatchObject({ text: "日 ", width: 3 });
   });
 
   test("log buffer: cursors, levels, TX codes, %c stripping", () => {
@@ -335,6 +338,10 @@ describe("text mcp · dashboard", () => {
       const s = r.structuredContent as { cols: number; rows: number; text: string };
       expect([s.cols, s.rows]).toEqual([60, 20]);
       expect(Math.max(...s.text.split("\n").map((l) => [...l].length))).toBeLessThanOrEqual(60);
+      expect((await call(client, "reload")).structuredContent).toMatchObject({ cols: 60, rows: 20 });
+      const crop = await call(client, "read_frame", { region: { x: 57, y: 18, width: 10, height: 5 }, trim: false });
+      expect(crop.structuredContent).toMatchObject({ cols: 60, rows: 20, region: { x: 57, y: 18, width: 3, height: 2 } });
+      expect((crop.structuredContent as { text: string }).text.split("\n").map((s) => s.length)).toEqual([3, 3]);
     } finally {
       await call(client, "resize", { cols: 100, rows: 32 });
     }
