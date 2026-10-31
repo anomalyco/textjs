@@ -33,6 +33,7 @@ const NAV = [
   { href: "/learn", label: "Learn" },
   { href: "/playground", label: "Playground" },
   { href: "/opencode", label: "OpenCode" },
+  { href: "/terminal", label: "Coffee" },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -122,7 +123,6 @@ export function Footer(): ReactNode {
               {l.label}
             </A>
           ))}
-          <A href="/terminal">Terminal</A>
           <A href="/errors">Errors</A>
           <A href="/changelog">Changelog</A>
           <A href="/blog">Blog</A>
