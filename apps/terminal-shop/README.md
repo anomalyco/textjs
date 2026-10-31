@@ -41,6 +41,45 @@ TERMINAL_ENABLE_PRODUCTION=1 bun run dev     # or put it in .env.local
 
 Then go to **a account → debug info**, press **e**, answer **y**, and sign in with a production token (`ssh terminal.shop -t tokens`) or the browser. To go back to the sandbox, press **e** on the same page again, or restart the server without the variable.
 
+## On textjs.org (`/terminal`)
+
+[textjs.org/terminal](https://textjs.org/terminal) runs this same app in the site's console companion (`embed.tsx` → `apps/web/src/demos/terminal.tsx`). It differs in three ways:
+
+- **Sign in is Terminal's OAuth, nothing else.** No token paste, no API key. Cloudflare Pages Functions in `apps/web/functions/` (logic in `apps/web/server/terminal-session.ts`) run the authorization code + PKCE flow and keep the tokens in an httpOnly, Secure, SameSite=Lax cookie scoped to `/api/terminal`, so page JavaScript never sees one. Terminal's OpenAuth issuer treats apps as public clients: the token exchange sends `client_id`, `redirect_uri` and the PKCE verifier, with no client secret.
+- **Production by default.** It's the real store. Products are public, so you can browse signed out. Cart, account and checkout ask you to sign in. The confirm screen asks once more (`y`/`n`) before placing a real order or subscription. Cards are still entered only on Terminal's hosted card page.
+- **Fixed environment.** A deployment talks to one Terminal (`TERMINAL_ENVIRONMENT`, default `prod`), so `e` doesn't switch.
+
+Configuration (Pages environment):
+
+| Variable | |
+| --- | --- |
+| `TERMINAL_CLIENT_ID` | Required in production. The id of the registered "textjs.org" Terminal app (below). Without it, sign in says it isn't set up and browsing still works. On `localhost`, `textjs-local` is used, because Terminal accepts localhost redirects for any client id. |
+| `TERMINAL_ENVIRONMENT` | `prod` (default) or `dev` (sandbox, for preview deployments) |
+| `TERMINAL_API_URL`, `TERMINAL_AUTH_URL` | Local e2e only: point at `apps/web/scripts/terminal-mock.ts` |
+
+There's no `TERMINAL_CLIENT_SECRET`. The app's secret is never used, so don't store it anywhere.
+
+**Registering the app (once, per environment):** run `ssh terminal.shop -t apps`, choose "create app", name it `textjs.org`, and set the redirect URI to `https://textjs.org/terminal/callback`. Copy the app id (`cli_…`). Terminal checks `client_id` plus the exact origin + path of `redirect_uri` against that row, and an app has exactly one redirect URI. Local development needs no app. For a sandbox preview deployment, register a second app with `ssh dev.terminal.shop -t apps` and its own `https://<preview-host>/terminal/callback`.
+
+```bash
+cd apps/web
+bunx wrangler pages secret put TERMINAL_CLIENT_ID --project-name textjs   # paste the cli_… id
+bun run build                                                               # after `bun run build:packages` at the root
+bunx wrangler pages deploy dist --project-name textjs                       # run from apps/web so ./functions is uploaded
+```
+
+Locally, against an in-memory Terminal:
+
+```bash
+cd apps/web && bun run build
+bun scripts/terminal-mock.ts --port 8790 &
+bunx wrangler pages dev dist --port 8788 --compatibility-date 2026-10-01 --binding TERMINAL_CLIENT_ID=cli_e2e \
+  --binding TERMINAL_API_URL=http://127.0.0.1:8790 --binding TERMINAL_AUTH_URL=http://127.0.0.1:8790/auth
+BASE=http://localhost:8788 CLIENT_ID=cli_e2e node scripts/e2e-terminal.mjs
+```
+
+`vite dev` and `vite preview` mount the same handler, configured from `process.env`.
+
 ## Keys
 
 Same bindings as the SSH shop:
@@ -77,6 +116,7 @@ Each screen is ported from its Go view (`shop.go`, `cart.go`, `shipping.go`, `pa
 | `lib/form.ts` | `huh` forms (two-column address form) |
 | `lib/qr.ts` | QR encoder plus the `qrfefe` half-block renderer |
 | `server/terminal-proxy.ts` | `/__terminal/{dev,prod}/{api,auth}` proxy |
+| `embed.tsx` | The shop as a component plus a static route manifest, for textjs.org |
 
 The proxy exists because the API's CORS reply (`Access-Control-Allow-Headers: *`) doesn't cover `Authorization`, so the page can't send bearer tokens itself. It only answers loopback `Host`s and same-origin requests, requires `x-terminal-client: 1` on writes, caps bodies at 1 MB, and logs nothing.
 
@@ -93,6 +133,7 @@ The proxy exists because the API's CORS reply (`Access-Control-Allow-Headers: *`
 
 - `test/unit.test.ts` covers the proxy (host, CSRF and production locks, token precedence, no leaks), the client, OAuth/PKCE, the layout helpers, forms, the QR encoder and the store (last-write-wins cart, rejected tokens, production lock).
 - `test/shop.test.tsx` mounts the real `app/` routes. It compares screens with text captured from `ssh terminal.shop` (`test/fixtures/ssh/*.txt`, shop/cart/account/menu, identical), checks theme colors in the cell buffer, and runs checkout end to end against `test/mock-terminal.ts`: address, browser card, idempotent convert with retry, subscribe-after-order, cron, email gate. It also covers account actions, sign in and deep links.
+- `test/site.test.tsx` runs the textjs.org mode behind a stand-in for the site's proxy. It covers signed-out browsing, the sign in gates and redirect, the y/n before real orders, sign out and an expired session. It also checks that the embed's route manifest matches `app/`.
 - `scripts/e2e.ts` runs headless Chromium (`bench/devtools`' playwright-core), presses real keys, and decodes every `console.log("%c…")` frame back to text. It checks each frame against the renderer's cell buffer, and writes the frames to `--out` (default `$TMPDIR/terminal-shop-e2e-*`).
   - `--mock` starts an in-memory API behind a fresh dev server.
   - Without `--mock` it drives `http://localhost:3002` against the dev sandbox. It signs in with `TERMINAL_DEV_TOKEN` (or uses the server's token), adds the Stripe test card on the dev card page, and stops at confirm.

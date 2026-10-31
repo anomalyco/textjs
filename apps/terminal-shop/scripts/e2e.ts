@@ -37,7 +37,7 @@ type Playwright = { chromium: { launch(options: object): Promise<any> } };
 type BrowserContext = any;
 
 async function loadPlaywright(): Promise<Playwright> {
-  const path = join(ROOT, "../../bench/devtools/node_modules/playwright-core/index.mjs");
+  const path = process.env.PLAYWRIGHT ?? join(ROOT, "../../bench/devtools/node_modules/playwright-core/index.mjs");
   return (await import(path)) as Playwright;
 }
 
