@@ -19,6 +19,7 @@ import tempfile
 import time
 import urllib.request
 import uuid
+from cell_diff import measure
 
 
 APP = Path(__file__).resolve().parents[1]
@@ -104,7 +105,7 @@ def main():
                 tmux('set-option', '-t', name, 'status', 'off')
 
             def screen(name, sgr=False):
-                return tmux('capture-pane', '-p', *(['-e'] if sgr else []), '-t', name)
+                return tmux('capture-pane', '-p', *(['-e', '-N'] if sgr else []), '-t', name)
 
             def wait(name, needle):
                 until = time.monotonic() + 40
@@ -149,12 +150,13 @@ def main():
                             tmux('send-keys', '-t', name, 'Escape')
                         time.sleep(.15)
                 for state in ('home', 'commands', 'models', 'agents', 'sessions', 'session'):
-                    def cells(name):
-                        lines = (dest/f'{state}-{name}.txt').read_text().splitlines()
-                        return ''.join(line.ljust(cols) for line in lines)
-                    a, b, c = cells('real'), cells('mcp'), cells('textjs')
-                    print(f'{cols}x{rows} {state}: TUI vs MCP {sum(x != y for x, y in zip(a,b))}; '
-                          f'MCP vs text run {sum(x != y for x, y in zip(b,c))} differing glyphs')
+                    counts = measure(dest, state)
+                    print(f'{cols}x{rows} {state}: {counts}')
+                    (dest/f'{state}-diff.json').write_text(json.dumps(counts))
+                    left = (dest/f'{state}-real.txt').read_text().splitlines()
+                    right = (dest/f'{state}-mcp.txt').read_text().splitlines()
+                    pair = '\n'.join(f'{a:<{cols}} │ {b.rstrip()}'.rstrip() for a, b in zip(left, right))
+                    (dest/f'{state}-pair.txt').write_text(f'OpenCode TUI{" "*(cols-12)} │ Text.js (text mcp)\n{pair}\n')
         finally:
             tmux('kill-server', check=False)
 

@@ -458,24 +458,27 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
     {
       title: "Wait for",
       description:
-        "Wait until `text` appears, `gone` disappears, or (with neither) the app is idle — no pending frame, no in-flight fetch and no commit for `quietMs`. Returns the frame; times out with a tool error that includes the last frame.",
+        "Wait until `text` appears, `gone` disappears, and/or `href` matches the route. With no condition wait for idle. Returns the matching frame; use styles:true to capture transient styled output without racing a second read. Timeouts include the last frame.",
       inputSchema: {
         text: z.string().min(1).max(1000).optional(),
         gone: z.string().min(1).max(1000).optional(),
+        href: z.string().startsWith("/").max(4096).optional().describe("Exact app pathname + search + hash (not a route pattern)."),
+        styles: z.boolean().optional(),
+        trim: z.boolean().optional(),
         idle: z.boolean().optional().describe("Also require idle after the text condition holds."),
         quietMs: z.number().int().min(10).max(10_000).optional(),
         timeoutMs: z.number().int().min(0).max(120_000).optional().describe("Default 5000."),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    tool<{ text?: string; gone?: string; idle?: boolean; quietMs?: number; timeoutMs?: number }>(
+    tool<{ text?: string; gone?: string; href?: string; styles?: boolean; trim?: boolean; idle?: boolean; quietMs?: number; timeoutMs?: number }>(
       (a) => (a.timeoutMs ?? 5000) + 5000,
       "wait_for",
       async (s, a, signal) => {
         const timeout = a.timeoutMs ?? 5000;
         const start = Date.now();
-        const textOk = (): boolean => (a.text === undefined || s.contains(a.text)) && (a.gone === undefined || !s.contains(a.gone));
-        const needIdle = a.idle === true || (a.text === undefined && a.gone === undefined);
+        const textOk = (): boolean => (a.href === undefined || a.href === s.href) && (a.text === undefined || s.contains(a.text)) && (a.gone === undefined || !s.contains(a.gone));
+        const needIdle = a.idle === true || (a.text === undefined && a.gone === undefined && a.href === undefined);
         for (;;) {
           if (signal.aborted) throw signal.reason;
           // Fail fast when the app exited, crashed or failed to load: nothing will change.
@@ -483,14 +486,14 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
           if (textOk() && (!needIdle || s.isIdle(a.quietMs))) break;
           if (Date.now() - start >= timeout) {
             const f = s.frame({ peek: true });
-            const what = [a.text !== undefined ? `text ${JSON.stringify(a.text)}` : "", a.gone !== undefined ? `${JSON.stringify(a.gone)} to disappear` : "", needIdle ? "idle" : ""]
+            const what = [a.text !== undefined ? `text ${JSON.stringify(a.text)}` : "", a.gone !== undefined ? `${JSON.stringify(a.gone)} to disappear` : "", a.href !== undefined ? `route ${JSON.stringify(a.href)}` : "", needIdle ? "idle" : ""]
               .filter(Boolean)
               .join(" and ");
             throw new TimeoutError(`wait_for timed out after ${timeout}ms waiting for ${what}.\n\n${formatFrame(f)}`);
           }
           await new Promise((r) => setTimeout(r, 10));
         }
-        return frameResult(s.frame(), { waitedMs: Date.now() - start });
+        return frameResult(s.frame({ styles: a.styles, trim: a.trim }), { waitedMs: Date.now() - start });
       },
     ),
   );

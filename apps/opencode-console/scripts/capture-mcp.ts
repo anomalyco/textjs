@@ -35,8 +35,8 @@ try {
     const dir = resolve(out, `${cols}x${rows}`);
     await mkdir(dir, { recursive: true });
     await call("resize", { cols, rows });
-    const capture = async (name: string) => {
-      const frame = await call("read_frame", { styles: true, trim: false });
+    const capture = async (name: string, matched?: Record<string, unknown>) => {
+      const frame = matched ?? await call("read_frame", { styles: true, trim: false });
       const expectedFocus = ["home", "session"].includes(name) ? "opencode-prompt" : `opencode-picker-${name}`;
       if ((frame.focus as { id?: string } | null)?.id !== expectedFocus) throw Error(`${name}: expected focus on ${expectedFocus}`);
       await writeFile(`${dir}/${name}-mcp.json`, JSON.stringify(frame));
@@ -55,8 +55,7 @@ try {
       if (key === "l") {
         await call("type", { text: endpoint ? "Parity fixture" : "Fix cart" });
         await press("enter");
-        await wait(endpoint ? "Ready" : "99+");
-        await capture("session");
+        await capture("session", await call("wait_for", { text: endpoint ? "Ready" : "99+", href: `/session/${sid ?? "ses_demo_cart"}`, styles: true, trim: false }));
         await call("scroll", { rows: -10 });
         await press("ctrl+x n");
       } else await press("escape");
