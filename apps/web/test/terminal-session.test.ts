@@ -5,6 +5,7 @@ import { onRequest as apiFunction } from "../functions/api/terminal/[[path]]";
 import { onRequest as callbackFunction } from "../functions/terminal/callback";
 import {
   handleTerminal,
+  isPublicIp,
   LOCAL_CLIENT_ID,
   matchRoute,
   pkceChallenge,
@@ -82,6 +83,11 @@ describe("PKCE", () => {
     expect(verifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(await pkceChallenge(verifier)).toBe(createHash("sha256").update(verifier).digest("base64url"));
     expect(randomToken(32)).not.toBe(verifier);
+  });
+
+  test("only public client IPs are passed on for region detection", () => {
+    for (const ip of ["203.0.113.9", "8.8.8.8", "2606:4700::1111"]) expect(isPublicIp(ip)).toBe(true);
+    for (const ip of ["127.0.0.1", "10.1.2.3", "192.168.1.1", "172.20.0.1", "169.254.1.1", "::1", "fd00::1", "fe80::1", "nonsense"]) expect(isPublicIp(ip)).toBe(false);
   });
 
   test("return paths stay in the app", () => {

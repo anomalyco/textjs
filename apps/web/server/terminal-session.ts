@@ -313,6 +313,17 @@ async function refreshSession(cfg: ResolvedConfig, session: StoredSession, doFet
   return { ...next, r: next.r ?? session.r };
 }
 
+/** Loopback / private addresses (local `wrangler pages dev`) make the API's region lookup return no products. */
+export function isPublicIp(ip: string): boolean {
+  const v = ip.trim().toLowerCase();
+  if (v.includes(":")) return !(v === "::1" || v.startsWith("fc") || v.startsWith("fd") || v.startsWith("fe80") || v.startsWith("::ffff:127.") || v === "::");
+  const m = /^(\d+)\.(\d+)\.\d+\.\d+$/.exec(v);
+  if (!m) return false;
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  return !(a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127));
+}
+
 // ── handlers ────────────────────────────────────────────────────────────────
 
 async function login(request: Request, url: URL, cfg: ResolvedConfig): Promise<Response> {
@@ -413,7 +424,7 @@ async function proxy(request: Request, url: URL, cfg: ResolvedConfig, env: strin
     }
     // Region detection: the API reads the visitor's IP from this header when it's present.
     const ip = request.headers.get("cf-connecting-ip");
-    if (ip) headers.set("x-terminal-ip", ip);
+    if (ip && isPublicIp(ip)) headers.set("x-terminal-ip", ip);
     if (s) headers.set("authorization", `Bearer ${s.a}`);
     return doFetch(`${cfg.api}${path}${url.search}`, { method, headers, body, redirect: "manual" });
   };
