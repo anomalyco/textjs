@@ -72,3 +72,27 @@ describe("/terminal", () => {
     expect(existsSync(join(ROOT, "functions/terminal/callback.ts"))).toBe(true);
   });
 });
+
+describe("F-04: static security headers", () => {
+  test("public/_headers sets nosniff, referrer policy, framing rules and asset caching", () => {
+    const text = readFileSync(join(ROOT, "public/_headers"), "utf8");
+    const blocks = new Map<string, Map<string, string>>();
+    let current: Map<string, string> | null = null;
+    for (const line of text.split("\n")) {
+      if (!line.trim() || line.startsWith("#")) continue;
+      if (!/^\s/.test(line)) blocks.set(line.trim(), (current = new Map()));
+      else {
+        const i = line.indexOf(":");
+        current!.set(line.slice(0, i).trim().toLowerCase(), line.slice(i + 1).trim());
+      }
+    }
+    const all = blocks.get("/*")!;
+    expect(all.get("x-content-type-options")).toBe("nosniff");
+    expect(all.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
+    expect(all.get("x-frame-options")).toBe("SAMEORIGIN");
+    expect(all.get("content-security-policy")).toBe("frame-ancestors 'self'");
+    expect(blocks.get("/assets/*")!.get("cache-control")).toBe("public, max-age=31536000, immutable");
+    // No header is set by two matching rules (Pages would join the values with a comma).
+    expect([...blocks.get("/assets/*")!.keys()].some((k) => all.has(k))).toBe(false);
+  });
+});

@@ -1,0 +1,13 @@
+# Cloudflare Pages: headers for static responses (Functions under /api/terminal and
+# /terminal/callback set their own, stricter ones). No page Content-Security-Policy beyond
+# frame-ancestors: pages use inline scripts and styles, and a script/connect policy would
+# need auditing every page (and the OpenCode bridge at 127.0.0.1:4096) first.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: frame-ancestors 'self'
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
