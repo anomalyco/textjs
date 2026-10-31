@@ -55,11 +55,21 @@ def fixture_server(env, project):
                 time.sleep(.1)
         else:
             raise RuntimeError('Private server did not start')
-        session = api('/api/session', {'title': 'Parity fixture', 'agent': 'build',
-                      'location': {'directory': str(project)}, 'model': {'providerID': 'opencode', 'id': 'big-pickle'}})['data']['id']
-        # A genuine V2 shell projection without submitting a prompt or using a model.
-        api(f'/api/session/{session}/shell', {'command': 'echo Ready'})
-        yield session
+        seed = api('/api/session', {'title': 'Capture seed', 'agent': 'build', 'location': {'directory': str(project)},
+                   'model': {'providerID': 'opencode', 'id': 'big-pickle'}})['data']
+        transcript = json.loads((APP/'scripts/transcript.json').read_text())
+        session = api('/api/experimental/session/import', {'info': dict(seed, id='ses_parityfixture', title='Parity fixture'),
+                      'messages': transcript, 'location': {'directory': str(project)}})['data']['id']
+        case = {'agent': 'build', 'location': {'directory': str(project)}, 'model': seed['model']}
+        permission = api('/api/session', dict(case, title='Permission fixture', permissions=[{'action':'shell','resource':'*','effect':'ask'}]))['data']['id']
+        request = api(f'/api/session/{permission}/permission', {'action': 'shell', 'resources': ['echo fixture'], 'save': ['echo fixture']})
+        if request['data']['effect'] != 'ask': raise RuntimeError('Permission fixture not pending')
+        question = api('/api/session', dict(case, title='Question fixture'))['data']['id']
+        api(f'/api/session/{question}/form', {'title':'Choose a branch', 'fields':[{'type':'string', 'key':'branch', 'title':'Branch',
+            'required':True, 'options':[{'value':'main','label':'main'},{'value':'release','label':'release'}]}]})
+        yield session, permission, question
+        if not api(f'/api/session/{permission}/permission')['data'] or not api(f'/api/session/{question}/form')['data']:
+            raise RuntimeError('A capture unexpectedly answered a pending request')
     finally:
         proc.terminate()
         try:
@@ -86,8 +96,8 @@ def main():
                    XDG_CACHE_HOME=tmp+'/cache', XDG_STATE_HOME=tmp+'/state',
                    TERM='tmux-256color', COLORTERM='truecolor', OPENCODE_DISABLE_AUTOUPDATE='1')
         subprocess.run(['git', 'init', '-q', project], env=env, check=True)
-        sid = cleanup.enter_context(fixture_server(env, project))
-        subprocess.run(['bun', APP/'scripts/capture-mcp.ts', opts.out.resolve(), env['OPENCODE_SERVER_URL'], sid],
+        sid, permission, question = cleanup.enter_context(fixture_server(env, project))
+        subprocess.run(['bun', APP/'scripts/capture-mcp.ts', opts.out.resolve(), env['OPENCODE_SERVER_URL'], sid, permission, question],
                        cwd=ROOT, env=env, check=True, timeout=120)
         sock = 'textjs-parity-' + uuid.uuid4().hex
 
@@ -133,13 +143,17 @@ def main():
                             (dest/f'{state}-{name}.{ext}').write_text(screen(name, sgr))
                     tmux('send-keys', '-t', name, 'Escape')
                     time.sleep(.25)
-                    for state, chord, needle in [('models', 'm', 'model'), ('agents', 'a', 'agent'), ('sessions', 'l', 'Parity fixture')]:
+                    for state, chord, needle in [('models', 'm', 'Select model' if name == 'real' else 'Switch model'),
+                                                 ('agents', 'a', 'Select agent' if name == 'real' else 'Switch agent'),
+                                                 ('sessions', 'l', 'Sessions for' if name == 'real' else 'Switch session')]:
                         tmux('send-keys', '-t', name, 'C-x', chord)
                         wait(name, needle)
                         time.sleep(.15)
                         for ext, sgr in [('txt', False), ('ansi', True)]:
                             (dest/f'{state}-{name}.{ext}').write_text(screen(name, sgr))
                         if state == 'sessions':
+                            tmux('send-keys', '-t', name, '-l', 'Parity fixture')
+                            time.sleep(.2)
                             tmux('send-keys', '-t', name, 'Enter')
                             wait(name, 'Ready')
                             for ext, sgr in [('txt', False), ('ansi', True)]:
@@ -150,15 +164,37 @@ def main():
                             tmux('send-keys', '-t', name, 'Escape')
                         time.sleep(.15)
                 for state in ('home', 'commands', 'models', 'agents', 'sessions', 'session'):
-                    counts = measure(dest, state)
-                    print(f'{cols}x{rows} {state}: {counts}')
-                    (dest/f'{state}-diff.json').write_text(json.dumps(counts))
-                    left = (dest/f'{state}-real.txt').read_text().splitlines()
-                    right = (dest/f'{state}-mcp.txt').read_text().splitlines()
-                    pair = '\n'.join(f'{a:<{cols}} │ {b.rstrip()}'.rstrip() for a, b in zip(left, right))
-                    (dest/f'{state}-pair.txt').write_text(f'OpenCode TUI{" "*(cols-12)} │ Text.js (text mcp)\n{pair}\n')
+                    report(dest, state, cols)
+            # Capture attention prompts without ever sending them a key. Even a
+            # stray Return here could answer a real permission request.
+            for label, session, marker in [('permission', permission, 'Permission required'), ('question', question, 'main')]:
+                for name, cwd, cmd in [
+                    ('real', project, ['opencode', '--server', env['OPENCODE_SERVER_URL'], '--session', session]),
+                    ('textjs', APP, ['bun', ROOT/'packages/text/bin/text.ts', 'run', '--path', f'/session/{session}']),
+                ]:
+                    target = f'{name}-{label}'
+                    tmux('new-session', '-d', '-x', '100', '-y', '33', '-s', target, '-c', str(cwd), 'exec '+shlex.join(map(str, cmd)))
+                    tmux('set-option', '-t', target, 'status', 'off')
+                    tmux('resize-window', '-t', target, '-x', '100', '-y', '32')
+                    wait(target, marker if name == 'real' else f'{label.title()} fixture')
+                    time.sleep(.3)
+                    dest = opts.out/'100x32'
+                    for ext, sgr in [('txt', False), ('ansi', True)]:
+                        (dest/f'{label}-{name}.{ext}').write_text(screen(target, sgr))
+                    tmux('kill-session', '-t', target)
+                report(dest, label, 100)
         finally:
             tmux('kill-server', check=False)
+
+
+def report(dest, state, cols):
+    counts = measure(dest, state)
+    print(f'{dest.name} {state}: {counts}')
+    (dest/f'{state}-diff.json').write_text(json.dumps(counts))
+    left = (dest/f'{state}-real.txt').read_text().splitlines()
+    right = (dest/f'{state}-mcp.txt').read_text().splitlines()
+    pair = '\n'.join(f'{a:<{cols}} │ {b.rstrip()}'.rstrip() for a, b in zip(left, right))
+    (dest/f'{state}-pair.txt').write_text(f'{"OpenCode TUI":<{cols}} │ Text.js (text mcp)\n{pair}\n')
 
 
 if __name__ == '__main__':

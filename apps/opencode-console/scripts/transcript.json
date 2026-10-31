@@ -1,0 +1,16 @@
+[
+  { "id": "msg_fixture01", "type": "user", "text": "Update the fixture limit and report the result.", "time": { "created": 1800000000000 } },
+  {
+    "id": "msg_fixture02", "type": "assistant", "agent": "build", "model": { "id": "big-pickle", "providerID": "opencode" },
+    "time": { "created": 1800000001000, "completed": 1800000004000 }, "finish": "stop",
+    "tokens": { "input": 1250, "output": 72, "reasoning": 20, "cache": { "read": 0, "write": 0 } }, "cost": 0,
+    "content": [
+      { "type": "reasoning", "text": "Check the current limit before editing.", "time": { "created": 1800000001000, "completed": 1800000001250 } },
+      { "id": "read_fixture", "type": "tool", "name": "read", "time": { "created": 1800000001300, "completed": 1800000001500 }, "state": { "status": "completed", "input": { "path": "src/limits.ts", "offset": 3, "limit": 5 }, "content": [{ "type": "text", "text": "export const limit = 5;" }] } },
+      { "id": "edit_fixture", "type": "tool", "name": "edit", "time": { "created": 1800000001600, "completed": 1800000001700 }, "state": { "status": "completed", "input": { "path": "src/limits.ts", "oldString": "export const limit = 5;", "newString": "export const limit = 10;" }, "metadata": { "files": [{ "file": "src/limits.ts", "status": "modified", "patch": "--- a/src/limits.ts\n+++ b/src/limits.ts\n@@ -1 +1 @@\n-export const limit = 5;\n+export const limit = 10;", "additions": 1, "deletions": 1 }] }, "content": [{ "type": "text", "text": "Updated src/limits.ts" }] } },
+      { "id": "todo_fixture", "type": "tool", "name": "todowrite", "time": { "created": 1800000001900, "completed": 1800000002000 }, "state": { "status": "completed", "input": { "todos": [{ "content": "Update the limit", "status": "completed" }, { "content": "Verify the change", "status": "pending" }] }, "content": [{ "type": "text", "text": "Updated todos." }] } },
+      { "type": "text", "text": "Updated `src/limits.ts` from **5** to **10**.\n\nReady for verification." }
+    ]
+  },
+  { "id": "msg_fixture03", "type": "idle", "outcome": "succeeded", "time": { "created": 1800000004100 } }
+]

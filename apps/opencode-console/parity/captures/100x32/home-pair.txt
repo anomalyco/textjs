@@ -1,0 +1,33 @@
+OpenCode TUI                                                                                         │ Text.js (text mcp)
+   Parity fixture                + New session                                                       │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │                                                                 ▄
+                                                                ▄                                    │                                █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+                               █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█                               │                                █  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
+                               █  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀                               │                                ▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+                               ▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀                               │
+                                                                                                     │
+                                                                                                     │              ┃
+             ┃                                                                                       │              ┃  Ask anything… "Fix broken tests"
+             ┃  Ask anything… "Fix broken tests"                                                     │              ┃
+             ┃                                                                                       │              ┃  Build · Big Pickle OpenCode         shift+tab agents · ctrl+p commands
+             ┃  Build · Big Pickle OpenCode                                                          │              ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+             ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀             │
+             ~/project:master                          shift+tab agents  ctrl+p commands             │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                     0.0.0-dev-233   │
+                                                                                                     │   …/opencode-console/.text/tmpyjhvtpkn/project    ● connected · localhost:54095  ctrl+x l sessions

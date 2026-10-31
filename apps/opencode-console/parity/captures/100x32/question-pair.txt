@@ -1,0 +1,33 @@
+OpenCode TUI                                                                                         │ Text.js (text mcp)
+   Parity fixture                ! Permission fixture            ? Question fixture              +   │   Question fixture                                                   ● connected · localhost:54095
+                                                                                                     │
+                                                                                                     │      No messages yet.
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+  ┃                                                                                                  │
+  ┃  Choose a branch                                                                                 │
+  ┃                                                                                                  │
+  ┃  Branch                                                                                          │
+  ┃                                                                                                  │
+  ┃  1. main                                                                                         │
+  ┃  2. release                                                                                      │   ┃
+  ┃                                                                                                  │   ┃
+  ┃  ↑↓ select  enter submit  esc dismiss                                                            │   ┃
+  ┃                                                                                                  │   ┃  Build · Big Pickle OpenCode                              shift+tab agents · ctrl+p commands
+                                                                                                     │   ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀

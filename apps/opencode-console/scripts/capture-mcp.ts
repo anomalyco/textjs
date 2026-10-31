@@ -7,7 +7,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const app = resolve(import.meta.dir, "..");
-const [output, endpoint, sid] = process.argv.slice(2);
+const [output, endpoint, sid, permission, question] = process.argv.slice(2);
 const out = resolve(output ?? `${app}/.text/captures/demo`);
 const env: Record<string, string> = {};
 if (endpoint) {
@@ -64,6 +64,17 @@ try {
     if (reload.cols !== cols || reload.rows !== rows) throw Error("Reload reset viewport size");
     console.log(`MCP ${cols}×${rows}: six styled frames; reload viewport ${reload.cols}×${reload.rows}`);
     await wait(endpoint ? "connected" : "● demo");
+  }
+  if (endpoint) {
+    await call("resize", { cols: 100, rows: 32 });
+    for (const [label, session] of [["permission", permission], ["question", question]]) {
+      if (!session?.startsWith("ses_")) throw Error(`Missing ${label} fixture`);
+      const href = `/session/${session}`;
+      await call("navigate", { path: href });
+      const frame = await call("wait_for", { href, text: `${label![0]!.toUpperCase()}${label!.slice(1)} fixture`, styles: true, trim: false, idle: true });
+      await writeFile(`${out}/100x32/${label}-mcp.json`, JSON.stringify(frame));
+      await writeFile(`${out}/100x32/${label}-mcp.txt`, frame.text + "\n");
+    }
   }
   const logs = await call("logs", { level: ["error"] });
   if (Array.isArray(logs.entries) && logs.entries.length) throw Error(`Unexpected app errors: ${JSON.stringify(logs.entries)}`);

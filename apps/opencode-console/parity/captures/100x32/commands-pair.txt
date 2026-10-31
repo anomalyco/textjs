@@ -1,0 +1,33 @@
+OpenCode TUI                                                                                         │ Text.js (text mcp)
+   Parity fixture                + New session                                                       │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │                 ╭─  Commands  ─────────────────────────────────────────────────────╮
+                                                                                                     │                 │                                                                  │
+                                                                                                     │                 │  / Type a command or session…                                    │
+                                                                                                     │                 │  › Switch model                                        ctrl+x m  │
+                        Commands                                         esc                         │                 │    Switch session                                      ctrl+x l  │
+                                                                                                     │                 │    New session                                         ctrl+x n  │
+                        Search                                                                       │                 │    Switch agent                                        ctrl+x a  │
+                                                                                                     │                 │    Show sidebar                                        ctrl+x b  │
+                        Suggested                                                                    │                 │    Expand tool output                                            │
+                        Switch session                              ctrl+x l                         │                 │    Show tool calls individually                                  │
+                        Switch model                                ctrl+x m                         │                 │    Expand thinking                                               │
+                        Connect an integration                                                       │              ┃  │    Switch theme  OpenCode Dark                                   │
+             ┃          Open settings                                                                │              ┃  │    Help                                                          │
+             ┃  Ask                                                                                  │              ┃  │    Viewport: follow DevTools size                                │
+             ┃          Session                                                                      │              ┃  │    Connect to server…  localhost:54095                           │ds
+             ┃  Buil    Switch session                              ctrl+x l                         │              ╹▀▀│    Reload sessions                                               │▀▀▀▀
+             ╹▀▀▀▀▀▀    New session                                 ctrl+x n    ▀▀▀▀▀▀▀▀             │                 │    Question fixture                                    just now  │
+             ~/proje    Clear session                                           commands             │                 │    ↓ 3 more                                                      │
+                                                                                                     │                 │                                                                  │
+                                                                                                     │                 │  4 sessions · 8 models · v2 backend                              │
+                                                                                                     │                 │                                                                  │
+                                                                                                     │                 ╰────────────────────────────  ↑↓ select · enter run · esc close  ─╯
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                     0.0.0-dev-233   │
+                                                                                                     │   …/opencode-console/.text/tmpyjhvtpkn/project    ● connected · localhost:54095  ctrl+x l sessions

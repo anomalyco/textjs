@@ -1,0 +1,288 @@
+{
+  "120x40": {
+    "agents": {
+      "real": {
+        "glyph": 543,
+        "fg": 624,
+        "bg": 4800,
+        "attrs": 121
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "commands": {
+      "real": {
+        "glyph": 747,
+        "fg": 756,
+        "bg": 4800,
+        "attrs": 55
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "home": {
+      "real": {
+        "glyph": 193,
+        "fg": 305,
+        "bg": 296,
+        "attrs": 1
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "models": {
+      "real": {
+        "glyph": 634,
+        "fg": 638,
+        "bg": 4800,
+        "attrs": 54
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "session": {
+      "real": {
+        "glyph": 759,
+        "fg": 688,
+        "bg": 1781,
+        "attrs": 58
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "sessions": {
+      "real": {
+        "glyph": 565,
+        "fg": 566,
+        "bg": 4800,
+        "attrs": 60
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    }
+  },
+  "100x32": {
+    "agents": {
+      "real": {
+        "glyph": 720,
+        "fg": 723,
+        "bg": 3200,
+        "attrs": 144
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "commands": {
+      "real": {
+        "glyph": 703,
+        "fg": 704,
+        "bg": 3200,
+        "attrs": 67
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "home": {
+      "real": {
+        "glyph": 533,
+        "fg": 465,
+        "bg": 440,
+        "attrs": 29
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "models": {
+      "real": {
+        "glyph": 629,
+        "fg": 635,
+        "bg": 3200,
+        "attrs": 44
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "permission": {
+      "real": {
+        "glyph": 321,
+        "fg": 322,
+        "bg": 705,
+        "attrs": 36
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "question": {
+      "real": {
+        "glyph": 297,
+        "fg": 298,
+        "bg": 623,
+        "attrs": 33
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "session": {
+      "real": {
+        "glyph": 619,
+        "fg": 617,
+        "bg": 2132,
+        "attrs": 52
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "sessions": {
+      "real": {
+        "glyph": 625,
+        "fg": 619,
+        "bg": 3200,
+        "attrs": 84
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    }
+  },
+  "80x24": {
+    "agents": {
+      "real": {
+        "glyph": 653,
+        "fg": 657,
+        "bg": 1920,
+        "attrs": 165
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "commands": {
+      "real": {
+        "glyph": 558,
+        "fg": 557,
+        "bg": 1920,
+        "attrs": 60
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "home": {
+      "real": {
+        "glyph": 520,
+        "fg": 452,
+        "bg": 440,
+        "attrs": 29
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "models": {
+      "real": {
+        "glyph": 581,
+        "fg": 586,
+        "bg": 1920,
+        "attrs": 62
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "session": {
+      "real": {
+        "glyph": 582,
+        "fg": 542,
+        "bg": 1021,
+        "attrs": 39
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    },
+    "sessions": {
+      "real": {
+        "glyph": 475,
+        "fg": 476,
+        "bg": 1920,
+        "attrs": 85
+      },
+      "textjs": {
+        "glyph": 0,
+        "fg": 0,
+        "bg": 0,
+        "attrs": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+OpenCode TUI                                                                                         │ Text.js (text mcp)
+   Parity fixture                + New session                                                       │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+          Sessions for project                                                         esc           │
+                                                                                                     │                                                                 ▄
+          Search                                                                                     │                                █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+                                                                                                     │                 ╭─  Switch session  ───────────────────────────────────────────────╮
+          Today                                                                                      │                 │                                                                  │
+          Question fixture                                                                           │                 │  / Search sessions…                                              │
+          Permission fixture                                                                         │                 │  › Question fixture                                    just now  │
+          Parity fixture                                                                             │              ┃  │    Permission fixture                                  just now  │
+          Capture seed                                                                               │              ┃  │    Parity fixture                                      just now  │
+                                                                                                     │              ┃  │    Capture seed                                        just now  │
+          delete ctrl+d  rename ctrl+r                                 all projects ctrl+a           │              ┃  │                                                                  │ds
+                                                                                                     │              ╹▀▀╰────────────────────────────  ↑↓ select · enter run · esc close  ─╯▀▀▀▀
+             ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀             │
+             ~/project:master                          shift+tab agents  ctrl+p commands             │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                     0.0.0-dev-233   │
+                                                                                                     │   …/opencode-console/.text/tmpyjhvtpkn/project    ● connected · localhost:54095  ctrl+x l sessions

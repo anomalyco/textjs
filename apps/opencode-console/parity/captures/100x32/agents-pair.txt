@@ -1,0 +1,33 @@
+OpenCode TUI                                                                                         │ Text.js (text mcp)
+   Parity fixture                + New session                                                       │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                        Select agent                                     esc                         │
+                                                                                                     │                                                                 ▄
+                        Search                                                                       │                                █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+                                                                                                     │                                █  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
+                      ● build The default agent. Executes tools based on con                         │                 ╭─  Switch agent  ─────────────────────────────────────────────────╮
+                        plan Read-only agent for exploring the codebase and                          │                 │                                                                  │
+                                                                                                     │                 │  / Type a command or session…                                    │
+                                                                                                     │              ┃  │  › Build ●  The default agent. Executes tools based on configu…  │
+             ┃                                                                                       │              ┃  │    Plan  Read-only agent for exploring the codebase and planni…  │
+             ┃  Ask anything… "Fix broken tests"                                                     │              ┃  │                                                                  │
+             ┃                                                                                       │              ┃  ╰────────────────────────────  ↑↓ select · enter run · esc close  ─╯ds
+             ┃  Build · Big Pickle OpenCode                                                          │              ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+             ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀             │
+             ~/project:master                          shift+tab agents  ctrl+p commands             │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                     0.0.0-dev-233   │
+                                                                                                     │   …/opencode-console/.text/tmpyjhvtpkn/project    ● connected · localhost:54095  ctrl+x l sessions

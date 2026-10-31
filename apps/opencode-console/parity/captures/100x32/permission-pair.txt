@@ -1,0 +1,33 @@
+OpenCode TUI                                                                                         │ Text.js (text mcp)
+   Parity fixture                ! Permission fixture            +                                   │   Permission fixture                                                 ● connected · localhost:54095
+                                                                                                     │
+                                                                                                     │      No messages yet.
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+  ┃                                                                                                  │
+  ┃  △ Permission required                                                                           │
+  ┃                                                                                                  │
+  ┃  - echo fixture                                                                                  │
+  ┃                                                                                                  │   ┃
+  ┃                                                                                                  │   ┃
+  ┃   Allow once   Always allow   Reject             ctrl+f fullscreen  ⇆ select  enter confirm      │   ┃
+  ┃                                                                                                  │   ┃  Build · Big Pickle OpenCode                              shift+tab agents · ctrl+p commands
+                                                                                                     │   ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
