@@ -6,7 +6,7 @@
   "license": "MIT",
   "homepage": "https://textjs.org",
   "bin": {
-    "create-text-app": "./bin/create-text-app.js"
+    "create-text-app": "bin/create-text-app.js"
   },
   "main": "./src/index.ts",
   "types": "./src/index.ts",

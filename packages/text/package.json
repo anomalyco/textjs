@@ -8,7 +8,7 @@
   "homepage": "https://textjs.org",
   "keywords": ["react", "console", "devtools", "tui", "framework", "app-router"],
   "bin": {
-    "text": "./bin/text.js"
+    "text": "bin/text.js"
   },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
