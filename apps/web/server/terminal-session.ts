@@ -12,19 +12,27 @@
  * Why server-side: the API's CORS reply (`Access-Control-Allow-Headers: *`) doesn't cover
  * `Authorization` (browsers never let `*` stand for it), so the page can't call the API with
  * a bearer token itself. Since requests go through here anyway, the tokens live in an
- * httpOnly cookie scoped to /api/terminal and page JavaScript never sees one.
+ * httpOnly cookie and page JavaScript never sees one.
+ *
+ * Cookies are `__Host-` (no `Domain`, `Path=/`, `Secure`), so no other *.textjs.org host can
+ * plant or shadow them, and their values are sealed with AES-256-GCM (key from
+ * `TERMINAL_COOKIE_SECRET`, cookie name in the AAD), so they can't be read or forged.
  *
  * Terminal's OpenAuth issuer takes public clients: the token endpoint checks `client_id`,
  * `redirect_uri` and the PKCE verifier, never a client secret, so there is no secret here.
  * Nothing in this module logs; tokens never appear in URLs, logs or response bodies.
  */
 
+import { safeEntryPath, type SigninError } from "@textjs/terminal-shop/entry";
+
 export type TerminalEnv = "dev" | "prod";
 
 export interface SessionConfig {
   /** Client id of the registered Terminal OAuth app (`ssh terminal.shop -t apps`). */
   TERMINAL_CLIENT_ID?: string;
-  /** Which Terminal to talk to: `prod` (default) or `dev` (the sandbox, for previews). */
+  /** At least 32 random bytes (e.g. `openssl rand -base64 32`). Seals the cookies. Required off localhost. */
+  TERMINAL_COOKIE_SECRET?: string;
+  /** Which Terminal to talk to: `prod` (default) or `dev` (the sandbox, for previews). Anything else fails closed. */
   TERMINAL_ENVIRONMENT?: string;
   /** Override the upstream API / auth server (local e2e against a mock only). */
   TERMINAL_API_URL?: string;
@@ -49,13 +57,20 @@ export const PAGE_PATH = "/terminal";
 /** Client id used on loopback hosts when none is configured: Terminal accepts any id for localhost redirects. */
 export const LOCAL_CLIENT_ID = "textjs-local";
 export const MAX_BODY_BYTES = 64 * 1024;
+/** Browsers drop a `Set-Cookie` larger than this (name, value and attributes). */
+export const MAX_COOKIE_BYTES = 4096;
+export const MIN_SECRET_LENGTH = 32;
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30;
 const OAUTH_MAX_AGE = 60 * 10;
 /** Refresh this long before the access token expires. */
 const REFRESH_SKEW_MS = 60_000;
 
 const ID = "[A-Za-z0-9_-]{1,64}";
-/** The Terminal API routes the shop uses (`apps/terminal-shop/lib/api.ts`), and nothing else. */
+/**
+ * The Terminal API routes the shop uses (`apps/terminal-shop/lib/api.ts`), and nothing else.
+ * Nothing that mints a long-lived credential (`POST /token`, `POST /app`) is reachable from
+ * the page: those stay in the ssh shop.
+ */
 export const ROUTES: ReadonlyArray<{ method: string; path: RegExp; public?: boolean }> = [
   { method: "GET", path: /^\/product$/, public: true },
   { method: "GET", path: new RegExp(`^/product/${ID}$`), public: true },
@@ -81,10 +96,8 @@ export const ROUTES: ReadonlyArray<{ method: string; path: RegExp; public?: bool
   { method: "PUT", path: new RegExp(`^/subscription/${ID}$`) },
   { method: "DELETE", path: new RegExp(`^/subscription/${ID}$`) },
   { method: "GET", path: /^\/token$/ },
-  { method: "POST", path: /^\/token$/ },
   { method: "DELETE", path: new RegExp(`^/token/${ID}$`) },
   { method: "GET", path: /^\/app$/ },
-  { method: "POST", path: /^\/app$/ },
   { method: "DELETE", path: new RegExp(`^/app/${ID}$`) },
 ];
 
@@ -93,10 +106,13 @@ export function matchRoute(method: string, path: string): { public: boolean } | 
   return null;
 }
 
-const FORWARD_REQUEST_HEADERS = ["accept", "content-type", "idempotency-key", "x-terminal-region"];
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-// ── PKCE + encoding ─────────────────────────────────────────────────────────
+export function isLoopbackHost(hostname: string): boolean {
+  return LOOPBACK.has(hostname.toLowerCase());
+}
+
+// ── encoding, PKCE ──────────────────────────────────────────────────────────
 
 export function base64url(bytes: Uint8Array): string {
   let s = "";
@@ -104,9 +120,9 @@ export function base64url(bytes: Uint8Array): string {
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function fromBase64url(s: string): string {
+function fromBase64url(s: string): Uint8Array {
   const b = atob(s.replace(/-/g, "+").replace(/_/g, "/"));
-  return new TextDecoder().decode(Uint8Array.from(b, (c) => c.charCodeAt(0)));
+  return Uint8Array.from(b, (c) => c.charCodeAt(0));
 }
 
 export function randomToken(bytes = 32): string {
@@ -118,19 +134,6 @@ export async function pkceChallenge(verifier: string): Promise<string> {
   return base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
 }
 
-function encodeJSON(value: unknown): string {
-  return base64url(new TextEncoder().encode(JSON.stringify(value)));
-}
-
-function decodeJSON<T>(value: string | undefined): T | null {
-  if (!value || value.length > 8192) return null;
-  try {
-    return JSON.parse(fromBase64url(value)) as T;
-  } catch {
-    return null;
-  }
-}
-
 /** Constant-time string comparison. */
 export function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -139,7 +142,55 @@ export function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-// ── cookies ─────────────────────────────────────────────────────────────────
+// ── sealed cookies (AES-256-GCM) ────────────────────────────────────────────
+
+const keys = new Map<string, Promise<CryptoKey>>();
+/** Local dev/preview/tests without a configured secret: a random key per isolate. */
+const EPHEMERAL_SECRET = randomToken(32);
+
+/** HKDF-SHA-256 → AES-256-GCM, so any ≥32-character high-entropy secret works. */
+function cookieKey(secret: string): Promise<CryptoKey> {
+  let key = keys.get(secret);
+  if (!key) {
+    key = crypto.subtle
+      .importKey("raw", new TextEncoder().encode(secret), "HKDF", false, ["deriveKey"])
+      .then((base) =>
+        crypto.subtle.deriveKey(
+          { name: "HKDF", hash: "SHA-256", salt: new TextEncoder().encode("textjs.org/terminal"), info: new TextEncoder().encode("cookie v1") },
+          base,
+          { name: "AES-GCM", length: 256 },
+          false,
+          ["encrypt", "decrypt"],
+        ),
+      );
+    keys.set(secret, key);
+  }
+  return key;
+}
+
+const aad = (name: string): Uint8Array<ArrayBuffer> => new TextEncoder().encode(`textjs-terminal:${name}`);
+
+/** `v1.` + base64url(iv ‖ ciphertext ‖ tag), with the cookie name as additional data. */
+export async function seal(secret: string, name: string, value: unknown): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: aad(name) }, await cookieKey(secret), new TextEncoder().encode(JSON.stringify(value))));
+  const out = new Uint8Array(iv.length + ct.length);
+  out.set(iv);
+  out.set(ct, iv.length);
+  return `v1.${base64url(out)}`;
+}
+
+export async function unseal<T>(secret: string, name: string, raw: string): Promise<T | null> {
+  if (!raw.startsWith("v1.") || raw.length > MAX_COOKIE_BYTES) return null;
+  try {
+    const bytes = fromBase64url(raw.slice(3));
+    if (bytes.length < 12 + 16) return null;
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.slice(0, 12), additionalData: aad(name) }, await cookieKey(secret), bytes.slice(12));
+    return JSON.parse(new TextDecoder().decode(pt)) as T;
+  } catch {
+    return null;
+  }
+}
 
 export interface StoredSession {
   /** Access token. */
@@ -149,6 +200,8 @@ export interface StoredSession {
   /** Access token expiry, epoch ms. */
   x?: number;
   e: TerminalEnv;
+  /** When you signed in, epoch ms. */
+  i: number;
 }
 
 export interface PendingSignIn {
@@ -158,52 +211,42 @@ export interface PendingSignIn {
   s: string;
   /** In-app path to return to. */
   r: string;
-  /** Redirect URI sent to /authorize (the token request must repeat it). */
-  u: string;
   e: TerminalEnv;
+  /** Started at, epoch ms. */
+  i: number;
 }
 
-function secureOrigin(url: URL): boolean {
-  return url.protocol === "https:";
-}
-
-/** `__Secure-` names and the `Secure` attribute on https; plain names on http://localhost. */
+/** `__Host-` names on https (no Domain, Path=/, Secure); plain names on http://localhost. */
 export function cookieNames(url: URL): { session: string; oauth: string } {
-  const p = secureOrigin(url) ? "__Secure-" : "";
+  const p = url.protocol === "https:" ? "__Host-" : "";
   return { session: `${p}trm_session`, oauth: `${p}trm_oauth` };
 }
 
-function serializeCookie(url: URL, name: string, value: string, path: string, maxAge: number): string {
-  const parts = [`${name}=${value}`, `Path=${path}`, `Max-Age=${maxAge}`, "HttpOnly", "SameSite=Lax"];
-  if (secureOrigin(url)) parts.push("Secure");
+function serializeCookie(url: URL, name: string, value: string, maxAge: number): string {
+  const parts = [`${name}=${value}`, "Path=/", `Max-Age=${maxAge}`, "HttpOnly", "SameSite=Lax"];
+  if (url.protocol === "https:") parts.push("Secure");
   return parts.join("; ");
 }
 
-export function readCookie(request: Request, name: string): string | undefined {
+/** Every value sent under `name` (a planted duplicate must not shadow the real one). */
+export function readCookies(request: Request, name: string): string[] {
   const header = request.headers.get("cookie");
-  if (!header) return undefined;
+  if (!header) return [];
+  const out: string[] = [];
   for (const part of header.split(";")) {
     const i = part.indexOf("=");
-    if (i < 0) continue;
-    if (part.slice(0, i).trim() === name) return part.slice(i + 1).trim();
+    if (i >= 0 && part.slice(0, i).trim() === name) out.push(part.slice(i + 1).trim());
   }
-  return undefined;
+  return out;
 }
 
-function readSession(request: Request, url: URL, env: TerminalEnv): StoredSession | null {
-  const s = decodeJSON<StoredSession>(readCookie(request, cookieNames(url).session));
-  if (!s || typeof s.a !== "string" || !s.a || s.e !== env) return null;
-  return s;
-}
-
-function sessionCookie(url: URL, session: StoredSession | null): string {
-  const name = cookieNames(url).session;
-  return session ? serializeCookie(url, name, encodeJSON(session), API_PREFIX, SESSION_MAX_AGE) : serializeCookie(url, name, "", API_PREFIX, 0);
-}
-
-function oauthCookie(url: URL, pending: PendingSignIn | null): string {
-  const name = cookieNames(url).oauth;
-  return pending ? serializeCookie(url, name, encodeJSON(pending), CALLBACK_PATH, OAUTH_MAX_AGE) : serializeCookie(url, name, "", CALLBACK_PATH, 0);
+/** The first value under `name` that unseals and passes `valid`. */
+async function openCookie<T>(request: Request, secret: string, name: string, valid: (v: T) => boolean): Promise<T | null> {
+  for (const raw of readCookies(request, name).slice(0, 8)) {
+    const v = await unseal<T>(secret, name, raw);
+    if (v && valid(v)) return v;
+  }
+  return null;
 }
 
 // ── config ──────────────────────────────────────────────────────────────────
@@ -214,63 +257,124 @@ export interface ResolvedConfig {
   auth: string;
   label: string;
   clientId: string | null;
+  /** Seals cookies; `null` off localhost without `TERMINAL_COOKIE_SECRET` (sessions disabled). */
+  secret: string | null;
+  /** `TERMINAL_ENVIRONMENT` was set to something unknown: refuse to proxy. */
+  misconfigured: boolean;
 }
 
 export function resolveConfig(config: SessionConfig, url: URL): ResolvedConfig {
-  const env: TerminalEnv = config.TERMINAL_ENVIRONMENT?.trim() === "dev" ? "dev" : "prod";
+  const raw = config.TERMINAL_ENVIRONMENT?.trim() ?? "";
+  const misconfigured = raw !== "" && raw !== "prod" && raw !== "dev";
+  const env: TerminalEnv = raw === "dev" ? "dev" : "prod";
   const up = UPSTREAMS[env];
   const trim = (v: string | undefined): string | undefined => (v && v.trim() ? v.trim().replace(/\/+$/, "") : undefined);
+  const local = isLoopbackHost(url.hostname);
   const id = config.TERMINAL_CLIENT_ID?.trim();
+  const secret = config.TERMINAL_COOKIE_SECRET?.trim();
   return {
     env,
     api: trim(config.TERMINAL_API_URL) ?? up.api,
     auth: trim(config.TERMINAL_AUTH_URL) ?? up.auth,
     label: up.label,
-    clientId: id ? id : LOOPBACK.has(url.hostname) ? LOCAL_CLIENT_ID : null,
+    clientId: misconfigured ? null : id ? id : local ? LOCAL_CLIENT_ID : null,
+    secret: secret && secret.length >= MIN_SECRET_LENGTH ? secret : local ? EPHEMERAL_SECRET : null,
+    misconfigured,
   };
 }
 
-/** Only same-origin in-app paths survive the round trip (no open redirects). */
-export function safeReturnPath(value: string | null): string {
-  if (!value || value.length > 200 || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "/shop";
-  return /^\/[A-Za-z0-9/_\-.?=&%]*$/.test(value) ? value : "/shop";
-}
+/** Sign in works only with a client id and a cookie key. */
+const canSignIn = (cfg: ResolvedConfig): boolean => !!cfg.clientId && !!cfg.secret;
 
 // ── responses ───────────────────────────────────────────────────────────────
 
-const NO_STORE = { "cache-control": "no-store", "referrer-policy": "no-referrer" };
+/** On every response from these Functions. */
+export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
+  "cache-control": "private, no-store",
+  "referrer-policy": "no-referrer",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+  "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+};
+
+function headersWith(cookies: string[], extra: Record<string, string> = {}): Headers {
+  const headers = new Headers({ ...SECURITY_HEADERS, ...extra });
+  for (const c of cookies) headers.append("set-cookie", c);
+  return headers;
+}
 
 function json(body: unknown, status = 200, cookies: string[] = []): Response {
-  const headers = new Headers({ ...NO_STORE, "content-type": "application/json; charset=utf-8" });
-  for (const c of cookies) headers.append("set-cookie", c);
-  return new Response(JSON.stringify(body), { status, headers });
+  return new Response(JSON.stringify(body), { status, headers: headersWith(cookies, { "content-type": "application/json; charset=utf-8" }) });
 }
 
 function redirect(location: string, cookies: string[] = []): Response {
-  const headers = new Headers({ ...NO_STORE, location });
-  for (const c of cookies) headers.append("set-cookie", c);
-  return new Response(null, { status: 302, headers });
+  return new Response(null, { status: 302, headers: headersWith(cookies, { location }) });
 }
 
 const fail = (status: number, code: string, message: string, cookies: string[] = []): Response => json({ type: "error", code, message }, status, cookies);
 
-/** Where the page opens after the callback: `/terminal`, plus `?at=` / `?signin_error=`. */
+/** Where the page opens after the callback: `/terminal`, plus `?at=` / `?signin_error=<code>`. */
 function pageUrl(params: Record<string, string> = {}): string {
   const q = new URLSearchParams(params).toString();
   return q ? `${PAGE_PATH}?${q}` : PAGE_PATH;
 }
 
-/** Cross-site reads and writes are refused; writes also need our client header (CSRF). */
+const signinFailed = (code: SigninError, cookies: string[] = []): Response => redirect(pageUrl({ signin_error: code }), cookies);
+
+/** Cross-site requests are refused; writes also need our Origin and client header (CSRF). */
 function guard(request: Request, url: URL, write: boolean): Response | null {
   const site = request.headers.get("sec-fetch-site");
   if (site !== null && site !== "same-origin" && site !== "none") return fail(403, "cross_site", "cross-site requests are not allowed");
   if (write) {
-    const origin = request.headers.get("origin");
-    if (origin !== url.origin) return fail(403, "bad_origin", "origin not allowed");
+    if (request.headers.get("origin") !== url.origin) return fail(403, "bad_origin", "origin not allowed");
     if (request.headers.get("x-terminal-client") !== "1") return fail(403, "missing_client_header", "missing x-terminal-client header");
   }
   return null;
 }
+
+/** Reads at most `max` bytes, whatever `content-length` says (chunked bodies included). */
+export async function readBounded(request: Request, max = MAX_BODY_BYTES): Promise<ArrayBuffer | null> {
+  if (Number(request.headers.get("content-length") ?? 0) > max) return null;
+  if (!request.body) return new ArrayBuffer(0);
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.byteLength;
+  }
+  return out.buffer;
+}
+
+// ── sessions ────────────────────────────────────────────────────────────────
+
+async function readSession(request: Request, url: URL, cfg: ResolvedConfig, now: number): Promise<StoredSession | null> {
+  if (!cfg.secret) return null;
+  return openCookie<StoredSession>(request, cfg.secret, cookieNames(url).session, (s) => typeof s.a === "string" && !!s.a && s.e === cfg.env && typeof s.i === "number" && now - s.i < SESSION_MAX_AGE * 1000);
+}
+
+/** The `Set-Cookie` for `session`, or `null` if a browser would drop it for size. */
+export async function sessionCookie(url: URL, cfg: ResolvedConfig, session: StoredSession): Promise<string | null> {
+  if (!cfg.secret) return null;
+  const name = cookieNames(url).session;
+  const cookie = serializeCookie(url, name, await seal(cfg.secret, name, session), SESSION_MAX_AGE);
+  return new TextEncoder().encode(cookie).byteLength <= MAX_COOKIE_BYTES ? cookie : null;
+}
+
+const clearSession = (url: URL): string => serializeCookie(url, cookieNames(url).session, "", 0);
+const clearOAuth = (url: URL): string => serializeCookie(url, cookieNames(url).oauth, "", 0);
 
 // ── token endpoint ──────────────────────────────────────────────────────────
 
@@ -278,11 +382,12 @@ interface TokenReply {
   access_token?: string;
   refresh_token?: string;
   expires_in?: number;
-  error?: string;
-  error_description?: string;
 }
 
-async function tokenRequest(cfg: ResolvedConfig, form: Record<string, string>, doFetch: Fetch, now: number): Promise<StoredSession | { error: string }> {
+type TokenResult = { ok: true; session: StoredSession } | { ok: false; permanent: boolean };
+
+/** `permanent`: Terminal refused the grant (4xx other than 429). Network errors, 5xx and 429 are transient. */
+async function tokenRequest(cfg: ResolvedConfig, form: Record<string, string>, doFetch: Fetch, now: number, signedInAt: number): Promise<TokenResult> {
   let res: Response;
   try {
     res = await doFetch(`${cfg.auth}/token`, {
@@ -292,101 +397,179 @@ async function tokenRequest(cfg: ResolvedConfig, form: Record<string, string>, d
       redirect: "manual",
     });
   } catch {
-    return { error: "couldn't reach terminal's sign in server, try again" };
+    return { ok: false, permanent: false };
   }
   const reply = (await res.json().catch(() => ({}))) as TokenReply;
   if (!res.ok || typeof reply.access_token !== "string" || !reply.access_token) {
-    return { error: reply.error_description || reply.error || `sign in failed (${res.status})` };
+    return { ok: false, permanent: res.status >= 400 && res.status < 500 && res.status !== 429 };
   }
   return {
-    a: reply.access_token,
-    r: typeof reply.refresh_token === "string" ? reply.refresh_token : undefined,
-    x: typeof reply.expires_in === "number" ? now + reply.expires_in * 1000 : undefined,
-    e: cfg.env,
+    ok: true,
+    session: {
+      a: reply.access_token,
+      r: typeof reply.refresh_token === "string" ? reply.refresh_token : undefined,
+      x: typeof reply.expires_in === "number" ? now + reply.expires_in * 1000 : undefined,
+      e: cfg.env,
+      i: signedInAt,
+    },
   };
 }
 
-async function refreshSession(cfg: ResolvedConfig, session: StoredSession, doFetch: Fetch, now: number): Promise<StoredSession | null> {
-  if (!session.r || !cfg.clientId) return null;
-  const next = await tokenRequest(cfg, { grant_type: "refresh_token", refresh_token: session.r, client_id: cfg.clientId }, doFetch, now);
-  if ("error" in next) return null;
-  return { ...next, r: next.r ?? session.r };
-}
+/** One refresh per refresh token at a time in this isolate (parallel requests share it). */
+const inflight = new Map<string, Promise<TokenResult>>();
 
-/** Loopback / private addresses (local `wrangler pages dev`) make the API's region lookup return no products. */
-export function isPublicIp(ip: string): boolean {
-  const v = ip.trim().toLowerCase();
-  if (v.includes(":")) return !(v === "::1" || v.startsWith("fc") || v.startsWith("fd") || v.startsWith("fe80") || v.startsWith("::ffff:127.") || v === "::");
-  const m = /^(\d+)\.(\d+)\.\d+\.\d+$/.exec(v);
-  if (!m) return false;
-  const a = Number(m[1]);
-  const b = Number(m[2]);
-  return !(a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127));
+function refreshSession(cfg: ResolvedConfig, session: StoredSession, doFetch: Fetch, now: number): Promise<TokenResult> {
+  const refresh = session.r;
+  if (!refresh || !cfg.clientId) return Promise.resolve({ ok: false, permanent: true });
+  const clientId = cfg.clientId;
+  let pending = inflight.get(refresh);
+  if (!pending) {
+    pending = tokenRequest(cfg, { grant_type: "refresh_token", refresh_token: refresh, client_id: clientId }, doFetch, now, session.i)
+      .then((r): TokenResult => (r.ok ? { ok: true, session: { ...r.session, r: r.session.r ?? refresh } } : r))
+      .finally(() => inflight.delete(refresh));
+    inflight.set(refresh, pending);
+  }
+  return pending;
 }
 
 // ── handlers ────────────────────────────────────────────────────────────────
 
-async function login(request: Request, url: URL, cfg: ResolvedConfig): Promise<Response> {
+async function login(request: Request, url: URL, cfg: ResolvedConfig, now: number): Promise<Response> {
   const denied = guard(request, url, false);
   if (denied) return denied;
-  if (!cfg.clientId) return redirect(pageUrl({ signin_error: "sign in isn't set up on this deployment yet" }));
+  if (!canSignIn(cfg) || !cfg.secret || !cfg.clientId) return signinFailed("unconfigured");
   const verifier = randomToken(32);
   const state = randomToken(16);
-  const redirectUri = `${url.origin}${CALLBACK_PATH}`;
-  const pending: PendingSignIn = { v: verifier, s: state, r: safeReturnPath(url.searchParams.get("return")), u: redirectUri, e: cfg.env };
+  const pending: PendingSignIn = { v: verifier, s: state, r: safeEntryPath(url.searchParams.get("return")), e: cfg.env, i: now };
   const authorize = new URL(`${cfg.auth}/authorize`);
   authorize.search = new URLSearchParams({
     client_id: cfg.clientId,
-    redirect_uri: redirectUri,
+    redirect_uri: `${url.origin}${CALLBACK_PATH}`,
     response_type: "code",
     state,
     code_challenge: await pkceChallenge(verifier),
     code_challenge_method: "S256",
   }).toString();
-  return redirect(authorize.toString(), [oauthCookie(url, pending)]);
+  const name = cookieNames(url).oauth;
+  return redirect(authorize.toString(), [serializeCookie(url, name, await seal(cfg.secret, name, pending), OAUTH_MAX_AGE)]);
 }
 
-/** Messages for the errors OpenAuth sends back to the redirect URI. */
-export function describeAuthError(error: string, description: string | null): string {
-  if (error === "unauthorized_client") return "terminal doesn't accept sign in from this site yet (its oauth app isn't registered for this address)";
-  if (error === "access_denied") return "sign in was cancelled";
-  return (description || error).slice(0, 200);
+/** OpenAuth's `error` → one of our fixed codes. */
+export function authErrorCode(error: string): SigninError {
+  if (error === "unauthorized_client") return "unauthorized_client";
+  if (error === "access_denied") return "cancelled";
+  return "exchange_failed";
 }
 
 async function callback(request: Request, url: URL, cfg: ResolvedConfig, doFetch: Fetch, now: number): Promise<Response> {
-  const clear = oauthCookie(url, null);
-  const failWith = (message: string): Response => redirect(pageUrl({ signin_error: message }), [clear]);
-  const pending = decodeJSON<PendingSignIn>(readCookie(request, cookieNames(url).oauth));
-  const error = url.searchParams.get("error");
-  if (error) return failWith(describeAuthError(error, url.searchParams.get("error_description")));
-  if (!pending || typeof pending.v !== "string" || typeof pending.s !== "string" || typeof pending.u !== "string") return failWith("that sign in expired, try again");
+  if (!canSignIn(cfg) || !cfg.secret || !cfg.clientId) return signinFailed("unconfigured", [clearOAuth(url)]);
+  const pending = await openCookie<PendingSignIn>(
+    request,
+    cfg.secret,
+    cookieNames(url).oauth,
+    (p) => typeof p.v === "string" && typeof p.s === "string" && typeof p.i === "number" && now - p.i <= OAUTH_MAX_AGE * 1000,
+  );
   const state = url.searchParams.get("state") ?? "";
-  if (!safeEqual(state, pending.s)) return failWith("sign in state didn't match, try again");
-  if (pending.e !== cfg.env || !cfg.clientId) return failWith("sign in isn't set up on this deployment yet");
+  const stateOk = !!pending && safeEqual(state, pending.s);
+  // A request without our state (anyone can link here) may show a fixed message, but
+  // never cancels a sign in that's in progress.
+  const clear = stateOk ? [clearOAuth(url)] : [];
+  const error = url.searchParams.get("error");
+  if (error) return signinFailed(authErrorCode(error), clear);
+  if (!pending) return signinFailed("expired", [clearOAuth(url)]);
+  if (!stateOk) return signinFailed("state_mismatch");
+  if (pending.e !== cfg.env) return signinFailed("expired", clear);
   const code = url.searchParams.get("code");
-  if (!code) return failWith("terminal didn't send an authorization code, try again");
-  const session = await tokenRequest(
+  if (!code) return signinFailed("exchange_failed", clear);
+  const result = await tokenRequest(
     cfg,
-    { grant_type: "authorization_code", code, redirect_uri: pending.u, client_id: cfg.clientId, code_verifier: pending.v },
+    { grant_type: "authorization_code", code, redirect_uri: `${url.origin}${CALLBACK_PATH}`, client_id: cfg.clientId, code_verifier: pending.v },
     doFetch,
     now,
+    now,
   );
-  if ("error" in session) return failWith(session.error.slice(0, 200));
-  const back = safeReturnPath(pending.r);
-  return redirect(pageUrl(back === "/shop" ? {} : { at: back }), [clear, sessionCookie(url, session)]);
+  if (!result.ok) return signinFailed(result.permanent ? "exchange_failed" : "unreachable", clear);
+  const cookie = await sessionCookie(url, cfg, result.session);
+  if (!cookie) return signinFailed("session_too_large", clear);
+  const back = safeEntryPath(pending.r);
+  return redirect(pageUrl(back === "/shop" ? {} : { at: back }), [...clear, cookie]);
 }
 
-function status(request: Request, url: URL, cfg: ResolvedConfig, now: number): Response {
-  const session = readSession(request, url, cfg.env);
+async function status(request: Request, url: URL, cfg: ResolvedConfig, now: number): Promise<Response> {
+  const denied = guard(request, url, false);
+  if (denied) return denied;
+  const session = await readSession(request, url, cfg, now);
   const signedIn = !!session && (!!session.r || !session.x || session.x > now);
-  const environment = (e: TerminalEnv) => ({ label: UPSTREAMS[e].label, api: e === cfg.env ? cfg.api : UPSTREAMS[e].api, enabled: e === cfg.env, serverToken: false });
-  const environments = { prod: environment("prod"), dev: environment("dev") };
+  const environment = (e: TerminalEnv) => ({ label: UPSTREAMS[e].label, api: e === cfg.env ? cfg.api : UPSTREAMS[e].api, enabled: e === cfg.env && !cfg.misconfigured, serverToken: false });
   return json({
     mode: "site",
     defaultEnv: cfg.env,
-    environments,
-    session: { signedIn, configured: !!cfg.clientId, signInUrl: `${API_PREFIX}/login`, signOutUrl: `${API_PREFIX}/logout` },
+    environments: { prod: environment("prod"), dev: environment("dev") },
+    session: { signedIn, configured: canSignIn(cfg), signInUrl: `${API_PREFIX}/login`, signOutUrl: `${API_PREFIX}/logout` },
   });
+}
+
+/** Loopback, private, reserved and documentation addresses make the API's region lookup return no products. */
+export function isPublicIp(ip: string): boolean {
+  const v = ip.trim().toLowerCase();
+  const v4 = (s: string): number[] | null => {
+    const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(s);
+    if (!m) return null;
+    const o = m.slice(1).map(Number);
+    return o.every((n) => n <= 255) ? o : null;
+  };
+  const public4 = ([a, b, c]: number[]): boolean =>
+    !(
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      a! >= 224 ||
+      (a === 100 && b! >= 64 && b! <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b! >= 16 && b! <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 192 && b === 0 && (c === 0 || c === 2)) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      (a === 198 && b === 51 && c === 100) ||
+      (a === 203 && b === 0 && c === 113)
+    );
+  const four = v4(v);
+  if (four) return public4(four);
+  if (!/^[0-9a-f:.]+$/.test(v) || !v.includes(":") || (v.match(/::/g) ?? []).length > 1) return false;
+  // IPv4-mapped (::ffff:a.b.c.d or ::ffff:7f00:1) is judged as IPv4.
+  const mapped = /^::ffff:(.+)$/.exec(v);
+  if (mapped) {
+    const dotted = v4(mapped[1] as string);
+    if (dotted) return public4(dotted);
+    const hex = /^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(mapped[1] as string);
+    if (!hex) return false;
+    const hi = parseInt(hex[1] as string, 16);
+    const lo = parseInt(hex[2] as string, 16);
+    return public4([hi >> 8, hi & 255, lo >> 8, lo & 255]);
+  }
+  const groups = v.split(":");
+  if (groups.some((g) => g.length > 4) || groups.length > 8) return false;
+  if (groups.length < 8 && !v.includes("::")) return false;
+  const first = parseInt(groups[0] || "0", 16);
+  // Global unicast is 2000::/3; 2001:db8::/32 is documentation.
+  if ((first & 0xe000) !== 0x2000) return false;
+  return !(first === 0x2001 && parseInt(groups[1] || "0", 16) === 0x0db8);
+}
+
+const JSON_TYPE = /^application\/([a-z0-9.+-]*\+)?json(\s*;.*)?$/i;
+
+/** Forwarded request headers, validated (anything else is dropped). */
+function upstreamHeaders(request: Request, write: boolean): Headers {
+  const headers = new Headers({ accept: "application/json" });
+  if (write) headers.set("content-type", "application/json");
+  const region = request.headers.get("x-terminal-region");
+  if (region && /^(na|eu|global)$/.test(region)) headers.set("x-terminal-region", region);
+  const key = request.headers.get("idempotency-key");
+  if (key && /^[A-Za-z0-9_-]{1,128}$/.test(key)) headers.set("idempotency-key", key);
+  // Region detection: the API reads the visitor's IP from this header when it's present.
+  const ip = request.headers.get("cf-connecting-ip");
+  if (ip && isPublicIp(ip)) headers.set("x-terminal-ip", ip);
+  return headers;
 }
 
 async function proxy(request: Request, url: URL, cfg: ResolvedConfig, env: string, path: string, doFetch: Fetch, now: number): Promise<Response> {
@@ -394,57 +577,76 @@ async function proxy(request: Request, url: URL, cfg: ResolvedConfig, env: strin
   const write = method !== "GET" && method !== "HEAD";
   const denied = guard(request, url, write);
   if (denied) return denied;
+  if (cfg.misconfigured) return fail(503, "misconfigured", "this deployment's terminal environment is misconfigured");
   if (env !== cfg.env) return fail(403, "environment_disabled", `this site only connects to ${cfg.label}`);
   if (path.includes("..") || path.includes("//")) return fail(400, "invalid_path", "invalid path");
   const route = matchRoute(method === "HEAD" ? "GET" : method, path);
   if (!route) return fail(404, "not_found", "not found");
+  if (write && request.headers.has("content-type") && !JSON_TYPE.test(request.headers.get("content-type") ?? "")) return fail(415, "unsupported_media_type", "send json");
 
   let body: ArrayBuffer | undefined;
   if (write) {
-    if (Number(request.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) return fail(413, "too_large", "payload too large");
-    body = await request.arrayBuffer();
-    if (body.byteLength > MAX_BODY_BYTES) return fail(413, "too_large", "payload too large");
+    const read = await readBounded(request);
+    if (!read) return fail(413, "too_large", "payload too large");
+    body = read.byteLength ? read : undefined;
   }
 
   const cookies: string[] = [];
-  let session = readSession(request, url, cfg.env);
+  let session = await readSession(request, url, cfg, now);
   let refreshed = false;
-  if (session && session.x !== undefined && session.x - REFRESH_SKEW_MS <= now) {
-    session = await refreshSession(cfg, session, doFetch, now);
-    refreshed = true;
-    cookies.push(sessionCookie(url, session));
+  const unreachable = (): Response => fail(503, "auth_unreachable", "couldn't reach terminal's sign in server, try again", cookies);
+
+  const applyRefresh = async (result: TokenResult): Promise<"ok" | "gone" | "transient"> => {
+    if (result.ok) {
+      const cookie = await sessionCookie(url, cfg, result.session);
+      if (!cookie) {
+        cookies.push(clearSession(url));
+        session = null;
+        return "gone";
+      }
+      cookies.push(cookie);
+      session = result.session;
+      refreshed = true;
+      return "ok";
+    }
+    if (result.permanent) {
+      cookies.push(clearSession(url));
+      session = null;
+      return "gone";
+    }
+    return "transient";
+  };
+
+  if (session?.r && session.x !== undefined && session.x - REFRESH_SKEW_MS <= now) {
+    const outcome = await applyRefresh(await refreshSession(cfg, session, doFetch, now));
+    // Transient trouble: keep the cookie, and use the access token while it's still good.
+    if (outcome === "transient" && session.x <= now) return unreachable();
   }
   if (!session && !route.public) return fail(401, "signed_out", "sign in to continue", cookies);
 
   const send = (s: StoredSession | null): Promise<Response> => {
-    const headers = new Headers();
-    for (const k of FORWARD_REQUEST_HEADERS) {
-      const v = request.headers.get(k);
-      if (v) headers.set(k, v);
-    }
-    // Region detection: the API reads the visitor's IP from this header when it's present.
-    const ip = request.headers.get("cf-connecting-ip");
-    if (ip && isPublicIp(ip)) headers.set("x-terminal-ip", ip);
+    const headers = upstreamHeaders(request, write);
     if (s) headers.set("authorization", `Bearer ${s.a}`);
-    return doFetch(`${cfg.api}${path}${url.search}`, { method, headers, body, redirect: "manual" });
+    return doFetch(`${cfg.api}${path}`, { method, headers, body, redirect: "manual" });
   };
 
   let upstream: Response;
   try {
     upstream = await send(session);
     if (upstream.status === 401 && session && !refreshed) {
-      const next = await refreshSession(cfg, session, doFetch, now);
-      cookies.push(sessionCookie(url, next));
-      if (!next) return fail(401, "signed_out", "your terminal session ended, sign in again", cookies);
-      upstream = await send(next);
+      const outcome = session.r ? await applyRefresh(await refreshSession(cfg, session, doFetch, now)) : "gone";
+      if (outcome === "gone") {
+        if (!cookies.length) cookies.push(clearSession(url));
+        return fail(401, "signed_out", "your terminal session ended, sign in again", cookies);
+      }
+      if (outcome === "transient") return unreachable();
+      upstream = await send(session);
     }
   } catch {
     return fail(502, "unreachable", `couldn't reach ${new URL(cfg.api).host}`, cookies);
   }
-  const headers = new Headers(NO_STORE);
-  const type = upstream.headers.get("content-type");
-  if (type) headers.set("content-type", type);
-  for (const c of cookies) headers.append("set-cookie", c);
+  const type = upstream.headers.get("content-type") ?? "";
+  const headers = headersWith(cookies, { "content-type": JSON_TYPE.test(type) ? type : "text/plain; charset=utf-8" });
   return new Response(method === "HEAD" ? null : upstream.body, { status: upstream.status, headers });
 }
 
@@ -460,11 +662,11 @@ export async function handleTerminal(request: Request, config: SessionConfig, op
     if (path === CALLBACK_PATH) return method === "GET" ? await callback(request, url, cfg, doFetch, now) : fail(405, "method_not_allowed", "method not allowed");
     if (path !== API_PREFIX && !path.startsWith(`${API_PREFIX}/`)) return fail(404, "not_found", "not found");
     const sub = path.slice(API_PREFIX.length);
-    if (sub === "/_status") return method === "GET" ? status(request, url, cfg, now) : fail(405, "method_not_allowed", "method not allowed");
-    if (sub === "/login") return method === "GET" ? await login(request, url, cfg) : fail(405, "method_not_allowed", "method not allowed");
+    if (sub === "/_status") return method === "GET" ? await status(request, url, cfg, now) : fail(405, "method_not_allowed", "method not allowed");
+    if (sub === "/login") return method === "GET" ? await login(request, url, cfg, now) : fail(405, "method_not_allowed", "method not allowed");
     if (sub === "/logout") {
       if (method !== "POST") return fail(405, "method_not_allowed", "method not allowed");
-      return guard(request, url, true) ?? json({ ok: true }, 200, [sessionCookie(url, null)]);
+      return guard(request, url, true) ?? json({ ok: true }, 200, [clearSession(url)]);
     }
     const m = /^\/(dev|prod)\/api(\/.*)$/.exec(sub);
     if (!m) return fail(404, "not_found", "not found");

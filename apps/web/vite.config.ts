@@ -1,35 +1,15 @@
 import { existsSync, readFileSync } from "node:fs";
-import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
-import { API_PREFIX, CALLBACK_PATH, handleTerminal, type SessionConfig } from "./server/terminal-session";
+import { terminalDevMiddleware } from "./server/terminal-dev";
 
 /**
  * `vite dev` / `vite preview` run the same handler as the Pages Functions in `functions/`
  * (Terminal sign in + API proxy), configured from `process.env` (`TERMINAL_CLIENT_ID`, …).
  */
 function terminalFunctions(): Plugin {
-  const middleware = (req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void): void => {
-    const path = (req.url ?? "/").split("?")[0] ?? "/";
-    if (path !== CALLBACK_PATH && path !== API_PREFIX && !path.startsWith(`${API_PREFIX}/`)) return next();
-    void (async () => {
-      const chunks: Buffer[] = [];
-      for await (const c of req) chunks.push(c as Buffer);
-      const headers = new Headers();
-      for (const [k, v] of Object.entries(req.headers)) if (typeof v === "string") headers.set(k, v);
-      const method = (req.method ?? "GET").toUpperCase();
-      const body = method === "GET" || method === "HEAD" ? undefined : Buffer.concat(chunks);
-      const response = await handleTerminal(new Request(`http://${req.headers.host ?? "localhost"}${req.url ?? "/"}`, { method, headers, body }), process.env as SessionConfig);
-      res.statusCode = response.status;
-      response.headers.forEach((value, key) => {
-        if (key !== "set-cookie") res.setHeader(key, value);
-      });
-      const cookies = response.headers.getSetCookie();
-      if (cookies.length) res.setHeader("set-cookie", cookies);
-      res.end(Buffer.from(await response.arrayBuffer()));
-    })().catch(next);
-  };
+  const middleware = terminalDevMiddleware();
   return {
     name: "textjs-terminal-functions",
     configureServer: (server) => void server.middlewares.use(middleware),

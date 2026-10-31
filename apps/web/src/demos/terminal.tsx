@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Box } from "@textjs/react";
 import { createEmbeddedShop, TerminalShop, type EmbeddedShop } from "@textjs/terminal-shop/embed";
+import { safeEntryPath, signinErrorMessage } from "@textjs/terminal-shop/entry";
 
 /** The proxy (Pages Functions in `functions/`) that holds the Terminal session. */
 export const TERMINAL_API_BASE = "/api/terminal";
@@ -12,12 +13,14 @@ export interface LaunchParams {
   error: string | null;
 }
 
-/** Reads (and the caller strips) the one-shot params the OAuth callback adds to /terminal. */
+/**
+ * Reads (and the caller strips) the one-shot params the OAuth callback adds to /terminal.
+ * `at` may only name a browsing page (never checkout), and `signin_error` is a code mapped
+ * to a fixed message, so a link can't put words on the sign in screen.
+ */
 export function launchParams(search: string): LaunchParams {
   const q = new URLSearchParams(search);
-  const at = q.get("at");
-  const error = q.get("signin_error");
-  return { at: at && at.startsWith("/") && !at.startsWith("//") ? at : "/shop", error: error ? error.slice(0, 200) : null };
+  return { at: safeEntryPath(q.get("at")), error: signinErrorMessage(q.get("signin_error")) };
 }
 
 let shop: EmbeddedShop | null = null;

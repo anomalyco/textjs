@@ -51,8 +51,17 @@ describe("/terminal", () => {
   test("callback params: where to resume and what went wrong", () => {
     expect(launchParams("")).toEqual({ at: "/shop", error: null });
     expect(launchParams("?at=%2Fcart")).toEqual({ at: "/cart", error: null });
-    expect(launchParams("?at=//evil.com")).toEqual({ at: "/shop", error: null });
-    expect(launchParams("?signin_error=sign+in+was+cancelled").error).toBe("sign in was cancelled");
+    expect(launchParams("?at=%2Faccount%3Fpage%3Dfaq").at).toBe("/account?page=faq");
+    expect(launchParams("?signin_error=cancelled").error).toBe("sign in was cancelled");
+  });
+
+  test("F-03/F-07/F-13: links can't open checkout, use odd paths or write on the sign in screen", () => {
+    for (const at of ["/confirm", "/payment", "/shipping", "/subscribe", "/order/subscribe", "/order/complete", "/addresses", "/email", "//evil.com", "/\\evil.com", "/\\[::", "https://evil.com"]) {
+      expect(launchParams(`?at=${encodeURIComponent(at)}`).at).toBe("/shop");
+    }
+    for (const text of ["Call 1-800-SCAM to verify your card", "sign in was cancelled", "toString", "__proto__", "hasOwnProperty"]) {
+      expect(launchParams(`?signin_error=${encodeURIComponent(text)}`).error).toBe(null);
+    }
   });
 
   test("only the Terminal endpoints run as Pages Functions", () => {
