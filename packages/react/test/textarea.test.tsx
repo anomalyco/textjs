@@ -11,6 +11,36 @@ function cursor(t: TestRoot): { x: number; y: number } {
 }
 
 describe("<Textarea>", () => {
+  test("recalls history only at a buffer edge and restores the unfinished draft", async () => {
+    const t = await createTestRoot({ width: 25, height: 5 });
+    await t.render(<Textarea autoFocus history={["first", "second\nline"]} defaultValue="draft" />);
+    await t.press("ArrowUp");
+    expect(t.lines()[0]).toBe("draft");
+    await t.press("ArrowUp");
+    expect(t.lines()).toEqual(["second", "line"]);
+    await t.press("ArrowUp");
+    expect(t.lines()[0]).toBe("first");
+    await t.press("End");
+    await t.press("ArrowDown");
+    expect(t.lines()).toEqual(["second", "line"]);
+    await t.press("ArrowDown");
+    expect(t.lines()[0]).toBe("draft");
+    await t.unmount();
+  });
+
+  test("word chords and grapheme deletion preserve pasted tabs and combining sequences", async () => {
+    const t = await createTestRoot();
+    const word = "e" + "\u0301".repeat(20);
+    const submitted: string[] = [];
+    await t.render(<Textarea autoFocus defaultValue={`a\t${word} two`} onSubmit={(v) => submitted.push(v)} />);
+    await t.press("b", { altKey: true });
+    await t.press("d", { altKey: true });
+    await t.press("Backspace");
+    await t.press("Backspace");
+    await t.press("Enter");
+    expect(submitted).toEqual(["a\t"]);
+    await t.unmount();
+  });
   test("Enter submits; Shift+Enter, Alt+Enter and Ctrl+J insert newlines", async () => {
     const t = await createTestRoot({ width: 20, height: 8 });
     const submits: string[] = [];

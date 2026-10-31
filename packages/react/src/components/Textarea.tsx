@@ -12,6 +12,8 @@ import { useMergedRef } from "./refs";
 export interface TextareaProps extends FieldValueProps, Omit<LayoutProps, "overflow"> {
   /** Called on Enter (without Shift / Alt / ⌘). Shift+Enter, Alt+Enter and Ctrl+J insert a newline. */
   onSubmit?: (value: string) => void;
+  /** Submitted entries, oldest first. Up at the start recalls an entry; Down at the end restores the draft. */
+  history?: readonly string[];
   placeholder?: string;
   /** Minimum visible rows (default `1`). */
   minRows?: number;
@@ -36,6 +38,7 @@ const MAX_SCROLL = Number.MAX_SAFE_INTEGER;
 export function Textarea(props: TextareaProps): ReactNode {
   const {
     onSubmit,
+    history,
     placeholder,
     minRows = 1,
     maxRows = 6,
@@ -64,18 +67,21 @@ export function Textarea(props: TextareaProps): ReactNode {
   const setRef = useMergedRef(boxRef, ref);
   const topRef = useRef(0);
   const goalCol = useRef<number | null>(null);
+  const recall = useRef<{ index: number; draft: string } | null>(null);
   const submitRef = useRef(onSubmit);
   submitRef.current = onSubmit;
 
   useInput(
     (e) => {
       if (e.key === "return") {
+        recall.current = null;
         e.stopPropagation();
         if (e.shift || e.alt || e.meta || e.ctrl) editor.apply(insert(editor.current(), "\n"));
         else submitRef.current?.(editor.current().value);
         return;
       }
       if (e.ctrl && e.key === "j") {
+        recall.current = null;
         e.stopPropagation();
         editor.apply(insert(editor.current(), "\n"));
         return;
@@ -83,6 +89,19 @@ export function Textarea(props: TextareaProps): ReactNode {
       if (e.key === "tab" || e.key === "escape" || e.key === "pageup" || e.key === "pagedown") return;
       if ((e.key === "up" || e.key === "down") && !e.meta && !e.ctrl && !e.alt) {
         const cur = editor.current();
+        const up = e.key === "up";
+        if (!e.shift && history?.length && (up ? cur.cursor === 0 : cur.cursor === cur.value.length)) {
+          const previous = recall.current ?? { index: history.length, draft: cur.value };
+          const index = Math.max(0, Math.min(history.length, previous.index + (up ? -1 : 1)));
+          if (index !== previous.index) {
+            const value = history[index] ?? previous.draft;
+            recall.current = index === history.length ? null : { ...previous, index };
+            goalCol.current = null;
+            editor.apply({ value, cursor: up ? 0 : value.length });
+            e.stopPropagation();
+            return;
+          }
+        }
         const col = goalCol.current ?? cur.cursor - lineStart(cur.value, cur.cursor);
         const target = verticalMove(cur.value, cur.cursor, e.key === "up" ? -1 : 1, col);
         e.stopPropagation();
@@ -93,6 +112,7 @@ export function Textarea(props: TextareaProps): ReactNode {
       goalCol.current = null;
       const next = applyEditKey(editor.current(), e, true);
       if (next === null) return;
+      if (next.value !== editor.current().value) recall.current = null;
       e.stopPropagation();
       editor.apply(next);
     },
@@ -102,6 +122,7 @@ export function Textarea(props: TextareaProps): ReactNode {
   usePaste(
     (e) => {
       e.stopPropagation();
+      recall.current = null;
       editor.apply(insert(editor.current(), e.text.replace(/\r\n?/g, "\n")));
     },
     { isActive: active, priority: FOCUSED_INPUT_PRIORITY },

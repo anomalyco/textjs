@@ -10,6 +10,9 @@ const pick = (events: ReturnType<typeof parseTerminalInput>) =>
   );
 
 describe("terminal input parser", () => {
+  test("distinguishes Ctrl+J (LF) from Return (CR) and ignores malformed CSI-u", () => {
+    expect(pick(parseTerminalInput("\n\r\x1b[99999999u"))).toEqual(["ctrl+j", "return"]);
+  });
   test("keys, modifiers, function keys and control characters", () => {
     expect(pick(parseTerminalInput("aG \r\t\x7f\x1b[A\x1b[1;5C\x1b[1;2D\x1b[Z\x1b[3~\x1b[5~\x1bOP\x1b[15~\x03\x1bx"))).toEqual([
       "a(a)",
@@ -90,7 +93,7 @@ function fakeStreams(cols = 30, rows = 4) {
   const resizeListeners = new Set<() => void>();
   const written: string[] = [];
   let raw = false;
-  const stdin: TerminalInput & { send(s: string): void; readonly raw: boolean; readonly listeners: number } = {
+  const stdin: TerminalInput & { send(s: string | Uint8Array): void; readonly raw: boolean; readonly listeners: number } = {
     isTTY: true,
     setRawMode: (r: boolean) => (raw = r),
     on: (_e, l) => dataListeners.add(l),
@@ -179,6 +182,10 @@ describe("renderToTerminal", () => {
     expect(written.join("")).not.toContain("\x1b[2;1H");
     stdin.send("\x1b[200~hi\x1b[201~");
     await until(() => written.join("").includes("paste hi"));
+    const unicode = new TextEncoder().encode("\x1b[200~界\x1b[201~");
+    stdin.send(unicode.subarray(0, 7)); // split inside a UTF-8 code point
+    stdin.send(unicode.subarray(7));
+    await until(() => written.join("").includes("paste 界"));
     stdin.send("\x1b[<65;1;1M");
     // Wheel updates render at continuous priority on React's scheduler; assert delivery.
     await until(() => wheels.length === 1);

@@ -134,7 +134,8 @@ function printable(ch: string, mods: { alt?: boolean } = {}): KeyInputEvent {
 }
 
 function controlChar(code: number): KeyInputEvent | null {
-  if (code === 13 || code === 10) return key("return");
+  // In raw mode the Return key sends CR. LF is Ctrl+J (a newline in multiline editors).
+  if (code === 13) return key("return");
   if (code === 9) return key("tab");
   if (code === 127 || code === 8) return key("backspace");
   if (code === 27) return key("escape");
@@ -226,7 +227,7 @@ export class TerminalInputParser {
           const mods = modsFromParam(params[1]);
           const base = controlChar(code);
           if (base && code !== 0) out.push({ ...base, ...mods, ctrl: base.ctrl || mods.ctrl });
-          else if (code >= 32) {
+          else if (code >= 32 && code <= 0x10ffff) {
             const c = String.fromCodePoint(code);
             out.push(key(c === " " ? "space" : c.toLowerCase(), mods, mods.ctrl || mods.meta || mods.alt ? "" : mods.shift ? c.toUpperCase() : c));
           }
@@ -367,6 +368,7 @@ export async function renderToTerminal(element: ReactNode, options: TerminalOpti
   });
 
   const parser = new TerminalInputParser();
+  const decoder = new TextDecoder();
   let escTimer: ReturnType<typeof setTimeout> | null = null;
   const dispatch = (events: TerminalEvent[]): void => {
     for (const e of events) {
@@ -380,7 +382,7 @@ export async function renderToTerminal(element: ReactNode, options: TerminalOpti
     }
   };
   const onData = (chunk: string | Uint8Array): void => {
-    const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
+    const text = typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true });
     if (escTimer !== null) clearTimeout(escTimer);
     dispatch(parser.push(text));
     if (parser.hasPending) escTimer = setTimeout(() => dispatch(parser.flush()), 30);

@@ -4,11 +4,10 @@
 
 import { useEffect, useReducer, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRuntime } from "../context";
-import type { EditState } from "../editing";
+import { nextBoundary, type EditState } from "../editing";
 import { TxText } from "../host";
 import { ACTIVITY_FOCUSED, ACTIVITY_HIDDEN, ACTIVITY_PAUSED } from "../stores";
 import type { TextTheme } from "../theme";
-import { segmentGraphemes } from "@textjs/core";
 
 export interface FieldValueProps {
   value?: string;
@@ -106,8 +105,7 @@ export function splitAtCursor(display: string, cursor: number): CursorParts {
   const before = display.slice(0, cursor);
   const rest = display.slice(cursor);
   if (rest.length === 0 || rest.charCodeAt(0) === 10) return { before, glyph: CURSOR_SPACE, after: rest };
-  const g = segmentGraphemes(rest.slice(0, 16))[0];
-  const len = g ? g.grapheme.length : 1;
+  const len = nextBoundary(rest, 0);
   const glyph = rest.slice(0, len);
   return { before, glyph: glyph === " " ? CURSOR_SPACE : glyph, after: rest.slice(len) };
 }

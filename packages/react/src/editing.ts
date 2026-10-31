@@ -3,7 +3,8 @@
  * Cursor positions are UTF-16 offsets that always sit on grapheme boundaries.
  */
 
-import { segmentGraphemes } from "@textjs/core";
+// Unlike display segmentation, cursor offsets must not expand tabs into cells.
+const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 export interface EditState {
   value: string;
@@ -13,8 +14,8 @@ export interface EditState {
 function boundaries(text: string): number[] {
   const out = [0];
   let i = 0;
-  for (const g of segmentGraphemes(text)) {
-    i += g.grapheme.length;
+  for (const g of segmenter.segment(text)) {
+    i += g.segment.length;
     out.push(i);
   }
   return out;
@@ -22,14 +23,18 @@ function boundaries(text: string): number[] {
 
 export function prevBoundary(text: string, i: number): number {
   if (i <= 0) return 0;
+  const cp = text.charCodeAt(i - 1);
+  if (cp >= 0x20 && cp < 0x7f && (i === 1 || text.charCodeAt(i - 2) < 0x80)) return i - 1;
   const b = boundaries(text.slice(0, i));
   return b.length >= 2 ? (b[b.length - 2] as number) : 0;
 }
 
 export function nextBoundary(text: string, i: number): number {
   if (i >= text.length) return text.length;
-  const first = segmentGraphemes(text.slice(i, i + 16))[0];
-  return Math.min(text.length, i + (first ? first.grapheme.length : 1));
+  const cp = text.charCodeAt(i);
+  if (cp >= 0x20 && cp < 0x7f && (i + 1 === text.length || text.charCodeAt(i + 1) < 0x80)) return i + 1;
+  const first = segmenter.segment(text.slice(i))[Symbol.iterator]().next().value;
+  return i + (first?.segment.length ?? 0);
 }
 
 const WORD = /[\p{L}\p{N}_]/u;
@@ -39,21 +44,24 @@ function isWordChar(ch: string | undefined): boolean {
 }
 
 export function prevWord(text: string, i: number): number {
-  let k = i;
-  while (k > 0 && !isWordChar(text[k - 1])) k--;
-  while (k > 0 && isWordChar(text[k - 1])) k--;
-  return k;
+  const gs = Array.from(segmenter.segment(text.slice(0, i)));
+  let k = gs.length;
+  while (k > 0 && !isWordChar(gs[k - 1]?.segment)) k--;
+  while (k > 0 && isWordChar(gs[k - 1]?.segment)) k--;
+  return gs[k]?.index ?? i;
 }
 
 export function nextWord(text: string, i: number): number {
-  let k = i;
-  const n = text.length;
-  while (k < n && !isWordChar(text[k])) k++;
-  while (k < n && isWordChar(text[k])) k++;
-  return k;
+  let word = false;
+  for (const g of segmenter.segment(text.slice(i))) {
+    if (isWordChar(g.segment)) word = true;
+    else if (word) return i + g.index;
+  }
+  return text.length;
 }
 
 export function lineStart(text: string, i: number): number {
+  if (i === 0) return 0;
   const k = text.lastIndexOf("\n", i - 1);
   return k < 0 ? 0 : k + 1;
 }
@@ -129,6 +137,11 @@ export interface KeyLike {
 export function applyEditKey(s: EditState, e: KeyLike, multiline: boolean): EditState | null {
   const { value, cursor } = s;
   const k = e.key;
+  if (e.alt && !e.meta && !e.ctrl && !e.shift) {
+    if (k === "b") return { value, cursor: prevWord(value, cursor) };
+    if (k === "f") return { value, cursor: nextWord(value, cursor) };
+    if (k === "d") return deleteRange(s, cursor, nextWord(value, cursor));
+  }
   if (e.ctrl && !e.meta && !e.alt) {
     switch (k) {
       case "a":
@@ -148,6 +161,8 @@ export function applyEditKey(s: EditState, e: KeyLike, multiline: boolean): Edit
         return deleteRange(s, prevWord(value, cursor), cursor);
       case "d":
         return deleteRange(s, cursor, nextBoundary(value, cursor));
+      case "delete":
+        return deleteRange(s, cursor, nextWord(value, cursor));
       case "h":
         return deleteRange(s, prevBoundary(value, cursor), cursor);
       case "left":
