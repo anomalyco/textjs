@@ -23,7 +23,7 @@ describe("/terminal", () => {
     expect(tabForPath("/terminal")).toBe("terminal");
     expect(isPadRoute("/terminal")).toBe(true);
     expect(isPadRoute("/terminals")).toBe(false);
-    expect(viewportLimitsFor("terminal")).toEqual({ maxCols: 80, maxRows: 30, fallbackCols: 80, fallbackRows: 30 });
+    expect(viewportLimitsFor("terminal")).toEqual({ minCols: 80, maxCols: 80, minRows: 30, maxRows: 30, fallbackCols: 80, fallbackRows: 30 });
     siteStore.set({ consoleInput: true });
     siteStore.syncRoute("/terminal");
     expect(siteStore.getSnapshot().consoleInput).toBe(true);
