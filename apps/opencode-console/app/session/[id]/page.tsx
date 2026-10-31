@@ -49,7 +49,7 @@ export default function SessionPage({ params }: { params: Record<string, string 
           <Text color={theme.danger} bold>{`Session ${id} not found`}</Text>
           <Text color={theme.subtle}>ctrl+x n new session · ctrl+x l switch session</Text>
         </Box>
-        <Composer onSubmit={(text) => void store.send(null, text).then((nid) => nid && router.replace(`/session/${encodeURIComponent(nid)}`))} />
+        <Composer onSubmit={(text, mode) => void store.send(null, text, mode).then((nid) => nid && router.replace(`/session/${encodeURIComponent(nid)}`))} />
       </Box>
     );
   }
@@ -58,7 +58,7 @@ export default function SessionPage({ params }: { params: Record<string, string 
     <Box flexDirection="column" flexGrow={1} minHeight={0} paddingX={2}>
       <Timeline messages={messages} options={options} busy={busy} loading={!loaded && messages.length === 0} />
       <Box height={1} flexShrink={0} />
-      <Composer busy={busy} interruptArmed={armed} onSubmit={(text) => void store.send(id, text)} />
+      <Composer busy={busy} interruptArmed={armed} placeholder="" onSubmit={(text, mode) => void store.send(id, text, mode)} />
     </Box>
   );
 }

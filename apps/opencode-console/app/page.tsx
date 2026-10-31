@@ -13,10 +13,10 @@ export default function HomePage(): ReactNode {
   const theme = useTheme();
   const store = useStore();
   const router = useRouter();
-  const state = useStoreState((s) => s);
+  const connection = useStoreState((s) => s.connection);
 
-  const submit = (text: string): void => {
-    void store.send(null, text).then((id) => {
+  const submit = (text: string, mode: "prompt" | "shell"): void => {
+    void store.send(null, text, mode).then((id) => {
       if (id) router.push(`/session/${encodeURIComponent(id)}`);
     });
   };
@@ -34,10 +34,10 @@ export default function HomePage(): ReactNode {
       </Box>
       <Box flexDirection="row" height={1} flexShrink={0} paddingX={2} gap={2}>
         <Text color={theme.muted} wrap="truncate-start" flexShrink={1}>
-          {shortPath(state.connection.directory) || "~"}
+          {shortPath(connection.directory) || "~"}
         </Text>
         <Box flexGrow={1} />
-        <ConnectionBadge state={state} />
+        <ConnectionBadge connection={connection} />
         <Hints items={[["ctrl+x l", "sessions"]]} />
       </Box>
     </Box>

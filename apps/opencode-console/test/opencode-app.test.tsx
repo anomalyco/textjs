@@ -231,6 +231,42 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     await t.waitFor(() => t.frame().includes("Session ses_nope not found"), "missing session");
   });
 
+  test("session tab cycling, numeric selection, closing and reopening never delete a session", async () => {
+    const { t, history } = await mount("/session/ses_alpha");
+    await t.waitFor(() => t.frame().includes("It lives in"));
+    await t.press("x", { ctrlKey: true }); await t.press("l");
+    await t.type("flaky"); await t.press("Enter");
+    await t.waitFor(() => t.frame().includes("Why does CI"));
+    await t.press("ArrowUp", { altKey: true });
+    expect(history.location.pathname).toBe("/session/ses_alpha");
+    await t.press("2", { ctrlKey: true });
+    expect(history.location.pathname).toBe("/session/ses_beta");
+    await t.press("x", { ctrlKey: true }); await t.press("w");
+    expect(history.location.pathname).toBe("/session/ses_alpha");
+    await t.press("T", { ctrlKey: true, shiftKey: true });
+    expect(history.location.pathname).toBe("/session/ses_beta");
+    expect(mock.requests.some((r) => r.method === "DELETE")).toBe(false);
+  });
+
+  test("shell mode is a keystroke, not a prefix interpreted on submit", async () => {
+    const { t } = await mount("/session/ses_alpha");
+    await t.waitFor(() => t.frame().includes("It lives in"));
+    await t.type("!");
+    expect(t.frame()).toContain("exit shell mode");
+    await t.press("Escape");
+    expect(t.frame()).not.toContain("exit shell mode");
+    await t.type("!echo fixture");
+    await t.press("Enter");
+    await t.waitFor(() => requested("POST", "/api/session/ses_alpha/shell"));
+    expect(mock.requests.find((r) => r.path.endsWith("/shell"))?.body).toEqual({ command: "echo fixture" });
+    expect(requested("POST", "/api/session/ses_alpha/prompt")).toBe(false);
+    await t.paste("!not a shell command");
+    expect(t.frame()).not.toContain("exit shell mode");
+    await t.press("Enter");
+    await t.waitFor(() => requested("POST", "/api/session/ses_alpha/prompt"));
+    expect(mock.requests.filter((r) => r.path.endsWith("/shell"))).toHaveLength(1);
+  });
+
   test("slash commands are local, variants use catalog order, and editing chords stay in the editor", async () => {
     const { t } = await mount();
     const state = () => getOpenCodeStore().getSnapshot();

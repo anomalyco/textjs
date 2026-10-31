@@ -306,6 +306,10 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
     async interrupt(sid) {
       runs.get(sid)?.finish();
     },
+    async shell(sid, command) {
+      list(sid).push({ type: "shell", id: id("msg"), time: { created: Date.now() }, command, status: "exited", output: "Shell commands aren't executed in the sandbox." });
+      emit({ type: "messages.changed", sessionID: sid });
+    },
     async rename(sid, title) {
       const s = db.sessions.find((x) => x.id === sid);
       if (!s) throw new Error(`Unknown session ${sid}`);

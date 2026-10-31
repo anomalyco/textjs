@@ -438,6 +438,9 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     async compact(sessionID, model) {
       await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/compact`, model ? { model } : {});
     },
+    async shell(sessionID, command) {
+      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/shell`, { command });
+    },
     async rename(sessionID, title) {
       await t.json("PATCH", `/api/session/${encodeURIComponent(sessionID)}`, { title });
     },

@@ -42,6 +42,7 @@ export interface TestRoot {
   frame(): string;
   press(key: string, mods?: { ctrlKey?: boolean; shiftKey?: boolean; metaKey?: boolean; altKey?: boolean }): Promise<void>;
   type(text: string): Promise<void>;
+  paste(text: string): Promise<void>;
   /** Let timers / fetches settle inside act() without flushing frames. */
   settle(ms?: number): Promise<void>;
   /** Poll until `check()` is truthy (flushing frames between polls). */
@@ -83,6 +84,9 @@ export async function createTestRoot(options: ConsoleRootOptions = {}): Promise<
     press,
     async type(text) {
       for (const ch of text) await press(ch);
+    },
+    async paste(text) {
+      await act(async () => { engine.handlePaste(text); });
     },
     settle,
     async waitFor(check, label = "condition", timeoutMs = 5000) {

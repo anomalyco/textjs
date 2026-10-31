@@ -1,10 +1,10 @@
 import { useContext, useEffect, useState, type ReactNode } from "react";
-import { Box, Text, Textarea, useTheme, useViewport, type TextTheme } from "@textjs/next";
+import { Box, Text, Textarea, useInput, useTheme, useViewport, type TextTheme } from "@textjs/next";
 import { useStoreState } from "../lib/store";
 import { DispatchAction, slashAction } from "../lib/commands";
 
 export interface ComposerProps {
-  onSubmit: (text: string) => void;
+  onSubmit: (text: string, mode: "prompt" | "shell") => void;
   busy?: boolean;
   interruptArmed?: boolean;
   placeholder?: string;
@@ -57,6 +57,7 @@ export function Hints({ items }: { items: Array<[string, string]> }): ReactNode 
 export function Composer({ onSubmit, busy = false, interruptArmed, placeholder }: ComposerProps): ReactNode {
   const theme = useTheme();
   const [value, setValue] = useState("");
+  const [shell, setShell] = useState(false);
   const agent = useStoreState((s) => s.agent);
   const model = useStoreState((s) => s.model);
   const models = useStoreState((s) => s.models);
@@ -65,16 +66,28 @@ export function Composer({ onSubmit, busy = false, interruptArmed, placeholder }
   const dispatch = useContext(DispatchAction);
   const color = agentColor(theme, agent);
   const name = models.find((m) => m.id === model?.id && m.providerID === model?.providerID)?.name ?? model?.id ?? "no model";
+  useInput((e) => {
+    if (!shell && !value && !e.ctrl && !e.meta && !e.alt && e.input === "!") setShell(true);
+    else if (shell && (e.key === "escape" || (!value && e.key === "backspace"))) setShell(false);
+    else if (e.ctrl && e.key === "c" && value) setValue("");
+    else return;
+    e.stopPropagation();
+  }, { priority: 12 });
 
   const submit = (text: string): void => {
     if (text.trim().length === 0) return;
     setValue("");
+    if (shell) {
+      setShell(false);
+      onSubmit(text, "shell");
+      return;
+    }
     const action = slashAction(text);
     if (action) dispatch(action);
-    else onSubmit(text);
+    else onSubmit(text, "prompt");
   };
 
-  const right = busy ? (
+  const right = shell ? <Hints items={[["esc", "exit shell mode"]]} /> : busy ? (
     <Box flexDirection="row" height={1} flexShrink={0} gap={1}>
       <Dots color={color} />
       <Hints items={[["esc", interruptArmed ? "again to interrupt" : "interrupt"]]} />
@@ -96,23 +109,23 @@ export function Composer({ onSubmit, busy = false, interruptArmed, placeholder }
     <Box flexDirection="column" flexShrink={0} width="100%">
       <Box flexDirection="column" flexShrink={0} border="heavy" borderTop={false} borderRight={false} borderBottom={false} borderColor={color}>
         <Box flexDirection="column" flexShrink={0} bg={theme.panel} paddingX={2} paddingTop={1}>
-          <Textarea id="opencode-prompt" value={value} onChange={setValue} onSubmit={submit} history={history} autoFocus placeholder={placeholder ?? PLACEHOLDER} minRows={1} maxRows={6} />
+          <Textarea id="opencode-prompt" value={value} onChange={setValue} onSubmit={submit} history={shell ? undefined : history} autoFocus placeholder={shell ? 'Run a command… "pwd"' : placeholder ?? PLACEHOLDER} minRows={1} maxRows={6} />
           <Box flexDirection="row" height={1} flexShrink={0} gap={1} marginTop={1}>
             <Text color={color} wrap="nowrap" flexShrink={0}>
-              {capitalize(agent)}
+              {shell ? "Shell" : capitalize(agent)}
             </Text>
-            <Text color={theme.muted} wrap="nowrap" flexShrink={0}>
-              ·
-            </Text>
-            <Text color={theme.fg} wrap="truncate-end" flexShrink={1}>
-              {name}
-            </Text>
-            {model ? (
-              <Text color={theme.muted} wrap="nowrap" flexShrink={0}>
-                {model.providerID === "opencode" ? "OpenCode" : model.providerID === "openai" ? "OpenAI" : capitalize(model.providerID)}
-                {model.variant ? ` · ${model.variant}` : ""}
-              </Text>
-            ) : null}
+            {!shell && (
+              <>
+                <Text color={theme.muted} wrap="nowrap" flexShrink={0}>·</Text>
+                <Text color={theme.fg} wrap="truncate-end" flexShrink={1}>{name}</Text>
+                {model && (
+                  <Text color={theme.muted} wrap="nowrap" flexShrink={0}>
+                    {model.providerID === "opencode" ? "OpenCode" : model.providerID === "openai" ? "OpenAI" : capitalize(model.providerID)}
+                    {model.variant ? ` · ${model.variant}` : ""}
+                  </Text>
+                )}
+              </>
+            )}
             <Box flexGrow={1} />
             {right}
           </Box>

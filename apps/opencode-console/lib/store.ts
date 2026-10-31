@@ -7,6 +7,7 @@
 
 import { createContext, createElement, useContext, useSyncExternalStore, type ReactNode } from "react";
 import { connectOpenCode, saveEndpoint, savedEndpoint } from "./client";
+import { SessionTabs } from "./session-tabs";
 import type {
   AgentOption,
   AppEvent,
@@ -78,6 +79,7 @@ export interface StoreOptions {
 }
 
 export class OpenCodeStore {
+  readonly tabs = new SessionTabs();
   private state: StoreState;
   private readonly listeners = new Set<() => void>();
   private notifyQueued = false;
@@ -153,6 +155,7 @@ export class OpenCodeStore {
     this.recentModels = [];
     this.commands.clear();
     this.drafts.clear();
+    this.tabs.clear();
     this.client = null;
     this.unsubscribe?.();
     this.unsubscribe = null;
@@ -262,6 +265,7 @@ export class OpenCodeStore {
       this.set((s) => ({ sessions: s.sessions.some((x) => x.id === id) ? s.sessions : [info, ...s.sessions] }));
     }
     const sess = this.session(id);
+    this.tabs.visit(id);
     const draft = this.drafts.get(id);
     const agent = draft?.agent ?? sess?.agent, model = draft?.model ?? sess?.model;
     if (agent) this.set({ agent });
@@ -297,7 +301,7 @@ export class OpenCodeStore {
   }
 
   /** Create a session for `text` (when `sessionID` is null) and prompt it. Resolves with the session id once created. */
-  async send(sessionID: string | null, text: string): Promise<string | null> {
+  async send(sessionID: string | null, text: string, mode: "prompt" | "shell" = "prompt"): Promise<string | null> {
     const client = this.client;
     const body = text.trim();
     if (!client || body.length === 0) return null;
@@ -305,7 +309,7 @@ export class OpenCodeStore {
     // Local actions are never model prompts. In particular, don't turn a
     // failed/missing route or an unsupported backend into an accidental send.
     const rename = /^\/rename(?:\s+([\s\S]+))?$/.exec(body);
-    if (rename || body === "/compact") {
+    if (mode === "prompt" && (rename || body === "/compact")) {
       try {
         if (!sessionID) throw new Error("Open a session first");
         if (rename) {
@@ -324,13 +328,14 @@ export class OpenCodeStore {
     }
     let id = sessionID;
     try {
+      if (mode === "shell" && !client.shell) throw new Error("Shell mode unavailable on this server");
       if (!id) {
         const s = await client.create({ agent, model });
         if (client !== this.client) return null;
         id = s.id;
         const created = s;
         this.set((st) => ({ sessions: [created, ...st.sessions.filter((x) => x.id !== created.id)], messages: { ...st.messages, [created.id]: [] }, loaded: { ...st.loaded, [created.id]: true } }));
-      } else {
+      } else if (mode === "prompt") {
         const sess = this.session(id);
         if (sess && sess.agent !== agent) await client.setAgent(id, agent);
         if (client !== this.client) return null;
@@ -342,6 +347,16 @@ export class OpenCodeStore {
       return null;
     }
     const target = id;
+    if (mode === "shell") {
+      // Only the deliberate shell-mode keystroke enters this branch. Never
+      // execute on the client host or reinterpret pasted !text as a command.
+      void client.shell!(target, body).then(() => {
+        if (client === this.client) void this.reloadMessages(target);
+      }, (error) => {
+        if (client === this.client) this.notify(`Failed to run shell command: ${error instanceof Error ? error.message : String(error)}`, "danger");
+      });
+      return target;
+    }
     const pending: SessionMessage = { type: "user", id: `pending_${Date.now().toString(36)}`, time: { created: Date.now() }, text: body, pending: true };
     this.set((s) => ({
       messages: { ...s.messages, [target]: [...(s.messages[target] ?? []), pending] },

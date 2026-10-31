@@ -101,6 +101,7 @@ export interface OpenCodeClient {
   command?(sessionID: string, name: string, text: string): Promise<void>;
   rename?(sessionID: string, title: string): Promise<void>;
   compact?(sessionID: string, model: ModelRef | null): Promise<void>;
+  shell?(sessionID: string, command: string): Promise<void>;
   defaultModel(): Promise<ModelRef | null>;
   /** Live events. Returns an unsubscribe function; reconnects on its own. */
   subscribe(onEvent: (event: AppEvent) => void, onState?: (state: "open" | "closed") => void): () => void;

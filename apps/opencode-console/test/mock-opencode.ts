@@ -148,6 +148,7 @@ export function startMockOpenCode(options: { password?: string } = {}): MockOpen
         if (!action && req.method === "GET") return Response.json({ data: s });
         if (!action && req.method === "PATCH") { s.title = (body as Json).title; return Response.json({ data: s }); }
         if (action === "command" || action === "compact") return new Response(null, { status: 204 });
+        if (action === "shell") return Response.json({ data: {} });
         if (action === "message") {
           const list = [...(messages.get(id) ?? [])];
           const order = url.searchParams.get("order") ?? "desc";

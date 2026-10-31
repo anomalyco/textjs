@@ -1,8 +1,8 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Box, Button, Dialog, diffTexts, Spinner, Text, useClipboard, useKeymap, useTheme, useViewport } from "@textjs/next";
 import { usePathname, useRouter } from "@textjs/next/navigation";
 import { compactNumber, relativeTime } from "../lib/format";
-import { useStore, useStoreState, type StoreState } from "../lib/store";
+import { useStore, useStoreState, type ConnectionState, type StoreState } from "../lib/store";
 import type { SessionInfo, SessionMessage, ToolPart } from "../lib/types";
 import { patchFiles } from "../lib/tool-data";
 import { Palette, type PaletteKind } from "./Palette";
@@ -35,24 +35,25 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
   const theme = useTheme();
   const store = useStore();
   const router = useRouter();
-  const state = useStoreState((s) => s);
+  const sidebar = useStoreState((s) => s.ui.sidebar);
   const active = useActiveSessionId();
   const [palette, setPalette] = useState<PaletteKind | null>(null);
   const [help, setHelp] = useState(false);
   const { copy } = useClipboard();
   const vp = useViewport();
 
-  const dispatch = (action: Action): void => {
+  const dispatch = useCallback((action: Action): void => {
     if (action === "new") router.push("/");
     else if (action === "help") setHelp(true);
     else if (action === "copy") {
-      const message = active && state.messages[active]?.slice().reverse().find((m) => m.type === "assistant");
+      const message = active && store.getSnapshot().messages[active]?.slice().reverse().find((m) => m.type === "assistant");
       const text = message && message.type === "assistant" ? message.content.flatMap((p) => p.type === "text" ? [p.text] : []).join("\n").trim() : "";
       if (!text) store.notify("No text content found in last assistant message", "warning");
       else void copy(text).then((ok) => store.notify(ok ? "Message copied to clipboard!" : "Clipboard unavailable", ok ? "success" : "warning"));
     } else if (action === "variants" && !store.variants().length) store.notify("The current model does not support any variants.");
     else setPalette(action);
-  };
+  }, [active, store, copy, router]);
+  const select = (id: string | undefined) => { if (id) router.push(`/session/${encodeURIComponent(id)}`); };
   useKeymap({
     "ctrl+p": () => dispatch("commands"),
     "ctrl+x l": () => dispatch("sessions"),
@@ -60,6 +61,15 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
     "ctrl+x m": () => dispatch("models"),
     "ctrl+x a": () => dispatch("agents"),
     "ctrl+x y": () => dispatch("copy"),
+    "ctrl+tab, alt+down": () => select(store.tabs.cycle(active, 1)),
+    "ctrl+shift+tab, alt+up": () => select(store.tabs.cycle(active, -1)),
+    "ctrl+shift+t": () => select(store.tabs.reopen()),
+    "ctrl+x w": () => {
+      if (!active) return;
+      const id = store.tabs.close(active);
+      if (id) select(id); else router.push("/");
+    },
+    ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`ctrl+x ${(i+1)%10}, ctrl+${(i+1)%10}`, () => select(store.tabs.at(i))])),
     "ctrl+x b": () => store.toggle("sidebar"),
     "shift+tab": () => store.cycleAgent(active),
     "ctrl+t": () => store.cycleVariant(active),
@@ -69,9 +79,9 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
 
   return (
     <Box flexDirection="column" width="100%" height="100%" bg={theme.bg}>
-      {active ? <Header state={state} active={active} /> : null}
+      {active ? <Header active={active} /> : null}
       <Box flexDirection="row" flexGrow={1} flexShrink={1} minHeight={0}>
-        {state.ui.sidebar && vp.cols >= SIDEBAR_MIN_COLS ? <Sidebar state={state} active={active} /> : null}
+        {sidebar && vp.cols >= SIDEBAR_MIN_COLS ? <Sidebar active={active} /> : null}
         <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={0}>
           <DispatchAction value={dispatch}>{children}</DispatchAction>
         </Box>
@@ -82,9 +92,8 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
   );
 }
 
-export function ConnectionBadge({ state }: { state: StoreState }): ReactNode {
+export function ConnectionBadge({ connection: c }: { connection: ConnectionState }): ReactNode {
   const theme = useTheme();
-  const c = state.connection;
   if (c.status === "connecting") return <Spinner variant="line" label="connecting" color={theme.muted} />;
   if (c.kind === "demo") {
     return (
@@ -129,10 +138,12 @@ export function sessionDiffStat(messages: readonly SessionMessage[]): { addition
   return { additions, deletions, tokens };
 }
 
-function Header({ state, active }: { state: StoreState; active: string }): ReactNode {
+function Header({ active }: { active: string }): ReactNode {
   const theme = useTheme();
-  const session = state.sessions.find((s) => s.id === active);
-  const stat = sessionDiffStat(state.messages[active] ?? []);
+  const session = useStoreState((s) => s.sessions.find((item) => item.id === active));
+  const messages = useStoreState((s) => s.messages[active]);
+  const connection = useStoreState((s) => s.connection);
+  const stat = useMemo(() => sessionDiffStat(messages ?? []), [messages]);
   const changed = stat.additions + stat.deletions > 0;
   return (
     <Box flexDirection="row" height={1} flexShrink={0} paddingX={2} gap={2}>
@@ -151,7 +162,7 @@ function Header({ state, active }: { state: StoreState; active: string }): React
           {stat.tokens > 0 ? <Text color={theme.subtle}>{`${changed ? " · " : ""}${compactNumber(stat.tokens)}`}</Text> : null}
         </Text>
       ) : null}
-      <ConnectionBadge state={state} />
+      <ConnectionBadge connection={connection} />
     </Box>
   );
 }
@@ -179,8 +190,9 @@ function SessionRow({ s, active, busy, now }: { s: SessionInfo; active: boolean;
   );
 }
 
-function Sidebar({ state, active }: { state: StoreState; active: string | null }): ReactNode {
+function Sidebar({ active }: { active: string | null }): ReactNode {
   const theme = useTheme();
+  const state = useStoreState((s) => s);
   const now = useNow(30_000);
   const vp = useViewport();
   const rows = Math.max(1, Math.floor((vp.rows - 6) / 2));
