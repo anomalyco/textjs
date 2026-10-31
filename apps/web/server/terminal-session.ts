@@ -145,8 +145,12 @@ export function safeEqual(a: string, b: string): boolean {
 // ── sealed cookies (AES-256-GCM) ────────────────────────────────────────────
 
 const keys = new Map<string, Promise<CryptoKey>>();
-/** Local dev/preview/tests without a configured secret: a random key per isolate. */
-const EPHEMERAL_SECRET = randomToken(32);
+/**
+ * Local dev/preview/tests without a configured secret: a random key per isolate, made on
+ * first use (Workers forbid random values at module scope).
+ */
+let ephemeralSecret: string | null = null;
+const ephemeral = (): string => (ephemeralSecret ??= randomToken(32));
 
 /** HKDF-SHA-256 → AES-256-GCM, so any ≥32-character high-entropy secret works. */
 function cookieKey(secret: string): Promise<CryptoKey> {
@@ -278,7 +282,7 @@ export function resolveConfig(config: SessionConfig, url: URL): ResolvedConfig {
     auth: trim(config.TERMINAL_AUTH_URL) ?? up.auth,
     label: up.label,
     clientId: misconfigured ? null : id ? id : local ? LOCAL_CLIENT_ID : null,
-    secret: secret && secret.length >= MIN_SECRET_LENGTH ? secret : local ? EPHEMERAL_SECRET : null,
+    secret: secret && secret.length >= MIN_SECRET_LENGTH ? secret : local ? ephemeral() : null,
     misconfigured,
   };
 }

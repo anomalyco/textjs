@@ -591,3 +591,18 @@ describe("F-08: vite dev/preview adapter", () => {
     }
   });
 });
+
+describe("Workers global scope", () => {
+  test("loading the Functions makes no random values or I/O (workerd refuses both at module scope)", () => {
+    const script = [
+      `crypto.getRandomValues = () => { throw new Error("random at module scope"); };`,
+      `globalThis.fetch = () => { throw new Error("fetch at module scope"); };`,
+      `await import(${JSON.stringify(new URL("../functions/api/terminal/[[path]].ts", import.meta.url).pathname)});`,
+      `await import(${JSON.stringify(new URL("../functions/terminal/callback.ts", import.meta.url).pathname)});`,
+      `console.log("ok");`,
+    ].join("\n");
+    const proc = Bun.spawnSync(["bun", "-e", script], { cwd: new URL("..", import.meta.url).pathname, stdout: "pipe", stderr: "pipe" });
+    expect(proc.stderr.toString()).toBe("");
+    expect(proc.stdout.toString().trim()).toBe("ok");
+  });
+});

@@ -112,6 +112,23 @@ if (!realAuth) {
   await press("a");
   await until("orders");
   check("account opens", (await last()).includes("Ada Lovelace") || (await last()).includes("orders"), await last());
+
+  // A link can't drop you on a checkout step.
+  await page.goto(`${base}/terminal?at=%2Fconfirm`);
+  await clickPad();
+  const landed = await until("~ featured ~");
+  check("?at=/confirm opens the shop, not checkout", landed !== null && !landed.includes("press enter to confirm"), await last());
+  await page.goto(`${base}/terminal?signin_error=Call%201-800-SCAM`);
+  await clickPad();
+  await until("~ featured ~");
+  check("free-text ?signin_error= is never shown", !(await last()).includes("SCAM"), await last());
+  const status = await page.evaluate(async () => {
+    const r = await fetch("/api/terminal/_status");
+    return { csp: r.headers.get("content-security-policy"), nosniff: r.headers.get("x-content-type-options") };
+  });
+  check("Function responses carry CSP + nosniff", status.csp === "default-src 'none'; frame-ancestors 'none'" && status.nosniff === "nosniff", JSON.stringify(status));
+  const minted = await page.evaluate(async () => (await fetch("/api/terminal/prod/api/token", { method: "POST", headers: { "x-terminal-client": "1", "content-type": "application/json" }, body: "{}" })).status);
+  check("POST /token can't be reached from the page", minted === 404, String(minted));
 }
 
 check("no page errors", errors.length === 0, errors.join("\n"));
