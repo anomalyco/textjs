@@ -108,6 +108,7 @@ export function startMockOpenCode(options: { password?: string } = {}): MockOpen
       const m = /^\/api\/session\/([^/]+)(?:\/(\w+))?$/.exec(path);
 
       if (path === "/api/info") return Response.json({ version: "2.0.0-mock", pid: 1, urls: [url.origin], paths: { tmp: "/tmp" } });
+      if (path === "/api/command") return Response.json({ data: [{ name: "review", description: "Review changes" }] });
       if (path === "/api/agent")
         return Response.json({
           location: { directory: DIR },
@@ -145,6 +146,8 @@ export function startMockOpenCode(options: { password?: string } = {}): MockOpen
         if (!s) return Response.json({ _tag: "SessionNotFoundError", message: "not found" }, { status: 404 });
         const action = m[2];
         if (!action && req.method === "GET") return Response.json({ data: s });
+        if (!action && req.method === "PATCH") { s.title = (body as Json).title; return Response.json({ data: s }); }
+        if (action === "command" || action === "compact") return new Response(null, { status: 204 });
         if (action === "message") {
           const list = [...(messages.get(id) ?? [])];
           const order = url.searchParams.get("order") ?? "desc";

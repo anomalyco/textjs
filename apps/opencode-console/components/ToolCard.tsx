@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { Box, Code, Diff, Spinner, Text, useTheme } from "@textjs/next";
 import { shortPath } from "../lib/format";
 import { capitalize, Dots } from "./Composer";
 import type { JsonRecord, ToolPart } from "../lib/types";
+import { finite, metadata, patchFiles, questionLines, string as s, todoLines } from "../lib/tool-data";
 
 /** Inline tool icons, as in the OpenCode TUI. */
 const ICONS: Record<string, string> = {
@@ -11,8 +12,8 @@ const ICONS: Record<string, string> = {
   write: "←",
   patch: "←",
   apply_patch: "←",
-  grep: "*",
-  glob: "*",
+  grep: "✱",
+  glob: "✱",
   list: "→",
   shell: "$",
   bash: "$",
@@ -22,8 +23,6 @@ const ICONS: Record<string, string> = {
   subagent: "◉",
   skill: "→",
 };
-
-const s = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
 
 function inputOf(part: ToolPart): JsonRecord {
   if (part.state.status !== "streaming") return part.state.input;
@@ -48,12 +47,16 @@ export function toolTarget(name: string, input: JsonRecord): string {
     case "webfetch":
       return s(input.url) ?? "";
     case "websearch":
-      return s(input.query) ?? "";
+      return `"${s(input.query) ?? ""}"`;
     case "task":
     case "subagent":
       return `${s(input.agent) ?? ""} ${s(input.description) ?? ""}`.trim();
     case "skill":
-      return s(input.id) ?? s(input.name) ?? "";
+      return `"${s(input.id) ?? s(input.name) ?? ""}"`;
+    case "read": {
+      const offset = finite(input.offset) || 1;
+      return (path ?? "") + (input.offset !== undefined || input.limit !== undefined ? `:${offset}-${input.limit ? offset + (finite(input.limit) ?? 0) - 1 : ""}` : "");
+    }
     default:
       return path ?? s(input.pattern) ?? s(input.command) ?? s(input.description) ?? "";
   }
@@ -87,7 +90,7 @@ function languageOf(path: string | undefined): string | undefined {
 }
 
 /** One inline tool row (`→ Read src/a.ts`), with a compact diff or output underneath. */
-export function ToolCard({ part, expanded, directory }: { part: ToolPart; expanded: boolean; directory?: string }): ReactNode {
+export const ToolCard = memo(function ToolCard({ part, expanded, directory }: { part: ToolPart; expanded: boolean; directory?: string }): ReactNode {
   const theme = useTheme();
   const input = inputOf(part);
   const status = part.state.status;
@@ -97,11 +100,26 @@ export function ToolCard({ part, expanded, directory }: { part: ToolPart; expand
   const failed = status === "error";
   const path = s(input.path) ?? s(input.filePath);
   const out = outputText(part);
-  const lineCount = out ? out.split("\n").length : 0;
+  const meta = metadata(part);
   const shell = name === "shell" || name === "bash";
 
   let body: ReactNode = null;
-  if ((name === "edit" || name === "patch" || name === "apply_patch") && (typeof input.oldString === "string" || typeof input.newString === "string" || typeof input.patch === "string")) {
+  const files = patchFiles(part);
+  let title = shell ? target || name : `${name === "webfetch" ? "WebFetch" : name === "websearch" ? "Web Search" : capitalize(name)}${target ? ` ${target}` : ""}`;
+  if (files.length && ["edit", "write", "patch", "apply_patch"].includes(name)) {
+    body = files.map((file, i) => <Box key={`${file.path}:${i}`} flexDirection="column" flexShrink={0}>
+      <Text wrap="truncate-end">{`${file.kind === "added" || file.kind === "add" ? "# Created" : file.kind === "deleted" || file.kind === "delete" ? "# Deleted" : "← Patched"} ${file.path}`}</Text>
+      {file.patch && <Diff patch={file.patch} maxHeight={expanded ? 60 : 10} />}
+    </Box>);
+  } else if (name === "todowrite") {
+    const todos = todoLines(input);
+    title = failed ? "Todo update failed" : running ? "Updating todos…" : todos.length ? "# Todos" : "Cleared todos";
+    if (!running && !failed && todos.length) body = <Text>{todos.join("\n")}</Text>;
+  } else if (name === "question") {
+    const lines = questionLines(input, meta);
+    title = lines.length ? "# Questions" : "Asking questions…";
+    if (lines.length) body = <Text>{lines.join("\n")}</Text>;
+  } else if ((name === "edit" || name === "patch" || name === "apply_patch") && (typeof input.oldString === "string" || typeof input.newString === "string" || typeof input.patch === "string")) {
     const patch = typeof input.patch === "string" ? input.patch : { before: s(input.oldString) ?? "", after: s(input.newString) ?? "", filename: relativeTo(path ?? "file", directory) };
     body = <Diff patch={patch} context={expanded ? 3 : 1} maxHeight={expanded ? 60 : 10} marginTop={0} />;
   } else if (name === "write" && typeof input.content === "string") {
@@ -120,16 +138,8 @@ export function ToolCard({ part, expanded, directory }: { part: ToolPart; expand
     body = <Code code={out} language={name === "read" ? languageOf(path) : undefined} maxHeight={24} />;
   }
 
-  const summary =
-    status === "completed"
-      ? name === "read"
-        ? `${lineCount} lines`
-        : name === "grep"
-          ? `${typeof part.state.metadata?.matches === "number" ? part.state.metadata.matches : lineCount} matches`
-          : name === "glob"
-            ? `${typeof part.state.metadata?.count === "number" ? part.state.metadata.count : lineCount} files`
-            : ""
-      : "";
+  const count = name === "grep" ? finite(meta.matches) : name === "glob" ? finite(meta.count) : undefined;
+  const summary = count ? ` (${count} ${count === 1 ? "match" : "matches"})` : "";
   const color = failed ? theme.danger : theme.muted;
 
   return (
@@ -139,11 +149,11 @@ export function ToolCard({ part, expanded, directory }: { part: ToolPart; expand
           {ICONS[name] ?? "⚙"}
         </Text>
         <Text color={color} wrap="truncate-end" flexShrink={1}>
-          {shell ? target || name : `${capitalize(name)}${target ? ` ${target}` : ""}`}
+          {title}
         </Text>
         {summary ? (
           <Text color={theme.subtle} wrap="nowrap" flexShrink={0}>
-            {` · ${summary}`}
+            {summary}
           </Text>
         ) : null}
         {running ? (
@@ -162,6 +172,7 @@ export function ToolCard({ part, expanded, directory }: { part: ToolPart; expand
           {body}
         </Box>
       ) : null}
+      {name === "read" && Array.isArray(meta.loaded) && meta.loaded.filter((s): s is string => typeof s === "string").map((file, i) => <Text key={i} paddingLeft={3} color={theme.muted} wrap="truncate-end">{`↳ Loaded ${relativeTo(file, directory)}`}</Text>)}
     </Box>
   );
-}
+});

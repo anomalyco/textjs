@@ -1,5 +1,5 @@
-import { memo, type ReactNode } from "react";
-import { Box, Markdown, ScrollBox, Text, useTheme } from "@textjs/next";
+import { memo, useRef, type ReactNode } from "react";
+import { Box, Markdown, ScrollBox, Text, useKeymap, useTheme, type ScrollBoxHandle } from "@textjs/next";
 import { duration, modelLabel } from "../lib/format";
 import { useStoreState } from "../lib/store";
 import type { AssistantMessage, AssistantPart, ReasoningPart, SessionMessage, ShellMessage, UserMessage } from "../lib/types";
@@ -20,6 +20,7 @@ const UserBubble = memo(function UserBubble({ msg, agent }: { msg: UserMessage; 
         <Text color={theme.fg} wrap="wrap">
           {msg.text}
         </Text>
+        {msg.files?.map((file, i) => <Text key={i} color={theme.muted}>{`${file.mime.startsWith("image/") ? "image" : file.mime === "application/x-directory" ? "dir" : "file"} ${file.name}`}</Text>)}
       </Box>
     </Box>
   );
@@ -57,7 +58,7 @@ function Thinking({ part, expanded, live }: { part: ReasoningPart; expanded: boo
   );
 }
 
-function Part({ part, prev, options, live }: { part: AssistantPart; prev: AssistantPart | undefined; options: TimelineOptions; live: boolean }): ReactNode {
+const Part = memo(function Part({ part, prev, options, live }: { part: AssistantPart; prev: AssistantPart | undefined; options: TimelineOptions; live: boolean }): ReactNode {
   const gap = prev === undefined || (prev.type === "tool" && part.type === "tool") ? 0 : 1;
   let body: ReactNode;
   if (part.type === "text") body = <Markdown content={part.text} paddingLeft={3} codeMaxHeight={options.toolDetails ? undefined : 24} />;
@@ -68,7 +69,7 @@ function Part({ part, prev, options, live }: { part: AssistantPart; prev: Assist
       {body}
     </Box>
   );
-}
+});
 
 function Assistant({ msg, options, live }: { msg: AssistantMessage; options: TimelineOptions; live: boolean }): ReactNode {
   const theme = useTheme();
@@ -123,7 +124,7 @@ function Shell({ msg }: { msg: ShellMessage }): ReactNode {
   );
 }
 
-function Message({ msg, next, options, live }: { msg: SessionMessage; next: SessionMessage | undefined; options: TimelineOptions; live: boolean }): ReactNode {
+const Message = memo(function Message({ msg, next, options, live }: { msg: SessionMessage; next: SessionMessage | undefined; options: TimelineOptions; live: boolean }): ReactNode {
   const theme = useTheme();
   const agent = useStoreState((s) => s.agent);
   switch (msg.type) {
@@ -142,16 +143,28 @@ function Message({ msg, next, options, live }: { msg: SessionMessage; next: Sess
       );
     }
   }
-}
+});
 
 export function Timeline({ messages, options, busy, loading }: { messages: readonly SessionMessage[]; options: TimelineOptions; busy: boolean; loading: boolean }): ReactNode {
   const theme = useTheme();
+  const scroll = useRef<ScrollBoxHandle>(null);
+  const page = () => Math.max(1, (scroll.current?.node?.layout.contentHeight ?? 1) - 1);
+  useKeymap({
+    "pageup, ctrl+alt+b": () => scroll.current?.scrollBy(-page()),
+    "pagedown, ctrl+alt+f": () => scroll.current?.scrollBy(page()),
+    "ctrl+alt+u": () => scroll.current?.scrollBy(-Math.ceil(page()/2)),
+    "ctrl+alt+d": () => scroll.current?.scrollBy(Math.ceil(page()/2)),
+    "ctrl+alt+y": () => scroll.current?.scrollBy(-1),
+    "ctrl+alt+e": () => scroll.current?.scrollBy(1),
+    "ctrl+g, alt+home, home": () => scroll.current?.scrollToTop(),
+    "ctrl+alt+g, end": () => scroll.current?.scrollToBottom(),
+  }, { priority: 11 });
   const lastAssistant = (() => {
     for (let i = messages.length - 1; i >= 0; i--) if ((messages[i] as SessionMessage).type === "assistant") return (messages[i] as SessionMessage).id;
     return null;
   })();
   return (
-    <ScrollBox stickyScroll showScrollbar={false} flexGrow={1} paddingTop={1} gap={1} focused>
+    <ScrollBox ref={scroll} stickyScroll showScrollbar={false} flexGrow={1} paddingTop={1} gap={1}>
       {loading ? (
         <Text color={theme.muted} italic paddingLeft={3}>
           Loading…

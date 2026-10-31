@@ -27,12 +27,12 @@ export type ToolState =
   | { status: "completed"; input: JsonRecord; content: ToolContent[]; metadata?: JsonRecord }
   | { status: "error"; input: JsonRecord; error: { type?: string; message: string }; content?: ToolContent[]; metadata?: JsonRecord };
 
-export type TextPart = { type: "text"; text: string };
-export type ReasoningPart = { type: "reasoning"; text: string; time?: { created: number; completed?: number } };
+export type TextPart = { type: "text"; text: string; ordinal?: number };
+export type ReasoningPart = { type: "reasoning"; text: string; ordinal?: number; time?: { created: number; completed?: number } };
 export type ToolPart = { type: "tool"; id: string; name: string; state: ToolState; time?: { created: number; ran?: number; completed?: number } };
 export type AssistantPart = TextPart | ReasoningPart | ToolPart;
 
-export type UserMessage = { type: "user"; id: string; time: { created: number }; text: string; pending?: boolean };
+export type UserMessage = { type: "user"; id: string; time: { created: number }; text: string; pending?: boolean; files?: { name: string; mime: string }[] };
 export type AssistantMessage = {
   type: "assistant";
   id: string;
@@ -66,9 +66,9 @@ export type AppEvent =
   | { type: "messages.changed"; sessionID: string }
   | { type: "step.started"; sessionID: string; messageID: string; agent: string; model: ModelRef; started: number }
   | { type: "step.ended"; sessionID: string; messageID: string; finish?: string; tokens?: AssistantMessage["tokens"]; cost?: number; error?: string }
-  | { type: "part.started"; sessionID: string; messageID: string; kind: "text" | "reasoning" }
-  | { type: "part.delta"; sessionID: string; messageID: string; kind: "text" | "reasoning"; delta: string }
-  | { type: "part.ended"; sessionID: string; messageID: string; kind: "text" | "reasoning"; text: string }
+  | { type: "part.started"; sessionID: string; messageID: string; kind: "text" | "reasoning"; ordinal?: number }
+  | { type: "part.delta"; sessionID: string; messageID: string; kind: "text" | "reasoning"; ordinal?: number; delta: string }
+  | { type: "part.ended"; sessionID: string; messageID: string; kind: "text" | "reasoning"; ordinal?: number; text: string }
   | { type: "tool.started"; sessionID: string; messageID: string; toolID: string; name: string }
   | { type: "tool.delta"; sessionID: string; messageID: string; toolID: string; delta: string }
   | { type: "tool.called"; sessionID: string; messageID: string; toolID: string; input: JsonRecord }
@@ -97,6 +97,10 @@ export interface OpenCodeClient {
   view(sessionID: string): Promise<void>;
   agents(): Promise<AgentOption[]>;
   models(): Promise<ModelOption[]>;
+  commands?(): Promise<string[]>;
+  command?(sessionID: string, name: string, text: string): Promise<void>;
+  rename?(sessionID: string, title: string): Promise<void>;
+  compact?(sessionID: string, model: ModelRef | null): Promise<void>;
   defaultModel(): Promise<ModelRef | null>;
   /** Live events. Returns an unsubscribe function; reconnects on its own. */
   subscribe(onEvent: (event: AppEvent) => void, onState?: (state: "open" | "closed") => void): () => void;

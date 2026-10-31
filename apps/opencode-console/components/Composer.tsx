@@ -109,7 +109,7 @@ export function Composer({ onSubmit, busy = false, interruptArmed, placeholder }
             </Text>
             {model ? (
               <Text color={theme.muted} wrap="nowrap" flexShrink={0}>
-                {capitalize(model.providerID)}
+                {model.providerID === "opencode" ? "OpenCode" : model.providerID === "openai" ? "OpenAI" : capitalize(model.providerID)}
                 {model.variant ? ` · ${model.variant}` : ""}
               </Text>
             ) : null}

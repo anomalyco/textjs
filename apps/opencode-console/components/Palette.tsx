@@ -1,11 +1,11 @@
-import { useMemo, type ReactNode } from "react";
+import { useContext, useMemo, type ReactNode } from "react";
 import { Box, Modal, Select, Text, themes, useAppTheme, useTheme, useViewport, type SelectOption, type ThemeName } from "@textjs/next";
 import { useRouter } from "@textjs/next/navigation";
 import { relativeTime } from "../lib/format";
 import { useStore, useStoreState } from "../lib/store";
 import { useActiveSessionId } from "./Shell";
 
-import type { Picker } from "../lib/commands";
+import { DispatchAction, type Picker } from "../lib/commands";
 export type PaletteKind = Picker;
 
 const TITLES: Record<PaletteKind, string> = {
@@ -25,6 +25,7 @@ export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: 
   const shell = useAppTheme();
   const vp = useViewport();
   const active = useActiveSessionId();
+  const dispatch = useContext(DispatchAction);
 
   const options = useMemo((): SelectOption[] => {
     const sessions = state.sessions.map((s) => ({
@@ -60,6 +61,8 @@ export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: 
           { value: "tools", label: state.ui.toolDetails ? "Compact tool output" : "Expand tool output" },
           { value: "thinking", label: state.ui.thinking ? "Collapse thinking" : "Expand thinking" },
           { value: "themes", label: "Switch theme", description: shell.theme.name },
+          { value: "help", label: "Help" },
+          ...(active ? [{ value: "copy", label: "Copy last assistant message", hint: "ctrl+x y" }] : []),
           { value: "viewport", label: vp.responsive ? `Viewport: fixed ${vp.cols}×${vp.rows}` : "Viewport: follow DevTools size" },
           ...(!store.hostManagesConnection ? [{ value: "connect", label: "Connect to server…", description: state.connection.label || undefined }] : []),
           { value: "reload", label: "Reload sessions" },
@@ -79,6 +82,7 @@ export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: 
     }
     onClose();
     if (value === "new") router.push("/");
+    else if (value === "help" || value === "copy") dispatch(value);
     else if (value === "sidebar") store.toggle("sidebar");
     else if (value === "tools") store.toggle("toolDetails");
     else if (value === "thinking") store.toggle("thinking");

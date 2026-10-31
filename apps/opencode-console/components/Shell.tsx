@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, diffTexts, Spinner, Text, useKeymap, useTheme, useViewport } from "@textjs/next";
+import { Box, Button, Dialog, diffTexts, Spinner, Text, useClipboard, useKeymap, useTheme, useViewport } from "@textjs/next";
 import { usePathname, useRouter } from "@textjs/next/navigation";
 import { compactNumber, relativeTime } from "../lib/format";
 import { useStore, useStoreState, type StoreState } from "../lib/store";
-import type { SessionInfo, SessionMessage } from "../lib/types";
+import type { SessionInfo, SessionMessage, ToolPart } from "../lib/types";
+import { patchFiles } from "../lib/tool-data";
 import { Palette, type PaletteKind } from "./Palette";
 import { DispatchAction, type Action } from "../lib/commands";
 
@@ -37,11 +38,19 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
   const state = useStoreState((s) => s);
   const active = useActiveSessionId();
   const [palette, setPalette] = useState<PaletteKind | null>(null);
+  const [help, setHelp] = useState(false);
+  const { copy } = useClipboard();
   const vp = useViewport();
 
   const dispatch = (action: Action): void => {
     if (action === "new") router.push("/");
-    else if (action === "variants" && !store.variants().length) store.notify("The current model does not support any variants.");
+    else if (action === "help") setHelp(true);
+    else if (action === "copy") {
+      const message = active && state.messages[active]?.slice().reverse().find((m) => m.type === "assistant");
+      const text = message && message.type === "assistant" ? message.content.flatMap((p) => p.type === "text" ? [p.text] : []).join("\n").trim() : "";
+      if (!text) store.notify("No text content found in last assistant message", "warning");
+      else void copy(text).then((ok) => store.notify(ok ? "Message copied to clipboard!" : "Clipboard unavailable", ok ? "success" : "warning"));
+    } else if (action === "variants" && !store.variants().length) store.notify("The current model does not support any variants.");
     else setPalette(action);
   };
   useKeymap({
@@ -50,6 +59,7 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
     "ctrl+x n": () => dispatch("new"),
     "ctrl+x m": () => dispatch("models"),
     "ctrl+x a": () => dispatch("agents"),
+    "ctrl+x y": () => dispatch("copy"),
     "ctrl+x b": () => store.toggle("sidebar"),
     "shift+tab": () => store.cycleAgent(active),
     "ctrl+t": () => store.cycleVariant(active),
@@ -66,7 +76,8 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
           <DispatchAction value={dispatch}>{children}</DispatchAction>
         </Box>
       </Box>
-      {palette ? <Palette kind={palette} onKind={setPalette} onClose={() => setPalette(null)} /> : null}
+      {palette ? <DispatchAction value={dispatch}><Palette kind={palette} onKind={setPalette} onClose={() => setPalette(null)} /></DispatchAction> : null}
+      {help && <Dialog title="Help" onClose={() => setHelp(false)} description="Press ctrl+p to see all available actions and commands in any context." actions={<Button autoFocus onPress={() => setHelp(false)}>ok</Button>} />}
     </Box>
   );
 }
@@ -91,6 +102,8 @@ export function ConnectionBadge({ state }: { state: StoreState }): ReactNode {
 }
 
 /** `+3 -1` across a session's edits. */
+const diffCache = new WeakMap<ToolPart, { additions: number; deletions: number }>();
+
 export function sessionDiffStat(messages: readonly SessionMessage[]): { additions: number; deletions: number; tokens: number } {
   let additions = 0;
   let deletions = 0;
@@ -101,8 +114,14 @@ export function sessionDiffStat(messages: readonly SessionMessage[]): { addition
     for (const p of m.content) {
       if (p.type !== "tool" || p.state.status === "streaming") continue;
       const input = p.state.input;
-      if (typeof input.oldString !== "string" && typeof input.newString !== "string") continue;
-      const f = diffTexts(typeof input.oldString === "string" ? input.oldString : "", typeof input.newString === "string" ? input.newString : "", "", 0);
+      let f = diffCache.get(p);
+      if (!f) {
+        const files = patchFiles(p);
+        if (files.length) f = files.reduce((s, next) => ({ additions: s.additions + next.additions, deletions: s.deletions + next.deletions }), { additions: 0, deletions: 0 });
+        else if (typeof input.oldString === "string" || typeof input.newString === "string") f = diffTexts(typeof input.oldString === "string" ? input.oldString : "", typeof input.newString === "string" ? input.newString : "", "", 0);
+        else f = { additions: 0, deletions: 0 };
+        diffCache.set(p, f);
+      }
       additions += f.additions;
       deletions += f.deletions;
     }

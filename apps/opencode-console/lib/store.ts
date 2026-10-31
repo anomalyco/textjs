@@ -88,6 +88,8 @@ export class OpenCodeStore {
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
   private connectSeq = 0;
   private recentModels: ModelRef[] = [];
+  private commands = new Set<string>();
+  private drafts = new Map<string, { agent?: string; model?: ModelRef }>();
 
   constructor(private readonly options: StoreOptions = {}) {
     this.state = {
@@ -149,6 +151,8 @@ export class OpenCodeStore {
   async connect(endpoint?: string | null, persist = false): Promise<ConnectionState> {
     const seq = ++this.connectSeq;
     this.recentModels = [];
+    this.commands.clear();
+    this.drafts.clear();
     this.client = null;
     this.unsubscribe?.();
     this.unsubscribe = null;
@@ -192,8 +196,9 @@ export class OpenCodeStore {
   private async loadCatalog(): Promise<void> {
     const client = this.client;
     if (!client) return;
-    const [agents, models, model] = await Promise.all([client.agents().catch(() => []), client.models().catch(() => []), client.defaultModel().catch(() => null)]);
+    const [agents, models, model, commands] = await Promise.all([client.agents().catch(() => []), client.models().catch(() => []), client.defaultModel().catch(() => null), client.commands?.().catch(() => []) ?? []]);
     if (client !== this.client) return;
+    this.commands = new Set(commands);
     const primary = agents.length > 0 ? agents : DEFAULT_AGENTS;
     const directory = this.state.connection.directory ?? (await client.info().catch(() => null))?.directory;
     if (client !== this.client) return;
@@ -257,8 +262,10 @@ export class OpenCodeStore {
       this.set((s) => ({ sessions: s.sessions.some((x) => x.id === id) ? s.sessions : [info, ...s.sessions] }));
     }
     const sess = this.session(id);
-    if (sess?.agent) this.set({ agent: sess.agent });
-    if (sess?.model) this.set({ model: sess.model });
+    const draft = this.drafts.get(id);
+    const agent = draft?.agent ?? sess?.agent, model = draft?.model ?? sess?.model;
+    if (agent) this.set({ agent });
+    if (model) this.set({ model });
     await this.reloadMessages(id);
     if (client === this.client) void client.view(id).catch(() => undefined);
   }
@@ -295,6 +302,26 @@ export class OpenCodeStore {
     const body = text.trim();
     if (!client || body.length === 0) return null;
     const { agent, model } = this.state;
+    // Local actions are never model prompts. In particular, don't turn a
+    // failed/missing route or an unsupported backend into an accidental send.
+    const rename = /^\/rename(?:\s+([\s\S]+))?$/.exec(body);
+    if (rename || body === "/compact") {
+      try {
+        if (!sessionID) throw new Error("Open a session first");
+        if (rename) {
+          if (!rename[1]) throw new Error("Use /rename followed by a title");
+          if (!client.rename) throw new Error("Renaming is unavailable on this server");
+          await client.rename(sessionID, rename[1]);
+          if (client === this.client) this.patchSession(sessionID, { title: rename[1] });
+        } else {
+          if (!client.compact) throw new Error("Compaction is unavailable on this server");
+          await client.compact(sessionID, model);
+        }
+      } catch (error) {
+        if (client === this.client) this.notify(error instanceof Error ? error.message : String(error), "warning");
+      }
+      return null;
+    }
     let id = sessionID;
     try {
       if (!id) {
@@ -322,7 +349,11 @@ export class OpenCodeStore {
       busy: { ...s.busy, [target]: true },
       sessions: s.sessions.map((x) => (x.id === target ? { ...x, agent, model: model ?? x.model, title: x.title || truncateTitle(body), time: { ...x.time, updated: Date.now() } } : x)),
     }));
-    void client.prompt(target, body, { agent, model }).catch((error) => {
+    const head = /^\/([^\s]+)(?:\s+([\s\S]*))?$/.exec(body);
+    const send = head?.[1] && this.commands.has(head[1]) && client.command
+      ? client.command(target, head[1], head[2] ?? "")
+      : client.prompt(target, body, { agent, model });
+    void send.catch((error) => {
       if (client !== this.client) return;
       this.set((s) => ({ busy: { ...s.busy, [target]: false }, messages: { ...s.messages, [target]: (s.messages[target] ?? []).filter((m) => m !== pending) } }));
       this.notify(`Prompt failed: ${error instanceof Error ? error.message : String(error)}`, "danger");
@@ -344,8 +375,8 @@ export class OpenCodeStore {
   // -- agent / model ---------------------------------------------------------
 
   async setAgent(agent: string, sessionID?: string | null): Promise<void> {
-    this.set((s) => ({ agent, sessions: sessionID ? s.sessions.map((x) => (x.id === sessionID ? { ...x, agent } : x)) : s.sessions }));
-    if (sessionID) await this.client?.setAgent(sessionID, agent).catch(() => undefined);
+    if (sessionID) this.drafts.set(sessionID, { ...this.drafts.get(sessionID), agent });
+    this.set({ agent });
   }
 
   cycleAgent(sessionID?: string | null): void {
@@ -360,9 +391,9 @@ export class OpenCodeStore {
       const recent = [model, ...(this.state.model ? [this.state.model] : []), ...this.recentModels];
       this.recentModels = recent.filter((m, i) => recent.findIndex((o) => o.id === m.id && o.providerID === m.providerID) === i).slice(0, 10);
     }
-    this.set((s) => ({ model, sessions: sessionID ? s.sessions.map((x) => (x.id === sessionID ? { ...x, model } : x)) : s.sessions }));
+    if (sessionID) this.drafts.set(sessionID, { ...this.drafts.get(sessionID), model });
+    this.set({ model });
     this.notify(`Model → ${model.id}`, "info");
-    if (sessionID) await this.client?.setModel(sessionID, model).catch(() => undefined);
   }
 
   cycleRecentModel(direction: 1 | -1, sessionID?: string | null): void {
@@ -479,12 +510,13 @@ function updateAssistant(msg: AssistantMessage, e: Extract<AppEvent, { messageID
     case "step.ended":
       return { ...msg, time: { ...msg.time, completed: Date.now() }, finish: e.finish, tokens: e.tokens ?? msg.tokens, cost: e.cost ?? msg.cost };
     case "part.started":
-      content.push(e.kind === "text" ? { type: "text", text: "" } : { type: "reasoning", text: "", time: { created: Date.now() } });
+      if (e.ordinal !== undefined && content.some((p) => p.type === e.kind && p.ordinal === e.ordinal)) return msg;
+      content.push(e.kind === "text" ? { type: "text", ordinal: e.ordinal, text: "" } : { type: "reasoning", ordinal: e.ordinal, text: "", time: { created: Date.now() } });
       return { ...msg, content };
     case "part.delta": {
-      let i = lastIndex(content, (p) => p.type === e.kind);
+      let i = lastIndex(content, (p) => p.type === e.kind && (e.ordinal === undefined || p.ordinal === e.ordinal));
       if (i < 0) {
-        content.push(e.kind === "text" ? { type: "text", text: "" } : { type: "reasoning", text: "" });
+        content.push({ type: e.kind, ordinal: e.ordinal, text: "" });
         i = content.length - 1;
       }
       const p = content[i] as AssistantPart;
@@ -492,11 +524,11 @@ function updateAssistant(msg: AssistantMessage, e: Extract<AppEvent, { messageID
       return { ...msg, content };
     }
     case "part.ended": {
-      const i = lastIndex(content, (p) => p.type === e.kind);
-      if (i < 0) return msg;
+      const i = lastIndex(content, (p) => p.type === e.kind && (e.ordinal === undefined || p.ordinal === e.ordinal));
+      if (i < 0) return { ...msg, content: [...content, { type: e.kind, ordinal: e.ordinal, text: e.text }] };
       const p = content[i] as AssistantPart;
-      if (p.type === "reasoning") content[i] = { ...p, text: e.text || p.text, time: { created: p.time?.created ?? Date.now(), completed: Date.now() } };
-      else if (p.type === "text") content[i] = { ...p, text: e.text || p.text };
+      if (p.type === "reasoning") content[i] = { ...p, text: e.text, time: { created: p.time?.created ?? Date.now(), completed: Date.now() } };
+      else if (p.type === "text") content[i] = { ...p, text: e.text };
       return { ...msg, content };
     }
     case "tool.started":

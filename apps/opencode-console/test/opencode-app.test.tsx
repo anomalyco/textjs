@@ -194,8 +194,7 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     expect(mock.requests.find((r) => r.path === "/api/session/ses_alpha/view")?.body).toMatchObject({ idle: (mock.sessions[0]?.time as { idle: number }).idle });
     const frame = t.frame();
     expect(frame).toContain("Where is the auth middleware?");
-    expect(frame).toContain('* Grep "authMiddleware" in src');
-    expect(frame).toContain("1 matches");
+    expect(frame).toContain('✱ Grep "authMiddleware" in src (1 match)');
 
     const before = t.root.renderer.buffer.getCell(2, 0);
     await t.press("p", { ctrlKey: true });
@@ -254,6 +253,30 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     expect(state().model?.id).toBe("claude-opus-5-5");
     expect(mock.requests.filter((r) => r.method !== "GET")).toEqual([]);
   });
+
+  test("commits picker drafts only at send, runs known server commands, and never prompts for local actions", async () => {
+    const { t } = await mount("/session/ses_alpha");
+    await t.waitFor(() => t.frame().includes("It lives in"));
+    await t.press("Tab", { shiftKey: true });
+    await t.press("t", { ctrlKey: true });
+    expect(requested("POST", "/api/session/ses_alpha/agent")).toBe(false);
+    expect(requested("POST", "/api/session/ses_alpha/model")).toBe(false);
+    await t.type("/help");
+    await t.press("Enter");
+    expect(t.frame()).toContain("see all available");
+    await t.press("Escape");
+    await t.type("/rename Review fixture");
+    await t.press("Enter");
+    await t.waitFor(() => t.frame().includes("Review fixture"));
+    expect(requested("PATCH", "/api/session/ses_alpha")).toBe(true);
+    await t.type("/review my changes");
+    await t.press("Enter");
+    await t.waitFor(() => requested("POST", "/api/session/ses_alpha/command"));
+    const posts = mock.requests.filter((r) => r.method === "POST" && !r.path.endsWith("/view"));
+    expect(posts.map((r) => [r.path.split("/").pop(), r.body])).toEqual([
+      ["agent", { agent: "plan" }], ["model", { model: { id: "claude-opus-5-5", providerID: "anthropic", variant: "low" } }], ["command", { name: "review", text: "my changes" }],
+    ]);
+  });
 });
 
 describe("dev proxy (/__opencode)", () => {
@@ -299,7 +322,7 @@ describe("dev proxy (/__opencode)", () => {
       await reading;
       expect(events.map((e) => parseV2Event(e))).toEqual([
         { type: "connected" },
-        { type: "part.delta", sessionID: "ses_alpha", messageID: "m", kind: "text", delta: "hello" },
+        { type: "part.delta", sessionID: "ses_alpha", messageID: "m", ordinal: 0, kind: "text", delta: "hello" },
       ]);
 
       // Non-loopback custom targets are refused.

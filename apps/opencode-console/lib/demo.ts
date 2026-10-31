@@ -306,6 +306,12 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
     async interrupt(sid) {
       runs.get(sid)?.finish();
     },
+    async rename(sid, title) {
+      const s = db.sessions.find((x) => x.id === sid);
+      if (!s) throw new Error(`Unknown session ${sid}`);
+      s.title = title;
+      emit({ type: "session.renamed", sessionID: sid, title });
+    },
     async setAgent(sid, agent) {
       const s = db.sessions.find((x) => x.id === sid);
       if (s) s.agent = agent;

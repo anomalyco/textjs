@@ -166,7 +166,7 @@ function modelRef(v: unknown): ModelRef | undefined {
   if (!isRecord(v)) return undefined;
   const id = str(v.id) ?? str(v.modelID);
   const providerID = str(v.providerID);
-  return id && providerID ? { id, providerID, variant: str(v.variant) } : undefined;
+  return id && providerID ? { id, providerID, variant: v.variant === "default" ? undefined : str(v.variant) } : undefined;
 }
 
 function toolContent(v: unknown): ToolContent[] {
@@ -223,7 +223,7 @@ function v2ToolState(v: unknown): ToolState {
     case "completed":
       return { status: "completed", input: rec(s.input), content: toolContent(s.content), metadata: isRecord(s.metadata) ? s.metadata : undefined };
     default:
-      return { status: "error", input: rec(s.input), error: { message: errorMessage(s.error) }, content: toolContent(s.content) };
+      return { status: "error", input: rec(s.input), error: { message: errorMessage(s.error) }, content: toolContent(s.content), metadata: isRecord(s.metadata) ? s.metadata : undefined };
   }
 }
 
@@ -244,17 +244,25 @@ export function v2Message(v: unknown): SessionMessage | null {
   const created = num(rec(v.time).created) ?? 0;
   const base = { id: v.id, time: { created } };
   switch (v.type) {
-    case "user":
-      return { ...base, type: "user", text: str(v.text) ?? "" };
+    case "user": {
+      // Attachment bytes/URIs don't belong in the cell grid or the app store.
+      const files = Array.isArray(v.files) ? v.files.filter(isRecord).map((f) => ({ mime: str(f.mime) ?? "", name: str(f.name) || "attachment" })) : undefined;
+      return { ...base, type: "user", text: str(v.text) ?? "", files };
+    }
     case "assistant": {
       const tokens = rec(v.tokens);
+      // Snapshot arrays omit ordinals. They number each kind independently
+      // in the event stream (text 0, reasoning 0, reasoning 1, ...).
+      const counts = { text: 0, reasoning: 0 };
+      const content = (Array.isArray(v.content) ? v.content : []).map(v2Part).filter((p): p is AssistantPart => p !== null);
+      for (const part of content) if (part.type !== "tool") part.ordinal = counts[part.type]++;
       return {
         ...base,
         type: "assistant",
         time: { created, completed: num(rec(v.time).completed) },
         agent: str(v.agent) ?? "build",
         model: modelRef(v.model) ?? { id: "unknown", providerID: "unknown" },
-        content: (Array.isArray(v.content) ? v.content : []).map(v2Part).filter((p): p is AssistantPart => p !== null),
+        content,
         finish: str(v.finish),
         error: v.error ? { message: errorMessage(v.error) } : undefined,
         tokens: isRecord(v.tokens) ? { input: num(tokens.input) ?? 0, output: num(tokens.output) ?? 0, reasoning: num(tokens.reasoning) ?? 0 } : undefined,
@@ -274,6 +282,7 @@ export function v2Message(v: unknown): SessionMessage | null {
     case "agent-switched":
       return { ...base, type: "note", text: `agent → ${str(v.agent) ?? "?"}`, tone: "muted" };
     case "compaction":
+      if (v.status === "failed") return { ...base, type: "note", text: `Compaction failed: ${errorMessage(v.error)}`, tone: "danger" };
       return { ...base, type: "note", text: v.status === "running" ? "compacting conversation…" : "conversation compacted", tone: "info" };
     case "skill":
       return { ...base, type: "note", text: `skill · ${str(v.name) ?? str(v.skill) ?? ""}`, tone: "info" };
@@ -288,6 +297,7 @@ export function parseV2Event(raw: unknown): AppEvent | null {
   const d = rec(raw.data);
   const sessionID = str(d.sessionID) ?? "";
   const messageID = str(d.assistantMessageID) ?? "";
+  const ordinal = num(d.ordinal);
   switch (raw.type) {
     case "server.connected":
       return { type: "connected" };
@@ -335,17 +345,17 @@ export function parseV2Event(raw: unknown): AppEvent | null {
       return { type: "step.ended", sessionID, messageID, finish: str(d.finish), cost: num(d.cost), tokens: isRecord(d.tokens) ? { input: num(tokens.input) ?? 0, output: num(tokens.output) ?? 0, reasoning: num(tokens.reasoning) ?? 0 } : undefined };
     }
     case "session.text.started":
-      return { type: "part.started", sessionID, messageID, kind: "text" };
+      return { type: "part.started", sessionID, messageID, ordinal, kind: "text" };
     case "session.text.delta":
-      return { type: "part.delta", sessionID, messageID, kind: "text", delta: str(d.delta) ?? "" };
+      return { type: "part.delta", sessionID, messageID, ordinal, kind: "text", delta: str(d.delta) ?? "" };
     case "session.text.ended":
-      return { type: "part.ended", sessionID, messageID, kind: "text", text: str(d.text) ?? "" };
+      return { type: "part.ended", sessionID, messageID, ordinal, kind: "text", text: str(d.text) ?? "" };
     case "session.reasoning.started":
-      return { type: "part.started", sessionID, messageID, kind: "reasoning" };
+      return { type: "part.started", sessionID, messageID, ordinal, kind: "reasoning" };
     case "session.reasoning.delta":
-      return { type: "part.delta", sessionID, messageID, kind: "reasoning", delta: str(d.delta) ?? "" };
+      return { type: "part.delta", sessionID, messageID, ordinal, kind: "reasoning", delta: str(d.delta) ?? "" };
     case "session.reasoning.ended":
-      return { type: "part.ended", sessionID, messageID, kind: "reasoning", text: str(d.text) ?? "" };
+      return { type: "part.ended", sessionID, messageID, ordinal, kind: "reasoning", text: str(d.text) ?? "" };
     case "session.tool.input.started":
       return { type: "tool.started", sessionID, messageID, toolID: str(d.id) ?? "", name: str(d.name) ?? "tool" };
     case "session.tool.input.delta":
@@ -417,6 +427,19 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     },
     async prompt(sessionID, text) {
       await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/prompt`, { text });
+    },
+    async commands() {
+      const res = await t.json<{ data?: unknown[] }>("GET", "/api/command");
+      return (res.data ?? []).flatMap((v) => isRecord(v) && typeof v.name === "string" ? [v.name] : []);
+    },
+    async command(sessionID, name, text) {
+      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/command`, { name, text });
+    },
+    async compact(sessionID, model) {
+      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/compact`, model ? { model } : {});
+    },
+    async rename(sessionID, title) {
+      await t.json("PATCH", `/api/session/${encodeURIComponent(sessionID)}`, { title });
     },
     async interrupt(sessionID) {
       await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/interrupt`, { resume: true });
