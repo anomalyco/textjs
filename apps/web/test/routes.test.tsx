@@ -67,6 +67,7 @@ describe("page rendering", () => {
     for (const card of ["App Router", "Yoga Flexbox", "Zero DOM"]) expect(html).toContain(card);
     expect(html).toContain("OpenCode in console.log");
     expect(html).toContain("Explore OpenCode");
+    for (const section of ["One <code>console.log</code> per frame. None when idle.", "Append, don’t clear.", "Every component, cell for cell.", "Render where your data lives.", "One app. Three consoles.", "The rest of the toolchain.", "Build a deploy dashboard in your console."]) expect(html).toContain(section);
     for (const gone of ["Introducing Text.js", "How Turbolog works", "DOM Frameworks (Next.js)", "Render down."]) expect(html).not.toContain(gone);
     expect(html).not.toContain("▲");
   });

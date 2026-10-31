@@ -9,17 +9,13 @@ import { HighlightedCode } from "../site/highlight";
 import { ArrowRight } from "../site/icons";
 import { useCompanionFrame } from "../site/useCompanion";
 import { HERO_FILES } from "./home-files";
-
-function Crosses(): ReactNode {
-  return (
-    <>
-      <span className="cross tl" />
-      <span className="cross tr" />
-      <span className="cross bl" />
-      <span className="cross br" />
-    </>
-  );
-}
+import { Crosses } from "./home/Crosses";
+import { AnywhereSection } from "./home/Anywhere";
+import { KitSection } from "./home/Kit";
+import { ServerSection } from "./home/Server";
+import { LearnSection, ToolingSection } from "./home/Tooling";
+import { TurbologSection } from "./home/Turbolog";
+import "./home/home.css";
 
 function LiveConsole({ source = "text://viewport:1" }: { source?: string }): ReactNode {
   const frame = useCompanionFrame();
@@ -105,7 +101,7 @@ const FEATURES: Array<{ title: ReactNode; body: ReactNode }> = [
 
 function Features(): ReactNode {
   return (
-    <section className="section">
+    <section className="section" id="fold">
       <div className="container">
         <div className="features">
           {FEATURES.map((f, i) => (
@@ -141,7 +137,13 @@ export function HomePage(): ReactNode {
     <>
       <Hero />
       <Features />
+      <TurbologSection />
+      <KitSection />
+      <ServerSection />
+      <AnywhereSection />
+      <ToolingSection />
       <OpenCodeSpotlight />
+      <LearnSection />
     </>
   );
 }
