@@ -38,7 +38,7 @@ export const PRESETS: readonly Preset[] = [
 /** Keys for the non-playground views. */
 export const PAGE_HINTS: Record<Exclude<CompanionTab, "playground">, { action: string; hints: readonly Hint[] }> = {
   home: { action: "press ↑ ↓", hints: [{ keys: "↑ ↓", label: "count" }, { keys: "t", label: "theme" }] },
-  opencode: { action: "type a prompt", hints: [{ keys: "Enter", label: "send" }, { keys: "Tab", label: "build / plan" }, { keys: "Ctrl P", label: "commands" }] },
+  opencode: { action: "type a prompt", hints: [{ keys: "Enter", label: "send" }, { keys: "Shift Tab", label: "agents" }, { keys: "Ctrl P", label: "commands" }] },
   docs: { action: "press ↑ ↓", hints: [{ keys: "↑ ↓", label: "browse" }, { keys: "Enter", label: "read" }, { keys: "/", label: "search" }] },
   // Each /learn page brings its own keys (learn/course.ts); the course view uses these.
   learn: { action: "press ↓", hints: [{ keys: "↑ ↓", label: "chapters" }, { keys: "Enter", label: "open" }] },

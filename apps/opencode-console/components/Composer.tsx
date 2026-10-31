@@ -1,14 +1,16 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useContext, useEffect, useState, type ReactNode } from "react";
 import { Box, Text, Textarea, useTheme, useViewport, type TextTheme } from "@textjs/next";
 import { useStoreState } from "../lib/store";
+import { DispatchAction, slashAction } from "../lib/commands";
 
 export interface ComposerProps {
   onSubmit: (text: string) => void;
   busy?: boolean;
+  interruptArmed?: boolean;
   placeholder?: string;
 }
 
-const PLACEHOLDER = 'Ask anything... "Fix broken tests"';
+const PLACEHOLDER = 'Ask anything… "Fix broken tests"';
 
 export const capitalize = (s: string): string => (s ? s[0]?.toUpperCase() + s.slice(1) : s);
 
@@ -50,28 +52,32 @@ export function Hints({ items }: { items: Array<[string, string]> }): ReactNode 
 
 /**
  * The TUI's split-border prompt: `┃` in the agent color, a raised panel, a
- * fixed two-row editor (typing never changes its height) and the metadata row.
+ * growing multiline editor and the metadata row.
  */
-export function Composer({ onSubmit, busy = false, placeholder }: ComposerProps): ReactNode {
+export function Composer({ onSubmit, busy = false, interruptArmed, placeholder }: ComposerProps): ReactNode {
   const theme = useTheme();
   const [value, setValue] = useState("");
   const agent = useStoreState((s) => s.agent);
   const model = useStoreState((s) => s.model);
   const models = useStoreState((s) => s.models);
   const toast = useStoreState((s) => s.toast);
+  const history = useStoreState((s) => s.history);
+  const dispatch = useContext(DispatchAction);
   const color = agentColor(theme, agent);
   const name = models.find((m) => m.id === model?.id && m.providerID === model?.providerID)?.name ?? model?.id ?? "no model";
 
   const submit = (text: string): void => {
     if (text.trim().length === 0) return;
     setValue("");
-    onSubmit(text);
+    const action = slashAction(text);
+    if (action) dispatch(action);
+    else onSubmit(text);
   };
 
   const right = busy ? (
     <Box flexDirection="row" height={1} flexShrink={0} gap={1}>
       <Dots color={color} />
-      <Hints items={[["esc", "interrupt"]]} />
+      <Hints items={[["esc", interruptArmed ? "again to interrupt" : "interrupt"]]} />
     </Box>
   ) : toast ? (
     <Text color={toast.tone === "danger" ? theme.danger : toast.tone === "warning" ? theme.warning : toast.tone === "success" ? theme.success : theme.info} wrap="truncate-end" flexShrink={1}>
@@ -80,7 +86,7 @@ export function Composer({ onSubmit, busy = false, placeholder }: ComposerProps)
   ) : (
     <Hints
       items={[
-        ["tab", agent === "plan" ? "build" : "plan"],
+        ["shift+tab", "agents"],
         ["ctrl+p", "commands"],
       ]}
     />
@@ -90,7 +96,7 @@ export function Composer({ onSubmit, busy = false, placeholder }: ComposerProps)
     <Box flexDirection="column" flexShrink={0} width="100%">
       <Box flexDirection="column" flexShrink={0} border="heavy" borderTop={false} borderRight={false} borderBottom={false} borderColor={color}>
         <Box flexDirection="column" flexShrink={0} bg={theme.panel} paddingX={2} paddingTop={1}>
-          <Textarea value={value} onChange={setValue} onSubmit={submit} focused placeholder={placeholder ?? PLACEHOLDER} minRows={2} maxRows={2} />
+          <Textarea value={value} onChange={setValue} onSubmit={submit} history={history} focused placeholder={placeholder ?? PLACEHOLDER} minRows={1} maxRows={6} />
           <Box flexDirection="row" height={1} flexShrink={0} gap={1} marginTop={1}>
             <Text color={color} wrap="nowrap" flexShrink={0}>
               {capitalize(agent)}
@@ -104,6 +110,7 @@ export function Composer({ onSubmit, busy = false, placeholder }: ComposerProps)
             {model ? (
               <Text color={theme.muted} wrap="nowrap" flexShrink={0}>
                 {capitalize(model.providerID)}
+                {model.variant ? ` · ${model.variant}` : ""}
               </Text>
             ) : null}
             <Box flexGrow={1} />

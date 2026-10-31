@@ -1,17 +1,20 @@
 import { useMemo, type ReactNode } from "react";
-import { Box, Modal, Select, Text, useAppTheme, useTheme, useViewport, type SelectOption } from "@textjs/next";
+import { Box, Modal, Select, Text, themes, useAppTheme, useTheme, useViewport, type SelectOption, type ThemeName } from "@textjs/next";
 import { useRouter } from "@textjs/next/navigation";
 import { relativeTime } from "../lib/format";
 import { useStore, useStoreState } from "../lib/store";
 import { useActiveSessionId } from "./Shell";
 
-export type PaletteKind = "commands" | "models" | "agents" | "sessions";
+import type { Picker } from "../lib/commands";
+export type PaletteKind = Picker;
 
 const TITLES: Record<PaletteKind, string> = {
   commands: " Commands ",
   models: " Switch model ",
   agents: " Switch agent ",
   sessions: " Switch session ",
+  variants: " Switch model variant ",
+  themes: " Switch theme ",
 };
 
 export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: (k: PaletteKind) => void; onClose: () => void }): ReactNode {
@@ -34,7 +37,7 @@ export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: 
       case "models":
         return state.models.map((m) => ({
           value: `model:${m.providerID}/${m.id}`,
-          label: m.id,
+          label: m.name,
           description: m.providerID,
           hint: m.context ? `${Math.round(m.context / 1000)}k` : undefined,
         }));
@@ -42,18 +45,21 @@ export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: 
         return state.agents.map((a) => ({ value: `agent:${a.id}`, label: a.name, description: a.description }));
       case "sessions":
         return sessions;
+      case "variants":
+        return ["default", ...store.variants()].map((v) => ({ value: `variant:${v}`, label: v }));
+      case "themes":
+        return Object.entries(themes).map(([id, t]) => ({ value: `theme:${id}`, label: t.name }));
       default: {
-        const nextAgent = state.agent === "plan" ? "build" : "plan";
         return [
-          { value: "new", label: "New session", hint: "ctrl+n" },
-          { value: "sessions", label: "Switch session…", hint: "ctrl+g" },
-          { value: "models", label: "Switch model…", description: state.model?.id, hint: "ctrl+m" },
-          { value: `agent:${nextAgent}`, label: `Switch agent → ${nextAgent}`, hint: "tab" },
-          { value: "agents", label: "Choose agent…" },
-          { value: "sidebar", label: state.ui.sidebar ? "Hide sidebar" : "Show sidebar", hint: "ctrl+b" },
-          { value: "tools", label: state.ui.toolDetails ? "Compact tool output" : "Expand tool output", hint: "ctrl+o" },
-          { value: "thinking", label: state.ui.thinking ? "Collapse thinking" : "Expand thinking", hint: "ctrl+t" },
-          { value: "theme", label: "Toggle theme", description: shell.theme.name },
+          { value: "models", label: "Switch model", hint: "ctrl+x m" },
+          { value: "sessions", label: "Switch session", hint: "ctrl+x l" },
+          { value: "new", label: "New session", hint: "ctrl+x n" },
+          { value: "agents", label: "Switch agent", hint: "ctrl+x a" },
+          ...(store.variants().length ? [{ value: "variants", label: "Switch model variant" }] : []),
+          { value: "sidebar", label: state.ui.sidebar ? "Hide sidebar" : "Show sidebar", hint: "ctrl+x b" },
+          { value: "tools", label: state.ui.toolDetails ? "Compact tool output" : "Expand tool output" },
+          { value: "thinking", label: state.ui.thinking ? "Collapse thinking" : "Expand thinking" },
+          { value: "themes", label: "Switch theme", description: shell.theme.name },
           { value: "viewport", label: vp.responsive ? `Viewport: fixed ${vp.cols}×${vp.rows}` : "Viewport: follow DevTools size" },
           ...(!store.hostManagesConnection ? [{ value: "connect", label: "Connect to server…", description: state.connection.label || undefined }] : []),
           { value: "reload", label: "Reload sessions" },
@@ -64,10 +70,10 @@ export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: 
   }, [kind, state, active, shell.theme.name, vp.responsive, vp.cols, vp.rows]);
 
   const current =
-    kind === "models" && state.model ? `model:${state.model.providerID}/${state.model.id}` : kind === "agents" ? `agent:${state.agent}` : kind === "sessions" && active ? `session:${active}` : undefined;
+    kind === "models" && state.model ? `model:${state.model.providerID}/${state.model.id}` : kind === "agents" ? `agent:${state.agent}` : kind === "themes" ? `theme:${shell.themeName}` : kind === "variants" ? `variant:${state.model?.variant ?? "default"}` : kind === "sessions" && active ? `session:${active}` : undefined;
 
   const choose = (value: string): void => {
-    if (value === "sessions" || value === "models" || value === "agents") {
+    if (value === "sessions" || value === "models" || value === "agents" || value === "variants" || value === "themes") {
       onKind(value);
       return;
     }
@@ -76,7 +82,8 @@ export function Palette({ kind, onKind, onClose }: { kind: PaletteKind; onKind: 
     else if (value === "sidebar") store.toggle("sidebar");
     else if (value === "tools") store.toggle("toolDetails");
     else if (value === "thinking") store.toggle("thinking");
-    else if (value === "theme") shell.setTheme(shell.themeName === "opencodeDark" ? "tokyoNight" : shell.themeName === "tokyoNight" ? "geistLight" : "opencodeDark");
+    else if (value.startsWith("theme:")) shell.setTheme(value.slice(6) as ThemeName);
+    else if (value.startsWith("variant:") && state.model) void store.setModel({ ...state.model, variant: value === "variant:default" ? undefined : value.slice(8) }, active);
     else if (value === "viewport") {
       if (vp.responsive) {
         vp.resize(vp.cols, vp.rows);

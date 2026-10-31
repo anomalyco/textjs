@@ -34,7 +34,7 @@ def main():
         env = dict(PATH=os.environ['PATH'], HOME=tmp, SHELL='/bin/sh', LANG='en_US.UTF-8',
                    XDG_DATA_HOME=tmp+'/data', XDG_CONFIG_HOME=tmp+'/config',
                    XDG_CACHE_HOME=tmp+'/cache', XDG_STATE_HOME=tmp+'/state',
-                   TERM='tmux-256color', COLORTERM='truecolor')
+                   TERM='tmux-256color', COLORTERM='truecolor', OPENCODE_DISABLE_AUTOUPDATE='1')
         subprocess.run(['git', 'init', '-q', project], env=env, check=True)
         sock = 'textjs-parity-' + uuid.uuid4().hex
 

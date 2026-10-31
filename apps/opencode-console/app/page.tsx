@@ -27,7 +27,7 @@ export default function HomePage(): ReactNode {
         <Box flexGrow={1} minHeight={0} />
         <Logo />
         <Box height={1} flexShrink={0} />
-        <Box flexDirection="column" width="100%" maxWidth={72} paddingTop={1} flexShrink={0}>
+        <Box flexDirection="column" width="100%" maxWidth={75} paddingTop={1} flexShrink={0}>
           <Composer onSubmit={submit} />
         </Box>
         <Box flexGrow={1} minHeight={0} />
@@ -38,7 +38,7 @@ export default function HomePage(): ReactNode {
         </Text>
         <Box flexGrow={1} />
         <ConnectionBadge state={state} />
-        <Hints items={[["ctrl+p", "sessions"]]} />
+        <Hints items={[["ctrl+x l", "sessions"]]} />
       </Box>
     </Box>
   );

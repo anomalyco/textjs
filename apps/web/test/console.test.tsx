@@ -123,13 +123,13 @@ describe("console companion (104×32)", () => {
     await site(() => siteStore.syncRoute("/opencode"));
     let f = h.frame();
     expect(f).toContain("█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█");
-    expect(f).toContain('Ask anything... "Fix broken tests"');
+    expect(f).toContain('Ask anything… "Fix broken tests"');
     expect(f).toContain("Build · Claude Opus 5.5 Anthropic");
-    expect(f).toContain("ctrl+p sessions");
+    expect(f).toContain("ctrl+x l sessions");
     expect(f).not.toContain("▼ Text.js");
-    await h.key("tab");
+    await h.key("tab", { shift: true });
     expect(h.frame()).toContain("Plan · Claude Opus 5.5");
-    await h.key("tab");
+    await h.key("tab", { shift: true });
     const rows = h.frame().split("\n").length;
     await h.type("explain the renderer");
     expect(h.frame()).toContain("explain the renderer");

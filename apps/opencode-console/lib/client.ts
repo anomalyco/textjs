@@ -419,7 +419,7 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
       await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/prompt`, { text });
     },
     async interrupt(sessionID) {
-      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/interrupt`);
+      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/interrupt`, { resume: true });
     },
     async setAgent(sessionID, agent) {
       await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/agent`, { agent });
@@ -445,8 +445,8 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     async models() {
       const res = await t.json<{ data?: unknown[] }>("GET", "/api/model");
       return (res?.data ?? []).flatMap((m): ModelOption[] => {
-        if (!isRecord(m) || typeof m.id !== "string" || typeof m.providerID !== "string" || m.enabled === false) return [];
-        return [{ id: m.id, providerID: m.providerID, name: str(m.name) ?? m.id, context: num(rec(m.limit).context) }];
+        if (!isRecord(m) || typeof m.id !== "string" || typeof m.providerID !== "string" || m.enabled === false || (m.type && m.type !== "chat")) return [];
+        return [{ id: m.id, providerID: m.providerID, name: str(m.name) ?? m.id, context: num(rec(m.limit).context), variants: Array.isArray(m.variants) ? m.variants.flatMap((v) => typeof v?.id === "string" && v.id !== "default" ? [v.id] : []) : [] }];
       });
     },
     async defaultModel() {

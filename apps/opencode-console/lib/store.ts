@@ -62,6 +62,7 @@ export interface StoreState {
   model: ModelRef | null;
   ui: UiState;
   toast: Toast | null;
+  history: readonly string[];
 }
 
 const DEFAULT_AGENTS: AgentOption[] = [
@@ -86,6 +87,7 @@ export class OpenCodeStore {
   private refetchTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
   private connectSeq = 0;
+  private recentModels: ModelRef[] = [];
 
   constructor(private readonly options: StoreOptions = {}) {
     this.state = {
@@ -102,6 +104,7 @@ export class OpenCodeStore {
       model: null,
       ui: { sidebar: false, toolDetails: false, thinking: false },
       toast: null,
+      history: [],
     };
   }
 
@@ -145,6 +148,8 @@ export class OpenCodeStore {
   /** (Re)connect: explicit URL, `"demo"`, or `null` for auto-discovery. */
   async connect(endpoint?: string | null, persist = false): Promise<ConnectionState> {
     const seq = ++this.connectSeq;
+    this.recentModels = [];
+    this.client = null;
     this.unsubscribe?.();
     this.unsubscribe = null;
     if (persist) saveEndpoint(endpoint ?? null);
@@ -173,6 +178,8 @@ export class OpenCodeStore {
       loaded: {},
       missing: {},
       busy: {},
+      model: null,
+      history: [],
     });
     this.unsubscribe = client.subscribe(
       (e) => this.handle(e),
@@ -308,6 +315,7 @@ export class OpenCodeStore {
     const pending: SessionMessage = { type: "user", id: `pending_${Date.now().toString(36)}`, time: { created: Date.now() }, text: body, pending: true };
     this.set((s) => ({
       messages: { ...s.messages, [target]: [...(s.messages[target] ?? []), pending] },
+      history: s.history.at(-1) === text ? s.history : [...s.history.slice(-99), text],
       busy: { ...s.busy, [target]: true },
       sessions: s.sessions.map((x) => (x.id === target ? { ...x, agent: s.agent, model: s.model ?? x.model, title: x.title || truncateTitle(body), time: { ...x.time, updated: Date.now() } } : x)),
     }));
@@ -338,17 +346,38 @@ export class OpenCodeStore {
 
   cycleAgent(sessionID?: string | null): void {
     const list = this.state.agents.length > 0 ? this.state.agents : DEFAULT_AGENTS;
-    const preferred = list.filter((a) => a.id === "build" || a.id === "plan");
-    const cycle = preferred.length >= 2 ? preferred : list;
-    const idx = cycle.findIndex((a) => a.id === this.state.agent);
-    const next = cycle[(idx + 1) % cycle.length]?.id ?? "build";
+    const idx = list.findIndex((a) => a.id === this.state.agent);
+    const next = list[(idx + 1) % list.length]?.id ?? "build";
     void this.setAgent(next, sessionID);
   }
 
-  async setModel(model: ModelRef, sessionID?: string | null): Promise<void> {
+  async setModel(model: ModelRef, sessionID?: string | null, remember = true): Promise<void> {
+    if (remember) {
+      const recent = [model, ...(this.state.model ? [this.state.model] : []), ...this.recentModels];
+      this.recentModels = recent.filter((m, i) => recent.findIndex((o) => o.id === m.id && o.providerID === m.providerID) === i).slice(0, 10);
+    }
     this.set((s) => ({ model, sessions: sessionID ? s.sessions.map((x) => (x.id === sessionID ? { ...x, model } : x)) : s.sessions }));
     this.notify(`Model → ${model.id}`, "info");
     if (sessionID) await this.client?.setModel(sessionID, model).catch(() => undefined);
+  }
+
+  cycleRecentModel(direction: 1 | -1, sessionID?: string | null): void {
+    const recent = this.recentModels;
+    const index = recent.findIndex((m) => m.id === this.state.model?.id && m.providerID === this.state.model.providerID);
+    const next = recent[(index + direction + recent.length) % recent.length];
+    if (next) void this.setModel(next, sessionID, false);
+  }
+
+  variants(): string[] {
+    return this.state.models.find((m) => m.id === this.state.model?.id && m.providerID === this.state.model.providerID)?.variants ?? [];
+  }
+
+  cycleVariant(sessionID?: string | null): void {
+    const model = this.state.model;
+    const variants = this.variants();
+    if (!model || variants.length === 0) return;
+    const index = model.variant ? variants.indexOf(model.variant) : -1;
+    void this.setModel({ ...model, variant: variants[index + 1] }, sessionID);
   }
 
   // -- ui --------------------------------------------------------------------

@@ -26,15 +26,16 @@ Open the page, press **⌘⌥J** (or **Ctrl+Shift+J**), then click back into the
 | Key                    | Action                                    |
 | ---------------------- | ----------------------------------------- |
 | `Enter` / `⇧Enter`     | Send prompt / newline (`Ctrl+J` too)      |
-| `Esc`                  | Interrupt the running session             |
-| `Tab`                  | Switch agent `build` ↔ `plan`             |
-| `Ctrl+P` / `Ctrl+K`    | Command palette                           |
-| `Ctrl+N`               | New session                               |
-| `Ctrl+G`               | Switch session                            |
-| `Ctrl+M`               | Switch model                              |
-| `Ctrl+B`               | Toggle session sidebar                    |
-| `Ctrl+O`               | Compact / expanded tool output            |
-| `Ctrl+T`               | Collapse / expand thinking                |
+| `Esc` twice            | Interrupt the running session             |
+| `Shift+Tab`            | Cycle available primary agents            |
+| `Ctrl+P`               | Command palette                           |
+| `Ctrl+X` then `n`      | New session (`/new`)                      |
+| `Ctrl+X` then `l`      | Switch session (`/sessions`)              |
+| `Ctrl+X` then `m`, `a` | Model or agent picker (`/models`, `/agents`) |
+| `Ctrl+X` then `b`      | Toggle session sidebar                    |
+| `Ctrl+T`               | Cycle model variants (`/variants` to pick) |
+| `F2` / `Shift+F2`      | Cycle recent models                       |
+| `↑` / `↓` at the ends  | Recall submitted prompts / restore draft  |
 | `PgUp` / `PgDn`, wheel | Scroll the timeline                       |
 
 ## Layout

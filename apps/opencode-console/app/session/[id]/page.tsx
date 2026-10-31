@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Box, Text, useInput, useTheme, type Metadata } from "@textjs/next";
 import { useRouter } from "@textjs/next/navigation";
 import { Composer } from "../../../components/Composer";
@@ -23,15 +23,23 @@ export default function SessionPage({ params }: { params: Record<string, string 
   const ui = useStoreState((s) => s.ui);
   const directory = useStoreState((s) => s.sessions.find((x) => x.id === id)?.directory);
   const options = useMemo(() => ({ ...ui, directory }), [ui, directory]);
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    if (!busy) { setArmed(false); return; }
+    const timer = setTimeout(() => setArmed(false), 5000);
+    return () => clearTimeout(timer);
+  }, [armed, busy]);
 
   useEffect(() => {
     if (ready) void store.openSession(id);
   }, [store, id, ready]);
 
   useInput((e) => {
-    if (e.key !== "escape") return;
+    if (!busy || e.key !== "escape" || e.repeat) return;
     e.stopPropagation();
-    if (busy) void store.interrupt(id);
+    setArmed(!armed);
+    if (armed) void store.interrupt(id);
   });
 
   if (missing) {
@@ -39,7 +47,7 @@ export default function SessionPage({ params }: { params: Record<string, string 
       <Box flexDirection="column" flexGrow={1} minHeight={0} paddingX={2}>
         <Box flexDirection="column" flexGrow={1} alignItems="center" justifyContent="center" gap={1}>
           <Text color={theme.danger} bold>{`Session ${id} not found`}</Text>
-          <Text color={theme.subtle}>ctrl+n new session · ctrl+g switch session</Text>
+          <Text color={theme.subtle}>ctrl+x n new session · ctrl+x l switch session</Text>
         </Box>
         <Composer onSubmit={(text) => void store.send(null, text).then((nid) => nid && router.replace(`/session/${encodeURIComponent(nid)}`))} />
       </Box>
@@ -50,7 +58,7 @@ export default function SessionPage({ params }: { params: Record<string, string 
     <Box flexDirection="column" flexGrow={1} minHeight={0} paddingX={2}>
       <Timeline messages={messages} options={options} busy={busy} loading={!loaded && messages.length === 0} />
       <Box height={1} flexShrink={0} />
-      <Composer busy={busy} onSubmit={(text) => void store.send(id, text)} />
+      <Composer busy={busy} interruptArmed={armed} onSubmit={(text) => void store.send(id, text)} />
     </Box>
   );
 }

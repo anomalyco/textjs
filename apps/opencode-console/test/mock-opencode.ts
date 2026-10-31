@@ -94,6 +94,7 @@ export function startMockOpenCode(options: { password?: string } = {}): MockOpen
   };
 
   const server = Bun.serve({
+    hostname: "127.0.0.1",
     port: 0,
     idleTimeout: 0,
     async fetch(req): Promise<Response> {
@@ -120,7 +121,7 @@ export function startMockOpenCode(options: { password?: string } = {}): MockOpen
         return Response.json({
           location: { directory: DIR },
           data: [
-            { id: "claude-opus-5-5", modelID: "claude-opus-5-5", providerID: "anthropic", name: "Claude Opus 5.5", enabled: true, limit: { context: 400000, output: 64000 } },
+            { id: "claude-opus-5-5", modelID: "claude-opus-5-5", providerID: "anthropic", name: "Claude Opus 5.5", enabled: true, variants: [{ id: "default" }, { id: "low" }, { id: "high" }], limit: { context: 400000, output: 64000 } },
             { id: "gpt-6.1-terra", modelID: "gpt-6.1-terra", providerID: "openai", name: "GPT-6.1 Terra", enabled: true, limit: { context: 512000, output: 64000 } },
           ],
         });

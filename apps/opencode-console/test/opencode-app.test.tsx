@@ -63,12 +63,12 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     await t.waitFor(() => t.frame().includes("Claude Opus 5.5"), "model metadata");
     const frame = t.frame();
     expect(frame).toContain("█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█");
-    expect(frame).toContain('┃  Ask anything... "Fix broken tests"');
+    expect(frame).toContain('┃  Ask anything… "Fix broken tests"');
     expect(frame).toContain("Build · Claude Opus 5.5 Anthropic");
-    expect(frame).toContain("tab plan · ctrl+p commands");
+    expect(frame).toContain("shift+tab agents · ctrl+p commands");
     expect(frame).toContain("╹▀▀▀");
     expect(frame).toContain(`● connected · localhost:${new URL(mock.url).port}`);
-    expect(frame).toContain("ctrl+p sessions");
+    expect(frame).toContain("ctrl+x l sessions");
     expect(frame).toContain("~/code/storefront");
     expect(frame).not.toContain("SESSIONS");
     // The logo's shadow cells are tinted toward the glyph color.
@@ -80,11 +80,10 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     expect(requested("GET", "/api/agent")).toBe(true);
     expect(requested("GET", "/api/model")).toBe(true);
 
-    // Tab cycles build ↔ plan.
-    await t.press("Tab");
+    // Shift+Tab cycles build ↔ plan; a plain Tab isn't the agent command.
+    await t.press("Tab", { shiftKey: true });
     expect(t.frame()).toContain("Plan · Claude Opus 5.5");
-    expect(t.frame()).toContain("tab build");
-    await t.press("Tab");
+    await t.press("Tab", { shiftKey: true });
     expect(t.frame()).toContain("Build · Claude Opus 5.5");
 
     // Typing never changes the prompt's height.
@@ -93,11 +92,13 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     expect(t.frame().split("\n").findIndex((l) => l.includes("Build · Claude"))).toBe(before);
     await t.press("Backspace");
 
-    // Ctrl+B toggles the optional session rail (off by default).
-    await t.press("b", { ctrlKey: true });
+    // A leader chord toggles the optional session rail. Ctrl+B belongs to the editor.
+    await t.press("x", { ctrlKey: true });
+    await t.press("b");
     await t.settle();
     expect(t.frame()).toContain("SESSIONS 2");
-    await t.press("b", { ctrlKey: true });
+    await t.press("x", { ctrlKey: true });
+    await t.press("b");
     await t.settle();
     expect(t.frame()).not.toContain("SESSIONS 2");
   });
@@ -168,6 +169,9 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     expect(t.frame()).toContain("Done.");
 
     await t.press("Escape");
+    expect(t.frame()).toContain("esc again to interrupt");
+    expect(requested("POST", `/api/session/${sessionID}/interrupt`)).toBe(false);
+    await t.press("Escape");
     await t.waitFor(() => requested("POST", `/api/session/${sessionID}/interrupt`), "POST /interrupt");
 
     mock.emit({ type: "session.text.ended", data: { ...base, ordinal: 1, text: "## Rate limiting\n\nAdded a **token bucket** in `src/middleware.ts`.\n\n```ts\nconst windowMs = 60_000;\n```\n\nDone." } });
@@ -199,8 +203,8 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     const open = t.frame();
     expect(open).toContain("Commands");
     expect(open).toContain("New session");
-    expect(open).toContain("Switch model…");
-    expect(open).toContain("Toggle theme");
+    expect(open).toContain("Switch model");
+    expect(open).toContain("Switch theme");
     const after = t.root.renderer.buffer.getCell(2, 0);
     expect(after?.char).toBe(before?.char);
     expect(after?.fg).not.toBe(before?.fg);
@@ -212,11 +216,12 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     await t.waitFor(() => t.frame().includes("Why does CI flake on Tuesdays?"), "beta timeline");
     expect(t.frame()).not.toContain("Commands");
 
-    // Ctrl+M opens the model picker with models from /api/model.
-    await t.press("m", { ctrlKey: true });
+    // The leader opens the model picker with models from /api/model.
+    await t.press("x", { ctrlKey: true });
+    await t.press("m");
     await t.settle();
     expect(t.frame()).toContain("Switch model");
-    expect(t.frame()).toContain("gpt-6.1-terra");
+    expect(t.frame()).toContain("GPT-6.1 Terra");
     await t.press("Escape");
     await t.settle();
     expect(t.frame()).not.toContain("Switch model");
@@ -225,6 +230,29 @@ describe("OpenCode Lite console app (live V2 server)", () => {
   test("unknown sessions render a not-found state", async () => {
     const { t } = await mount("/session/ses_nope");
     await t.waitFor(() => t.frame().includes("Session ses_nope not found"), "missing session");
+  });
+
+  test("slash commands are local, variants use catalog order, and editing chords stay in the editor", async () => {
+    const { t } = await mount();
+    const state = () => getOpenCodeStore().getSnapshot();
+    await t.press("t", { ctrlKey: true });
+    expect(state().model?.variant).toBe("low");
+    await t.press("t", { ctrlKey: true });
+    expect(state().model?.variant).toBe("high");
+    await t.press("t", { ctrlKey: true });
+    expect(state().model?.variant).toBeUndefined();
+    await t.type("/modelz");
+    await t.press("b", { ctrlKey: true });
+    await t.press("k", { ctrlKey: true });
+    await t.type("s");
+    await t.press("Enter");
+    expect(t.frame()).toContain("Switch model");
+    await t.type("terra");
+    await t.press("Enter");
+    expect(state().model?.id).toBe("gpt-6.1-terra");
+    await t.press("F2");
+    expect(state().model?.id).toBe("claude-opus-5-5");
+    expect(mock.requests.filter((r) => r.method !== "GET")).toEqual([]);
   });
 });
 

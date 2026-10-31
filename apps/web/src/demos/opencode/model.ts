@@ -168,7 +168,7 @@ export function scriptFor(prompt: string, agent: Agent): Step[] {
 3. **Add a loading state.** \`loading.tsx\` streams a \`<Spinner>\` through React Suspense while data resolves.
 4. **Verify.** Run \`text build\` and \`bun test\`; expect **0** DOM nodes and **1** \`console.log\` per frame.
 
-Press \`tab\` to switch to **build** and I'll implement it.`,
+Press \`shift+tab\` to switch to **build** and I'll implement it.`,
       },
     ];
   }

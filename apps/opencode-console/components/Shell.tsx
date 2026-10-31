@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, diffTexts, Spinner, Text, useInput, useTheme, useViewport } from "@textjs/next";
+import { Box, diffTexts, Spinner, Text, useKeymap, useTheme, useViewport } from "@textjs/next";
 import { usePathname, useRouter } from "@textjs/next/navigation";
 import { compactNumber, relativeTime } from "../lib/format";
 import { useStore, useStoreState, type StoreState } from "../lib/store";
 import type { SessionInfo, SessionMessage } from "../lib/types";
 import { Palette, type PaletteKind } from "./Palette";
+import { DispatchAction, type Action } from "../lib/commands";
 
 export const SIDEBAR_WIDTH = 28;
 /** Below this width the sidebar steps aside so the conversation keeps room. */
@@ -38,23 +39,23 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
   const [palette, setPalette] = useState<PaletteKind | null>(null);
   const vp = useViewport();
 
-  useInput(
-    (e) => {
-      const plain = !e.ctrl && !e.meta && !e.alt;
-      let handled = true;
-      if (e.ctrl && (e.key === "p" || e.key === "k")) setPalette("commands");
-      else if (e.ctrl && e.key === "n") router.push("/");
-      else if (e.ctrl && e.key === "m") setPalette("models");
-      else if (e.ctrl && e.key === "b") store.toggle("sidebar");
-      else if (e.ctrl && e.key === "o") store.toggle("toolDetails");
-      else if (e.ctrl && e.key === "t") store.toggle("thinking");
-      else if (e.ctrl && e.key === "g") setPalette("sessions");
-      else if (plain && e.key === "tab" && !e.shift) store.cycleAgent(active);
-      else handled = false;
-      if (handled) e.stopPropagation();
-    },
-    { priority: 20 },
-  );
+  const dispatch = (action: Action): void => {
+    if (action === "new") router.push("/");
+    else if (action === "variants" && !store.variants().length) store.notify("The current model does not support any variants.");
+    else setPalette(action);
+  };
+  useKeymap({
+    "ctrl+p": () => dispatch("commands"),
+    "ctrl+x l": () => dispatch("sessions"),
+    "ctrl+x n": () => dispatch("new"),
+    "ctrl+x m": () => dispatch("models"),
+    "ctrl+x a": () => dispatch("agents"),
+    "ctrl+x b": () => store.toggle("sidebar"),
+    "shift+tab": () => store.cycleAgent(active),
+    "ctrl+t": () => store.cycleVariant(active),
+    "f2": () => store.cycleRecentModel(1, active),
+    "shift+f2": () => store.cycleRecentModel(-1, active),
+  }, { priority: 20, sequenceTimeout: 2000 });
 
   return (
     <Box flexDirection="column" width="100%" height="100%" bg={theme.bg}>
@@ -62,7 +63,7 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
       <Box flexDirection="row" flexGrow={1} flexShrink={1} minHeight={0}>
         {state.ui.sidebar && vp.cols >= SIDEBAR_MIN_COLS ? <Sidebar state={state} active={active} /> : null}
         <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={0}>
-          {children}
+          <DispatchAction value={dispatch}>{children}</DispatchAction>
         </Box>
       </Box>
       {palette ? <Palette kind={palette} onKind={setPalette} onClose={() => setPalette(null)} /> : null}

@@ -51,7 +51,7 @@ export type ShellMessage = { type: "shell"; id: string; time: { created: number 
 export type SessionMessage = UserMessage | AssistantMessage | NoteMessage | ShellMessage;
 
 export type AgentOption = { id: string; name: string; description?: string };
-export type ModelOption = { id: string; providerID: string; name: string; context?: number };
+export type ModelOption = { id: string; providerID: string; name: string; context?: number; variants?: string[] };
 
 export type ServerInfo = { version: string; directory?: string };
 

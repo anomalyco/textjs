@@ -9,7 +9,7 @@ export default defineConfig({
   action: "type a prompt",
   hints: [
     { keys: "Enter", label: "send" },
-    { keys: "Tab", label: "build / plan" },
+    { keys: "Shift Tab", label: "agents" },
     { keys: "Ctrl P", label: "commands" },
   ],
   // `/__opencode/*` → the local OpenCode daemon found via `opencode service status`.
