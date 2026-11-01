@@ -22,6 +22,7 @@ interface Line {
  *   highlights?: [{ at, until?, lines: [from, to], focus?, zoom? }],  // zoom: lean in closer (default 1.07) on long files
  *   preview?: { at, frame: TuiFrame, size?, refresh?: cue, label? },
  *   maxSize?: number,                               // cap the code font size (long lines in short files)
+ *   fontSize?: number,                              // alias of maxSize
  * }
  */
 export const editor: SceneFactory = (data, cue) => {
@@ -55,7 +56,7 @@ export const editor: SceneFactory = (data, cue) => {
   const bodyH = edH - 52 - 56;
   const maxLh = 44;
   const lh = Math.floor(Math.min(maxLh, bodyH / lines.length));
-  const size = Math.round(Math.min(p.maxSize ?? 25, lh / 1.66));
+  const size = Math.round(Math.min(p.maxSize ?? p.fontSize ?? 25, lh / 1.66));
   const gutter = 70;
   const code = place(h("div", "code", win), 0, 52 + 28, edW, bodyH);
   Object.assign(code.style, { fontSize: `${size}px`, lineHeight: `${lh}px` });
