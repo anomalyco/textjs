@@ -2257,10 +2257,12 @@ kbd {
  *   reserve the same number of lines at every width, so demo-specific text never moves the rest.
  */
 .pad-stage {
-  /* The frame includes the banner row and the desk's 28px gap below it. */
+  /* The frame: banner, steps, headline, hero and one line, with the pad's gaps between them (32px, 24px after the steps). */
   --pad-banner: 32px;
-  --pad-frame: 420px;
+  --pad-frame: 296px;
   --pad-bottom: 72px;
+  /* Quiet text in the pad (View source, the OpenCode status, the terminal.shop note) at AA contrast on --bg-1. */
+  --subtle: #7c7c7c;
   padding: 24px;
   min-height: calc(100vh - var(--header-h));
   min-height: calc(100dvh - var(--header-h));
@@ -2291,21 +2293,16 @@ kbd {
 
 .pad-stage .tx-pad-desk {
   container-type: size;
-  justify-content: flex-start !important;
-  min-height: var(--pad-frame) !important;
+  justify-content: flex-start;
+  min-height: var(--pad-frame);
 }
 
 .pad-stage .tx-pad-desk::before {
   content: "";
   flex: none;
   height: max(0px, calc(50cqh - var(--pad-frame) / 2));
-  /* Cancel the desk's 28px gap after this spacer. */
-  margin-bottom: -28px;
-}
-
-.pad-stage .tx-pad-steps,
-.pad-stage .tx-pad-hints {
-  align-content: flex-start;
+  /* Cancel the desk's gap after this spacer. */
+  margin-bottom: calc(var(--tx-pad-gap, 32px) * -1);
 }
 
 .pad-title {
@@ -2325,7 +2322,7 @@ kbd {
   padding: 3px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--bg);
+  background: rgba(0, 0, 0, 0.5);
 }
 
 .pad-picker::-webkit-scrollbar {
@@ -2350,10 +2347,17 @@ kbd {
   color: var(--fg);
 }
 
+/* Inset: the picker scrolls sideways when narrow, which would clip an outer ring. */
+.pad-picker a:focus-visible {
+  outline-offset: -2px;
+  border-radius: 999px;
+}
+
+/* The same surface as the pad's keycaps. */
 .pad-picker a[aria-current="page"] {
-  background: var(--bg-3);
+  background: linear-gradient(180deg, #1c1c1c, #151515);
   color: var(--fg);
-  box-shadow: inset 0 0 0 1px var(--line-2);
+  box-shadow: inset 0 0 0 1px var(--line-2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 /* First row of the message. Every demo reserves it; OpenCode and terminal.shop put their wordmarks
@@ -2395,7 +2399,7 @@ kbd {
 }
 
 .pad-note {
-  max-width: 520px;
+  max-width: 640px;
   margin: 0;
   font-size: 13px;
   line-height: 1.6;
@@ -2424,7 +2428,8 @@ kbd {
 .pad-connect .copy-cmd {
   width: 100%;
   height: 40px;
-  font-size: 12px;
+  border-radius: 8px;
+  font-size: 13px;
   padding: 0 12px;
   overflow: hidden;
 }
@@ -2502,9 +2507,10 @@ kbd {
   min-width: 0;
 }
 
+/* Wide screens: on the console size control's baseline (13px sans next to 12px mono). */
 @media (min-width: 901px) {
   .pad-source {
-    margin-bottom: -4px;
+    margin-bottom: 1px;
   }
 }
 
@@ -2517,10 +2523,10 @@ kbd {
   }
 }
 
-/* Narrow windows: per-demo copy may wrap, so reserve the most lines any demo needs. */
+/* Narrow windows: the line below the hero may wrap, so every demo reserves the most lines any demo needs. */
 @media (max-width: 640px) {
   .pad-stage {
-    --pad-frame: 520px;
+    --pad-frame: 276px;
     padding: 12px;
   }
   .pad-stage .tx-pad-sub {
@@ -2528,24 +2534,9 @@ kbd {
   }
 }
 
-@media (max-width: 600px) {
-  .pad-stage .tx-pad-steps {
-    min-height: 62px;
-  }
-}
-
-@media (max-width: 560px) {
-  .pad-stage .tx-pad-hints {
-    min-height: 88px;
-  }
-}
-
 @media (max-width: 359px) {
   .pad-stage {
-    --pad-frame: 580px;
-  }
-  .pad-stage .tx-pad-steps {
-    min-height: 102px;
+    --pad-frame: 296px;
   }
   .pad-stage .tx-pad-sub {
     min-height: 72px;

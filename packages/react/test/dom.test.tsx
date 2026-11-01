@@ -16,6 +16,7 @@ import {
   TextCanvas,
   ViewportControl,
 } from "../src/dom/index";
+import { FocusPadMessage, type FocusPadMessageProps, type FocusPadState } from "../src/dom/FocusPad";
 import { Box, Text } from "../src/index";
 import { createTestRoot } from "./helpers";
 
@@ -64,21 +65,59 @@ describe("DOM companion", () => {
     expect(pad).toContain("my-app");
     expect(pad).toContain("Open the console");
     expect(pad).toContain("Then click here and press ↑ ↓.");
-    expect(pad).toContain("count");
-    expect(pad).toContain(">R</kbd>");
+    expect(pad).toContain('aria-label="Step 1 of 3"');
+    // The app's keys wait for the live state; before that the hero is the DevTools shortcut.
+    expect(pad).not.toContain("count");
+    expect(pad).toContain('aria-label="Press ⌘ ⌥ J"');
     expect(pad).toContain("Open on a desktop");
     // No viewport presets, pause toggles or on-page preview by default.
     for (const gone of ["80×24", "Pause", "Preview", "data-textjs-mirror"]) expect(pad).not.toContain(gone);
     // A banner leads the message on desktop and the notice on touch devices.
     const branded = renderToStaticMarkup(<FocusPad root={null} banner={<b>acme</b>} />);
     expect(branded.match(/<div class="tx-pad-banner"><b>acme<\/b><\/div>/g)?.length).toBe(2);
-    expect(branded.indexOf("tx-pad-banner")).toBeLessThan(branded.indexOf("tx-pad-steps"));
-    expect(pad).not.toContain("tx-pad-banner");
+    expect(branded.indexOf(`class="tx-pad-banner"`)).toBeLessThan(branded.indexOf(`class="tx-pad-steps"`));
+    expect(pad).not.toContain(`class="tx-pad-banner"`);
     const typed = renderToStaticMarkup(<FocusPad root={null} action="type a prompt" />);
     expect(typed).toContain("Then click here and type a prompt.");
     const canvas = renderToStaticMarkup(<TextCanvas app={<Text>hi</Text>} title="demo" theme="geistLight" />);
     expect(canvas).toContain("demo");
     expect(canvas).toContain("Open the console");
+  });
+
+  test("FocusPad message: the same four rows in every state", () => {
+    const hints = [{ keys: "↑ ↓", label: "count" }, { keys: "r", label: "reset" }];
+    const render = (state: FocusPadState, extra: Partial<FocusPadMessageProps> = {}): string =>
+      renderToStaticMarkup(<FocusPadMessage state={state} hints={hints} doThis="press ↑ ↓" platform="mac" {...extra} />);
+    for (const state of ["open", "click", "live"] as const) {
+      const html = render(state);
+      for (const row of ["tx-pad-steps", "tx-pad-headline", "tx-pad-hero", "tx-pad-sub"]) expect(html.match(new RegExp(`class="${row}[" ]`, "g"))?.length).toBe(1);
+      // Nothing fades in on the first paint.
+      expect(html).not.toContain("tx-pad-in");
+    }
+    expect(render("open", { animate: true })).toContain('class="tx-pad-headline tx-pad-in"');
+
+    const open = render("open");
+    expect(open).toContain("Open the console");
+    expect(open).toContain('<span class="tx-pad-seg" data-step="current">');
+    expect(open).not.toContain("tx-pad-hints");
+
+    const click = render("click");
+    expect(click).toContain('aria-label="Step 2 of 3"');
+    expect(click).toContain(">Click here</h2>");
+    expect(click).toContain("<kbd>⌘⌥J</kbd> opens the console.");
+    expect(click.match(/data-step="done"/g)?.length).toBe(1);
+
+    // Live: the app's keys are the hero; the pressed one lights up, and keys without a hint are echoed below.
+    const live = render("live", { lit: "↑", last: { label: "↑", n: 1 } });
+    expect(live).toContain("Live in your console");
+    expect(live.match(/data-step="done"/g)?.length).toBe(3);
+    expect(live).toContain("count");
+    expect(live).toContain(">R</kbd>");
+    expect(live).toContain('<kbd class="tx-key tx-key-md" data-lit="" aria-label="↑">');
+    expect(live).not.toContain("tx-pad-echo");
+    expect(render("live", { last: { label: "Space", n: 2 } })).toContain('<span class="tx-pad-echo"><kbd class="tx-key">Space</kbd></span>');
+    // Without hints there is nothing to show yet.
+    expect(renderToStaticMarkup(<FocusPadMessage state="live" hints={[]} doThis="type" platform="other" />)).toContain("Start typing.");
   });
 
   test("console size choices parse, persist and apply", async () => {
