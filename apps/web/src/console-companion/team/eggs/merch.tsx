@@ -114,7 +114,7 @@ export function AidenEgg(): ReactNode {
   return (
     <EggFrame crumb="flash sheet" hints={[{ keys: "Space", label: "add flash" }]}>
       <Box className="flex-col grow items-center justify-center gap-1">
-        <Box className="flex-col shrink-0 px-2 py-1 gap-1" border borderStyle="rounded" borderColor={theme.border}>
+        <Box className="flex-col shrink-0 px-2" border borderStyle="rounded" borderColor={theme.border}>
           {rows.map((row, r) => (
             <Box key={r} className="flex-row shrink-0 gap-4">
               {row.map((f, i) => {
