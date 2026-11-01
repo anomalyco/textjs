@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { parseMarkdown } from "@textjs/react";
 import { DOC_CATEGORIES, DOCS, docPath, getDoc, headingsOf, neighbors, searchDocs, toConsoleMarkdown } from "../src/docs/registry";
+import { DOC_HEADINGS } from "../src/docs/search-index";
 import { PREVIEWS } from "../src/docs/previews";
 import { parseFence } from "../src/site/Markdown";
 
@@ -41,8 +42,10 @@ describe("documentation registry", () => {
 
   test("heading ids are unique within each page", () => {
     for (const d of DOCS) {
-      const ids = headingsOf(d.markdown).map((h) => h.id);
+      const headings = headingsOf(d.markdown);
+      const ids = headings.map((h) => h.id);
       expect(new Set(ids).size).toBe(ids.length);
+      expect(DOC_HEADINGS[d.slug]).toEqual(headings);
     }
   });
 
