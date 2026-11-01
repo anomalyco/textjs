@@ -67,3 +67,33 @@ describe("Testing chapter", () => {
     expect(app.lines().find((line) => line.includes("›"))).toBe(BROKEN_TEST.received);
   });
 });
+
+describe("Terminal chapter", () => {
+  const cli = fences(markdown("terminal")).find((f) => f.file === "cli.tsx");
+
+  test("cli.tsx is the course app's cli.tsx", () => {
+    expect(cli).toBeDefined();
+    expect(fixture("cli.tsx")).toBe(`${cli?.source}\n`);
+  });
+
+  test("bun cli.tsx draws the deployments, and Ctrl+C quits", async () => {
+    const proc = Bun.spawn([process.execPath, "cli.tsx"], { cwd: APP, stdin: "pipe", stdout: "pipe", stderr: "pipe" });
+    const kill = setTimeout(() => proc.kill(), 10_000);
+    const reader = proc.stdout.getReader();
+    const decoder = new TextDecoder();
+    let out = "";
+    while (!out.includes("chore: bump react to 19.3")) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      out += decoder.decode(value, { stream: true });
+    }
+    reader.releaseLock();
+    proc.stdin.write("\x03");
+    await proc.stdin.flush();
+    const code = await proc.exited;
+    clearTimeout(kill);
+    for (const d of DEPLOYMENTS) expect(out).toContain(d.commit);
+    expect(await new Response(proc.stderr).text()).toBe("");
+    expect(code).toBe(0);
+  }, 15_000);
+});
