@@ -7,10 +7,25 @@ bun run build
 ```
 
 ```text
-▼ Text.js 1.0.0 (Turbolog)
-  Compiling app/ … 4 routes, 1 route handler
-  Bundling 1 client chunk (41.2 kB gzip)
-✓ Built in 1.8s
+   ▼ Text.js 1.0.0 (Turbolog) — Creating an optimized console production build...
+
+ ✓ Compiled successfully in 0.8s
+ ✓ Collecting route data
+ ✓ Generating static console cells (3/4)
+ ✓ Prerendering console shells (3/3)
+ ✓ Finalizing console optimization
+
+Route (app)                              Type       Target
+┌ ○ /                                    Static     console.log (%c)
+├ ○ /_not-found                          Static     console.log (%c)
+├ ○ /deployments                         Static     console.log (%c)
+├ ƒ /deployments/[id]                    Dynamic    console.log (%c)
+├ ○ /settings                            Static     console.log (%c)
+└ ƒ /api/deployments                     Dynamic    Route Handler
++ First Load JS shared by all             698.2 kB (241.6 kB gzip)
+
+○  (Static)   prerendered as static console cells
+ƒ  (Dynamic)  on-demand console reconciliation
 ```
 
 `text start` serves the build and runs your route handlers. It runs on any host with Bun 1.2+ or Node.js 22+.
