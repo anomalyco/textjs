@@ -1,5 +1,7 @@
-import { useState, type ReactNode } from "react";
-import { COMPANION_COLS, COMPANION_ROWS, getCompanion } from "../console-companion/boot";
+import { useEffect, useState, type ReactNode } from "react";
+import type { StyledFrame } from "@textjs/core";
+import { COMPANION_COLS, COMPANION_ROWS, getCompanion, subscribeCompanionFrame } from "../console-companion/boot";
+import { isHomeExampleFrame } from "../console-companion/tabs/ExampleTab";
 import { useSite } from "../console-companion/useSite";
 import { A } from "../router";
 import { DevtoolsShortcut } from "../site/Chrome";
@@ -7,7 +9,6 @@ import { CopyCommand } from "../site/CodeBlock";
 import { DevToolsWindow } from "../site/DevToolsWindow";
 import { HighlightedCode } from "../site/highlight";
 import { ArrowRight } from "../site/icons";
-import { useCompanionFrame } from "../site/useCompanion";
 import { siteStore } from "../console-companion/store";
 import { HERO_FILES } from "./home-files";
 import { Crosses } from "./home/Crosses";
@@ -18,8 +19,21 @@ import { LearnSection, ToolingSection } from "./home/Tooling";
 import { TurbologSection } from "./home/Turbolog";
 import "./home/home.css";
 
+/** The companion's latest Home frame. While a Components example runs in the console, the hero keeps the counter. */
+function useHomeFrame(): StyledFrame | null {
+  const [frame, setFrame] = useState<StyledFrame | null>(null);
+  useEffect(
+    () =>
+      subscribeCompanionFrame((f) => {
+        if (!isHomeExampleFrame(f)) setFrame(f);
+      }),
+    [],
+  );
+  return frame;
+}
+
 function LiveConsole({ source = "viewport:3" }: { source?: string }): ReactNode {
-  const frame = useCompanionFrame();
+  const frame = useHomeFrame();
   const site = useSite();
   return (
     <DevToolsWindow
@@ -27,9 +41,12 @@ function LiveConsole({ source = "viewport:3" }: { source?: string }): ReactNode 
       source={source}
       cols={COMPANION_COLS}
       rows={COMPANION_ROWS}
-      engaged={site.consoleInput}
+      engaged={site.consoleInput && site.example === null}
       engage
-      onActivate={() => getCompanion()?.activate()}
+      onActivate={() => {
+        siteStore.exitExample();
+        getCompanion()?.activate();
+      }}
       onInspect={() => siteStore.set({ wireframe: !site.wireframe })}
       inspecting={site.wireframe}
     />

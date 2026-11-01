@@ -1406,6 +1406,23 @@
   font-size: 13px;
 }
 
+.kit-foot-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 16px;
+}
+
+/* The button sits inside the foot's text line, so the foot keeps its height. */
+.kit-foot .preview-run {
+  height: 24px;
+  margin: -4px 0;
+}
+
+.kit-live.in-console .kit-stage .devtools {
+  cursor: text;
+}
+
 .kit-index {
   display: flex;
   flex-direction: column;

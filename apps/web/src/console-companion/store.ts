@@ -104,7 +104,7 @@ export interface SiteState {
   /** Whether keystrokes outside form fields are routed into the console app. */
   consoleInput: boolean;
   opencode: OpenCodeConnection;
-  /** Live docs example (preview id) running in the console instead of the Docs view, or `null`. */
+  /** Live example (preview id) running in the console instead of the Docs or Home view, or `null`. */
   example: string | null;
   /** `/exit` in OpenCode paused and cleared the console; engaging the pad again restarts it. */
   opencodeExited: boolean;
@@ -190,12 +190,12 @@ export class SiteStore {
     this.set(patch);
   }
 
-  /** Run a docs example in the console and route keystrokes to it. */
+  /** Run an example in the console and route keystrokes to it. */
   activateExample(id: string): void {
     this.set({ example: id, consoleInput: true });
   }
 
-  /** Back to the Docs view (only if `id`, when given, is still the active example). */
+  /** Back to the page's view (only if `id`, when given, is still the active example). */
   exitExample(id?: string): void {
     if (this.state.example === null || (id !== undefined && this.state.example !== id)) return;
     this.set({ example: null, consoleInput: false });
