@@ -14,6 +14,9 @@ interface ServerEntry {
   PREFIT_MIRRORS_WHILE_PARSING_SCRIPT: string;
   render(pathname: string): Promise<string>;
   renderRss(): string;
+  humansTxt(date: string): string;
+  llmsTxt(): string;
+  statusApi(): Record<string, string>;
 }
 
 const server = (await import(pathToFileURL(join(ssrDir, "entry-server.js")).href)) as ServerEntry;
@@ -80,6 +83,10 @@ for (const r of server.ROUTES) await writeRoute(r.path, r.title, r.description, 
 
 mkdirSync(join(distDir, "blog"), { recursive: true });
 writeFileSync(join(distDir, "blog", "rss.xml"), server.renderRss());
+writeFileSync(join(distDir, "humans.txt"), server.humansTxt(new Date().toISOString().slice(0, 10)));
+writeFileSync(join(distDir, "llms.txt"), server.llmsTxt());
+mkdirSync(join(distDir, "api", "v2"), { recursive: true });
+for (const [name, body] of Object.entries(server.statusApi())) writeFileSync(join(distDir, "api", "v2", name), body);
 
 // Showcase was folded into the Playground.
 writeHtml(

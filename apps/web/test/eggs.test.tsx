@@ -4,7 +4,10 @@ import { HERO_FILES } from "../src/pages/home-files";
 import { HighlightedCode } from "../src/site/highlight";
 import { aliasResults, invertTriangles, isQuitCommand } from "../src/site/search-aliases";
 import { matchesErrorQuery } from "../src/pages/Errors";
-import { getTxError, TX_ERRORS } from "@textjs/core";
+import { getTxError, TX_ERRORS, VERSION } from "@textjs/core";
+import { humansTxt, llmsTxt, statusApi } from "../src/static-files";
+import { DOCS, docPath } from "../src/docs/registry";
+import { COMPONENTS } from "../src/pages/status-components";
 
 describe("hero files", () => {
   test("app/globals.css is empty and renders one numbered line", () => {
@@ -49,5 +52,42 @@ describe("search", () => {
   test("vim quit commands", () => {
     for (const q of [":q", ":q!", ":wq", ":wq!", ":x", " :q "]) expect(isQuitCommand(q)).toBe(true);
     for (const q of ["q", ":w", ":qa", "::q", ":quit"]) expect(isQuitCommand(q)).toBe(false);
+  });
+});
+
+describe("generated static files", () => {
+  test("humans.txt", () => {
+    const txt = humansTxt("2026-11-01");
+    expect(txt).toStartWith("/* TEAM */\nAdam Elmore\nAnomaly · https://anoma.ly\n");
+    expect(txt).toContain("The Chrome DevTools team. Sorry about the console.\n");
+    expect(txt).toContain("Last update: 2026/11/01\n");
+    expect(txt).toContain(`Text.js ${VERSION} (Turbolog)`);
+    expect(VERSION).toBe("1.0.0");
+  });
+
+  test("llms.txt lists every doc and error code", () => {
+    const txt = llmsTxt();
+    expect(txt).toStartWith("# Text.js\n\n> ");
+    expect(txt).toContain("- [Introduction](https://textjs.org/docs): What Text.js is, why console.log, and the Inverted Architecture.\n");
+    for (const d of DOCS) expect(txt).toContain(`](https://textjs.org${docPath(d.slug)}): ${d.description}`);
+    for (const e of TX_ERRORS) expect(txt).toContain(`- [${e.code}: ${e.title}](https://textjs.org/errors/${e.code})`);
+    expect(txt).toContain("- [TX001: Yoga is not initialized](https://textjs.org/errors/TX001)\n");
+    expect(txt).not.toContain("TX000");
+  });
+
+  test("Statuspage v2 API", () => {
+    const files = statusApi();
+    const status = JSON.parse(files["status.json"]);
+    expect(status).toEqual({
+      page: { id: "textjs", name: "Text.js", url: "https://textjs.org/status", time_zone: "Etc/UTC", updated_at: "2026-10-31T00:00:00.000Z" },
+      status: { indicator: "none", description: "All Systems Operational" },
+    });
+    const { components } = JSON.parse(files["components.json"]);
+    expect(components.map((c: { name: string }) => c.name)).toEqual(["console.log", "console.clear", "Yoga", "Turbolog encoder", "DevTools Throttler"]);
+    for (const c of components) expect(c.status).toBe("operational");
+    expect(components[1].description).toBe(COMPONENTS[1]?.detail);
+    const summary = JSON.parse(files["summary.json"]);
+    expect(Object.keys(summary)).toEqual(["page", "components", "incidents", "scheduled_maintenances", "status"]);
+    expect(summary.components).toEqual(components);
   });
 });

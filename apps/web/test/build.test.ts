@@ -45,7 +45,8 @@ describe("production build", () => {
     expect(rewrite).toBeDefined();
     const re = new RegExp(`^${rewrite?.source ?? ""}$`);
     for (const p of ["/", "/docs/routing", "/playground", "/opencode", "/nope"]) expect(re.test(p)).toBe(true);
-    for (const p of ["/assets/index-abc.js", "/assets/missing.js", "/favicon.svg", "/og.png", "/og.svg", "/robots.txt", "/sitemap.xml"]) expect(re.test(p)).toBe(false);
+    for (const p of ["/assets/index-abc.js", "/assets/missing.js", "/favicon.svg", "/og.png", "/og.svg", "/robots.txt", "/sitemap.xml", "/humans.txt", "/llms.txt", "/api/v2/status.json", "/api/v2/components.json", "/api/v2/summary.json", "/enterprise/sample-invoice.pdf"]) expect(re.test(p)).toBe(false);
+    expect(re.test("/enterprise")).toBe(true);
     const all = cfg.headers.find((h) => h.source === "/(.*)")?.headers ?? [];
     expect(all).toContainEqual({ key: "X-Content-Type-Options", value: "nosniff" });
     expect(all).toContainEqual({ key: "X-Powered-By", value: "Text.js" });

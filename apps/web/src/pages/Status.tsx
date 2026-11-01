@@ -2,28 +2,10 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { formatPostDate } from "../blog";
 import { A } from "../router";
 import type { BenchResult, Summary } from "./status-bench";
+import { COMPONENTS, LAUNCH, type Tone } from "./status-components";
 import history from "./status-history.json";
 
-type Tone = "ok" | "info";
-
-interface Component {
-  name: string;
-  status: string;
-  tone: Tone;
-  detail: string;
-}
-
-const COMPONENTS: readonly Component[] = [
-  { name: "console.log", status: "Operational", tone: "ok", detail: "One call per dirty frame. Zero per idle frame." },
-  { name: "console.clear", status: "Rarely used", tone: "info", detail: "First frame, after invalidate(), and at idle once 100 frames are stacked." },
-  { name: "Yoga", status: "Operational", tone: "ok", detail: "WebAssembly flexbox layout, pointScaleFactor 1." },
-  { name: "Turbolog encoder", status: "Operational", tone: "ok", detail: "Row-hash gate and run-length %c encoding." },
-  { name: "DevTools Throttler", status: "Respected", tone: "info", detail: "50ms viewport throttle. Frames are paced at least 66ms apart." },
-];
-
 const DAYS = 90;
-/** The first commit. Days before it have no data, because there was no Text.js. */
-const LAUNCH = "2026-10-31";
 
 function dayList(end: string): string[] {
   const out: string[] = [];
