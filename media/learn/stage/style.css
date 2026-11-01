@@ -1,0 +1,141 @@
+/* The stage: a 1920×1080 canvas in the textjs.org / Geist language. Nothing here animates by itself: every
+   moving value is set per frame from the virtual clock (see motion.ts), so renders are deterministic. */
+
+@font-face { font-family: "Geist"; font-weight: 100 900; font-display: block; src: url(/fonts/geist-latin.woff2) format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-weight: 100 900; font-display: block; src: url(/fonts/geist-mono-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Geist Mono"; font-weight: 100 900; font-display: block; src: url(/fonts/geist-mono-symbols.woff2) format("woff2"); unicode-range: U+2000-2001, U+2004-2008, U+200A, U+23B8-23BD, U+2500-259F; }
+
+:root {
+  --bg: #000;
+  --bg-1: #0a0a0a;
+  --bg-2: #111;
+  --bg-3: #1a1a1a;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-2: rgba(255, 255, 255, 0.14);
+  --line-3: rgba(255, 255, 255, 0.24);
+  --fg: #ededed;
+  --fg-strong: #fff;
+  --muted: #a1a1a1;
+  --subtle: #707070;
+  --faint: #4d4d4d;
+  --accent: #3291ff;
+  --accent-soft: rgba(50, 145, 255, 0.14);
+  --green: #45a557;
+  --green-2: #62c073;
+  --red: #e5484d;
+  --amber: #f5a524;
+  --pink: #ff4d8d;
+  --purple: #c472fb;
+  --sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: #000;
+  color: var(--fg);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  font-feature-settings: "ss01" off;
+}
+
+.abs { position: absolute; }
+.mono { font-family: var(--mono); }
+
+#stage { position: absolute; inset: 0; overflow: hidden; background: #000; }
+#grid { position: absolute; inset: 0; }
+#world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+#vignette {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 75% 70% at 50% 48%, transparent 55%, rgba(0, 0, 0, 0.72) 100%);
+}
+#hud { position: absolute; inset: 0; pointer-events: none; }
+#fade { position: absolute; inset: 0; background: #000; pointer-events: none; }
+
+.scene { position: absolute; width: 1920px; height: 1080px; }
+
+/* HUD: small persistent marks, like a broadcast bug. */
+.hud-mark { position: absolute; top: 48px; font-size: 18px; letter-spacing: -0.01em; color: var(--subtle); display: flex; align-items: center; gap: 10px; }
+.hud-mark.left { left: 64px; color: var(--muted); font-weight: 500; }
+.hud-mark.right { right: 64px; font-family: var(--mono); font-size: 15px; }
+
+/* Lower-third subtitles (optional; the WebVTT track is the default). */
+#subs {
+  position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%);
+  max-width: 1360px; text-align: center; text-wrap: balance;
+  font-size: 32px; line-height: 1.35; font-weight: 500; letter-spacing: -0.012em; color: #f4f4f4;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.8);
+}
+#subs-shade { position: absolute; left: 0; right: 0; bottom: 0; height: 260px; background: linear-gradient(to top, rgba(0,0,0,.7), transparent); }
+
+/* Typography. */
+.eyebrow { font-family: var(--mono); font-size: 22px; letter-spacing: 0; color: var(--subtle); text-transform: none; }
+.display { font-weight: 700; letter-spacing: -0.055em; line-height: 1; color: var(--fg-strong); text-wrap: balance; }
+.headline { font-weight: 650; letter-spacing: -0.045em; line-height: 1.05; color: var(--fg-strong); text-wrap: balance; }
+.body { font-size: 34px; line-height: 1.45; letter-spacing: -0.015em; color: var(--muted); text-wrap: balance; }
+.mask { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.06em 0.04em 0.24em; margin: -0.06em -0.04em -0.24em; }
+.mask > span { display: inline-block; will-change: transform; }
+
+/* Frame lines with crosshair corners, like the textjs.org hero. */
+.rule { position: absolute; background: var(--line); }
+.rule.h { height: 1px; transform-origin: 0 50%; }
+.rule.v { width: 1px; transform-origin: 50% 0; }
+.cross { position: absolute; width: 24px; height: 24px; margin: -12px 0 0 -12px; }
+.cross::before, .cross::after { content: ""; position: absolute; background: rgba(255, 255, 255, 0.42); }
+.cross::before { left: 0; right: 0; top: 11.5px; height: 1px; }
+.cross::after { top: 0; bottom: 0; left: 11.5px; width: 1px; }
+
+/* Windows: editors, terminals, browsers. */
+.window {
+  position: absolute; background: #0a0a0a; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.11), 0 40px 120px rgba(0, 0, 0, 0.75), 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+.window .bar { position: absolute; left: 0; right: 0; top: 0; height: 52px; border-bottom: 1px solid var(--line); display: flex; align-items: center; padding: 0 20px; gap: 8px; background: #0d0d0d; }
+.dots { display: flex; gap: 8px; }
+.dots i { width: 12px; height: 12px; border-radius: 50%; background: #2a2a2a; display: block; }
+.bar .title { position: absolute; left: 0; right: 0; text-align: center; font-family: var(--mono); font-size: 16px; color: var(--subtle); }
+
+.tabs { display: flex; height: 52px; border-bottom: 1px solid var(--line); background: #0d0d0d; }
+.tab { display: flex; align-items: center; gap: 12px; padding: 0 26px; font-family: var(--mono); font-size: 18px; color: var(--subtle); border-right: 1px solid var(--line); }
+.tab.on { color: var(--fg); background: #0a0a0a; box-shadow: inset 0 -1px 0 #0a0a0a; }
+.stat-add { color: var(--green-2); }
+.stat-del { color: var(--red); }
+
+/* Code. */
+.code { position: absolute; font-family: var(--mono); white-space: pre; color: var(--fg); }
+.code .ln { position: absolute; left: 0; width: 100%; }
+.code .no { position: absolute; left: 0; text-align: right; color: #4d4d4d; }
+.code .hl { position: absolute; left: 0; right: 0; background: rgba(50, 145, 255, 0.11); box-shadow: inset 3px 0 0 var(--accent); transform-origin: 0 50%; }
+.tk-keyword, .tk-operator { color: var(--pink); }
+.tk-string { color: var(--green-2); }
+.tk-comment { color: var(--subtle); font-style: italic; }
+.tk-number, .tk-constant { color: var(--accent); }
+.tk-type, .tk-function { color: var(--purple); }
+.tk-tag { color: #47a8ff; }
+.tk-attribute { color: var(--amber); }
+.tk-punctuation { color: var(--muted); }
+.tk-variable { color: var(--fg); }
+
+/* Keycaps. */
+.key {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 96px; height: 96px; padding: 0 26px;
+  border-radius: 18px; background: linear-gradient(#1c1c1c, #121212); color: var(--fg); font-size: 40px; font-weight: 500;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.12), 0 6px 0 #0a0a0a, 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+.key.sm { min-width: 64px; height: 64px; font-size: 26px; border-radius: 13px; padding: 0 18px; }
+
+/* A console frame drawn from a real Text.js render (StyledFrame). */
+.tui { font-family: "SF Mono", Menlo, var(--mono); white-space: pre; color: #ededed; }
+.tui .row { height: 1.17em; line-height: 1.17em; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 10px; height: 40px; padding: 0 18px; border-radius: 999px;
+  border: 1px solid var(--line-2); background: rgba(10, 10, 10, 0.9); font-size: 18px; color: var(--muted);
+}
+.pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
