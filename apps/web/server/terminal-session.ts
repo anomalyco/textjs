@@ -35,6 +35,12 @@ export interface SessionConfig {
   TERMINAL_COOKIE_SECRET?: string;
   /** Which Terminal to talk to: `prod` (default) or `dev` (the sandbox, for previews). Anything else fails closed. */
   TERMINAL_ENVIRONMENT?: string;
+  /**
+   * `1` lets signed-in visitors create personal access tokens and OAuth apps from the page
+   * (`POST /token`, `POST /app`). Off by default: those are long-lived credentials, so they
+   * come from `ssh terminal.shop -t tokens` / `-t apps` unless you opt in.
+   */
+  TERMINAL_ALLOW_CREDENTIALS?: string;
   /** Override the upstream API / auth server (local e2e against a mock only). */
   TERMINAL_API_URL?: string;
   TERMINAL_AUTH_URL?: string;
@@ -81,10 +87,10 @@ const REFRESH_SKEW_MS = 60_000;
 const ID = "[A-Za-z0-9_-]{1,64}";
 /**
  * The Terminal API routes the shop uses (`apps/terminal-shop/lib/api.ts`), and nothing else.
- * Nothing that mints a long-lived credential (`POST /token`, `POST /app`) is reachable from
- * the page: those stay in the ssh shop.
+ * Routes that mint a long-lived credential (`POST /token`, `POST /app`) are `credential`: they
+ * exist only with `TERMINAL_ALLOW_CREDENTIALS=1`, otherwise those stay in the ssh shop.
  */
-export const ROUTES: ReadonlyArray<{ method: string; path: RegExp; public?: boolean }> = [
+export const ROUTES: ReadonlyArray<{ method: string; path: RegExp; public?: boolean; credential?: boolean }> = [
   { method: "GET", path: /^\/product$/, public: true },
   { method: "GET", path: new RegExp(`^/product/${ID}$`), public: true },
   { method: "GET", path: /^\/view\/init$/ },
@@ -109,13 +115,15 @@ export const ROUTES: ReadonlyArray<{ method: string; path: RegExp; public?: bool
   { method: "PUT", path: new RegExp(`^/subscription/${ID}$`) },
   { method: "DELETE", path: new RegExp(`^/subscription/${ID}$`) },
   { method: "GET", path: /^\/token$/ },
+  { method: "POST", path: /^\/token$/, credential: true },
   { method: "DELETE", path: new RegExp(`^/token/${ID}$`) },
   { method: "GET", path: /^\/app$/ },
+  { method: "POST", path: /^\/app$/, credential: true },
   { method: "DELETE", path: new RegExp(`^/app/${ID}$`) },
 ];
 
-export function matchRoute(method: string, path: string): { public: boolean } | null {
-  for (const r of ROUTES) if (r.method === method && r.path.test(path)) return { public: !!r.public };
+export function matchRoute(method: string, path: string, credentials = false): { public: boolean } | null {
+  for (const r of ROUTES) if (r.method === method && r.path.test(path) && (!r.credential || credentials)) return { public: !!r.public };
   return null;
 }
 
@@ -278,6 +286,8 @@ export interface ResolvedConfig {
   secret: string | null;
   /** `TERMINAL_ENVIRONMENT` was set to something unknown: refuse to proxy. */
   misconfigured: boolean;
+  /** `TERMINAL_ALLOW_CREDENTIALS=1`: the page may create access tokens and OAuth apps. */
+  credentials: boolean;
 }
 
 export function resolveConfig(config: SessionConfig, url: URL): ResolvedConfig {
@@ -297,6 +307,7 @@ export function resolveConfig(config: SessionConfig, url: URL): ResolvedConfig {
     clientId: misconfigured ? null : id ? id : local ? LOCAL_CLIENT_ID : null,
     secret: secret && secret.length >= MIN_SECRET_LENGTH ? secret : local ? ephemeral() : null,
     misconfigured,
+    credentials: config.TERMINAL_ALLOW_CREDENTIALS?.trim() === "1",
   };
 }
 
@@ -522,7 +533,7 @@ async function status(request: Request, url: URL, cfg: ResolvedConfig, now: numb
     mode: "site",
     defaultEnv: cfg.env,
     environments: { prod: environment("prod"), dev: environment("dev") },
-    session: { signedIn, configured: canSignIn(cfg), signInUrl: `${API_PREFIX}/login`, signOutUrl: `${API_PREFIX}/logout` },
+    session: { signedIn, configured: canSignIn(cfg), signInUrl: `${API_PREFIX}/login`, signOutUrl: `${API_PREFIX}/logout`, credentials: cfg.credentials },
   });
 }
 
@@ -675,7 +686,7 @@ async function proxy(request: Request, url: URL, cfg: ResolvedConfig, env: strin
   if (cfg.misconfigured) return fail(503, "misconfigured", "this deployment's terminal environment is misconfigured");
   if (env !== cfg.env) return fail(403, "environment_disabled", `this site only connects to ${cfg.label}`);
   if (path.includes("..") || path.includes("//")) return fail(400, "invalid_path", "invalid path");
-  const route = matchRoute(method === "HEAD" ? "GET" : method, path);
+  const route = matchRoute(method === "HEAD" ? "GET" : method, path, cfg.credentials);
   if (!route) return fail(404, "not_found", "not found");
   if (write && request.headers.has("content-type") && !JSON_TYPE.test(request.headers.get("content-type") ?? "")) return fail(415, "unsupported_media_type", "send json");
 

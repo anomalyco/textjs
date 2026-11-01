@@ -345,6 +345,25 @@ describe("api proxy", () => {
     expect((await handleTerminal(req("/api/terminal/dev/api/product"), config)).status).toBe(403);
   });
 
+  test("TERMINAL_ALLOW_CREDENTIALS=1 forwards POST /token and POST /app, signed in only", async () => {
+    expect(matchRoute("POST", "/token", true)).toEqual({ public: false });
+    expect(matchRoute("POST", "/app", true)).toEqual({ public: false });
+    const allow = { ...config, TERMINAL_ALLOW_CREDENTIALS: "1" };
+    const status = (await (await handleTerminal(req("/api/terminal/_status", { headers: { "sec-fetch-site": "same-origin" } }), allow)).json()) as { session: { credentials: boolean } };
+    expect(status.session.credentials).toBe(true);
+    const off = (await (await handleTerminal(req("/api/terminal/_status", { headers: { "sec-fetch-site": "same-origin" } }), config)).json()) as { session: { credentials: boolean } };
+    expect(off.session.credentials).toBe(false);
+    expect((await handleTerminal(req("/api/terminal/prod/api/token", write("POST", {})), allow)).status).toBe(401);
+    const { cookie } = await signIn("/cart", allow);
+    const token = await handleTerminal(req("/api/terminal/prod/api/token", { ...write("POST", {}), cookie }), allow);
+    expect(token.status).toBe(200);
+    expect(((await token.json()) as { data: { token: string } }).data.token).toMatch(/^trm_test_/);
+    const app = await handleTerminal(req("/api/terminal/prod/api/app", { ...write("POST", { name: "x", redirectURI: "https://example.com/cb" }), cookie }), allow);
+    expect(app.status).toBe(200);
+    // Still CSRF-guarded: no Origin or client header, no token.
+    expect((await handleTerminal(req("/api/terminal/prod/api/token", { method: "POST", cookie }), allow)).status).toBe(403);
+  });
+
   test("signed out: public products only", async () => {
     const products = await handleTerminal(req("/api/terminal/prod/api/product"), config);
     expect(products.status).toBe(200);
