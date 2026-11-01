@@ -166,9 +166,51 @@ check("TX000 title", (await page.title()) === "TX000: Success | Text.js");
 await shot(page.locator("article.tx-errors"), "tx000");
 
 // ── #14/#15 certificate ──
+const pdfPages = (buf) => (buf.toString("latin1").match(/\/Type\s*\/Page[^s]/g) ?? []).length;
+/** ⌘P prints the certificate alone: one A4 and one Letter page, black on white, centred, nothing else visible. */
+async function checkPrint(state) {
+  // Engage the pad first, so the Console pill is up too.
+  await page.locator("[data-textjs-focus-pad]").first().click({ position: { x: 16, y: 16 } });
+  await page.waitForTimeout(300);
+  check(`${state}: Console pill is up before printing`, await page.locator(".console-pill").isVisible());
+  await page.emulateMedia({ media: "print" });
+  const report = await page.evaluate(() => {
+    const cert = document.querySelector(".learn-cert");
+    const extras = [...document.body.querySelectorAll("*")]
+      .filter((el) => !cert.contains(el) && !el.contains(cert))
+      .filter((el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden")
+      .map((el) => `${el.tagName.toLowerCase()}${el.className && typeof el.className === "string" ? `.${el.className.trim().split(/\s+/).join(".")}` : ""}`);
+    const pre = cert.querySelector("pre");
+    const r = pre.getBoundingClientRect();
+    return {
+      extras,
+      w: r.width,
+      h: r.height,
+      cx: r.left + r.width / 2,
+      cy: r.top + r.height / 2,
+      vw: innerWidth,
+      vh: innerHeight,
+      color: getComputedStyle(pre).color,
+      bg: getComputedStyle(document.body).backgroundColor,
+    };
+  });
+  check(`${state}: print shows only the certificate`, report.extras.length === 0, report.extras.slice(0, 12).join(", "));
+  check(`${state}: black on white`, report.color === "rgb(0, 0, 0)" && report.bg === "rgb(255, 255, 255)", `${report.color} on ${report.bg}`);
+  check(`${state}: centred`, Math.abs(report.cx - report.vw / 2) < 2 && Math.abs(report.cy - report.vh / 2) < 2, JSON.stringify(report));
+  check(`${state}: fits A4 and Letter at 12pt (≤ 7.27in × 9.5in)`, report.w <= 7.27 * 96 && report.h <= 9.5 * 96, `${report.w}×${report.h}`);
+  await shot(page, `certificate-${state}-print`);
+  for (const format of ["A4", "Letter"]) {
+    const pdf = await page.pdf({ format, ...(out ? { path: join(out, `certificate-${state}-${format.toLowerCase()}.pdf`) } : {}) });
+    check(`${state}: ${format} prints on one page`, pdfPages(pdf) === 1, `${pdfPages(pdf)} pages`);
+  }
+  await page.emulateMedia({ media: "screen" });
+  await page.keyboard.press("Escape");
+}
+
 await page.goto(`${base}/learn/certificate`, { waitUntil: "networkidle" });
 const li = page.locator(".learn-reset a");
 check("LinkedIn hidden while incomplete", (await li.evaluate((el) => getComputedStyle(el).visibility)) === "hidden");
+await checkPrint("pending");
 const key = "textjs:learn";
 const chapters = await page.evaluate(() => [...document.querySelectorAll(".learn-nav a, nav a")].map((a) => a.getAttribute("href")).filter((h) => h && /^\/learn\/[^/]+$/.test(h) && h !== "/learn/certificate"));
 await page.evaluate(
@@ -183,17 +225,7 @@ if (complete) {
   check("LinkedIn visible", (await li.evaluate((el) => getComputedStyle(el).visibility)) === "visible");
   check("LinkedIn href", (await li.getAttribute("href")) === "https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=Learn%20Text.js&organizationName=Text.js&issueYear=2026&issueMonth=11&certUrl=https%3A%2F%2Ftextjs.org%2Flearn%2Fcertificate");
   await shot(page.locator(".learn-reset"), "linkedin");
-  await page.emulateMedia({ media: "print" });
-  const visible = await page.evaluate(() => [...document.body.querySelectorAll("*")].filter((el) => el.getClientRects().length > 0 && el.children.length === 0 && el.textContent.trim()).map((el) => el.tagName.toLowerCase()));
-  check("print shows only the certificate", visible.length === 1 && visible[0] === "pre", visible.join(","));
-  const pre = await page.locator(".learn-cert pre").evaluate((el) => ({ w: el.getBoundingClientRect().width, color: getComputedStyle(el).color }));
-  check("certificate fits A4 at 12pt (≤ 7.27in)", pre.w <= 7.27 * 96, String(pre.w));
-  check("black on white", pre.color === "rgb(0, 0, 0)");
-  if (out) {
-    await page.pdf({ path: join(out, "certificate-a4.pdf"), format: "A4" });
-    await page.pdf({ path: join(out, "certificate-letter.pdf"), format: "Letter" });
-  }
-  await page.emulateMedia({ media: "screen" });
+  await checkPrint("complete");
 }
 
 check("no page errors", errors.length === 0, errors.join("\n"));
