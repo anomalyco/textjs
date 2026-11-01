@@ -53,6 +53,6 @@ In development, uncaught errors open an overlay inside the console with the mess
 ╰───────────────────────────── esc dismiss ───╯
 ```
 
-## [▼] DevTools
+## Dev Overlay
 
-Press `F2` or `` Ctrl+` `` in development to inspect the route, frame timings and layout. Disable with `devIndicators: false`.
+In development, the `[▼]` pill in the console's bottom-left corner is the Dev Overlay. Press `F2` or `` Ctrl+` `` to open it and inspect the route, frame timings and layout. Disable with `devIndicators: false`.

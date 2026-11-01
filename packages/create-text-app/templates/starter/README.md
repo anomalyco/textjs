@@ -31,7 +31,7 @@ text.config.ts      Viewport, theme and dev server options
 | `bun run build`  | Create an optimized console production build  |
 | `bun start`      | Serve the production build                    |
 
-Press **F2** or **Ctrl+`** in the console to open the Text.js DevTools.
+Press **F2** or **Ctrl+`** in the console to open the Dev Overlay.
 
 ## Deploy
 

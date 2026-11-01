@@ -13,7 +13,7 @@ Open [http://localhost:3000](http://localhost:3000) and press **⌘⌥J** (or **
 - `app/deployments/[id]/page.tsx`: dynamic route with `notFound()`
 - `app/api/metrics/route.ts`: a route handler (`GET /api/metrics`)
 
-Keys: `1`/`2` navigate · `Tab` focus · `Enter` open · `Esc` back · `F2` DevTools.
+Keys: `1`/`2` navigate · `Tab` focus · `Enter` open · `Esc` back · `F2` Dev Overlay.
 
 ## Deploy
 

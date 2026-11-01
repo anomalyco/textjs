@@ -54,7 +54,7 @@ export default defineConfig({
 | `viewport` | fit console, else `120×36` | `responsive` (default `true`), fallback `width × height`, `theme` |
 | `hints` | `[]` | Two or three keys shown on the page's FocusPad |
 | `action` | `press <first hint>` | What to do once focused, e.g. `"type a prompt"` |
-| `devIndicators` | `true` | In-console `[▼]` pill |
+| `devIndicators` | `true` | In-console Dev Overlay (`[▼]`) |
 | `rewrites` | `[]` | Rewrites and proxies |
 
 ## CLI

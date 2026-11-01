@@ -22,7 +22,7 @@ Open the page, press **⌘⌥J** (or **Ctrl+Shift+J**), and click back into the 
 | `/api/health`        | `app/api/health/route.ts`          |
 | `/api/deployments`   | `app/api/deployments/route.ts`     |
 
-Keys: `1`–`5` navigate · `Tab` focus · `Enter` open · `Esc` back · `F2` / ``Ctrl+` `` Text.js DevTools.
+Keys: `1`–`5` navigate · `Tab` focus · `Enter` open · `Esc` back · `F2` / ``Ctrl+` `` Dev Overlay.
 
 ## Server rendering
 

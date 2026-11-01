@@ -117,7 +117,7 @@ Every frame is one `console.log`. Your own logs land between frames, get scrolle
 "textjs/no-console-in-components": ["warn", { allow: ["error"], logger: "log" }]
 ```
 
-Show messages in the UI with `useToast()` or a log `<ScrollBox>`, or inspect state in the `[▼]` DevTools (`` Ctrl+` ``). With `logger`, the suggestion rewrites `console.warn(…)` to `log.warn(…)`. Test files and `@textjs/next/testing` renders are skipped.
+Show messages in the UI with `useToast()` or a log `<ScrollBox>`, or inspect state in the `[▼]` Dev Overlay (`` Ctrl+` ``). With `logger`, the suggestion rewrites `console.warn(…)` to `log.warn(…)`. Test files and `@textjs/next/testing` renders are skipped.
 
 ### `prefer-use-interval`
 

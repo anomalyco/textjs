@@ -10,7 +10,7 @@ export function isCtrlBackquote(e: KeyEvent): boolean {
   return e.ctrl && !e.meta && !e.alt && (e.key === "`" || e.code === "Backquote");
 }
 
-/** The `@textjs/next/devtools` inspector, without its `[▼]` pill. */
+/** The `@textjs/next/devtools` Dev Overlay inspector, without its `[▼]` pill. */
 export function SiteDevTools({ wireframe, setWireframe }: { wireframe: boolean; setWireframe(on: boolean): void }): ReactNode {
   const site = useSite();
   const shell = useMemo<AppShellState>(

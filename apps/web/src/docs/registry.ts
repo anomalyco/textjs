@@ -79,7 +79,7 @@ export const DOCS: readonly DocPage[] = [
     slug: "loading-and-errors",
     title: "Loading UI and Errors",
     nav: "Loading & Errors",
-    description: "loading.tsx, error.tsx, not-found.tsx, the in-console Redbox and [▼] DevTools.",
+    description: "loading.tsx, error.tsx, not-found.tsx, the in-console Redbox and the Dev Overlay.",
     category: "Building Your Application",
     markdown: loadingAndErrors,
   },
