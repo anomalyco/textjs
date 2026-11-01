@@ -41,6 +41,7 @@ export const TX_MESSAGES = {
   TX028: "Blocked request. This host (%s) is not allowed. Add it to `vite.server.allowedHosts` in text.config.ts.",
   TX029: "Unknown option %s in %s. It will be ignored.",
   TX030: 'Server-rendered routes (%s) need a long-lived server, which the %s adapter does not provide. Use `text build --adapter bun` or `text start`, or remove `export const runtime = "server"`.',
+  TX031: 'Invalid `dynamic` export %s in %s. Use "auto", "force-static" or "force-dynamic".',
 } as const;
 
 export type TxCode = keyof typeof TX_MESSAGES;

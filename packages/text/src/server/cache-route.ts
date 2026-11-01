@@ -8,6 +8,7 @@
  * - Default, `"force-dynamic"` or `revalidate = 0`: run on every request.
  */
 
+import { txError } from "@textjs/core";
 import { markGeneratedCacheControl, PRIVATE_CACHE_CONTROL, runRouteHandler, type RouteHandlerModule } from "./http";
 import type { RouteParams } from "../routing";
 import { __validateRevalidate, EXPIRE_SECONDS, getOrCompute, implicitTags, normalizeCachePath, runInCacheScope, type CacheScope } from "./cache";
@@ -20,17 +21,16 @@ export interface RouteCacheConfig {
   revalidate: number | false;
 }
 
-const DYNAMIC_VALUES = new Set(["auto", "force-static", "force-dynamic", "error"]);
+// Next.js's `"error"` (static, failing on request reads) is rejected: Text.js can't detect request reads.
+const DYNAMIC_VALUES = new Set(["auto", "force-static", "force-dynamic"]);
 
 /** Read and validate a route module's `dynamic` / `revalidate` exports. */
 export function routeCacheConfig(mod: RouteHandlerModule, where = "route handler"): RouteCacheConfig {
   const dynamic = mod.dynamic ?? "auto";
-  if (typeof dynamic !== "string" || !DYNAMIC_VALUES.has(dynamic)) {
-    throw new TypeError(`Invalid \`dynamic\` export ${JSON.stringify(dynamic)} in ${where}; expected "auto", "force-static", "force-dynamic" or "error".`);
-  }
+  if (typeof dynamic !== "string" || !DYNAMIC_VALUES.has(dynamic)) throw txError("TX031", JSON.stringify(dynamic), where);
   const revalidate = __validateRevalidate(mod.revalidate, where);
   if (dynamic === "force-dynamic" || revalidate === 0) return { static: false, revalidate: 0 };
-  if (dynamic === "force-static" || dynamic === "error") return { static: true, revalidate };
+  if (dynamic === "force-static") return { static: true, revalidate };
   return { static: typeof revalidate === "number" && revalidate > 0, revalidate };
 }
 

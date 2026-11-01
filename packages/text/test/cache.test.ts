@@ -192,6 +192,7 @@ describe("route segment config", () => {
     expect(routeCacheConfig({ revalidate: 0 })).toEqual({ static: false, revalidate: 0 });
     expect(routeCacheConfig({ dynamic: "force-dynamic", revalidate: 60 })).toEqual({ static: false, revalidate: 0 });
     expect(() => routeCacheConfig({ dynamic: "sometimes" })).toThrow(/Invalid `dynamic`/);
+    expect(() => routeCacheConfig({ dynamic: "error" }, "/api/posts/route")).toThrow('Text.js error TX031: Invalid `dynamic` export "error" in /api/posts/route.');
     expect(() => routeCacheConfig({ revalidate: "60" })).toThrow(/Invalid revalidate/);
   });
 

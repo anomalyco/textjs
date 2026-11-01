@@ -26,7 +26,7 @@ export default defineConfig(tseslint.configs.recommended, textjs.configs.recomme
 | `prefer-use-interval` | Raw `setInterval` in components |
 | `no-sub-frame-timers` | Intervals faster than Text.js's 66ms frame pacing |
 | `prefer-use-keymap` | Hand-rolled `useInput` key matching (strict) |
-| `valid-route-module` | Missing default exports and invalid `dynamic` in route files (TX015) |
+| `valid-route-module` | Missing default exports (TX015) and invalid `dynamic` (TX031) in route files |
 | `valid-metadata` | Ignored or malformed `metadata` / `generateMetadata` |
 | `route-handler-exports` | Non-method exports and miscased handlers in `route.ts` |
 

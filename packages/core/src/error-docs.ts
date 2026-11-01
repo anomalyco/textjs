@@ -433,6 +433,22 @@ export const runtime = "server";
 // After: the default client runtime
 ~~~`,
   },
+  TX031: {
+    package: "@textjs/next",
+    title: "Invalid dynamic export",
+    cause: `A route handler exports \`dynamic\` with a value Text.js does not support. Next.js also accepts \`"error"\`, which renders the route statically and fails the build if it reads request data. Text.js can't detect request reads, so it rejects \`"error"\`.`,
+    fix: `Use \`"force-static"\` to cache the handler. A cached handler receives a request with no query string, headers, cookies or body:
+
+~~~ts@app/api/posts/route.ts
+// Before
+export const dynamic = "error";
+
+// After
+export const dynamic = "force-static";
+~~~
+
+Use \`"force-dynamic"\`, or remove the export, if the handler reads the request. See [Caching](/docs/caching).`,
+  },
 };
 
 export const TX_ERRORS: readonly TxErrorDoc[] = (Object.keys(TX_MESSAGES) as TxCode[]).map((code) => {

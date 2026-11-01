@@ -69,6 +69,7 @@
   <url><loc>https://textjs.org/errors/TX028</loc><priority>0.3</priority></url>
   <url><loc>https://textjs.org/errors/TX029</loc><priority>0.3</priority></url>
   <url><loc>https://textjs.org/errors/TX030</loc><priority>0.3</priority></url>
+  <url><loc>https://textjs.org/errors/TX031</loc><priority>0.3</priority></url>
   <url><loc>https://textjs.org/changelog</loc><priority>0.6</priority></url>
   <url><loc>https://textjs.org/blog</loc><priority>0.7</priority></url>
   <url><loc>https://textjs.org/blog/text-js-1-0</loc><lastmod>2026-10-31</lastmod><priority>0.6</priority></url>

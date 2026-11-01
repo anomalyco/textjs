@@ -10,6 +10,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `@textjs/opencode`: the textjs.org/opencode bridge as its own package with no dependencies. Run `bunx @textjs/opencode proxy` (or `npx`) to start it without installing Vite, React and the MCP SDK. `text proxy` still works and runs the same bridge.
 
+### Changed
+
+- Route handlers that export `dynamic = "error"` fail with `TX031`. Text.js treated it as `"force-static"` without checking whether the handler reads the request, which is what the value means in Next.js. Use `"force-static"`.
+
+### Fixed
+
+- `eslint-plugin-textjs`: `route-handler-exports` allows the `dynamic` and `revalidate` exports in `route.ts`, and `valid-route-module` checks `dynamic` values there.
+
 ## [1.0.1] - 2026-11-01
 
 ### Added
