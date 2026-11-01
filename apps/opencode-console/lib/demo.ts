@@ -4,7 +4,9 @@
  * so the console is fully usable on static previews with no server.
  */
 
-import type { AppEvent, AssistantMessage, AssistantPart, JsonRecord, ModelRef, OpenCodeClient, SessionInfo, SessionMessage, ToolContent, ToolPart } from "./types";
+import {fuzzyFilter} from "@textjs/react";
+import {fileOption} from "./mentions";
+import type { AppEvent, AssistantMessage, AssistantPart, JsonRecord, ModelRef, OpenCodeClient, PermissionRequest, SessionInfo, SessionMessage, ToolContent, ToolPart } from "./types";
 
 export interface DemoOptions {
   /** Milliseconds per simulated chunk (default `28`). */
@@ -14,6 +16,7 @@ export interface DemoOptions {
   /** Embeds can supply their own example project; transport, timing and SSE remain shared. */
   scenario?: {
     directory: string;
+    paths?:string[];
     seed: (now: number) => ReturnType<typeof seed>;
     script: (text: string, agent: string) => AssistantPart[];
   };
@@ -141,6 +144,45 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
   const tick = options.tick ?? 28;
   const db = (options.scenario?.seed ?? seed)(options.now ?? Date.now());
   const directory = options.scenario?.directory ?? DIR;
+  const paths = [
+    "README.md",
+    "package.json",
+    "bun.lock",
+    "tsconfig.json",
+    ...(options.scenario?.paths ?? [
+      "src/components/cart-badge.tsx",
+      "src/components/cart-badge.test.tsx",
+      "src/app/api/products/route.ts",
+      "src/lib/cart.ts",
+      "e2e/checkout.spec.ts",
+    ]),
+  ];
+  const tree = [
+    ...new Set(
+      paths.flatMap((p) => [
+        ...p
+          .split("/")
+          .slice(0, -1)
+          .map(
+            (_, i) =>
+              p
+                .split("/")
+                .slice(0, i + 1)
+                .join("/") + "/",
+          ),
+        p,
+      ]),
+    ),
+  ].sort();
+  const pending = new Map<string, { request: PermissionRequest; resume: () => void }>();
+  let allowTests = false;
+  const links = new Map<string, string>();
+  const queue = new Map<string, { id: string; text: string; deliver: () => void }[]>();
+  const revoke = (sid: string) => {
+    const old = links.get(sid);
+    if (old) URL.revokeObjectURL(old);
+    links.delete(sid);
+  };
   const listeners = new Set<(e: AppEvent) => void>();
   const runs = new Map<string, { timer: ReturnType<typeof setTimeout> | null; finish: () => void }>();
   let currentModel = MODEL;
@@ -209,24 +251,81 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
       list(sessionID).push(msg);
       emit({ type: "step.started", sessionID, messageID, agent, model, started: msg.time.created });
     });
-    if (options.scenario) {
+    if (/^\/demo-tools\b/.test(prompt)) {
+      part("reasoning", "Check the project, then run its tests.", 12);
+      tool("glob", { pattern: "**/*.ts" }, paths.filter((p) => p.endsWith(".ts")).join("\n"));
+      tool("read", { filePath: "README.md" }, "Run the test suite with bun test.");
+      tool("webfetch", { url: "https://bun.sh/docs/test" }, "Use bun test to run test files.");
+      tool("subagent", { description: "Find test files", agent: "explore" }, "Found the test suite.");
+      tool("todowrite", { todos: [{ content: "Run tests", status: "in_progress", priority: "high" }] }, "Updated todos");
+      steps.push(() => {
+        if (allowTests) return;
+        const request = {
+          id: id("per"),
+          sessionID,
+          action: "shell",
+          resources: ["bun test"],
+          save: ["bun test"],
+          metadata: { command: "bun test" },
+        };
+        pending.set(sessionID, { request, resume: next });
+        emit({ type: "permission.asked", request });
+      });
+      tool("bash", { command: "bun test" }, "bun test\n\n 3 pass\n 0 fail", { exit: 0 });
+      part("text", "All 3 tests passed.", 8);
+    } else if (/^\/init\b/.test(prompt)) {
+      tool("write", { filePath: "AGENTS.md", content: "Run tests with `bun test`.\n" }, "Wrote AGENTS.md");
+      part("text", "Added test instructions to `AGENTS.md` in the sandbox.", 10);
+      if (!tree.includes("AGENTS.md")) tree.push("AGENTS.md");
+    } else if (options.scenario) {
       for (const p of options.scenario.script(prompt, agent)) {
         if (p.type === "text" || p.type === "reasoning") part(p.type, p.text, p.type === "text" ? 6 : 12);
-        else if (p.state.status === "completed") tool(p.name, p.state.input, p.state.content.map((c) => c.type === "text" ? c.text : c.uri).join("\n"), p.state.metadata);
+        else if (p.state.status === "completed")
+          tool(
+            p.name,
+            p.state.input,
+            p.state.content.map((c) => (c.type === "text" ? c.text : c.uri)).join("\n"),
+            p.state.metadata,
+          );
       }
     } else if (agent === "plan" || /\b(plan|how|why|explain|what)\b/.test(lower)) {
-      part("reasoning", `The user asked: "${prompt.slice(0, 80)}". I'll look at the relevant code before proposing an approach, and keep this read-only since I'm in ${agent} mode.`, 12);
-      tool("grep", { pattern: "export function", path: "src" }, "src/lib/cart.ts:12:export function addToCart(item: Item) {\nsrc/lib/cart.ts:31:export function cartTotal(items: Item[]) {\nsrc/components/cart-badge.tsx:1:export function CartBadge({ count }: { count: number }) {", { matches: 3 });
+      part(
+        "reasoning",
+        `The user asked: "${prompt.slice(0, 80)}". I'll look at the relevant code before proposing an approach, and keep this read-only since I'm in ${agent} mode.`,
+        12,
+      );
+      tool(
+        "grep",
+        { pattern: "export function", path: "src" },
+        "src/lib/cart.ts:12:export function addToCart(item: Item) {\nsrc/lib/cart.ts:31:export function cartTotal(items: Item[]) {\nsrc/components/cart-badge.tsx:1:export function CartBadge({ count }: { count: number }) {",
+        { matches: 3 },
+      );
       part(
         "text",
         `Here's how I'd approach it:\n\n1. **Find the hot path** — \`cartTotal\` recomputes on every render.\n2. **Memoize** it with \`useMemo\` keyed on \`items\`.\n3. **Verify** with the existing cart tests.\n\n\`\`\`ts\nconst total = useMemo(() => cartTotal(items), [items]);\n\`\`\`\n\nPress **Shift+Tab** to cycle agents.`,
         6,
       );
     } else {
-      part("reasoning", `Request: "${prompt.slice(0, 80)}". Read the component, make a minimal edit, then run the tests to confirm.`, 12);
+      part(
+        "reasoning",
+        `Request: "${prompt.slice(0, 80)}". Read the component, make a minimal edit, then run the tests to confirm.`,
+        12,
+      );
       tool("read", { path: "src/components/cart-badge.tsx" }, CART_BEFORE, { truncated: false }, 4);
-      tool("edit", { path: "src/components/cart-badge.tsx", oldString: CART_BEFORE, newString: CART_AFTER }, "Edit applied.", { files: ["src/components/cart-badge.tsx"] }, 5);
-      tool("shell", { command: "bun test src/components" }, "bun test v1.3.4\n\nsrc/components/cart-badge.test.tsx:\n✓ renders the count [1.92ms]\n✓ clamps to 99+ [0.38ms]\n✓ hides when empty [0.29ms]\n\n 3 pass\n 0 fail\nRan 3 tests across 1 file. [51.00ms]", { exit: 0 }, 14);
+      tool(
+        "edit",
+        { path: "src/components/cart-badge.tsx", oldString: CART_BEFORE, newString: CART_AFTER },
+        "Edit applied.",
+        { files: ["src/components/cart-badge.tsx"] },
+        5,
+      );
+      tool(
+        "shell",
+        { command: "bun test src/components" },
+        "bun test v1.3.4\n\nsrc/components/cart-badge.test.tsx:\n✓ renders the count [1.92ms]\n✓ clamps to 99+ [0.38ms]\n✓ hides when empty [0.29ms]\n\n 3 pass\n 0 fail\nRan 3 tests across 1 file. [51.00ms]",
+        { exit: 0 },
+        14,
+      );
       part(
         "text",
         `Done. I updated \`src/components/cart-badge.tsx\`:\n\n- Hides the badge when the cart is empty\n- Clamps large counts to **99+**\n- Adds an accessible \`aria-label\`\n\n\`\`\`tsx\nif (count <= 0) return null;\nconst label = count > 99 ? "99+" : String(count);\n\`\`\`\n\nTests: **3 pass**, 0 fail.`,
@@ -237,11 +336,13 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
       const run = runs.get(sessionID);
       if (run?.timer) clearTimeout(run.timer);
       runs.delete(sessionID);
+      const ask=pending.get(sessionID);if(ask){pending.delete(sessionID);emit({type:"permission.replied",sessionID,requestID:ask.request.id});}
       msg.time.completed = Date.now();
       msg.finish = outcome === "succeeded" ? "stop" : "unknown";
       for (const p of msg.content) if (p.type === "tool" && (p.state.status === "running" || p.state.status === "streaming")) p.state = { status: "error", input: typeof p.state.input === "string" ? {} : p.state.input, error: { message: "interrupted" } };
       msg.tokens = { input: 12_000 + prompt.length * 4, output: 480, reasoning: 64 };
       msg.cost = 0.0213;
+      if(session){session.cost=(session.cost??0)+msg.cost;emit({type:"session.usage",sessionID,cost:session.cost});}
       if (!list(sessionID).includes(msg)) list(sessionID).push(msg);
       if (outcome === "interrupted") list(sessionID).push({ type: "note", id: id("msg"), time: { created: Date.now() }, text: "interrupted", tone: "warning" });
       touch(sessionID);
@@ -249,6 +350,7 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
       emit({ type: "execution.ended", sessionID, outcome });
       if (outcome === "interrupted") emit({ type: "messages.changed", sessionID });
       emit({ type: "status", sessionID, busy: false });
+      if(outcome==="succeeded")queue.get(sessionID)?.shift()?.deliver();
     };
     let i = 0;
     const next = (): void => {
@@ -259,7 +361,7 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
         return;
       }
       (steps[i++] as Step)();
-      run.timer = setTimeout(next, tick);
+      if(!pending.has(sessionID))run.timer = setTimeout(next, tick);
     };
     runs.set(sessionID, { timer: setTimeout(next, tick * 4), finish: () => finish("interrupted") });
   };
@@ -270,6 +372,137 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
     label: "demo",
     async info() {
       return { version: "demo", directory };
+    },
+    async branch() {
+      return "main";
+    },
+    async findFiles(query) {
+      return fuzzyFilter(query, tree, (p) => p)
+        .slice(0, 20)
+        .flatMap(({ item }) => fileOption(directory.replace(/^~/, "/sandbox"), item, item.endsWith("/")) ?? []);
+    },
+    async commands() {
+      return [
+        { name: "demo-tools", description: "Run tools and review a shell permission" },
+        { name: "review", description: "Review changes" },
+        { name: "init", description: "Create or update AGENTS.md" },
+      ];
+    },
+    async command(sid, name, text, opts) {
+      await this.prompt(sid, `/${name}` + (text ? " " + text : ""), opts);
+    },
+    async skills() {
+      return [{ id: "review-tests", description: "Review test coverage" }];
+    },
+    async permissions(sid) {
+      const ask = pending.get(sid);
+      return ask ? [ask.request] : [];
+    },
+    async replyPermission(sid, requestID, decision) {
+      const ask = pending.get(sid);
+      if (!ask || ask.request.id !== requestID) throw Error("Permission request expired");
+      pending.delete(sid);
+      emit({ type: "permission.replied", sessionID: sid, requestID });
+      if (decision === "reject") runs.get(sid)?.finish();
+      else {
+        if (decision === "always") allowTests = true;
+        ask.resume();
+      }
+    },
+    async mcpServers() {
+      return [{ name: "project-docs", status: "connected" }];
+    },
+    async share(sid) {
+      revoke(sid);
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(await this.messages(sid), null, 2)], { type: "application/json" }),
+      );
+      links.set(sid, url);
+      return url;
+    },
+    async unshare(sid) {
+      revoke(sid);
+    },
+    async report(kind) {
+      if (kind === "stats")
+        return [
+          { label: "Sessions", value: String(db.sessions.length) },
+          { label: "Prompts", value: String([...db.messages.values()].flat().filter((m) => m.type === "user").length) },
+        ];
+      if (kind === "plugins") return [];
+      return [{ label: "Sandbox", value: "No provider usage" }];
+    },
+    async aside(sid) {
+      return `This sandbox session has ${list(sid).filter((m) => m.type === "user").length} user messages. No files were changed by this question.`;
+    },
+    async diff(sid) {
+      const messages = sid ? list(sid) : [...db.messages.values()].flat();
+      return messages.flatMap((m) =>
+        m.type !== "assistant"
+          ? []
+          : m.content.flatMap((p) => {
+              if (p.type !== "tool" || p.name !== "edit" || p.state.status !== "completed") return [];
+              const input = p.state.input,
+                file = String(input.path ?? input.filePath),
+                before = String(input.oldString ?? "").split("\n"),
+                after = String(input.newString ?? "").split("\n");
+              return [
+                {
+                  file,
+                  patch: [
+                    `--- a/${file}`,
+                    `+++ b/${file}`,
+                    `@@ -1,${before.length} +1,${after.length} @@`,
+                    ...before.map((s) => "-" + s),
+                    ...after.map((s) => "+" + s),
+                  ].join("\n"),
+                  additions: after.length,
+                  deletions: before.length,
+                },
+              ];
+            }),
+      );
+    },
+    async integrations() {
+      return [...new Set(MODELS.map((m) => m.providerID))].map((id) => ({ id, name: id, connected: true }));
+    },
+    async compact(sid) {
+      list(sid).push({
+        type: "note",
+        id: id("msg"),
+        time: { created: Date.now() },
+        tone: "info",
+        text: `Conversation compacted · ${list(sid).filter((m) => m.type === "user").length} user messages`,
+      });
+      emit({ type: "messages.changed", sessionID: sid });
+    },
+    async revert(sid, before) {
+      const s = db.sessions.find((s) => s.id === sid);
+      if (!s || !list(sid).some((m) => m.id === before)) throw Error("Unknown message");
+      s.revertedFrom = before;
+      emit({ type: "sessions.changed" });
+    },
+    async redo(sid) {
+      const s = db.sessions.find((s) => s.id === sid);
+      if (s) delete s.revertedFrom;
+      emit({ type: "sessions.changed" });
+    },
+    async commitRevert(sid) {
+      const s = db.sessions.find((s) => s.id === sid),
+        i = list(sid).findIndex((m) => m.id === s?.revertedFrom);
+      if (i < 0) return;
+      list(sid).splice(i);
+      await this.redo!(sid);
+      emit({ type: "messages.changed", sessionID: sid });
+    },
+    async fork(sid, before) {
+      const s = db.sessions.find((s) => s.id === sid);
+      if (!s) throw Error("Unknown session");
+      const res = await this.create({ ...s, title: `${s.title ?? "Session"} (fork)` });
+      const items = list(sid),
+        cut = items.findIndex((m) => m.id === before);
+      db.messages.set(res.id, structuredClone(cut < 0 ? items : items.slice(0, cut)));
+      return res.id;
     },
     async sessions() {
       return [...db.sessions].sort((a, b) => b.time.updated - a.time.updated).map((s) => ({ ...s, time: { ...s.time } }));
@@ -283,31 +516,76 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
     },
     async create(input) {
       const now = Date.now();
-      const s: SessionInfo = { id: id("ses"), title: input.title, agent: input.agent ?? "build", model: input.model ?? currentModel, directory, time: { created: now, updated: now } };
+      const s: SessionInfo = {
+        id: id("ses"),
+        title: input.title,
+        agent: input.agent ?? "build",
+        model: input.model ?? currentModel,
+        directory,
+        time: { created: now, updated: now },
+      };
       db.sessions.unshift(s);
       db.messages.set(s.id, []);
       emit({ type: "sessions.changed" });
       return { ...s };
     },
-    async prompt(sid, text) {
+    async prompt(sid, text, opts) {
       const s = db.sessions.find((x) => x.id === sid);
       if (!s) throw new Error(`Unknown session ${sid}`);
+      if (opts?.delivery === "queue" && runs.has(sid)) {
+        const items = queue.get(sid) ?? [];
+        items.push({
+          id: id("inbox"),
+          text,
+          deliver: () => {
+            void this.prompt(sid, text, { ...opts, delivery: undefined });
+          },
+        });
+        queue.set(sid, items);
+        return;
+      }
       if (!s.title) {
         s.title = text.length > 48 ? `${text.slice(0, 47).trimEnd()}…` : text;
         emit({ type: "session.renamed", sessionID: sid, title: s.title });
       }
-      list(sid).push({ type: "user", id: id("msg"), time: { created: Date.now() }, text });
+      runs.get(sid)?.finish();
+      list(sid).push({
+        type: "user",
+        id: id("msg"),
+        time: { created: Date.now() },
+        text,
+        mentions: opts?.attachments?.filter((a) => a.kind !== "file" || !a.uri.startsWith("data:")),
+        files: opts?.attachments?.flatMap((a) => (a.kind === "file" ? [{ name: a.name, mime: a.mime }] : [])),
+      });
       touch(sid);
       emit({ type: "status", sessionID: sid, busy: true });
       emit({ type: "messages.changed", sessionID: sid });
-      runs.get(sid)?.finish();
       simulate(sid, text);
+    },
+    async inbox(sid) {
+      return (queue.get(sid) ?? []).map((q) => ({ id: q.id, text: q.text, delivery: "queue" }));
+    },
+    async cancelQueued(sid, id) {
+      const items = queue.get(sid) ?? [];
+      if (!items.some((q) => q.id === id)) throw Error("Prompt already delivered");
+      queue.set(
+        sid,
+        items.filter((q) => q.id !== id),
+      );
     },
     async interrupt(sid) {
       runs.get(sid)?.finish();
     },
     async shell(sid, command) {
-      list(sid).push({ type: "shell", id: id("msg"), time: { created: Date.now() }, command, status: "exited", output: "Shell commands aren't executed in the sandbox." });
+      const output =
+        command === "pwd"
+          ? directory
+          : command === "ls"
+            ? tree.filter((p) => !p.replace(/\/$/, "").includes("/")).join("  ")
+            : command === "git status"
+              ? "On branch main\nnothing to commit, working tree clean"
+              : "Shell commands aren't executed in the sandbox.";
+      list(sid).push({ type: "shell", id: id("msg"), time: { created: Date.now() }, command, status: "exited", output });
       emit({ type: "messages.changed", sessionID: sid });
     },
     async rename(sid, title) {
@@ -317,8 +595,13 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
       emit({ type: "session.renamed", sessionID: sid, title });
     },
     async removeSession(sid) {
-      runs.get(sid)?.finish(); const i=db.sessions.findIndex((s)=>s.id===sid);
-      if (i>=0) db.sessions.splice(i,1); db.messages.delete(sid); emit({type:"sessions.changed"});
+      revoke(sid);
+      queue.delete(sid);
+      runs.get(sid)?.finish();
+      const i = db.sessions.findIndex((s) => s.id === sid);
+      if (i >= 0) db.sessions.splice(i, 1);
+      db.messages.delete(sid);
+      emit({ type: "sessions.changed" });
     },
     async setAgent(sid, agent) {
       const s = db.sessions.find((x) => x.id === sid);
@@ -336,10 +619,12 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
       return [
         { id: "build", name: "build", description: "Default agent with every tool enabled" },
         { id: "plan", name: "plan", description: "Read-only planning and analysis" },
+        { id: "explore", name: "Explore", mode: "subagent" },
+        { id: "general", name: "General", mode: "subagent" },
       ];
     },
     async models() {
-      return MODELS;
+      return MODELS.map((m) => ({ ...m, group: m.providerID, variants: ["low", "medium", "high"] }));
     },
     async defaultModel() {
       return currentModel;
@@ -350,7 +635,11 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
       queueMicrotask(() => onEvent({ type: "connected" }));
       return () => {
         listeners.delete(onEvent);
-        if (!listeners.size) for (const run of runs.values()) run.finish();
+        if (!listeners.size) {
+          queue.clear();
+          for (const run of runs.values()) run.finish();
+          for (const sid of links.keys()) revoke(sid);
+        }
       };
     },
   };
