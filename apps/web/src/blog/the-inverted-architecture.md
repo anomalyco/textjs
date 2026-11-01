@@ -29,7 +29,7 @@ The frame is a grid of typed arrays allocated once: characters in a `Uint32Array
 
 ## The gate
 
-Each row has a cached 32-bit FNV-1a hash. Only rows written since the last frame are re-hashed. If no row changed, the driver returns before it builds a string: no `console.clear()`, no `console.log()`, no allocation. A spinner on a hidden tab costs nothing because it isn't ticking.
+Each row has a cached 32-bit FNV-1a hash. Only rows written since the last frame are re-hashed. If no row changed, the driver returns before it builds a string and makes no console call. A spinner on a hidden tab costs nothing because it isn't ticking.
 
 ## Run-length encoding
 
@@ -39,7 +39,7 @@ The format string also guards against two DevTools behaviors. A literal `%` is w
 
 ## One call
 
-The result is a single call per dirty frame:
+Each changed frame is a single call:
 
 ```js
 console.log("%c\u200b%c\n%c▼ OpenCode Lite%c …", "margin-top:100vh;", "", "color:#fafafa;…", …);
@@ -49,7 +49,7 @@ Frames are appended, paced to DevTools' 50ms throttler and swapped inside one pa
 
 ## Input
 
-The console can't receive keystrokes, so the page does. A hidden `<textarea>` collects keys, paste and IME composition, and `wheel` events scroll `ScrollBox`es. On textjs.org the Playground and OpenCode pages are one large focus pad: open the console, click the page, type.
+The console can't receive keystrokes, so the page does. A hidden `<textarea>` collects keys, paste and IME composition, and `wheel` events scroll `ScrollBox`es. On textjs.org the Playground and OpenCode pages are one large focus pad. Open the console, then click the page to type.
 
 ## What the page sees
 

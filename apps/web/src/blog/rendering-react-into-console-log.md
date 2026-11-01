@@ -2,7 +2,7 @@
 title: Rendering React into console.log
 date: 2025-02-12
 author: Adam
-summary: Text.js draws a React app in the DevTools console as one styled console.log call per frame. How a frame is built, and why it is one call.
+summary: Text.js draws a React app in the DevTools console as one styled console.log call per frame.
 ---
 
 Text.js renders React apps in the Chrome DevTools console. Apart from a hidden input, the page has no UI. Each frame of the app is a single `console.log` call.
