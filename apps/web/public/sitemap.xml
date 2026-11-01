@@ -74,6 +74,13 @@
   <url><loc>https://textjs.org/blog/the-inverted-architecture</loc><lastmod>2026-10-31</lastmod><priority>0.6</priority></url>
   <url><loc>https://textjs.org/enterprise</loc><priority>0.5</priority></url>
   <url><loc>https://textjs.org/status</loc><priority>0.5</priority></url>
+  <url><loc>https://textjs.org/merch</loc><priority>0.5</priority></url>
+  <url><loc>https://textjs.org/merch/frame-tee</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/hoodie</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/cap</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/sticker-sheet</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/keycaps</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/notebook</loc><priority>0.4</priority></url>
   <url><loc>https://textjs.org/learn</loc><priority>0.8</priority></url>
   <url><loc>https://textjs.org/learn/getting-started</loc><priority>0.6</priority></url>
   <url><loc>https://textjs.org/learn/layout</loc><priority>0.6</priority></url>

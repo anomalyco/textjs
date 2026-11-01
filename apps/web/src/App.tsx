@@ -7,6 +7,7 @@ import { EnterprisePage } from "./pages/Enterprise";
 import { ErrorPage, ErrorsIndexPage } from "./pages/Errors";
 import { HomePage } from "./pages/Home";
 import { LearnPage } from "./pages/Learn";
+import { MerchPage } from "./merch/Merch";
 import { OpenCodePage } from "./pages/OpenCode";
 import { PlaygroundPage } from "./pages/Playground";
 import { StatusPage } from "./pages/Status";
@@ -57,6 +58,8 @@ export function RouteView({ route }: { route: Route }): ReactNode {
       return <EnterprisePage />;
     case "status":
       return <StatusPage />;
+    case "merch":
+      return <MerchPage slug={route.slug} />;
     case "not-found":
       return <NotFoundPage />;
   }

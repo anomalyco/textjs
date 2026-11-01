@@ -127,6 +127,7 @@ export function Footer(): ReactNode {
           <A href="/changelog">Changelog</A>
           <A href="/blog">Blog</A>
           <A href="/enterprise">Enterprise</A>
+          <A href="/merch">Merch</A>
           <A href="/status">Status</A>
         </nav>
       </div>
