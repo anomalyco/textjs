@@ -3,7 +3,7 @@ import { Box, KeyHint, Text, useApp, useFocusManager, useInput } from "@textjs/r
 import { OpenCodeLite } from "../demos/opencode/OpenCodeLite";
 import { PresetView } from "../demos/presets";
 import { useSite } from "./useSite";
-import { hintsFor, PRESETS, siteStore, type CompanionTab, type Hint } from "./store";
+import { DOCS_READING_HINTS, hintsFor, PRESETS, siteStore, type CompanionTab, type Hint } from "./store";
 import { HomeTab } from "./tabs/HomeTab";
 import { DocsTab } from "./tabs/DocsTab";
 import { exampleGrid, ExampleTab, runsExamples } from "./tabs/ExampleTab";
@@ -127,7 +127,7 @@ export function CompanionApp(): ReactNode {
         {tab === "playground" ? <PresetView key={site.preset} preset={site.preset} reserveRows={6} /> : null}
         {tab === "docs" ? <DocsTab /> : null}
       </Box>
-      <HintLine tab={tab} hints={notFound ? NOT_FOUND_HINTS : undefined} />
+      <HintLine tab={tab} hints={notFound ? NOT_FOUND_HINTS : tab === "docs" && site.docsPane === "content" ? DOCS_READING_HINTS : undefined} />
       {devtools}
     </Box>
   );
