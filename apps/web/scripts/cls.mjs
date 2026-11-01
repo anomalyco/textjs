@@ -18,7 +18,7 @@ const height = Number(process.env.HEIGHT ?? 900);
 const throttle = process.env.THROTTLE !== "0";
 const filmstrip = process.env.FILMSTRIP !== "0";
 const docs = readdirSync(fileURLToPath(new URL("../src/docs/content/", import.meta.url))).filter((f) => f.endsWith(".md")).map((f) => f.slice(0, -3)).sort();
-const routes = process.env.ROUTES !== undefined ? process.env.ROUTES.split(",").filter(Boolean) : ["/", "/docs", ...docs.map((d) => `/docs/${d}`), "/playground", "/opencode", "/does-not-exist"];
+const routes = process.env.ROUTES !== undefined ? process.env.ROUTES.split(",").filter(Boolean) : ["/", "/docs", ...docs.map((d) => `/docs/${d}`), "/playground", "/playground/streaming", "/playground/snake", "/opencode", "/terminal", "/does-not-exist"];
 mkdirSync(out, { recursive: true });
 
 const browser = await chromium.launch({ headless: true });
@@ -97,7 +97,8 @@ for (const route of routes) {
   const { context, page } = await newPage();
   await page.goto(`${base}/`, { waitUntil: "load", timeout: 120_000 });
   await page.waitForTimeout(1500);
-  const hops = ["/docs", "/docs/routing", "/docs/styling", "/playground", "/opencode", "/docs", "/docs/turbolog-engine", "/", "/playground", "/"];
+  // The Playground picker links every demo, so /playground → /opencode → /terminal → /playground/snake stays in one pad.
+  const hops = ["/docs", "/docs/routing", "/docs/styling", "/playground", "/opencode", "/terminal", "/playground/snake", "/playground/streaming", "/opencode", "/docs", "/docs/turbolog-engine", "/", "/playground", "/terminal", "/"];
   for (const href of hops) {
     await page.evaluate(() => {
       window.__cls.value = 0;

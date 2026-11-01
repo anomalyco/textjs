@@ -1,5 +1,6 @@
-// Headless keyboard E2E: open each demo page, click the focus pad, press the demo's keys and
-// assert the real console.log frames change as expected.
+// Headless keyboard E2E: open each Playground demo, click the focus pad, press the demo's keys and
+// assert the real console.log frames change as expected. Also checks the picker's URLs, history
+// and the retired Counter and Form links.
 //
 //   bun run dev   (or: bun run build && bun run preview)
 //   PLAYWRIGHT=/path/to/playwright-core BASE=http://localhost:3000 node scripts/e2e-keys.mjs
@@ -42,16 +43,19 @@ async function press(keys) {
 }
 
 const demos = [
-  { id: "Counter", keys: ["ArrowUp", "ArrowUp", "ArrowUp"], expect: (b, a) => a !== b },
-  { id: "Form", keys: ["acme", "Enter"], expect: (b, a) => a.includes("Deployed acme") },
-  { id: "Streaming", keys: ["r"], expect: (b, a) => a !== b },
-  { id: "Dashboard", keys: ["ArrowRight"], expect: (b, a) => a !== b },
-  { id: "Snake", keys: ["ArrowDown"], expect: (b, a) => b.includes("press an arrow key") && !a.includes("press an arrow key") },
+  { id: "Dashboard", path: "/playground", keys: ["ArrowLeft"], expect: (b, a) => !b.includes("Frames / s") && a.includes("Frames / s") },
+  { id: "Streaming", path: "/playground/streaming", keys: ["r"], expect: (b, a) => a !== b },
+  { id: "Snake", path: "/playground/snake", keys: ["ArrowDown"], expect: (b, a) => b.includes("press an arrow key") && !a.includes("press an arrow key") },
 ];
+const picker = (name) => page.locator(".pad-picker a", { hasText: name });
+const picked = () => page.evaluate(() => document.querySelector('.pad-picker [aria-current="page"]')?.textContent);
+const path = () => new URL(page.url()).pathname;
 
 await page.goto(`${base}/playground`);
 await settle(1200);
 check("playground pad starts in 'open' state", (await padState()) === "open", await padState());
+check("picker: five demos, OpenCode and Coffee last", (await page.locator(".pad-picker a").allTextContents()).join("|") === "Dashboard|Streaming|Snake|OpenCode|Coffee", (await page.locator(".pad-picker a").allTextContents()).join("|"));
+check("/playground opens on Dashboard", (await picked()) === "Dashboard", await picked());
 check("no on-page TUI mirror", (await page.locator("[data-textjs-mirror]").count()) === 0);
 const before0 = await last();
 await page.keyboard.press("ArrowUp");
@@ -62,14 +66,42 @@ check("keys before clicking stay on the page", (await last()) === before0);
 await page.mouse.click(640, 640);
 await settle();
 for (const d of demos) {
-  await page.getByRole("tab", { name: d.id, exact: true }).click();
+  await picker(d.id).click();
   await settle(500);
+  check(`${d.id}: picking it updates the URL`, path() === d.path && (await picked()) === d.id, page.url());
   const b = await last();
   await press(d.keys);
   const a = await last();
   check(`${d.id}: keys reach the console app`, d.expect(b, a), a.split("\n").slice(0, 30).join("\n"));
 }
 check("pad is live after keystrokes", (await padState()) === "live", await padState());
+
+// OpenCode and Coffee: same pad, their own URLs and bottom panels; back and forward work.
+await picker("OpenCode").click();
+await settle(800);
+check("OpenCode: picked at /opencode with the connection panel", path() === "/opencode" && (await picked()) === "OpenCode" && (await page.locator(".pad-connect").count()) === 1, page.url());
+check("OpenCode: the console switches without a reload, keys still routed", (await last()).includes("Ask anything") && (await padState()) === "live", await last());
+await picker("Coffee").click();
+await settle(800);
+check("Coffee: picked at /terminal with the terminal.shop note", path() === "/terminal" && (await picked()) === "Coffee" && (await page.locator(".pad-note").innerText()).includes("terminal.shop"), page.url());
+await page.goBack();
+await settle(800);
+check("back: OpenCode again", path() === "/opencode" && (await picked()) === "OpenCode" && (await last()).includes("Ask anything"), page.url());
+await page.goBack();
+await settle(800);
+check("back: Snake again, with View source", path() === "/playground/snake" && (await picked()) === "Snake" && (await last()).includes("score"), page.url());
+check("View source is back in the bottom slot", (await page.locator(".pad-source").count()) === 1);
+await page.goForward();
+await settle(800);
+check("forward: OpenCode", path() === "/opencode" && (await picked()) === "OpenCode", page.url());
+await page.goto(`${base}/playground/snake`);
+await settle(1000);
+check("/playground/snake deep link picks Snake", (await picked()) === "Snake" && (await last()).includes("score"), await picked());
+for (const old of ["/playground/counter", "/playground/form", "/playground/dashboard", "/playground?demo=form"]) {
+  await page.goto(`${base}${old}`);
+  await settle(800);
+  check(`${old} falls back to Dashboard`, path() === "/playground" && (await picked()) === "Dashboard" && (await last()).includes("Requests / s"), `${page.url()} ${await picked()}`);
+}
 
 // Console size control: a preset pins the grid (and persists), "Fit console" follows DevTools again.
 const grid = (frame) => {
@@ -114,6 +146,15 @@ await press(["Escape"]);
 check("OpenCode: first Escape arms rather than interrupts", (await last()).includes("again to interrupt"));
 await press(["Escape", "Control+x", "l"]);
 check("OpenCode: the session picker stays inside the website route", (await last()).includes("Switch session") && new URL(page.url()).pathname === "/opencode");
+await press(["Escape", "Escape"]);
+await press(["/exit", "Enter"]);
+await settle(400);
+check("OpenCode: /exit leaves a Restart in the connection panel", (await page.getAttribute(".pad-connect", "data-status")) === "exited" && (await padState()) !== "live", await page.getAttribute(".pad-connect", "data-status"));
+const framesAtExit = await page.evaluate(() => window.__frames.length);
+await page.locator(".pad-connect .status-action", { hasText: "Restart" }).click();
+await settle(600);
+const restarted = await last();
+check("OpenCode: Restart repaints it and routes keys again", (await page.getAttribute(".pad-connect", "data-status")) === "sandbox" && (await padState()) === "live" && (await page.evaluate(() => window.__frames.length)) > framesAtExit && restarted.includes("Claude Opus") && !restarted.includes("/exit"), `${await page.getAttribute(".pad-connect", "data-status")} ${await padState()}\n${restarted.split("\n").slice(-12).join("\n")}`);
 
 await page.goto(`${base}/showcase`);
 await settle(500);

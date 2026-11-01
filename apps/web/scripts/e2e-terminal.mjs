@@ -1,5 +1,5 @@
-// Headless E2E for /terminal on `wrangler pages dev` (the real Pages Functions):
-// browse signed out → sign in through the OAuth redirect → add to cart with keys.
+// Headless E2E for /terminal (the Playground's Coffee demo) on `wrangler pages dev` (the real Pages
+// Functions): browse signed out → sign in through the OAuth redirect → add to cart with keys.
 //
 //   bun scripts/terminal-mock.ts --port 8790 &
 //   bunx wrangler pages dev dist --port 8788 --compatibility-date 2026-10-01 \
@@ -27,6 +27,9 @@ await page.addInitScript(() => {
     return orig(...a);
   };
 });
+// Loopback is only the site and the mock's stand-in auth server; never a local OpenCode server.
+const allowedPorts = new Set([new URL(base).port, process.env.MOCK_PORT ?? "8790"]);
+await page.route((url) => /^(127\.0\.0\.1|localhost|\[::1\])$/.test(url.hostname) && !allowedPorts.has(url.port), (r) => r.abort());
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 const authorizeUrls = [];
@@ -73,6 +76,8 @@ const clickPad = async () => {
 await page.goto(`${base}/terminal`);
 check("prerendered pad", (await page.locator("[data-textjs-focus-pad]").count()) === 1);
 check("footer links to /terminal", (await page.locator('footer a[href="/terminal"]').count()) === 1);
+const picked = () => page.evaluate(() => document.querySelector('.pad-picker [aria-current="page"]')?.textContent);
+check("/terminal opens the Playground with Coffee picked", (await picked()) === "Coffee", await picked());
 await clickPad();
 const shop = await until("~ featured ~");
 check("signed out: the shop loads public products", shop !== null, await last());
@@ -97,6 +102,7 @@ check("…and no secret in the URL", !q?.has("client_secret"));
 
 if (!realAuth) {
   check("back on /terminal after the callback, params stripped", new URL(page.url()).pathname === "/terminal" && new URL(page.url()).search === "", page.url());
+  check("…with Coffee picked", (await picked()) === "Coffee", await picked());
   check("the session cookie is invisible to page JS", !(await page.evaluate(() => document.cookie)).includes("trm_"), await page.evaluate(() => document.cookie));
   await clickPad();
   check("signed in: the shop loads", (await until("~ featured ~")) !== null, await last());

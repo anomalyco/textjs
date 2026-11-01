@@ -1,5 +1,6 @@
-// Pad layout parity: /playground and /opencode share one stage layout, so switching between them in
-// the top nav must not move the title, keycaps, subtitle, pad or its slots by a single pixel.
+// Pad layout parity: every Playground demo (Dashboard, Streaming, Snake at /playground[/<demo>],
+// OpenCode at /opencode, Coffee at /terminal) shares one stage layout, so switching between them in
+// the picker must not move the picker, keycaps, subtitle, pad or its slots by a single pixel.
 // Loads each route directly and via client navigation at several viewports, measures the bounding
 // boxes of corresponding elements and asserts they are identical (±0px). Also checks that the
 // OpenCode connection panel keeps one height in every state (checking, sandbox, connecting, live,
@@ -40,8 +41,8 @@ const SAME = {
   touchHeadline: ".tx-pad-touch h2",
   touchSub: ".tx-pad-touch p",
   slotTop: ".pad-slot-top",
+  picker: ".pad-picker",
   slotBottom: ".pad-slot-bottom",
-  size: ".tx-pad-size",
   footer: "footer",
 };
 // Elements whose text differs per page (the demo's action and keys): only the vertical box must match.
@@ -50,6 +51,8 @@ const ROW = {
   subtitle: ".tx-pad-sub",
   hints: ".tx-pad-hints",
   echo: ".tx-pad-echo",
+  // terminal.shop pins its console at 80×30, so the size control's label is shorter there.
+  size: ".tx-pad-size",
 };
 
 const observe = () => {
@@ -177,17 +180,21 @@ for (const vp of VIEWPORTS) {
   const navPg = await measure(page);
   check(`${vp.name} /opencode → /playground (nav): identical boxes`, diff(ref, navPg).length === 0, diff(ref, navPg).join("\n    "));
 
-  // Every demo in the picker lines up with OpenCode too (their actions and keys differ in length).
+  // Every demo in the picker lines up (their actions, keys and bottom panels differ), in both directions.
   if (!vp.touch) {
-    const presets = await page.evaluate(() => [...document.querySelectorAll(".pad-picker button")].map((b) => b.textContent));
-    for (let i = 0; i < presets.length; i++) {
-      await page.evaluate((n) => document.querySelectorAll(".pad-picker button")[n].click(), i);
+    const demos = await page.evaluate(() => [...document.querySelectorAll(".pad-picker a")].map((a) => [a.textContent, a.getAttribute("href")]));
+    check(`${vp.name} picker lists five demos`, demos.length === 5, JSON.stringify(demos));
+    await page.evaluate(() => (window.__shifts = []));
+    for (const [label, href] of [...demos, ...[...demos].reverse()]) {
+      await page.evaluate((h) => document.querySelector(`.pad-picker a[href="${h}"]`).click(), href);
+      await page.waitForFunction((h) => location.pathname === h, href);
       await page.waitForTimeout(150);
       const m = await measure(page);
-      const d = diff(navOc, m);
-      check(`${vp.name} Playground "${presets[i]}" matches OpenCode`, d.length === 0, d.join("\n    "));
+      const d = diff(ref, m);
+      check(`${vp.name} picker → "${label}" (${href}) matches Dashboard`, d.length === 0, d.join("\n    "));
     }
-    await page.evaluate(() => document.querySelectorAll(".pad-picker button")[0].click());
+    const s = await page.evaluate(() => window.__shifts);
+    check(`${vp.name} switching through every demo: no layout shift`, s.length === 0, JSON.stringify(s));
   }
 
   const { context: c2, page: p2 } = await newPage(vp);
@@ -204,6 +211,14 @@ for (const vp of VIEWPORTS) {
   check(`${vp.name} / → /opencode (nav): identical boxes`, diff(ref, fromHome).length === 0, diff(ref, fromHome).join("\n    "));
   const s3 = await p2.evaluate(() => window.__shifts);
   check(`${vp.name} / → /opencode (nav): no layout shift`, s3.length === 0, JSON.stringify(s3));
+  for (const direct of ["/terminal", "/playground/snake"]) {
+    await p2.goto(`${base}${direct}`, { waitUntil: "load" });
+    await settle(p2);
+    const m = await measure(p2);
+    check(`${vp.name} ${direct} (direct load): identical boxes`, diff(ref, m).length === 0, diff(ref, m).join("\n    "));
+    const s4 = await p2.evaluate(() => window.__shifts);
+    check(`${vp.name} ${direct} direct load: no layout shift`, s4.length === 0, JSON.stringify(s4));
+  }
   await c2.close();
 
   if (out) {
