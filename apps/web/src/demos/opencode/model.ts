@@ -101,6 +101,40 @@ export default function Page() {
 }
 `;
 
+const PAGE_DIV = `import { Box, Text } from "@textjs/next";
+
+export default function Page() {
+  return (
+    <Box className="flex-col p-1">
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <Text bold>Sessions</Text>
+      </div>
+    </Box>
+  );
+}
+`;
+
+const PAGE_CENTER = `import { Box, Center, Text } from "@textjs/next";
+
+export default function Page() {
+  return (
+    <Box className="flex-col p-1">
+      <Center>
+        <Text bold>Sessions</Text>
+      </Center>
+    </Box>
+  );
+}
+`;
+
+// `bun run lint` with eslint-plugin-textjs, as ESLint's stylish formatter prints it.
+const LINT_DIV = `$ eslint .
+
+app/page.tsx
+  6:8  error  <div> is a DOM element; the console renderer only draws Text.js components (TX003). Use <Box> instead  textjs/no-dom-elements
+
+✖ 1 problem (1 error, 0 warnings)`;
+
 const FIX_BEFORE = `export function connect(url: string, onEvent: (e: Event) => void) {
   const source = new EventSource(url);
   source.onmessage = (m) => onEvent(JSON.parse(m.data));
@@ -170,6 +204,16 @@ export function scriptFor(prompt: string, agent: Agent): Step[] {
 
 Press \`shift+tab\` to switch to **build** and I'll implement it.`,
       },
+    ];
+  }
+  if (/\bdiv\b/.test(p)) {
+    return [
+      { kind: "think", ms: 600, text: "Wrapping the heading in a centered div." },
+      { kind: "tool", ms: 650, part: { type: "tool", tool: "edit", title: "app/page.tsx", status: "completed", diff: { before: PAGE_BEFORE, after: PAGE_DIV, filename: "app/page.tsx" } } },
+      { kind: "tool", ms: 1100, part: { type: "tool", tool: "shell", title: "bun run lint", status: "completed", output: LINT_DIV } },
+      { kind: "tool", ms: 650, part: { type: "tool", tool: "edit", title: "app/page.tsx", status: "completed", diff: { before: PAGE_DIV, after: PAGE_CENTER, filename: "app/page.tsx" } } },
+      { kind: "tool", ms: 1000, part: { type: "tool", tool: "shell", title: "bun run lint", status: "completed", output: "$ eslint ." } },
+      { kind: "text", text: "`<div>` can't render in the console (TX003). I used `<Center>`, which centers its children on both axes." },
     ];
   }
   if (/test|fail|flak|bug|fix|error|crash|reconnect/.test(p)) {
