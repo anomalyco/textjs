@@ -1,6 +1,6 @@
 # Text.js merch
 
-Design files for the collection sold at [textjs.org/merch](https://textjs.org/merch): print-ready artwork, product photography, a tech pack per product family, and the research behind them. The store itself lives in `apps/web/src/merch/`. Fulfillment runs through Anomaly's Fourthwall shop; [LAUNCH.md](LAUNCH.md) is the checklist. The designs come from the November 2026 design round in [options/](options/README.md); `options/final-collection.png` shows the result.
+Design files for the collection sold at [textjs.org/store](https://textjs.org/store): print-ready artwork, product photography, a tech pack per product family, and the research behind them. The store itself lives in `apps/web/src/merch/`. Fulfillment runs through Anomaly's Fourthwall shop; [LAUNCH.md](LAUNCH.md) is the checklist. The designs come from the November 2026 design round in [options/](options/README.md); `options/final-collection.png` shows the result.
 
 | No. | Product | Maker | Fourthwall product | Decoration | Price | Tech pack |
 | --- | --- | --- | --- | --- | --- | --- |

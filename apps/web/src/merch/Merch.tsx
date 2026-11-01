@@ -27,7 +27,7 @@ function Collection({ provider, bag }: { provider: CheckoutProvider | null; bag:
     <div className="merch-container">
       <header className="merch-head">
         <div>
-          <h1>Merch</h1>
+          <h1>Store</h1>
           <p>{provider ? "Made to order." : "Made to order. Coming soon."}</p>
         </div>
         {bag}
@@ -97,7 +97,7 @@ function ProductView({ product: p, provider, bag, onAdded }: { product: Product;
         <div className="merch-info">
           <div className="merch-info-top">
             <nav aria-label="Breadcrumb" className="merch-crumbs">
-              <A href="/merch">Merch</A>
+              <A href="/store">Store</A>
               <span aria-hidden="true">/</span>
               <span aria-current="page">{p.name}</span>
             </nav>

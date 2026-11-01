@@ -20,7 +20,7 @@ export function gatePath(pathname: string): string {
 // fnv1a(`${gatePath}:${word}`) in base 36, one per name in ./team (test/team-eggs.test.tsx checks they match).
 // The names themselves live only in that lazy chunk.
 export const GATES = new Set(
-  "117h35l 1vehuzu x90ajr 9dwfpn qz0l2d be7u6q 17t1737 1kmo0ze kkqyhv 10ndas1 w7zlzt 5lhwx0 ghgb1r 1qobslk 4ef2dp 1t9qnp 1gbcczh fvb4x0 43kqau xsmxwa 174tch8 nh8edj 1hxh35i qzr0qv bje0ap 1bcv80x 5ahvi2 1d4qs1f 1tsjt28 1kjg44g n13fut k06600 nshff4 ey3hys 8107o3 1oef8b2 18z6kcb eon31f"
+  "117h35l 1vehuzu x90ajr xn22k9 13il383 1viz3tk 15nc6i9 ypu8ro 1komg0d 1wcm8xz w7zlzt 5lhwx0 ghgb1r 1qobslk 4ef2dp 1t9qnp 1gbcczh fvb4x0 43kqau xsmxwa 174tch8 nh8edj 1hxh35i qzr0qv bje0ap 1bcv80x 5ahvi2 1d4qs1f 1tsjt28 1kjg44g n13fut k06600 nshff4 ey3hys 8107o3 1oef8b2 18z6kcb eon31f"
     .split(" ")
     .map((h) => parseInt(h, 36)),
 );

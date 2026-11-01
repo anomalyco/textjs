@@ -438,7 +438,7 @@ export function getProduct(slug: string): Product | undefined {
 }
 
 export function productPath(slug: string): string {
-  return `/merch/${slug}`;
+  return `/store/${slug}`;
 }
 
 export function formatPrice(usd: number): string {

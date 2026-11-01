@@ -52,7 +52,7 @@ export function JayEgg(): ReactNode {
   const art = useMemo(() => jayPortrait(drop), [drop]);
   const sizes = ["XS", "S", "M", "L", "XL", "2XL"];
   return (
-    <EggFrame crumb="merch" hints={[{ keys: "d", label: "deal with it" }]}>
+    <EggFrame crumb="store" hints={[{ keys: "d", label: "deal with it" }]}>
       <Box className="flex-row grow items-center justify-center gap-6">
         <Pixels pixels={art} besides={40} />
         <Box className="flex-col shrink-0 gap-1">

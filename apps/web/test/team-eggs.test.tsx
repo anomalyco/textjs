@@ -49,7 +49,7 @@ const MARKERS: Record<string, string> = {
   walter: "HKG → CDG → SJO",
 };
 
-const HOME_TAB = new Set(["/", "/enterprise", "/merch", "/status", "/changelog", "/blog"]);
+const HOME_TAB = new Set(["/", "/enterprise", "/store", "/status", "/changelog", "/blog"]);
 
 async function open(path: string): Promise<Harness> {
   await site(() => {
@@ -280,7 +280,7 @@ describe("team eggs", () => {
       ["/docs/styling", "david", "space", "Beans     22", "Beans     34"],
       ["/docs/devtools-extension", "ryan", "c", "▮▮▮▮▮▮▮▮ 8", "▮▮▮▮▮▮▮▮▮ 9"],
       ["/docs/components-content", "james", "space", "8/8 wedges", "7/8 wedges"],
-      ["/merch", "aiden", "space", "4 of 9", "5 of 9"],
+      ["/store", "aiden", "space", "4 of 9", "5 of 9"],
       ["/playground", "kit", "space", "0 happy", "1 happy"],
     ];
     for (const [path, name, key, before, after] of cases) {

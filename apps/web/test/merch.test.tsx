@@ -18,30 +18,30 @@ describe("merch routes", () => {
   afterAll(() => resetLocation("/"));
 
   test("match the index and every product, and 404 anything else", () => {
-    expect(matchRoute("/merch")).toEqual({ name: "merch", slug: "" });
-    expect(matchRoute("/merch/")).toEqual({ name: "merch", slug: "" });
+    expect(matchRoute("/store")).toEqual({ name: "merch", slug: "" });
+    expect(matchRoute("/store/")).toEqual({ name: "merch", slug: "" });
     for (const p of PRODUCTS) expect(matchRoute(productPath(p.slug))).toEqual({ name: "merch", slug: p.slug });
-    expect(matchRoute("/merch/nope")).toEqual({ name: "not-found" });
-    expect(matchRoute("/merch/logo-tee/extra")).toEqual({ name: "not-found" });
-    expect(matchRoute("/merch/frame-tee")).toEqual({ name: "not-found" });
-    expect(titleFor({ name: "merch", slug: "" })).toBe("Merch | Text.js");
-    expect(titleFor({ name: "merch", slug: "console-tee" })).toBe("console.log Tee | Text.js Merch");
+    expect(matchRoute("/store/nope")).toEqual({ name: "not-found" });
+    expect(matchRoute("/store/logo-tee/extra")).toEqual({ name: "not-found" });
+    expect(matchRoute("/store/frame-tee")).toEqual({ name: "not-found" });
+    expect(titleFor({ name: "merch", slug: "" })).toBe("Store | Text.js");
+    expect(titleFor({ name: "merch", slug: "console-tee" })).toBe("console.log Tee | Text.js Store");
   });
 
   test("are prerendered, linked from the footer and listed in the sitemap", () => {
     const paths = ROUTES.map((r) => r.path);
     const sitemap = readFileSync(join(ROOT, "public/sitemap.xml"), "utf8");
-    for (const p of ["/merch", ...PRODUCTS.map((x) => productPath(x.slug))]) {
+    for (const p of ["/store", ...PRODUCTS.map((x) => productPath(x.slug))]) {
       expect(paths).toContain(p);
       expect(sitemap).toContain(`https://textjs.org${p}<`);
     }
-    expect(renderToStaticMarkup(<Footer />)).toContain('href="/merch"');
-    for (const r of ROUTES.filter((x) => x.path.startsWith("/merch"))) expect(r.description.length).toBeGreaterThan(40);
+    expect(renderToStaticMarkup(<Footer />)).toContain('href="/store"');
+    for (const r of ROUTES.filter((x) => x.path.startsWith("/store"))) expect(r.description.length).toBeGreaterThan(40);
   });
 
   test("the index prerenders every product with sized images", async () => {
-    const html = await render("/merch");
-    expect(html).toContain("<h1>Merch</h1>");
+    const html = await render("/store");
+    expect(html).toContain("<h1>Store</h1>");
     for (const p of PRODUCTS) {
       expect(html).toContain(`href="${productPath(p.slug)}"`);
       expect(html).toContain(p.name);
@@ -71,7 +71,7 @@ describe("merch routes", () => {
       expect(html).not.toMatch(/type="(email|text|tel)"/);
       expect(html).not.toContain("▲");
     }
-    const tee = await render("/merch/console-tee");
+    const tee = await render("/store/console-tee");
     expect(tee).toContain("small ▼ on the left sleeve");
     for (const s of ["XS", "3XL"]) expect(tee).toContain(`value="${s}"`);
   });

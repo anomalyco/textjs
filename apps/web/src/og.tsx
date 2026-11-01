@@ -194,7 +194,7 @@ const svg = (node: ReactNode): string => renderToStaticMarkup(node);
 
 /** `Routing | Text.js Docs` → `Routing`. */
 function pageTitle(title: string): string {
-  return title.replace(/\s+\|\s+(Text\.js( Docs| Playground| Merch)?|Learn Text\.js)$/, "");
+  return title.replace(/\s+\|\s+(Text\.js( Docs| Playground| Store)?|Learn Text\.js)$/, "");
 }
 
 /** The store's label for a product: "Coming soon", "Pre-order" or nothing once it's on sale. */
@@ -294,18 +294,18 @@ export async function ogCard(route: PrerenderRoute): Promise<OgCard> {
       if (m.slug === "") {
         const first = PRODUCTS[0];
         const open = PRODUCTS.some((p) => availability(p) !== "Coming soon");
-        return { ...base, template: "merch", meta: [`${PRODUCTS.length} products`, ...(open ? [] : ["Coming soon"])], photo: first?.images[0]?.large, alt: alt("", "Text.js Merch") };
+        return { ...base, template: "merch", meta: [`${PRODUCTS.length} products`, ...(open ? [] : ["Coming soon"])], photo: first?.images[0]?.large, alt: alt("", "Text.js Store") };
       }
       const p = getProduct(m.slug);
-      if (!p) return { ...base, template: "merch", section: "Merch", alt: alt("Merch", title) };
+      if (!p) return { ...base, template: "merch", section: "Store", alt: alt("Store", title) };
       const flag = availability(p);
       return {
         ...base,
         template: "merch",
-        section: `Merch · ${p.number}`,
+        section: `Store · ${p.number}`,
         meta: [p.color, price(p.price), ...(flag ? [flag] : [])],
         photo: p.images[0]?.large,
-        alt: `${title}, ${p.color}, from Text.js Merch`,
+        alt: `${title}, ${p.color}, from the Text.js Store`,
       };
     }
     case "not-found":

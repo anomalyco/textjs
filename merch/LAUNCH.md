@@ -1,6 +1,6 @@
 # Launch checklist
 
-The first drop is fourteen products that Anomaly's Fourthwall shop makes on demand: four tees, two hoodies, two caps and six stickers. Fourthwall makes, ships and takes payment for them; textjs.org/merch is the storefront and hands the cart to Fourthwall's hosted checkout. The Keycap Set and Notebook are listed too, but Fourthwall can't make them at a sensible minimum, so they come from separate makers and ship from Anomaly (section 7). Every product reads "Coming soon" until checkout is configured, and stays that way until Fourthwall sells it.
+The first drop is fourteen products that Anomaly's Fourthwall shop makes on demand: four tees, two hoodies, two caps and six stickers. Fourthwall makes, ships and takes payment for them; textjs.org/store is the storefront and hands the cart to Fourthwall's hosted checkout. The Keycap Set and Notebook are listed too, but Fourthwall can't make them at a sensible minimum, so they come from separate makers and ship from Anomaly (section 7). Every product reads "Coming soon" until checkout is configured, and stays that way until Fourthwall sells it.
 
 | No. | Product | Fourthwall product | Method | Base cost |
 | --- | --- | --- | --- | --- |

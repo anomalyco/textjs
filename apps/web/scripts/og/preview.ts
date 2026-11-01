@@ -42,7 +42,7 @@ const PREVIEW = [
   ["coffee", "Coffee (terminal.shop)"],
   ["status", "Status"],
   ["enterprise", "Enterprise"],
-  ["merch-console-tee", "Merch product"],
+  ["merch-console-tee", "Store product"],
   ["errors-TX014", "Error code"],
   ["404", "404"],
 ] as const;
