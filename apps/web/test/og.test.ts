@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NOT_FOUND_PATH, ROUTES } from "../src/entry-server";
 import { OG_HEIGHT, OG_WIDTH, ogCards, ogSlug } from "../src/og";
-import { resetLocation } from "../src/router";
+import { cardHtml, drawn, escapeHtml } from "../scripts/og/template";
 
 const ROOT = join(import.meta.dir, "..");
 
@@ -27,8 +27,6 @@ function meta(html: string, attr: "property" | "name", key: string): string | un
 }
 
 describe("Open Graph cards", () => {
-  afterAll(() => resetLocation("/"));
-
   test("every route and the 404 page has a card with a unique slug, a title and alt text", async () => {
     const cards = await ogCards(ROUTES, NOT_FOUND_PATH);
     expect(cards.map((c) => c.path)).toEqual([...ROUTES.map((r) => r.path), NOT_FOUND_PATH]);
@@ -43,13 +41,20 @@ describe("Open Graph cards", () => {
     expect(ogSlug("/docs/routing")).toBe("docs-routing");
   });
 
-  test("demo frames are real console frames, the same on every run", async () => {
-    const [a, b] = [await ogCards(ROUTES, NOT_FOUND_PATH), await ogCards(ROUTES, NOT_FOUND_PATH)];
-    const home = a.find((c) => c.path === "/");
-    expect(home?.frame?.html).toContain("data-textjs-mirror");
-    expect(home?.frame?.html).toContain("React 19 in console.log");
-    expect(a.find((c) => c.path === "/coffee")?.frame?.html).toContain("featured");
-    expect(a.map((c) => c.frame?.html ?? "")).toEqual(b.map((c) => c.frame?.html ?? ""));
+  test("each card draws the mark, at most one label and the title, plus a photo on Store cards", async () => {
+    const cards = await ogCards(ROUTES, NOT_FOUND_PATH);
+    for (const c of cards) {
+      const html = cardHtml(c);
+      const count = (cls: string): number => html.match(new RegExp(`class="${cls}[" ]`, "g"))?.length ?? 0;
+      expect([count("brand"), count("title")], c.path).toEqual([1, 1]);
+      expect(count("label"), c.path).toBeLessThanOrEqual(1);
+      expect(html.includes("<img"), c.path).toBe(c.path.startsWith("/store"));
+      expect(html).toContain(`>${escapeHtml(c.title)}</div>`);
+    }
+    const label = (path: string): string => drawn(cards.find((c) => c.path === path) as (typeof cards)[number]).label;
+    expect(label("/")).toBe("");
+    expect(label("/docs/routing")).toBe("Docs");
+    expect(label("/errors/TX014")).toBe("TX014");
   });
 });
 
