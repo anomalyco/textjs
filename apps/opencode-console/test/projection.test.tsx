@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { render } from "@textjs/react/testing";
 import { ToolCard } from "../components/ToolCard";
+import { TranscriptMarkdown } from "../components/TranscriptMarkdown";
 import { sessionDiffStat } from "../components/Shell";
 import { v2Message } from "../lib/client";
 import { createDemoClient } from "../lib/demo";
@@ -29,6 +30,19 @@ test("doesn't retain file bytes or report failed compactions as successes", () =
   expect(msg).toMatchObject({ files: [{ name: "chart.png", mime: "image/png" }] });
   expect(JSON.stringify(msg)).not.toContain("huge");
   expect(v2Message({ id: "c", type: "compaction", status: "failed", error: { message: "offline" } })).toMatchObject({ text: "Compaction failed: offline", tone: "danger" });
+});
+
+test("transcript Markdown keeps fences unboxed, expands table rules on resize, and reparses replaced stream content", async () => {
+  const md="## Example\n\n- item\n\n```ts\nconst a = 1;\n```\n\n| First | Last |\n| --- | --- |\n| x | y |";
+  const app=await render(<TranscriptMarkdown content={md} expanded={false}/>,{cols:50,rows:20});
+  try {
+    await app.waitForText("const a = 1;");
+    expect(app.lastFrame()).toContain("- item"); expect(app.lastFrame()).not.toContain("╭");
+    const width=()=>app.lines().find(l=>l.includes("┌"))?.trim().length;
+    await app.waitFor(()=>width()===47); await app.resize(70,20);await app.waitFor(()=>width()===67);
+    await app.rerender(<TranscriptMarkdown content={"**replacement**\n\n```ts\nnew"} expanded={false}/>);
+    expect(app.lastFrame()).toContain("replacement");expect(app.lastFrame()).not.toContain("First");
+  }finally{await app.unmount();}
 });
 
 test("multi-file patch metadata, todo states, question answers and read ranges reach the frame", async () => {

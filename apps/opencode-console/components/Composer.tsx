@@ -2,6 +2,7 @@ import { useContext, useEffect, useState, type ReactNode } from "react";
 import { Box, Text, Textarea, useInput, useTheme, useViewport, type TextTheme } from "@textjs/next";
 import { useStore, useStoreState } from "../lib/store";
 import { shortPath } from "../lib/format";
+import { usage as contextUsage, dollars } from "../lib/usage";
 import { DispatchAction, slashAction } from "../lib/commands";
 import { tokens } from "../lib/native-theme";
 
@@ -79,17 +80,15 @@ export function Composer({ onSubmit, busy = false, disabled = false, interruptAr
   },[client,directory]);
   const usage = useStoreState(s => {
     if (!sessionID) return "";
-    const ms=s.messages[sessionID] ?? [];
-    for (let i=ms.length-1;i>=0;i--) { const m=ms[i]; if(m?.type!=="assistant" || !m.tokens) continue;
-      const n=m.tokens.input+m.tokens.output+m.tokens.reasoning+(m.tokens.cache?.read ?? 0)+(m.tokens.cache?.write ?? 0); if (!n) continue;
-      const max=s.models.find(o=>o.id===m.model.id && o.providerID===m.model.providerID)?.context;
-      return formatUsage.format(n)+(max ? ` (${Math.round(n/max*100)}%)` : "");
-    } return "";
+    const measured=contextUsage(s.messages[sessionID] ?? [],s.models);
+    const cost=s.sessions.find(v=>v.id===sessionID)?.cost ?? 0;
+    return [measured && formatUsage.format(measured.tokens)+(measured.percent!==undefined?` (${measured.percent}%)`:""),cost>0 && dollars.format(cost)].filter(Boolean).join(" · ");
   });
   const history = useStoreState((s) => s.history);
   const dispatch = useContext(DispatchAction);
   const color = useAgentColor(theme, agent);
-  const name = models.find((m) => m.id === model?.id && m.providerID === model?.providerID)?.name ?? model?.id ?? "no model";
+  const selectedModel = models.find((m) => m.id === model?.id && m.providerID === model?.providerID);
+  const name = selectedModel?.name ?? model?.id ?? "no model";
   useInput((e) => {
     if (!shell && !value && !e.ctrl && !e.meta && !e.alt && e.input === "!") setShell(true);
     else if (shell && (e.key === "escape" || (!value && e.key === "backspace"))) setShell(false);
@@ -139,7 +138,7 @@ export function Composer({ onSubmit, busy = false, disabled = false, interruptAr
                 <Text color={theme.fg} wrap="truncate-end" flexShrink={1}>{name}</Text>
                 {model && (
                   <Text color={theme.muted} wrap="nowrap" flexShrink={0}>
-                    {model.providerID === "opencode" ? "OpenCode" : model.providerID === "openai" ? "OpenAI" : capitalize(model.providerID)}
+                    {selectedModel?.providerName ?? (model.providerID === "opencode" ? "OpenCode" : model.providerID === "openai" ? "OpenAI" : capitalize(model.providerID))}
                     {model.variant ? ` · ${model.variant}` : ""}
                   </Text>
                 )}

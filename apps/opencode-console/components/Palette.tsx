@@ -57,6 +57,7 @@ function Content({ kind, onKind, onClose }: Props) {
     agent = useStoreState((s) => s.agent);
   const connection = useStoreState((s) => s.connection),
     ui = useStoreState((s) => s.ui);
+  const favorites=useStoreState(s=>s.favorites), connected=models.some(m=>!!m.group);
   const [query, filter] = useState(""),
     [index, highlight] = useState<number | null>(null),
     [allProjects, showAll] = useState(false);
@@ -114,13 +115,18 @@ function Content({ kind, onKind, onClose }: Props) {
       return [...new Set([...(dir ? [dir] : []), ...workspaces])].map((d) => ({ label: d, value: `workspace:${d}`, current: d === dir }));
     if (kind === "themes") return themeNames.map((n) => ({ label: n, value: `theme:${n}`, current: n === initialTheme.current.name }));
     if (kind === "integrations") return integrations.map((v) => ({ label: v.name, value: `integration:${v.id}` }));
-    if (kind === "models")
-      return models.map((m) => ({
-        value: `model:${m.providerID}/${m.id}`,
-        label: m.name,
-        hint: m.free ? "Free" : undefined,
-        current: m.id === model?.id && m.providerID === model.providerID,
-      }));
+    if (kind === "models") {
+      const recent=store.recent().map(m=>`model:${m.providerID}/${m.id}`);
+      const priority=(id:string)=>id==="opencode-go"?0:id==="opencode"?1:2;
+      const list=models.slice().sort((a,b)=>(connected ? priority(a.providerID)-priority(b.providerID) || (a.group??"").localeCompare(b.group??"") : 0)||Number(!!b.free)-Number(!!a.free)).map(m=>{
+        const value=`model:${m.providerID}/${m.id}`;
+        return {value,label:m.name,hint:m.free?"Free":undefined,current:m.id===model?.id && m.providerID===model.providerID,
+          group:connected && favorites.includes(value)?"Favorites":connected && recent.includes(value)?"Recent":m.group,
+          description:connected && favorites.includes(value) && query?"(Favorite)":undefined};
+      });
+      const rank=(g?:string)=>g==="Favorites"?0:g==="Recent"?1:2;
+      return list.sort((a,b)=>rank(a.group)-rank(b.group));
+    }
     if (kind === "agents")
       return agents.map((a) => ({ value: `agent:${a.id}`, label: a.id, description: a.description, current: a.id === agent }));
     if (kind === "variants")
@@ -132,7 +138,7 @@ function Content({ kind, onKind, onClose }: Props) {
     const settings: Option[] = [
       { value: "themes", label: "Switch theme", group: "Appearance" },
       { value: "mode", label: "Switch theme mode", group: "Appearance" },
-      { value: "sidebar", label: ui.sidebar ? "Hide sidebar" : "Show sidebar", group: "Session", hint: "ctrl+x b" },
+      ...(active ? [{ value: "sidebar", label: (ui.sidebar ?? vp.cols>120) ? "Hide sidebar" : "Show sidebar", group: "Session", hint: "ctrl+x b" }] : []),
       { value: "tools", label: ui.toolDetails ? "Compact tool output" : "Expand tool output", group: "Session" },
       { value: "group", label: ui.groupExploration ? "Show tool calls individually" : "Group related tool calls", group: "Session" },
       { value: "thinking", label: ui.thinking ? "Collapse thinking" : "Expand thinking", group: "Session" },
@@ -167,7 +173,7 @@ function Content({ kind, onKind, onClose }: Props) {
       "settings",
     ];
     return [...suggested.map((value) => ({ ...base.find((o) => o.value === value)!, group: "Suggested" })), ...base];
-  }, [kind, query, sessions, allProjects, dir, agents, models, model, agent, ui, store, active, integrations, workspaces]);
+  }, [kind, query, sessions, allProjects, dir, agents, models, model, agent, ui, store, active, integrations, workspaces,favorites,connected,vp.cols]);
   const filtered = useMemo(
     () => (query ? fuzzyFilter(query, options, (o) => `${o.label} ${o.description ?? ""} ${o.value}`).map((v) => v.item) : options),
     [options, query],
@@ -265,7 +271,7 @@ function Content({ kind, onKind, onClose }: Props) {
       const id = store.tabs.reopen();
       if (id) goSession(id);
     } else if (v === "sidebar" || v === "thinking" || v === "group" || v === "tools")
-      store.toggle(v === "group" ? "groupExploration" : v === "tools" ? "toolDetails" : v);
+      store.toggle(v === "group" ? "groupExploration" : v === "tools" ? "toolDetails" : v,v==="sidebar" && vp.cols>120);
     else if (v === "connect") router.push("/connect");
     else if (v === "reload") void store.refreshSessions();
     else if (v === "help" || v === "copy") dispatch(v);
@@ -300,6 +306,7 @@ function Content({ kind, onKind, onClose }: Props) {
         highlight(Math.max(0, Math.min(filtered.length - 1, selected + (k === "pageup" ? -limit : limit))));
       else if (k === "home" || k === "end") highlight(k === "home" ? 0 : Math.max(0, filtered.length - 1));
       else if (e.ctrl && k === "a" && kind === "models") onKind("integrations");
+      else if(e.ctrl && k==="f" && kind==="models" && connected && item){store.toggleFavorite(item.value);highlight(null);}
       else if (e.ctrl && k === "a" && kind === "sessions") {
         showAll(!allProjects);
         highlight(0);
@@ -414,12 +421,12 @@ function Content({ kind, onKind, onClose }: Props) {
         <Box flexDirection="row" marginTop={1} paddingX={4} justifyContent="space-between">
           {kind === "models" ? (
             <Text>
-              View all integrations<Text color={t.muted}> ctrl+a</Text>
+              {connected?"Connect an integration":"View all integrations"}<Text color={t.muted}> ctrl+a</Text>{connected && <>{"  "}Favorite<Text color={t.muted}> ctrl+f</Text></>}
             </Text>
           ) : (
             <>
               <Text>
-                delete<Text color={t.muted}> ctrl+d </Text>rename<Text color={t.muted}> ctrl+r</Text>
+                delete<Text color={t.muted}>{" ctrl+d  "}</Text>rename<Text color={t.muted}> ctrl+r</Text>
               </Text>
               <Text>
                 {allProjects ? "current directory" : "all projects"}
@@ -464,8 +471,7 @@ function HelpContent({ onClose }: { onClose: () => void }): ReactNode {
       <Text color={t.muted}>Press ctrl+p to see all available actions and commands in any context.</Text>
       <Box flexDirection="row" justifyContent="flex-end">
         <Text color={t.primaryTextFocused} bg={t.primaryBgFocused}>
-          {" "}
-          ok{" "}
+          {"   ok   "}
         </Text>
       </Box>
     </Box>

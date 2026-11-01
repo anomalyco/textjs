@@ -5,6 +5,7 @@ import { capitalize, Dots } from "./Composer";
 import type { JsonRecord, ToolPart } from "../lib/types";
 import { finite, metadata, patchFiles, questionLines, string as s, todoLines } from "../lib/tool-data";
 import { PatchLines } from "./PatchLines";
+import { TranscriptCode } from "./TranscriptCode";
 
 /** Inline tool icons, as in the OpenCode TUI. */
 const ICONS: Record<string, string> = {
@@ -124,7 +125,7 @@ export const ToolCard = memo(function ToolCard({ part, expanded, directory }: { 
     const patch = typeof input.patch === "string" ? input.patch : { before: s(input.oldString) ?? "", after: s(input.newString) ?? "", filename: relativeTo(path ?? "file", directory) };
     if (!failed) return <BlockTool title={`← Edit ${target}`}><PatchLines patch={patch} file={target} /></BlockTool>;
   } else if (name === "write" && typeof input.content === "string") {
-    body = <Code code={input.content} language={languageOf(path)} maxHeight={expanded ? 40 : 6} showLineNumbers />;
+    if (status === "completed") return <BlockTool title={`# Wrote ${target}`}><TranscriptCode numbers code={input.content} language={languageOf(path)} limit={expanded?undefined:60}/></BlockTool>;
   } else if (shell && out) {
     const t = expanded ? { text: out, hidden: 0 } : tail(out, 10);
     body = (

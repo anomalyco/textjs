@@ -14,6 +14,7 @@ export type SessionInfo = {
   model?: ModelRef;
   directory?: string;
   outcome?: "succeeded" | "failed" | "interrupted";
+  cost?: number;
   time: { created: number; updated: number; busy?: number; idle?: number };
 };
 
@@ -79,7 +80,7 @@ export type FormInfo = { id: string; sessionID: string; title: string; metadata?
 
 /** `colorIndex` is the agent's position among all visible agents (subagents included), as the TUI colors them. */
 export type AgentOption = { id: string; name: string; description?: string; color?: string; colorIndex?: number };
-export type ModelOption = { id: string; providerID: string; name: string; context?: number; variants?: string[]; free?: boolean };
+export type ModelOption = { id: string; providerID: string; name: string; context?: number; variants?: string[]; free?: boolean; providerName?: string; group?: string };
 
 export type ServerInfo = { version: string; directory?: string };
 
@@ -89,6 +90,7 @@ export type AppEvent =
   | { type: "sessions.changed" }
   | { type: "session.renamed"; sessionID: string; title: string }
   | { type: "session.agent"; sessionID: string; agent: string }
+  | { type: "session.usage"; sessionID: string; cost: number }
   | { type: "session.model"; sessionID: string; model: ModelRef }
   | { type: "status"; sessionID: string; busy: boolean }
   | { type: "messages.changed"; sessionID: string }
@@ -134,7 +136,8 @@ export interface OpenCodeClient {
   command?(sessionID: string, name: string, text: string): Promise<void>;
   rename?(sessionID: string, title: string): Promise<void>;
   removeSession?(sessionID: string): Promise<void>;
-  integrations?(): Promise<{id:string;name:string}[]>;
+  integrations?(): Promise<{id:string;name:string;connected:boolean}[]>;
+  mcpServers?(directory:string): Promise<{name:string; status:string}[]>;
   workspaces?(): Promise<string[]>;
   compact?(sessionID: string, model: ModelRef | null): Promise<void>;
   shell?(sessionID: string, command: string): Promise<void>;

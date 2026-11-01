@@ -27,7 +27,7 @@ export interface MockOpenCode {
 
 const DIR = "/Users/dev/code/storefront";
 
-export function startMockOpenCode(options: { password?: string } = {}): MockOpenCode {
+export function startMockOpenCode(options: { password?: string; connectedProvider?: boolean } = {}): MockOpenCode {
   const now = Date.now();
   const sessions: Json[] = [
     {
@@ -108,6 +108,8 @@ export function startMockOpenCode(options: { password?: string } = {}): MockOpen
       const m = /^\/api\/session\/([^/]+)(?:\/(\w+))?$/.exec(path);
 
       if (path === "/api/info") return Response.json({ version: "2.0.0-mock", pid: 1, urls: [url.origin], paths: { tmp: "/tmp" } });
+      if(path === "/api/provider")return Response.json({data:[{id:"anthropic",name:"Anthropic"},{id:"openai",name:"OpenAI"}]});
+      if(path === "/api/integration")return Response.json({data:[{id:"anthropic",name:"Anthropic",connections:options.connectedProvider?[{type:"env"}]:[]}]});
       if (path === "/api/command") return Response.json({ data: [{ name: "review", description: "Review changes" }] });
       if (path === "/api/agent")
         return Response.json({

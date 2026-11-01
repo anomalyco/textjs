@@ -210,6 +210,7 @@ function v2Session(v: unknown): SessionInfo | null {
     agent: str(v.agent),
     model: modelRef(v.model),
     directory: str(rec(v.location).directory),
+    cost: num(v.cost),
     outcome: v.outcome === "succeeded" || v.outcome === "failed" || v.outcome === "interrupted" ? v.outcome : undefined,
     time: { created: num(time.created) ?? 0, updated: num(time.updated) ?? num(time.created) ?? 0, busy: num(time.busy), idle: num(time.idle) },
   };
@@ -337,6 +338,8 @@ export function parseV2Event(raw: unknown): AppEvent | null {
       return { type: "session.renamed", sessionID, title: str(d.title) ?? "" };
     case "session.agent.selected":
       return { type: "session.agent", sessionID, agent: str(d.agent) ?? "build" };
+    case "session.usage.updated":
+      return typeof d.cost === "number" ? { type: "session.usage", sessionID, cost:d.cost } : null;
     case "session.model.selected": {
       const model = modelRef(d.model);
       return model ? { type: "session.model", sessionID, model } : null;
@@ -368,7 +371,7 @@ export function parseV2Event(raw: unknown): AppEvent | null {
       return { type: "step.started", sessionID, messageID, agent: str(d.agent) ?? "build", model: modelRef(d.model) ?? { id: "unknown", providerID: "unknown" }, started: num(d.started) ?? Date.now() };
     case "session.step.ended": {
       const tokens = rec(d.tokens);
-      return { type: "step.ended", sessionID, messageID, finish: str(d.finish), cost: num(d.cost), tokens: isRecord(d.tokens) ? { input: num(tokens.input) ?? 0, output: num(tokens.output) ?? 0, reasoning: num(tokens.reasoning) ?? 0 } : undefined };
+      return { type: "step.ended", sessionID, messageID, finish: str(d.finish), cost: num(d.cost), tokens: isRecord(d.tokens) ? { input: num(tokens.input) ?? 0, output: num(tokens.output) ?? 0, reasoning: num(tokens.reasoning) ?? 0,cache:{read:num(rec(tokens.cache).read) ?? 0,write:num(rec(tokens.cache).write) ?? 0} } : undefined };
     }
     case "session.text.started":
       return { type: "part.started", sessionID, messageID, ordinal, kind: "text" };
@@ -490,7 +493,11 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     async removeSession(id) { await t.json("DELETE",`/api/session/${encodeURIComponent(id)}`); },
     async integrations() {
       const res = await t.json<{data?: unknown[]}>("GET", "/api/integration");
-      return (res.data ?? []).flatMap(x=>isRecord(x) && typeof x.id === "string" ? [{id:x.id,name:str(x.name) ?? x.id}] : []);
+      return (res.data ?? []).flatMap(x=>isRecord(x) && typeof x.id === "string" ? [{id:x.id,name:str(x.name) ?? x.id,connected:Array.isArray(x.connections) && x.connections.length>0}] : []);
+    },
+    async mcpServers(directory) {
+      const res=await t.json<{data?:unknown[]}>("GET",`/api/mcp?${new URLSearchParams({"location[directory]":directory})}`);
+      return (res.data??[]).flatMap(x=>isRecord(x) && typeof x.name==="string"?[{name:x.name,status:str(rec(x.status).status)??"disabled"}]:[]);
     },
     async workspaces() {
       const res = await t.json<{data?:unknown}>("GET", "/api/worktree");
@@ -523,11 +530,14 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
       });
     },
     async models() {
-      const res = await t.json<{ data?: unknown[] }>("GET", "/api/model");
+      const [res,providers,integrations]=await Promise.all([t.json<{data?:unknown[]}>("GET","/api/model"),
+        t.json<{data?:unknown[]}>("GET","/api/provider").catch(()=>null),t.json<{data?:unknown[]}>("GET","/api/integration").catch(()=>null)]);
+      const names=new Map((providers?.data ?? []).filter(isRecord).map(p=>[p.id,str(p.name)]));
+      const connected=(integrations?.data ?? []).some(i=>isRecord(i) && Array.isArray(i.connections) && i.connections.length>0);
       return (res?.data ?? []).flatMap((m): ModelOption[] => {
         if (!isRecord(m) || typeof m.id !== "string" || typeof m.providerID !== "string" || m.enabled === false || (m.type && m.type !== "chat")) return [];
         if (m.status === "deprecated") return [];
-        return [{ id: m.id, providerID: m.providerID, name: str(m.name) ?? m.id, context: num(rec(m.limit).context), free: Array.isArray(m.cost) && m.cost.length > 0 && m.cost.every(c=>rec(c).input === 0), variants: Array.isArray(m.variants) ? m.variants.flatMap((v) => typeof v?.id === "string" && v.id !== "default" ? [v.id] : []) : [] }];
+        return [{ id: m.id, providerID: m.providerID, name: str(m.name) ?? m.id, providerName:names.get(m.providerID),group:connected ? names.get(m.providerID) ?? m.providerID : undefined, context: num(rec(m.limit).context), free: Array.isArray(m.cost) && m.cost.length > 0 && m.cost.every(c=>rec(c).input === 0), variants: Array.isArray(m.variants) ? m.variants.flatMap((v) => typeof v?.id === "string" && v.id !== "default" ? [v.id] : []) : [] }];
       });
     },
     async children(sessionID) {

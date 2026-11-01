@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Box, Text, useInput, useTheme, type Metadata } from "@textjs/next";
+import { Box, Text, useInput, useTheme, useViewport, type Metadata } from "@textjs/next";
 import { useRouter } from "@textjs/next/navigation";
 import { Composer } from "../../../components/Composer";
 import { Timeline } from "../../../components/Timeline";
@@ -13,6 +13,7 @@ const EMPTY: SessionMessage[] = [];
 
 export default function SessionPage({ params }: { params: Record<string, string | string[]> }): ReactNode {
   const id = String(params.id);
+  const vp=useViewport();
   const theme = useTheme();
   const store = useStore();
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function SessionPage({ params }: { params: Record<string, string 
   const directory = useStoreState((s) => s.sessions.find((x) => x.id === id)?.directory);
   const options = useMemo(() => ({ ...ui, directory }), [ui, directory]);
   const [armed, setArmed] = useState(false);
+  const [away, setAway] = useState(false);
   useEffect(() => {
     if (!armed) return;
     if (!busy) { setArmed(false); return; }
@@ -58,9 +60,9 @@ export default function SessionPage({ params }: { params: Record<string, string 
   }
 
   return (
-    <Box flexDirection="column" flexGrow={1} minHeight={0} paddingX={2} paddingBottom={1}>
-      <Timeline messages={messages} options={options} busy={busy} loading={!loaded && messages.length === 0} />
-      <Box height={1} flexShrink={0} />
+    <Box flexDirection="column" flexGrow={1} minHeight={0} paddingX={vp.cols<44 ? 1 : 2} paddingBottom={1}>
+      <Timeline interactive={!permission && !form} messages={messages} options={options} busy={busy} loading={!loaded && messages.length === 0} onAway={setAway} />
+      <Box height={1} flexShrink={0} flexDirection="row" justifyContent="flex-end">{away && <Text color={theme.muted}>Jump to latest ↓</Text>}</Box>
       <Box display={permission || form ? "none" : "flex"} flexDirection="column" flexShrink={0}><Composer sessionID={id} disabled={!!permission || !!form} busy={busy} interruptArmed={armed} placeholder="" onSubmit={(text, mode) => void store.send(id, text, mode)} /></Box>
       {permission ? <PermissionPrompt key={permission.id} request={permission} child={permission.sessionID !== id} /> : form ? <FormPrompt key={form.id} form={form} /> : null}
     </Box>

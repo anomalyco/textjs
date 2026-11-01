@@ -151,7 +151,7 @@ const Message = memo(function Message({ msg, next, options, live, turnStart }: {
   }
 });
 
-export function Timeline({ messages, options, busy, loading }: { messages: readonly SessionMessage[]; options: TimelineOptions; busy: boolean; loading: boolean }): ReactNode {
+export function Timeline({ messages, options, busy, loading, onAway, interactive=true }: { messages: readonly SessionMessage[]; options: TimelineOptions; busy: boolean; loading: boolean; onAway?: (away:boolean)=>void;interactive?:boolean }): ReactNode {
   const theme = useTheme();
   const scroll = useRef<ScrollBoxHandle>(null);
   const page = () => Math.max(1, (scroll.current?.node?.layout.contentHeight ?? 1) - 1);
@@ -163,15 +163,15 @@ export function Timeline({ messages, options, busy, loading }: { messages: reado
     "ctrl+alt+y": () => scroll.current?.scrollBy(-1),
     "ctrl+alt+e": () => scroll.current?.scrollBy(1),
     "ctrl+g, alt+home, home": () => scroll.current?.scrollToTop(),
-    "ctrl+alt+g, end": () => scroll.current?.scrollToBottom(),
-  }, { priority: 11 });
+    "ctrl+alt+g, end": () => {scroll.current?.scrollToBottom();onAway?.(false);},
+  }, { priority: 11,isActive:interactive });
   const lastAssistant = (() => {
     for (let i = messages.length - 1; i >= 0; i--) if ((messages[i] as SessionMessage).type === "assistant") return (messages[i] as SessionMessage).id;
     return null;
   })();
   let turnStart: number | undefined;
   return (
-    <ScrollBox ref={scroll} stickyScroll showScrollbar={false} flexGrow={1} paddingTop={1} gap={1}>
+    <ScrollBox ref={scroll} isActive={interactive} stickyScroll showScrollbar={false} flexGrow={1} paddingTop={1} gap={1} onScroll={()=>onAway?.(!scroll.current?.isSticky())}>
       {loading ? (
         <Text color={theme.muted} italic paddingLeft={3}>
           Loading…

@@ -2,8 +2,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   Box,
-  Code,
-  Diff,
   ScrollBox,
   Text,
   Textarea,
@@ -31,6 +29,8 @@ import { useTokens } from "../lib/native-theme";
 import { permissionAlwaysLines, permissionOptionLabel, permissionPresentation } from "../lib/permission";
 import { useStore, useStoreState } from "../lib/store";
 import type { FormAnswer, FormInfo, FormValue, PermissionReply, PermissionRequest } from "../lib/types";
+import { PatchLines } from "./PatchLines";
+import { TranscriptCode } from "./TranscriptCode";
 
 export function KeyHints({ items }: { items: [string, string][] }) {
   const t = useTokens();
@@ -58,7 +58,7 @@ function Panel({ children, full, border }: { children: ReactNode; full?: boolean
       borderRight={false}
       borderBottom={false}
       borderColor={border ?? t.primaryBgFocused}
-      {...(full ? ({ position: "absolute", top: 0, bottom: 0, left: 2, right: 2, zIndex: 4 } as const) : {})}
+      {...(full ? ({ position: "absolute", top: 0, bottom: 1, left: 2, right: 2, zIndex: 4 } as const) : {})}
     >
       {children}
     </Box>
@@ -162,12 +162,18 @@ export function PermissionPrompt({ request, child }: { request: PermissionReques
           </Text>
           {request.action !== "shell" && <Text>{`  ${body.icon} ${body.title}`}</Text>}
         </Box>
-        <ScrollBox ref={scroll} maxHeight={full ? Math.max(1, vp.rows - 9) : 7} showScrollbar={false} focused>
+        <ScrollBox
+          ref={scroll}
+          gap={choice === "always" ? 1 : 0}
+          maxHeight={full ? Math.max(1, vp.rows - 9) : 7}
+          showScrollbar={false}
+          focused
+        >
           {choice !== "always" && request.action === "edit" ? (
             body.diff ? (
-              <Diff patch={body.diff} />
+              <PatchLines patch={body.diff} file={body.file ?? ""} limit={full ? 1000 : 60} />
             ) : body.patch ? (
-              <Code code={body.patch} language="diff" />
+              <TranscriptCode code={body.patch} language="diff" />
             ) : (
               <Text color={t.muted}>No diff provided</Text>
             )
@@ -258,7 +264,11 @@ export function FormPrompt({ form }: { form: FormInfo }) {
         f.type === "external" ||
         (f.when ?? []).every((w) => {
           const a = answers[w.key];
-          return seen.has(w.key) && a !== undefined && (w.op === "eq") === (Array.isArray(a) ? a.includes(String(w.value)) : a === w.value);
+          return (
+            seen.has(w.key) &&
+            a !== undefined &&
+            (w.op === "eq") === (Array.isArray(a) ? a.some((item) => item === w.value) : a === w.value)
+          );
         });
       if (show) seen.add(f.key);
       return show;
@@ -266,7 +276,9 @@ export function FormPrompt({ form }: { form: FormInfo }) {
   };
   const fields = activeFields(d.answers),
     field = fields[d.tab];
-  const single = fields.length === 1 && (fields[0]?.type === "boolean" || (fields[0]?.type === "string" && !!fields[0].options));
+  const singleField = (f: FormInfo["fields"]) =>
+    f.length === 1 && (f[0]?.type === "boolean" || (f[0]?.type === "string" && !!f[0].options));
+  const single = singleField(fields);
   const rows = formRows(field),
     multi = field?.type === "multiselect",
     custom = formCustom(field),
@@ -276,6 +288,27 @@ export function FormPrompt({ form }: { form: FormInfo }) {
       if (!rows.some((r) => r.value === value) && value !== d.custom[field.key]) rows.push({ label: value, value });
     }
   const total = rows.length + +custom;
+  const other = custom && d.selected === rows.length;
+  const short = (label: string, n: number) => (label.length > n ? label.slice(0, n - 1).trimEnd() + "…" : label);
+  const tabbed = fields.reduce((n, f) => n + short(formLabel(f), 24).length + 3, 9) <= vp.cols - 8;
+  const completed = fields.filter((f) =>
+    f.type === "external" ? d.answers[f.key] === true : d.answers[f.key] !== undefined && !formValidateValue(f, d.answers[f.key]),
+  ).length;
+  const placeholder =
+    field?.type === "string"
+      ? field.placeholder ||
+        (field.format
+          ? { email: "name@example.com", uri: "https://example.com", date: "YYYY-MM-DD", "date-time": "YYYY-MM-DDTHH:MM:SSZ" }[field.format]
+          : undefined)
+      : field?.type === "integer" || field?.type === "number"
+        ? field.minimum !== undefined && field.maximum !== undefined
+          ? `${field.minimum}-${field.maximum}`
+          : field.minimum !== undefined
+            ? `at least ${field.minimum}`
+            : field.maximum !== undefined
+              ? `at most ${field.maximum}`
+              : undefined
+        : undefined;
   useFocus({ id: `form:${form.id}`, autoFocus: true, isActive: !textual && !d.editing });
   const focus = useFocusManager();
   useLayoutEffect(() => {
@@ -283,7 +316,7 @@ export function FormPrompt({ form }: { form: FormInfo }) {
   }, [form.id, field?.key, textual, d.editing]);
   const move = (dir: number, answers = d.answers, customs = d.custom) => {
     const next = activeFields(answers),
-      tab = single ? 0 : (d.tab + dir + next.length + 1) % (next.length + 1),
+      tab = singleField(next) ? 0 : (d.tab + dir + next.length + 1) % (next.length + 1),
       f = next[tab];
     patch({
       tab,
@@ -307,7 +340,8 @@ export function FormPrompt({ form }: { form: FormInfo }) {
           fail(problem);
           return;
         }
-        if (value !== undefined) result[f.key] = value;
+        if (value !== undefined && !(f.type === "multiselect" && !f.required && Array.isArray(value) && !value.length))
+          result[f.key] = value;
       }
     lock.current = true;
     try {
@@ -327,7 +361,7 @@ export function FormPrompt({ form }: { form: FormInfo }) {
     if (!row) return;
     const answers = { ...d.answers, [field.key]: multi ? formToggleMultiselect(d.answers[field.key], String(row.value)) : row.value };
     if (multi) patch({ answers, selected: i });
-    else if (single) void submit(answers);
+    else if (singleField(activeFields(answers))) void submit(answers);
     else move(1, answers);
   };
   const commit = (dir: number, nextTab: boolean) => {
@@ -349,7 +383,7 @@ export function FormPrompt({ form }: { form: FormInfo }) {
     const answers = { ...d.answers, [field.key]: value },
       customs = { ...d.custom, [field.key]: text };
     if (multi && !nextTab) patch({ answers, custom: customs, editing: false });
-    else if (single) void submit(answers);
+    else if (singleField(activeFields(answers))) void submit(answers);
     else move(dir, answers, customs);
   };
   useInput(
@@ -403,7 +437,21 @@ export function FormPrompt({ form }: { form: FormInfo }) {
   if (field && field.type !== "external" && !textual && !d.editing) hints.push(["↑↓", "select"]);
   hints.push([
     "enter",
-    !field || single ? "submit" : field.type === "external" ? (d.external ? "I finished" : "open link") : multi ? "toggle" : "confirm",
+    !field || single
+      ? "submit"
+      : field.type === "external"
+        ? d.answers[field.key]
+          ? "continue"
+          : d.external
+            ? "I finished"
+            : "open link"
+        : multi
+          ? other && d.editing
+            ? "done"
+            : other && !d.custom[field.key]
+              ? "edit"
+              : "toggle"
+          : "confirm",
   ]);
   if (field?.type === "external") hints.push(["c", "copy"]);
   hints.push(["esc", d.editing ? "close" : "dismiss"]);
@@ -414,7 +462,7 @@ export function FormPrompt({ form }: { form: FormInfo }) {
       value={d.text}
       onChange={(text) => patch({ text })}
       autoFocus
-      placeholder={(field?.type === "string" && field.placeholder) || (d.editing ? "Type your own answer" : "Type your answer")}
+      placeholder={placeholder || (d.editing ? "Type your own answer" : "Type your answer")}
       maxRows={6}
     />
   );
@@ -431,12 +479,19 @@ export function FormPrompt({ form }: { form: FormInfo }) {
       >
         <Text color={t.muted}>{form.title}</Text>
         {typeof form.metadata?.message === "string" && <Text>{form.metadata.message}</Text>}
-        {!single && (
+        {!single && !tabbed && (
+          <Text color={t.muted}>
+            {field ? `Field ${d.tab + 1} of ${fields.length}` : "Review"} · {completed}/{fields.length} completed
+          </Text>
+        )}
+        {!single && tabbed && (
           <Text>
             {fields.map((f, i) => (
-              <Text key={f.key} bold={i === d.tab} color={i === d.tab ? t.text : t.muted}>{`${formLabel(f).slice(0, 24)}  `}</Text>
+              <Text key={f.key} bold={i === d.tab} color={i === d.tab ? t.text : t.muted}>{`${short(formLabel(f), 24)}  `}</Text>
             ))}
-            <Text bold={!field}>Submit</Text>
+            <Text color={field ? t.muted : t.text} bold={!field}>
+              Submit
+            </Text>
           </Text>
         )}
         {field ? (
@@ -457,7 +512,9 @@ export function FormPrompt({ form }: { form: FormInfo }) {
             <>
               <Text>{field.description ?? formLabel(field)}</Text>
               {textual ? (
-                editor
+                <Box paddingLeft={1} flexDirection="column">
+                  {editor}
+                </Box>
               ) : (
                 <Box flexDirection="column">
                   {rows.map((r, i) => {
@@ -479,14 +536,19 @@ export function FormPrompt({ form }: { form: FormInfo }) {
                       </Box>
                     );
                   })}
-                  {custom &&
-                    (d.editing ? (
-                      editor
-                    ) : (
+                  {custom && (
+                    <Box flexDirection="row">
                       <Text
-                        color={d.selected === rows.length ? t.formfieldFocused : t.formfield}
-                      >{`${rows.length + 1}. ${d.custom[field.key] || "Type your own answer"}`}</Text>
-                    ))}
+                        flexShrink={0}
+                        color={other ? t.formfieldFocused : t.muted}
+                      >{`${rows.length + 1}. ${multi ? `[${d.editing || (Array.isArray(d.answers[field.key]) && (d.answers[field.key] as string[]).includes(d.custom[field.key]!)) ? "✓" : " "}] ` : ""}`}</Text>
+                      {d.editing ? (
+                        editor
+                      ) : (
+                        <Text color={other ? t.formfieldFocused : t.formfield}>{d.custom[field.key] || "Type your own answer"}</Text>
+                      )}
+                    </Box>
+                  )}
                 </Box>
               )}
             </>

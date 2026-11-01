@@ -42,7 +42,7 @@ export interface ConnectionState {
 }
 
 export interface UiState {
-  sidebar: boolean;
+  sidebar: boolean | null;
   toolDetails: boolean;
   thinking: boolean;
   groupExploration: boolean;
@@ -69,6 +69,7 @@ export interface StoreState {
   ui: UiState;
   toast: Toast | null;
   history: readonly string[];
+  favorites: readonly string[];
   /** Pending permission requests and forms by owning session (children included). */
   permissions: Readonly<Record<string, readonly PermissionRequest[]>>;
   forms: Readonly<Record<string, readonly FormInfo[]>>;
@@ -129,6 +130,8 @@ export class OpenCodeStore {
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
   private connectSeq = 0;
   private recentModels: ModelRef[] = [];
+  recent() {return this.recentModels as readonly ModelRef[];}
+  toggleFavorite(key:string) {this.set(s=>({favorites:s.favorites.includes(key)?s.favorites.filter(k=>k!==key):[key,...s.favorites]}));}
   private commands = new Set<string>();
   private currentSession: string | null = null;
   private requestReads = new Map<string, Set<string>>();
@@ -151,9 +154,10 @@ export class OpenCodeStore {
       models: [],
       agent: "build",
       model: null,
-      ui: { sidebar: false, toolDetails: false, thinking: false, groupExploration: true },
+      ui: { sidebar: null, toolDetails: false, thinking: false, groupExploration: true },
       toast: null,
       history: [],
+      favorites: [],
       permissions: {},
       forms: {},
       parents: {},
@@ -237,6 +241,7 @@ export class OpenCodeStore {
       busy: {},
       model: null,
       history: [],
+      favorites: [],
       permissions: {},
       forms: {},
       parents: {},
@@ -612,8 +617,8 @@ export class OpenCodeStore {
 
   // -- ui --------------------------------------------------------------------
 
-  toggle(key: keyof UiState): void {
-    this.set((s) => ({ ui: { ...s.ui, [key]: !s.ui[key] } }));
+  toggle(key: keyof UiState, auto = false): void {
+    this.set((s) => ({ ui: { ...s.ui, [key]: !(s.ui[key] ?? auto) } }));
   }
 
   notify(text: string, tone: Toast["tone"] = "info"): void {
@@ -637,6 +642,8 @@ export class OpenCodeStore {
       case "session.agent":
         this.patchSession(e.sessionID, { agent: e.agent });
         return;
+      case "session.usage":
+        this.patchSession(e.sessionID,{cost:e.cost});return;
       case "session.model":
         this.patchSession(e.sessionID, { model: e.model });
         return;

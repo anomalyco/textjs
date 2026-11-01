@@ -1,6 +1,7 @@
 import { memo, useMemo, type ReactNode } from "react";
 import { Box, Text, tokenize, parseUnifiedDiff, diffTexts, type DiffInput } from "@textjs/next";
 import { useTokens } from "../lib/native-theme";
+import { SyntaxRun } from "./TranscriptCode";
 
 /** OpenTUI's unified patch rows use ONE line number; source headers aren't
  * repeated inside the block (the block title already contains the filename). */
@@ -34,14 +35,8 @@ export const PatchLines = memo(function PatchLines({
         del = l.kind === "remove";
       const bg = add ? t.diffAddedBg : del ? t.diffRemovedBg : t.diffContextBg;
       const gutter = add ? t.diffAddedLineNumberBg : del ? t.diffRemovedLineNumberBg : t.diffContextBg;
-      const pieces = (tokenize(l.text, file.split(".").pop())[0] ?? []).flatMap((p) =>
-        p.kind === "plain"
-          ? p.text
-              .split(/(\s+|[;])/)
-              .filter(Boolean)
-              .map((text) => ({ ...p, text }))
-          : [p],
-      );
+      const language = file.split(".").pop(),
+        pieces = tokenize(l.text, language)[0] ?? [];
       rows.push(
         <Box key={rows.length} flexDirection="row" bg={bg} flexShrink={0}>
           <Text bg={gutter} color={t.diffLineNumber} flexShrink={0}>
@@ -49,18 +44,7 @@ export const PatchLines = memo(function PatchLines({
             <Text color={add ? t.diffAddedSign : t.diffRemovedSign}>{add ? "+ " : del ? "- " : "  "}</Text>
           </Text>
           <Text flexShrink={1} color={t.text}>
-            {pieces.map((p, i) => {
-              const kind = p.text === ";" ? "operator" : p.kind === "plain" && /^\w+$/.test(p.text) ? "variable" : p.kind;
-              return (
-                <Text
-                  key={i}
-                  italic={p.text === "const" || p.text === "let"}
-                  color={(t[`syntax.${kind}` as keyof typeof t] as string) ?? t.text}
-                >
-                  {p.text}
-                </Text>
-              );
-            })}
+            <SyntaxRun pieces={pieces} language={language} />
           </Text>
         </Box>,
       );

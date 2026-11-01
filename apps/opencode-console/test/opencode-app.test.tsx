@@ -91,11 +91,11 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     expect(t.frame().split("\n").findIndex((l) => l.includes("Build · Claude"))).toBe(before);
     await t.press("Backspace");
 
-    // A leader chord toggles the optional session rail. Ctrl+B belongs to the editor.
+    // The sidebar belongs to a session. Home has no session rail.
     await t.press("x", { ctrlKey: true });
     await t.press("b");
     await t.settle();
-    expect(t.frame()).toContain("SESSIONS 2");
+    expect(t.frame()).not.toContain("SESSIONS 2");
     await t.press("x", { ctrlKey: true });
     await t.press("b");
     await t.settle();
@@ -146,11 +146,11 @@ describe("OpenCode Lite console app (live V2 server)", () => {
       mock.emit({ type: "session.text.delta", data: { ...base, ordinal: 1, delta } });
     }
     await t.waitFor(() => t.frame().includes("token bucket in"), "streamed markdown");
-    await t.waitFor(() => t.frame().includes("streaming…"), "streamed code block");
+    await t.waitFor(() => t.frame().includes("const windowMs = 60_000;"), "streamed code block");
     frame = t.frame();
     expect(frame).toContain("Rate limiting");
     expect(frame).toContain("Added a token bucket in src/middleware.ts.");
-    expect(frame).toContain("streaming…");
+    expect(frame).not.toContain("```ts");
 
     // Each dirty frame is exactly one console.log(format, ...css) of the whole grid, appended without a clear.
     const logs = t.console.logs.length;
@@ -194,6 +194,8 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     const frame = t.frame();
     expect(frame).toContain("Where is the auth middleware?");
     expect(frame).toContain("→ Explored: 1 search");
+    await t.press("x",{ctrlKey:true});await t.press("b");
+    expect(t.frame()).toContain("1,020 tokens");await t.press("Escape");
 
     const before = t.root.renderer.buffer.getCell(3, 0);
     await t.press("p", { ctrlKey: true });
@@ -238,6 +240,15 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     await t.press("Escape"); t.frame(); expect(bg()).toBe(before);
     await t.type("/themes"); await t.press("Enter"); await t.type("dracula"); await t.press("Enter");
     expect(t.frame()).not.toContain("Themes"); expect(bg()).not.toBe(before);
+  });
+
+  test("connected models use provider sections and Ctrl+F adds/removes a favorite locally", async()=>{
+    mock.stop();mock=startMockOpenCode({connectedProvider:true});
+    const {t}=await mount();await t.press("x",{ctrlKey:true});await t.press("m");
+    expect(t.frame()).toContain("Connect an integration");
+    expect(t.frame()).toContain("OpenAI");await t.press("f",{ctrlKey:true});
+    expect(t.frame()).toContain("Favorites");await t.press("f",{ctrlKey:true});
+    expect(t.frame()).not.toContain("Favorites");expect(mock.requests.every(r=>r.method==="GET")).toBe(true);
   });
 
   test("queued permission and form prompts retain owners, choices and the unsent draft", async () => {
@@ -301,6 +312,19 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     expect(mock.requests.find(r=>r.path.endsWith("frm_many/reply"))?.body).toEqual({answer:{stage:"deploy",count:2,tags:["linux","mac"]}});
     mock.emit({type:"form.created",data:{form:{...form,id:"frm_cancel"}}});await t.waitFor(()=>t.frame().includes("2. Deploy"));await t.press("Escape");
     await t.waitFor(()=>requested("DELETE","/api/session/ses_alpha/form/frm_cancel"));
+  });
+
+  test("rejecting a child's request asks for a reason and replies to the child, not its parent", async () => {
+    const sessionID = "ses_child";
+    mock.sessions.push({id:sessionID,parentID:"ses_alpha",title:"Child",time:{created:1,updated:1}});
+    const {t}=await mount("/session/ses_alpha"); await t.waitFor(()=>t.frame().includes("It lives in"));
+    mock.emit({type:"permission.asked",data:{id:"per_child",sessionID,action:"read",resources:["a.txt"]}});
+    await t.waitFor(()=>t.frame().includes("Permission required")); await t.press("Escape");
+    expect(t.frame()).toContain("Tell OpenCode what to do differently");
+    expect(requested("POST",`/api/session/${sessionID}/permission`)).toBe(false);
+    await t.type("Use the fixture instead"); await t.press("Enter");
+    await t.waitFor(()=>requested("POST",`/api/session/${sessionID}/permission/per_child/reply`));
+    expect(mock.requests.find(r=>r.path.endsWith("per_child/reply"))?.body).toEqual({decision:"reject",message:"Use the fixture instead"});
   });
 
   test("shell mode is a keystroke, not a prefix interpreted on submit", async () => {
