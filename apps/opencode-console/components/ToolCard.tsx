@@ -4,6 +4,7 @@ import { shortPath } from "../lib/format";
 import { capitalize, Dots } from "./Composer";
 import type { JsonRecord, ToolPart } from "../lib/types";
 import { finite, metadata, patchFiles, questionLines, string as s, todoLines } from "../lib/tool-data";
+import { PatchLines } from "./PatchLines";
 
 /** Inline tool icons, as in the OpenCode TUI. */
 const ICONS: Record<string, string> = {
@@ -107,25 +108,25 @@ export const ToolCard = memo(function ToolCard({ part, expanded, directory }: { 
   const files = patchFiles(part);
   let title = shell ? target || name : `${name === "webfetch" ? "WebFetch" : name === "websearch" ? "Web Search" : capitalize(name)}${target ? ` ${target}` : ""}`;
   if (files.length && ["edit", "write", "patch", "apply_patch"].includes(name)) {
-    body = files.map((file, i) => <Box key={`${file.path}:${i}`} flexDirection="column" flexShrink={0}>
-      <Text wrap="truncate-end">{`${file.kind === "added" || file.kind === "add" ? "# Created" : file.kind === "deleted" || file.kind === "delete" ? "# Deleted" : "← Patched"} ${file.path}`}</Text>
-      {file.patch && <Diff patch={file.patch} maxHeight={expanded ? 60 : 10} />}
-    </Box>);
+    return <Box flexDirection="column" gap={1} flexShrink={0}>{files.map((file, i) => <BlockTool key={`${file.path}:${i}`} title={`${name === "edit" ? "← Edit" : file.kind === "added" || file.kind === "add" ? "# Created" : file.kind === "deleted" || file.kind === "delete" ? "# Deleted" : "← Patched"} ${file.path}`}>
+      {file.patch && <PatchLines patch={file.patch} file={file.path} limit={expanded ? 120 : 60} />}
+      {part.state.status === "error" && <Text color={theme.danger}>{part.state.error.message}</Text>}
+    </BlockTool>)}</Box>;
   } else if (name === "todowrite") {
     const todos = todoLines(input);
     title = failed ? "Todo update failed" : running ? "Updating todos…" : todos.length ? "# Todos" : "Cleared todos";
-    if (!running && !failed && todos.length) body = <Text>{todos.join("\n")}</Text>;
+    if (!running && !failed && todos.length) return <BlockTool title="# Todos"><Box flexDirection="column">{todos.map((line, i) => <Text key={i} strikethrough={line.startsWith("[-]")} color={line.startsWith("[•]") ? theme.warning : theme.muted}>{line}</Text>)}</Box></BlockTool>;
   } else if (name === "question") {
     const lines = questionLines(input, meta);
     title = lines.length ? "# Questions" : "Asking questions…";
-    if (lines.length) body = <Text>{lines.join("\n")}</Text>;
+    if (lines.length) return <BlockTool title="# Questions"><Text>{lines.join("\n")}</Text></BlockTool>;
   } else if ((name === "edit" || name === "patch" || name === "apply_patch") && (typeof input.oldString === "string" || typeof input.newString === "string" || typeof input.patch === "string")) {
     const patch = typeof input.patch === "string" ? input.patch : { before: s(input.oldString) ?? "", after: s(input.newString) ?? "", filename: relativeTo(path ?? "file", directory) };
-    body = <Diff patch={patch} context={expanded ? 3 : 1} maxHeight={expanded ? 60 : 10} marginTop={0} />;
+    if (!failed) return <BlockTool title={`← Edit ${target}`}><PatchLines patch={patch} file={target} /></BlockTool>;
   } else if (name === "write" && typeof input.content === "string") {
     body = <Code code={input.content} language={languageOf(path)} maxHeight={expanded ? 40 : 6} showLineNumbers />;
   } else if (shell && out) {
-    const t = expanded ? { text: out, hidden: 0 } : tail(out, 3);
+    const t = expanded ? { text: out, hidden: 0 } : tail(out, 10);
     body = (
       <Box flexDirection="column" flexShrink={0}>
         {t.hidden > 0 ? <Text color={theme.subtle}>{`… ${t.hidden} earlier lines`}</Text> : null}
@@ -134,6 +135,7 @@ export const ToolCard = memo(function ToolCard({ part, expanded, directory }: { 
         </Text>
       </Box>
     );
+    if (!failed) return <BlockTool title={`$ ${target}`} shell>{body}</BlockTool>;
   } else if (expanded && out && status === "completed") {
     body = <Code code={out} language={name === "read" ? languageOf(path) : undefined} maxHeight={24} />;
   }
@@ -176,3 +178,10 @@ export const ToolCard = memo(function ToolCard({ part, expanded, directory }: { 
     </Box>
   );
 });
+
+export function BlockTool({title, children, shell}: {title:string; children?:ReactNode; shell?:boolean}) {
+  const theme = useTheme();
+  return <Box flexDirection="column" flexShrink={0} paddingY={1} paddingLeft={2} gap={1} border="heavy" borderTop={false} borderRight={false} borderBottom={false} borderColor={theme.bg} bg={theme.surface}>
+    <Text color={shell ? theme.fg : theme.muted}>{title}</Text>{children}
+  </Box>;
+}

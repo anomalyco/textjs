@@ -1,7 +1,9 @@
 import { useContext, useEffect, useState, type ReactNode } from "react";
 import { Box, Text, Textarea, useInput, useTheme, useViewport, type TextTheme } from "@textjs/next";
-import { useStoreState } from "../lib/store";
+import { useStore, useStoreState } from "../lib/store";
+import { shortPath } from "../lib/format";
 import { DispatchAction, slashAction } from "../lib/commands";
+import { tokens } from "../lib/native-theme";
 
 export interface ComposerProps {
   onSubmit: (text: string, mode: "prompt" | "shell") => void;
@@ -9,14 +11,17 @@ export interface ComposerProps {
   disabled?: boolean;
   interruptArmed?: boolean;
   placeholder?: string;
+  sessionID?: string;
 }
 
 const PLACEHOLDER = 'Ask anything… "Fix broken tests"';
 
 export const capitalize = (s: string): string => (s ? s[0]?.toUpperCase() + s.slice(1) : s);
 
-export function agentColor(theme: TextTheme, agent: string): string {
-  return agent === "plan" ? theme.info : theme.accent;
+export function useAgentColor(theme: TextTheme, agent: string): string {
+  const agents = useStoreState((s) => s.agents), palette = tokens(theme).agents;
+  const index = agents.findIndex((a) => a.id === agent), a = agents[index];
+  return a?.color || palette[(a?.colorIndex ?? Math.max(0,index)) % palette.length] || theme.accent;
 }
 
 /** A four-dot scanner: plain `•` / `·`, so no row ever falls back to a symbol font. */
@@ -42,7 +47,7 @@ export function Hints({ items }: { items: Array<[string, string]> }): ReactNode 
     <Text wrap="nowrap" flexShrink={0}>
       {items.map(([k, label], i) => (
         <Text key={k}>
-          {i > 0 ? <Text color={theme.subtle}> · </Text> : null}
+          {i > 0 ? "  " : null}
           <Text color={theme.fg}>{k}</Text>
           <Text color={theme.muted}>{` ${label}`}</Text>
         </Text>
@@ -55,7 +60,7 @@ export function Hints({ items }: { items: Array<[string, string]> }): ReactNode 
  * The TUI's split-border prompt: `┃` in the agent color, a raised panel, a
  * growing multiline editor and the metadata row.
  */
-export function Composer({ onSubmit, busy = false, disabled = false, interruptArmed, placeholder }: ComposerProps): ReactNode {
+export function Composer({ onSubmit, busy = false, disabled = false, interruptArmed, placeholder, sessionID }: ComposerProps): ReactNode {
   const theme = useTheme();
   const [value, setValue] = useState("");
   const [shell, setShell] = useState(false);
@@ -63,9 +68,27 @@ export function Composer({ onSubmit, busy = false, disabled = false, interruptAr
   const model = useStoreState((s) => s.model);
   const models = useStoreState((s) => s.models);
   const toast = useStoreState((s) => s.toast);
+  const store = useStore(), vp = useViewport();
+  const directory = useStoreState(s => (sessionID && s.sessions.find(v=>v.id===sessionID)?.directory) || s.connection.directory);
+  const [branch, setBranch] = useState<string|null>(null);
+  const client = store.api;
+  useEffect(() => {
+    let alive = true; setBranch(null);
+    if (directory) void client?.branch?.(directory).then((b)=>{if(alive)setBranch(b);},()=>{});
+    return () => {alive=false;};
+  },[client,directory]);
+  const usage = useStoreState(s => {
+    if (!sessionID) return "";
+    const ms=s.messages[sessionID] ?? [];
+    for (let i=ms.length-1;i>=0;i--) { const m=ms[i]; if(m?.type!=="assistant" || !m.tokens) continue;
+      const n=m.tokens.input+m.tokens.output+m.tokens.reasoning+(m.tokens.cache?.read ?? 0)+(m.tokens.cache?.write ?? 0); if (!n) continue;
+      const max=s.models.find(o=>o.id===m.model.id && o.providerID===m.model.providerID)?.context;
+      return formatUsage.format(n)+(max ? ` (${Math.round(n/max*100)}%)` : "");
+    } return "";
+  });
   const history = useStoreState((s) => s.history);
   const dispatch = useContext(DispatchAction);
-  const color = agentColor(theme, agent);
+  const color = useAgentColor(theme, agent);
   const name = models.find((m) => m.id === model?.id && m.providerID === model?.providerID)?.name ?? model?.id ?? "no model";
   useInput((e) => {
     if (!shell && !value && !e.ctrl && !e.meta && !e.alt && e.input === "!") setShell(true);
@@ -98,19 +121,14 @@ export function Composer({ onSubmit, busy = false, disabled = false, interruptAr
       {toast.text}
     </Text>
   ) : (
-    <Hints
-      items={[
-        ["shift+tab", "agents"],
-        ["ctrl+p", "commands"],
-      ]}
-    />
+    <Text wrap="nowrap">{usage && <Text color={theme.muted}>{usage}{vp.cols >= 44 ? "  " : ""}</Text>}{vp.cols >= 44 && <Hints items={usage ? [["ctrl+p","commands"]] : [["shift+tab","agents"],["ctrl+p","commands"]]} />}</Text>
   );
 
   return (
     <Box flexDirection="column" flexShrink={0} width="100%">
       <Box flexDirection="column" flexShrink={0} border="heavy" borderTop={false} borderRight={false} borderBottom={false} borderColor={color}>
-        <Box flexDirection="column" flexShrink={0} bg={theme.panel} paddingX={2} paddingTop={1}>
-          <Textarea id="opencode-prompt" value={value} onChange={setValue} onSubmit={submit} history={shell ? undefined : history} isActive={!disabled} autoFocus placeholder={shell ? 'Run a command… "pwd"' : placeholder ?? PLACEHOLDER} minRows={1} maxRows={6} />
+        <Box flexDirection="column" flexShrink={0} bg={theme.panel} paddingX={vp.cols < 44 ? 1 : 2} paddingTop={1}>
+          <Textarea id="opencode-prompt" value={value} onChange={setValue} onSubmit={submit} history={shell ? undefined : history} isActive={!disabled} autoFocus placeholderColor={theme.muted} placeholder={shell ? 'Run a command… "pwd"' : placeholder ?? PLACEHOLDER} minRows={1} maxRows={Math.max(6, Math.floor(vp.rows/3))} />
           <Box flexDirection="row" height={1} flexShrink={0} gap={1} marginTop={1}>
             <Text color={color} wrap="nowrap" flexShrink={0}>
               {shell ? "Shell" : capitalize(agent)}
@@ -128,7 +146,6 @@ export function Composer({ onSubmit, busy = false, disabled = false, interruptAr
               </>
             )}
             <Box flexGrow={1} />
-            {right}
           </Box>
         </Box>
       </Box>
@@ -137,9 +154,12 @@ export function Composer({ onSubmit, busy = false, disabled = false, interruptAr
           ╹
         </Text>
         <Text color={theme.panel} wrap="nowrap">
-          {"▀".repeat(240)}
+          {"▀".repeat(vp.cols)}
         </Text>
       </Box>
+      <Box flexDirection="row" justifyContent="space-between" gap={2} height={1} flexShrink={0}><Text color={theme.muted} flexShrink={1} wrap="truncate-start">{busy ? "" : shortPath(directory) + (branch ? `:${branch}` : "")}</Text>{right}</Box>
     </Box>
   );
 }
+
+const formatUsage = new Intl.NumberFormat("en-US", {notation:"compact", maximumFractionDigits:1});

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Box, Button, Dialog, diffTexts, Spinner, Text, useClipboard, useKeymap, useTheme, useViewport } from "@textjs/next";
+import { Box, Button, Dialog, diffTexts, Spinner, Text, ThemeProvider, useClipboard, useKeymap, useTheme, useViewport } from "@textjs/next";
+import { nativeTheme } from "../lib/native-theme";
 import { usePathname, useRouter } from "@textjs/next/navigation";
 import { compactNumber, relativeTime } from "../lib/format";
 import { useStore, useStoreState, type ConnectionState, type StoreState } from "../lib/store";
@@ -33,10 +34,16 @@ function useNow(ms: number): number {
 
 export function Shell({ children }: { children?: ReactNode }): ReactNode {
   const theme = useTheme();
+  return <ThemeProvider theme={theme.id.startsWith("tui:") ? theme : nativeTheme("opencode")}><SessionShell>{children}</SessionShell></ThemeProvider>;
+}
+
+function SessionShell({ children }: { children?: ReactNode }): ReactNode {
+  const theme = useTheme();
   const store = useStore();
   const router = useRouter();
   const sidebar = useStoreState((s) => s.ui.sidebar);
   const active = useActiveSessionId();
+  const open = useStoreState(() => store.tabs.list());
   const [palette, setPalette] = useState<PaletteKind | null>(null);
   const [help, setHelp] = useState(false);
   const { copy } = useClipboard();
@@ -79,7 +86,7 @@ export function Shell({ children }: { children?: ReactNode }): ReactNode {
 
   return (
     <Box flexDirection="column" width="100%" height="100%" bg={theme.bg}>
-      {active ? <Header active={active} /> : null}
+      {(active || open.length > 0) && <SessionTabs active={active} ids={open} />}
       <Box flexDirection="row" flexGrow={1} flexShrink={1} minHeight={0}>
         {sidebar && vp.cols >= SIDEBAR_MIN_COLS ? <Sidebar active={active} /> : null}
         <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={0}>
@@ -138,33 +145,19 @@ export function sessionDiffStat(messages: readonly SessionMessage[]): { addition
   return { additions, deletions, tokens };
 }
 
-function Header({ active }: { active: string }): ReactNode {
-  const theme = useTheme();
-  const session = useStoreState((s) => s.sessions.find((item) => item.id === active));
-  const messages = useStoreState((s) => s.messages[active]);
-  const connection = useStoreState((s) => s.connection);
-  const stat = useMemo(() => sessionDiffStat(messages ?? []), [messages]);
-  const changed = stat.additions + stat.deletions > 0;
-  return (
-    <Box flexDirection="row" height={1} flexShrink={0} paddingX={2} gap={2}>
-      <Text bold color={theme.fg} wrap="truncate-end" flexShrink={1}>
-        {session?.title || "New session"}
-      </Text>
-      <Box flexGrow={1} />
-      {changed || stat.tokens > 0 ? (
-        <Text wrap="nowrap" flexShrink={0}>
-          {changed ? (
-            <>
-              <Text color={theme.success}>{`+${stat.additions}`}</Text>
-              <Text color={theme.danger}>{` -${stat.deletions}`}</Text>
-            </>
-          ) : null}
-          {stat.tokens > 0 ? <Text color={theme.subtle}>{`${changed ? " · " : ""}${compactNumber(stat.tokens)}`}</Text> : null}
-        </Text>
-      ) : null}
-      <ConnectionBadge connection={connection} />
-    </Box>
-  );
+function SessionTabs({ active, ids }: {active: string | null; ids: readonly string[]}) {
+  const theme = useTheme(), vp = useViewport();
+  const sessions = useStoreState(s=>s.sessions), permissions=useStoreState(s=>s.permissions), forms=useStoreState(s=>s.forms);
+  const tabs: readonly (string | null)[] = active ? ids.includes(active) ? ids : [...ids,active] : [...ids,null];
+  const available = vp.cols - (active ? 3 : 0), count = Math.max(1,Math.floor(available / 8));
+  const start = Math.max(0,tabs.indexOf(active) - count + 1), visible = tabs.slice(start,start+count);
+  const size = Math.min(32,Math.floor(available / visible.length));
+  return <Box flexDirection="row" height={1} flexShrink={0}>{visible.map((id) => {
+    const selected = active === id, marker = id === null ? "+" : permissions[id]?.length ? "!" : forms[id]?.length ? "?" : " ";
+    return <Box key={id ?? "+"} width={size} paddingLeft={1} paddingRight={1} height={1} bg={selected ? theme.elevated : undefined}>
+      <Text bold={selected} color={selected ? theme.fg : theme.muted} wrap="truncate-end">{marker} {id ? sessions.find(s=>s.id===id)?.title || "New session" : "New session"}</Text>
+    </Box>;
+  })}{active && <Text color={theme.muted}> + </Text>}</Box>;
 }
 
 function SessionRow({ s, active, busy, now }: { s: SessionInfo; active: boolean; busy: boolean; now: number }): ReactNode {

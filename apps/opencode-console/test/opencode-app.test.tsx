@@ -63,12 +63,11 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     await t.waitFor(() => t.frame().includes("Claude Opus 5.5"), "model metadata");
     const frame = t.frame();
     expect(frame).toContain("█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█");
-    expect(frame).toContain('┃  Ask anything… "Fix broken tests"');
+    expect(frame).toContain('┃  Ask anything… "');
     expect(frame).toContain("Build · Claude Opus 5.5 Anthropic");
-    expect(frame).toContain("shift+tab agents · ctrl+p commands");
+    expect(frame).toContain("shift+tab agents  ctrl+p commands");
     expect(frame).toContain("╹▀▀▀");
-    expect(frame).toContain(`● connected · localhost:${new URL(mock.url).port}`);
-    expect(frame).toContain("ctrl+x l sessions");
+    expect(frame).toContain("2.0.0-mock");
     expect(frame).toContain("~/code/storefront");
     expect(frame).not.toContain("SESSIONS");
     // The logo's shadow cells are tinted toward the glyph color.
@@ -140,7 +139,7 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     expect(frame).toContain("← Edit src/middleware.ts");
     expect(frame).toContain("- export const limit = 10;");
     expect(frame).toContain("+ export const limit = 100;");
-    expect(frame).toContain("+2 -1");
+    expect(frame).toContain("2 + export const windowMs");
 
     mock.emit({ type: "session.text.started", data: { ...base, ordinal: 1 } });
     for (const delta of ["## Rate ", "limiting\n\nAdded a **token bucket** in ", "`src/middleware.ts`.\n\n```ts\nconst windowMs = 60_000;\n"]) {

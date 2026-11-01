@@ -1,10 +1,9 @@
-import type { ReactNode } from "react";
-import { Box, Text, useTheme, type Metadata } from "@textjs/next";
+import { useState, type ReactNode } from "react";
+import { Box, Text, useTheme, useViewport, type Metadata } from "@textjs/next";
 import { useRouter } from "@textjs/next/navigation";
 import { Composer, Hints } from "../components/Composer";
 import { Logo } from "../components/Logo";
 import { ConnectionBadge } from "../components/Shell";
-import { shortPath } from "../lib/format";
 import { useStore, useStoreState } from "../lib/store";
 
 export const metadata: Metadata = { title: "Home" };
@@ -14,6 +13,8 @@ export default function HomePage(): ReactNode {
   const store = useStore();
   const router = useRouter();
   const connection = useStoreState((s) => s.connection);
+  const vp = useViewport();
+  const [example] = useState(() => ["Fix a TODO in the codebase", "What is the tech stack of this project?", "Fix broken tests"][Math.floor(Math.random()*3)]);
 
   const submit = (text: string, mode: "prompt" | "shell"): void => {
     void store.send(null, text, mode).then((id) => {
@@ -23,23 +24,21 @@ export default function HomePage(): ReactNode {
 
   return (
     <Box flexDirection="column" flexGrow={1} minHeight={0}>
-      <Box flexDirection="column" flexGrow={1} flexShrink={1} alignItems="center" overflow="hidden" paddingX={2}>
+      <Box flexDirection="column" flexGrow={1} flexShrink={1} alignItems="center" overflow="hidden" paddingX={vp.cols < 44 ? 1 : 2}>
         <Box flexGrow={1} minHeight={0} />
+        <Box height={3} minHeight={0} flexShrink={1} />
         <Logo />
         <Box height={1} flexShrink={0} />
         <Box flexDirection="column" width="100%" maxWidth={75} paddingTop={1} flexShrink={0}>
-          <Composer onSubmit={submit} />
+          <Composer onSubmit={submit} placeholder={connection.kind === "demo" ? undefined : `Ask anything… "${example}"`} />
         </Box>
         <Box flexGrow={1} minHeight={0} />
       </Box>
-      <Box flexDirection="row" height={1} flexShrink={0} paddingX={2} gap={2}>
-        <Text color={theme.muted} wrap="truncate-start" flexShrink={1}>
-          {shortPath(connection.directory) || "~"}
-        </Text>
+      {vp.rows >= 14 && vp.cols >= 44 && <Box flexDirection="row" flexShrink={0} paddingX={2} paddingY={vp.rows < 16 ? 0 : 1} gap={2}>
+        {connection.kind === "demo" && <><ConnectionBadge connection={connection} /><Hints items={[["ctrl+x l", "sessions"]]} /></>}
         <Box flexGrow={1} />
-        <ConnectionBadge connection={connection} />
-        <Hints items={[["ctrl+x l", "sessions"]]} />
-      </Box>
+        {vp.cols >= 64 && <Text color={theme.muted}>{connection.version || " "}</Text>}
+      </Box>}
     </Box>
   );
 }

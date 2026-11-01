@@ -42,7 +42,7 @@ export type AssistantMessage = {
   content: AssistantPart[];
   finish?: string;
   error?: { message: string };
-  tokens?: { input: number; output: number; reasoning: number };
+  tokens?: { input: number; output: number; reasoning: number; cache?: {read:number; write:number} };
   cost?: number;
 };
 export type NoteMessage = { type: "note"; id: string; time: { created: number }; text: string; tone: "muted" | "info" | "warning" | "danger" };
@@ -118,6 +118,7 @@ export interface OpenCodeClient {
   /** Human label: `localhost:49374`, `demo`. */
   readonly label: string;
   info(): Promise<ServerInfo>;
+  branch?(directory: string): Promise<string | null>;
   sessions(): Promise<SessionInfo[]>;
   session(id: string): Promise<SessionInfo | null>;
   messages(sessionID: string): Promise<SessionMessage[]>;

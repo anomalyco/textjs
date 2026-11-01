@@ -267,7 +267,7 @@ export function v2Message(v: unknown): SessionMessage | null {
         content,
         finish: str(v.finish),
         error: v.error ? { message: errorMessage(v.error) } : undefined,
-        tokens: isRecord(v.tokens) ? { input: num(tokens.input) ?? 0, output: num(tokens.output) ?? 0, reasoning: num(tokens.reasoning) ?? 0 } : undefined,
+        tokens: isRecord(v.tokens) ? { input: num(tokens.input) ?? 0, output: num(tokens.output) ?? 0, reasoning: num(tokens.reasoning) ?? 0, cache: {read:num(rec(tokens.cache).read) ?? 0,write:num(rec(tokens.cache).write) ?? 0} } : undefined,
         cost: num(v.cost),
       };
     }
@@ -420,6 +420,10 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     kind: "v2",
     mode,
     label: t.label,
+    async branch(dir) {
+      const res = await t.json<{data?:{branch?:{current?:string}}}>("GET", `/api/vcs?${new URLSearchParams({"location[directory]": dir})}`);
+      return res.data?.branch?.current ?? null;
+    },
     async info() {
       const info = await t.json<{ version?: string }>("GET", "/api/info");
       return { version: info?.version ?? "?", directory };

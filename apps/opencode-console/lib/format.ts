@@ -33,6 +33,8 @@ export function modelLabel(model: ModelRef | null | undefined): string {
 /** `/Users/you/code/textjs` → `~/code/textjs`. */
 export function shortPath(path: string | undefined): string {
   if (!path) return "";
+  const home = typeof window === "undefined" && typeof process !== "undefined" ? process.env.HOME : undefined;
+  if (home && (path === home || path.startsWith(home + "/"))) return "~" + path.slice(home.length);
   return path.replace(/(^|\s)\/(Users|home)\/[^/\s]+/g, "$1~");
 }
 

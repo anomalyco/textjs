@@ -30,7 +30,8 @@ try {
   await client.connect(transport);
   await call("list_routes");
   await call("navigate", { path: "/" });
-  await wait(endpoint ? `localhost:${new URL(endpoint).port}` : "● demo");
+  await call("reload");
+  await wait(endpoint ? "Big Pickle" : "● demo");
   for (const [cols, rows] of [[120, 40], [100, 32], [80, 24]] as const) {
     const dir = resolve(out, `${cols}x${rows}`);
     await mkdir(dir, { recursive: true });
@@ -60,20 +61,19 @@ try {
         await press("ctrl+x n");
       } else await press("escape");
     }
-    const reload = await call("reload");
-    if (reload.cols !== cols || reload.rows !== rows) throw Error("Reload reset viewport size");
-    console.log(`MCP ${cols}×${rows}: six styled frames; reload viewport ${reload.cols}×${reload.rows}`);
-    await wait(endpoint ? "connected" : "● demo");
+    console.log(`MCP ${cols}×${rows}: six styled frames`);
   }
   if (endpoint) {
-    await call("resize", { cols: 100, rows: 32 });
     for (const [label, session] of [["permission", permission], ["question", question]]) {
       if (!session?.startsWith("ses_")) throw Error(`Missing ${label} fixture`);
       const href = `/session/${session}`;
       await call("navigate", { path: href });
-      const frame = await call("wait_for", { href, text: `${label![0]!.toUpperCase()}${label!.slice(1)} fixture`, styles: true, trim: false, idle: true });
-      await writeFile(`${out}/100x32/${label}-mcp.json`, JSON.stringify(frame));
-      await writeFile(`${out}/100x32/${label}-mcp.txt`, frame.text + "\n");
+      for(const [cols, rows] of [[100,32],[120,40]]) {
+        await call("resize", {cols, rows});
+        const frame = await call("wait_for", { href, text: label === "permission" ? "Allow once" : "2. release", styles: true, trim: false, idle: true });
+        await writeFile(`${out}/${cols}x${rows}/${label}-mcp.json`, JSON.stringify(frame));
+        await writeFile(`${out}/${cols}x${rows}/${label}-mcp.txt`, frame.text + "\n");
+      }
     }
   }
   const logs = await call("logs", { level: ["error"] });

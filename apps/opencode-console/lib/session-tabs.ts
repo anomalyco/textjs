@@ -5,8 +5,10 @@ export class SessionTabs {
   private closed: { id: string; index: number }[] = [];
 
   visit(id: string) {
-    if (!this.open.includes(id)) this.open.push(id);
+    if (!this.open.includes(id)) this.open = [...this.open,id];
   }
+
+  list(): readonly string[] { return this.open; }
 
   at(index: number) { return this.open[index]; }
 
@@ -21,7 +23,7 @@ export class SessionTabs {
     const index = this.open.indexOf(id);
     if (index < 0) return undefined;
     this.closed = [...this.closed.filter((v) => v.id !== id), { id, index }].slice(-25);
-    this.open.splice(index, 1);
+    this.open = this.open.filter((s) => s !== id);
     return this.open[index] ?? this.open[index - 1];
   }
 
@@ -29,7 +31,7 @@ export class SessionTabs {
     while (this.closed.length) {
       const entry = this.closed.pop()!;
       if (this.open.includes(entry.id)) continue;
-      this.open.splice(entry.index, 0, entry.id);
+      this.open = [...this.open.slice(0,entry.index),entry.id,...this.open.slice(entry.index)];
       return entry.id;
     }
     return undefined;

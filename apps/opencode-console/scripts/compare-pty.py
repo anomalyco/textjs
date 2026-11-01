@@ -128,7 +128,7 @@ def main():
             for name in ('real', 'textjs'):
                 wait(name, 'Ask anything')
                 if name == 'textjs':
-                    wait(name, 'connected')
+                    wait(name, 'Big Pickle')
             for cols, rows in [(120, 40), (100, 32), (80, 24)]:
                 for name in ('real', 'textjs'):
                     tmux('resize-window', '-t', name, '-x', str(cols), '-y', str(rows))
@@ -175,14 +175,15 @@ def main():
                     target = f'{name}-{label}'
                     tmux('new-session', '-d', '-x', '100', '-y', '33', '-s', target, '-c', str(cwd), 'exec '+shlex.join(map(str, cmd)))
                     tmux('set-option', '-t', target, 'status', 'off')
-                    tmux('resize-window', '-t', target, '-x', '100', '-y', '32')
-                    wait(target, marker if name == 'real' else f'{label.title()} fixture')
-                    time.sleep(.3)
-                    dest = opts.out/'100x32'
-                    for ext, sgr in [('txt', False), ('ansi', True)]:
-                        (dest/f'{label}-{name}.{ext}').write_text(screen(target, sgr))
+                    for cols,rows in [(100,32),(120,40)]:
+                        tmux('resize-window', '-t', target, '-x', str(cols), '-y', str(rows))
+                        wait(target, marker)
+                        time.sleep(.3)
+                        dest = opts.out/f'{cols}x{rows}'
+                        for ext, sgr in [('txt', False), ('ansi', True)]:
+                            (dest/f'{label}-{name}.{ext}').write_text(screen(target, sgr))
                     tmux('kill-session', '-t', target)
-                report(dest, label, 100)
+                for cols,rows in [(100,32),(120,40)]: report(opts.out/f'{cols}x{rows}', label, cols)
         finally:
             tmux('kill-server', check=False)
 

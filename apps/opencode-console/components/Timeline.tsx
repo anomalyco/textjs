@@ -1,11 +1,13 @@
 import { memo, useRef, type ReactNode } from "react";
-import { Box, Markdown, ScrollBox, Text, useKeymap, useTheme, type ScrollBoxHandle } from "@textjs/next";
+import { Box, ScrollBox, Text, useKeymap, useTheme, type ScrollBoxHandle } from "@textjs/next";
 import { duration, modelLabel } from "../lib/format";
 import { useStoreState } from "../lib/store";
 import type { AssistantMessage, AssistantPart, ReasoningPart, SessionMessage, ShellMessage, ToolPart, UserMessage } from "../lib/types";
 import { exploration, explorationLabel } from "../lib/tool-data";
-import { agentColor, capitalize } from "./Composer";
-import { ToolCard } from "./ToolCard";
+import { useAgentColor, capitalize } from "./Composer";
+import { BlockTool, ToolCard } from "./ToolCard";
+import { tint } from "./Logo";
+import { TranscriptMarkdown } from "./TranscriptMarkdown";
 
 export interface TimelineOptions {
   toolDetails: boolean;
@@ -17,8 +19,8 @@ export interface TimelineOptions {
 const UserBubble = memo(function UserBubble({ msg, agent }: { msg: UserMessage; agent: string }): ReactNode {
   const theme = useTheme();
   return (
-    <Box flexDirection="column" flexShrink={0} border="heavy" borderTop={false} borderRight={false} borderBottom={false} borderColor={msg.pending ? theme.border : agentColor(theme, agent)}>
-      <Box flexDirection="column" flexShrink={0} bg={theme.panel} paddingX={1} paddingY={1}>
+    <Box flexDirection="column" flexShrink={0} bg={theme.surface} border="heavy" borderTop={false} borderRight={false} borderBottom={false} borderColor={useAgentColor(theme, agent)}>
+      <Box flexDirection="column" flexShrink={0} paddingX={2} paddingY={1}>
         <Text color={theme.fg} wrap="wrap">
           {msg.text}
         </Text>
@@ -38,10 +40,10 @@ function Thinking({ part, expanded, live }: { part: ReasoningPart; expanded: boo
     const title = /^\*\*([^*\n]+)\*\*(?:\r?\n\r?\n|$)/.exec(text)?.[1];
     return (
       <Box flexDirection="row" height={1} flexShrink={0} paddingLeft={3}>
-        <Text color={theme.muted} italic wrap="nowrap" flexShrink={0}>
+        <Text color={done ? tint(theme.bg,theme.warning,0.6) : theme.fg} wrap="nowrap" flexShrink={0}>
           {done ? "+ " : ""}{label}
         </Text>
-        <Text color={theme.subtle} italic wrap="truncate-end" flexShrink={1}>
+        <Text color={done ? tint(theme.bg,theme.warning,0.6) : theme.fg} wrap="truncate-end" flexShrink={1}>
           {title ? `: ${title.trim()}` : ""}{done && elapsed ? ` · ${elapsed}` : ""}
         </Text>
       </Box>
@@ -62,9 +64,9 @@ function Thinking({ part, expanded, live }: { part: ReasoningPart; expanded: boo
 }
 
 const Part = memo(function Part({ part, prev, options, live }: { part: AssistantPart; prev: AssistantPart | undefined; options: TimelineOptions; live: boolean }): ReactNode {
-  const gap = prev === undefined || (prev.type === "tool" && part.type === "tool") ? 0 : 1;
+  const gap = prev === undefined ? 0 : 1;
   let body: ReactNode;
-  if (part.type === "text") body = <Markdown content={part.text} paddingLeft={3} codeMaxHeight={options.toolDetails ? undefined : 24} />;
+  if (part.type === "text") body = <TranscriptMarkdown content={part.text} expanded={options.toolDetails} />;
   else if (part.type === "reasoning") body = <Thinking part={part} expanded={options.thinking} live={live} />;
   else body = <ToolCard part={part} expanded={options.toolDetails} directory={options.directory} />;
   return (
@@ -78,6 +80,7 @@ function Assistant({ msg, options, live, turnStart }: { msg: AssistantMessage; o
   const theme = useTheme();
   const models = useStoreState((s) => s.models);
   const took = msg.time.completed ? duration(Math.max(0, msg.time.completed - (turnStart ?? msg.time.created))) : "";
+  const color = useAgentColor(theme, msg.agent);
   const model = models.find((m) => m.id === msg.model.id && m.providerID === msg.model.providerID)?.name ?? modelLabel(msg.model);
   const parts = msg.content.filter((p) => (p.type === "text" ? p.text.trim().length > 0 : p.type === "reasoning" ? p.text.trim().length > 0 || live : true));
   const rows: ReactNode[] = [];
@@ -106,7 +109,7 @@ function Assistant({ msg, options, live, turnStart }: { msg: AssistantMessage; o
       {msg.time.completed && !live ? (
         <Box flexDirection="row" height={1} paddingLeft={3} marginTop={1}>
           <Text color={theme.subtle} wrap="truncate-end">
-            {[capitalize(msg.agent), model, took].filter(Boolean).join(" · ")}
+            <Text color={color}>{capitalize(msg.agent)}</Text>{` · ${model}${took ? ` · ${took}` : ""}`}
           </Text>
         </Box>
       ) : null}
@@ -117,18 +120,13 @@ function Assistant({ msg, options, live, turnStart }: { msg: AssistantMessage; o
 function Shell({ msg }: { msg: ShellMessage }): ReactNode {
   const theme = useTheme();
   return (
-    <Box flexDirection="column" flexShrink={0} paddingLeft={3}>
-      <Text wrap="truncate-end">
-        <Text color={theme.muted}>$ </Text>
-        <Text color={theme.fg}>{msg.command}</Text>
-        <Text color={theme.subtle}>{`  ${msg.status}`}</Text>
-      </Text>
+    <BlockTool title={`$ ${msg.command}`} shell>
       {msg.output ? (
-        <Text color={theme.subtle} wrap="wrap" paddingLeft={2}>
+        <Text color={theme.muted} wrap="wrap">
           {msg.output.split("\n").slice(-6).join("\n")}
         </Text>
       ) : null}
-    </Box>
+    </BlockTool>
   );
 }
 
@@ -177,11 +175,6 @@ export function Timeline({ messages, options, busy, loading }: { messages: reado
       {loading ? (
         <Text color={theme.muted} italic paddingLeft={3}>
           Loading…
-        </Text>
-      ) : null}
-      {!loading && messages.length === 0 ? (
-        <Text color={theme.subtle} paddingLeft={3}>
-          No messages yet.
         </Text>
       ) : null}
       {messages.map((m, i) => {
