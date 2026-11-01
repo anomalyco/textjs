@@ -344,12 +344,12 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
                 ))}
               </div>
             ))}
-            <p className="tx-pad-sub" style={sub}>{`It runs in DevTools, not on this page. Then click here and ${doThis}.`}</p>
+            <p className="tx-pad-sub" style={sub}>{`The app renders in DevTools. Then click here and ${doThis}.`}</p>
           </>
         ) : state === "click" ? (
           <>
             <h2 className="tx-pad-headline" style={headline}>Click here, then type</h2>
-            <p className="tx-pad-sub" style={sub}>Keystrokes go to the page, not the DevTools prompt.</p>
+            <p className="tx-pad-sub" style={sub}>The app reads keys from this page.</p>
             <p style={{ ...sub, fontSize: 13, color: c.subtle }}>
               {"Console closed? "}
               <span style={{ fontFamily: MONO, color: c.muted }}>{shortcut.join("")}</span>
@@ -361,7 +361,7 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
               <span style={{ width: 8, height: 8, borderRadius: 999, background: c.live, animation: "tx-pad-pulse 1.6s ease-in-out infinite" }} />
               Live in your console
             </span>
-            <h2 className="tx-pad-headline" style={headline}>{hints.length > 0 ? capitalize(doThis) : "Type away"}</h2>
+            <h2 className="tx-pad-headline" style={headline}>{hints.length > 0 ? capitalize(doThis) : "Start typing"}</h2>
             <p className="tx-pad-sub" style={sub}>Watch the console.</p>
           </>
         )}
@@ -392,7 +392,7 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
 
       <div className="tx-pad-touch" style={{ flex: 1, flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, minHeight: 240, padding: "0 8px" }}>
         <h2 style={{ ...headline, fontSize: 32 }}>Open on a desktop</h2>
-        <p style={sub}>This demo renders into the Chrome DevTools console, which phones don't have.</p>
+        <p style={sub}>This demo renders in the Chrome DevTools console, which needs a desktop browser.</p>
       </div>
 
       {children}

@@ -8,21 +8,21 @@ const STATS = [
   { value: "99.99%", label: "of console.log calls return" },
   { value: "1", label: "console.log per dirty frame" },
   { value: "0", label: "calls per idle frame" },
-  { value: "50ms", label: "DevTools throttle, respected" },
+  { value: "66ms", label: "minimum time between frames" },
 ];
 
 const COMPLIANCE = [
   {
     title: "Console visibility",
-    body: "Every frame is written to a console you can see, scroll and copy. Nothing renders that DevTools can’t show you.",
+    body: "Every frame is a console message that anyone with DevTools open can read and copy.",
   },
   {
     title: "Data residency",
-    body: "Frames reside in the user’s DevTools. They do not leave the tab, and they are cleared after 300.",
+    body: "Frames stay in the user’s DevTools and do not leave the tab. At most 300 are kept.",
   },
   {
     title: "Audit logging",
-    body: "Your application is the audit log. Scroll up in the console to review previous frames.",
+    body: "Scroll up in the console to review earlier frames, up to 300.",
   },
   {
     title: "Least privilege",
@@ -31,17 +31,17 @@ const COMPLIANCE = [
 ];
 
 const SECURITY = [
-  { title: "Link hijacking defense", body: "A word joiner after :// and in path:line text, so DevTools never restyles your text as a link." },
+  { title: "Link hijacking defense", body: "Turbolog inserts a word joiner after :// and in path:line text, so DevTools doesn’t restyle it as a link." },
   { title: "Format string isolation", body: "Every literal % is escaped as %%. User input can’t consume a %c style argument." },
   { title: "Production double lock", body: "Examples that reach real APIs default to a sandbox and need two explicit switches for production." },
-  { title: "Local by default", body: "The OpenCode bridge is a loopback server that rejects unknown origins. Its daemon password stays in memory: never logged, never returned to the browser." },
+  { title: "Local by default", body: "The OpenCode bridge is a loopback server that rejects unknown origins. It keeps the daemon password in memory and never logs it or sends it to the browser." },
 ];
 
 const SUPPORT = [
-  { title: "Named console engineer", body: "One engineer who knows your DevTools dock position by heart." },
+  { title: "Named console engineer", body: "One engineer assigned to your team, from evaluation to production." },
   { title: "Frame reviews", body: "Quarterly review of your %c span counts, dirty rows and idle CPU." },
-  { title: "Migration assistance", body: "From the DOM, from the terminal, or from console.table." },
-  { title: "Private Slack channel", body: "Replies in one message, appended. Never cleared." },
+  { title: "Migration assistance", body: "Help moving React DOM apps and terminal UIs to Text.js." },
+  { title: "Private Slack channel", body: "A shared channel with the Text.js team." },
 ];
 
 type Cell = string | boolean;
@@ -80,15 +80,15 @@ const FEATURES: ReadonlyArray<{ group: string; rows: ReadonlyArray<[string, Cell
 const FAQ = [
   {
     q: "Is Enterprise a different framework?",
-    a: "No. Enterprise customers run the same MIT-licensed Text.js as everyone else. You are paying for the people, the paperwork and the SLA.",
+    a: "No. Enterprise customers run the same MIT-licensed Text.js as everyone else, with support and an SLA.",
   },
   {
     q: "What does the 99.99% SLA cover?",
-    a: "The share of console.log calls that return to your application. The remaining 0.01% is reserved for the user closing the tab mid-frame.",
+    a: "The share of console.log calls that return to your application.",
   },
   {
     q: "Which browsers are supported?",
-    a: "Chromium-based browsers with DevTools: Chrome, Edge, Arc and Brave. Turbolog is tuned against the Chromium DevTools frontend, down to its 50ms viewport throttler.",
+    a: "Chromium-based browsers with DevTools: Chrome, Edge, Arc and Brave. Turbolog is tuned against the Chromium DevTools frontend and its 50ms viewport throttler.",
   },
   {
     q: "Do our users need DevTools open?",
@@ -97,10 +97,6 @@ const FAQ = [
   {
     q: "Can we self-host?",
     a: "Yes. text build produces static files, and text start or the bun adapter serves them with route handlers, middleware and server-rendered routes.",
-  },
-  {
-    q: "Is there a procurement-friendly invoice?",
-    a: "Yes. It is rendered in a PDF, not the console.",
   },
 ];
 
@@ -127,7 +123,7 @@ export function EnterprisePage(): ReactNode {
         <div className="grid-bg" />
         <div className="container ent-hero-body">
           <p className="eyebrow">Text.js Enterprise</p>
-          <h1>The console, at enterprise scale.</h1>
+          <h1>The enterprise platform for console applications</h1>
           <p className="rs-lede">Compliance, uptime and a named engineer for teams that ship their product in DevTools.</p>
           <div className="hero-ctas">
             <a href={SALES_HREF} className="btn btn-primary btn-lg">
@@ -152,8 +148,8 @@ export function EnterprisePage(): ReactNode {
       <section className="container ent-section">
         <div className="section-head">
           <p className="eyebrow">Compliance</p>
-          <h2>Console compliance, built in.</h2>
-          <p>Text.js keeps your entire user interface where your auditors can already see it.</p>
+          <h2>Console compliance</h2>
+          <p>Text.js renders the entire interface in the DevTools console, where your auditors can already inspect it.</p>
         </div>
         <div className="ent-grid">
           {COMPLIANCE.map((c) => (
@@ -168,7 +164,7 @@ export function EnterprisePage(): ReactNode {
       <section className="container ent-section">
         <div className="section-head">
           <p className="eyebrow">Security</p>
-          <h2>A small attack surface. It is one function.</h2>
+          <h2>A small attack surface</h2>
           <p>Turbolog escapes text that DevTools would otherwise read as a format specifier or a link.</p>
         </div>
         <div className="ent-grid">
@@ -184,7 +180,7 @@ export function EnterprisePage(): ReactNode {
       <section className="container ent-section">
         <div className="section-head">
           <p className="eyebrow">Support</p>
-          <h2>Dedicated support, in your timezone and your dock position.</h2>
+          <h2>Dedicated support</h2>
         </div>
         <div className="ent-grid">
           {SUPPORT.map((c) => (
@@ -199,8 +195,8 @@ export function EnterprisePage(): ReactNode {
       <section className="container ent-section" id="pricing">
         <div className="section-head">
           <p className="eyebrow">Pricing</p>
-          <h2>Simple pricing.</h2>
-          <p>The framework is free. Enterprise adds people and promises.</p>
+          <h2>Simple pricing</h2>
+          <p>The framework is free and MIT licensed. Enterprise adds an SLA, a named engineer and priority support.</p>
         </div>
         <div className="ent-plans">
           <div className="ent-plan">
@@ -216,7 +212,7 @@ export function EnterprisePage(): ReactNode {
           <div className="ent-plan ent-plan-featured">
             <h3>Enterprise</h3>
             <p className="ent-price">Custom</p>
-            <p className="ent-plan-desc">An SLA, a named engineer and the paperwork.</p>
+            <p className="ent-plan-desc">An SLA, a named engineer and a security questionnaire.</p>
             <a href={SALES_HREF} className="btn btn-primary">
               Contact sales
             </a>
@@ -263,7 +259,7 @@ export function EnterprisePage(): ReactNode {
       <section className="container ent-section">
         <div className="section-head">
           <p className="eyebrow">FAQ</p>
-          <h2>Questions, answered.</h2>
+          <h2>Frequently asked questions</h2>
         </div>
         <div className="ent-faq">
           {FAQ.map((f) => (
@@ -276,8 +272,7 @@ export function EnterprisePage(): ReactNode {
       </section>
 
       <section className="container ent-cta">
-        <h2>Talk to a console engineer.</h2>
-        <p>We’ll reply in one message.</p>
+        <h2>Talk to a console engineer</h2>
         <a href={SALES_HREF} className="btn btn-primary btn-lg">
           Contact sales
         </a>

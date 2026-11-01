@@ -8,7 +8,7 @@ export function BlogPage(): ReactNode {
       <header className="rs-head">
         <p className="eyebrow">Blog</p>
         <h1>The latest from Text.js</h1>
-        <p className="rs-lede">Releases and engineering notes on rendering React into the console.</p>
+        <p className="rs-lede">Releases and engineering notes from the Text.js team.</p>
         <div className="rs-head-links">
           <a href="/blog/rss.xml" className="text-link">
             RSS feed

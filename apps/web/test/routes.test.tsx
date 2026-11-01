@@ -88,7 +88,7 @@ describe("page rendering", () => {
     for (const label of ["Counter", "Form", "Streaming", "Dashboard", "Snake"]) expect(pg).toContain(`>${label}</button>`);
     expect(pg).toContain("data-textjs-focus-pad");
     expect(pg).toContain("Open the console");
-    expect(pg).toContain("It runs in DevTools, not on this page. Then click here and press ↑ ↓.");
+    expect(pg).toContain("The app renders in DevTools. Then click here and press ↑ ↓.");
     expect(pg).toContain("count");
     expect(pg).toContain("Open on a desktop");
     for (const gone of ["RLE Inspector", "data-textjs-mirror", "Wireframe", "App title"]) expect(pg).not.toContain(gone);
