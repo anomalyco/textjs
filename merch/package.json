@@ -1,0 +1,16 @@
+{
+  "name": "@textjs/merch-design",
+  "private": true,
+  "type": "module",
+  "description": "Print-ready artwork and studio mockups for the Text.js merch collection (not a workspace package).",
+  "scripts": {
+    "frame": "cd ../apps/web && bun --preload ./test/setup.ts ../../merch/scripts/frame.tsx",
+    "artwork": "bun scripts/artwork.ts",
+    "mockups": "bun scripts/mockups.ts"
+  },
+  "dependencies": {
+    "geist": "^1.9.0",
+    "opentype.js": "^2.0.0",
+    "playwright-core": "1.62.1"
+  }
+}
