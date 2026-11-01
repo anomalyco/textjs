@@ -27,7 +27,7 @@ describe("production build", () => {
       expect(html).toContain('name="twitter:image" content="https://textjs.org/og.png"');
       expect(html).toContain("background:#000000");
       expect(html).not.toContain("▲");
-      for (const f of ["favicon.svg", "og.png", "og.svg", "robots.txt", "sitemap.xml"]) expect(existsSync(join(out, f))).toBe(true);
+      for (const f of ["favicon.svg", "og.png", "og.svg", "robots.txt", "sitemap.xml", "enterprise/sample-invoice.pdf"]) expect(existsSync(join(out, f))).toBe(true);
       const assets = readdirSync(join(out, "assets"));
       expect(assets.some((a) => a.endsWith(".css"))).toBe(true);
       expect(assets.filter((a) => a.endsWith(".js")).length).toBeGreaterThanOrEqual(3);

@@ -509,6 +509,17 @@
   line-height: 1.65;
 }
 
+.ent-faq details p a {
+  color: var(--fg);
+  text-decoration: underline;
+  text-decoration-color: var(--line-3);
+  text-underline-offset: 3px;
+}
+
+.ent-faq details p a:hover {
+  text-decoration-color: var(--fg);
+}
+
 .ent-cta {
   display: flex;
   flex-direction: column;

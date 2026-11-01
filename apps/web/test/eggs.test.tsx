@@ -137,4 +137,22 @@ describe("enterprise", () => {
     expect(url.searchParams.get("body")).toBe("Company:\r\nTeam size:\r\nDevTools dock position (bottom, left, right or undocked):\r\n%c spans per frame (text.stats().spanCount):\r\n");
     expect(renderToStaticMarkup(<RouteView route={{ name: "enterprise" }} />)).toContain(`href="${SALES_HREF.replace(/&/g, "&amp;")}"`);
   });
+
+  test("the FAQ links a valid $0.00 sample invoice", () => {
+    const html = renderToStaticMarkup(<RouteView route={{ name: "enterprise" }} />);
+    expect(html).toContain('Yes. It is rendered in a PDF, not the console. <a href="/enterprise/sample-invoice.pdf">Sample invoice (PDF)</a>');
+    const pdf = readFileSync(join(import.meta.dir, "..", "public/enterprise/sample-invoice.pdf")).toString("latin1");
+    expect(pdf).toStartWith("%PDF-1.4\n");
+    expect(pdf.length).toBeLessThan(4096);
+    for (const s of ["(Anomaly)", "(INVOICE)", "(SAMPLE)", "(October 31, 2026)", "(Text.js 1.0.0, Open Source plan \\(MIT\\))", "(Total due)", "(Due on receipt.)"]) expect(pdf).toContain(s);
+    expect(pdf.match(/\(\$\d+\.\d\d\)/g)?.every((m) => m === "($0.00)")).toBe(true);
+    // Every xref offset points at its object.
+    const xref = Number(/startxref\n(\d+)/.exec(pdf)?.[1]);
+    expect(pdf.slice(xref, xref + 4)).toBe("xref");
+    const offsets = [...pdf.slice(xref).matchAll(/^(\d{10}) 00000 n $/gm)].map((m) => Number(m[1]));
+    offsets.forEach((o, i) => expect(pdf.slice(o, o + `${i + 1} 0 obj`.length)).toBe(`${i + 1} 0 obj`));
+    const len = Number(/\/Length (\d+)/.exec(pdf)?.[1]);
+    const start = pdf.indexOf("stream\n") + 7;
+    expect(pdf.slice(start + len, start + len + 9)).toBe("endstream");
+  });
 });

@@ -78,7 +78,7 @@ const FEATURES: ReadonlyArray<{ group: string; rows: ReadonlyArray<[string, Cell
   },
 ];
 
-const FAQ = [
+const FAQ: ReadonlyArray<{ q: string; a: ReactNode }> = [
   {
     q: "Is Enterprise a different framework?",
     a: "No. Enterprise customers run the same MIT-licensed Text.js as everyone else. You are paying for the people, the paperwork and the SLA.",
@@ -101,7 +101,11 @@ const FAQ = [
   },
   {
     q: "Is there a procurement-friendly invoice?",
-    a: "Yes. It is rendered in a PDF, not the console.",
+    a: (
+      <>
+        Yes. It is rendered in a PDF, not the console. <a href="/enterprise/sample-invoice.pdf">Sample invoice (PDF)</a>
+      </>
+    ),
   },
 ];
 
