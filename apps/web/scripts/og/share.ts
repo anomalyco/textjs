@@ -82,12 +82,12 @@ function crosses(w: number, h: number, inset: number): string {
   return lines + pts.map(([x, y]) => `<span class="cross" style="left:${(x as number) - 10}px;top:${(y as number) - 10}px"></span>`).join("");
 }
 
+/** The teaser: three keys on black, centred, with no name or mark. */
 function keycaps(w: number, h: number): string {
   const size = Math.round(Math.min(w, h) * (w > h ? 0.33 : 0.27));
   const keys = ["⌘", "⌥", "J"].map((k) => `<div class="key" style="width:${size}px;height:${size}px"><span style="font-size:${Math.round(size * 0.36)}px">${k}</span></div>`).join("");
   return `<div class="share" style="width:${w}px;height:${h}px">
-    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:${Math.round(size * 0.16)}px;padding-bottom:${Math.round(h * 0.04)}px">${keys}</div>
-    <div class="foot" style="left:50%;transform:translateX(-50%);bottom:${Math.round(h * 0.09)}px">${LOCKUP_SVG}</div></div>`;
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:${Math.round(size * 0.16)}px">${keys}</div></div>`;
 }
 
 function frameShot(w: number, h: number, frame: { html: string; cols: number; rows: number }, fontSize: number): string {
