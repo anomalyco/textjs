@@ -1,18 +1,17 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
-import { Box, Input, Markdown, ScrollBox, Select, Text, useInput, useTheme, useViewport, type ScrollBoxHandle, type SelectOption } from "@textjs/react";
+import { useMemo, useState, type ReactNode } from "react";
+import { Box, Input, Markdown, ScrollBox, Select, Text, useInput, useTheme, useViewport, type SelectOption } from "@textjs/react";
 import { DOCS, getDoc, searchDocs, toConsoleMarkdown } from "../../docs/registry";
-import { siteStore } from "../store";
+import { siteStore, type DocsPane } from "../store";
 import { useSite } from "../useSite";
 
-type Pane = "list" | "content" | "search";
+const setPane = (docsPane: DocsPane): void => siteStore.set({ docsPane });
 
 export function DocsTab(): ReactNode {
   const theme = useTheme();
   const vp = useViewport();
   const site = useSite();
   const [query, setQuery] = useState("");
-  const [pane, setPane] = useState<Pane>("list");
-  const scroll = useRef<ScrollBoxHandle | null>(null);
+  const pane = site.docsPane;
   const doc = getDoc(site.docSlug) ?? DOCS[0];
 
   const options = useMemo<SelectOption[]>(() => {
@@ -52,8 +51,10 @@ export function DocsTab(): ReactNode {
   );
 
   return (
-    <Box className="flex-col grow">
-      <Box className="flex-row grow">
+    // Children of the companion's clipping box don't shrink, so with an auto basis this view grows to the
+    // whole page and the ScrollBox has nothing to scroll. basis-0 sizes it to the console instead.
+    <Box className="flex-col grow basis-0">
+      <Box className="flex-row grow basis-0">
         <Box className="flex-col shrink-0 px-2 gap-1" width={vp.cols < 90 ? 24 : 30} border borderTop={false} borderLeft={false} borderBottom={false} borderColor={theme.border}>
           <Box className="flex-row h-1 shrink-0 gap-1">
             <Text color={pane === "search" ? "accent" : "subtle"} wrap="nowrap">
@@ -75,7 +76,7 @@ export function DocsTab(): ReactNode {
             emptyText="No matching docs"
           />
         </Box>
-        <ScrollBox key={doc?.slug} ref={scroll} focused={pane === "content"} className="grow" paddingX={2}>
+        <ScrollBox key={doc?.slug} focused={pane === "content"} className="grow" paddingX={2}>
           <Text bold color="fg">
             {doc?.title ?? ""}
           </Text>

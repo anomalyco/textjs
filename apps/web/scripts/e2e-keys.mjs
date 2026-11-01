@@ -171,6 +171,51 @@ await page.locator(".split-console").click();
 await press(["ArrowUp", "ArrowUp"]);
 check("Home: clicking the preview routes ↑ to the console", (await last()) !== hb);
 
+// Docs: Enter reads the highlighted page, and the page itself scrolls.
+await page.goto(`${base}/docs/routing`);
+await settle(1000);
+await page.locator(".console-pill").click();
+await settle();
+const docLines = (frame) => frame.replace(/[\u200b\u2060]/g, "").replace(/\n+$/, "").split("\n");
+// The page column: right of the list's border, without the scrollbar.
+const docPage = (frame) =>
+  docLines(frame)
+    .slice(0, -1)
+    .filter((l) => l.includes("│"))
+    .map((l) => [...l].slice([...l].indexOf("│") + 1, -1).join("").trim())
+    .join("\n");
+const docHints = (frame) => (docLines(frame).at(-1) ?? "").trim();
+const docTop = docPage(await last());
+check("Docs: the console opens on the page list", docTop.startsWith("Routing") && docHints(await last()).includes("Enter read"), await last());
+await press(["Enter"]);
+check("Docs: Enter shows the reading keys", /↑ ↓ scroll\s+Space page\s+← back\s+\/ search/.test(docHints(await last())), docHints(await last()));
+await press(["ArrowDown", "ArrowDown", "ArrowDown", "ArrowDown", "ArrowDown"]);
+const docDown = docPage(await last());
+check("Docs: ↓ scrolls the page", docDown !== docTop && docTop.split("\n").slice(5).join("\n").startsWith(docDown.split("\n").slice(0, 3).join("\n")), docDown);
+await press(["Space"]);
+const docSpace = docPage(await last());
+check("Docs: Space pages down", docSpace !== docDown && !docSpace.includes("Routing"), docSpace);
+await press(["PageUp", "PageUp"]);
+check("Docs: PageUp goes back up", docPage(await last()) === docTop, docPage(await last()));
+await press(["PageDown"]);
+check("Docs: PageDown pages down", docPage(await last()) !== docTop);
+await press(["Home"]);
+check("Docs: Home returns to the top", docPage(await last()) === docTop);
+await press(["End"]);
+const docEnd = docPage(await last());
+check("Docs: End jumps to the bottom", docEnd !== docTop && !docEnd.includes("Routing"));
+await press(["g"]);
+check("Docs: g returns to the top", docPage(await last()) === docTop);
+await press(["Shift+G"]);
+check("Docs: G jumps to the bottom", docPage(await last()) === docEnd);
+check("Docs: scrolling the console leaves the website where it was", (await page.evaluate(() => scrollY)) === 0, String(await page.evaluate(() => scrollY)));
+await press(["ArrowLeft"]);
+check("Docs: ← goes back to the list", docHints(await last()).includes("Enter read"), docHints(await last()));
+await press(["ArrowRight", "Escape"]);
+check("Docs: → reads again and Esc goes back", docHints(await last()).includes("Enter read"), docHints(await last()));
+await press(["ArrowRight", "Backspace"]);
+check("Docs: ⌫ goes back to the list too", docHints(await last()).includes("Enter read"), docHints(await last()));
+
 check("no page errors", errors.length === 0, errors.join("\n"));
 await browser.close();
 process.exit(failures ? 1 : 0);

@@ -75,6 +75,17 @@ export const PAGE_HINTS: Record<Exclude<CompanionTab, "playground">, { action: s
   blog: { action: "press ↓", hints: [{ keys: "↑ ↓", label: "scroll" }] },
 };
 
+/** Which part of the console Docs view has the keyboard: the page list, the page itself or the search field. */
+export type DocsPane = "list" | "content" | "search";
+
+/** Keys while reading a page in the Docs view. */
+export const DOCS_READING_HINTS: readonly Hint[] = [
+  { keys: "↑ ↓", label: "scroll" },
+  { keys: "Space", label: "page" },
+  { keys: "←", label: "back" },
+  { keys: "/", label: "search" },
+];
+
 export function hintsFor(tab: CompanionTab, preset: PresetId): { action: string; hints: readonly Hint[] } {
   if (tab === "playground") return PRESETS.find((p) => p.id === preset) ?? (PRESETS[0] as Preset);
   return PAGE_HINTS[tab];
@@ -101,6 +112,8 @@ export interface SiteState {
   theme: ThemeName;
   /** Docs slug selected inside the console Docs tab ("" = introduction). */
   docSlug: string;
+  /** Focused part of the console Docs view. */
+  docsPane: DocsPane;
   /** Whether keystrokes outside form fields are routed into the console app. */
   consoleInput: boolean;
   opencode: OpenCodeConnection;
@@ -138,6 +151,7 @@ const DEFAULT_STATE: SiteState = {
   preset: DEFAULT_PRESET,
   theme: "geistDark",
   docSlug: "",
+  docsPane: "list",
   consoleInput: false,
   opencode: { mode: "sandbox" },
   example: null,
@@ -185,6 +199,7 @@ export class SiteStore {
     if (preset) patch.preset = preset;
     const slug = docSlugForPath(pathname);
     if (slug !== null) patch.docSlug = slug;
+    else patch.docsPane = "list";
     // A docs example belongs to its page.
     if (pathname !== this.state.pathname) patch.example = null;
     this.set(patch);
