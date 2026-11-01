@@ -202,6 +202,19 @@ describe("ConsoleRenderer", () => {
     r.dispose();
   });
 
+  test("forwards curtain to the driver for an injected console", () => {
+    const frame = (curtain?: boolean): string => {
+      const con = new FakeConsole();
+      const r = new ConsoleRenderer({ root: box({}, text({}, "hi")), console: con, curtain, scheduler: new ManualScheduler(), viewport: { width: 20, height: 4 }, input: false, registerGlobal: false });
+      r.renderNow();
+      r.dispose();
+      return con.last.format;
+    };
+    expect(frame(true).startsWith("%c\u200b%c\n")).toBe(true);
+    expect(frame().startsWith("%c\u200b%c\n")).toBe(false);
+    expect(frame(true).slice("%c\u200b%c\n".length)).toBe(frame());
+  });
+
   test("registers the window.text REPL helper", () => {
     const con = new FakeConsole();
     const r = new ConsoleRenderer({ root: box({}, text({}, "repl")), console: con, scheduler: new ManualScheduler(), viewport: { width: 20, height: 3 }, input: false, registerGlobal: true });

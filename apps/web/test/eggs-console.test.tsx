@@ -7,6 +7,7 @@ import { partsFromSteps, scriptFor } from "../src/demos/opencode/model";
 import { render } from "../src/entry-server";
 import { getLocation, resetLocation } from "../src/router";
 import { mount } from "./helpers";
+import { VIEWPORT_SOURCE, viewportConsole } from "../src/console-companion/viewport-console";
 
 async function site(fn: () => void): Promise<void> {
   await act(async () => fn());
@@ -316,5 +317,35 @@ describe("/exit in OpenCode", () => {
     const { renderToStaticMarkup } = await import("react-dom/server");
     const { OpenCodePage } = await import("../src/pages/OpenCode");
     expect(renderToStaticMarkup(<OpenCodePage />)).toContain('<span class="pad-title">OpenCode exited. Click to restart.</span>');
+  });
+});
+
+describe("text:///viewport", () => {
+  test("the file Sources opens is the one every frame is logged through", () => {
+    expect(VIEWPORT_SOURCE).toBe(
+      "// Every frame in the Console is one call to log() below.\n({\n  log(...args) { console.log(...args) },\n  clear() { console.clear() },\n})\n//# sourceURL=text:///viewport",
+    );
+    // DevTools labels the link with the line of the console.log call.
+    expect(VIEWPORT_SOURCE.split("\n")[2]).toContain("console.log(");
+    expect(VIEWPORT_SOURCE).not.toContain("\u25B2");
+  });
+
+  test("log and clear look up the console at call time", () => {
+    const target = viewportConsole();
+    expect(target).not.toBeNull();
+    const original = { log: console.log, clear: console.clear };
+    const seen: unknown[][] = [];
+    let clears = 0;
+    console.log = (...args: unknown[]) => void seen.push(args);
+    console.clear = () => void clears++;
+    try {
+      target?.clear();
+      target?.log("%cframe", "color:red");
+    } finally {
+      console.log = original.log;
+      console.clear = original.clear;
+    }
+    expect(clears).toBe(1);
+    expect(seen).toEqual([["%cframe", "color:red"]]);
   });
 });

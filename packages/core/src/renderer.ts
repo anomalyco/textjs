@@ -47,6 +47,8 @@ export interface ConsoleRendererOptions {
   maxFrames?: number;
   /** Clear before the first frame (default `true`; see `CssConsoleDriverOptions.initialClear`). */
   initialClear?: boolean;
+  /** Lead each appended frame with the curtain span (see `CssConsoleDriverOptions.curtain`). */
+  curtain?: boolean;
   /**
    * `performance.now()` of a frame logged (and cleared) before this renderer
    * started, e.g. a prerendered shell: the first frame keeps the post-clear
@@ -202,6 +204,7 @@ export class ConsoleRenderer {
       clear: options.clear,
       maxFrames: options.maxFrames,
       initialClear: options.initialClear,
+      curtain: options.curtain,
       typography: options.typography,
       style: options.style,
     });
