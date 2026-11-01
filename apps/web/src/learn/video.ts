@@ -15,6 +15,9 @@ export const PUBLISHED: Readonly<Record<string, number>> = {
   layout: 219.8,
   styling: 205.8,
   "input-and-keymaps": 205.8,
+  routing: 226.3,
+  "data-fetching": 212.4,
+  components: 192.9,
 };
 
 export interface LearnVideo {
