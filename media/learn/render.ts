@@ -157,7 +157,7 @@ try {
   if (opt.still?.length || opt.scene) vm(["pull", ROOT, ...vmName, `out/work/${slug}/`, join(work, "vm") + "/"]);
   else {
     vm(["pull", ROOT, ...vmName, `out/learn/${slug}/`, publish + "/"]);
-    mkdirSync(join(OUT, "review"), { recursive: true });
+    mkdirSync(join(OUT, "review", slug), { recursive: true });
     vm(["pull", ROOT, ...vmName, `out/review/${slug}/`, join(OUT, "review", slug) + "/"]);
     log(`  → ${publish}`);
   }

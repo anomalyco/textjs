@@ -18,6 +18,9 @@ export const PUBLISHED: Readonly<Record<string, number>> = {
   routing: 226.3,
   "data-fetching": 212.4,
   components: 192.9,
+  testing: 197.6,
+  terminal: 211.6,
+  shipping: 173.1,
 };
 
 export interface LearnVideo {

@@ -3,7 +3,8 @@ import { h, maskWords, place, ramp, revealWords, rise } from "../motion";
 
 /**
  * Title moments on the canvas: `cover` (chapter opener), `section` (a part of the chapter) and `outro` (up next).
- * props: { variant, eyebrow?, title, size?, body?, chapter: { number, total }, url? }  // size: title px, for long titles
+ * props: { variant, eyebrow?, title, body?, chapter: { number, total }, url?, size? }
+ * `size` overrides the title's font size (px) for titles too long for one line at the default.
  */
 export const title: SceneFactory = (data, cue) => {
   const p = data.props;
@@ -22,7 +23,7 @@ export const title: SceneFactory = (data, cue) => {
     Object.assign(counter.style, { left: "auto", right: `${1920 - 1620}px` });
   }
 
-  const big = p.size ?? (variant === "cover" ? 184 : 150);
+  const big: number = p.size ?? (variant === "cover" ? 184 : 150);
   const eyebrow = p.eyebrow ? place(h("div", "eyebrow", root, p.eyebrow), 302, variant === "cover" ? 372 : 404) : null;
   const titleEl = place(h("div", "display", root), 292, variant === "cover" ? 418 : 450, 1400);
   titleEl.style.fontSize = `${big}px`;

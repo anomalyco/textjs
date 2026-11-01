@@ -1,11 +1,14 @@
-import { frameLines, typed, type SceneFactory } from "../common";
+import { frameLines, tui, typed, type SceneFactory } from "../common";
 import { easeOut, h, place, ramp, rise } from "../motion";
+import type { TuiFrame } from "../types";
 
 type Out = string | { text: string; color?: string; bold?: boolean };
 
 /**
  * A terminal window; commands type themselves at cues, their real output follows.
- * props: { title, cwd?, steps: [{ at, cmd, output?: Out[] }] }
+ * `screens` are full-screen apps (the alternate screen): from `at` a real Text.js frame replaces the scrollback,
+ * until `until` or the next screen; then the scrollback comes back as it was.
+ * props: { title, cwd?, steps: [{ at, cmd, output?: Out[] }], screens?: [{ at, until?, frame: TuiFrame, size?, title? }] }
  */
 export const terminal: SceneFactory = (data, cue) => {
   const p = data.props;
@@ -15,7 +18,7 @@ export const terminal: SceneFactory = (data, cue) => {
   const bar = h("div", "bar", win);
   const dots = h("div", "dots", bar);
   for (let i = 0; i < 3; i++) h("i", "", dots);
-  h("div", "title", bar, p.title ?? "Terminal");
+  const titleEl = h("div", "title", bar, p.title ?? "Terminal");
 
   const body = place(h("div", "", win), 0, 52, 1320, 728);
   body.style.overflow = "hidden";
@@ -51,11 +54,25 @@ export const terminal: SceneFactory = (data, cue) => {
     });
   });
 
+  const screenSpecs = (p.screens ?? []) as Array<{ at: string; until?: string; frame: TuiFrame; size?: number; title?: string }>;
+  const screens = screenSpecs.map((s, i) => {
+    const el = tui(s.frame, s.size ?? 20);
+    place(el, 24, 16);
+    el.style.display = "none";
+    body.append(el);
+    const next = screenSpecs[i + 1];
+    return { el, at: cue(s.at), until: s.until ? cue(s.until) : next ? cue(next.at) : Infinity, title: s.title };
+  });
+
   return {
     root,
     update(t) {
       lines(t);
       rise(win, t, -0.2, { dy: 40, blur: 0, dur: 1.1 });
+      const active = screens.find((s) => t >= s.at && t < s.until);
+      for (const s of screens) s.el.style.display = s === active ? "block" : "none";
+      scroller.style.opacity = active ? "0" : "1";
+      titleEl.textContent = active?.title ?? p.title ?? "Terminal";
       let scroll = 0;
       all.forEach((l, i) => {
         const on = t >= l.at;
