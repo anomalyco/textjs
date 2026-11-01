@@ -115,6 +115,8 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     const { t } = await mount();
     await t.type("Review @src");
     await t.waitFor(() => t.frame().includes("cart badge.ts"));
+    const rows=t.frame().split("\n"), y=rows.findIndex(row=>row.includes("cart badge.ts")), x=rows[y]!.indexOf("┃");
+    expect(t.root.renderer.buffer.getCell(x,y)?.bg).toBe(t.root.renderer.buffer.getCell(0,y)?.bg);
     await t.press("Tab");
     await t.waitFor(() => mock.requests.some((r) => r.path.includes("query=src%2F")));
     await t.type("cart#2-4");

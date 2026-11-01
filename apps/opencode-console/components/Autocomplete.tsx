@@ -114,14 +114,13 @@ export function Autocomplete({
       height={height}
       zIndex={100}
       flexDirection="column"
-      bg={t.high}
       border="heavy"
       borderTop={false}
       borderBottom={false}
       borderColor={t.border}
     >
       {!options.length && (
-        <Text paddingX={1} color={failed ? t.error : t.muted} wrap="truncate-end">
+        <Text paddingX={1} bg={t.high} color={failed ? t.error : t.muted} wrap="truncate-end">
           {slash
             ? "No matching commands"
             : failed
