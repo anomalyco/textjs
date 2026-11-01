@@ -273,6 +273,25 @@ describe("chapter console apps", () => {
     });
   }
 
+  test("styling: the theme name stays against the right edge as t cycles themes", async () => {
+    await act(async () => siteStore.syncRoute(learnPath("styling")));
+    const h = await mount(<LearnConsole />, { cols: 80, rows: 16, tabFocus: false });
+    // As in the site's console (boot.tsx), the store's theme drives the root.
+    const unsubscribe = siteStore.subscribe(() => h.root.setTheme(siteStore.getSnapshot().theme));
+    try {
+      const ends = new Set<number>();
+      for (let i = 0; i < 6; i++) {
+        const bar = h.frame().split("\n").find((l) => l.includes("▼ Acme")) ?? "";
+        ends.add(bar.replace(/[│\s]+$/, "").length);
+        await h.type("t");
+      }
+      expect([...ends]).toHaveLength(1);
+    } finally {
+      unsubscribe();
+      await h.unmount();
+    }
+  });
+
   test("input-and-keymaps: ? lists the labeled bindings", async () => {
     await act(async () => siteStore.syncRoute(learnPath("input-and-keymaps")));
     const h = await mount(<LearnConsole />, { cols: 100, rows: 30, tabFocus: false });
