@@ -66,13 +66,14 @@
   },
   "files": ["bin", "dist", "src"],
   "scripts": {
-    "build": "tsc -b tsconfig.json && bun ../../scripts/esm-specifiers.ts ../core/dist ../react/dist dist",
+    "build": "tsc -b tsconfig.json && bun ../../scripts/esm-specifiers.ts ../core/dist ../react/dist ../opencode/dist dist",
     "typecheck": "tsc -p tsconfig.typecheck.json",
     "test": "bun test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@textjs/core": "workspace:*",
+    "@textjs/opencode": "workspace:*",
     "@textjs/react": "workspace:*",
     "@vitejs/plugin-react": "^4.5.2",
     "vite": "^6.3.5",

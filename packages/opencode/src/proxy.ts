@@ -1,6 +1,7 @@
 /**
- * `text proxy`: a loopback bridge that lets https://textjs.org (and local dev
- * origins) talk to the OpenCode server running on this machine.
+ * `bunx @textjs/opencode proxy` (and `text proxy`): a loopback bridge that lets
+ * https://textjs.org (and local dev origins) talk to the OpenCode server running
+ * on this machine.
  *
  * Browsers block a public page from reading `http://127.0.0.1` unless the
  * server answers CORS and Private Network Access preflights, and the desktop
@@ -15,8 +16,8 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { txError } from "@textjs/core";
-import { color } from "./ui";
+import { color } from "./color";
+import { txError } from "./errors";
 
 export const DEFAULT_PROXY_PORT = 4096;
 export const BRIDGE_HEADER = "x-textjs-bridge";

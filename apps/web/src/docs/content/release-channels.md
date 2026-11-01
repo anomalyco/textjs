@@ -1,4 +1,4 @@
-Text.js ships on three npm dist-tags. Every package (`@textjs/next`, `@textjs/react`, `@textjs/core`, `@textjs/font`, `create-text-app` and `eslint-plugin-textjs`) is versioned in lockstep, so one version number describes the whole framework.
+Text.js ships on three npm dist-tags. Every package (`@textjs/next`, `@textjs/react`, `@textjs/core`, `@textjs/font`, `@textjs/opencode`, `create-text-app` and `eslint-plugin-textjs`) is versioned in lockstep, so one version number describes the whole framework.
 
 ## Channels
 

@@ -4,6 +4,8 @@ import { MOCK_TOKEN, startMockTerminal, type MockTerminal } from "../../terminal
 import { onRequest as apiFunction } from "../functions/api/terminal/[[path]]";
 import { onRequest as callbackFunction } from "../functions/terminal/callback";
 import {
+  CATALOGUE_FRESH_MS,
+  CATALOGUE_HEADER,
   handleTerminal,
   isPublicIp,
   LOCAL_CLIENT_ID,
@@ -16,6 +18,8 @@ import {
   seal,
   SECURITY_HEADERS,
   unseal,
+  RECORDED_PRODUCTS,
+  type CatalogueCache,
   type Fetch,
   type PendingSignIn,
   type SessionConfig,
@@ -377,7 +381,8 @@ describe("api proxy", () => {
     for (const res of responses) for (const [k, v] of Object.entries(SECURITY_HEADERS)) expect(res.headers.get(k)).toBe(v);
     expect(SECURITY_HEADERS["content-security-policy"]).toBe("default-src 'none'; frame-ancestors 'none'");
     const html: Fetch = async () => new Response("<script>alert(1)</script>", { status: 502, headers: { "content-type": "text/html" } });
-    const res = await handleTerminal(req("/api/terminal/prod/api/product"), config, { fetch: html });
+    // Signed in, so it's proxied as is (a signed-out catalogue read falls back to the recorded one instead).
+    const res = await handleTerminal(req("/api/terminal/prod/api/product", { cookie }), config, { fetch: html });
     expect(res.headers.get("content-type")).toBe("text/plain; charset=utf-8");
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
     const none: Fetch = async () => new Response("{}", { status: 200 });
@@ -605,5 +610,113 @@ describe("Workers global scope", () => {
     const proc = Bun.spawnSync(["bun", "-e", script], { cwd: new URL("..", import.meta.url).pathname, stdout: "pipe", stderr: "pipe" });
     expect(proc.stderr.toString()).toBe("");
     expect(proc.stdout.toString().trim()).toBe("ok");
+  });
+});
+
+describe("signed-out catalogue", () => {
+  /** An in-memory stand-in for `caches.default`. */
+  function memoryCache(): CatalogueCache & { keys: string[] } {
+    const store = new Map<string, { body: string; headers: [string, string][] }>();
+    return {
+      get keys() {
+        return [...store.keys()];
+      },
+      async match(key) {
+        const hit = store.get(key.url);
+        return hit ? new Response(hit.body, { headers: hit.headers }) : undefined;
+      },
+      async put(key, res) {
+        store.set(key.url, { body: await res.text(), headers: [...res.headers] });
+      },
+    };
+  }
+  const LIVE = [{ id: "prd_live", name: "live", variants: [] }];
+  /** Terminal, answering `/product` with `reply` and counting the calls. */
+  const terminal = (reply: () => Response | Promise<Response>) => {
+    const calls: string[] = [];
+    const fetch: Fetch = async (input) => {
+      calls.push(input);
+      return reply();
+    };
+    return { calls, fetch };
+  };
+  const visitor = (headers: Record<string, string> = {}) => req("/api/terminal/prod/api/product", { headers: { "cf-connecting-ip": "8.8.8.8", "cf-ipcountry": "US", ...headers } });
+
+  test("a spike of visitors costs Terminal one request per region every few minutes", async () => {
+    const cache = memoryCache();
+    const t = terminal(() => Response.json({ data: LIVE }));
+    let now = 1_000_000;
+    const first = await handleTerminal(visitor(), config, { fetch: t.fetch, cache, now: () => now });
+    expect(first.headers.get(CATALOGUE_HEADER)).toBe("live");
+    expect(await first.json()).toEqual({ data: LIVE });
+    for (let i = 0; i < 50; i++) {
+      now += 1000;
+      const res = await handleTerminal(visitor(), config, { fetch: t.fetch, cache, now: () => now });
+      expect(res.status).toBe(200);
+      expect(res.headers.get(CATALOGUE_HEADER)).toBe("cache");
+      expect(await res.json()).toEqual({ data: LIVE });
+      for (const [k, v] of Object.entries(SECURITY_HEADERS)) expect(res.headers.get(k)).toBe(v);
+    }
+    expect(t.calls).toHaveLength(1);
+    // Terminal picks products by region, so the cache does too.
+    await handleTerminal(visitor({ "cf-ipcountry": "DE", "cf-connecting-ip": "1.1.1.1" }), config, { fetch: t.fetch, cache, now: () => now });
+    await handleTerminal(visitor({ "x-terminal-region": "eu" }), config, { fetch: t.fetch, cache, now: () => now });
+    await handleTerminal(visitor({ "cf-connecting-ip": "10.0.0.1" }), config, { fetch: t.fetch, cache, now: () => now });
+    expect(t.calls).toHaveLength(4);
+    expect(cache.keys.sort()).toEqual([
+      `${ORIGIN}/api/terminal/_catalogue/prod/country-DE`,
+      `${ORIGIN}/api/terminal/_catalogue/prod/country-US`,
+      `${ORIGIN}/api/terminal/_catalogue/prod/no-ip`,
+      `${ORIGIN}/api/terminal/_catalogue/prod/region-eu`,
+    ]);
+    now += CATALOGUE_FRESH_MS;
+    expect((await handleTerminal(visitor(), config, { fetch: t.fetch, cache, now: () => now })).headers.get(CATALOGUE_HEADER)).toBe("live");
+    expect(t.calls).toHaveLength(5);
+  });
+
+  test("Terminal down or rate limiting: a stale copy, else the recorded catalogue", async () => {
+    const cache = memoryCache();
+    let now = 5_000_000;
+    await handleTerminal(visitor(), config, { fetch: terminal(() => Response.json({ data: LIVE })).fetch, cache, now: () => now });
+    now += CATALOGUE_FRESH_MS + 1;
+    const failures: Array<() => Response | Promise<Response>> = [
+      () => new Response("slow down", { status: 429 }),
+      () => new Response("<html>bad gateway</html>", { status: 502, headers: { "content-type": "text/html" } }),
+      () => Promise.reject(new Error("connection reset")),
+    ];
+    for (const fail of failures) {
+      const stale = await handleTerminal(visitor(), config, { fetch: terminal(fail).fetch, cache, now: () => now });
+      expect(stale.status).toBe(200);
+      expect(stale.headers.get(CATALOGUE_HEADER)).toBe("stale");
+      expect(await stale.json()).toEqual({ data: LIVE });
+      const recorded = await handleTerminal(visitor(), config, { fetch: terminal(fail).fetch, cache: memoryCache(), now: () => now });
+      expect(recorded.status).toBe(200);
+      expect(recorded.headers.get(CATALOGUE_HEADER)).toBe("recorded");
+      expect(recorded.headers.get("content-type")).toBe("application/json; charset=utf-8");
+      expect(await recorded.json()).toEqual({ data: RECORDED_PRODUCTS });
+    }
+    // No Cache API at all (local dev, tests): still the recorded catalogue.
+    const bare = await handleTerminal(visitor(), config, { fetch: terminal(failures[0]!).fetch, cache: null });
+    expect(bare.headers.get(CATALOGUE_HEADER)).toBe("recorded");
+    expect(RECORDED_PRODUCTS.length).toBeGreaterThan(0);
+  });
+
+  test("errors that aren't Terminal's fault, non-catalogues and signed-in reads aren't cached", async () => {
+    const cache = memoryCache();
+    const notFound = await handleTerminal(visitor(), config, { fetch: terminal(() => Response.json({ message: "nope" }, { status: 404 })).fetch, cache });
+    expect(notFound.status).toBe(404);
+    expect(notFound.headers.get(CATALOGUE_HEADER)).toBe(null);
+    const odd = await handleTerminal(visitor(), config, { fetch: terminal(() => Response.json({ nope: true })).fetch, cache });
+    expect(odd.headers.get(CATALOGUE_HEADER)).toBe("live");
+    expect(cache.keys).toEqual([]);
+    const { cookie } = await signIn();
+    const before = api.requests.length;
+    for (let i = 0; i < 3; i++) {
+      const res = await handleTerminal(req("/api/terminal/prod/api/product", { cookie }), config, { cache });
+      expect(res.status).toBe(200);
+      expect(res.headers.get(CATALOGUE_HEADER)).toBe(null);
+    }
+    expect(api.requests.length - before).toBe(3);
+    expect(cache.keys).toEqual([]);
   });
 });

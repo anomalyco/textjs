@@ -8,9 +8,9 @@
 
 import { errorUrl, TX_MESSAGES, type TxCode } from "./errors";
 
-export type TxPackage = "@textjs/core" | "@textjs/react" | "@textjs/next" | "create-text-app";
+export type TxPackage = "@textjs/core" | "@textjs/react" | "@textjs/next" | "@textjs/opencode" | "create-text-app";
 
-export const TX_PACKAGES: readonly TxPackage[] = ["@textjs/core", "@textjs/react", "@textjs/next", "create-text-app"];
+export const TX_PACKAGES: readonly TxPackage[] = ["@textjs/core", "@textjs/react", "@textjs/next", "@textjs/opencode", "create-text-app"];
 
 export interface TxErrorDoc {
   code: TxCode;
@@ -307,43 +307,43 @@ text --help
 There is no \`text deploy\`. Build for your platform with \`text build --adapter <name>\` and deploy the output with the platform's CLI. See [Deploying](/docs/deploying).`,
   },
   TX021: {
-    package: "@textjs/next",
-    title: "Invalid proxy target",
+    package: "@textjs/opencode",
+    title: "Invalid OpenCode server URL",
     cause: `\`--target\` (or \`OPENCODE_SERVER_URL\`) must be a bare HTTP(S) origin. It contained a path, query, hash or credentials. Credentials in URLs end up in logs and browser history.`,
     fix: `~~~bash
 # Before
-text proxy --target http://user:pass@127.0.0.1:4096/api
+bunx @textjs/opencode proxy --target http://user:pass@127.0.0.1:4096/api
 
 # After
-text proxy --target http://127.0.0.1:4096
+bunx @textjs/opencode proxy --target http://127.0.0.1:4096
 ~~~
 
 Set the server password with \`OPENCODE_PASSWORD\` instead.`,
   },
   TX022: {
-    package: "@textjs/next",
-    title: "Proxy port collides with OpenCode",
+    package: "@textjs/opencode",
+    title: "Bridge port collides with OpenCode",
     cause: `The bridge was asked to listen on the same local port as the OpenCode server it proxies to.`,
     fix: `~~~bash
-text proxy --port 4097
+bunx @textjs/opencode proxy --port 4097
 ~~~`,
   },
   TX023: {
-    package: "@textjs/next",
+    package: "@textjs/opencode",
     title: "Bridge already running",
-    cause: `Another \`text proxy\` already listens on this port. You can connect to it instead of starting another.`,
+    cause: `Another bridge (\`bunx @textjs/opencode proxy\` or \`text proxy\`) already listens on this port. You can connect to it instead of starting another.`,
     fix: `Connect to the running bridge, or start a second one on another port:
 
 ~~~bash
-text proxy --port 4097
+bunx @textjs/opencode proxy --port 4097
 ~~~`,
   },
   TX024: {
-    package: "@textjs/next",
-    title: "Proxy port in use",
+    package: "@textjs/opencode",
+    title: "Bridge port in use",
     cause: `Something other than a Text.js bridge is listening on the requested port.`,
     fix: `~~~bash
-text proxy --port 4097
+bunx @textjs/opencode proxy --port 4097
 ~~~
 
 Or find the other process: \`lsof -i :4096\`.`,

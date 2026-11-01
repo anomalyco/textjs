@@ -56,6 +56,10 @@ Every console root registers with it when it is created. Without the extension t
 
 Messages flow page → content script → service worker → panel. The content scripts run on every page so the hook exists before your app boots. That is the only access the extension asks for. It loads no remote code and sends nothing off the machine.
 
+## Privacy
+
+The extension collects no data. It makes no network requests, stores nothing, and has no analytics. Component trees, frames and timings travel only between the page and the DevTools panel in the same browser, and are discarded when you close DevTools. **Copy frame** writes the frame's text to your clipboard when you click it.
+
 ## Limitations
 
 - Chrome and Chromium-based browsers, version 111 or later.

@@ -1,7 +1,7 @@
 /**
- * Install the packed (publish-shaped) `@textjs/core`, `@textjs/react` and
- * `@textjs/next` into a fresh starter app outside the repo and smoke-test the
- * `text` CLI under Node and Bun.
+ * Install the packed (publish-shaped) `@textjs/core`, `@textjs/react`,
+ * `@textjs/opencode` and `@textjs/next` into a fresh starter app outside the
+ * repo and smoke-test the `text` and `textjs-opencode` CLIs under Node and Bun.
  *
  *   bun scripts/verify-pack.ts [--keep] [--skip-build]
  *
@@ -20,6 +20,7 @@ const root = resolve(import.meta.dir, "..");
 const PACKAGES = [
   ["@textjs/core", "packages/core"],
   ["@textjs/react", "packages/react"],
+  ["@textjs/opencode", "packages/opencode"],
   ["@textjs/next", "packages/text"],
 ] as const;
 
@@ -242,6 +243,8 @@ async function main(argv: string[]): Promise<number> {
     // `run` and `mcp` import route files as TypeScript: under Node the CLI re-runs itself with Bun.
     results.push(await runTerminal(`${rt}: text run`, cmd, app));
     results.push(await runMcp(`${rt}: text mcp`, cmd, app));
+    const bridge = runSync(`${rt}: textjs-opencode --help`, [rt, join(app, "node_modules/@textjs/opencode/bin/textjs-opencode.js"), "--help"], app);
+    results.push(bridge.ok && bridge.detail.includes("--allow-origin") ? bridge : { ...bridge, ok: false });
     if (rt === "node") {
       // Without Bun on the PATH they fail with a clean TX019, not a module error.
       const r = spawnSync(nodePath(), [...cmd.slice(1), "mcp"], { cwd: app, encoding: "utf8", env: { ...process.env, PATH: dirname(nodePath()) } });

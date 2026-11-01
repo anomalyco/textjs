@@ -64,18 +64,20 @@ function insideTriangle(x: number, y: number): boolean {
   return Math.abs(x - 0.5) <= half;
 }
 
-export function renderIcon(size: number): Uint8Array {
+/** `padding` adds transparent pixels around the mark (the Web Store asks for 96px art in a 128px icon). */
+export function renderIcon(size: number, padding = 0): Uint8Array {
   const px = new Uint8Array(size * size * 4);
-  const radius = size <= 16 ? 0.18 : 0.22;
+  const inner = size - 2 * padding;
+  const radius = inner <= 16 ? 0.18 : 0.22;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       let bgCov = 0;
       let fgCov = 0;
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
-          const u = (x + (sx + 0.5) / SS) / size;
-          const w = (y + (sy + 0.5) / SS) / size;
-          if (!insideRoundRect(u, w, radius)) continue;
+          const u = (x - padding + (sx + 0.5) / SS) / inner;
+          const w = (y - padding + (sy + 0.5) / SS) / inner;
+          if (u < 0 || u > 1 || w < 0 || w > 1 || !insideRoundRect(u, w, radius)) continue;
           bgCov++;
           if (insideTriangle(u, w)) fgCov++;
         }
