@@ -1,4 +1,4 @@
-API endpoints with the Web `Request` and `Response` APIs, in the same `app` directory.
+Route handlers define API endpoints in the `app` directory with the Web `Request` and `Response` APIs.
 
 ## Convention
 
@@ -37,7 +37,7 @@ export function GET() {
 
 ## Rewrites
 
-External destinations are proxied, so there's no CORS.
+External destinations are proxied by the server, so the browser makes no cross-origin request.
 
 ```ts@text.config.ts
 export default defineConfig({

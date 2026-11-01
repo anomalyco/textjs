@@ -1,4 +1,4 @@
-Coding agents can't open DevTools. `text mcp` gives them the app anyway: it runs your `app/` directory headless, in-process, and serves it over the [Model Context Protocol](https://modelcontextprotocol.io). The agent navigates, presses keys, reads frames as plain text and calls route handlers, without a browser.
+`text mcp` runs your `app/` directory headless, in-process, and serves it over the [Model Context Protocol](https://modelcontextprotocol.io) so coding agents can use it without DevTools. The agent navigates, presses keys, reads frames as plain text and calls route handlers, without a browser.
 
 ```bash
 bunx --bun text mcp              # serve ./app over stdio

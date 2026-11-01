@@ -1,4 +1,4 @@
-Keystrokes reach your app through a hidden input sink on the page, not the DevTools prompt. That's why every Text.js app asks you to click the page first: once it has focus, every key you press is delivered to React.
+Keystrokes reach your app through a hidden input on the page, so the page needs focus. That's why every Text.js app asks you to click the page first. Once it has focus, every key you press is delivered to React.
 
 ## `useInput`
 
@@ -14,7 +14,7 @@ Call `e.stopPropagation()` to keep a key from reaching handlers further down the
 
 ## Keymaps
 
-Once a screen has more than a couple of keys, describe them with `useKeymap`. Bindings are strings: `"up, k"` is either key, `"g g"` is a sequence, `"ctrl+k"` a chord. Labeled bindings show up in `<KeyHelp>`, `<KeyHints>` and the command palette for free.
+Once a screen has more than a couple of keys, describe them with `useKeymap`. Bindings are strings: `"up, k"` is either key, `"g g"` is a sequence, `"ctrl+k"` a chord. Labeled bindings also appear in `<KeyHelp>`, `<KeyHints>` and the command palette.
 
 ```diff-tsx@app/deployments/page.tsx
 +import { useState } from "react";
@@ -52,7 +52,7 @@ Once a screen has more than a couple of keys, describe them with `useKeymap`. Bi
 
 `DEPLOYMENTS` is a plain array in `lib/deployments.ts` for now. Chapter 6 moves it behind a route handler.
 
-## Help for free
+## The help overlay
 
 `<KeyHelp />` listens for `?` and opens a modal listing every labeled binding that is live right now, grouped. Press `?` in the console, then `?` or `q` to close it. Bindings inside a modal trap focus, so the list underneath stops reacting until it closes.
 

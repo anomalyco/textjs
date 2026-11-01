@@ -36,7 +36,7 @@ export function llmsTxt(): string {
   const errors = TX_ERRORS.map((e) => `- [${e.code}: ${e.title}](${ORIGIN}/errors/${e.code})`);
   return `# Text.js
 
-> Text.js is a React 19 framework for web applications that render in the browser's DevTools console through console.log.
+> Text.js is a React framework for apps that render in the DevTools console with console.log.
 
 Import components from \`@textjs/next\`. Lowercase DOM elements such as \`<div>\` throw TX003. Use \`<Box>\` and \`<Text>\` instead.
 

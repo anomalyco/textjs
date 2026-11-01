@@ -61,7 +61,7 @@ const LOG_LINES = [
   "▼ compiled app/page.tsx in 41ms",
   "GET /sessions/42 200 in 12ms",
   "POST /api/sessions 201 in 18ms",
-  "frame #1288 · 0.18ms · 41 spans",
+  "frame #1288 · 1 dirty row · 0.011ms",
   "GET /api/deployments 200 in 9ms",
   "idle · 0 noop logs",
 ];

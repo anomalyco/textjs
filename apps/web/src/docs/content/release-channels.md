@@ -1,14 +1,14 @@
-Text.js ships on three npm dist-tags. Every package (`@textjs/next`, `@textjs/react`, `@textjs/core`, `create-text-app` and friends) is versioned in lockstep, so one version number describes the whole framework.
+Text.js ships on three npm dist-tags. Every package (`@textjs/next`, `@textjs/react`, `@textjs/core`, `@textjs/font`, `create-text-app` and `eslint-plugin-textjs`) is versioned in lockstep, so one version number describes the whole framework.
 
 ## Channels
 
-| Channel | dist-tag | Versions | Install |
+| Channel | dist-tag | Version | Install |
 | :-- | :-- | :-- | :-- |
-| Stable | `latest` | `1.4.0` | `bun add @textjs/next` |
-| Canary | `canary` | `1.4.1-canary.7` | `bun add @textjs/next@canary` |
-| LTS | `lts`, `v1-lts` | `1.9.3` | `bun add @textjs/next@lts` |
+| Stable | `latest` | `1.0.0` | `bun add @textjs/next` |
+| Canary | `canary` | `1.0.1-canary.N` | `bun add @textjs/next@canary` |
+| LTS | `lts`, `v1-lts` | Published once `2.0.0` ships | `bun add @textjs/next@lts` |
 
-Use stable in production. Use canary to try fixes and features the day they land on `main`. Use LTS when you upgrade once a year.
+Use stable in production. Use canary to try fixes and features the day they land on `main`. Once an LTS line exists, use it if you upgrade once a year.
 
 ```bash
 bun create text-app@canary my-console
@@ -24,9 +24,9 @@ Every push to `main` in the official repository is type-checked, tested and publ
 
 | `latest` | `main` push | Published |
 | :-- | :-- | :-- |
-| `1.4.0` | first | `1.4.1-canary.0` |
-| `1.4.0` | second | `1.4.1-canary.1` |
-| `1.4.1` | next | `1.4.2-canary.0` |
+| `1.0.0` | first | `1.0.1-canary.0` |
+| `1.0.0` | second | `1.0.1-canary.1` |
+| `1.0.1` | next | `1.0.2-canary.0` |
 
 `N` continues from the highest canary already on npm, so numbers never repeat. Canary versions are not committed to the repository. Add `[skip canary]` to a commit message to skip a release.
 
@@ -45,7 +45,7 @@ npm audit signatures
 Maintainers bump every workspace package in lockstep with the release scripts:
 
 ```bash
-bun run release:version minor   # 1.4.0 → 1.5.0 (also: patch, major, canary, stable, x.y.z)
+bun run release:version minor   # 1.0.0 → 1.1.0 (also: patch, major, canary, stable, x.y.z)
 bun run release:publish --tag latest --provenance
 ```
 

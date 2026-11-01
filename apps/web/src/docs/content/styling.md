@@ -1,4 +1,4 @@
-Style with utility classes or typed props. No stylesheets.
+Style components with `className` utilities or typed props. Text.js apps have no stylesheets.
 
 ## Utilities
 

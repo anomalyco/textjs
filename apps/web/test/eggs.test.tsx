@@ -78,7 +78,7 @@ describe("generated static files", () => {
   test("llms.txt lists every doc and error code", () => {
     const txt = llmsTxt();
     expect(txt).toStartWith("# Text.js\n\n> ");
-    expect(txt).toContain("- [Introduction](https://textjs.org/docs): What Text.js is, why console.log, and the Inverted Architecture.\n");
+    expect(txt).toContain(`- [Introduction](https://textjs.org/docs): ${DOCS[0]?.description}\n`);
     for (const d of DOCS) expect(txt).toContain(`](https://textjs.org${docPath(d.slug)}): ${d.description}`);
     for (const e of TX_ERRORS) expect(txt).toContain(`- [${e.code}: ${e.title}](https://textjs.org/errors/${e.code})`);
     expect(txt).toContain("- [TX001: Yoga is not initialized](https://textjs.org/errors/TX001)\n");
@@ -145,7 +145,7 @@ describe("enterprise", () => {
 
   test("the FAQ links a valid $0.00 sample invoice", () => {
     const html = renderToStaticMarkup(<RouteView route={{ name: "enterprise" }} />);
-    expect(html).toContain('Yes. It is rendered in a PDF, not the console. <a href="/enterprise/sample-invoice.pdf">Sample invoice (PDF)</a>');
+    expect(html).toContain('<summary>Is there a procurement-friendly invoice?</summary><p>Yes. <a href="/enterprise/sample-invoice.pdf">Sample invoice (PDF)</a></p>');
     const pdf = readFileSync(join(import.meta.dir, "..", "public/enterprise/sample-invoice.pdf")).toString("latin1");
     expect(pdf).toStartWith("%PDF-1.4\n");
     expect(pdf.length).toBeLessThan(4096);

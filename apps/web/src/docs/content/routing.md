@@ -1,4 +1,4 @@
-A file-system router, synced with the browser's URL and history.
+The App Router maps folders in `app/` to URLs and keeps them in sync with the browser's address bar and history.
 
 ## Pages
 

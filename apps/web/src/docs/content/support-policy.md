@@ -18,7 +18,7 @@ Only the latest minor of a major is patched: when `1.5.0` ships, fixes land in `
 
 - Security vulnerabilities in Text.js packages
 - Crashes, data loss and build failures without a workaround
-- Compatibility with new Chromium releases that break console rendering (the `%c` framebuffer is a contract)
+- Compatibility with new Chromium releases that break console rendering
 - Compatibility with supported runtimes and deploy targets
 
 New features, performance work and refactors land on the active line only.

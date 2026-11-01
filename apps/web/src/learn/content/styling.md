@@ -1,4 +1,4 @@
-Every cell has a character, a foreground, a background and a handful of attributes. Text.js compiles them into `%c` CSS spans, so the console shows real colors, bold and italics, not escape codes.
+Every cell has a character, a foreground, a background and a set of attributes. Text.js compiles them into `%c` CSS spans, so the console shows real colors, bold and italics.
 
 ## Text attributes
 
@@ -74,4 +74,4 @@ Colors accept hex values, Tailwind palette names (`emerald-400`) and theme token
 
 ## Themes
 
-Five themes ship with Text.js: Geist Dark, OpenCode, Tokyo Night, Amber CRT and Geist Light. Press `t` in the console to cycle them. The whole frame repaints in the new palette, because every color above is a token.
+Five themes ship with Text.js: Geist Dark, OpenCode Dark, Tokyo Night, Amber CRT and Geist Light. Press `t` in the console to cycle them. The whole frame repaints in the new palette, because every color above is a token.

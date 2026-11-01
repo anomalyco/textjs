@@ -89,7 +89,7 @@ function Certificate(): ReactNode {
       </Box>
       {complete ? null : (
         <Text color="subtle" marginTop={1}>
-          {`Finish all ${CHAPTERS.length} chapters to make it official.`}
+          {`Complete all ${CHAPTERS.length} chapters to get your certificate.`}
         </Text>
       )}
     </Box>

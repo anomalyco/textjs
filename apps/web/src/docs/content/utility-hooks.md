@@ -1,4 +1,4 @@
-Timers, animation, measurement and persistence, aligned with the renderer.
+Text.js includes hooks for timers, animation, measurement and persistence. Timers and animations follow the renderer's frame pacing.
 
 ## Timers
 
@@ -15,7 +15,7 @@ Both always call the latest callback. `null` stops them.
 useAnimationFrame((delta, elapsed) => setPhase(elapsed / 1000), { isActive: playing });
 ```
 
-Ticks once per frame slot. DevTools paints about 15 frames a second, so animating faster burns CPU for frames nobody sees. Loops share one timer per rate and stop while output is paused.
+Ticks once per frame slot. DevTools paints about 15 frames a second, so animating faster spends CPU on frames that are never painted. Loops share one timer per rate and stop while output is paused.
 
 ## `useTween` and `useSpring`
 
@@ -24,7 +24,7 @@ const width = useTween(open ? 32 : 0, { duration: 240, easing: "easeOutCubic" })
 const offset = useSpring(selected * 2);
 ```
 
-Both return a number that animates toward the target and stop ticking once they settle. `easings` holds `linear`, `easeOutCubic`, `easeInOutCubic`, `easeOutExpo` and friends.
+Both return a number that animates toward the target and stop ticking once they settle. `easings` holds `linear`, `easeOutCubic`, `easeInOutCubic`, `easeOutExpo` and others.
 
 ## `useMeasure`
 

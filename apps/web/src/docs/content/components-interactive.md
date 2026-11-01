@@ -1,4 +1,4 @@
-Keyboard-driven inputs with built-in focus management.
+These inputs are driven by the keyboard and manage their own focus.
 
 ```tsx#form
 <Box className="flex-col gap-1 p-1">
@@ -56,4 +56,4 @@ A keyboard option list with optional fuzzy search.
 
 ## Unfocused cursor
 
-When the page loses focus, cursors freeze and frames stop — so you can select console text while the app runs.
+When the page loses focus, cursors freeze and frames stop, so you can select and copy console text.

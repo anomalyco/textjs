@@ -1,4 +1,4 @@
-Suspense and error boundaries, rendered in the console.
+Loading states and error boundaries render in the console. Define them per route segment with `loading.tsx` and `error.tsx`.
 
 ## Loading UI
 
@@ -55,4 +55,4 @@ In development, uncaught errors open an overlay inside the console with the mess
 
 ## [▼] DevTools
 
-Press `F2` in development to inspect the route, frame timings and layout. Disable with `devIndicators: false`.
+Press `F2` or `` Ctrl+` `` in development to inspect the route, frame timings and layout. Disable with `devIndicators: false`.

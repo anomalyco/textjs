@@ -500,7 +500,7 @@ export function ShippingApp(): ReactNode {
       {shipped ? (
         <Box className="flex-col border rounded px-2 py-1 shrink-0" marginTop={1}>
           <Text bold>▼ Shipped.</Text>
-          <Text color="muted">Acme Deploys is live. Open DevTools on it, obviously.</Text>
+          <Text color="muted">Acme Deploys is live.</Text>
         </Box>
       ) : null}
     </Box>

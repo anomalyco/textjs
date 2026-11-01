@@ -17,8 +17,8 @@ export default function Page() {
 
 | Metric | Value |
 | :-- | --: |
-| Frame budget | 16.6ms |
-| Turbolog encode | 0.18ms |
+| Frame interval | 66ms |
+| Full repaint | 0.163ms |
 `;
 
 const BEFORE = `export default function Page() {

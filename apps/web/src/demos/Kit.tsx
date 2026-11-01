@@ -181,8 +181,8 @@ export function KeymapPreview(): ReactNode {
   const [count, setCount] = useState(0);
   useKeymap(
     {
-      "j, down": { label: "Increment", run: () => setCount((c) => c + 1), hint: true },
-      "k, up": { label: "Decrement", run: () => setCount((c) => c - 1) },
+      "k, up": { label: "Increment", run: () => setCount((c) => c + 1), hint: true },
+      "j, down": { label: "Decrement", run: () => setCount((c) => c - 1) },
       "g g": { label: "Reset", run: () => setCount(0) },
       "ctrl+s": { label: "Save", run: () => toast.success(`Saved ${count}`), hint: true },
     },

@@ -61,7 +61,7 @@ export function PlaygroundPage(): ReactNode {
         <div className="container pad-code">
           <div className="codeblock" style={{ margin: 0 }}>
             <div className="codeblock-head">
-              <span>{`app/page.tsx — ${preset.label}`}</span>
+              <span>{`app/page.tsx · ${preset.label}`}</span>
               <span className="lang">tsx</span>
               <CopyButton text={SOURCES[preset.id]} />
             </div>
