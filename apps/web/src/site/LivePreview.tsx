@@ -16,7 +16,7 @@ import { CopyButton } from "./CodeBlock";
 const CONSOLE_MEDIA = "(max-width: 640px), (hover: none) and (pointer: coarse)";
 
 /** Whether this device has a live console companion to run examples in (always `false` while hydrating). */
-function useConsoleAvailable(): boolean {
+export function useConsoleAvailable(): boolean {
   const [available, setAvailable] = useState(false);
   useEffect(() => {
     if (typeof matchMedia !== "function") return;
@@ -38,7 +38,7 @@ function useConsoleAvailable(): boolean {
   return available;
 }
 
-/** Make a docs example the console companion's app and send keystrokes to it. */
+/** Make an example the console companion's app and send keystrokes to it. */
 export function runInConsole(id: string): void {
   siteStore.activateExample(id);
   const c = getCompanion();

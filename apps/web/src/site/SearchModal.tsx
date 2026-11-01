@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { siteStore } from "../console-companion/store";
 import { docPath, searchDocs } from "../docs/registry";
 import { navigate } from "../router";
 import { SearchIcon } from "./icons";
@@ -34,6 +35,8 @@ export function SearchModal(): ReactNode {
     openListeners.add(l);
     const onKey = (e: KeyboardEvent): void => {
       if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "k") {
+        // An example running in the console keeps the Ctrl+K it received (its command palette); ⌘K still searches.
+        if (e.defaultPrevented && siteStore.getSnapshot().example !== null) return;
         e.preventDefault();
         setOpen((v) => !v);
       }
