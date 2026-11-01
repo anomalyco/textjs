@@ -11,7 +11,7 @@ import { extname, isAbsolute, join } from "node:path";
 import type { Browser, Page } from "playwright-core";
 import { OG_HEIGHT, OG_WIDTH, type OgCard } from "../../src/og";
 import { optimizePng } from "./png";
-import { cardHtml, documentHtml, OG_FONTS, OG_ORIGIN } from "./template";
+import { CHROMIUM_ARGS, cardHtml, documentHtml, OG_FONTS, OG_ORIGIN } from "./template";
 
 export interface OgImage {
   /** Site path of the image, with a content version (`/og/docs-routing.png?v=…`). */
@@ -62,7 +62,7 @@ function photoFile(photo: string, distDir: string): string {
 async function launch(): Promise<Browser | null> {
   try {
     const { chromium } = await import("playwright-core");
-    return await chromium.launch({ headless: true });
+    return await chromium.launch({ headless: true, args: CHROMIUM_ARGS });
   } catch (err) {
     console.warn(`og: Chromium is unavailable (${(err as Error).message.split("\n")[0]}). Cards without a cached image use /og.png.`);
     return null;
@@ -167,7 +167,9 @@ export async function renderOgImages(cards: readonly OgCard[], distDir: string, 
       files.set(url, file);
       card = { ...card, photo: url.slice(1) };
     }
-    const key = sha(`${renderer}\n${photoHash}\n${JSON.stringify(card)}`).slice(0, 20);
+    // Only what's drawn: the alt text and the route don't change a pixel.
+    const { alt: _alt, path: _path, slug: _slug, ...drawn } = card;
+    const key = sha(`${renderer}\n${photoHash}\n${JSON.stringify(drawn)}`).slice(0, 20);
     const ext = card.photo ? "jpg" : "png";
     return { card, key, ext, cacheFile: join(cacheDir, `${key}.${ext}`), files };
   });

@@ -50,7 +50,7 @@ export interface OgCard {
   /** File name under `/og/`, without the extension. */
   slug: string;
   template: "home" | "page" | "error" | "merch";
-  /** Section label above the title (`Docs · Routing`). */
+  /** Section label above the title (`Docs · Getting Started`). */
   section: string;
   title: string;
   description: string;
@@ -137,15 +137,14 @@ function virtualClock(): { advance(ms: number): void; restore(): void } {
   };
 }
 
-// Geist Mono cells are 0.6em wide and its █ is 1.3em tall: at 15px a cell is a whole 9px and rows
-// overlap by half a pixel, so block characters join without seams.
-// Geist Mono cells are 0.6em wide and its █ is 1.3em tall: at 15px (or 10px) a cell is a whole
-// number of pixels and rows overlap by under a pixel, so block characters join without seams.
+// Geist Mono cells are 0.6em wide, so at 15px (or 10, 20, 25) a cell is a whole number of pixels.
+// Its █ is 1.3em tall and sits 0.045em low; mirror rows clip to their line height, so a row at
+// most 1.21em tall is covered top to bottom and block characters join without seams.
 const FRAME_FONT_SIZE = 15;
-const lineHeightFor = (fontSize: number): number => Math.floor(fontSize * 1.3);
+export const frameLineHeight = (fontSize: number): number => Math.floor(fontSize * 1.21);
 
-/** Renders the console companion at `path` and returns one frame. */
-async function companionFrame(path: string, cols: number, rows: number, { ms = 0, keys = [], fontSize = FRAME_FONT_SIZE, realTime = false }: FrameOptions = {}): Promise<OgFrame> {
+/** Renders the console companion at `path` and returns one frame (also used by scripts/og/share.ts). */
+export async function companionFrame(path: string, cols: number, rows: number, { ms = 0, keys = [], fontSize = FRAME_FONT_SIZE, realTime = false }: FrameOptions = {}): Promise<OgFrame> {
   resetLocation(path);
   const clock = virtualClock();
   try {
@@ -158,7 +157,7 @@ async function companionFrame(path: string, cols: number, rows: number, { ms = 0
     }
     const frame = extractStyledFrame(app.root.renderer.buffer);
     await app.unmount();
-    return { html: renderToStaticMarkup(<ConsoleMirror frame={frame} fontSize={fontSize} lineHeight={lineHeightFor(fontSize)} style={{ display: "block" }} />), cols, rows };
+    return { html: renderToStaticMarkup(<ConsoleMirror frame={frame} fontSize={fontSize} lineHeight={frameLineHeight(fontSize)} style={{ display: "block" }} />), cols, rows };
   } finally {
     clock.restore();
   }
@@ -213,6 +212,7 @@ function price(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
+/** The home page's subhead (pages/Home.tsx); its route has no meta description of its own. */
 const HOME_DESCRIPTION = "Build full-stack React apps that render inside console.log.";
 
 /** The card for one prerendered route (or the 404 page). */
@@ -221,32 +221,32 @@ export async function ogCard(route: PrerenderRoute): Promise<OgCard> {
   const title = pageTitle(route.title);
   const base = { path, slug: ogSlug(path), template: "page" as const, section: "", title, description, meta: [] as string[] };
   const m = matchRoute(path);
-  const alt = (section: string, t: string): string => `${section ? `${section}: ` : ""}${t}. ▼ Text.js`;
+  const alt = (section: string, t: string): string => `Text.js${section ? ` ${section}` : ""}: ${t}`;
 
   switch (m.name) {
     case "home": {
       const frame = await companionFrame("/", 60, 21);
-      return { ...base, template: "home", title: "The Console Framework", description: HOME_DESCRIPTION, frame, alt: "▼ Text.js, The Console Framework. The Text.js home page running in the DevTools console." };
+      return { ...base, template: "home", title: "The Console Framework", description: HOME_DESCRIPTION, frame, alt: "Text.js, the Console Framework, with its home page running in the DevTools console" };
     }
     case "docs": {
       const doc = getDoc(m.slug);
-      if (path === "/docs") return { ...base, section: "Docs", title: "Documentation", alt: alt("Docs", "Documentation") };
+      if (path === "/docs") return { ...base, title: "Documentation", alt: alt("", "Documentation") };
       const section = `Docs · ${doc?.category ?? ""}`.replace(/ · $/, "");
       return { ...base, section, alt: alt("Docs", title) };
     }
     case "playground": {
       const preset = PRESETS.find((p) => p.id === m.preset) ?? PRESETS[0];
       const label = preset?.label ?? "Playground";
-      // Streaming is shown once the stream has finished; the others at their first frame.
+      // Streaming once the stream has finished, Snake a moment after the first key, Dashboard at its first frame.
       const frame = await companionFrame(path, 64, 22, m.preset === "streaming" ? { ms: 6000 } : m.preset === "snake" ? { keys: ["right"], ms: 1500 } : {});
-      return { ...base, section: "Playground", title: label, frame, alt: `${label}, a Text.js Playground demo, running in the DevTools console.` };
+      return { ...base, section: "Playground", title: label, frame, alt: `${label}, a Text.js Playground demo, running in the DevTools console` };
     }
     case "opencode": {
       const frame = await companionFrame(path, 64, 22);
-      return { ...base, section: "Playground", title: "OpenCode in the Console", frame, wordmark: svg(<OpenCodeWordmark />), alt: "OpenCode Lite running in the DevTools console. ▼ Text.js" };
+      return { ...base, section: "Playground", title: "OpenCode in the Console", frame, wordmark: svg(<OpenCodeWordmark />), alt: "OpenCode Lite, built with Text.js, running in the DevTools console" };
     }
     case "coffee":
-      return { ...base, section: "Playground", title: "terminal.shop in the Console", frame: await coffeeFrame(), wordmark: svg(<TerminalWordmark />), alt: "The terminal.shop storefront in the DevTools console. ▼ Text.js" };
+      return { ...base, section: "Playground", title: "terminal.shop in the Console", frame: await coffeeFrame(), wordmark: svg(<TerminalWordmark />), alt: "The terminal.shop storefront, built with Text.js, running in the DevTools console" };
     case "learn": {
       if (m.slug === "") {
         const [section, rest] = title.split(": ");
@@ -256,12 +256,11 @@ export async function ogCard(route: PrerenderRoute): Promise<OgCard> {
       const chapter = getChapter(m.slug);
       const section = `Learn · Chapter ${chapterNumber(m.slug)}`;
       const frame = await companionFrame(path, 64, 20, { ms: 3000 });
-      return { ...base, section, meta: chapter ? [`${chapter.minutes} min`] : [], frame, alt: alt(section, title) };
+      return { ...base, section, meta: chapter ? [`${chapter.minutes} min`] : [], frame, alt: alt(`Learn, chapter ${chapterNumber(m.slug)}`, title) };
     }
     case "errors":
       return {
         ...base,
-        section: "Errors",
         title: "Error Codes",
         rows: TX_ERRORS.slice(0, 7).map((e) => ({ label: e.code, value: e.title, tone: "muted" as const })),
         alt: alt("Errors", "Error Codes"),
@@ -269,20 +268,20 @@ export async function ogCard(route: PrerenderRoute): Promise<OgCard> {
     case "error": {
       const doc = TX_ERRORS.find((e) => e.code === m.code);
       const t = doc?.title ?? (m.code === "TX000" ? "Success" : title);
-      return { ...base, template: "error", section: "Errors", code: m.code, title: t, description: doc ? `${doc.kind === "warning" ? "Warning" : "Error"} · ${doc.package}` : "", alt: `${m.code}: ${t}. ▼ Text.js` };
+      return { ...base, template: "error", section: "Errors", code: m.code, title: t, description: doc ? `${doc.kind === "warning" ? "Warning" : "Error"} · ${doc.package}` : "", alt: alt(doc?.kind === "warning" ? "warning" : "error", `${m.code}, ${t}`) };
     }
     case "changelog": {
       const rows = CHANGELOG_RELEASES.filter((r) => r.date).slice(0, 7).map((r) => ({ label: r.version, value: formatPostDate(r.date as string), tone: "muted" as const }));
-      return { ...base, section: "Changelog", rows, alt: alt("", "Changelog") };
+      return { ...base, rows, alt: alt("", "Changelog") };
     }
     case "blog":
-      return { ...base, section: "Blog", rows: POSTS.slice(0, 7).map((p) => ({ label: shortDate(p.date), value: p.title, tone: "muted" as const })), alt: alt("", "Blog") };
+      return { ...base, rows: POSTS.slice(0, 7).map((p) => ({ label: shortDate(p.date), value: p.title, tone: "muted" as const })), alt: alt("", "Blog") };
     case "blog-post": {
       const post = getPost(m.slug);
       return { ...base, section: "Blog", meta: post ? [formatPostDate(post.date), post.author] : [], alt: alt("Blog", title) };
     }
     case "enterprise":
-      return { ...base, section: "Enterprise", title: "Text.js Enterprise", rows: STATS.map((st) => ({ label: st.value, value: st.label, tone: "muted" as const })), alt: alt("", "Text.js Enterprise") };
+      return { ...base, title: "Text.js Enterprise", rows: STATS.map((st) => ({ label: st.value, value: st.label, tone: "muted" as const })), alt: alt("", "Text.js Enterprise") };
     case "status":
       return {
         ...base,
@@ -295,7 +294,7 @@ export async function ogCard(route: PrerenderRoute): Promise<OgCard> {
       if (m.slug === "") {
         const first = PRODUCTS[0];
         const open = PRODUCTS.some((p) => availability(p) !== "Coming soon");
-        return { ...base, template: "merch", section: "Merch", meta: [`${PRODUCTS.length} products`, ...(open ? [] : ["Coming soon"])], photo: first?.images[0]?.large, alt: alt("", "Text.js Merch") };
+        return { ...base, template: "merch", meta: [`${PRODUCTS.length} products`, ...(open ? [] : ["Coming soon"])], photo: first?.images[0]?.large, alt: alt("", "Text.js Merch") };
       }
       const p = getProduct(m.slug);
       if (!p) return { ...base, template: "merch", section: "Merch", alt: alt("Merch", title) };
@@ -306,11 +305,11 @@ export async function ogCard(route: PrerenderRoute): Promise<OgCard> {
         section: `Merch · ${p.number}`,
         meta: [p.color, price(p.price), ...(flag ? [flag] : [])],
         photo: p.images[0]?.large,
-        alt: `${title}, ${p.color}. ▼ Text.js Merch`,
+        alt: `${title}, ${p.color}, from Text.js Merch`,
       };
     }
     case "not-found":
-      return { ...base, slug: "404", template: "error", section: "", code: "404", title: "This page could not be found", description: "", alt: "404: This page could not be found. ▼ Text.js" };
+      return { ...base, slug: "404", template: "error", section: "", code: "404", title: "This page could not be found", description: "", alt: alt("404", "This page could not be found") };
   }
 }
 

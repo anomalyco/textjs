@@ -10,7 +10,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, extname } from "node:path";
 import { chromium } from "playwright-core";
-import { BASE_CSS, escapeHtml, OG_FONTS, OG_ORIGIN } from "./template";
+import { BASE_CSS, CHROMIUM_ARGS, escapeHtml, OG_FONTS, OG_ORIGIN } from "./template";
 
 const WEB_DIR = new URL("../..", import.meta.url).pathname;
 
@@ -34,7 +34,7 @@ export async function contactSheet(out: string, items: readonly SheetItem[], col
     img { width: ${tileWidth}px; height: auto; display: block; border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; }
     figcaption { font-family: "Geist Mono", "Geist Mono OG"; font-size: 18px; color: #a1a1a1; }
   </style>${title ? `<h1>${escapeHtml(title)}</h1>` : ""}<div class="sheet">${tiles}</div>`;
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, args: CHROMIUM_ARGS });
   try {
     const page = await browser.newPage({ viewport: { width, height: 800 }, deviceScaleFactor: 1 });
     await page.route("**/*", (route) => {

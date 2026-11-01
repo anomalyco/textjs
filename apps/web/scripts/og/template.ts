@@ -12,6 +12,12 @@ import { WORDMARK_SVG } from "../../src/site/LogoMenu";
 /** Origin the renderer serves fonts and images from (requests never leave the page). */
 export const OG_ORIGIN = "https://og.textjs.local";
 
+/**
+ * Grayscale antialiasing and no hinting, so text renders alike on macOS and Linux (Linux would
+ * otherwise use subpixel colour fringes, which also stop text cards from encoding as grayscale).
+ */
+export const CHROMIUM_ARGS = ["--disable-lcd-text", "--font-render-hinting=none"];
+
 /** Font files: URL path → file path relative to apps/web. */
 export const OG_FONTS: Record<string, string> = {
   "/fonts/geist-latin.woff2": "public/fonts/geist-latin.woff2",
@@ -78,14 +84,13 @@ body { font-family: ${SANS}; color: #ededed; -webkit-font-smoothing: antialiased
 .app-mark { height: 28px; display: flex; align-items: center; color: #ededed; padding-left: 20px; border-left: 1px solid rgba(255,255,255,0.2); }
 .app-mark svg { height: 28px; width: auto; display: block; }
 
-.text { position: absolute; left: 96px; top: 160px; bottom: 132px; display: flex; flex-direction: column; justify-content: center; }
+.text { position: absolute; left: 96px; top: 160px; bottom: 100px; display: flex; flex-direction: column; justify-content: center; }
 .section { font-family: ${MONO}; font-size: 26px; line-height: 32px; color: #a1a1a1; margin-bottom: 22px; white-space: nowrap; }
 .title { font-weight: 600; letter-spacing: -0.045em; line-height: 1.04; color: #fff; text-wrap: balance; padding-bottom: 0.08em; }
 .desc { margin-top: 22px; font-size: 30px; line-height: 1.38; color: #a1a1a1; letter-spacing: -0.01em; text-wrap: pretty; }
 .desc code { font-family: ${MONO}; font-size: 0.9em; color: #ededed; }
 .meta { margin-top: 28px; display: flex; gap: 14px; font-family: ${MONO}; font-size: 24px; line-height: 30px; color: #8f8f8f; white-space: nowrap; }
 .meta span + span::before { content: "·"; margin-right: 14px; color: #4d4d4d; }
-.url { position: absolute; left: 96px; bottom: 74px; font-family: ${MONO}; font-size: 22px; line-height: 28px; color: #707070; white-space: nowrap; }
 
 /* A Chrome DevTools Console panel (site/DevToolsWindow.tsx) holding one real frame. */
 .devtools { position: absolute; border: 1px solid rgba(255,255,255,0.16); border-radius: 14px; overflow: hidden; background: #202124;
@@ -148,7 +153,7 @@ window.__fit = function () {
     const descFits = () => !desc || linesOf(desc) <= descLines;
     while (desc && !descFits() && descSize > 26) { descSize -= 2; desc.style.fontSize = descSize + "px"; }
     if (desc && !descFits()) desc.remove();
-    // Then the whole block must fit between the brand and the URL: a title down to 85% of its
+    // Then the whole block must fit below the brand: a title down to 85% of its
     // size, then no description, then a title down to its minimum.
     const comfortable = Math.max(min, Math.round(max * 0.85));
     const overflows = () => block.scrollHeight > block.clientHeight + 1;
@@ -166,7 +171,7 @@ window.__fit = function () {
   }
   const over = [];
   for (const block of document.querySelectorAll(".text")) if (block.scrollHeight > block.clientHeight + 1) over.push("text block is " + (block.scrollHeight - block.clientHeight) + "px too tall");
-  for (const el of document.querySelectorAll(".title, .desc, .section, .meta, .url, .brand, .big-code, .nf > span, .list")) {
+  for (const el of document.querySelectorAll(".title, .desc, .section, .meta, .brand, .big-code, .nf > span, .list")) {
     const r = el.getBoundingClientRect();
     if (r.right > 1160 || r.bottom > 595 || r.left < 40 || r.top < 35) over.push(el.className + ": " + el.textContent.slice(0, 40));
   }
@@ -194,10 +199,6 @@ export function chrome(fade: "right" | "top" | "center" | "none" = "right"): str
 function brand(card: OgCard): string {
   const app = card.wordmark ? `<span class="app-mark">${card.wordmark}</span>` : "";
   return `<div class="brand">${LOCKUP_SVG}${app}</div>`;
-}
-
-function urlFor(path: string): string {
-  return `textjs.org${path === "/" ? "" : path}`;
 }
 
 /** Wraps `inline code` in descriptions (backticks never appear; `<Box>`-style names do). */
@@ -236,7 +237,6 @@ const FRAME_BOX = { left: 596, top: 84, width: 640, height: 488 };
 
 /** Body markup of one card. */
 export function cardHtml(card: OgCard): string {
-  const url = `<div class="url">${escapeHtml(urlFor(card.path))}</div>`;
   switch (card.template) {
     case "home":
       return `<div class="card">${chrome("right")}${brand(card)}
@@ -245,9 +245,9 @@ export function cardHtml(card: OgCard): string {
           <div class="desc" data-lines="3">${escapeHtml(card.description).replace("console.log", "<code>console.log</code>")}</div>
           <div class="cmd"><span class="p">$</span>bunx create-text-app</div>
         </div>
-        ${devtools(card, FRAME_BOX)}${url}</div>`;
+        ${devtools(card, FRAME_BOX)}</div>`;
     case "merch":
-      return `<div class="card">${chrome("none")}${brand(card)}${textBlock(card, 560, { titleMax: 80, lines: 2, descLines: 3 })}${url}
+      return `<div class="card">${chrome("none")}${brand(card)}${textBlock(card, 560, { titleMax: 80, lines: 2, descLines: 3 })}
         ${card.photo ? `<img class="photo" src="${escapeHtml(card.photo)}"><div class="photo-fade"></div>` : ""}</div>`;
     case "error":
       if (card.code === "404")
@@ -255,11 +255,11 @@ export function cardHtml(card: OgCard): string {
       return `<div class="card">${chrome("right")}${brand(card)}
         <div class="text" style="width:1000px"><div class="section">${escapeHtml(card.section)}</div><div class="big-code">${escapeHtml(card.code ?? "")}</div>
         <div class="title" data-fit="64,44,2" style="font-size:64px">${escapeHtml(card.title)}</div>
-        ${card.description ? `<div class="meta">${card.description.split(" · ").map((m) => `<span>${escapeHtml(m)}</span>`).join("")}</div>` : ""}</div>${url}</div>`;
+        ${card.description ? `<div class="meta">${card.description.split(" · ").map((m) => `<span>${escapeHtml(m)}</span>`).join("")}</div>` : ""}</div></div>`;
     case "page": {
-      if (card.frame) return `<div class="card">${chrome("right")}${brand(card)}${textBlock(card, 450, { titleMax: 72, titleMin: 48, lines: 3, descLines: 3 })}${devtools(card, FRAME_BOX)}${url}</div>`;
-      if (card.rows?.length) return `<div class="card">${chrome("right")}${brand(card)}${textBlock(card, 450, { titleMax: 72, titleMin: 48, lines: 3, descLines: 3 })}${list(card, { left: 596, top: 84, width: 564 })}${url}</div>`;
-      return `<div class="card">${chrome("right")}${brand(card)}${textBlock(card, 960, { titleMax: 92, titleMin: 56, lines: 2, descLines: 3 })}${url}</div>`;
+      if (card.frame) return `<div class="card">${chrome("right")}${brand(card)}${textBlock(card, 450, { titleMax: 72, titleMin: 48, lines: 3, descLines: 3 })}${devtools(card, FRAME_BOX)}</div>`;
+      if (card.rows?.length) return `<div class="card">${chrome("right")}${brand(card)}${textBlock(card, 450, { titleMax: 72, titleMin: 48, lines: 3, descLines: 3 })}${list(card, { left: 596, top: 84, width: 564 })}</div>`;
+      return `<div class="card">${chrome("right")}${brand(card)}${textBlock(card, 960, { titleMax: 92, titleMin: 56, lines: 2, descLines: 3 })}</div>`;
     }
   }
 }
