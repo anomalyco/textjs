@@ -51,8 +51,8 @@ const TILES: Tile[] = [
   { num: "012", name: "%c Sticker", photo: "sticker-percent-c-1", sub: "Die-cut · 2 in" },
   { num: "013", name: "PSA Tee", photo: "psa-tee-1", sub: "AS Colour 5082 · DTG · 11 in front, ▼ Text.js back" },
   { num: "014", name: "PSA Sticker", photo: "psa-sticker-1", sub: "Die-cut · 4 × 2.25 in" },
-  { num: "015", name: "Keycap Set", photo: "keycaps-1", sub: "Not on Fourthwall at a sensible minimum: separate maker, self-fulfilled", flag: "Later" },
-  { num: "016", name: "Notebook", photo: "notebook-1", sub: "Not on Fourthwall: Leuchtturm1917 deboss (min. 50), self-fulfilled", flag: "Later" },
+  { num: "015", name: "Keycap Set", photo: "keycaps-1", sub: "Not on Fourthwall at a sensible minimum: separate maker, self-fulfilled" },
+  { num: "016", name: "Notebook", photo: "notebook-1", sub: "Not on Fourthwall: Leuchtturm1917 deboss (min. 50), self-fulfilled" },
 ];
 
 export async function boards(): Promise<void> {
@@ -64,7 +64,7 @@ export async function boards(): Promise<void> {
   const width = cols * cell + (cols + 1) * gap;
   const height = 150 + rows * (cell * 1.25 + 160) + 60;
   const sheet = `<!doctype html><style>${STYLE}main{display:grid;grid-template-columns:repeat(${cols},${cell}px);gap:${gap}px;padding:36px ${gap}px}</style>
-    <header><h1>Text.js merch: final collection</h1><p>001–014 made on demand by Fourthwall (first drop). 015–016 later, from separate makers.</p></header>
+    <header><h1>Text.js merch: final collection</h1><p>001–014 made on demand by Fourthwall. 015–016 from separate makers. All Coming soon.</p></header>
     <main>${TILES.map((t) => `<figure>${img(t.photo)}${t.flag ? `<span class="flag">${t.flag}</span>` : ""}<div class="num" style="margin-top:14px">${t.num}</div><div class="name">${t.name}</div><div class="sub">${t.sub}</div></figure>`).join("")}</main>`;
   writeFileSync(join(OPTIONS, "final-collection.png"), await png(sheet, width, Math.round(height), 1));
   console.log("wrote options/final-collection.png");

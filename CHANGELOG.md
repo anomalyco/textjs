@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-01
+
 ### Added
 
 - textjs.org: a Learn chapter video that's playing moves to a mini player in the corner when you scroll past it. The Captions button under each video turns captions on or off and remembers the choice.
@@ -18,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- `<FocusPad>` and `<ViewportControl>` set borders with longhand properties only. React warned "Updating a style property during rerender (border)" in development every time a key hint flashed.
 - Text that is the last item in a row now keeps its place when it gets shorter. After a `<Spacer>`, it stayed where the longest text had left it, and siblings shrunk to fit an overflowing row stayed shrunk.
 - `<FocusPad>` replaces its steps, subtitle and key rows when `action` or `hints` change, so switching demos in one pad is not reported as a layout shift.
 - `@textjs/react/testing` loads Yoga when it's imported, so a test can stub `fetch` before its first `render()`.

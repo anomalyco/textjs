@@ -147,8 +147,10 @@ function Keycap({ children, size, c, lit = false }: { children: ReactNode; size:
         alignItems: "center",
         justifyContent: "center",
         borderRadius: lg ? 12 : 7,
-        border: `1px solid ${lit ? c.flash : c.keyEdge}`,
-        borderBottomWidth: lg ? 3 : 2,
+        // Longhands only: mixing `border` with `borderBottomWidth` makes React warn on every key flash.
+        borderStyle: "solid",
+        borderColor: lit ? c.flash : c.keyEdge,
+        borderWidth: `1px 1px ${lg ? 3 : 2}px`,
         background: lit ? c.flash : c.key,
         color: lit ? c.flashText : c.text,
         transition: "background .12s ease, color .12s ease, border-color .12s ease",

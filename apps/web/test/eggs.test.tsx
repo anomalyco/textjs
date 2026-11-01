@@ -80,7 +80,7 @@ describe("generated static files", () => {
     expect(txt).toContain("The Chrome DevTools team. Sorry about the console.\n");
     expect(txt).toContain("Last update: 2026/11/01\n");
     expect(txt).toContain(`Text.js ${VERSION} (Turbolog)`);
-    expect(VERSION).toBe("1.0.0");
+    expect(VERSION).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   test("llms.txt lists every doc and error code", () => {

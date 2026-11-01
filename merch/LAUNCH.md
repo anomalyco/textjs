@@ -1,6 +1,6 @@
 # Launch checklist
 
-The first drop is fourteen products that Anomaly's Fourthwall shop makes on demand: four tees, two hoodies, two caps and six stickers. Fourthwall makes, ships and takes payment for them; textjs.org/merch is the storefront and hands the cart to Fourthwall's hosted checkout. The Keycap Set and Notebook show "Later": Fourthwall can't make them at a sensible minimum, so they come from separate makers and ship from Anomaly (section 7).
+The first drop is fourteen products that Anomaly's Fourthwall shop makes on demand: four tees, two hoodies, two caps and six stickers. Fourthwall makes, ships and takes payment for them; textjs.org/merch is the storefront and hands the cart to Fourthwall's hosted checkout. The Keycap Set and Notebook are listed too, but Fourthwall can't make them at a sensible minimum, so they come from separate makers and ship from Anomaly (section 7). Every product reads "Coming soon" until checkout is configured, and stays that way until Fourthwall sells it.
 
 | No. | Product | Fourthwall product | Method | Base cost |
 | --- | --- | --- | --- | --- |
@@ -70,7 +70,7 @@ Fourthwall's only keycap is the Infinikey single custom keycap, which needs 2,00
 
 - [ ] Keycap Set: quote three-key sets from a small-batch maker ([keycaps.md](tech-packs/keycaps.md) lists the spec and vendors).
 - [ ] Notebook: quote Leuchtturm1917's business service for a blind deboss (minimum 50, [notebook.md](tech-packs/notebook.md)).
-- [ ] Decide who ships them, then add each as a self-fulfilled product and move it to `drop: "launch"` in `apps/web/src/merch/config.ts`.
+- [ ] Decide who ships them, then add each as a self-fulfilled product on Fourthwall and add its variant to the `fourthwall()` config (section 8). It goes on sale on the site as soon as it has a variant there; add a `shipping` line for it in `apps/web/src/merch/config.ts`.
 
 ## 8. Connect the site
 
@@ -114,4 +114,4 @@ Fourthwall's only keycap is the Infinikey single custom keycap, which needs 2,00
 
 - [ ] Samples approved: one of each tee, hoodie and cap, and the six stickers.
 - [ ] Place one real order of a sticker through textjs.org to test the handoff end to end.
-- [ ] Publish the drop on the blog; the store's "Follow the blog" links point there.
+- [ ] Publish the drop on the blog.

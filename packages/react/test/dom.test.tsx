@@ -170,4 +170,12 @@ describe("DOM companion", () => {
       expect(code).not.toMatch(/declare\s+global/);
     }
   });
+
+  test("DOM styles never mix the border shorthand with per-side longhands (React warns on every re-render)", () => {
+    const dir = fileURLToPath(new URL("../src/dom/", import.meta.url));
+    for (const file of readdirSync(dir).filter((f) => f.endsWith(".tsx"))) {
+      const src = readFileSync(join(dir, file), "utf8");
+      expect({ file, longhand: /border(Top|Right|Bottom|Left)(Width|Color|Style)\s*:/.test(src) }).toEqual({ file, longhand: false });
+    }
+  });
 });
