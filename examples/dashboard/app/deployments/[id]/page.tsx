@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Badge, Box, ScrollBox, Spinner, Text, useInput, useTheme, type Metadata } from "@textjs/next";
+import { useState, type ReactNode } from "react";
+import { Badge, Box, ScrollBox, Spinner, Text, useInput, useInterval, useTheme, type Metadata } from "@textjs/next";
 import Link from "@textjs/next/link";
 import { notFound, useRouter } from "@textjs/next/navigation";
 import { buildLog, findDeployment, formatAge, formatDuration, STATUS } from "../../../lib/data";
@@ -9,16 +9,9 @@ export function generateMetadata({ params }: { params: Record<string, string | s
 }
 
 function useStreamedLog(lines: string[], streaming: boolean): string[] {
-  const [count, setCount] = useState(streaming ? 3 : lines.length);
-  useEffect(() => {
-    if (!streaming) {
-      setCount(lines.length);
-      return;
-    }
-    const timer = setInterval(() => setCount((c) => (c >= lines.length ? c : c + 1)), 350);
-    return () => clearInterval(timer);
-  }, [lines, streaming]);
-  return lines.slice(0, count);
+  const [count, setCount] = useState(3);
+  useInterval(() => setCount((c) => c + 1), streaming && count < lines.length ? 350 : null);
+  return streaming ? lines.slice(0, count) : lines;
 }
 
 export default function DeploymentPage({ params }: { params: Record<string, string | string[]> }): ReactNode {

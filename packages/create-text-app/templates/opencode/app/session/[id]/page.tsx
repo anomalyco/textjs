@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Box, Input, Markdown, ScrollBox, Spinner, Text, useInput, useTheme, type Metadata } from "@textjs/next";
+import { Box, Input, Markdown, ScrollBox, Spinner, Text, useInput, useInterval, useTheme, type Metadata } from "@textjs/next";
 import { useParams, useRouter } from "@textjs/next/navigation";
 import { messageText, opencode, type Message } from "../../../lib/opencode";
 
@@ -21,11 +21,8 @@ export default function SessionPage(): ReactNode {
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
   }, [id]);
 
-  useEffect(() => {
-    refresh();
-    const timer = setInterval(refresh, 1500);
-    return () => clearInterval(timer);
-  }, [refresh]);
+  useEffect(() => refresh(), [refresh]);
+  useInterval(refresh, 1500);
 
   useInput((e) => {
     if (e.key === "escape") router.push("/");

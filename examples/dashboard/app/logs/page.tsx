@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Box, Input, ScrollBox, Text, useFocusManager, useInput, useTheme, type Metadata } from "@textjs/next";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import { Box, Input, ScrollBox, Text, useFocusManager, useInput, useInterval, useTheme, type Metadata } from "@textjs/next";
 import { createLogGenerator, type LogLevel, type LogLine } from "../../lib/data";
 
 export const metadata: Metadata = { title: "Logs" };
@@ -16,16 +16,15 @@ export default function LogsPage(): ReactNode {
   const [level, setLevel] = useState<LogLevel | "all">("all");
   const [live, setLive] = useState(true);
 
-  useEffect(() => {
-    if (!live) return;
-    const timer = setInterval(() => {
+  useInterval(
+    () => {
       setLogs((prev) => {
         const out = [...prev, next.current()];
         return out.length > MAX_LINES ? out.slice(out.length - MAX_LINES) : out;
       });
-    }, 450);
-    return () => clearInterval(timer);
-  }, [live]);
+    },
+    live ? 450 : null,
+  );
 
   useInput((e) => {
     if (e.ctrl || e.meta) return;
