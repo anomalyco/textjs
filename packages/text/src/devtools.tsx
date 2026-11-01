@@ -19,9 +19,10 @@ import {
   useRuntime,
   useTheme,
   useViewport,
+  type KeyEvent,
   type Scope,
 } from "@textjs/react";
-import { useOptionalAppShell, useOptionalRouterState, useRouterState } from "./context";
+import { useOptionalAppShell, useOptionalRouterState, useRouterState, type AppShellState } from "./context";
 import { devErrors, type DevError, type DevErrorStore, type ViteErrorLike } from "./dev-errors";
 import { isNavigationError } from "./navigation-errors";
 import { formatParams, type RouteMatch } from "./routing";
@@ -63,13 +64,19 @@ export interface TextDevOverlayProps {
   /** Also mount `<RedboxOverlay />` (default `true`). */
   redbox?: boolean;
   store?: DevErrorStore;
+  /** Draw the `[▼]` pill (default `true`). Without it, the shortcut still opens the inspector. */
+  pill?: boolean;
+  /** Keys that toggle the inspector (default `isDevToolsShortcut`: `F2` or `` Ctrl+` ``). */
+  shortcut?: (e: KeyEvent) => boolean;
+  /** Theme and wireframe controls for apps without the App Router, which otherwise provides them. */
+  shell?: AppShellState;
 }
 
 /**
  * The `[▼]` pill in the bottom-left corner of the console frame. `F2` or
  * `` Ctrl+` `` opens the Turbolog DevTools inspector.
  */
-export function TextDevOverlay({ initialOpen = false, redbox = true, store = devErrors }: TextDevOverlayProps): ReactNode {
+export function TextDevOverlay({ initialOpen = false, redbox = true, store = devErrors, pill = true, shortcut = isDevToolsShortcut, shell }: TextDevOverlayProps): ReactNode {
   const theme = useTheme();
   const [open, setOpen] = useState(initialOpen);
   const errors = useErrors(store);
@@ -77,7 +84,7 @@ export function TextDevOverlay({ initialOpen = false, redbox = true, store = dev
 
   useInput(
     (e) => {
-      if (!isDevToolsShortcut(e)) return;
+      if (!shortcut(e)) return;
       e.stopPropagation();
       setOpen((v) => !v);
     },
@@ -86,12 +93,14 @@ export function TextDevOverlay({ initialOpen = false, redbox = true, store = dev
 
   return (
     <>
-      <Box position="absolute" left={0} bottom={0} zIndex={40} height={1} flexDirection="row" wireframeLabel="devtools-pill">
-        <Text bg={hasErrors ? theme.danger : theme.elevated} fg={hasErrors ? "#ffffff" : theme.muted} bold={hasErrors} wrap="nowrap">
-          {hasErrors ? `[${BRAND_MARK} !]` : `[${BRAND_MARK}]`}
-        </Text>
-      </Box>
-      {open ? <DevToolsPanel store={store} onClose={() => setOpen(false)} /> : null}
+      {pill ? (
+        <Box position="absolute" left={0} bottom={0} zIndex={40} height={1} flexDirection="row" wireframeLabel="devtools-pill">
+          <Text bg={hasErrors ? theme.danger : theme.elevated} fg={hasErrors ? "#ffffff" : theme.muted} bold={hasErrors} wrap="nowrap">
+            {hasErrors ? `[${BRAND_MARK} !]` : `[${BRAND_MARK}]`}
+          </Text>
+        </Box>
+      ) : null}
+      {open ? <DevToolsPanel store={store} shell={shell} onClose={() => setOpen(false)} /> : null}
       {redbox && !open ? <RedboxOverlay store={store} /> : null}
     </>
   );
@@ -127,21 +136,28 @@ function ms(n: number): string {
   return `${n.toFixed(2)}ms`;
 }
 
-function DevToolsPanel({ store, onClose }: { store: DevErrorStore; onClose: () => void }): ReactNode {
+interface DevToolsPanelProps {
+  store: DevErrorStore;
+  shell: AppShellState | undefined;
+  onClose: () => void;
+}
+
+function DevToolsPanel(props: DevToolsPanelProps): ReactNode {
   const scope = useOverlayScope();
   return (
     <ScopeContext value={scope}>
-      <DevToolsPanelBody store={store} onClose={onClose} />
+      <DevToolsPanelBody {...props} />
     </ScopeContext>
   );
 }
 
-function DevToolsPanelBody({ store, onClose }: { store: DevErrorStore; onClose: () => void }): ReactNode {
+function DevToolsPanelBody({ store, shell: shellProp, onClose }: DevToolsPanelProps): ReactNode {
   const theme = useTheme();
   const app = useApp();
   const viewport = useViewport();
   const stats = useConsoleStats({ interval: 250 });
-  const shell = useOptionalAppShell();
+  const contextShell = useOptionalAppShell();
+  const shell = shellProp ?? contextShell;
   const router = useOptionalRouterState();
   const errors = useErrors(store);
   const [localWireframe, setLocalWireframe] = useState(false);
@@ -190,7 +206,7 @@ function DevToolsPanelBody({ store, onClose }: { store: DevErrorStore; onClose: 
               {typeLabel}
             </Row>
             <Row label="pattern">{match?.pattern ?? "—"}</Row>
-            <Row label="pathname">{router?.location.pathname ?? "—"}</Row>
+            <Row label="pathname">{router?.location.pathname ?? (typeof location !== "undefined" ? location.pathname : "—")}</Row>
             <Row label="params">{match ? formatParams(match.params) : "{}"}</Row>
             <Row label="title">{router?.metadata.title ?? "—"}</Row>
             <Row label="segments">{match ? String(match.chain.length) : "0"}</Row>

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useState, type ReactNode } from "react";
 import { Box, KeyHint, Text, useApp, useFocusManager, useInput } from "@textjs/react";
 import { OpenCodeLite } from "../demos/opencode/OpenCodeLite";
 import { PresetView } from "../demos/presets";
@@ -10,6 +10,7 @@ import { exampleGrid, ExampleTab } from "./tabs/ExampleTab";
 import { LearnConsole } from "../learn/apps/LearnConsole";
 import { matchRoute } from "../router";
 import { NotFoundTab } from "./tabs/NotFoundTab";
+import { SiteDevTools } from "./DevTools";
 
 // Only /terminal needs the shop, so it loads on first visit.
 const TerminalConsole = lazy(() => import("../demos/terminal").then((m) => ({ default: m.TerminalConsole })));
@@ -51,7 +52,14 @@ export function CompanionApp(): ReactNode {
   const focus = useFocusManager();
   const tab = site.tab;
   const example = tab === "docs" && site.example !== null && exampleGrid(site.example) ? site.example : null;
-  const wireframe = useRef(false);
+  const [wireframe, setWireframeState] = useState(false);
+  const setWireframe = useCallback(
+    (on: boolean) => {
+      setWireframeState(on);
+      app.renderer.setWireframe(on);
+    },
+    [app],
+  );
   const route = tab === "home" || tab === "blog" ? matchRoute(site.pathname) : null;
   // Unknown paths show the 404. Their tab stays Home (or Blog), so off-route demos stop.
   const notFound = route?.name === "not-found";
@@ -61,8 +69,7 @@ export function CompanionApp(): ReactNode {
       if (tab === "opencode") return;
     if (e.key === "f2") {
       e.stopPropagation();
-      wireframe.current = !wireframe.current;
-      app.renderer.setWireframe(wireframe.current);
+      setWireframe(!wireframe);
     } else if (e.key === "escape" && example === null) {
       e.stopPropagation();
       focus.blur();
@@ -74,10 +81,24 @@ export function CompanionApp(): ReactNode {
 
   // OpenCode is a full-screen TUI of its own, like the real thing.
   if (tab === "opencode") return <OpenCodeLite />;
+  // Ctrl+` opens the Text.js DevTools inspector everywhere but OpenCode and terminal.shop.
+  const devtools = <SiteDevTools wireframe={wireframe} setWireframe={setWireframe} />;
   // Each /learn page runs its chapter's app, with its own header and keys.
-  if (tab === "learn") return <LearnConsole />;
+  if (tab === "learn")
+    return (
+      <>
+        <LearnConsole />
+        {devtools}
+      </>
+    );
   // A docs example clicked on the page runs here instead of the Docs view.
-  if (example !== null) return <ExampleTab key={example} id={example} />;
+  if (example !== null)
+    return (
+      <>
+        <ExampleTab key={example} id={example} />
+        {devtools}
+      </>
+    );
   // terminal.shop's ssh storefront, 80 × 30, signed in through the site's proxy.
   if (tab === "terminal")
     return (
@@ -100,6 +121,7 @@ export function CompanionApp(): ReactNode {
         {tab === "docs" ? <DocsTab /> : null}
       </Box>
       <HintLine tab={tab} hints={notFound ? NOT_FOUND_HINTS : undefined} />
+      {devtools}
     </Box>
   );
 }

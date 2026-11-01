@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { use, useState, type ReactNode } from "react";
-import { Box, Input, Text, useInput } from "@textjs/react";
+import { Box, Input, Text, themes, useInput } from "@textjs/react";
 import { AppRouter, createMemoryHistory, type ErrorComponentProps, type LayoutProps, type PageProps, type RouteManifest } from "../src/router";
 import { Link } from "../src/link";
 import { notFound, redirect, useParams, usePathname, useRouter, useSearchParams } from "../src/navigation";
@@ -337,5 +337,64 @@ describe("<TextDevOverlay>", () => {
     expect(t!.frame()).toContain("Text.js DevTools");
     await t!.press("Escape");
     expect(t!.frame()).not.toContain("Text.js DevTools");
+  });
+});
+
+describe("<TextDevOverlay> outside the App Router", () => {
+  const ctrlBackquote = (e: { key: string; code?: string; ctrl: boolean }): boolean => e.ctrl && (e.key === "`" || e.code === "Backquote");
+
+  test("pill={false} draws nothing until the shortcut opens the inspector", async () => {
+    t = await createTestRoot({ width: 100, height: 30 });
+    await t.render(
+      <Box flexDirection="column" width="100%" height="100%">
+        <Text>app</Text>
+        <TextDevOverlay pill={false} redbox={false} store={new DevErrorStore()} />
+      </Box>,
+    );
+    const blank = t.frame();
+    expect(blank).not.toContain("[▼]");
+    expect(blank.trim()).toBe("app");
+    await t.press("`", { ctrlKey: true });
+    expect(t.frame()).toContain("Text.js DevTools · Turbolog");
+    await t.press("Escape");
+    expect(t.frame()).toBe(blank);
+  });
+
+  test("shortcut narrows the toggle keys, and shell supplies theme and wireframe controls", async () => {
+    let wireframe = false;
+    let cycled = 0;
+    const shell = {
+      theme: themes.tokyoNight,
+      themeName: "tokyoNight",
+      setTheme: () => undefined,
+      cycleTheme: () => void cycled++,
+      wireframe,
+      setWireframe: (on: boolean) => void (wireframe = on),
+    };
+    let f2 = 0;
+    function App(): ReactNode {
+      useInput((e) => {
+        if (e.key === "f2") f2++;
+      });
+      return <Text>app</Text>;
+    }
+    t = await createTestRoot({ width: 100, height: 30 });
+    await t.render(
+      <Box flexDirection="column" width="100%" height="100%">
+        <App />
+        <TextDevOverlay pill={false} redbox={false} shortcut={ctrlBackquote} shell={shell} store={new DevErrorStore()} />
+      </Box>,
+    );
+    await t.press("F2");
+    expect(f2).toBe(1);
+    expect(t.frame()).not.toContain("Text.js DevTools");
+    await t.press("`", { ctrlKey: true });
+    const frame = t.frame();
+    expect(frame).toContain("Text.js DevTools · Turbolog");
+    expect(frame).toContain("Tokyo Night");
+    await t.press("t");
+    expect(cycled).toBe(1);
+    await t.press("w");
+    expect(wireframe).toBe(true);
   });
 });

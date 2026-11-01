@@ -205,3 +205,56 @@ describe("blog posts in the console", () => {
     await h.unmount();
   });
 });
+
+describe("Ctrl+` opens Text.js DevTools", () => {
+  afterAll(async () => {
+    await site(() => resetLocation("/"));
+    await site(() => siteStore.reset());
+  });
+
+  test("the real inspector opens without a pill, F2 stays the wireframe key, T and W drive the site", async () => {
+    await site(() => resetLocation("/docs/routing"));
+    const h = await mount(<CompanionApp />, { cols: 120, rows: 36, tabFocus: false });
+    const before = h.frame();
+    expect(before).not.toContain("[▼]");
+    expect(before).not.toContain("Text.js DevTools");
+
+    // F2: wireframe on, no panel.
+    await h.key("f2");
+    expect(h.frame()).not.toContain("Text.js DevTools");
+    expect(h.frame()).toContain("┌");
+    await h.key("f2");
+    expect(h.frame()).toBe(before);
+
+    await h.key("`", { ctrl: true });
+    let f = h.frame();
+    expect(f).toContain("Text.js DevTools · Turbolog");
+    for (const label of ["FRAME", "TOGGLES", "ROUTE", "%c spans", "noop frames", "120×36 cells"]) expect(f).toContain(label);
+    expect(f).toMatch(/pathname +—|pathname +\//);
+    expect(f).toContain("[W] wire  off");
+    expect(f).toContain("[T] theme Geist Dark");
+
+    await h.key("t", { input: "t" });
+    expect(siteStore.getSnapshot().theme).toBe("opencodeDark");
+    expect(h.frame()).toContain("[T] theme OpenCode Dark");
+
+    await h.key("w", { input: "w" });
+    expect(h.frame()).toContain("┌devtools");
+    await h.key("escape");
+    expect(h.frame()).not.toContain("┌devtools");
+    expect(h.frame()).toContain("┌box");
+    // F2 sees the wireframe the panel turned on, and turns it off.
+    await h.key("f2");
+    expect(h.frame()).not.toContain("┌box");
+    await h.key("`", { ctrl: true });
+    expect(h.frame()).toContain("[W] wire  off");
+    await h.key("`", { ctrl: true });
+    expect(h.frame()).not.toContain("Text.js DevTools");
+
+    // OpenCode and terminal.shop own every key.
+    await site(() => resetLocation("/opencode"));
+    await h.key("`", { ctrl: true });
+    expect(h.frame()).not.toContain("Text.js DevTools");
+    await h.unmount();
+  });
+});
