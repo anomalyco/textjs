@@ -11,7 +11,8 @@
     "test": "bun test",
     "e2e": "bun e2e/extension.e2e.ts",
     "harness": "bun scripts/harness.ts",
-    "probe": "bun e2e/probe-devtools.ts"
+    "probe": "bun e2e/probe-devtools.ts",
+    "store": "bun scripts/store.ts"
   },
   "dependencies": {
     "@textjs/react": "workspace:*"
