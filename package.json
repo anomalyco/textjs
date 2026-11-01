@@ -10,14 +10,14 @@
   ],
   "scripts": {
     "build": "bun run --filter './packages/*' build && bun run --filter './apps/*' build",
-    "build:packages": "bun run --filter '@textjs/core' build && bun run --filter '@textjs/react' build && bun run --filter '@textjs/font' build && bun run --filter '@textjs/next' build && bun run --filter 'create-text-app' build && bun run --filter 'eslint-plugin-textjs' build",
+    "build:packages": "bun run --filter '@textjs/core' build && bun run --filter '@textjs/react' build && bun run --filter '@textjs/font' build && bun run --filter '@textjs/opencode' build && bun run --filter '@textjs/next' build && bun run --filter 'create-text-app' build && bun run --filter 'eslint-plugin-textjs' build",
     "dev:web": "bun run --cwd apps/web dev",
     "dev:opencode": "bun run --cwd apps/opencode-console dev",
     "dev:terminal": "bun run --cwd apps/terminal-shop dev",
     "dev:dashboard": "bun run --cwd examples/dashboard dev",
-    "opencode:bridge": "bun packages/text/bin/text.ts opencode --port 4096",
+    "opencode:bridge": "bun packages/opencode/bin/textjs-opencode.js proxy --port 4096",
     "test": "bun test packages/",
-    "typecheck": "tsc -b packages/core packages/react packages/text packages/create-text-app packages/font packages/eslint-plugin-textjs",
+    "typecheck": "tsc -b packages/core packages/react packages/opencode packages/text packages/create-text-app packages/font packages/eslint-plugin-textjs",
     "release:version": "bun scripts/release-version.ts",
     "release:publish": "bun scripts/release-publish.ts"
   },

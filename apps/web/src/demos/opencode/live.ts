@@ -1,7 +1,7 @@
 /** Connection discovery for the HTML focus pad. All session traffic and SSE
  * are owned by the embedded app, never by the page or its prerenderer. */
 export const DEFAULT_SERVER_URL = "http://127.0.0.1:4096";
-export const BRIDGE_COMMAND = "bunx @textjs/next opencode";
+export const BRIDGE_COMMAND = "bunx @textjs/opencode proxy";
 const REMEMBER_KEY = "textjs:opencode-server";
 const loopback = () => typeof location !== "undefined" && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 

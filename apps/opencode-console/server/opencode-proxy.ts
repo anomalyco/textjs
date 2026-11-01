@@ -7,7 +7,7 @@
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { discoverOpencode, normalizeTargetUrl, probeOpenCode, selectsTarget } from "../../../packages/text/src/cli/proxy";
+import { discoverOpencode, normalizeTargetUrl, probeOpenCode, selectsTarget } from "@textjs/opencode";
 
 export { normalizeTargetUrl };
 
