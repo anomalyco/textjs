@@ -2,12 +2,10 @@
 title: The Inverted Architecture
 date: 2026-10-31
 author: Adam
-summary: Most frameworks render up into the DOM. Text.js renders down into the console. Here is the full path from a React commit to a console.log call.
+summary: How a React commit becomes one console.log call in DevTools.
 ---
 
-Our logo is `▼`. It points down because that is where the pixels go.
-
-Frameworks render up: components become DOM nodes, and the browser lays out and paints them in the page. Text.js renders down: components become cells, and the cells become one `console.log` call in DevTools. We call this the Inverted Architecture. The page is a host. The console is the product.
+In a DOM framework, components become DOM nodes that the browser lays out and paints in the page. In Text.js, components become cells, and each changed frame of cells becomes one `console.log` call in DevTools. We call this the Inverted Architecture.
 
 ## The pipeline
 
@@ -15,7 +13,7 @@ Frameworks render up: components become DOM nodes, and the browser lays out and 
 React ─▶ reconciler ─▶ Yoga ─▶ CellBuffer ─▶ row-hash gate ─▶ RLE ─▶ console.log
 ```
 
-Each stage exists because the console is a strange display: monospace, row-oriented, styled with `%c` and refreshed on DevTools' schedule, not ours.
+Each stage exists because the console is an unusual display. It is monospace and row-oriented, it is styled with `%c`, and DevTools decides when it repaints.
 
 ## Reconciler
 
@@ -37,7 +35,7 @@ Each row has a cached 32-bit FNV-1a hash. Only rows written since the last frame
 
 Changed rows are re-scanned into runs of identical style, and each run becomes one `%c` span. Runs continue across line breaks. CSS strings are interned behind integer style ids, so the hot path never builds the same string twice. A 100×32 dashboard is 3,200 cells and 149 spans.
 
-The format string defends against Chromium itself. A literal `%` is written as `%%`. A word joiner goes after `://`, inside `www.` and in `path:line`, so DevTools doesn't turn your text into a link and repaint it in its own colors.
+The format string also guards against two DevTools behaviors. A literal `%` is written as `%%`. A word joiner goes after `://`, inside `www.` and in `path:line`, so DevTools doesn't turn your text into a link and repaint it in its own colors.
 
 ## One call
 
@@ -55,6 +53,4 @@ The console can't receive keystrokes, so the page does. A hidden `<textarea>` co
 
 ## What the page sees
 
-Very little. The page can't read the console's size, only its own window, so Text.js infers it: a docked panel shrinks `innerWidth` or `innerHeight` while `outer*` stays put, and each dock hypothesis is solved for Chrome's zoom levels. The best fit wins. The constants (56px of horizontal padding, 104px of console chrome, a 14px row pitch) were measured in the real DevTools frontend.
-
-That's the architecture. Inverted, measured, and one `console.log` deep.
+The page can't read the console's size, only its own window, so Text.js infers it: a docked panel shrinks `innerWidth` or `innerHeight` while `outer*` stays put, and each dock hypothesis is solved for Chrome's zoom levels. The best fit wins. The constants (56px of horizontal padding, 104px of console chrome, a 14px row pitch) were measured in the real DevTools frontend.
