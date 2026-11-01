@@ -46,9 +46,11 @@ describe("merch routes", () => {
       expect(html).toContain(`href="${productPath(p.slug)}"`);
       expect(html).toContain(p.name);
     }
-    // Everything Fourthwall makes reads Coming soon; the Keycap Set and Notebook read Later.
-    expect(html.match(/merch-flag">Coming soon</g)?.length).toBe(14);
-    expect(html.match(/merch-flag">Later</g)?.length).toBe(2);
+    // Nothing is on sale yet: every product reads Coming soon, and the intro says no more than that.
+    expect(html.match(/merch-flag">Coming soon</g)?.length).toBe(PRODUCTS.length);
+    expect(html).not.toContain("Later");
+    expect(html).toContain("<p>Made to order. Coming soon.</p>");
+    expect(html).not.toContain("Follow the blog");
     // Every image reserves its box before it loads.
     for (const tag of html.match(/<img [^>]*>/g) ?? []) if (tag.includes(".webp")) expect(tag).toMatch(/width="1024" height="1280"/);
     expect(html).toContain('class="footer"');
@@ -60,13 +62,9 @@ describe("merch routes", () => {
       const html = await render(productPath(p.slug));
       expect(html).toContain(`<h1>${p.name}</h1>`);
       expect(html).toContain('aria-roledescription="carousel"');
-      if (saleOf(p.slug).drop === "launch") {
-        expect(html).toMatch(/<button[^>]*disabled[^>]*>Coming soon<\/button>/);
-        expect(html).toContain(`href="${MERCH.notify.href}"`);
-      } else {
-        expect(html).toMatch(/<button[^>]*disabled[^>]*>Later<\/button>/);
-        expect(html).toContain("Planned for a later drop.");
-      }
+      expect(html).toMatch(/<button[^>]*disabled[^>]*>Coming soon<\/button>/);
+      expect(html).not.toContain("merch-status");
+      expect(html).not.toContain("Later");
       for (const s of p.sizes) expect(html).toContain(`value="${s}"`);
       if (p.sizes.length === 0) expect(html).toContain("One size");
       expect(html).not.toContain("<form");
@@ -140,18 +138,18 @@ describe("checkout providers", () => {
     expect(p.checkoutUrl([{ slug: "hoodie", size: "M", quantity: 1 }])).toBeNull();
   });
 
-  test("the store ships closed, with everything but the keycaps and notebook in the first drop", () => {
+  test("the store ships closed, and the Keycap Set and Notebook have no Fourthwall shipping line", () => {
     expect(MERCH.provider).toBeNull();
-    expect(MERCH.notify.href.startsWith("/")).toBe(true);
-    expect(PRODUCTS.filter((p) => saleOf(p.slug).drop === "later").map((p) => p.slug)).toEqual(["keycaps", "notebook"]);
+    expect(PRODUCTS.filter((p) => !saleOf(p.slug).shipping).map((p) => p.slug)).toEqual(["keycaps", "notebook"]);
     for (const p of PRODUCTS) expect(saleOf(p.slug).preorder).toBeUndefined();
   });
 
-  test("a configured provider opens the first drop and leaves later items closed", () => {
+  test("a configured provider opens what it sells and leaves the rest Coming soon", () => {
     const index = renderToStaticMarkup(<MerchPage slug="" provider={fw} />);
-    expect(index).not.toContain("Coming soon");
+    expect(index).toContain("<p>Made to order.</p>");
     expect(index).not.toContain("Pre-order");
-    expect(index.match(/merch-flag">Later</g)?.length).toBe(2);
+    // fw sells only the Logo Tee and the ▼ Cap.
+    expect(index.match(/merch-flag">Coming soon</g)?.length).toBe(PRODUCTS.length - 2);
     expect(index).toContain("Cart, 0 items");
     const teePage = renderToStaticMarkup(<MerchPage slug="logo-tee" provider={fw} />);
     expect(teePage).toMatch(/<button[^>]*>Add to cart<\/button>/);
@@ -163,7 +161,7 @@ describe("checkout providers", () => {
     // A first-drop product with no variant yet stays closed.
     expect(renderToStaticMarkup(<MerchPage slug="console-cap" provider={fw} />)).toMatch(/<button[^>]*disabled[^>]*>Coming soon<\/button>/);
     const keycaps = renderToStaticMarkup(<MerchPage slug="keycaps" provider={fw} />);
-    expect(keycaps).toMatch(/<button[^>]*disabled[^>]*>Later<\/button>/);
+    expect(keycaps).toMatch(/<button[^>]*disabled[^>]*>Coming soon<\/button>/);
     expect(keycaps).not.toContain("is-out");
   });
 

@@ -1,7 +1,8 @@
 /**
- * Where the store sends buyers, and what is on sale. Checkout isn't connected yet, so `provider` is
- * null: launch items show "Coming soon" and later items "Later". To open the store, set `provider`;
- * nothing else in the site changes. The store collects no data itself: carts live in the visitor's
+ * Where the store sends buyers. Checkout isn't connected yet, so `provider` is null and every product
+ * shows "Coming soon". To open the store, set `provider`; a product goes on sale as soon as the provider
+ * sells it, and anything it doesn't sell (the Keycap Set and Notebook until their makers are set up)
+ * stays "Coming soon". Nothing else in the site changes. The store collects no data itself: carts live in the visitor's
  * localStorage and checkout happens on the provider's domain.
  */
 
@@ -91,8 +92,6 @@ export function linkOut(options: { name: string; urls: Readonly<Record<string, s
 }
 
 export interface Sale {
-  /** `launch` items are in the first drop; `later` items are listed but not for sale. */
-  drop: "launch" | "later";
   /** Sold as a pre-order: the button reads "Pre-order". */
   preorder?: boolean;
   /** One line under the buy button once the store is open. */
@@ -101,28 +100,30 @@ export interface Sale {
 
 export interface MerchConfig {
   provider: CheckoutProvider | null;
-  /** Where "Follow the blog" points while the store is closed. A link only: no form, no email. */
-  notify: { label: string; href: string };
   sale: Readonly<Record<string, Sale>>;
 }
 
 export const MERCH: MerchConfig = {
   provider: null,
-  notify: { label: "Follow the blog", href: "/blog" },
   sale: {
     // Made to order by Fourthwall: most on-demand items are produced in 2 to 5 business days.
     ...Object.fromEntries(
       ["logo-tee", "block-tee", "console-tee", "console-hoodie", "mark-hoodie", "console-cap", "mark-cap", "sticker-mark", "sticker-wordmark", "sticker-console", "sticker-keys", "sticker-percent-c", "psa-tee", "psa-sticker"].map((slug) => [
         slug,
-        { drop: "launch", shipping: "Made to order. Ships after 2 to 5 business days in production." } satisfies Sale,
+        { shipping: "Made to order in 2 to 5 business days." } satisfies Sale,
       ]),
     ),
-    // Not in Fourthwall's on-demand catalog: bought from a separate maker and self-fulfilled (merch/LAUNCH.md).
-    keycaps: { drop: "later" },
-    notebook: { drop: "later" },
+    // The Keycap Set and Notebook aren't in Fourthwall's on-demand catalog; they come from separate makers
+    // (merch/LAUNCH.md) and stay "Coming soon" until the provider sells them.
   },
 };
 
 export function saleOf(slug: string): Sale {
-  return MERCH.sale[slug] ?? { drop: "later" };
+  return MERCH.sale[slug] ?? {};
+}
+
+/** Whether `provider` sells this product in any size. */
+export function onSale(provider: CheckoutProvider | null, slug: string, sizes: readonly string[]): boolean {
+  if (!provider) return false;
+  return sizes.length ? sizes.some((size) => provider.sells({ slug, size })) : provider.sells({ slug, size: "" });
 }
