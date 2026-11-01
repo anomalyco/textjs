@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { matchRoute } from "../src/router";
 import { renderToStaticMarkup } from "react-dom/server";
 import { HERO_FILES } from "../src/pages/home-files";
 import { HighlightedCode } from "../src/site/highlight";
@@ -89,5 +92,36 @@ describe("generated static files", () => {
     const summary = JSON.parse(files["summary.json"]);
     expect(Object.keys(summary)).toEqual(["page", "components", "incidents", "scheduled_maintenances", "status"]);
     expect(summary.components).toEqual(components);
+  });
+});
+
+describe("nextjs.org paths redirect", () => {
+  const root = join(import.meta.dir, "..");
+  const rules = readFileSync(join(root, "public/_redirects"), "utf8")
+    .split("\n")
+    .filter((l) => l.trim() && !l.startsWith("#"))
+    .map((l) => {
+      const [from, to, status] = l.trim().split(/\s+/);
+      return { from: from as string, to: to as string, status: Number(status) };
+    });
+  const next = rules.filter((r) => r.from.startsWith("/docs/app") || r.from.startsWith("/learn/dashboard-app"));
+
+  test("every target is a real page", () => {
+    expect(next.length).toBeGreaterThanOrEqual(20);
+    for (const r of next) expect(matchRoute(r.to).name).not.toBe("not-found");
+    expect(next.find((r) => r.from === "/docs/app/getting-started/css")).toEqual({ from: "/docs/app/getting-started/css", to: "/docs/styling", status: 301 });
+  });
+
+  test("specific paths come before catch-alls, which are temporary", () => {
+    const catchAll = rules.findIndex((r) => r.from === "/docs/app/*");
+    expect(rules[catchAll]?.status).toBe(302);
+    for (const [i, r] of rules.entries()) if (r.from.startsWith("/docs/app/") && !r.from.endsWith("*")) expect(i).toBeLessThan(catchAll);
+    for (const r of rules) if (!r.from.endsWith("*") && r.from !== "/learn/dashboard-app") expect(r.status).toBe(301);
+  });
+
+  test("vercel.json mirrors _redirects", () => {
+    const cfg = JSON.parse(readFileSync(join(root, "vercel.json"), "utf8")) as { redirects: Array<{ source: string; destination: string; permanent: boolean }> };
+    const expected = rules.filter((r) => !r.from.endsWith("/")).map((r) => ({ source: r.from.replace(/\/\*$/, "/:path*"), destination: r.to, permanent: r.status === 301 }));
+    expect(cfg.redirects).toEqual(expected);
   });
 });
