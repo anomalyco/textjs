@@ -330,13 +330,19 @@ describe("chapter videos", () => {
   });
 
   test("published chapters point at the R2 layout", () => {
-    const v = learnVideo("getting-started", { "getting-started": 239.5 }, "https://media.example");
+    const v = learnVideo("getting-started", { "getting-started": 239.5 }, "https://media.example", {});
     expect(v).toEqual({
       src: "https://media.example/learn/getting-started/getting-started-1080p.mp4",
       srcSmall: "https://media.example/learn/getting-started/getting-started-720p.mp4",
       poster: "https://media.example/learn/getting-started/getting-started-poster.jpg",
       captions: "https://media.example/learn/getting-started/getting-started.vtt",
       duration: 239.5,
+    });
+    // A re-rendered chapter lives beside the old files until the site deploys.
+    expect(learnVideo("getting-started", { "getting-started": 239.5 }, "https://media.example", { "getting-started": 2 })).toMatchObject({
+      src: "https://media.example/learn/getting-started/getting-started-v2-1080p.mp4",
+      poster: "https://media.example/learn/getting-started/getting-started-v2-poster.jpg",
+      captions: "https://media.example/learn/getting-started/getting-started-v2.vtt",
     });
     expect(formatDuration(239.5)).toBe("4:00");
     // The frame reserves its box before the player loads (no layout shift); the video waits for the viewport.

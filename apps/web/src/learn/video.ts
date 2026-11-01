@@ -4,7 +4,8 @@
  * Off until a chapter's files are uploaded: add its slug to PUBLISHED (with the duration from the render's
  * manifest.json) and the chapter page shows the player. Files live at
  * `${LEARN_MEDIA_BASE}/learn/<slug>/<slug>-{1080p,720p}.mp4`, `<slug>-poster.jpg` and `<slug>.vtt`; the bucket needs
- * CORS for the textjs.org origin (GET) so the captions track loads.
+ * CORS for the textjs.org origin (GET) so the captions track loads. A re-rendered chapter uploads under new names
+ * (`<slug>-v2-1080p.mp4`, …; set its REVISIONS entry), so the live site keeps serving the old files until it deploys.
  */
 
 export const LEARN_MEDIA_BASE = "https://media.textjs.org";
@@ -23,6 +24,9 @@ export const PUBLISHED: Readonly<Record<string, number>> = {
   shipping: 172.6,
 };
 
+/** Re-rendered chapters: slug → file revision (2 and up). */
+export const REVISIONS: Readonly<Record<string, number>> = {};
+
 export interface LearnVideo {
   src: string;
   /** Smaller file for narrow screens. */
@@ -32,10 +36,16 @@ export interface LearnVideo {
   duration: number;
 }
 
-export function learnVideo(slug: string, published: Readonly<Record<string, number>> = PUBLISHED, base = LEARN_MEDIA_BASE): LearnVideo | null {
+export function learnVideo(
+  slug: string,
+  published: Readonly<Record<string, number>> = PUBLISHED,
+  base = LEARN_MEDIA_BASE,
+  revisions: Readonly<Record<string, number>> = REVISIONS,
+): LearnVideo | null {
   const duration = published[slug];
   if (duration === undefined) return null;
-  const dir = `${base}/learn/${slug}/${slug}`;
+  const revision = revisions[slug];
+  const dir = `${base}/learn/${slug}/${slug}${revision && revision > 1 ? `-v${revision}` : ""}`;
   return { src: `${dir}-1080p.mp4`, srcSmall: `${dir}-720p.mp4`, poster: `${dir}-poster.jpg`, captions: `${dir}.vtt`, duration };
 }
 
