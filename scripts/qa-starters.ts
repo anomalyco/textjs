@@ -191,6 +191,8 @@ async function startServer(cmd: string, args: string[], cwd: string, port: numbe
 /** CLI output lines that mean something went wrong. */
 const BAD_LINE = [
   /\bwarn(ing)?\b|\(!\)|deprecat|unhandled|hmr (update|invalidate) failed|failed to (load|reload|resolve|parse|fetch)|could not resolve|is not exported|cannot find (module|package)/i,
+  // HMR for files far outside the project means the watcher escaped it (it once crawled /).
+  /Fast Refresh\s+(\.\.\/){5,}/,
   /⨯|✗|\b[A-Z]\w*Error\b|\bError\b|^error:|\bTX\d{3}\b|\bERR_[A-Z_]+|^\s*at .+[:(]\d+:\d+\)?$|\bat [\w.<>]+ \(.+:\d+:\d+\)/,
 ];
 /** Lines that look bad but aren't (file names, route tables, our own echoed commands). */
@@ -689,6 +691,8 @@ const TARGETS: Target[] = [
         { window: [900, 600] },
         { window: [1440, 900] },
         { goto: "/about", expect: "Renderer" },
+        // A query string once made text dev watch / (the page never loaded on Linux).
+        { goto: "/?utm_source=qa", expect: "count" },
         { goto: "/nope-not-found", expect: /404|not be found/i },
       ],
     },
@@ -733,6 +737,7 @@ const TARGETS: Target[] = [
         { press: "Enter" },
         { expect: "Edge hit rate" },
         { fetch: "/api/metrics" },
+        { goto: "/?ref=qa", expect: "Edge hit rate" },
       ],
     },
     // `/api/metrics` is a dynamic route handler: no static export (the README says so).
@@ -819,6 +824,8 @@ const TARGETS: Target[] = [
         { goto: "/settings" },
         { goto: "/logs", expect: "Runtime Logs" },
         { goto: "/status", expect: "Status" },
+        { goto: "/status?ref=qa", expect: "Status" },
+        { goto: "/?ref=qa", expect: "Edge Console" },
         { press: "1" },
         { wait: 800 },
         { fetch: "/api/health" },
