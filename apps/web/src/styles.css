@@ -56,6 +56,14 @@ html[data-os="mac"] .os-other {
   }
 }
 
+/* Printing has no scrollbar, so release the gutter (it shifted the printed certificate 7.5px left). */
+@media print {
+  html {
+    scrollbar-gutter: auto;
+  }
+}
+
+
 html {
   background: var(--bg);
   scroll-padding-top: calc(var(--header-h) + 24px);
