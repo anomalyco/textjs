@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { formatPostDate } from "../blog";
+import { TurbologLockup } from "../site/brand-marks";
 import { Inline } from "../site/Markdown";
 import { useConsoleLogDown } from "../console-health";
 import { A } from "../router";
@@ -371,7 +372,9 @@ export function StatusPage(): ReactNode {
     <div className="container st">
       <header className="rs-head">
         <p className="eyebrow">Status</p>
-        <h1>Turbolog Status</h1>
+        <h1>
+          <TurbologLockup className="st-lockup" /> Status
+        </h1>
       </header>
 
       <div className={`st-banner${down ? " st-banner-outage" : ""}`} role="status">

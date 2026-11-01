@@ -16,6 +16,8 @@ export interface BlogPost {
   date: string;
   author: string;
   summary: string;
+  /** Optional `brand: turbolog` frontmatter shows the product's lockup above the date. */
+  brand?: "turbolog";
   markdown: string;
 }
 
@@ -39,7 +41,8 @@ function post(slug: string, source: string): BlogPost {
   for (const key of ["title", "date", "author", "summary"]) {
     if (!data[key]) throw new Error(`blog/${slug}.md is missing "${key}" in its frontmatter`);
   }
-  return { slug, title: data.title as string, date: data.date as string, author: data.author as string, summary: data.summary as string, markdown: body.trim() };
+  if (data.brand !== undefined && data.brand !== "turbolog") throw new Error(`blog/${slug}.md has an unknown brand "${data.brand}"`);
+  return { slug, title: data.title as string, date: data.date as string, author: data.author as string, summary: data.summary as string, ...(data.brand ? { brand: "turbolog" as const } : {}), markdown: body.trim() };
 }
 
 /** Newest first; posts on the same day keep the order listed here. */

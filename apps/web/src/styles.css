@@ -56,6 +56,14 @@ html[data-os="mac"] .os-other {
   }
 }
 
+/* Printing has no scrollbar, so release the gutter (it shifted the printed certificate 7.5px left). */
+@media print {
+  html {
+    scrollbar-gutter: auto;
+  }
+}
+
+
 html {
   background: var(--bg);
   scroll-padding-top: calc(var(--header-h) + 24px);
@@ -1237,6 +1245,24 @@ kbd {
   margin-bottom: 16px;
 }
 
+/* Turbolog lockup (site/brand-marks.tsx): 1em tall with 0.71em caps; its baseline is 0.143em above the bottom. */
+.turbolog-lockup {
+  display: inline-block;
+  flex: none;
+  width: auto;
+  height: 1em;
+  aspect-ratio: 703.6 / 100;
+  vertical-align: -0.143em;
+}
+
+.turbolog-from {
+  stop-color: light-dark(#00a36c, #00d68f);
+}
+
+.turbolog-to {
+  stop-color: light-dark(#c9a800, #f5e14a);
+}
+
 .section h2 {
   margin: 0 0 16px;
   font-size: clamp(32px, 4.6vw, 48px);
@@ -1748,6 +1774,13 @@ kbd {
   font-size: 13px;
   color: var(--subtle);
   margin-bottom: 12px;
+}
+
+.docs-brand {
+  display: block;
+  font-size: 20px;
+  margin-bottom: 16px;
+  color: var(--fg-strong);
 }
 
 .docs-title {

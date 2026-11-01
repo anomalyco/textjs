@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { A } from "../../router";
+import { TurbologLockup } from "../../site/brand-marks";
 import { ArrowRight } from "../../site/icons";
 import { useInView } from "../../site/useInView";
 import history from "../status-history.json";
@@ -153,52 +154,21 @@ function Pipeline({ play }: { play: boolean }): ReactNode {
 
 const LANE_FRAMES = 5;
 
-function Lane({ kind, label, note }: { kind: "clear" | "append"; label: ReactNode; note: string }): ReactNode {
+function Lane({ kind, label, blankPct }: { kind: "clear" | "append"; label: string; blankPct: number }): ReactNode {
   return (
     <div className={`tl-lane ${kind}`}>
       <div className="tl-lane-head">
         <code>{label}</code>
-        <span>{note}</span>
+        <span>{`${blankPct.toFixed(1)}% blank`}</span>
       </div>
-      <div className="tl-lane-row">
-        <div className="tl-bar">
-          {Array.from({ length: LANE_FRAMES }, (_, i) => (
-            <span key={i} className="seg">
-              {kind === "clear" ? <span className="blank" /> : null}
-              <span className="paint" />
-            </span>
-          ))}
-          {kind === "clear" ? (
-            <span className="tl-dim" aria-hidden="true">
-              <span>50ms</span>
-            </span>
-          ) : null}
-        </div>
-        <div className="tl-screen" aria-hidden="true">
-          <span style={{ width: "72%" }} />
-          <span style={{ width: "48%" }} />
-          <span style={{ width: "60%" }} />
-          <span style={{ width: "36%" }} />
-          <span className="tl-screen-blank" />
-        </div>
+      <div className="tl-bar" aria-hidden="true">
+        {Array.from({ length: LANE_FRAMES }, (_, i) => (
+          <span key={i} className="seg">
+            {kind === "clear" ? <span className="blank" /> : null}
+            <span className="paint" />
+          </span>
+        ))}
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, before, after, digits, unit = "", total }: { label: string; before: number; after: number; digits: number; unit?: string; total?: number }): ReactNode {
-  const [ref, n] = useCountUp(after);
-  const fmt = (v: number): string => `${v.toFixed(digits)}${total ? ` / ${total}` : unit}`;
-  return (
-    <div className="tl-stat">
-      <span className="tl-stat-label">{label}</span>
-      <span className="tl-stat-values">
-        <s>{fmt(before)}</s>
-        <ArrowRight size={12} />
-        <strong ref={ref} aria-label={fmt(after)}>
-          {fmt(n)}
-        </strong>
-      </span>
     </div>
   );
 }
@@ -208,32 +178,17 @@ function Throttle({ play }: { play: boolean }): ReactNode {
     <div className={`tl-throttle${play ? " play" : ""}`}>
       <div className="tl-throttle-copy">
         <h3>Zero-flash frames</h3>
-        <p>
-          DevTools clears at once but paints new messages every 50ms, so clearing before each frame left {clear15.blankPct}% of paints blank. Turbolog appends each frame instead.
-        </p>
-        <div className="tl-stats">
-          <Stat label="Blank paints" before={clear15.blankPct} after={append15.blankPct} digits={1} unit="%" />
-          <Stat label="Frames painted" before={clear15.painted} after={append15.painted} digits={0} total={append15.emitted} />
-          <Stat label="Display lag p50" before={clear15.lagP50Ms} after={append15.lagP50Ms} digits={1} unit="ms" />
-        </div>
+        <p>Clearing the console before each frame leaves it blank until DevTools paints the next one. Turbolog appends each frame instead.</p>
+        <A href="/blog/turbolog-eliminating-the-flash" className="text-link">
+          Read the post <ArrowRight size={14} />
+        </A>
       </div>
       <div className="tl-lanes">
-        <div className="tl-lane-row tl-axis-row" aria-hidden="true">
-          <div className="tl-axis">
-            {Array.from({ length: LANE_FRAMES + 1 }, (_, i) => (
-              <span key={i}>{i * 66}ms</span>
-            ))}
-          </div>
-          <span className="tl-screen-label">Visible</span>
-        </div>
-        <Lane kind="clear" label="clear() + log()" note={`${clear15.blankPct}% blank`} />
-        <Lane kind="append" label="log(), appended" note={`${append15.blankPct.toFixed(1)}% blank`} />
+        <Lane kind="clear" label="clear() + log()" blankPct={clear15.blankPct} />
+        <Lane kind="append" label="log(), appended" blankPct={append15.blankPct} />
         <span className="tl-playhead" aria-hidden="true">
           <i />
         </span>
-        <p className="tl-lanes-foot">
-          15fps, 100×32 dashboard, real DevTools frontend. <A href="/blog/turbolog-eliminating-the-flash">Read the post</A>
-        </p>
       </div>
     </div>
   );
@@ -262,7 +217,9 @@ export function TurbologSection(): ReactNode {
     <section className="section home-section" id="turbolog">
       <div className="container" ref={ref}>
         <div className="section-head">
-          <p className="eyebrow">Turbolog</p>
+          <p className="eyebrow tl-eyebrow">
+            <TurbologLockup />
+          </p>
           <h2>
             Every changed frame is one <code>console.log</code> call
           </h2>

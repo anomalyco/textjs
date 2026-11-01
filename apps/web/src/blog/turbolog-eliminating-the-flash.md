@@ -2,6 +2,7 @@
 title: "Turbolog: eliminating the flash"
 date: 2026-10-20
 author: Adam
+brand: turbolog
 summary: Clearing the console before every frame left it visibly blank in 70–81% of DevTools paints. Appending frames brought that to 1%, all of it on the first frame.
 ---
 

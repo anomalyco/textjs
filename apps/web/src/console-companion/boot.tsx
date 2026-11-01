@@ -5,7 +5,7 @@
 
 import { extractStyledFrame, InputEngine, type StyledFrame } from "@textjs/core";
 import { createConsoleRoot, type ConsoleRoot } from "@textjs/react";
-import { loadViewportChoice } from "@textjs/react/dom";
+import { applyViewportChoice, loadViewportChoice, VIEWPORT_CHOICE_KEY, type ViewportChoice } from "@textjs/react/dom";
 import { CompanionApp } from "./App";
 import { siteStore, type CompanionTab } from "./store";
 import { exampleGrid, runsExamples } from "./tabs/ExampleTab";
@@ -35,6 +35,34 @@ export function viewportLimitsFor(
   return tab === "home"
     ? { minCols: 40, maxCols: COMPANION_COLS, minRows: 12, maxRows: COMPANION_ROWS, fallbackCols: COMPANION_COLS, fallbackRows: COMPANION_ROWS }
     : { minCols: 40, maxCols: 200, minRows: 12, maxRows: 60, fallbackCols: 120, fallbackRows: 36 };
+}
+
+/** The Playground's "Console size" choice (also /opencode and /coffee). It keeps the original key, so earlier choices stay. */
+export const PLAYGROUND_VIEWPORT_KEY = VIEWPORT_CHOICE_KEY;
+export const LEARN_VIEWPORT_KEY = "textjs:viewport:learn";
+
+/**
+ * Where a page's "Console size" choice is kept: the Playground demos share one and Learn keeps its own.
+ * Every other page (Home and its hero mirror, docs, blog) has no size control and always fits.
+ */
+export function viewportChoiceKey(tab: CompanionTab): string | null {
+  if (tab === "playground" || tab === "opencode" || tab === "terminal") return PLAYGROUND_VIEWPORT_KEY;
+  if (tab === "learn") return LEARN_VIEWPORT_KEY;
+  return null;
+}
+
+export function viewportChoiceFor(tab: CompanionTab): ViewportChoice {
+  const key = viewportChoiceKey(tab);
+  return (key === null ? null : loadViewportChoice(key)) ?? "fit";
+}
+
+/**
+ * Called when the page changes: applies the new page's limits and, when it moves to another size scope,
+ * that scope's choice. A size picked on the Playground then never follows the visitor to Home.
+ */
+export function followViewportScope(root: ConsoleRoot, from: CompanionTab, to: CompanionTab, example: string | null): void {
+  root.renderer.viewport.configure(viewportLimitsFor(to, example));
+  if (viewportChoiceKey(from) !== viewportChoiceKey(to)) applyViewportChoice(root, viewportChoiceFor(to));
 }
 
 const EDITABLE = "input,textarea,select,[contenteditable=''],[contenteditable='true']";
@@ -112,7 +140,7 @@ export function bootCompanion(): Promise<Companion> {
   booting = (async () => {
     const engine = new GatedInputEngine(() => shouldRouteToConsole(document.activeElement, siteStore.getSnapshot().consoleInput));
     engine.attach();
-    const choice = loadViewportChoice() ?? "fit";
+    const choice = viewportChoiceFor(siteStore.getSnapshot().tab);
     const limits = viewportLimitsFor(siteStore.getSnapshot().tab, siteStore.getSnapshot().example);
     const target = viewportConsole();
     const root = await createConsoleRoot({
@@ -151,9 +179,10 @@ export function bootCompanion(): Promise<Companion> {
         root.setTheme(snap.theme);
       }
       if (snap.tab !== tab || snap.example !== example) {
+        const from = tab;
         tab = snap.tab;
         example = snap.example;
-        root.renderer.viewport.configure(viewportLimitsFor(tab, example));
+        followViewportScope(root, from, tab, example);
       }
     });
 
