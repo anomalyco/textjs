@@ -9,6 +9,7 @@ import { loadViewportChoice } from "@textjs/react/dom";
 import { CompanionApp } from "./App";
 import { siteStore, type CompanionTab } from "./store";
 import { exampleGrid } from "./tabs/ExampleTab";
+import { viewportConsole } from "./viewport-console";
 
 /** The Home hero mirrors the console on the page, so Home keeps (at most) this shape. */
 export const COMPANION_COLS = 100;
@@ -113,8 +114,11 @@ export function bootCompanion(): Promise<Companion> {
     engine.attach();
     const choice = loadViewportChoice() ?? "fit";
     const limits = viewportLimitsFor(siteStore.getSnapshot().tab, siteStore.getSnapshot().example);
+    const target = viewportConsole();
     const root = await createConsoleRoot({
       ...(choice === "fit" ? { responsive: true } : { width: choice.cols, height: choice.rows }),
+      // The driver only turns the curtain on by default for the global console.
+      ...(target ? { console: target, curtain: true } : {}),
       viewport: limits,
       input: engine,
       theme: siteStore.getSnapshot().theme,

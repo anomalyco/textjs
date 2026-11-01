@@ -180,6 +180,7 @@ export async function main(argv: readonly string[]): Promise<number> {
       }
       default:
         console.error(fail(txMessage("TX020", color.bold(args.command))));
+        if (args.command === "deploy") console.error(color.gray("   To deploy, run text build --adapter <static|bun|vercel|cloudflare>."));
         console.log(HELP);
         return 1;
     }

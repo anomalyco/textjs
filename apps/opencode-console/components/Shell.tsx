@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { segmentGraphemes, sliceColumns } from "@textjs/core";
-import { Box, diffTexts, Spinner, Text, ThemeProvider, useClipboard, useKeymap, useTheme, useViewport } from "@textjs/next";
+import { Box, diffTexts, Spinner, Text, ThemeProvider, useApp, useClipboard, useKeymap, useTheme, useViewport } from "@textjs/next";
 import { usePathname, useRouter } from "@textjs/next/navigation";
 import { savedTheme, useTokens } from "../lib/native-theme";
 import { useStore, useStoreState, type ConnectionState } from "../lib/store";
@@ -36,9 +36,12 @@ function SessionShell({ children }: { children?: ReactNode }) {
   const [palette, setPalette] = useState<PaletteKind | null>(null),
     [help, setHelp] = useState(false);
   const { copy } = useClipboard();
+  const app = useApp();
   const dispatch = useCallback(
     (action: Action) => {
-      if (action === "new") router.push("/");
+      if (action === "exit") {
+        if (!store.exitToHost()) app.exit();
+      } else if (action === "new") router.push("/");
       else if (action === "help") setHelp(true);
       else if (action === "copy") {
         const msg =
@@ -63,7 +66,7 @@ function SessionShell({ children }: { children?: ReactNode }) {
       } else if (action === "variants" && !store.variants().length) store.notify("The current model does not support any variants.");
       else setPalette(action);
     },
-    [active, store, copy, router],
+    [active, store, copy, router, app],
   );
   const select = (id: string | undefined) => {
     if (id) router.push(`/session/${encodeURIComponent(id)}`);

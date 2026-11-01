@@ -140,8 +140,9 @@ function ConnectPanel(): ReactNode {
 
 export function OpenCodePage(): ReactNode {
   const { action, hints } = PAGE_HINTS.opencode;
+  const exited = useSite().opencodeExited;
   return (
-    <ConsolePad hints={hints} action={action} top={<span className="pad-title">OpenCode in the console</span>}>
+    <ConsolePad hints={hints} action={action} top={<span className="pad-title">{exited ? "OpenCode exited. Click to restart." : "OpenCode in the console"}</span>}>
       <ConnectPanel />
     </ConsolePad>
   );

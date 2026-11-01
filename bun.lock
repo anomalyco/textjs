@@ -87,7 +87,7 @@
       "name": "create-text-app",
       "version": "1.0.0",
       "bin": {
-        "create-text-app": "./bin/create-text-app.js",
+        "create-text-app": "bin/create-text-app.js",
       },
     },
     "packages/devtools-extension": {
@@ -152,7 +152,7 @@
       "name": "@textjs/next",
       "version": "1.0.0",
       "bin": {
-        "text": "./bin/text.js",
+        "text": "bin/text.js",
       },
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.32.2",

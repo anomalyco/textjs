@@ -116,6 +116,8 @@ export interface StoreOptions {
   endpoint?: string | null;
   /** Use this client instead of connecting (tests, embeds). */
   client?: OpenCodeClient;
+  /** What `/exit` does in an embed. Without it, `/exit` ends the app like the native TUI. */
+  onExit?: () => void;
 }
 
 export class OpenCodeStore {
@@ -190,6 +192,13 @@ export class OpenCodeStore {
 
   get hostManagesConnection(): boolean {
     return this.options.client !== undefined;
+  }
+
+  /** Hand `/exit` to the host. Returns `false` when there is no host handler. */
+  exitToHost(): boolean {
+    if (!this.options.onExit) return false;
+    this.options.onExit();
+    return true;
   }
 
   // -- connection ------------------------------------------------------------

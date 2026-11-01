@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, Text, useInput, useViewport } from "@textjs/react";
+import { Box, Text, useApp, useInput, useViewport } from "@textjs/react";
 
 const BARS = " ▁▂▃▄▅▆▇█";
 
@@ -68,7 +68,9 @@ const DEPLOYS = [
   { id: "dpl_6Zx1", status: "ready", msg: "fix: escape %% in format strings", age: "1h" },
 ] as const;
 
-const REGIONS = ["iad1", "sfo1", "fra1", "hnd1"];
+// `dev1` is Vercel's region name for localhost. Its stats are this console's own renderer.
+const REGIONS = ["iad1", "sfo1", "fra1", "hnd1", "dev1"];
+const DEV1 = REGIONS.indexOf("dev1");
 
 function Stat({ label, value }: { label: string; value: string }): ReactNode {
   return (
@@ -100,6 +102,9 @@ export function DashboardDemo(): ReactNode {
     }
   });
   const now = history[history.length - 1] ?? 0;
+  const { renderer } = useApp();
+  // Read on the series tick: the numbers describe the frame before this one.
+  const stats = region === DEV1 ? renderer.stats() : null;
   return (
     <Box className="flex-col grow px-2 gap-1">
       <Box className="flex-row h-1 gap-2 shrink-0">
@@ -110,9 +115,19 @@ export function DashboardDemo(): ReactNode {
         ))}
       </Box>
       <Box className="flex-row shrink-0" marginTop={1}>
-        <Stat label="Requests / s" value={String(Math.round(now * 1800 * (1 - region * 0.17)))} />
-        <Stat label="p95 latency" value={`${70 + region * 9 + Math.round(now * 30)}ms`} />
-        <Stat label="Error rate" value="0.04%" />
+        {stats ? (
+          <>
+            <Stat label="Frames / s" value={stats.fps.toFixed(1)} />
+            <Stat label="Frame time" value={`${stats.totalMs.toFixed(3)}ms`} />
+            <Stat label="%c spans" value={String(stats.spanCount)} />
+          </>
+        ) : (
+          <>
+            <Stat label="Requests / s" value={String(Math.round(now * 1800 * (1 - region * 0.17)))} />
+            <Stat label="p95 latency" value={`${70 + region * 9 + Math.round(now * 30)}ms`} />
+            <Stat label="Error rate" value="0.04%" />
+          </>
+        )}
       </Box>
       <ThroughputBars series={series} height={chartHeight} />
       <Box className="flex-col shrink-0" marginTop={1}>

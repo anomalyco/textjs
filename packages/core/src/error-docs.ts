@@ -302,7 +302,9 @@ bunx --bun text mcp
     cause: `The \`text\` CLI has six commands: \`dev\`, \`build\`, \`start\`, \`run\`, \`proxy\` and \`mcp\`.`,
     fix: `~~~bash
 text --help
-~~~`,
+~~~
+
+There is no \`text deploy\`. Build for your platform with \`text build --adapter <name>\` and deploy the output with the platform's CLI. See [Deploying](/docs/deploying).`,
   },
   TX021: {
     package: "@textjs/next",

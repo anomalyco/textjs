@@ -111,7 +111,7 @@ const TABS = ["Elements", "Console", "Sources", "Network", "Performance", "Memor
 /** A pixel-faithful Chrome DevTools Console panel rendering a Text.js frame. */
 export function DevToolsWindow({
   frame,
-  source = "text://viewport:1",
+  source = "viewport:3",
   filter = "Filter",
   onActivate,
   engaged = false,

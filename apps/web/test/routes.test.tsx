@@ -62,7 +62,7 @@ describe("page rendering", () => {
     expect(html).toContain("app/page.tsx");
     expect(html).toContain("app/layout.tsx");
     expect(html).toContain("text.config.ts");
-    expect(html).toContain("text://viewport:1");
+    expect(html).toContain(">viewport:3</span>");
     expect(html).toContain("This page is running in your console.");
     for (const card of ["React 19", "App Router", "Responsive grid", "Keyboard input"]) expect(html).toContain(card);
     expect(html).toContain("OpenCode in console.log");

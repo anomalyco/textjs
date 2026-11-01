@@ -17,7 +17,7 @@ import { LearnSection, ToolingSection } from "./home/Tooling";
 import { TurbologSection } from "./home/Turbolog";
 import "./home/home.css";
 
-function LiveConsole({ source = "text://viewport:1" }: { source?: string }): ReactNode {
+function LiveConsole({ source = "viewport:3" }: { source?: string }): ReactNode {
   const frame = useCompanionFrame();
   const site = useSite();
   return (
