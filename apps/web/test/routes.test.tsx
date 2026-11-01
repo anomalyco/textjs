@@ -67,7 +67,7 @@ describe("page rendering", () => {
     for (const card of ["React 19", "App Router", "Responsive grid", "Keyboard input"]) expect(html).toContain(card);
     expect(html).toContain("OpenCode in console.log");
     expect(html).toContain("Explore OpenCode");
-    for (const section of ["Every changed frame is one <code>console.log</code> call", "Zero-flash frames", "Tables, charts, forms and shortcuts", "Render routes on the server", "The same app runs in DevTools, a terminal or a coding agent", "Editor, linter, testing and debugging tools", "Build a deploy dashboard in your console"]) expect(html).toContain(section);
+    for (const section of ["Every changed frame is one <code>console.log</code> call", "Zero-flash frames", "Tables, charts, forms and shortcuts", "Render routes on the server", "Also runs in terminals and agents", "Editor, lint and test tooling", "Build a deploy dashboard in your console"]) expect(html).toContain(section);
     // Headings are statements, not slogans: no trailing periods.
     for (const h of html.matchAll(/<h[23][^>]*>(.*?)<\/h[23]>/g)) expect(h[1]).not.toMatch(/\.$/);
     for (const gone of ["Introducing Text.js 1.0", "How Turbolog works", "DOM Frameworks (Next.js)", "Render down.", "for free", "DevTools inside DevTools", "No browser, no DevTools", "0.18ms"]) expect(html).not.toContain(gone);
