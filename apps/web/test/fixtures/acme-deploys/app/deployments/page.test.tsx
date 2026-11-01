@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
-import { cleanup, render } from "@textjs/react/testing";
+import { cleanup, render } from "@textjs/next/testing";
 import { DEPLOYMENTS } from "../../lib/deployments";
 import DeploymentsPage from "./page";
 

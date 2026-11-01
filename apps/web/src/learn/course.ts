@@ -58,7 +58,7 @@ export const CHAPTERS: readonly Chapter[] = [
         question: "What does an idle app log?",
         options: ["One frame per second", "One frame per animation frame", "Nothing"],
         answer: 2,
-        explanation: "If no cell changed, nothing is allocated and nothing is logged.",
+        explanation: "If no cell changed, the renderer returns before it builds a string, so nothing is logged.",
       },
     ],
   },
@@ -91,7 +91,7 @@ export const CHAPTERS: readonly Chapter[] = [
   {
     slug: "styling",
     title: "Text & Styling",
-    summary: "Colors, attributes and theme tokens for a deployment card with live status.",
+    summary: "Style a deployment card with colors, text attributes and theme tokens.",
     minutes: 6,
     markdown: stylingMd,
     action: "press t",
@@ -104,7 +104,7 @@ export const CHAPTERS: readonly Chapter[] = [
         question: 'Why use color="success" instead of a hex value?',
         options: ["It renders faster", "Theme tokens follow the active theme", "Hex colors aren't supported"],
         answer: 1,
-        explanation: "Tokens resolve against the current theme, so switching themes repaints everything consistently.",
+        explanation: "Tokens resolve against the current theme, so switching themes recolors every token.",
       },
       {
         question: 'What does wrap="truncate-end" do?',
@@ -216,7 +216,7 @@ export const CHAPTERS: readonly Chapter[] = [
         question: "Why give the chart box a fixed height?",
         options: ["Charts require it", "So switching charts doesn't move the table", "To enable color"],
         answer: 1,
-        explanation: "Rows that don't change aren't re-encoded or logged.",
+        explanation: "A fixed height keeps the table in place, so its rows don't change and aren't re-encoded.",
       },
     ],
   },
@@ -233,7 +233,7 @@ export const CHAPTERS: readonly Chapter[] = [
     ],
     quiz: [
       {
-        question: "What does @textjs/react/testing need to run?",
+        question: "What does @textjs/next/testing need to run?",
         options: ["Chrome with DevTools open", "Any test runner with async tests", "A real terminal"],
         answer: 1,
         explanation: "It renders offscreen into a cell buffer, without a browser or DevTools.",
@@ -286,10 +286,10 @@ export const CHAPTERS: readonly Chapter[] = [
     ],
     quiz: [
       {
-        question: "What does a static host need to serve deep links?",
-        options: ["Nothing", "One SPA rewrite to index.html", "A route per page"],
+        question: "What does a static host need for dynamic routes?",
+        options: ["Nothing", "A rewrite to index.html", "A route per page"],
         answer: 1,
-        explanation: "Every route is rendered by the same client, so every path serves index.html.",
+        explanation: "Static routes are prerendered to their own HTML files. Dynamic segments fall back to the client app in index.html.",
       },
       {
         question: "Which console setting should be off?",

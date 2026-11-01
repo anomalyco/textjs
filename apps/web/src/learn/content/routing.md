@@ -1,4 +1,4 @@
-The App Router maps files in `app/` to URLs, exactly like Next.js. The browser's address bar and history stay in sync, so back, forward and deep links work while the UI renders in the console.
+The App Router maps files in `app/` to URLs, following the Next.js App Router conventions. The browser's address bar and history stay in sync, so back, forward and deep links work while the UI renders in the console.
 
 ## Files are routes
 
@@ -81,4 +81,4 @@ export default function DeploymentPage({ params }: PageProps<{ id: string }>) {
 }
 ```
 
-Static hosts need a single SPA rewrite to serve deep links. Chapter 10 covers it.
+On a static host, dynamic segments like this one need a rewrite to `index.html`. Chapter 10 covers it.

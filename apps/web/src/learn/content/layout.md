@@ -29,7 +29,7 @@ Most screens are a column: a one-row bar, then everything else. Give the bar a f
 
 ## Sidebar and cards
 
-A fixed-width sidebar with a right border, and three cards that share the remaining width. `basis-0` with `grow` gives each card an equal share regardless of its content.
+Add a fixed-width sidebar with a right border and three cards that share the remaining width. `basis-0` with `grow` gives each card an equal share regardless of its content.
 
 ```diff-tsx@app/page.tsx
 +const NAV = ["Overview", "Deployments", "Settings"];
