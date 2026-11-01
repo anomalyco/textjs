@@ -123,7 +123,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     return runMcpCli(argv);
   }
   if (args.help || args.command === "" || args.command === "help") {
-    console.log(`\n   ${brand()} — The Console Framework for the Web\n`);
+    console.log(`\n   ${brand()}\n   The Console Framework for the Web\n`);
     console.log(HELP);
     return args.command === "" && !args.help ? 1 : 0;
   }

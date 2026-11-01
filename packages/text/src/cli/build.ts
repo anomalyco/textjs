@@ -68,7 +68,9 @@ export async function buildApp(opts: BuildOptions): Promise<BuildResult> {
   const { config } = await loadTextConfig(opts.root, "build");
   const outDir = resolve(opts.root, config.outDir ?? "dist");
 
-  print(`   ${brand()} — Creating an optimized console production build...`);
+  print(`   ${brand()}`);
+  print();
+  print("   Creating an optimized console production build...");
   print();
 
   const base: InlineConfig = {

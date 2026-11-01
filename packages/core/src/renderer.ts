@@ -151,7 +151,7 @@ export function createDefaultScheduler(): RendererScheduler {
   };
 }
 
-const HELP = `▼ Text.js — window.text
+const HELP = `▼ Text.js · window.text
   text.resize(cols, rows)   pin the console grid size
   text.responsive(true)     follow the docked DevTools size
   text.pause() / resume()   freeze output (select & copy freely)
