@@ -338,7 +338,8 @@ export function createLiveDevHandler(vite: ViteDevServer, o: LiveDevOptions): Li
       if (pathname === LIVE_PATH) return live.handle(req, res, url);
       if (!wantsHtml(req, pathname) || runtimeOf(pathname) !== "server") return false;
       const raw = createLiveHtml({ title: o.title, basePath: o.basePath, viewport: o.viewport, playerSrc: `${o.basePath}${PLAYER_URL}` });
-      const html = await vite.transformIndexHtml(req.url ?? "/", raw, (req as { originalUrl?: string }).originalUrl);
+      // As in the page handler (`HTML_TRANSFORM_URL`): never the request URL, whose query string makes Vite watch `/`.
+      const html = await vite.transformIndexHtml("/index.html", raw, (req as { originalUrl?: string }).originalUrl);
       res.statusCode = 200;
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.setHeader("Cache-Control", "no-cache");

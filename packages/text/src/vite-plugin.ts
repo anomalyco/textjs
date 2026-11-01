@@ -27,6 +27,12 @@ export const VIRTUAL_ENTRY = "virtual:textjs/entry";
 export const VIRTUAL_API = "virtual:textjs/api";
 /** The script `src` used by the generated `index.html`. */
 export const ENTRY_URL = "/@textjs/entry";
+/**
+ * The URL every page's HTML is transformed as (Vite's SPA fallback does the same).
+ * The request URL can't be used: Vite maps `/?q` to the project directory and then
+ * watches the inline `<style>`'s "file", `/`, so chokidar crawls the whole disk.
+ */
+export const HTML_TRANSFORM_URL = "/index.html";
 
 const RESOLVED = (id: string): string => `\0${id}`;
 
@@ -377,7 +383,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
           if ((req.method === "GET" || req.method === "HEAD") && isHtmlRequest(url, req.headers.accept)) {
             const custom = userHtml();
             const raw = custom ? readFileSync(custom, "utf8") : createIndexHtml(title(), `${basePath}${ENTRY_URL}`);
-            const html = await server.transformIndexHtml(req.url ?? "/", raw, req.originalUrl);
+            const html = await server.transformIndexHtml(HTML_TRANSFORM_URL, raw, req.originalUrl);
             res.statusCode = 200;
             res.setHeader("Content-Type", "text/html; charset=utf-8");
             res.setHeader("Cache-Control", "no-cache");

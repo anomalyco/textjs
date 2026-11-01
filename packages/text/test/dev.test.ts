@@ -84,6 +84,15 @@ describe("text dev", () => {
     expect(await (await fetch(`${base}/other`, { headers: { accept: "text/html" } })).text()).toContain("<title>Fixture</title>");
   });
 
+  test("pages with a query string don't make Vite watch the whole filesystem", async () => {
+    // Vite maps `/?demo` to the project directory and watched the inline <style>'s
+    // "file", `/`: on Linux, chokidar then crawled / and the page never loaded.
+    for (const path of ["/?demo", "/logs?x=1", "/?a=b#c"]) expect((await fetch(`${base}${path}`, { headers: { accept: "text/html" } })).status).toBe(200);
+    await new Promise((r) => setTimeout(r, 100));
+    const watched = Object.keys(server.watcher.getWatched());
+    expect(watched.filter((d) => d === "/" || d === "")).toEqual([]);
+  });
+
   test("adding app/ route files refreshes the route manifest", async () => {
     mkdirSync(join(dir, "app/logs"), { recursive: true });
     writeFileSync(join(dir, "app/logs/page.tsx"), 'import { Text } from "@textjs/next";\nexport default function Logs() { return <Text>logs</Text>; }\n');
