@@ -138,6 +138,19 @@ const ISOLATE_GRAPHEMES: Readonly<Record<TextDirection, Grapheme>> = Object.free
 const PDI_GRAPHEME: Grapheme = Object.freeze({ grapheme: "\u2069", width: 0, codePoint: 0x2069, isMulti: false });
 const ELLIPSIS_GRAPHEME: Grapheme = Object.freeze({ grapheme: ELLIPSIS, width: 1, codePoint: 0x2026, isMulti: false });
 
+const ZERO_RUN_CACHE: Array<Uint16Array | undefined> = [];
+function getZeroRunOf(length: number): Uint16Array {
+  if (length <= 1024) {
+    let arr = ZERO_RUN_CACHE[length];
+    if (arr === undefined) {
+      arr = new Uint16Array(length);
+      ZERO_RUN_CACHE[length] = arr;
+    }
+    return arr;
+  }
+  return new Uint16Array(length);
+}
+
 /**
  * Grapheme whose style (and bidi level) a truncation ellipsis takes: the last
  * visible one before the cut, else the first after it. Zero-width isolate
@@ -632,6 +645,43 @@ export class SceneNode {
   /** Flattened graphemes and inline style runs for a text owner. */
   getTextModel(): TextModel {
     if (this.textModel !== null) return this.textModel;
+    // Fast path: the common <Text>string</Text> leaf (single raw-text child, no inline spans or isolates).
+    if (this.props.display !== "none" && this.children.length === 1) {
+      const c0 = this.children[0] as SceneNode;
+      if (c0.type === "raw-text" && c0.props === EMPTY_PROPS && c0.text.length > 0) {
+        const s = this.style;
+        const graphemes = segmentGraphemes(c0.text);
+        let naturalWidth = 0;
+        let curLineWidth = 0;
+        let naturalHeight = 1;
+        let maybeBidi = false;
+        for (let i = 0; i < graphemes.length; i++) {
+          const g = graphemes[i] as Grapheme;
+          if (g.codePoint === 0x0a) {
+            if (curLineWidth > naturalWidth) naturalWidth = curLineWidth;
+            curLineWidth = 0;
+            naturalHeight++;
+          } else {
+            curLineWidth += g.width;
+            if (g.codePoint >= 0x0590 || g.isMulti) maybeBidi = true;
+          }
+        }
+        if (curLineWidth > naturalWidth) naturalWidth = curLineWidth;
+        const needsBidi = this.props.dir === "rtl" || (maybeBidi && graphemesNeedBidi(graphemes));
+        this.bidi = null;
+        this.visualLines = null;
+        this.textModel = {
+          graphemes,
+          runOf: getZeroRunOf(graphemes.length),
+          runs: [{ fg: s.fg, bg: s.bg, attrsOn: s.attrsOn, attrsOff: s.attrsOff }],
+          text: c0.text,
+          naturalWidth,
+          naturalHeight,
+          needsBidi,
+        };
+        return this.textModel;
+      }
+    }
     const graphemes: Grapheme[] = [];
     const runs: TextRun[] = [];
     const runBounds: number[] = [];
@@ -701,9 +751,14 @@ export class SceneNode {
     };
     visit(this, null);
     if (curLineWidth > naturalWidth) naturalWidth = curLineWidth;
-    const runOf = new Uint16Array(graphemes.length);
-    for (let b = 0; b < runBounds.length; b += 3) {
-      runOf.fill(runBounds[b] as number, runBounds[b + 1] as number, runBounds[b + 2] as number);
+    let runOf: Uint16Array;
+    if (runBounds.length === 0) {
+      runOf = getZeroRunOf(graphemes.length);
+    } else {
+      runOf = new Uint16Array(graphemes.length);
+      for (let b = 0; b < runBounds.length; b += 3) {
+        runOf.fill(runBounds[b] as number, runBounds[b + 1] as number, runBounds[b + 2] as number);
+      }
     }
     const needsBidi = this.props.dir === "rtl" || (maybeBidi && graphemesNeedBidi(graphemes));
     this.bidi = null;
@@ -1130,7 +1185,8 @@ class Painter {
     this.buffer = buffer;
     this.options = options;
     this.bandMode = false;
-    this.stats = { painted: 0, culled: 0 };
+    this.stats.painted = 0;
+    this.stats.culled = 0;
     this.sawBackdrop = false;
     this.deferred.length = 0;
     this.paintedNodes.length = 0;
@@ -1151,7 +1207,8 @@ class Painter {
     this.buffer = buffer;
     this.options = options;
     this.bandMode = true;
-    this.stats = { painted: 0, culled: 0 };
+    this.stats.painted = 0;
+    this.stats.culled = 0;
     this.sawBackdrop = false;
     this.deferred.length = 0;
     this.paintedNodes.length = 0;

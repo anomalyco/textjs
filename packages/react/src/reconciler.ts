@@ -10,6 +10,7 @@ import createReconciler from "react-reconciler";
 import { ConcurrentRoot, ContinuousEventPriority, DefaultEventPriority, DiscreteEventPriority, NoEventPriority } from "react-reconciler/constants.js";
 import { createContext } from "react";
 import { createNode, createRawText, txError, type SceneNode, type SceneNodeProps } from "@textjs/core";
+import { SCENE_PROPS } from "./host";
 
 export { ConcurrentRoot, ContinuousEventPriority, DefaultEventPriority, DiscreteEventPriority, NoEventPriority };
 
@@ -43,6 +44,11 @@ export function toSceneProps(props: HostProps): SceneNodeProps {
     if (v !== undefined) out[k] = v;
   }
   return out as SceneNodeProps;
+}
+
+function extractSceneProps(props: HostProps): SceneNodeProps {
+  const prebuilt = (props as unknown as Record<symbol, SceneNodeProps | undefined>)[SCENE_PROPS];
+  return prebuilt !== undefined ? prebuilt : toSceneProps(props);
 }
 
 function hasScenePropChanges(current: SceneNodeProps, next: HostProps): boolean {
@@ -147,7 +153,7 @@ export const reconciler = createReconciler<
     if (kind === "box" && hostContext.insideText) {
       throw txError("TX004");
     }
-    return createNode(kind, toSceneProps(props));
+    return createNode(kind, extractSceneProps(props));
   },
   createTextInstance(text) {
     return createRawText(text);
@@ -227,14 +233,14 @@ export const reconciler = createReconciler<
   },
   commitMount() {},
   commitUpdate(instance, _type, _prev, next) {
+    const nextScene = extractSceneProps(next);
     if (hiddenProps.has(instance)) {
-      const props = toSceneProps(next);
-      hiddenProps.set(instance, props);
-      instance.updateProps({ ...props, display: "none" });
+      hiddenProps.set(instance, nextScene);
+      instance.updateProps({ ...nextScene, display: "none" });
       return;
     }
-    if (!hasScenePropChanges(instance.props, next)) return;
-    instance.updateProps(toSceneProps(next));
+    if (instance.props === nextScene || !hasScenePropChanges(instance.props, nextScene)) return;
+    instance.updateProps(nextScene);
   },
   hideInstance(instance) {
     hiddenProps.set(instance, instance.props);
@@ -246,7 +252,7 @@ export const reconciler = createReconciler<
   },
   unhideInstance(instance, props) {
     hiddenProps.delete(instance);
-    instance.updateProps(toSceneProps(props));
+    instance.updateProps(extractSceneProps(props));
   },
   unhideTextInstance(textInstance, text) {
     hiddenText.delete(textInstance);

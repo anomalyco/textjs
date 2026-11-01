@@ -665,6 +665,20 @@ export class CssConsoleDriver {
         }
         text += String.fromCodePoint(c);
       }
+      // Fast continuation across consecutive non-blank BMP non-RTL cells with identical style.
+      while (i + 1 < end) {
+        const nc = C[i + 1] as number;
+        if (nc <= CHAR_SPACE || nc >= 0xfb1d || (nc >= 0x0590 && (nc <= 0x08ff || nc === 0x200f))) break;
+        if (F[i + 1] !== rawFg || B[i + 1] !== rawBg || A[i + 1] !== rawAttrs) break;
+        i++;
+        cells++;
+        if (nc < 0x80) {
+          if (nc === 0x25 || nc === 0x3a || nc === 0x77 || nc === 0x57) hasSpecial = true;
+          text += ASCII_CHARS[nc] as string;
+        } else {
+          text += String.fromCharCode(nc);
+        }
+      }
     }
 
     if (pend > 0) {
