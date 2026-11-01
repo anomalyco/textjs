@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Box, Text, useTheme, useViewport, type Metadata } from "@textjs/app";
 import { useRouter } from "@textjs/app/navigation";
-import { Composer, Hints } from "../components/Composer";
+import { Composer, Hints, type ComposerProps } from "../components/Composer";
 import { Logo } from "../components/Logo";
 import { ConnectionBadge } from "../components/Shell";
 import { FormPrompt } from "../components/Requests";
@@ -18,8 +18,8 @@ export default function HomePage(): ReactNode {
   const vp = useViewport();
   const [example] = useState(() => ["Fix a TODO in the codebase", "What is the tech stack of this project?", "Fix broken tests"][Math.floor(Math.random()*3)]);
 
-  const submit = (text: string, mode: "prompt" | "shell"): void => {
-    void store.send(null, text, mode).then((id) => {
+  const submit: ComposerProps["onSubmit"] = (text, mode, options) => {
+    void store.send(null, text, mode, options).then((id) => {
       if (id) router.push(`/session/${encodeURIComponent(id)}`);
     });
   };

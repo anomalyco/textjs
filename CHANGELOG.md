@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- OpenCode Lite: type `/` to search commands or `@` to attach a project file. Tab opens a directory in the file menu. Connected sessions search the server's project; the sandbox searches its example repository.
+
 ## [1.0.3] - 2026-11-01
 
 ### Performance

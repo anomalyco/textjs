@@ -10,6 +10,9 @@ import { connectOpenCode, HttpError, saveEndpoint, savedEndpoint } from "./clien
 import { SessionTabs } from "./session-tabs";
 import type {
   AgentOption,
+  Attachment,
+  CommandOption,
+  PromptOptions,
   AppEvent,
   AssistantMessage,
   AssistantPart,
@@ -63,6 +66,9 @@ export interface StoreState {
   missing: Readonly<Record<string, boolean>>;
   busy: Readonly<Record<string, boolean>>;
   agents: AgentOption[];
+  mentionAgents: AgentOption[];
+  commands: CommandOption[];
+  skills: {id:string;description?:string}[];
   models: ModelOption[];
   agent: string;
   model: ModelRef | null;
@@ -70,6 +76,11 @@ export interface StoreState {
   toast: Toast | null;
   history: readonly string[];
   favorites: readonly string[];
+  pins: readonly string[];
+  stashes:readonly {text:string;marks:readonly Attachment[]}[];
+  jump?:{sessionID:string; messageID:string};
+  restore?:{sessionID:string; text:string; skill?:string; marks?:readonly Attachment[]};
+  answer?:{sessionID:string;text:string};
   /** Pending permission requests and forms by owning session (children included). */
   permissions: Readonly<Record<string, readonly PermissionRequest[]>>;
   forms: Readonly<Record<string, readonly FormInfo[]>>;
@@ -132,9 +143,23 @@ export class OpenCodeStore {
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
   private connectSeq = 0;
   private recentModels: ModelRef[] = [];
-  recent() {return this.recentModels as readonly ModelRef[];}
-  toggleFavorite(key:string) {this.set(s=>({favorites:s.favorites.includes(key)?s.favorites.filter(k=>k!==key):[key,...s.favorites]}));}
-  private commands = new Set<string>();
+  recent() {
+    return this.recentModels as readonly ModelRef[];
+  }
+  toggleFavorite(key: string) {
+    this.set((s) => ({ favorites: s.favorites.includes(key) ? s.favorites.filter((k) => k !== key) : [key, ...s.favorites] }));
+  }
+  togglePin(id: string) {
+    this.set((s) => ({ pins: s.pins.includes(id) ? s.pins.filter((k) => k !== id) : [id, ...s.pins] }));
+  }
+  private catalogSeq = 0;
+  composer: ((action: "queue" | "stash") => void) | null = null;
+  stash(text: string, marks: readonly Attachment[]) {
+    this.set((s) => ({ stashes: [{ text, marks }, ...s.stashes].slice(0, 8) }));
+  }
+  dropStash(index: number) {
+    this.set((s) => ({ stashes: s.stashes.filter((_, i) => i !== index) }));
+  }
   private currentSession: string | null = null;
   private requestReads = new Map<string, Set<string>>();
 
@@ -153,16 +178,23 @@ export class OpenCodeStore {
       missing: {},
       busy: {},
       agents: DEFAULT_AGENTS,
+      commands: [],
+      skills: [],
+      mentionAgents: [],
       models: [],
       agent: "build",
       model: null,
       ui: { sidebar: null, toolDetails: false, thinking: false, groupExploration: true },
       toast: null,
       history: [],
+      pins: [],
+      stashes: [],
       favorites: [],
       permissions: {},
       forms: {},
       parents: {},
+      jump: undefined,
+      restore: undefined,
     };
   }
 
@@ -214,7 +246,7 @@ export class OpenCodeStore {
   async connect(endpoint?: string | null, persist = false): Promise<ConnectionState> {
     const seq = ++this.connectSeq;
     this.recentModels = [];
-    this.commands.clear();
+    this.catalogSeq++;
     this.requestReads.clear();
     this.currentSession = null;
     this.drafts.clear();
@@ -223,8 +255,19 @@ export class OpenCodeStore {
     this.unsubscribe?.();
     this.unsubscribe = null;
     if (persist) saveEndpoint(endpoint ?? null);
-    this.set({ connection: { status: "connecting", kind: null, mode: null, label: endpoint === "demo" ? "demo" : (endpoint ?? ""), live: false } });
-    const conn = this.options.client && endpoint === undefined ? { client: this.options.client } : await connectOpenCode({ endpoint: endpoint === undefined ? savedEndpoint() : endpoint });
+    this.set({
+      connection: {
+        status: "connecting",
+        kind: null,
+        mode: null,
+        label: endpoint === "demo" ? "demo" : (endpoint ?? ""),
+        live: false,
+      },
+    });
+    const conn =
+      this.options.client && endpoint === undefined
+        ? { client: this.options.client }
+        : await connectOpenCode({ endpoint: endpoint === undefined ? savedEndpoint() : endpoint });
     if (seq !== this.connectSeq) return this.state.connection;
     const client = conn.client;
     this.client = client;
@@ -244,26 +287,39 @@ export class OpenCodeStore {
       },
       sessions: [],
       sessionsLoaded: false,
+      commands: [],
+      skills: [],
+      mentionAgents: [],
       messages: {},
       loaded: {},
       missing: {},
       busy: {},
       model: null,
       history: [],
+      pins: [],
+      stashes: [],
       favorites: [],
+      restore: undefined,
+      answer: undefined,
+      jump: undefined,
       permissions: {},
       forms: {},
       parents: {},
     });
     let disconnected = false;
     this.unsubscribe = client.subscribe(
-      (e) => {if (client === this.client) this.handle(e);},
+      (e) => {
+        if (client === this.client) this.handle(e);
+      },
       (s) => {
-        if(client !== this.client) return;
+        if (client !== this.client) return;
         this.set((st) => ({ connection: { ...st.connection, live: s === "open" } }));
-        if(s === "open" && disconnected) {
+        if (s === "open" && disconnected) {
           void this.syncRequests("global");
-          if(this.currentSession){void this.syncRequests(this.currentSession); void this.reloadMessages(this.currentSession);}
+          if (this.currentSession) {
+            void this.syncRequests(this.currentSession);
+            void this.reloadMessages(this.currentSession);
+          }
         }
         disconnected = s === "closed";
       },
@@ -272,17 +328,32 @@ export class OpenCodeStore {
     return this.state.connection;
   }
 
+  async refreshCommands(directory?: string): Promise<void> {
+    const client = this.client,
+      seq = ++this.catalogSeq;
+    const [commands, skills] = await Promise.all([
+      client?.commands?.(directory).catch(() => []) ?? [],
+      client?.skills?.(directory).catch(() => []) ?? [],
+    ]);
+    if (client === this.client && seq === this.catalogSeq) this.set({ commands, skills });
+  }
+
   private async loadCatalog(): Promise<void> {
     const client = this.client;
     if (!client) return;
-    const [agents, models, model, commands] = await Promise.all([client.agents().catch(() => []), client.models().catch(() => []), client.defaultModel().catch(() => null), client.commands?.().catch(() => []) ?? []]);
+    const [agents, models, model] = await Promise.all([
+      client.agents().catch(() => []),
+      client.models().catch(() => []),
+      client.defaultModel().catch(() => null),
+      this.refreshCommands(this.currentSession ? this.session(this.currentSession)?.directory : undefined),
+    ]);
     if (client !== this.client) return;
-    this.commands = new Set(commands);
-    const primary = agents.length > 0 ? agents : DEFAULT_AGENTS;
+    const primary = agents.some((a) => a.mode !== "subagent") ? agents.filter((a) => a.mode !== "subagent") : DEFAULT_AGENTS;
     const directory = this.state.connection.directory ?? (await client.info().catch(() => null))?.directory;
     if (client !== this.client) return;
     this.set((s) => ({
       agents: primary,
+      mentionAgents: agents.filter((a) => a.mode && a.mode !== "primary"),
       models,
       model: s.model ?? model ?? (models[0] ? { id: models[0].id, providerID: models[0].providerID } : null),
       agent: primary.some((a) => a.id === s.agent) ? s.agent : (primary[0]?.id ?? "build"),
@@ -300,7 +371,8 @@ export class OpenCodeStore {
         // Keep locally derived titles until the server names the session.
         const sessions = fetched.map((x) => (x.title ? x : { ...x, title: s.sessions.find((p) => p.id === x.id)?.title }));
         const busy = { ...s.busy };
-        for (const x of sessions) if (x.time.busy !== undefined && (x.time.idle ?? 0) < x.time.busy && busy[x.id] === undefined) busy[x.id] = true;
+        for (const x of sessions)
+          if (x.time.busy !== undefined && (x.time.idle ?? 0) < x.time.busy && busy[x.id] === undefined) busy[x.id] = true;
         const parents = { ...s.parents };
         for (const x of sessions) parents[x.id] = x.parentID ?? null;
         return { sessions, sessionsLoaded: true, busy, parents };
@@ -347,7 +419,8 @@ export class OpenCodeStore {
     if (sess) this.set((s) => ({ parents: { ...s.parents, [id]: sess.parentID ?? null } }));
     this.tabs.visit(id);
     const draft = this.drafts.get(id);
-    const agent = draft?.agent ?? sess?.agent, model = draft?.model ?? sess?.model;
+    const agent = draft?.agent ?? sess?.agent,
+      model = draft?.model ?? sess?.model;
     if (agent) this.set({ agent });
     if (model) this.set({ model });
     void this.syncRequests(id);
@@ -363,27 +436,36 @@ export class OpenCodeStore {
     this.requestReads.set(id, touched);
     // A subagent may itself delegate. Hydrate descendants already waiting at
     // mount, not just future permission.asked events. Bound concurrent reads.
-    const children: SessionInfo[] = [], queue = [id], seen = new Set(queue);
-    if (id !== "global" && client.children) while (queue.length) {
-      const parents = queue.splice(0, 6);
-      const pages = await Promise.all(parents.map(parent=>client.children!(parent).catch(()=>[])));
-      if (client !== this.client || this.requestReads.get(id) !== touched) return;
-      for (const [i, page] of pages.entries()) for (const c of page) {
-        if(c.parentID!==parents[i] || seen.has(c.id))continue;
-        seen.add(c.id); children.push(c); queue.push(c.id);
+    const children: SessionInfo[] = [],
+      queue = [id],
+      seen = new Set(queue);
+    if (id !== "global" && client.children)
+      while (queue.length) {
+        const parents = queue.splice(0, 6);
+        const pages = await Promise.all(parents.map((parent) => client.children!(parent).catch(() => [])));
+        if (client !== this.client || this.requestReads.get(id) !== touched) return;
+        for (const [i, page] of pages.entries())
+          for (const c of page) {
+            if (c.parentID !== parents[i] || seen.has(c.id)) continue;
+            seen.add(c.id);
+            children.push(c);
+            queue.push(c.id);
+          }
       }
-    }
     if (client !== this.client) return;
     const ids = [id, ...children.map((c) => c.id)];
     const [permissions, forms] = await Promise.all([
-      Promise.all(ids.map((sid) => sid === "global" ? null : client.permissions?.(sid).catch(() => null) ?? null)),
+      Promise.all(ids.map((sid) => (sid === "global" ? null : (client.permissions?.(sid).catch(() => null) ?? null)))),
       Promise.all(ids.map((sid) => client.forms?.(sid).catch(() => null) ?? null)),
     ]);
     if (client !== this.client || this.requestReads.get(id) !== touched) return;
     this.requestReads.delete(id);
     const merge = <T extends { id: string }>(remote: readonly T[], live: readonly T[] = []) => {
-      const existing = new Map(live.map(item=>[item.id,item]));
-      return [...remote.filter(r=>!touched.has(r.id)).map(r=>existing.get(r.id) ?? r), ...live.filter(r=>touched.has(r.id))];
+      const existing = new Map(live.map((item) => [item.id, item]));
+      return [
+        ...remote.filter((r) => !touched.has(r.id)).map((r) => existing.get(r.id) ?? r),
+        ...live.filter((r) => touched.has(r.id)),
+      ];
     };
     this.set((s) => {
       const nextPermissions = { ...s.permissions };
@@ -391,8 +473,16 @@ export class OpenCodeStore {
       const parents = { ...s.parents };
       for (const c of children) parents[c.id] = c.parentID ?? null;
       ids.forEach((sid, i) => {
-        if (permissions[i]) nextPermissions[sid] = merge(permissions[i]!.filter((p) => p.sessionID === sid), s.permissions[sid]);
-        if (forms[i]) nextForms[sid] = merge(forms[i]!.filter((f) => f.sessionID === sid), s.forms[sid]);
+        if (permissions[i])
+          nextPermissions[sid] = merge(
+            permissions[i]!.filter((p) => p.sessionID === sid),
+            s.permissions[sid],
+          );
+        if (forms[i])
+          nextForms[sid] = merge(
+            forms[i]!.filter((f) => f.sessionID === sid),
+            s.forms[sid],
+          );
       });
       return { permissions: nextPermissions, forms: nextForms, parents };
     });
@@ -403,7 +493,7 @@ export class OpenCodeStore {
     const client = this.client;
     let current: string | undefined = id;
     for (let i = 0; i < 8 && current && this.state.parents[current] === undefined; i++) {
-      const info: SessionInfo | null = await client?.session(current).catch(() => null) ?? null;
+      const info: SessionInfo | null = (await client?.session(current).catch(() => null)) ?? null;
       if (client !== this.client || !info) return;
       const parent: string | null = info.parentID ?? null;
       const key: string = current;
@@ -431,7 +521,7 @@ export class OpenCodeStore {
   async replyForm(form: FormInfo, answer: FormAnswer): Promise<string | null> {
     const client = this.client;
     if (!client?.replyForm) return "Forms are unavailable on this server";
-    if (!this.state.forms[form.sessionID]?.some(f=>f.id===form.id)) return null;
+    if (!this.state.forms[form.sessionID]?.some((f) => f.id === form.id)) return null;
     try {
       await client.replyForm(form.sessionID, form.id, answer);
     } catch (error) {
@@ -444,7 +534,7 @@ export class OpenCodeStore {
   async cancelForm(form: FormInfo): Promise<string | null> {
     const client = this.client;
     if (!client?.cancelForm) return "Forms are unavailable on this server";
-    if (!this.state.forms[form.sessionID]?.some(f=>f.id===form.id)) return null;
+    if (!this.state.forms[form.sessionID]?.some((f) => f.id === form.id)) return null;
     try {
       await client.cancelForm(form.sessionID, form.id);
     } catch (error) {
@@ -458,7 +548,9 @@ export class OpenCodeStore {
     this.touchRequest(requestID);
     const list = this.state.permissions[sessionID];
     if (!list?.some((r) => r.id === requestID)) return;
-    this.set((s) => ({ permissions: { ...s.permissions, [sessionID]: (s.permissions[sessionID] ?? []).filter((r) => r.id !== requestID) } }));
+    this.set((s) => ({
+      permissions: { ...s.permissions, [sessionID]: (s.permissions[sessionID] ?? []).filter((r) => r.id !== requestID) },
+    }));
   }
 
   private dropForm(sessionID: string, formID: string): void {
@@ -474,7 +566,10 @@ export class OpenCodeStore {
     try {
       const fetched = await client.messages(id);
       if (client !== this.client) return;
-      this.set((s) => ({ messages: { ...s.messages, [id]: mergeMessages(s.messages[id] ?? [], fetched) }, loaded: { ...s.loaded, [id]: true } }));
+      this.set((s) => ({
+        messages: { ...s.messages, [id]: mergeMessages(s.messages[id] ?? [], fetched) },
+        loaded: { ...s.loaded, [id]: true },
+      }));
     } catch (error) {
       this.set((s) => ({ loaded: { ...s.loaded, [id]: true } }));
       this.notify(`Couldn't load messages: ${error instanceof Error ? error.message : String(error)}`, "danger");
@@ -495,11 +590,46 @@ export class OpenCodeStore {
   }
 
   /** Create a session for `text` (when `sessionID` is null) and prompt it. Resolves with the session id once created. */
-  async send(sessionID: string | null, text: string, mode: "prompt" | "shell" = "prompt"): Promise<string | null> {
+  async send(
+    sessionID: string | null,
+    text: string,
+    mode: "prompt" | "shell" = "prompt",
+    options: PromptOptions = {},
+  ): Promise<string | null> {
     const client = this.client;
     const body = text.trim();
     if (!client || body.length === 0) return null;
+    const head = /^\/([^\s]+)(?:\s+([\s\S]*))?$/.exec(body);
+    if (mode === "prompt" && head?.[1] === "btw") {
+      if (!sessionID || !client.aside || !head[2]) {
+        this.notify(!sessionID ? "Open a session first" : "Use /btw followed by a question on a V2 server", "warning");
+        return null;
+      }
+      this.notify("/btw");
+      void client.aside(sessionID, head[2]).then(
+        (text) => {
+          if (client === this.client) this.set({ answer: { sessionID, text } });
+        },
+        (e) => {
+          if (client === this.client) this.notify(String(e), "danger");
+        },
+      );
+      return null;
+    }
+    if (
+      mode === "prompt" &&
+      head &&
+      !["rename", "compact"].includes(head[1]!) &&
+      !this.state.commands.some((c) => c.name === head[1])
+    ) {
+      this.notify(`Unknown command: /${head[1]}`, "warning");
+      return null;
+    }
     const { agent, model } = this.state;
+    if (options.delivery === "queue" && client.kind === "v1") {
+      this.notify("Queued prompts require a V2 server", "warning");
+      return null;
+    }
     // Local actions are never model prompts. In particular, don't turn a
     // failed/missing route or an unsupported backend into an accidental send.
     const rename = /^\/rename(?:\s+([\s\S]+))?$/.exec(body);
@@ -528,46 +658,133 @@ export class OpenCodeStore {
         if (client !== this.client) return null;
         id = s.id;
         const created = s;
-        this.set((st) => ({ sessions: [created, ...st.sessions.filter((x) => x.id !== created.id)], messages: { ...st.messages, [created.id]: [] }, loaded: { ...st.loaded, [created.id]: true } }));
+        this.set((st) => ({
+          sessions: [created, ...st.sessions.filter((x) => x.id !== created.id)],
+          messages: { ...st.messages, [created.id]: [] },
+          loaded: { ...st.loaded, [created.id]: true },
+        }));
       } else if (mode === "prompt") {
         const sess = this.session(id);
+        if (sess?.revertedFrom && client.commitRevert) {
+          await client.commitRevert(id);
+          if (client !== this.client) return null;
+          this.patchSession(id, { revertedFrom: undefined });
+          await this.reloadMessages(id);
+        }
         if (sess && sess.agent !== agent) await client.setAgent(id, agent);
         if (client !== this.client) return null;
-        if (sess && model && (sess.model?.id !== model.id || sess.model?.providerID !== model.providerID || sess.model.variant !== model.variant)) await client.setModel(id, model);
+        if (
+          sess &&
+          model &&
+          (sess.model?.id !== model.id || sess.model?.providerID !== model.providerID || sess.model.variant !== model.variant)
+        )
+          await client.setModel(id, model);
         if (client !== this.client) return null;
       }
     } catch (error) {
-      if (client === this.client) this.notify(`Couldn't prepare session: ${error instanceof Error ? error.message : String(error)}`, "danger");
+      if (client === this.client)
+        this.notify(`Couldn't prepare session: ${error instanceof Error ? error.message : String(error)}`, "danger");
       return null;
     }
     const target = id;
     if (mode === "shell") {
       // Only the deliberate shell-mode keystroke enters this branch. Never
       // execute on the client host or reinterpret pasted !text as a command.
-      void client.shell!(target, body).then(() => {
-        if (client === this.client) void this.reloadMessages(target);
-      }, (error) => {
-        if (client === this.client) this.notify(`Failed to run shell command: ${error instanceof Error ? error.message : String(error)}`, "danger");
-      });
+      void client.shell!(target, body, agent).then(
+        () => {
+          if (client === this.client) void this.reloadMessages(target);
+        },
+        (error) => {
+          if (client === this.client)
+            this.notify(`Failed to run shell command: ${error instanceof Error ? error.message : String(error)}`, "danger");
+        },
+      );
       return target;
     }
-    const pending: SessionMessage = { type: "user", id: `pending_${Date.now().toString(36)}`, time: { created: Date.now() }, text: body, pending: true };
+    const files = options.attachments?.flatMap((a) => (a.kind === "file" ? [{ name: a.name, mime: a.mime }] : []));
+    const pending: SessionMessage = {
+      type: "user",
+      id: `pending_${Date.now().toString(36)}`,
+      time: { created: Date.now() },
+      text,
+      files,
+      pending: true,
+    };
+    const queued = options.delivery === "queue" && !!this.state.busy[target];
+    if (queued) this.notify("Prompt queued");
     this.set((s) => ({
-      messages: { ...s.messages, [target]: [...(s.messages[target] ?? []), pending] },
+      messages: queued ? s.messages : { ...s.messages, [target]: [...(s.messages[target] ?? []), pending] },
       history: s.history.at(-1) === text ? s.history : [...s.history.slice(-99), text],
       busy: { ...s.busy, [target]: true },
-      sessions: s.sessions.map((x) => (x.id === target ? { ...x, agent, model: model ?? x.model, title: x.title || truncateTitle(body), time: { ...x.time, updated: Date.now() } } : x)),
+      sessions: s.sessions.map((x) =>
+        x.id === target
+          ? {
+              ...x,
+              agent,
+              model: model ?? x.model,
+              title: x.title || truncateTitle(body),
+              time: { ...x.time, updated: Date.now() },
+            }
+          : x,
+      ),
     }));
-    const head = /^\/([^\s]+)(?:\s+([\s\S]*))?$/.exec(body);
-    const send = head?.[1] && this.commands.has(head[1]) && client.command
-      ? client.command(target, head[1], head[2] ?? "")
-      : client.prompt(target, body, { agent, model });
+    const send =
+      head?.[1] && client.command
+        ? client.command(target, head[1], head[2] ?? "", { ...options, agent, model })
+        : client.prompt(target, text, { ...options, agent, model });
     void send.catch((error) => {
       if (client !== this.client) return;
-      this.set((s) => ({ busy: { ...s.busy, [target]: false }, messages: { ...s.messages, [target]: (s.messages[target] ?? []).filter((m) => m !== pending) } }));
+      this.set((s) => ({
+        busy: { ...s.busy, [target]: false },
+        messages: { ...s.messages, [target]: (s.messages[target] ?? []).filter((m) => m !== pending) },
+      }));
       this.notify(`Prompt failed: ${error instanceof Error ? error.message : String(error)}`, "danger");
     });
     return target;
+  }
+
+  jump(sessionID: string, messageID: string) {
+    this.set({ jump: { sessionID, messageID } });
+  }
+  dismissAnswer() {
+    this.set({ answer: undefined });
+  }
+  restore(sessionID: string, text: string, skill?: string, marks?: readonly Attachment[]) {
+    this.set({ restore: { sessionID, text, skill, marks } });
+  }
+  takeRestore(request: StoreState["restore"]) {
+    if (this.state.restore === request) this.set({ restore: undefined });
+  }
+  async revert(id: string, redo = false, before?: string) {
+    const client = this.client,
+      messages = this.state.messages[id] ?? [],
+      boundary = this.session(id)?.revertedFrom;
+    if (this.state.busy[id]) {
+      this.notify("Interrupt the session first", "warning");
+      return;
+    }
+    try {
+      if (redo) {
+        if (!client?.redo || !boundary) throw Error("Nothing to redo");
+        await client.redo(id);
+      } else {
+        const idx = messages.findIndex((m) => m.id === boundary);
+        const msg = before
+          ? messages.find((m) => m.id === before)
+          : messages
+              .slice(0, idx < 0 ? messages.length : idx)
+              .reverse()
+              .find((m) => m.type === "user");
+        if (!client?.revert || !msg || msg.type !== "user" || msg.pending) throw Error("Nothing to undo");
+        await client.revert(id, msg.id);
+        if (client !== this.client) return;
+        this.restore(id, msg.text, undefined, msg.mentions);
+        before = msg.id;
+      }
+      if (client === this.client) this.patchSession(id, { revertedFrom: redo ? undefined : before });
+    } catch (e) {
+      if (client === this.client) this.notify(e instanceof Error ? e.message : String(e), "warning");
+    }
   }
 
   async interrupt(sessionID: string): Promise<void> {
@@ -588,17 +805,19 @@ export class OpenCodeStore {
     this.set({ agent });
   }
 
-  cycleAgent(sessionID?: string | null): void {
+  cycleAgent(sessionID?: string | null, direction = 1): void {
     const list = this.state.agents.length > 0 ? this.state.agents : DEFAULT_AGENTS;
     const idx = list.findIndex((a) => a.id === this.state.agent);
-    const next = list[(idx + 1) % list.length]?.id ?? "build";
+    const next = list[(idx + direction + list.length) % list.length]?.id ?? "build";
     void this.setAgent(next, sessionID);
   }
 
   async setModel(model: ModelRef, sessionID?: string | null, remember = true): Promise<void> {
     if (remember) {
       const recent = [model, ...(this.state.model ? [this.state.model] : []), ...this.recentModels];
-      this.recentModels = recent.filter((m, i) => recent.findIndex((o) => o.id === m.id && o.providerID === m.providerID) === i).slice(0, 10);
+      this.recentModels = recent
+        .filter((m, i) => recent.findIndex((o) => o.id === m.id && o.providerID === m.providerID) === i)
+        .slice(0, 10);
     }
     if (sessionID) this.drafts.set(sessionID, { ...this.drafts.get(sessionID), model });
     this.set({ model });
@@ -613,7 +832,9 @@ export class OpenCodeStore {
   }
 
   variants(): string[] {
-    return this.state.models.find((m) => m.id === this.state.model?.id && m.providerID === this.state.model.providerID)?.variants ?? [];
+    return (
+      this.state.models.find((m) => m.id === this.state.model?.id && m.providerID === this.state.model.providerID)?.variants ?? []
+    );
   }
 
   cycleVariant(sessionID?: string | null): void {
@@ -642,6 +863,13 @@ export class OpenCodeStore {
     switch (e.type) {
       case "connected":
         return;
+      case "catalog.changed":
+        void this.loadCatalog();
+        return;
+      case "revert.changed":
+        this.patchSession(e.sessionID, { revertedFrom: e.before });
+        if (e.committed) this.scheduleReload(e.sessionID);
+        return;
       case "sessions.changed":
         void this.refreshSessions();
         return;
@@ -652,7 +880,8 @@ export class OpenCodeStore {
         this.patchSession(e.sessionID, { agent: e.agent });
         return;
       case "session.usage":
-        this.patchSession(e.sessionID,{cost:e.cost});return;
+        this.patchSession(e.sessionID, { cost: e.cost });
+        return;
       case "session.model":
         this.patchSession(e.sessionID, { model: e.model });
         return;
@@ -663,7 +892,10 @@ export class OpenCodeStore {
         return;
       case "execution.ended":
         this.set((s) => ({ busy: { ...s.busy, [e.sessionID]: false } }));
-        this.patchSession(e.sessionID, { outcome: e.outcome, time: { ...(this.session(e.sessionID)?.time ?? { created: Date.now() }), updated: Date.now(), idle: Date.now() } });
+        this.patchSession(e.sessionID, {
+          outcome: e.outcome,
+          time: { ...(this.session(e.sessionID)?.time ?? { created: Date.now() }), updated: Date.now(), idle: Date.now() },
+        });
         if (e.outcome === "failed" && e.error) this.notify(e.error, "danger");
         this.scheduleReload(e.sessionID, 120);
         return;
@@ -674,7 +906,9 @@ export class OpenCodeStore {
         const { request } = e;
         this.touchRequest(request.id);
         if (this.state.permissions[request.sessionID]?.some((r) => r.id === request.id)) return;
-        this.set((s) => ({ permissions: { ...s.permissions, [request.sessionID]: [...(s.permissions[request.sessionID] ?? []), request] } }));
+        this.set((s) => ({
+          permissions: { ...s.permissions, [request.sessionID]: [...(s.permissions[request.sessionID] ?? []), request] },
+        }));
         void this.learnParents(request.sessionID);
         return;
       }
@@ -686,7 +920,7 @@ export class OpenCodeStore {
         this.touchRequest(form.id);
         if (this.state.forms[form.sessionID]?.some((f) => f.id === form.id)) return;
         this.set((s) => ({ forms: { ...s.forms, [form.sessionID]: [...(s.forms[form.sessionID] ?? []), form] } }));
-        if(form.sessionID!=="global")void this.learnParents(form.sessionID);
+        if (form.sessionID !== "global") void this.learnParents(form.sessionID);
         return;
       }
       case "form.settled":
@@ -708,7 +942,14 @@ export class OpenCodeStore {
     if (e.type === "step.started") {
       const existing = list.find((m) => m.id === e.messageID);
       if (existing) return;
-      const msg: AssistantMessage = { type: "assistant", id: e.messageID, time: { created: e.started }, agent: e.agent, model: e.model, content: [] };
+      const msg: AssistantMessage = {
+        type: "assistant",
+        id: e.messageID,
+        time: { created: e.started },
+        agent: e.agent,
+        model: e.model,
+        content: [],
+      };
       this.set((s) => ({
         messages: { ...s.messages, [e.sessionID]: [...list, msg] },
         busy: { ...s.busy, [e.sessionID]: true },

@@ -9,6 +9,7 @@ import { patchFiles } from "../lib/tool-data";
 import { DispatchAction, type Action } from "../lib/commands";
 import { HelpDialog, Palette, type PaletteKind } from "./Palette";
 import { ContextSidebar } from "./ContextSidebar";
+import { Review } from "./Review";
 import { tint } from "./Logo";
 
 export function useActiveSessionId(): string | null {
@@ -33,6 +34,8 @@ function SessionShell({ children }: { children?: ReactNode }) {
   const sidebar = useStoreState((s) => s.ui.sidebar),
     parent = useStoreState((s) => active && s.parents[active]);
   const open = useStoreState(() => store.tabs.list());
+  const answer = useStoreState((s) => (s.answer?.sessionID === active ? s.answer : undefined));
+  const v1 = useStoreState((s) => s.connection.kind === "v1");
   const [palette, setPalette] = useState<PaletteKind | null>(null),
     [help, setHelp] = useState(false);
   const { copy } = useClipboard();
@@ -41,8 +44,35 @@ function SessionShell({ children }: { children?: ReactNode }) {
     (action: Action) => {
       if (action === "exit") {
         if (!store.exitToHost()) app.exit();
-      } else if (action === "new") router.push("/");
-      else if (action === "help") setHelp(true);
+      } else if (action === "new" || action === "clear") {
+        if (action === "clear" && active) store.tabs.close(active);
+        router.push("/");
+      } else if (action === "editor") store.notify("External editor requires the native CLI.", "warning");
+      else if (action === "reload") {
+        const dir = active ? store.session(active)?.directory : store.getSnapshot().connection.directory;
+        void (async () => {
+          await store.api?.reload?.(dir);
+          await Promise.all([store.refreshSessions(), store.refreshCommands(dir)]);
+          store.notify("Reloaded");
+        })().catch((e) => store.notify(String(e), "danger"));
+      } else if (
+        ["undo", "redo", "timeline", "export", "copy", "details", "share", "unshare", "compact", "fork"].includes(action) &&
+        !active
+      )
+        store.notify("Open a session first", "warning");
+      else if (action === "undo" || action === "redo") void store.revert(active!, action === "redo");
+      else if (action === "details") store.toggle("toolDetails");
+      else if (action === "reasoning") store.toggle("thinking");
+      else if (action === "compact") void store.send(active, "/compact");
+      else if (action === "share" && !store.api?.share) store.notify("This server does not support session sharing.", "warning");
+      else if (action === "unshare") {
+        if (!store.api?.unshare) store.notify("This server does not support session sharing.", "warning");
+        else
+          void store.api.unshare(active!).then(
+            () => store.notify("Session unshared"),
+            (e) => store.notify(String(e), "danger"),
+          );
+      } else if (action === "help") setHelp(true);
       else if (action === "copy") {
         const msg =
           active &&
@@ -79,6 +109,15 @@ function SessionShell({ children }: { children?: ReactNode }) {
       "ctrl+x m": () => dispatch("models"),
       "ctrl+x a": () => dispatch("agents"),
       "ctrl+x y": () => dispatch("copy"),
+      "ctrl+x g": () => dispatch("timeline"),
+      "ctrl+x x": () => dispatch("export"),
+      "ctrl+x u": () => dispatch("undo"),
+      "ctrl+x r": () => dispatch("redo"),
+      "ctrl+x c": () => dispatch("compact"),
+      "ctrl+x e": () => dispatch("editor"),
+      "ctrl+x s": () => dispatch("status"),
+      "ctrl+x return": () => store.composer?.("queue"),
+      "ctrl+x q": () => (active && store.api?.inbox ? setPalette("queued") : dispatch("exit")),
       "ctrl+tab, alt+down": () => select(store.tabs.cycle(active, 1)),
       "ctrl+shift+tab, alt+up": () => select(store.tabs.cycle(active, -1)),
       "ctrl+shift+t": () => select(store.tabs.reopen()),
@@ -94,7 +133,8 @@ function SessionShell({ children }: { children?: ReactNode }) {
       "ctrl+x b": () => {
         if (active && !parent) store.toggle("sidebar", wide);
       },
-      "shift+tab": () => store.cycleAgent(active),
+      ...(v1 ? { tab: () => store.cycleAgent(active) } : {}),
+      "shift+tab": () => store.cycleAgent(active, v1 ? -1 : 1),
       "ctrl+t": () => store.cycleVariant(active),
       f2: () => store.cycleRecentModel(1, active),
       "shift+f2": () => store.cycleRecentModel(-1, active),
@@ -111,7 +151,12 @@ function SessionShell({ children }: { children?: ReactNode }) {
           </Box>
           {active && !parent && (sidebar ?? wide) && <ContextSidebar id={active} overlay={!wide} />}
         </Box>
-        {palette && <Palette kind={palette} onKind={setPalette} onClose={() => setPalette(null)} />}
+        {palette === "diff" ? (
+          <Review id={active ?? undefined} onClose={() => setPalette(null)} />
+        ) : (
+          palette && <Palette kind={palette} onKind={setPalette} onClose={() => setPalette(null)} />
+        )}
+        {answer && <Review answer={answer.text} onClose={() => store.dismissAnswer()} />}
         {help && <HelpDialog onClose={() => setHelp(false)} />}
       </Box>
     </DispatchAction>

@@ -61,9 +61,9 @@ export default function SessionPage({ params }: { params: Record<string, string 
 
   return (
     <Box flexDirection="column" flexGrow={1} minHeight={0} paddingX={vp.cols<44 ? 1 : 2} paddingBottom={1}>
-      <Timeline interactive={!permission && !form} messages={messages} options={options} busy={busy} loading={!loaded && messages.length === 0} onAway={setAway} />
+      <Timeline sessionID={id} interactive={!permission && !form} messages={messages} options={options} busy={busy} loading={!loaded && messages.length === 0} onAway={setAway} />
       <Box height={1} flexShrink={0} flexDirection="row" justifyContent="flex-end">{away && <Text color={theme.muted}>Jump to latest ↓</Text>}</Box>
-      <Box display={permission || form ? "none" : "flex"} flexDirection="column" flexShrink={0}><Composer sessionID={id} disabled={!!permission || !!form} busy={busy} interruptArmed={armed} placeholder="" onSubmit={(text, mode) => void store.send(id, text, mode)} /></Box>
+      <Box display={permission || form ? "none" : "flex"} flexDirection="column" flexShrink={0}><Composer key={id} sessionID={id} disabled={!!permission || !!form} busy={busy} interruptArmed={armed} placeholder="" onSubmit={(text, mode, options) => void store.send(id, text, mode, options)} /></Box>
       {permission ? <PermissionPrompt key={permission.id} request={permission} child={permission.sessionID !== id} /> : form ? <FormPrompt key={form.id} form={form} /> : null}
     </Box>
   );

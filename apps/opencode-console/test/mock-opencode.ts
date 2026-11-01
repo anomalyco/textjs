@@ -111,6 +111,10 @@ export function startMockOpenCode(options: { password?: string; connectedProvide
       if(path === "/api/provider")return Response.json({data:[{id:"anthropic",name:"Anthropic"},{id:"openai",name:"OpenAI"}]});
       if(path === "/api/integration")return Response.json({data:[{id:"anthropic",name:"Anthropic",connections:options.connectedProvider?[{type:"env"}]:[]}]});
       if (path === "/api/command") return Response.json({ data: [{ name: "review", description: "Review changes" }] });
+      if(path === "/api/fs/find") {
+        const paths=[{path:"src",type:"directory"},{path:"src/cart badge.ts",type:"file"},{path:"README.md",type:"file"}];
+        return Response.json({location:{directory:"/fixture"},data:paths.filter(f=>f.path.startsWith(url.searchParams.get("query")??""))});
+      }
       if (path === "/api/agent")
         return Response.json({
           location: { directory: DIR },
