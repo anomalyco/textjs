@@ -327,6 +327,12 @@ if (import.meta.main) {
   } else {
     for (const s of SHOTS) if (!only.length || only.some((o) => s.name.startsWith(o))) await write(s, true);
     for (const s of NAPE_SHOTS) if (!only.length || only.some((o) => s.name.startsWith(o))) await write(s, false);
+    try {
+      const { encodeSiteImages } = await import("./encode-site-images");
+      encodeSiteImages(only);
+    } catch {
+      // Keeps canvas-encoded fallback if neither cwebp nor ffmpeg+libwebp is installed locally.
+    }
   }
   await close();
 }
