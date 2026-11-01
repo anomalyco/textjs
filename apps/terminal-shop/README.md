@@ -1,6 +1,6 @@
 # ▼ terminal
 
-A Text.js port of [terminal.shop](https://www.terminal.shop)'s SSH shop (Go + Bubble Tea, [`terminaldotshop/terminal`](https://github.com/terminaldotshop/terminal) `packages/go/pkg/tui`). It renders the shop's 80 × 30 "large" layout in the DevTools console and orders coffee through the real Terminal API.
+A Text.js port of [terminal.shop](https://www.terminal.shop)'s SSH shop (Go + Bubble Tea, [`terminaldotshop/terminal`](https://github.com/terminaldotshop/terminal) `packages/go/pkg/tui`). It renders the shop in the DevTools console, with the same small, medium and large layouts as the SSH app, and orders coffee through the real Terminal API. [PARITY.md](PARITY.md) lists every feature of the SSH app and how this port matches it.
 
 ```bash
 bun run dev:terminal                         # from the repo root → http://localhost:3002
@@ -45,8 +45,8 @@ Then go to **a account → debug info**, press **e**, answer **y**, and sign in 
 
 [textjs.org/coffee](https://textjs.org/coffee) runs this same app in the site's console companion (`embed.tsx` → `apps/web/src/demos/terminal.tsx`). It differs in three ways:
 
-- **Sign in uses Terminal's OAuth.** There's no token paste or API key. Cloudflare Pages Functions in `apps/web/functions/` (logic in `apps/web/server/terminal-session.ts`) run the authorization code + PKCE flow. They keep the tokens in a `__Host-` cookie (httpOnly, Secure, SameSite=Lax), so page JavaScript never sees one. The cookie is sealed with AES-256-GCM, so other `*.textjs.org` hosts can't plant, read or forge it. The proxy never forwards anything that mints a long-lived credential: new access tokens and OAuth apps come from `ssh terminal.shop -t tokens` / `-t apps`. Terminal's OpenAuth issuer treats apps as public clients: the token exchange sends `client_id`, `redirect_uri` and the PKCE verifier, with no client secret.
-- **Production by default.** It's the real store. Products are public, so you can browse signed out. Cart, account and checkout ask you to sign in. Placing a real order, or subscribing to one, needs one more key: a letter that changes every time and appears only in the console frame. A key script like "press enter, then y" can't buy anything for someone who can't see the console, and held-down keys never confirm. Links (and the sign in round trip) only open the shop, cart, account or menu, never a checkout step. Cards are still entered only on Terminal's hosted card page.
+- **Sign in uses Terminal's OAuth.** There's no token paste or API key. Cloudflare Pages Functions in `apps/web/functions/` (logic in `apps/web/server/terminal-session.ts`) run the authorization code + PKCE flow. They keep the tokens in a `__Host-` cookie (httpOnly, Secure, SameSite=Lax), so page JavaScript never sees one. The cookie is sealed with AES-256-GCM, so other `*.textjs.org` hosts can't plant, read or forge it. By default the proxy never forwards anything that mints a long-lived credential: new access tokens and OAuth apps come from `ssh terminal.shop -t tokens` / `-t apps`. Set `TERMINAL_ALLOW_CREDENTIALS=1` to let signed-in visitors create them in the console (each one takes the console-only confirmation letter described below). Terminal's OpenAuth issuer treats apps as public clients: the token exchange sends `client_id`, `redirect_uri` and the PKCE verifier, with no client secret.
+- **Production by default.** It's the real store. Products, the menu, the cart page and the account's faq, about and debug info are public, so you can browse signed out. Adding to the cart, checkout and each account section ask you to sign in, and come back to where you were. Placing a real order, or subscribing to one, needs one more key: a letter that changes every time and appears only in the console frame. A key script like "press enter, then y" can't buy anything for someone who can't see the console, and held-down keys never confirm. Links (and the sign in round trip) only open the shop, cart, account or menu, never a checkout step. Cards are still entered only on Terminal's hosted card page.
 - **Fixed environment.** A deployment talks to one Terminal (`TERMINAL_ENVIRONMENT`, default `prod`), so `e` doesn't switch.
 
 Configuration (Pages environment):
@@ -55,6 +55,7 @@ Configuration (Pages environment):
 | --- | --- |
 | `TERMINAL_COOKIE_SECRET` | Required in production (a Pages secret): at least 32 random bytes, e.g. `openssl rand -base64 32`. Seals the session cookies. Without it, sign in stays off (browsing still works). On `localhost`, a random key is generated per process. Changing it signs everyone out. |
 | `TERMINAL_CLIENT_ID` | Required in production. The id of the registered "textjs.org" Terminal app (below). Without it, sign in says it isn't set up and browsing still works. On `localhost`, `textjs-local` is used, because Terminal accepts localhost redirects for any client id. |
+| `TERMINAL_ALLOW_CREDENTIALS` | `1` lets signed-in visitors create personal access tokens and OAuth apps from the console. Off by default. |
 | `TERMINAL_ENVIRONMENT` | `prod` (default) or `dev` (sandbox, for preview deployments). Anything else fails closed. |
 | `TERMINAL_API_URL`, `TERMINAL_AUTH_URL` | Local e2e only: point at `apps/web/scripts/terminal-mock.ts` |
 
@@ -96,10 +97,23 @@ Same bindings as the SSH shop:
 | payment via browser | `enter` opens the link (or click it in the console, or scan the QR code) |
 | confirm | `enter` places the order · `esc` back |
 | after ordering | `+/-` weeks · `enter` subscribe · `esc` skip |
-| account | `↑/↓` sections · `enter`/`→` open · `esc`/`←` back; orders `x` cancel, `a` edit address; subscriptions `e` address, `c` card, `x` cancel; tokens/apps `enter` create, `x` revoke |
+| account | `↑/↓` sections · `enter`/`→` open · `esc`/`←` back · `pgup/pgdn` scroll; orders `x` cancel, `a` edit address; subscriptions `e` address, `c` card, `+/-` then `enter` schedule, `x` cancel; tokens/apps `enter` create, `x` revoke; payment methods `enter` add, `x` remove; profile `enter` edit name |
 | account → debug info | `e` switch environment · `x` sign out |
 
-Deep links work like `ssh terminal.shop -t <command>`: `/cart`, `/account?page=faq`, `/shop?p=segfault`.
+Deep links work like `ssh terminal.shop -t <command>`: `/cart`, `/account?page=faq`, `/shop?p=segfault`. Account pages: `orders`, `subscriptions`, `tokens`, `apps`, `addresses`, `link-email`, `payment`, `profile`, `faq`, `about`, `debug`.
+
+## Console size
+
+Like the SSH app, the layout follows the window (`root.go`'s `tea.WindowSizeMsg` handler). The container is centered in the console:
+
+| Console | Layout |
+| --- | --- |
+| 80 columns or more | large: 80 wide, up to 30 tall, tabs for shop, account and cart |
+| 50 to 79 columns | medium: 50 wide, up to 30 tall, `m ☰` header, short breadcrumbs |
+| 20 to 49 columns | small: the whole console, `t` and cart header, only `m menu` in the footer |
+| under 20 × 10 | "your terminal is too small" |
+
+Below the large layout the shop and the account stack their two panes, as the SSH app does.
 
 ## How it's built
 
@@ -114,7 +128,7 @@ Each screen is ported from its Go view (`shop.go`, `cart.go`, `shipping.go`, `pa
 | `lib/store.ts` | `tui.model`: `/view/init` data, optimistic cart, checkout state, environment and credentials |
 | `lib/api.ts` | Terminal API client (the `@terminaldotshop/sdk` surface the shop uses) |
 | `lib/auth.ts` | Token storage, OAuth 2.0 + PKCE |
-| `lib/frame.ts` | Header table, breadcrumbs, footer, 80 × 30 frame |
+| `lib/frame.ts` | Size classes, header table, breadcrumbs, footer, the container centered in the console |
 | `lib/form.ts` | `huh` forms (two-column address form) |
 | `lib/qr.ts` | QR encoder plus the `qrfefe` half-block renderer |
 | `server/terminal-proxy.ts` | `/__terminal/{dev,prod}/{api,auth}` proxy |
@@ -129,12 +143,13 @@ The proxy exists because the API's CORS reply (`Access-Control-Allow-Headers: *`
 - **debug info** shows the environment, API and token source instead of the ssh fingerprint. It's also where you switch environments and sign out.
 - **QR code.** qrfefe pads the code's odd last module row with a solid row; this draws the real modules, so the code is the same shape and still decodes.
 - **Order address picker.** Its boxes are 2 columns narrower so their right border isn't clipped.
-- **Only the large layout.** The grid is fixed at 80 × 30, so the small and medium layouts aren't ported.
+- **Account extras.** "payment methods" is the SSH app's own `paymentPage`, which it leaves commented out of its menu. "profile" (change your name, `PUT /profile`) and changing a subscription's weekly schedule (`PUT /subscription/{id}`) use API routes the SSH app doesn't expose. Order tracking also shows the carrier link.
 
 ## Tests
 
 - `test/unit.test.ts` covers the proxy (host, CSRF and production locks, token precedence, no leaks), the client, OAuth/PKCE, the layout helpers, forms, the QR encoder and the store (last-write-wins cart, rejected tokens, production lock).
 - `test/shop.test.tsx` mounts the real `app/` routes. It compares screens with text captured from `ssh terminal.shop` (`test/fixtures/ssh/*.txt`, shop/cart/account/menu, identical), checks theme colors in the cell buffer, and runs checkout end to end against `test/mock-terminal.ts`: address, browser card, idempotent convert with retry, subscribe-after-order, cron, email gate. It also covers account actions, sign in and deep links.
+- `test/responsive.test.tsx` covers each size class, centering, live resizing and `ResizeView`, and compares this port's text with every capture in `parity/ssh/` (see PARITY.md).
 - `test/site.test.tsx` runs the textjs.org mode behind a stand-in for the site's proxy. It covers signed-out browsing, the sign in gates and redirect, the y/n before real orders, sign out and an expired session. It also checks that the embed's route manifest matches `app/`.
 - `scripts/e2e.ts` runs headless Chromium (`bench/devtools`' playwright-core), presses real keys, and decodes every `console.log("%c…")` frame back to text. It checks each frame against the renderer's cell buffer, and writes the frames to `--out` (default `$TMPDIR/terminal-shop-e2e-*`).
   - `--mock` starts an in-memory API behind a fresh dev server.
