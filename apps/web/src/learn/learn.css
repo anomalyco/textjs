@@ -168,6 +168,43 @@
 }
 
 .learn-section-lede kbd,
+/* Narrated chapter video (see video.ts). The frame reserves 16:9 before anything loads. */
+.learn-video {
+  margin: 0 0 40px;
+}
+
+.learn-video-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #000;
+}
+
+.learn-video-frame video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+.learn-video figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.learn-video-meta {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--subtle);
+  font-variant-numeric: tabular-nums;
+}
+
 .learn-live-note kbd {
   height: 20px;
   vertical-align: 1px;

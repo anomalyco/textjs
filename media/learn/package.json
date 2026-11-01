@@ -1,0 +1,9 @@
+{
+  "name": "@textjs/learn-media",
+  "private": true,
+  "type": "module",
+  "description": "Narrated video versions of the /learn chapters: `bun media/learn/render.ts <slug>`.",
+  "dependencies": {
+    "playwright-core": "1.62.1"
+  }
+}

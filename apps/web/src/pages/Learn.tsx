@@ -4,6 +4,7 @@ import { DevtoolsShortcut, Footer } from "../site/Chrome";
 import { ArrowRight } from "../site/icons";
 import { certificateLines, formatCertificateDate, NAME_PLACEHOLDER } from "../learn/certificate";
 import { ChapterBody, chapterHeadings } from "../learn/ChapterBody";
+import { ChapterVideo } from "../learn/ChapterVideo";
 import { CHAPTERS, chapterIndex, chapterNumber, COMPLETE_SLUG, COURSE_APP, getChapter, learnPath, OVERVIEW_HINTS, CERTIFICATE_HINTS, TOTAL_MINUTES, type Chapter } from "../learn/course";
 import { LearnPad } from "../learn/LearnPad";
 import { isCourseComplete, progressStore, useProgress, type Progress } from "../learn/progress";
@@ -173,6 +174,7 @@ function ChapterPage({ chapter }: { chapter: Chapter }): ReactNode {
               <a href="#try-it">try it</a>.
             </span>
           </div>
+          <ChapterVideo slug={chapter.slug} title={chapter.title} />
           <div className="learn-outline">
             <h2>In this chapter</h2>
             <ul>
