@@ -70,6 +70,26 @@ describe("/errors", () => {
     expect(await render("/errors")).toContain("Error Codes</h1>");
   });
 
+  test("TX000 is a site-only Success page", async () => {
+    expect(matchRoute("/errors/TX000")).toEqual({ name: "error", code: "TX000" });
+    expect(matchRoute("/errors/tx000")).toEqual({ name: "error", code: "TX000" });
+    expect(titleFor({ name: "error", code: "TX000" })).toBe("TX000: Success | Text.js");
+    expect(TX_ERRORS.some((e) => e.code === "TX000")).toBe(false);
+    expect(ROUTES.find((r) => r.path === "/errors/TX000")?.noindex).toBe(true);
+    const html = await render("/errors/TX000");
+    expect(html).toContain('<code class="tx-code">TX000</code>');
+    expect(html).toContain(">Success</h1>");
+    expect(html).toContain("TX000<!-- -->:</span> <span>Success.</span>");
+    expect(html).toContain("No error occurred.");
+    expect(html).toContain("No action is needed.");
+    expect(html).toContain("← All error codes");
+    expect(html).toContain('href="/errors/TX001" class="next"');
+    expect(await render("/errors")).not.toContain("TX000");
+    expect(await render("/errors/TX001")).not.toContain("TX000");
+    const sitemap = readFileSync(join(import.meta.dir, "..", "public", "sitemap.xml"), "utf8");
+    expect(sitemap).not.toContain("TX000");
+  });
+
   test("sitemap and footer link", () => {
     const sitemap = readFileSync(join(import.meta.dir, "..", "public", "sitemap.xml"), "utf8");
     expect(sitemap).toContain("<loc>https://textjs.org/errors</loc>");

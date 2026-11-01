@@ -18,6 +18,8 @@ export interface PrerenderRoute {
   description: string;
   /** Canonical URL path when it differs from `path` (/docs/introduction → /docs). */
   canonical?: string;
+  /** Prerendered so the URL returns 200, but kept out of search indexes. */
+  noindex?: boolean;
 }
 
 export const ROUTES: readonly PrerenderRoute[] = [
@@ -31,6 +33,7 @@ export const ROUTES: readonly PrerenderRoute[] = [
   ...LEARN_ROUTES,
   { path: "/errors", title: titleFor({ name: "errors" }), description: "Every Text.js error and warning code, what it means and how to fix it." },
   ...TX_ERRORS.map((e) => ({ path: `/errors/${e.code}`, title: titleFor({ name: "error", code: e.code }), description: `${e.code}: ${e.title}. What it means and how to fix it.` })),
+  { path: "/errors/TX000", title: titleFor({ name: "error", code: "TX000" }), description: "TX000: Success.", noindex: true },
   { path: "/changelog", title: titleFor({ name: "changelog" }), description: "Every notable change to Text.js, release by release." },
   { path: "/blog", title: titleFor({ name: "blog" }), description: "Releases and engineering notes from the Text.js team." },
   ...POSTS.map((p) => ({ path: postPath(p.slug), title: titleFor({ name: "blog-post", slug: p.slug }), description: p.summary })),
