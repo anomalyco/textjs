@@ -38,30 +38,39 @@ try {
     await call("resize", { cols, rows });
     const capture = async (name: string, matched?: Record<string, unknown>) => {
       const frame = matched ?? await call("read_frame", { styles: true, trim: false });
-      const expectedFocus = ["home", "session"].includes(name) ? "opencode-prompt" : `opencode-picker-${name}`;
+      const expectedFocus = ["home", "home-draft", "session", "session-dracula"].includes(name) ? "opencode-prompt" : name === "help" ? "opencode-help" : `opencode-picker-${name}`;
       if ((frame.focus as { id?: string } | null)?.id !== expectedFocus) throw Error(`${name}: expected focus on ${expectedFocus}`);
       await writeFile(`${dir}/${name}-mcp.json`, JSON.stringify(frame));
       await writeFile(`${dir}/${name}-mcp.txt`, String(frame.text) + "\n");
     };
     await capture("home");
+    await call("type",{text:"Review the changes"}); await capture("home-draft"); await press("ctrl+u");
     await call("find", { text: "Ask anything" });
     await press("ctrl+p");
     await capture("commands");
     const tree = await call("inspect_tree", { component: "Palette", format: "json", maxDepth: 4 });
     await writeFile(`${dir}/commands-tree.json`, JSON.stringify(tree));
     await press("escape");
+    for (const name of ["help", "themes"]) {
+      await call("type",{text:`/${name}`}); await press("enter"); await capture(name); await press("escape");
+    }
     for (const [key, name] of [["m", "models"], ["a", "agents"], ["l", "sessions"]]) {
       await press(`ctrl+x ${key}`);
       await capture(name!);
       if (key === "l") {
         await call("type", { text: endpoint ? "Parity fixture" : "Fix cart" });
         await press("enter");
-        await capture("session", await call("wait_for", { text: endpoint ? "Ready" : "99+", href: `/session/${sid ?? "ses_demo_cart"}`, styles: true, trim: false }));
+        await capture("session", await call("wait_for", { text: endpoint ? ["Ready", "~/project:master"] : "99+", href: `/session/${sid ?? "ses_demo_cart"}`, idle: true, styles: true, trim: false }));
+        for(const theme of ["dracula","opencode"]) {
+          await call("type",{text:"/themes"}); await press("enter"); await wait("Themes");
+          await call("type",{text:theme}); await press("enter");
+          if(theme==="dracula")await capture("session-dracula");
+        }
         await call("scroll", { rows: -10 });
         await press("ctrl+x n");
       } else await press("escape");
     }
-    console.log(`MCP ${cols}×${rows}: six styled frames`);
+    console.log(`MCP ${cols}×${rows}: styled route and picker frames captured`);
   }
   if (endpoint) {
     for (const [label, session] of [["permission", permission], ["question", question]]) {

@@ -141,11 +141,23 @@ def main():
                         dest.mkdir(exist_ok=True)
                         for ext, sgr in [('txt', False), ('ansi', True)]:
                             (dest/f'{state}-{name}.{ext}').write_text(screen(name, sgr))
+                        if state == 'home':
+                            tmux('send-keys','-t',name,'-l','Review the changes'); wait(name,'Review the changes'); time.sleep(.1)
+                            for ext,sgr in [('txt',False),('ansi',True)]: (dest/f'home-draft-{name}.{ext}').write_text(screen(name,sgr))
+                            tmux('send-keys','-t',name,'C-u'); wait(name,'Ask anything')
                     tmux('send-keys', '-t', name, 'Escape')
                     time.sleep(.25)
-                    for state, chord, needle in [('models', 'm', 'Select model' if name == 'real' else 'Switch model'),
-                                                 ('agents', 'a', 'Select agent' if name == 'real' else 'Switch agent'),
-                                                 ('sessions', 'l', 'Sessions for' if name == 'real' else 'Switch session')]:
+                    for state, marker in [('help', 'see all available'), ('themes', 'Themes')]:
+                        tmux('send-keys','-t',name,'-l','/'+state)
+                        time.sleep(.2)
+                        tmux('send-keys','-t',name,'Enter')
+                        wait(name,marker)
+                        time.sleep(.25)
+                        for ext,sgr in [('txt', False), ('ansi', True)]:
+                            (dest/f'{state}-{name}.{ext}').write_text(screen(name,sgr))
+                        tmux('send-keys','-t',name,'Escape')
+                        time.sleep(.15)
+                    for state, chord, needle in [('models', 'm', 'Select model'), ('agents', 'a', 'Select agent'), ('sessions', 'l', 'Sessions for')]:
                         tmux('send-keys', '-t', name, 'C-x', chord)
                         wait(name, needle)
                         time.sleep(.15)
@@ -156,14 +168,20 @@ def main():
                             time.sleep(.2)
                             tmux('send-keys', '-t', name, 'Enter')
                             wait(name, 'Ready')
+                            wait(name, '~/project:master')
                             for ext, sgr in [('txt', False), ('ansi', True)]:
                                 (dest/f'session-{name}.{ext}').write_text(screen(name, sgr))
+                            for theme in ['dracula','opencode']:
+                                tmux('send-keys','-t',name,'-l','/themes'); time.sleep(.2); tmux('send-keys','-t',name,'Enter'); wait(name,'Themes')
+                                tmux('send-keys','-t',name,'-l',theme); time.sleep(.25); tmux('send-keys','-t',name,'Enter'); time.sleep(.25)
+                                if theme=='dracula':
+                                    for ext,sgr in [('txt',False),('ansi',True)]: (dest/f'session-dracula-{name}.{ext}').write_text(screen(name,sgr))
                             tmux('send-keys', '-t', name, 'C-x', 'n')
                             wait(name, 'Ask anything')
                         else:
                             tmux('send-keys', '-t', name, 'Escape')
                         time.sleep(.15)
-                for state in ('home', 'commands', 'models', 'agents', 'sessions', 'session'):
+                for state in ('home', 'home-draft', 'commands', 'models', 'agents', 'sessions', 'session','help','themes','session-dracula'):
                     report(dest, state, cols)
             # Capture attention prompts without ever sending them a key. Even a
             # stray Return here could answer a real permission request.

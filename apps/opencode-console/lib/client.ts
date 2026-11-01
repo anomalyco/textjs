@@ -304,7 +304,16 @@ export function v2Permission(v: unknown): PermissionRequest | null {
 
 export function v2Form(v: unknown): FormInfo | null {
   if (!isRecord(v) || typeof v.id !== "string" || typeof v.sessionID !== "string" || !Array.isArray(v.fields)) return null;
-  const fields = v.fields.filter((f): f is FormInfo["fields"][number] => isRecord(f) && typeof f.key === "string" && typeof f.type === "string");
+  const keys = new Set<string>();
+  const fields = v.fields.filter((f): f is FormInfo["fields"][number] => {
+    if (!isRecord(f) || typeof f.key !== "string" || keys.has(f.key) || typeof f.type !== "string" || !["string","boolean","number","integer","multiselect","external"].includes(f.type)) return false;
+    keys.add(f.key);
+    if (f.type === "external") return typeof f.url === "string";
+    if (f.when !== undefined && !(Array.isArray(f.when) && f.when.every(w => isRecord(w) && typeof w.key === "string" && ["eq","neq"].includes(String(w.op))))) return false;
+    return (f.options === undefined && f.type !== "multiselect") || Array.isArray(f.options) && f.options.every(o => isRecord(o) && typeof o.value === "string" && typeof o.label === "string");
+  });
+  // Never reply to a subset of a malformed form; it could omit a required field.
+  if (!fields.length || fields.length !== v.fields.length) return null;
   return { id: v.id, sessionID: v.sessionID, title: str(v.title) ?? "", metadata: isRecord(v.metadata) ? v.metadata : undefined, fields };
 }
 
@@ -478,6 +487,16 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     async rename(sessionID, title) {
       await t.json("PATCH", `/api/session/${encodeURIComponent(sessionID)}`, { title });
     },
+    async removeSession(id) { await t.json("DELETE",`/api/session/${encodeURIComponent(id)}`); },
+    async integrations() {
+      const res = await t.json<{data?: unknown[]}>("GET", "/api/integration");
+      return (res.data ?? []).flatMap(x=>isRecord(x) && typeof x.id === "string" ? [{id:x.id,name:str(x.name) ?? x.id}] : []);
+    },
+    async workspaces() {
+      const res = await t.json<{data?:unknown}>("GET", "/api/worktree");
+      const data=Array.isArray(res.data)?res.data:rec(res.data).directories;
+      return Array.isArray(data) ? data.flatMap(v=>typeof v==="string"?[v]:typeof rec(v).directory==="string"?[rec(v).directory as string]:[]) : [];
+    },
     async interrupt(sessionID) {
       await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/interrupt`, { resume: true });
     },
@@ -507,7 +526,8 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
       const res = await t.json<{ data?: unknown[] }>("GET", "/api/model");
       return (res?.data ?? []).flatMap((m): ModelOption[] => {
         if (!isRecord(m) || typeof m.id !== "string" || typeof m.providerID !== "string" || m.enabled === false || (m.type && m.type !== "chat")) return [];
-        return [{ id: m.id, providerID: m.providerID, name: str(m.name) ?? m.id, context: num(rec(m.limit).context), variants: Array.isArray(m.variants) ? m.variants.flatMap((v) => typeof v?.id === "string" && v.id !== "default" ? [v.id] : []) : [] }];
+        if (m.status === "deprecated") return [];
+        return [{ id: m.id, providerID: m.providerID, name: str(m.name) ?? m.id, context: num(rec(m.limit).context), free: Array.isArray(m.cost) && m.cost.length > 0 && m.cost.every(c=>rec(c).input === 0), variants: Array.isArray(m.variants) ? m.variants.flatMap((v) => typeof v?.id === "string" && v.id !== "default" ? [v.id] : []) : [] }];
       });
     },
     async children(sessionID) {
@@ -522,7 +542,7 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
       await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/permission/${encodeURIComponent(requestID)}/reply`, message ? { decision, message } : { decision });
     },
     async forms(sessionID) {
-      const res = await t.json<{ data?: unknown[] }>("GET", `/api/session/${encodeURIComponent(sessionID)}/form`);
+      const res = await t.json<{ data?: unknown[] }>("GET", sessionID === "global" ? "/api/form" : `/api/session/${encodeURIComponent(sessionID)}/form`);
       return (res?.data ?? []).map(v2Form).filter((f): f is FormInfo => f !== null);
     },
     async replyForm(sessionID, formID, answer) {

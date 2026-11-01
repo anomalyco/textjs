@@ -1,0 +1,116 @@
+/** Run against the built website with BASE=http://127.0.0.1:<private-preview-port>.
+ * Full Chromium with its bundled DevTools frontend, the real CSRF/auth proxy,
+ * and a mock V2 service that cannot run a command or contact a model. */
+import { mkdir } from "node:fs/promises";
+import { createServer } from "node:net";
+import { resolve } from "node:path";
+import { startProxy } from "../../../packages/text/src/cli/proxy";
+import { startMockOpenCode } from "../test/mock-opencode";
+
+const base = new URL(process.env.BASE!);
+if (base.hostname !== "127.0.0.1" || !base.port || ["4096", "49374", "4173"].includes(base.port)) throw Error("Private preview required");
+const out = resolve(import.meta.dir, "../.text/round2/devtools");
+await mkdir(out, { recursive: true });
+const { chromium } = await import(process.env.PLAYWRIGHT!);
+const password = crypto.randomUUID(),
+  mock = startMockOpenCode({ password });
+try {
+  const bridge = await startProxy({
+    port: 0,
+    log: false,
+    allowOrigins: [base.origin],
+    discover: async () => ({
+      source: "flag",
+      url: mock.url,
+      authorization: `Basic ${Buffer.from(`opencode:${password}`).toString("base64")}`,
+    }),
+  });
+  try {
+    const socket = createServer();
+    await new Promise<void>((res) => socket.listen(0, "127.0.0.1", res));
+    const port = (socket.address() as { port: number }).port;
+    await new Promise<void>((res) => socket.close(() => res()));
+    const browser = await chromium.launch({
+      executablePath: chromium.executablePath(),
+      headless: false,
+      args: ["--headless=new", `--remote-debugging-port=${port}`, "--remote-allow-origins=*"],
+    });
+    try {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, serviceWorkers: "block" });
+      const pageErrors: string[] = [];
+      page.on("pageerror", (err: Error) => pageErrors.push(err.message));
+      await page.route("**/*", (r: any) =>
+        [base.origin, bridge.url].includes(new URL(r.request().url()).origin) ? r.continue() : r.abort(),
+      );
+      await page.goto(base.origin + "/opencode");
+      await page.getByLabel("OpenCode server URL").fill(bridge.url);
+      await page.getByRole("button", { name: "Connect", exact: true }).click();
+      await page.getByRole("button", { name: "Disconnect" }).waitFor();
+      await mock.waitForSubscriber();
+      const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json());
+      const target = targets.find((t: any) => t.type === "page" && t.url === page.url());
+      const dt = await browser.newPage({ viewport: { width: 790, height: 580 } });
+      await dt.goto(`http://127.0.0.1:${port}/devtools/inspector.html?ws=127.0.0.1:${port}/devtools/page/${target.id}&panel=console`);
+      await dt.locator("#tab-console").click();
+      const cast = dt.locator('button[aria-label="Toggle screencast"].toggled');
+      if (await cast.count()) await cast.click();
+      await page.mouse.click(640, 600);
+      await page.evaluate(() => (window as any).text.resize(100, 32));
+      const snap = async (name: string, label: string) => {
+        await dt.locator(".console-message-text").filter({ hasText: label }).last().waitFor({ state: "visible" });
+        await page.waitForTimeout(180);
+        await dt.locator("#console-messages").screenshot({ path: resolve(out, `${name}.png`) });
+      };
+      await snap("home", "Ask anything");
+      await page.keyboard.press("Control+x");
+      await page.keyboard.press("l");
+      await snap("sessions", "Sessions for");
+      await page.keyboard.type("Refactor auth");
+      await page.keyboard.press("Enter");
+      await snap("session", "It lives in");
+      mock.emit({
+        type: "permission.asked",
+        data: { id: "per_browser", sessionID: "ses_alpha", action: "shell", resources: ["echo fixture"], save: ["echo fixture"] },
+      });
+      await snap("permission", "Allow once");
+      await page.keyboard.press("Escape");
+      mock.emit({
+        type: "form.created",
+        data: {
+          form: {
+            id: "frm_browser",
+            sessionID: "ses_alpha",
+            title: "Choose a branch",
+            fields: [
+              {
+                key: "branch",
+                type: "string",
+                options: [
+                  { value: "main", label: "main" },
+                  { value: "release", label: "release" },
+                ],
+              },
+            ],
+          },
+        },
+      });
+      await snap("question", "2. release");
+      await page.keyboard.press("2");
+      await page.waitForTimeout(250);
+      if (
+        !mock.requests.some((r) => r.path.endsWith("/per_browser/reply") && (r.body as any)?.decision === "reject") ||
+        !mock.requests.some((r) => r.path.endsWith("/frm_browser/reply") && (r.body as any)?.answer?.branch === "release")
+      )
+        throw Error("Expected explicit decisions through mock bridge");
+      if (pageErrors.length) throw Error(pageErrors.join("\n"));
+      console.log(`Live bridge DevTools: five captured screens, reject and form reply verified (${out})`);
+    } finally {
+      await browser.close();
+    }
+  } finally {
+    mock.stop();
+    await bridge.close();
+  }
+} finally {
+  mock.stop();
+}

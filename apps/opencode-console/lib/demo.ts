@@ -316,6 +316,10 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
       s.title = title;
       emit({ type: "session.renamed", sessionID: sid, title });
     },
+    async removeSession(sid) {
+      runs.get(sid)?.finish(); const i=db.sessions.findIndex((s)=>s.id===sid);
+      if (i>=0) db.sessions.splice(i,1); db.messages.delete(sid); emit({type:"sessions.changed"});
+    },
     async setAgent(sid, agent) {
       const s = db.sessions.find((x) => x.id === sid);
       if (s) s.agent = agent;

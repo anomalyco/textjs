@@ -195,15 +195,15 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     expect(frame).toContain("Where is the auth middleware?");
     expect(frame).toContain("→ Explored: 1 search");
 
-    const before = t.root.renderer.buffer.getCell(2, 0);
+    const before = t.root.renderer.buffer.getCell(3, 0);
     await t.press("p", { ctrlKey: true });
     await t.settle();
     const open = t.frame();
     expect(open).toContain("Commands");
     expect(open).toContain("New session");
     expect(open).toContain("Switch model");
-    expect(open).toContain("Switch theme");
-    const after = t.root.renderer.buffer.getCell(2, 0);
+    expect(open).toContain("Open settings");
+    const after = t.root.renderer.buffer.getCell(3, 0);
     expect(after?.char).toBe(before?.char);
     expect(after?.fg).not.toBe(before?.fg);
 
@@ -218,16 +218,26 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     await t.press("x", { ctrlKey: true });
     await t.press("m");
     await t.settle();
-    expect(t.frame()).toContain("Switch model");
+    expect(t.frame()).toContain("Select model");
     expect(t.frame()).toContain("GPT-6.1 Terra");
     await t.press("Escape");
     await t.settle();
-    expect(t.frame()).not.toContain("Switch model");
+    expect(t.frame()).not.toContain("Select model");
   });
 
   test("unknown sessions render a not-found state", async () => {
     const { t } = await mount("/session/ses_nope");
     await t.waitFor(() => t.frame().includes("Session ses_nope not found"), "missing session");
+  });
+
+  test("themes preview on filter, roll back on Escape, and commit on Enter", async () => {
+    const {t} = await mount(); const bg=()=>t.root.renderer.buffer.getCell(0,0)?.bg;
+    const before=bg();
+    await t.type("/themes"); await t.press("Enter"); await t.type("dracula");
+    expect(t.frame()).toContain("dracula");
+    await t.press("Escape"); t.frame(); expect(bg()).toBe(before);
+    await t.type("/themes"); await t.press("Enter"); await t.type("dracula"); await t.press("Enter");
+    expect(t.frame()).not.toContain("Themes"); expect(bg()).not.toBe(before);
   });
 
   test("queued permission and form prompts retain owners, choices and the unsent draft", async () => {
@@ -273,6 +283,26 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     expect(mock.requests.some((r) => r.method === "DELETE")).toBe(false);
   });
 
+  test("multi-field questions validate conditional inputs, review multiselect values, and cancel separately", async () => {
+    const { t } = await mount("/session/ses_alpha");
+    await t.waitFor(()=>t.frame().includes("It lives in"));
+    const form={id:"frm_many",sessionID:"ses_alpha",title:"Release options",fields:[
+      {key:"stage",type:"string",required:true,options:[{value:"test",label:"Test"},{value:"deploy",label:"Deploy"}]},
+      {key:"count",type:"integer",minimum:1,required:true,when:[{key:"stage",op:"eq",value:"deploy"}]},
+      {key:"tags",type:"multiselect",options:[{value:"linux",label:"Linux"},{value:"mac",label:"macOS"}]},
+    ]};
+    mock.emit({type:"form.created",data:{form}}); await t.waitFor(()=>t.frame().includes("2. Deploy"));
+    await t.press("2"); await t.type("0"); await t.press("Enter");
+    expect(t.frame()).toContain("Must be at least 1");
+    await t.press("u",{ctrlKey:true});await t.type("2");await t.press("Enter");
+    await t.press("1");await t.press("2");await t.press("Tab");
+    expect(t.frame()).toContain("Linux, macOS");
+    await t.press("Enter");await t.waitFor(()=>requested("POST","/api/session/ses_alpha/form/frm_many/reply"));
+    expect(mock.requests.find(r=>r.path.endsWith("frm_many/reply"))?.body).toEqual({answer:{stage:"deploy",count:2,tags:["linux","mac"]}});
+    mock.emit({type:"form.created",data:{form:{...form,id:"frm_cancel"}}});await t.waitFor(()=>t.frame().includes("2. Deploy"));await t.press("Escape");
+    await t.waitFor(()=>requested("DELETE","/api/session/ses_alpha/form/frm_cancel"));
+  });
+
   test("shell mode is a keystroke, not a prefix interpreted on submit", async () => {
     const { t } = await mount("/session/ses_alpha");
     await t.waitFor(() => t.frame().includes("It lives in"));
@@ -306,7 +336,7 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     await t.press("k", { ctrlKey: true });
     await t.type("s");
     await t.press("Enter");
-    expect(t.frame()).toContain("Switch model");
+    expect(t.frame()).toContain("Select model");
     await t.type("terra");
     await t.press("Enter");
     expect(state().model?.id).toBe("gpt-6.1-terra");

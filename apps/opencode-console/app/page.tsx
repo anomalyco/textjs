@@ -4,6 +4,7 @@ import { useRouter } from "@textjs/next/navigation";
 import { Composer, Hints } from "../components/Composer";
 import { Logo } from "../components/Logo";
 import { ConnectionBadge } from "../components/Shell";
+import { FormPrompt } from "../components/Requests";
 import { useStore, useStoreState } from "../lib/store";
 
 export const metadata: Metadata = { title: "Home" };
@@ -13,6 +14,7 @@ export default function HomePage(): ReactNode {
   const store = useStore();
   const router = useRouter();
   const connection = useStoreState((s) => s.connection);
+  const form = useStoreState((s) => s.forms.global?.[0]);
   const vp = useViewport();
   const [example] = useState(() => ["Fix a TODO in the codebase", "What is the tech stack of this project?", "Fix broken tests"][Math.floor(Math.random()*3)]);
 
@@ -30,7 +32,7 @@ export default function HomePage(): ReactNode {
         <Logo />
         <Box height={1} flexShrink={0} />
         <Box flexDirection="column" width="100%" maxWidth={75} paddingTop={1} flexShrink={0}>
-          <Composer onSubmit={submit} placeholder={connection.kind === "demo" ? undefined : `Ask anything… "${example}"`} />
+          <Composer onSubmit={submit} disabled={!!form} placeholder={connection.kind === "demo" ? undefined : `Ask anything… "${example}"`} />
         </Box>
         <Box flexGrow={1} minHeight={0} />
       </Box>
@@ -39,6 +41,7 @@ export default function HomePage(): ReactNode {
         <Box flexGrow={1} />
         {vp.cols >= 64 && <Text color={theme.muted}>{connection.version || " "}</Text>}
       </Box>}
+      {form && <Box position="absolute" bottom={1} left={2} right={2} zIndex={4} flexDirection="column"><FormPrompt key={form.id} form={form}/></Box>}
     </Box>
   );
 }

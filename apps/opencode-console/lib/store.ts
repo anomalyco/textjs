@@ -6,7 +6,7 @@
  */
 
 import { createContext, createElement, useContext, useSyncExternalStore, type ReactNode } from "react";
-import { connectOpenCode, saveEndpoint, savedEndpoint } from "./client";
+import { connectOpenCode, HttpError, saveEndpoint, savedEndpoint } from "./client";
 import { SessionTabs } from "./session-tabs";
 import type {
   AgentOption,
@@ -130,6 +130,7 @@ export class OpenCodeStore {
   private connectSeq = 0;
   private recentModels: ModelRef[] = [];
   private commands = new Set<string>();
+  private currentSession: string | null = null;
   private requestReads = new Map<string, Set<string>>();
 
   private touchRequest(id: string) {
@@ -202,6 +203,7 @@ export class OpenCodeStore {
     this.recentModels = [];
     this.commands.clear();
     this.requestReads.clear();
+    this.currentSession = null;
     this.drafts.clear();
     this.tabs.clear();
     this.client = null;
@@ -239,11 +241,20 @@ export class OpenCodeStore {
       forms: {},
       parents: {},
     });
+    let disconnected = false;
     this.unsubscribe = client.subscribe(
-      (e) => this.handle(e),
-      (s) => this.set((st) => ({ connection: { ...st.connection, live: s === "open" } })),
+      (e) => {if (client === this.client) this.handle(e);},
+      (s) => {
+        if(client !== this.client) return;
+        this.set((st) => ({ connection: { ...st.connection, live: s === "open" } }));
+        if(s === "open" && disconnected) {
+          void this.syncRequests("global");
+          if(this.currentSession){void this.syncRequests(this.currentSession); void this.reloadMessages(this.currentSession);}
+        }
+        disconnected = s === "closed";
+      },
     );
-    await Promise.all([this.refreshSessions(), this.loadCatalog()]);
+    await Promise.all([this.refreshSessions(), this.loadCatalog(), this.syncRequests("global")]);
     return this.state.connection;
   }
 
@@ -306,6 +317,7 @@ export class OpenCodeStore {
 
   /** Load a session's timeline (and mark it viewed). */
   async openSession(id: string): Promise<void> {
+    this.currentSession = id;
     const client = this.client;
     if (!client) return;
     if (!this.session(id)) {
@@ -335,23 +347,35 @@ export class OpenCodeStore {
     if (!client?.permissions && !client?.forms) return;
     const touched = new Set<string>();
     this.requestReads.set(id, touched);
-    const children = await client.children?.(id).catch(() => []) ?? [];
+    // A subagent may itself delegate. Hydrate descendants already waiting at
+    // mount, not just future permission.asked events. Bound concurrent reads.
+    const children: SessionInfo[] = [], queue = [id], seen = new Set(queue);
+    if (id !== "global" && client.children) while (queue.length) {
+      const parents = queue.splice(0, 6);
+      const pages = await Promise.all(parents.map(parent=>client.children!(parent).catch(()=>[])));
+      if (client !== this.client || this.requestReads.get(id) !== touched) return;
+      for (const [i, page] of pages.entries()) for (const c of page) {
+        if(c.parentID!==parents[i] || seen.has(c.id))continue;
+        seen.add(c.id); children.push(c); queue.push(c.id);
+      }
+    }
     if (client !== this.client) return;
     const ids = [id, ...children.map((c) => c.id)];
     const [permissions, forms] = await Promise.all([
-      Promise.all(ids.map((sid) => client.permissions?.(sid).catch(() => null) ?? null)),
+      Promise.all(ids.map((sid) => sid === "global" ? null : client.permissions?.(sid).catch(() => null) ?? null)),
       Promise.all(ids.map((sid) => client.forms?.(sid).catch(() => null) ?? null)),
     ]);
     if (client !== this.client || this.requestReads.get(id) !== touched) return;
     this.requestReads.delete(id);
-    const merge = <T extends { id: string }>(remote: readonly T[], live: readonly T[] = []) => [
-      ...remote.filter((r) => !touched.has(r.id)), ...live.filter((r) => touched.has(r.id)),
-    ];
+    const merge = <T extends { id: string }>(remote: readonly T[], live: readonly T[] = []) => {
+      const existing = new Map(live.map(item=>[item.id,item]));
+      return [...remote.filter(r=>!touched.has(r.id)).map(r=>existing.get(r.id) ?? r), ...live.filter(r=>touched.has(r.id))];
+    };
     this.set((s) => {
       const nextPermissions = { ...s.permissions };
       const nextForms = { ...s.forms };
       const parents = { ...s.parents };
-      for (const c of children) parents[c.id] = id;
+      for (const c of children) parents[c.id] = c.parentID ?? null;
       ids.forEach((sid, i) => {
         if (permissions[i]) nextPermissions[sid] = merge(permissions[i]!.filter((p) => p.sessionID === sid), s.permissions[sid]);
         if (forms[i]) nextForms[sid] = merge(forms[i]!.filter((f) => f.sessionID === sid), s.forms[sid]);
@@ -374,27 +398,26 @@ export class OpenCodeStore {
     }
   }
 
-  async replyPermission(request: PermissionRequest, decision: PermissionReply, message?: string): Promise<void> {
+  async replyPermission(request: PermissionRequest, decision: PermissionReply, message?: string): Promise<string | null> {
     const client = this.client;
-    if (!client?.replyPermission) return;
-    if (!this.state.permissions[request.sessionID]?.some((p) => p.id === request.id)) return;
-    if (decision === "always" && !request.save?.length) return;
+    if (!client?.replyPermission) return "Permissions unavailable on this server";
+    if (!this.state.permissions[request.sessionID]?.some((p) => p.id === request.id)) return null;
+    if (decision === "always" && !request.save?.length) return "This request cannot be saved";
     try {
       await client.replyPermission(request.sessionID, request.id, decision, message);
     } catch (error) {
-      if (client !== this.client) return;
-      if (!(error instanceof Error && /→ 404/.test(error.message))) {
-        this.notify(error instanceof Error ? error.message : String(error), "danger");
-        return;
-      }
+      if (client !== this.client) return null;
+      if (!(error instanceof HttpError && error.status === 404)) return error instanceof Error ? error.message : String(error);
     }
     if (client === this.client) this.dropPermission(request.sessionID, request.id);
+    return null;
   }
 
-  /** Resolves `true` once the server accepted the answer. */
+  /** Null on success; errors stay on the form so the draft isn't lost. */
   async replyForm(form: FormInfo, answer: FormAnswer): Promise<string | null> {
     const client = this.client;
     if (!client?.replyForm) return "Forms are unavailable on this server";
+    if (!this.state.forms[form.sessionID]?.some(f=>f.id===form.id)) return null;
     try {
       await client.replyForm(form.sessionID, form.id, answer);
     } catch (error) {
@@ -407,6 +430,7 @@ export class OpenCodeStore {
   async cancelForm(form: FormInfo): Promise<string | null> {
     const client = this.client;
     if (!client?.cancelForm) return "Forms are unavailable on this server";
+    if (!this.state.forms[form.sessionID]?.some(f=>f.id===form.id)) return null;
     try {
       await client.cancelForm(form.sessionID, form.id);
     } catch (error) {
@@ -646,7 +670,7 @@ export class OpenCodeStore {
         this.touchRequest(form.id);
         if (this.state.forms[form.sessionID]?.some((f) => f.id === form.id)) return;
         this.set((s) => ({ forms: { ...s.forms, [form.sessionID]: [...(s.forms[form.sessionID] ?? []), form] } }));
-        void this.learnParents(form.sessionID);
+        if(form.sessionID!=="global")void this.learnParents(form.sessionID);
         return;
       }
       case "form.settled":

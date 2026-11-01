@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Box, Button, Dialog, diffTexts, Spinner, Text, ThemeProvider, useClipboard, useKeymap, useTheme, useViewport } from "@textjs/next";
-import { nativeTheme } from "../lib/native-theme";
+import { savedTheme } from "../lib/native-theme";
 import { usePathname, useRouter } from "@textjs/next/navigation";
 import { compactNumber, relativeTime } from "../lib/format";
 import { useStore, useStoreState, type ConnectionState, type StoreState } from "../lib/store";
 import type { SessionInfo, SessionMessage, ToolPart } from "../lib/types";
 import { patchFiles } from "../lib/tool-data";
-import { Palette, type PaletteKind } from "./Palette";
+import { HelpDialog, Palette, type PaletteKind } from "./Palette";
 import { DispatchAction, type Action } from "../lib/commands";
 
 export const SIDEBAR_WIDTH = 28;
@@ -34,7 +34,8 @@ function useNow(ms: number): number {
 
 export function Shell({ children }: { children?: ReactNode }): ReactNode {
   const theme = useTheme();
-  return <ThemeProvider theme={theme.id.startsWith("tui:") ? theme : nativeTheme("opencode")}><SessionShell>{children}</SessionShell></ThemeProvider>;
+  const [initial] = useState(savedTheme);
+  return <ThemeProvider theme={theme.id.startsWith("tui:") ? theme : initial}><SessionShell>{children}</SessionShell></ThemeProvider>;
 }
 
 function SessionShell({ children }: { children?: ReactNode }): ReactNode {
@@ -64,6 +65,7 @@ function SessionShell({ children }: { children?: ReactNode }): ReactNode {
   useKeymap({
     "ctrl+p": () => dispatch("commands"),
     "ctrl+x l": () => dispatch("sessions"),
+    "ctrl+o": () => dispatch("sessions"),
     "ctrl+x n": () => dispatch("new"),
     "ctrl+x m": () => dispatch("models"),
     "ctrl+x a": () => dispatch("agents"),
@@ -94,7 +96,7 @@ function SessionShell({ children }: { children?: ReactNode }): ReactNode {
         </Box>
       </Box>
       {palette ? <DispatchAction value={dispatch}><Palette kind={palette} onKind={setPalette} onClose={() => setPalette(null)} /></DispatchAction> : null}
-      {help && <Dialog title="Help" onClose={() => setHelp(false)} description="Press ctrl+p to see all available actions and commands in any context." actions={<Button autoFocus onPress={() => setHelp(false)}>ok</Button>} />}
+      {help && <HelpDialog onClose={()=>setHelp(false)}/>}
     </Box>
   );
 }

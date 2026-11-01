@@ -312,6 +312,8 @@ describe("text mcp · dashboard", () => {
     expect(waited.structuredContent?.styles).toBeArray();
     expect((waited.structuredContent?.text as string).split("\n")).toHaveLength(32);
     expect((await call(client, "wait_for", { href: "/settings", text: "api/health", timeoutMs: 0 })).isError).toBe(true);
+    expect((await call(client, "wait_for", { href: "/logs", text: ["api/health", "Runtime Logs"], styles: true })).structuredContent?.styles).toBeArray();
+    expect((await call(client, "wait_for", { text: ["api/health", "missing second label"], timeoutMs: 0 })).isError).toBe(true);
     const timedOut = await call(client, "wait_for", { text: "never-appears", timeoutMs: 100 });
     expect(timedOut.isError).toBe(true);
     expect(text(timedOut)).toContain("timed out after 100ms");

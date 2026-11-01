@@ -79,7 +79,7 @@ export type FormInfo = { id: string; sessionID: string; title: string; metadata?
 
 /** `colorIndex` is the agent's position among all visible agents (subagents included), as the TUI colors them. */
 export type AgentOption = { id: string; name: string; description?: string; color?: string; colorIndex?: number };
-export type ModelOption = { id: string; providerID: string; name: string; context?: number; variants?: string[] };
+export type ModelOption = { id: string; providerID: string; name: string; context?: number; variants?: string[]; free?: boolean };
 
 export type ServerInfo = { version: string; directory?: string };
 
@@ -133,6 +133,9 @@ export interface OpenCodeClient {
   commands?(): Promise<string[]>;
   command?(sessionID: string, name: string, text: string): Promise<void>;
   rename?(sessionID: string, title: string): Promise<void>;
+  removeSession?(sessionID: string): Promise<void>;
+  integrations?(): Promise<{id:string;name:string}[]>;
+  workspaces?(): Promise<string[]>;
   compact?(sessionID: string, model: ModelRef | null): Promise<void>;
   shell?(sessionID: string, command: string): Promise<void>;
   defaultModel(): Promise<ModelRef | null>;

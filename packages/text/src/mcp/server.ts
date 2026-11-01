@@ -460,7 +460,7 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
       description:
         "Wait until `text` appears, `gone` disappears, and/or `href` matches the route. With no condition wait for idle. Returns the matching frame; use styles:true to capture transient styled output without racing a second read. Timeouts include the last frame.",
       inputSchema: {
-        text: z.string().min(1).max(1000).optional(),
+        text: z.union([z.string().min(1).max(1000), z.array(z.string().min(1).max(1000)).min(1).max(8)]).optional().describe("One visible string, or up to eight strings that must all be on the same frame."),
         gone: z.string().min(1).max(1000).optional(),
         href: z.string().startsWith("/").max(4096).optional().describe("Exact app pathname + search + hash (not a route pattern)."),
         styles: z.boolean().optional(),
@@ -471,13 +471,14 @@ export function createTextMcpServer(options: TextMcpServerOptions): { server: Mc
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    tool<{ text?: string; gone?: string; href?: string; styles?: boolean; trim?: boolean; idle?: boolean; quietMs?: number; timeoutMs?: number }>(
+    tool<{ text?: string | string[]; gone?: string; href?: string; styles?: boolean; trim?: boolean; idle?: boolean; quietMs?: number; timeoutMs?: number }>(
       (a) => (a.timeoutMs ?? 5000) + 5000,
       "wait_for",
       async (s, a, signal) => {
         const timeout = a.timeoutMs ?? 5000;
         const start = Date.now();
-        const textOk = (): boolean => (a.href === undefined || a.href === s.href) && (a.text === undefined || s.contains(a.text)) && (a.gone === undefined || !s.contains(a.gone));
+        const required = Array.isArray(a.text) ? a.text : a.text === undefined ? [] : [a.text];
+        const textOk = (): boolean => (a.href === undefined || a.href === s.href) && required.every(text => s.contains(text)) && (a.gone === undefined || !s.contains(a.gone));
         const needIdle = a.idle === true || (a.text === undefined && a.gone === undefined && a.href === undefined);
         for (;;) {
           if (signal.aborted) throw signal.reason;
