@@ -49,23 +49,35 @@ function pathData(p: opentype.Path): string {
   return d;
 }
 
-/** Outlined text as SVG path data. `x`/`y` are the left edge and baseline; `size` is the em size. */
+/**
+ * Glyph pen positions for `str`, with the font's kerning applied as a browser would (without it,
+ * Geist's "Te", "xt" and "t." gaps open up: "Text.js" set 7% wider than on the site).
+ */
+function layout(font: opentype.Font, str: string, size: number, letterSpacing: number): { glyphs: Array<{ ch: string; glyph: opentype.Glyph; x: number }>; width: number } {
+  const chars = [...str];
+  const scale = size / font.unitsPerEm;
+  const glyphs: Array<{ ch: string; glyph: opentype.Glyph; x: number }> = [];
+  let x = 0;
+  chars.forEach((ch, i) => {
+    const glyph = font.charToGlyph(ch);
+    glyphs.push({ ch, glyph, x });
+    x += (glyph.advanceWidth ?? 0) * scale + letterSpacing;
+    const next = chars[i + 1];
+    if (next !== undefined) x += font.getKerningValue(glyph, font.charToGlyph(next)) * scale;
+  });
+  return { glyphs, width: x - letterSpacing };
+}
+
+/** Outlined, kerned text as SVG path data. `x`/`y` are the left edge and baseline; `size` is the em size. */
 export function text(font: opentype.Font, str: string, x: number, y: number, size: number, letterSpacing = 0): string {
   let d = "";
-  let cx = x;
-  for (const ch of str) {
-    const glyph = font.charToGlyph(ch);
-    if (ch !== " ") d += pathData(glyph.getPath(cx, y, size));
-    cx += ((glyph.advanceWidth ?? 0) / font.unitsPerEm) * size + letterSpacing;
-  }
+  for (const g of layout(font, str, size, letterSpacing).glyphs) if (g.ch !== " ") d += pathData(g.glyph.getPath(x + g.x, y, size));
   return d;
 }
 
-/** Advance width of `str` at `size`. */
+/** Kerned advance width of `str` at `size`. */
 export function measure(font: opentype.Font, str: string, size: number, letterSpacing = 0): number {
-  let w = 0;
-  for (const ch of str) w += ((font.charToGlyph(ch).advanceWidth ?? 0) / font.unitsPerEm) * size + letterSpacing;
-  return w - letterSpacing;
+  return layout(font, str, size, letterSpacing).width;
 }
 
 /**
