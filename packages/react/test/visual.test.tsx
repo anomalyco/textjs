@@ -148,6 +148,15 @@ describe("<Image>", () => {
     expect(resamplePixels({ width: 2, height: 1, data: [0, 0, 0, 255, 255, 255, 255, 255] }, 1, 1)[0]).toBe(128);
   });
 
+  test("new pixels of the same size repaint", async () => {
+    const red = { width: 1, height: 2, data: [255, 0, 0, 255, 255, 0, 0, 255] };
+    const blue = { width: 1, height: 2, data: [0, 0, 255, 255, 0, 0, 255, 255] };
+    const app = await render(<Image pixels={red} />, { cols: 2, rows: 1 });
+    expect(app.cell(0, 0)?.fg).toBe(parseColor("#ff0000"));
+    await app.rerender(<Image pixels={blue} />);
+    expect(app.cell(0, 0)?.fg).toBe(parseColor("#0000ff"));
+  });
+
   test("shows alt text without pixels", async () => {
     const app = await render(<Image alt="logo.png" width={12} />, { cols: 12, rows: 1 });
     expect(app.lastFrame()).toContain("logo.png");

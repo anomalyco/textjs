@@ -116,7 +116,7 @@ export function Image({ src, pixels, width, height, fit = "contain", alt = "", .
     };
   }, [src, pixels]);
   const img = pixels ?? loaded;
-  const cache = useRef<{ key: string; data: Uint8ClampedArray } | null>(null);
+  const cache = useRef<{ key: string; img: PixelData; data: Uint8ClampedArray } | null>(null);
 
   let w = width;
   let h = height;
@@ -146,7 +146,7 @@ export function Image({ src, pixels, width, height, fit = "contain", alt = "", .
         }
       }
       const key = `${tw}x${th}`;
-      if (cache.current?.key !== key) cache.current = { key, data: resamplePixels(img, tw, th) };
+      if (cache.current?.key !== key || cache.current.img !== img) cache.current = { key, img, data: resamplePixels(img, tw, th) };
       const px = cache.current.data;
       const offX = fit === "contain" ? Math.floor((boxW - tw) / 2) : -cropX;
       const offY = fit === "contain" ? Math.floor((boxH - th) / 2) : -cropY;
