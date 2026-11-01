@@ -63,25 +63,107 @@ export interface FocusPadProps {
 }
 
 const PALETTE = {
-  dark: { bg: "#0a0a0a", border: "#1f1f1f", borderHover: "#333333", text: "#ededed", muted: "#a1a1a1", subtle: "#707070", faint: "#2e2e2e", key: "#141414", keyEdge: "#2a2a2a", live: "#45a557", flash: "#ededed", flashText: "#0a0a0a" },
-  light: { bg: "#ffffff", border: "#eaeaea", borderHover: "#d4d4d4", text: "#171717", muted: "#666666", subtle: "#8f8f8f", faint: "#e5e5e5", key: "#fafafa", keyEdge: "#d9d9d9", live: "#16a34a", flash: "#171717", flashText: "#ffffff" },
+  dark: {
+    bg: "#0a0a0a",
+    border: "#1f1f1f",
+    borderHover: "#333333",
+    text: "#ededed",
+    muted: "#a1a1a1",
+    subtle: "#7c7c7c",
+    track: "rgba(255,255,255,0.12)",
+    key: "linear-gradient(180deg, #1a1a1a, #131313)",
+    keyEdge: "#2e2e2e",
+    keyShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 0 rgba(0,0,0,0.6)",
+    live: "#45a557",
+    flash: "#ededed",
+    flashText: "#0a0a0a",
+    focus: "#3291ff",
+  },
+  light: {
+    bg: "#ffffff",
+    border: "#eaeaea",
+    borderHover: "#d4d4d4",
+    text: "#171717",
+    muted: "#666666",
+    subtle: "#737373",
+    track: "rgba(0,0,0,0.1)",
+    key: "linear-gradient(180deg, #ffffff, #f7f7f7)",
+    keyEdge: "#e0e0e0",
+    keyShadow: "inset 0 -1px 0 rgba(0,0,0,0.05), 0 1px 1px rgba(0,0,0,0.04)",
+    live: "#15803d",
+    flash: "#171717",
+    flashText: "#ffffff",
+    focus: "#0070f3",
+  },
 } as const;
 
 const FONT = 'Geist, "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
 const MONO = '"Geist Mono", ui-monospace, "SF Mono", Menlo, monospace';
+const EASE = "cubic-bezier(.2,.8,.2,1)";
 
+/*
+ * The message is one column on an 8px grid: progress, headline, hero (the keys to press, or the
+ * click target), and one supporting line. Every state renders the same four rows, so switching
+ * state swaps their contents in place. Sizes are CSS custom properties a host page can override.
+ */
 const CSS = `
 .tx-pad{cursor:pointer;transition:border-color .2s ease}
 .tx-pad:hover{border-color:var(--tx-pad-hover)!important}
 .tx-pad[data-state=live]{cursor:default}
-.tx-pad-touch{display:none}
+.tx-pad-desk{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--tx-pad-gap,32px);width:100%;min-height:280px}
+.tx-pad-steps{display:flex;align-items:center;gap:4px;height:8px;margin-bottom:-8px}
+.tx-pad-seg{position:relative;width:24px;height:4px;border-radius:2px;background:var(--tx-track);overflow:hidden}
+.tx-pad-seg>i{position:absolute;inset:0;border-radius:inherit;transition:transform .5s ${EASE},opacity .3s ease}
+.tx-pad-seg>i:first-child{background:var(--tx-text);transform-origin:left center;transform:scaleX(0)}
+.tx-pad-seg[data-step=done]>i:first-child{transform:none;opacity:.4}
+.tx-pad-seg[data-step=current]>i:first-child{transform:none}
+.tx-pad-seg>i:last-child{background:var(--tx-live);opacity:0}
+.tx-pad[data-state=live] .tx-pad-seg>i:last-child{opacity:1}
+.tx-pad-headline{margin:0;font-size:var(--tx-pad-headline,32px);line-height:var(--tx-pad-headline-lh,40px);font-weight:600;letter-spacing:-.032em;color:var(--tx-text);text-align:center;text-wrap:balance}
+.tx-pad-headline,.tx-pad-hero,.tx-pad-sub{width:100%}
+.tx-pad-headline.tx-pad-live{display:flex;align-items:center;justify-content:center;gap:14px}
+.tx-pad-dot{position:relative;flex:none;width:10px;height:10px;border-radius:50%;background:var(--tx-live)}
+.tx-pad-dot::after{content:"";position:absolute;inset:-5px;border-radius:50%;background:var(--tx-live);opacity:0;animation:tx-pad-halo 2s ${EASE} infinite}
+.tx-pad-hero{display:flex;align-items:center;justify-content:center;min-height:var(--tx-pad-hero,72px)}
+.tx-pad-keys{display:flex;gap:8px}
+.tx-pad-hints{display:flex;flex-wrap:wrap;justify-content:center;column-gap:32px;row-gap:16px}
+.tx-pad-hint{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:13px;line-height:24px;color:var(--tx-muted);white-space:nowrap}
+.tx-pad-hint>span{display:flex;gap:6px}
+.tx-pad-click{position:relative;display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;border:1px solid var(--tx-key-edge);background:var(--tx-key);box-shadow:var(--tx-key-shadow);color:var(--tx-text)}
+.tx-pad-click::after{content:"";position:absolute;inset:-1px;border-radius:50%;border:1px solid var(--tx-text);opacity:0;animation:tx-pad-ripple 2.4s ${EASE} infinite}
+.tx-pad-sub{margin:0;max-width:560px;min-height:24px;font-size:15px;line-height:24px;color:var(--tx-muted);text-align:center;text-wrap:balance}
+.tx-pad-line{display:inline-block}
+.tx-pad-line kbd{display:inline-block;box-sizing:border-box;height:22px;margin:0 2px;padding:0 6px;border-radius:6px;border:1px solid var(--tx-key-edge);background:var(--tx-key);box-shadow:var(--tx-key-shadow);font:500 12px/20px ${FONT};letter-spacing:.06em;color:var(--tx-text);vertical-align:1px}
+.tx-key{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;height:24px;min-width:24px;padding:0 7px;border-radius:6px;border:1px solid var(--tx-key-edge);background:var(--tx-key);box-shadow:var(--tx-key-shadow);color:var(--tx-text);font:500 12px/1 ${FONT};letter-spacing:0;transition:background .15s ease,color .15s ease,border-color .15s ease}
+.tx-key-md{height:40px;min-width:40px;padding:0 12px;border-radius:9px;font-size:15px}
+.tx-key-lg{height:56px;min-width:56px;padding:0 16px;border-radius:12px;font-size:20px}
+.tx-key[data-lit]{background:var(--tx-flash);border-color:var(--tx-flash);color:var(--tx-flash-text);transition:none}
+.tx-key svg{display:block}
+.tx-pad-echo{display:inline-flex;vertical-align:top;animation:tx-pad-pop 1.4s ${EASE} forwards}
+.tx-pad-in{animation:tx-pad-in .32s ${EASE} both}
+.tx-pad-ring{position:absolute;inset:-1px;border-radius:inherit;border:1px solid var(--tx-live);pointer-events:none;opacity:0;animation:tx-pad-ring .6s ease-out}
+.tx-pad-touch{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:240px;padding:0 8px}
+.tx-pad-touch h2{margin:0;font-size:28px;line-height:36px;font-weight:600;letter-spacing:-.028em;color:var(--tx-text);text-align:center}
+.tx-pad-touch p{margin:0;max-width:400px;font-size:15px;line-height:24px;color:var(--tx-muted);text-align:center;text-wrap:balance}
 .tx-pad-size{position:absolute;right:24px;bottom:24px}
+.tx-pad-size:has(select:focus-visible){outline:2px solid var(--tx-focus);outline-offset:4px;border-radius:4px}
+@media (min-width:901px){.tx-pad[data-size-corner] .tx-pad-desk{padding-bottom:32px}}
 @media (max-width:900px){.tx-pad-size{position:static}}
+@media (max-width:640px){
+.tx-pad{--tx-pad-gap:24px;--tx-pad-headline:28px;--tx-pad-headline-lh:36px;--tx-pad-hero:64px}
+.tx-pad-hints{column-gap:24px}
+.tx-pad-click{width:48px;height:48px}
+.tx-key-md{height:32px;min-width:32px;padding:0 9px;border-radius:7px;font-size:13px}
+.tx-key-lg{height:48px;min-width:48px;padding:0 14px;border-radius:10px;font-size:18px}
+}
+@media (max-width:359px){.tx-pad{--tx-pad-headline:24px;--tx-pad-headline-lh:32px}}
 @media (hover:none) and (pointer:coarse){.tx-pad{cursor:default}.tx-pad-touch{display:flex}.tx-pad-desk,.tx-pad-size{display:none!important}}
-@keyframes tx-pad-pulse{0%,100%{opacity:1}50%{opacity:.35}}
-@keyframes tx-pad-ring{0%{opacity:.55;transform:scale(1)}100%{opacity:0;transform:scale(1.015)}}
-@keyframes tx-pad-pop{0%{transform:translateY(2px);opacity:0}15%{transform:none;opacity:1}100%{opacity:0}}
-@media (prefers-reduced-motion:reduce){.tx-pad *{animation:none!important}}
+@keyframes tx-pad-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes tx-pad-halo{0%{opacity:.35;transform:scale(.6)}80%,100%{opacity:0;transform:scale(1.4)}}
+@keyframes tx-pad-ripple{0%{opacity:.3;transform:scale(1)}70%,100%{opacity:0;transform:scale(1.45)}}
+@keyframes tx-pad-ring{0%{opacity:.6}100%{opacity:0}}
+@keyframes tx-pad-pop{0%{opacity:0;transform:translateY(4px)}12%{opacity:1;transform:none}70%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.tx-pad *{animation:none!important;transition:none!important}.tx-pad-ring,.tx-pad-dot::after,.tx-pad-click::after{display:none}}
 html:not([data-os=mac]) .tx-pad .tx-os-mac,html[data-os=mac] .tx-pad .tx-os-other{display:none!important}
 `;
 
@@ -131,34 +213,147 @@ function devtoolsDocked(): boolean {
   return estimateDockedConsoleSize(window, 7, 14).dock !== "undocked";
 }
 
-function Keycap({ children, size, c, lit = false }: { children: ReactNode; size: "lg" | "sm"; c: (typeof PALETTE)["dark" | "light"]; lit?: boolean }): ReactNode {
-  const lg = size === "lg";
+const ARROWS: Record<string, string> = {
+  "←": "M12.5 8h-9M7 4.5 3.5 8 7 11.5",
+  "→": "M3.5 8h9M9 4.5 12.5 8 9 11.5",
+  "↑": "M8 12.5v-9M4.5 7 8 3.5 11.5 7",
+  "↓": "M8 3.5v9M4.5 9 8 12.5 11.5 9",
+};
+
+type KeySize = "sm" | "md" | "lg";
+
+/** A keycap. Arrows are drawn as icons: font arrows sit on the text baseline and look low in a cap. */
+function Keycap({ k, size = "sm", lit = false }: { k: string; size?: KeySize; lit?: boolean }): ReactNode {
+  const arrow = ARROWS[k];
+  const icon = size === "lg" ? 20 : size === "md" ? 16 : 12;
   return (
-    <kbd
-      style={{
-        fontFamily: FONT,
-        fontSize: lg ? 22 : 13,
-        fontWeight: 500,
-        lineHeight: 1,
-        minWidth: lg ? 56 : 28,
-        height: lg ? 56 : 28,
-        padding: lg ? "0 14px" : "0 8px",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: lg ? 12 : 7,
-        // Longhands only: mixing `border` with `borderBottomWidth` makes React warn on every key flash.
-        borderStyle: "solid",
-        borderColor: lit ? c.flash : c.keyEdge,
-        borderWidth: `1px 1px ${lg ? 3 : 2}px`,
-        background: lit ? c.flash : c.key,
-        color: lit ? c.flashText : c.text,
-        transition: "background .12s ease, color .12s ease, border-color .12s ease",
-        boxSizing: "border-box",
-      }}
-    >
-      {typeof children === "string" && children.length === 1 ? children.toUpperCase() : children}
+    <kbd className={size === "sm" ? "tx-key" : `tx-key tx-key-${size}`} data-lit={lit ? "" : undefined} aria-label={arrow ? k : undefined}>
+      {arrow ? (
+        <svg width={icon} height={icon} viewBox="0 0 16 16" aria-hidden="true">
+          <path d={arrow} fill="none" stroke="currentColor" strokeWidth={size === "sm" ? 1.6 : 1.4} strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : k.length === 1 ? (
+        k.toUpperCase()
+      ) : (
+        k
+      )}
     </kbd>
+  );
+}
+
+const POINTER = "M5 3.5v13.2l3.6-3.4 2.3 5.2 2.2-1-2.3-5.1h5Z";
+
+export interface FocusPadMessageProps {
+  state: FocusPadState;
+  hints: readonly FocusPadHint[];
+  /** What to do once focused, e.g. `"press ← →"`. */
+  doThis: string;
+  /** `null` while prerendering: both shortcuts are rendered and CSS shows one. */
+  platform: Platform | null;
+  /** The key that just reached the app, lit on its keycap and echoed below. */
+  lit?: string | null;
+  last?: { label: string; n: number } | null;
+  /** Animate rows in (after the first state change only, so the first paint never fades). */
+  animate?: boolean;
+}
+
+/**
+ * The pad's message for one state (exported for tests). Four rows in every state, so a state change
+ * swaps their contents without moving anything:
+ * - `open`: the DevTools shortcut as large keycaps, and what to do after.
+ * - `click`: a click target.
+ * - `live`: the app's keys, lit as they arrive, with the last key echoed below.
+ */
+export function FocusPadMessage({ state, hints, doThis, platform, lit = null, last = null, animate = false }: FocusPadMessageProps): ReactNode {
+  const shortcut = SHORTCUT_KEYS[platform ?? "other"];
+  const step = state === "open" ? 1 : state === "click" ? 2 : 3;
+  const enter = animate ? "tx-pad-in" : undefined;
+  const cls = (name: string): string => (enter ? `${name} ${enter}` : name);
+  const segment = (n: number): ReactNode => (
+    <span key={n} className="tx-pad-seg" data-step={n < step || state === "live" ? "done" : n === step ? "current" : "todo"}>
+      <i />
+      <i />
+    </span>
+  );
+
+  return (
+    <>
+      <div className="tx-pad-steps" role="img" aria-label={state === "live" ? "Live" : `Step ${step} of 3`}>
+        {[1, 2, 3].map(segment)}
+      </div>
+
+      {state === "open" ? (
+        <>
+          <h2 key="open" className={cls("tx-pad-headline")}>
+            Open the console
+          </h2>
+          <div key="open-hero" className={cls("tx-pad-hero")}>
+            {(platform ? [platform] : (["mac", "other"] as const)).map((p) => (
+              <div key={p} className={platform ? "tx-pad-keys" : `tx-pad-keys tx-os-${p}`} aria-label={`Press ${SHORTCUT_KEYS[p].join(" ")}`}>
+                {SHORTCUT_KEYS[p].map((k) => (
+                  <Keycap key={k} k={k} size="lg" />
+                ))}
+              </div>
+            ))}
+          </div>
+          {/* Keyed by the action: switching demos replaces the line rather than reflowing it (no layout shift). */}
+          <p key={`open-${doThis}`} className={cls("tx-pad-sub")}>
+            <span className="tx-pad-line">The app renders in DevTools.</span> <span className="tx-pad-line">{`Then click here and ${doThis}.`}</span>
+          </p>
+        </>
+      ) : state === "click" ? (
+        <>
+          <h2 key="click" className={cls("tx-pad-headline")}>
+            Click here
+          </h2>
+          <div key="click-hero" className={cls("tx-pad-hero")} aria-hidden="true">
+            <span className="tx-pad-click">
+              <svg width="20" height="20" viewBox="0 0 20 20">
+                <path d={POINTER} fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+              </svg>
+            </span>
+          </div>
+          <p key="click-sub" className={cls("tx-pad-sub")}>
+            <span className="tx-pad-line">The app reads keys from this page.</span>{" "}
+            <span className="tx-pad-line">
+              <kbd>{shortcut.join("")}</kbd> opens the console.
+            </span>
+          </p>
+        </>
+      ) : (
+        <>
+          <h2 key="live" className={cls("tx-pad-headline tx-pad-live")}>
+            <span className="tx-pad-dot" aria-hidden="true" />
+            Live in your console
+          </h2>
+          <div key={`live-${hints.map((h) => `${h.keys} ${h.label}`).join("|")}`} className={cls("tx-pad-hero")}>
+            {hints.length > 0 ? (
+              <div className="tx-pad-hints">
+                {hints.map((h) => (
+                  <span key={h.keys + h.label} className="tx-pad-hint">
+                    <span>
+                      {h.keys.split(/\s+/).map((k) => (
+                        <Keycap key={k} k={k} size="md" lit={lit !== null && keycapMatches(k, lit)} />
+                      ))}
+                    </span>
+                    {h.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <p key="live-sub" className={cls("tx-pad-sub")} aria-live="polite">
+            {last && !hints.some((h) => h.keys.split(/\s+/).some((k) => keycapMatches(k, last.label))) ? (
+              <span key={last.n} className="tx-pad-echo">
+                <Keycap k={last.label} />
+              </span>
+            ) : hints.length > 0 ? null : (
+              "Start typing."
+            )}
+          </p>
+        </>
+      )}
+    </>
   );
 }
 
@@ -255,53 +450,47 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
     setEngineCapturing(root !== null && !root.unmounted && root.input.enabled);
   };
 
+  // Rows fade in on state changes, never on the first paint (prerendered pages would flash).
+  const firstState = useRef(state);
+  const changed = useRef(false);
+  if (state !== firstState.current) changed.current = true;
+
   const first = hints[0];
   const doThis = action ?? (first ? `press ${first.keys}` : "type");
   const platform = usePlatform();
-  const shortcut = SHORTCUT_KEYS[platform ?? "other"];
-
-  const step = (n: number, label: string, done: boolean, current: boolean): ReactNode => (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, color: current ? c.text : done ? c.muted : c.subtle, whiteSpace: "nowrap" }}>
-      <span
-        style={{
-          width: 18,
-          height: 18,
-          borderRadius: 999,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 11,
-          fontFamily: MONO,
-          border: `1px solid ${current ? c.text : c.faint}`,
-          background: done ? c.faint : "transparent",
-          color: done ? c.muted : "inherit",
-        }}
-      >
-        {done ? "✓" : n}
-      </span>
-      {label}
-    </span>
-  );
-
-  const headline: CSSProperties = { margin: 0, fontSize: "clamp(32px, 5vw, 56px)", fontWeight: 600, letterSpacing: "-0.045em", lineHeight: 1.05, color: c.text, textAlign: "center" };
-  const sub: CSSProperties = { margin: 0, fontSize: 16, lineHeight: 1.5, color: c.muted, textAlign: "center", maxWidth: 600, textWrap: "balance" } as CSSProperties;
+  const live = state === "live";
 
   return (
     <div
       className={`tx-pad${className ? ` ${className}` : ""}`}
       data-textjs-focus-pad=""
       data-state={state}
+      // The size control sits in the corner on wide screens; without content below, the message keeps clear of it.
+      data-size-corner={sizeControl && children == null ? "" : undefined}
       onMouseDown={activate}
       style={
         {
-          "--tx-pad-hover": state === "live" ? c.border : c.borderHover,
+          "--tx-pad-hover": live ? c.border : c.borderHover,
+          "--tx-text": c.text,
+          "--tx-muted": c.muted,
+          "--tx-subtle": c.subtle,
+          "--tx-track": c.track,
+          "--tx-key": c.key,
+          "--tx-key-edge": c.keyEdge,
+          "--tx-key-shadow": c.keyShadow,
+          "--tx-live": c.live,
+          "--tx-flash": c.flash,
+          "--tx-flash-text": c.flashText,
+          "--tx-focus": c.focus,
           position: "relative",
           fontFamily: FONT,
           color: c.text,
           background: c.bg,
-          border: `1px solid ${c.border}`,
+          borderStyle: "solid",
+          borderColor: c.border,
+          borderWidth: 1,
           borderRadius: 16,
-          padding: "24px 24px 28px",
+          padding: 24,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -313,93 +502,23 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
       }
     >
       <style>{CSS}</style>
-      {last && state === "live" ? (
-        <span
-          key={last.n}
-          aria-hidden="true"
-          style={{ position: "absolute", inset: -1, borderRadius: 16, border: `1px solid ${c.live}`, pointerEvents: "none", animation: "tx-pad-ring .6s ease-out forwards" }}
-        />
-      ) : null}
+      {last && live ? <span key={last.n} className="tx-pad-ring" aria-hidden="true" /> : null}
       {title || top ? (
         <div className="tx-pad-top" style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-          {title ? <span style={{ fontSize: 13, color: c.subtle, fontFamily: MONO }}>{title.startsWith("▼") ? title : `▼ ${title}`}</span> : null}
+          {title ? <span style={{ fontSize: 13, lineHeight: "20px", color: c.subtle, fontFamily: MONO }}>{title.startsWith("▼") ? title : `▼ ${title}`}</span> : null}
           {top}
         </div>
       ) : null}
 
-      <div className="tx-pad-desk" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 28, width: "100%", minHeight: 280 }}>
+      <div className="tx-pad-desk">
         {banner ? <div className="tx-pad-banner">{banner}</div> : null}
-        {/* Rows whose copy comes from props are keyed by it: switching demos replaces them rather than moving them (no layout shift). */}
-        <div key={doThis} className="tx-pad-steps" style={{ display: "flex", gap: 20, flexWrap: "wrap", justifyContent: "center", fontSize: 13 }} aria-hidden="true">
-          {step(1, "Open the console", state !== "open", state === "open")}
-          <span style={{ color: c.faint }}>—</span>
-          {step(2, "Click here", state === "live", state === "click")}
-          <span style={{ color: c.faint }}>—</span>
-          {step(3, capitalize(doThis), last !== null && state === "live", state === "live")}
-        </div>
-
-        {state === "open" ? (
-          <>
-            <h2 className="tx-pad-headline" style={headline}>Open the console</h2>
-            {(platform ? [platform] : (["mac", "other"] as const)).map((p) => (
-              <div key={p} className={platform ? "tx-pad-keys" : `tx-pad-keys tx-os-${p}`} style={{ display: "flex", gap: 10 }} aria-label={`Press ${SHORTCUT_KEYS[p].join(" ")}`}>
-                {SHORTCUT_KEYS[p].map((k) => (
-                  <Keycap key={k} size="lg" c={c}>
-                    {k}
-                  </Keycap>
-                ))}
-              </div>
-            ))}
-            <p key={doThis} className="tx-pad-sub" style={sub}>{`The app renders in DevTools. Then click here and ${doThis}.`}</p>
-          </>
-        ) : state === "click" ? (
-          <>
-            <h2 className="tx-pad-headline" style={headline}>Click here, then type</h2>
-            <p className="tx-pad-sub" style={sub}>The app reads keys from this page.</p>
-            <p style={{ ...sub, fontSize: 13, color: c.subtle }}>
-              {"Console closed? "}
-              <span style={{ fontFamily: MONO, color: c.muted }}>{shortcut.join("")}</span>
-            </p>
-          </>
-        ) : (
-          <>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 500, color: c.live }}>
-              <span style={{ width: 8, height: 8, borderRadius: 999, background: c.live, animation: "tx-pad-pulse 1.6s ease-in-out infinite" }} />
-              Live in your console
-            </span>
-            <h2 key={doThis} className="tx-pad-headline" style={headline}>{hints.length > 0 ? capitalize(doThis) : "Start typing"}</h2>
-            <p className="tx-pad-sub" style={sub}>Watch the console.</p>
-          </>
-        )}
-
-        {hints.length > 0 ? (
-          <div key={hints.map((h) => `${h.keys} ${h.label}`).join("|")} className="tx-pad-hints" style={{ display: "flex", gap: 28, flexWrap: "wrap", justifyContent: "center", paddingTop: 4 }}>
-            {hints.map((h) => (
-              <span key={h.keys + h.label} style={{ display: "inline-flex", alignItems: "center", gap: 10, fontSize: 14, color: c.muted }}>
-                <span style={{ display: "inline-flex", gap: 4 }}>
-                  {h.keys.split(/\s+/).map((k) => (
-                    <Keycap key={k} size="sm" c={c} lit={lit !== null && state === "live" && keycapMatches(k, lit)}>
-                      {k}
-                    </Keycap>
-                  ))}
-                </span>
-                {h.label}
-              </span>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="tx-pad-echo" style={{ height: 20, fontFamily: MONO, fontSize: 12, color: c.subtle }} aria-live="polite">
-          {last && state === "live" ? (
-            <span key={last.n} style={{ display: "inline-block", animation: "tx-pad-pop 1.4s ease-out forwards" }}>{`→ ${last.label}`}</span>
-          ) : null}
-        </div>
+        <FocusPadMessage state={state} hints={hints} doThis={doThis} platform={platform} lit={live ? lit : null} last={live ? last : null} animate={changed.current} />
       </div>
 
-      <div className="tx-pad-touch" style={{ flex: 1, flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, minHeight: 240, padding: "0 8px" }}>
+      <div className="tx-pad-touch">
         {banner ? <div className="tx-pad-banner">{banner}</div> : null}
-        <h2 style={{ ...headline, fontSize: 32 }}>Open on a desktop</h2>
-        <p style={sub}>This demo renders in the Chrome DevTools console, which needs a desktop browser.</p>
+        <h2>Open on a desktop</h2>
+        <p>This demo renders in the Chrome DevTools console, which needs a desktop browser.</p>
       </div>
 
       {children}
@@ -421,8 +540,4 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
       {showMirrorDefault ? <ConsoleMirror frame={mirror} chrome appearance={appearance} /> : null}
     </div>
   );
-}
-
-function capitalize(s: string): string {
-  return s ? s[0]?.toUpperCase() + s.slice(1) : s;
 }

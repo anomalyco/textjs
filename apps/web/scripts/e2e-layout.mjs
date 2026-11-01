@@ -1,6 +1,7 @@
 // Pad layout parity: every Playground demo (Dashboard, Streaming, Snake at /playground[/<demo>],
 // OpenCode at /opencode, Coffee at /coffee) shares one stage layout, so switching between them in
-// the picker must not move the picker, keycaps, subtitle, pad or its slots by a single pixel.
+// the picker must not move the picker, keycaps, subtitle, pad or its slots by a single pixel, before
+// the console is open or once the pad is live.
 // Loads each route directly and via client navigation at several viewports, measures the bounding
 // boxes of corresponding elements and asserts they are identical (±0px). Also checks that the
 // OpenCode connection panel keeps one height in every state (checking, sandbox, connecting, live,
@@ -36,7 +37,10 @@ const SAME = {
   stage: ".pad-stage",
   pad: "[data-textjs-focus-pad]",
   desk: ".tx-pad-desk",
+  // The message's rows: progress, headline, hero (the console shortcut before the console is open).
+  steps: ".tx-pad-steps",
   headline: ".tx-pad-headline",
+  hero: ".tx-pad-hero",
   keycaps: ".tx-pad-keys",
   touchHeadline: ".tx-pad-touch h2",
   touchSub: ".tx-pad-touch p",
@@ -49,10 +53,9 @@ const SAME = {
 };
 // Elements whose text differs per page (the demo's action and keys): only the vertical box must match.
 const ROW = {
-  steps: ".tx-pad-steps",
   subtitle: ".tx-pad-sub",
+  // Live only: the demo's keys in the hero.
   hints: ".tx-pad-hints",
-  echo: ".tx-pad-echo",
   // terminal.shop pins its console at 80×30, so the size control's label is shorter there.
   size: ".tx-pad-size",
 };
@@ -200,6 +203,26 @@ for (const vp of VIEWPORTS) {
     }
     const s = await page.evaluate(() => window.__shifts);
     check(`${vp.name} switching through every demo: no layout shift`, s.length === 0, JSON.stringify(s));
+
+    // Live: the demos' keys fill the hero, and every demo still lines up (with each other, and with the
+    // rows of the "open" message above, which only swap their contents).
+    const desk = await page.locator(".tx-pad-desk").boundingBox();
+    await page.mouse.click(desk.x + 8, desk.y + desk.height - 8);
+    await page.keyboard.press("ArrowLeft");
+    await page.waitForTimeout(500);
+    const state = await page.getAttribute("[data-textjs-focus-pad]", "data-state");
+    check(`${vp.name} a key makes the pad live`, state === "live", String(state));
+    const liveRef = await measure(page);
+    const rows = ["steps", "headline", "hero", "subtitle", "pad", "slotBottom"];
+    const moved = rows.filter((k) => JSON.stringify(liveRef[k]) !== JSON.stringify(ref[k]));
+    check(`${vp.name} live rows sit where the "open" rows were`, moved.length === 0, moved.map((k) => `${k}: ${JSON.stringify(ref[k])} → ${JSON.stringify(liveRef[k])}`).join("\n    "));
+    for (const [label, href] of [...demos].reverse()) {
+      await page.evaluate((h) => document.querySelector(`.pad-picker a[href="${h}"]`).click(), href);
+      await page.waitForFunction((h) => location.pathname === h, href);
+      await page.waitForTimeout(450);
+      const d = diff(liveRef, await measure(page));
+      check(`${vp.name} live: "${label}" matches the first`, d.length === 0, d.join("\n    "));
+    }
   }
 
   const { context: c2, page: p2 } = await newPage(vp);

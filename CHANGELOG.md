@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- `<FocusPad>` has a new layout. Each state shows a three-part progress bar, a headline, one large element and a line of text. Before the console is open, the large element is the DevTools shortcut. Waiting for a click, it's a pointer. Once live, it's the app's `hints` as keycaps that light up as keys arrive, and keys without a hint are echoed below. The step labels, the separate "Live" badge and the "Watch the console." line are gone. Rows fade in on state changes, never on first paint, and motion is off under `prefers-reduced-motion`. Secondary text meets WCAG AA contrast in both appearances, and the console size picker shows a focus ring when it's reached with the keyboard.
+- textjs.org: the Playground uses the new `<FocusPad>` layout. The picker's current demo has the keycaps' surface, the OpenCode command field matches the URL field's corners and type size, the terminal.shop note takes two lines instead of three, "View source" sits on the size control's baseline, and quiet text in the pad meets AA contrast.
+
 ## [1.0.1] - 2026-11-01
 
 ### Added

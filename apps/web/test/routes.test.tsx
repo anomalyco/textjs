@@ -124,8 +124,10 @@ describe("page rendering", () => {
     for (const gone of [">Counter<", ">Form<"]) expect(pg).not.toContain(gone);
     expect(pg).toContain("data-textjs-focus-pad");
     expect(pg).toContain("Open the console");
-    expect(pg).toContain("The app renders in DevTools. Then click here and press ← →.");
-    expect(pg).toContain("switch region");
+    expect(pg).toContain('<span class="tx-pad-line">The app renders in DevTools.</span> <span class="tx-pad-line">Then click here and press ← →.</span>');
+    // The demo's keys are the hero once live; before that it is the DevTools shortcut.
+    expect(pg).not.toContain("switch region");
+    expect(pg).toContain('aria-label="Press ⌘ ⌥ J"');
     expect(pg).toContain("View source");
     expect(pg).toContain("Open on a desktop");
     for (const gone of ["RLE Inspector", "data-textjs-mirror", "Wireframe", "App title"]) expect(pg).not.toContain(gone);
@@ -133,10 +135,9 @@ describe("page rendering", () => {
     expect(oc).toContain("data-textjs-focus-pad");
     expect(oc).toContain('<a href="/opencode" title="OpenCode Lite, a client for the OpenCode coding agent" aria-current="page">OpenCode</a>');
     expect(oc).toContain('<div class="pad-slot pad-slot-banner"><svg class="wordmark-opencode" role="img" aria-label="OpenCode" width="117" height="21" viewBox="0 0 234 42"');
-    expect(oc.indexOf("wordmark-opencode")).toBeLessThan(oc.indexOf("tx-pad-steps"));
+    expect(oc.indexOf("wordmark-opencode")).toBeLessThan(oc.indexOf('class="tx-pad-steps"'));
     expect(oc).not.toContain("View source");
     expect(oc).toContain("Then click here and type a prompt.");
-    expect(oc).toContain("Enter");
     expect(oc).toContain("http://127.0.0.1:4096");
     expect(oc).toContain(BRIDGE_COMMAND);
     // Prerendering can't know about a remembered server: the status line is a placeholder until hydrated.
