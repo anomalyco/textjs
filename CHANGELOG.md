@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Stable `TX###` error codes. Every framework error carries a code and a link to `https://textjs.org/errors/<code>`.
 - textjs.org: Changelog, Blog (with an RSS feed at `/blog/rss.xml`), Enterprise and Status pages. The Status page runs the real Turbolog pipeline in your browser.
+- textjs.org: a Learn chapter video that's playing moves to a mini player in the corner when you scroll past it. The Captions button under each video turns captions on or off and remembers the choice.
 - `<TextDevOverlay>` takes `pill`, `shortcut` and `shell` props, so apps without the App Router can mount the inspector with their own keys and theme controls.
 
 ### Fixed

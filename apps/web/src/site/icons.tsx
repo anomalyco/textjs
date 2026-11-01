@@ -65,6 +65,38 @@ export function ChevronRight({ size = 14, ...props }: IconProps): ReactNode {
   return svg(size, props, <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />);
 }
 
+export function PlayIcon({ size = 14, ...props }: IconProps): ReactNode {
+  return svg(size, props, <path d="M5 3.2v9.6a.5.5 0 00.76.43l7.6-4.8a.5.5 0 000-.86l-7.6-4.8A.5.5 0 005 3.2z" fill="currentColor" />);
+}
+
+export function PauseIcon({ size = 14, ...props }: IconProps): ReactNode {
+  return svg(
+    size,
+    props,
+    <>
+      <rect x="4" y="3" width="2.75" height="10" rx=".6" fill="currentColor" />
+      <rect x="9.25" y="3" width="2.75" height="10" rx=".6" fill="currentColor" />
+    </>,
+  );
+}
+
+/** A small window inside a larger one (Picture-in-Picture). */
+export function PipIcon({ size = 14, ...props }: IconProps): ReactNode {
+  return svg(
+    size,
+    props,
+    <>
+      <path d="M13.5 7V4a1.5 1.5 0 00-1.5-1.5H3A1.5 1.5 0 001.5 4v7A1.5 1.5 0 003 12.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <rect x="8.5" y="9" width="6" height="4.5" rx="1" fill="currentColor" />
+    </>,
+  );
+}
+
+/** Return to the video's place in the page. */
+export function ReturnIcon({ size = 14, ...props }: IconProps): ReactNode {
+  return svg(size, props, <path d="M8 13V3.5M4 7l4-4 4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />);
+}
+
 /* DevTools glyphs */
 
 export function ClearIcon({ size = 14, ...props }: IconProps): ReactNode {
