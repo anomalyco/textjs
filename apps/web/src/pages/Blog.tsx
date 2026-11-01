@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { formatPostDate, POSTS, postPath } from "../blog";
+import { formatPostDate, POSTS_META as POSTS, postPath } from "../blog/meta";
 import { A } from "../router";
+import "./resources.css";
 
 export function BlogPage(): ReactNode {
   return (

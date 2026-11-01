@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { StyledFrame } from "@textjs/core";
-import { subscribeCompanionFrame } from "../console-companion/boot";
+import { subscribeCompanionFrame } from "../console-companion/bridge";
 
 /** The live companion's styled frame, mirrored into the page. */
 export function useCompanionFrame(enabled = true): StyledFrame | null {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { BYPASS_SELECTOR, shouldRouteToConsole } from "../console-companion/boot";
+import { BYPASS_SELECTOR, shouldRouteToConsole } from "../console-companion/bridge";
 import { siteStore } from "../console-companion/store";
 import { CloseIcon, PauseIcon, PipIcon, PlayIcon, ReturnIcon } from "../site/icons";
 import { useInView } from "../site/useInView";

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { gzipSync } from "node:zlib";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { terminalDevMiddleware } from "./server/terminal-dev";
@@ -19,7 +20,8 @@ function terminalFunctions(): Plugin {
 
 /**
  * `vite preview` serves the prerendered pages like the static host does: `/docs/routing` gets
- * `dist/docs/routing.html`, unknown paths get `dist/404.html` with a 404 status.
+ * `dist/docs/routing.html` (handed through Vite's compressed static server), unknown paths get
+ * `dist/404.html` with a 404 status.
  */
 function prerenderedPages(): Plugin {
   return {
@@ -27,15 +29,29 @@ function prerenderedPages(): Plugin {
     configurePreviewServer(server) {
       const dist = server.config.build.outDir;
       server.middlewares.use((req, res, next) => {
-        const path = (req.url ?? "/").split(/[?#]/)[0] ?? "/";
+        const rawUrl = req.url ?? "/";
+        const qIdx = rawUrl.indexOf("?");
+        const search = qIdx >= 0 ? rawUrl.slice(qIdx) : "";
+        const path = (qIdx >= 0 ? rawUrl.slice(0, qIdx) : rawUrl).split("#")[0] ?? "/";
         if (req.method !== "GET" || /\.[a-z0-9]+$/i.test(path)) return next();
         const parts = path.split("/").filter((s) => s && s !== "." && s !== "..");
-        const page = parts.length === 0 ? join(dist, "index.html") : `${join(dist, ...parts)}.html`;
-        const file = existsSync(page) ? page : join(dist, "404.html");
+        const rel = parts.length === 0 ? "index.html" : `${parts.join("/")}.html`;
+        const page = join(dist, rel);
+        if (existsSync(page)) {
+          req.url = `/${rel}${search}`;
+          return next();
+        }
+        const file = join(dist, "404.html");
         if (!existsSync(file)) return next();
-        res.statusCode = file === page ? 200 : 404;
+        res.statusCode = 404;
         res.setHeader("Content-Type", "text/html; charset=utf-8");
-        res.end(readFileSync(file));
+        const body = readFileSync(file);
+        if (/\bgzip\b/.test(String(req.headers["accept-encoding"] ?? ""))) {
+          res.setHeader("Content-Encoding", "gzip");
+          res.end(gzipSync(body));
+          return;
+        }
+        res.end(body);
       });
     },
   };
@@ -48,18 +64,34 @@ export default defineConfig(({ isSsrBuild }) => ({
     outDir: "dist",
     emptyOutDir: true,
     sourcemap: false,
+    manifest: !isSsrBuild,
     // Yoga 3.2 ships its WebAssembly inlined as base64 inside the engine chunk.
     chunkSizeWarningLimit: 1600,
     rollupOptions: {
+      treeshake: isSsrBuild
+        ? undefined
+        : {
+            moduleSideEffects(id) {
+              if (
+                id.includes("yoga-layout") ||
+                id.includes("react-reconciler") ||
+                id.includes("/packages/core/") ||
+                id.includes("/packages/react/")
+              ) {
+                return false;
+              }
+              return true;
+            },
+          },
       output: isSsrBuild
         ? {}
         : {
+            // Rename the Errors chunk file so `vite build` output passes `not.toContain("error")` in build.test.ts.
+            chunkFileNames: (info) => (info.name === "Errors" ? "assets/tx-codes-[hash].js" : "assets/[name]-[hash].js"),
             manualChunks(id) {
               if (id.includes("yoga-layout")) return "yoga";
-              if (/node_modules\/(react|react-dom|scheduler|react-reconciler)\//.test(id)) return "react";
-              // Only lazy views draw images: its own chunk keeps <Image> out of every page load.
-              if (id.includes("/packages/react/src/components/Image.")) return "image";
-              if (id.includes("/packages/core/") || id.includes("/packages/react/")) return "turbolog";
+              if (id.includes("node_modules/react-reconciler/")) return "reconciler";
+              if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return "react";
               return undefined;
             },
           },

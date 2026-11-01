@@ -12,7 +12,10 @@ import { LEARN_ROUTES } from "./learn/routes";
 import { MERCH_ROUTES } from "./merch/routes";
 import { presetPath } from "./console-companion/store";
 import { Root } from "./Root";
+import { preloadAllRoutes, ROUTE_MANIFEST_SRC } from "./route-loader";
 import { matchRoute, resetLocation, titleFor } from "./router";
+
+await preloadAllRoutes();
 
 export interface PrerenderRoute {
   path: string;
@@ -61,7 +64,8 @@ export async function render(pathname: string): Promise<string> {
   return html;
 }
 
-export { titleFor, matchRoute, renderRss };
+export { titleFor, matchRoute, renderRss, ROUTE_MANIFEST_SRC };
+export { learnVideo } from "./learn/video";
 export { humansTxt, llmsTxt, statusApi } from "./static-files";
 export { renderHomeAnsi } from "./home-ansi";
 export { ogCards } from "./og";

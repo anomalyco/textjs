@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { ConsoleRoot } from "@textjs/react";
 import { FocusPad } from "@textjs/react/dom";
-import { companionReady, getCompanion, LEARN_VIEWPORT_KEY } from "../console-companion/boot";
+import { activateCompanion, companionReady, getCompanion, LEARN_VIEWPORT_KEY } from "../console-companion/bridge";
 import type { Hint } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
 
@@ -32,7 +32,7 @@ export function LearnPad({ title, hints, action }: { title: string; hints: reado
         hints={hints}
         action={action}
         capturing={site.consoleInput}
-        onActivate={() => getCompanion()?.activate()}
+        onActivate={activateCompanion}
         className="pad"
         sizeControl={{ storageKey: LEARN_VIEWPORT_KEY }}
       />

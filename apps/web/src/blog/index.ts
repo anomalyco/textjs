@@ -8,16 +8,11 @@ import figlet from "./figlet-fonts.md?raw";
 import yoga from "./laying-out-the-console-with-yoga.md?raw";
 import textJs01 from "./text-js-0-1.md?raw";
 import consoleLog from "./rendering-react-into-console-log.md?raw";
+import { formatPostDate, getPostMeta, postPath, POSTS_META, type BlogPostMeta } from "./meta";
 
-export interface BlogPost {
-  slug: string;
-  title: string;
-  /** ISO date, `YYYY-MM-DD`. */
-  date: string;
-  author: string;
-  summary: string;
-  /** Optional `brand: turbolog` frontmatter shows the product's lockup above the date. */
-  brand?: "turbolog";
+export { formatPostDate, getPostMeta, postPath, POSTS_META, type BlogPostMeta };
+
+export interface BlogPost extends BlogPostMeta {
   markdown: string;
 }
 
@@ -64,15 +59,6 @@ export const POSTS: readonly BlogPost[] = [
 
 export function getPost(slug: string): BlogPost | undefined {
   return POSTS.find((p) => p.slug === slug);
-}
-
-export function postPath(slug: string): string {
-  return `/blog/${slug}`;
-}
-
-/** `2026-10-31` → `October 31, 2026` (UTC, so prerender and browser agree). */
-export function formatPostDate(date: string): string {
-  return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
 }
 
 const SITE = "https://textjs.org";

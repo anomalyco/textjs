@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { extractStyledFrame, InputEngine, type ConsoleTarget, type FrameResult, type StyledFrame } from "@textjs/core";
-import { createConsoleRoot, type ConsoleRoot, type ThemeName } from "@textjs/react";
+import type { ConsoleTarget, FrameResult, InputEngine, StyledFrame } from "@textjs/core";
+import type { ConsoleRoot, ThemeName } from "@textjs/react";
 import { useDocumentVisible } from "../site/useInView";
 
 export interface CapturedLog {
@@ -27,7 +27,7 @@ export class CaptureConsole implements ConsoleTarget {
 
 export interface SandboxState {
   root: ConsoleRoot | null;
-  engine: InputEngine;
+  engine: InputEngine | null;
   frame: StyledFrame | null;
   stats: FrameResult | null;
   log: CapturedLog | null;
@@ -51,8 +51,7 @@ export interface UseSandboxOptions {
  */
 export function useSandbox(app: ReactNode, { cols, rows, theme, wireframe = false, enabled = true }: UseSandboxOptions): SandboxState {
   const engineRef = useRef<InputEngine | null>(null);
-  if (engineRef.current === null) engineRef.current = new InputEngine({ document: null });
-  const engine = engineRef.current;
+  const [engine, setEngine] = useState<InputEngine | null>(null);
   const [root, setRoot] = useState<ConsoleRoot | null>(null);
   const [frame, setFrame] = useState<StyledFrame | null>(null);
   const [stats, setStats] = useState<FrameResult | null>(null);
@@ -69,17 +68,21 @@ export function useSandbox(app: ReactNode, { cols, rows, theme, wireframe = fals
     let created: ConsoleRoot | null = null;
     let queued = false;
     const capture = new CaptureConsole();
-    createConsoleRoot({
-      width: initial.current.cols,
-      height: initial.current.rows,
-      theme: initial.current.theme,
-      console: capture,
-      input: engine,
-      // `window.text` always belongs to the live console companion.
-      registerGlobal: false,
-      identifierPrefix: "txs",
-    }).then(
-      (r) => {
+    Promise.all([import("@textjs/core"), import("@textjs/react")])
+      .then(async ([core, react]) => {
+        if (cancelled) return;
+        const eng = engineRef.current ?? (engineRef.current = new core.InputEngine({ document: null }));
+        setEngine(eng);
+        const r = await react.createConsoleRoot({
+          width: initial.current.cols,
+          height: initial.current.rows,
+          theme: initial.current.theme,
+          console: capture,
+          input: eng,
+          // `window.text` always belongs to the live console companion.
+          registerGlobal: false,
+          identifierPrefix: "txs",
+        });
         if (cancelled) {
           r.unmount();
           return;
@@ -95,21 +98,20 @@ export function useSandbox(app: ReactNode, { cols, rows, theme, wireframe = fals
           queueMicrotask(() => {
             queued = false;
             if (cancelled || r.unmounted) return;
-            setFrame(extractStyledFrame(r.renderer.buffer));
+            setFrame(core.extractStyledFrame(r.renderer.buffer));
             setStats(latest);
             setLog(capture.last);
           });
         });
         setRoot(r);
-      },
-      (err: unknown) => console.error(err),
-    );
+      })
+      .catch((err: unknown) => console.error(err));
     return () => {
       cancelled = true;
       created?.unmount();
       setRoot(null);
     };
-  }, [mounted, engine]);
+  }, [mounted]);
 
   useEffect(() => {
     if (!root || root.unmounted) return;
@@ -118,7 +120,7 @@ export function useSandbox(app: ReactNode, { cols, rows, theme, wireframe = fals
   }, [root, active]);
 
   useEffect(() => {
-    if (root && !root.unmounted) root.render(app);
+    if (root && !root.unmounted && app !== null) root.render(app);
   }, [root, app]);
 
   useEffect(() => {

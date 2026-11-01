@@ -1,21 +1,13 @@
-import { lazy, Suspense, useCallback, useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Box, KeyHint, Text, useApp, useFocusManager, useInput } from "@textjs/react";
-import { OpenCodeLite } from "../demos/opencode/OpenCodeLite";
-import { PresetView } from "../demos/presets";
-import { useSite } from "./useSite";
-import { DOCS_READING_HINTS, hintsFor, PRESETS, siteStore, type CompanionTab, type Hint } from "./store";
-import { HomeTab } from "./tabs/HomeTab";
-import { DocsTab } from "./tabs/DocsTab";
-import { exampleGrid, ExampleTab, runsExamples } from "./tabs/ExampleTab";
-import { LearnConsole } from "../learn/apps/LearnConsole";
+import { exampleGrid, runsExamples } from "../docs/preview-meta";
 import { matchRoute } from "../router";
-import { NotFoundTab } from "./tabs/NotFoundTab";
 import { SiteDevTools } from "./DevTools";
+import { DOCS_READING_HINTS, hintsFor, PRESETS, siteStore, type CompanionTab, type Hint } from "./store";
+import { NotFoundTab } from "./tabs/NotFoundTab";
+import { getLoadedCompanionTabs, preloadCompanionTab, subscribeCompanionTabs } from "./tabs-loader";
 import { teamModule, useTeamGate } from "./team-gate";
-
-// Only /terminal needs the shop, so it loads on first visit.
-const TerminalConsole = lazy(() => import("../demos/terminal").then((m) => ({ default: m.TerminalConsole })));
-const BlogTab = lazy(() => import("./tabs/BlogTab").then((m) => ({ default: m.BlogTab })));
+import { useSite } from "./useSite";
 
 const PAGE_LABEL: Record<CompanionTab, string> = { home: "", playground: "playground", opencode: "opencode", docs: "docs", learn: "learn", terminal: "terminal", blog: "blog" };
 
@@ -51,6 +43,9 @@ export function CompanionApp(): ReactNode {
   const site = useSite();
   const focus = useFocusManager();
   const tab = site.tab;
+  const [, bump] = useState(0);
+  useEffect(() => subscribeCompanionTabs(() => bump((n) => n + 1)), []);
+
   // One wireframe flag for F2, the DevTools panel, `text.wireframe()` and the mirror's inspect button; boot applies it.
   const app = useApp();
   const wireframe = site.wireframe;
@@ -61,16 +56,21 @@ export function CompanionApp(): ReactNode {
   const notFound = route?.name === "not-found";
   const example = runsExamples(tab) && !notFound && site.example !== null && exampleGrid(site.example, tab) ? site.example : null;
 
+  useEffect(() => {
+    void preloadCompanionTab(tab);
+    if (example !== null) void preloadCompanionTab("example");
+  }, [tab, example]);
+
   useInput(
     (e) => {
       if (tab === "opencode") return;
-    if (e.key === "f2") {
-      e.stopPropagation();
-      setWireframe(!siteStore.getSnapshot().wireframe);
-    } else if (e.key === "escape" && example === null) {
-      e.stopPropagation();
-      focus.blur();
-    }
+      if (e.key === "f2") {
+        e.stopPropagation();
+        setWireframe(!siteStore.getSnapshot().wireframe);
+      } else if (e.key === "escape" && example === null) {
+        e.stopPropagation();
+        focus.blur();
+      }
     },
     // terminal.shop owns every key, esc included.
     { isActive: tab !== "terminal" },
@@ -79,8 +79,13 @@ export function CompanionApp(): ReactNode {
   const team = site.teamEgg !== null ? teamModule() : null;
   useTeamGate(tab !== "opencode" && tab !== "terminal" && example === null && team === null);
 
+  const loaded = getLoadedCompanionTabs();
+
   // OpenCode is a full-screen TUI of its own, like the real thing.
-  if (tab === "opencode") return <OpenCodeLite />;
+  if (tab === "opencode") {
+    const OpenCodeLite = loaded.opencode;
+    return OpenCodeLite ? <OpenCodeLite /> : null;
+  }
   // Ctrl+` opens the Text.js DevTools inspector everywhere but OpenCode and terminal.shop.
   const devtools = <SiteDevTools wireframe={wireframe} setWireframe={setWireframe} />;
   if (team !== null && site.teamEgg !== null)
@@ -91,41 +96,44 @@ export function CompanionApp(): ReactNode {
       </>
     );
   // Each /learn page runs its chapter's app, with its own header and keys.
-  if (tab === "learn")
-    return (
+  if (tab === "learn") {
+    const LearnConsole = loaded.learn;
+    return LearnConsole ? (
       <>
         <LearnConsole />
         {devtools}
       </>
-    );
+    ) : null;
+  }
   // An example clicked on the page (docs, or Home's Components) runs here instead of the page's view.
-  if (example !== null)
-    return (
+  if (example !== null) {
+    const ExampleTab = loaded.example;
+    return ExampleTab ? (
       <>
         <ExampleTab key={example} id={example} />
         {devtools}
       </>
-    );
+    ) : null;
+  }
   // terminal.shop's ssh storefront, 80 × 30, signed in through the site's proxy.
-  if (tab === "terminal")
-    return (
-      <Suspense fallback={null}>
-        <TerminalConsole />
-      </Suspense>
-    );
+  if (tab === "terminal") {
+    const TerminalConsole = loaded.terminal;
+    return TerminalConsole ? <TerminalConsole /> : null;
+  }
+
+  const HomeTab = loaded.home;
+  const BlogTab = loaded.blog;
+  const PresetView = loaded.playground;
+  const DocsTab = loaded.docs;
 
   return (
     <Box className="flex-col grow pt-1">
       <Header tab={tab} notFound={notFound} />
       <Box className="flex-col grow overflow-hidden" paddingTop={1}>
-        {notFound ? <NotFoundTab /> : tab === "home" ? <HomeTab /> : null}
-        {route?.name === "blog-post" ? (
-          <Suspense fallback={null}>
-            <BlogTab slug={route.slug} />
-          </Suspense>
-        ) : null}
-        {tab === "playground" ? <PresetView key={site.preset} preset={site.preset} reserveRows={6} /> : null}
-        {tab === "docs" ? <DocsTab /> : null}
+        {notFound ? <NotFoundTab /> : tab === "home" && HomeTab ? <HomeTab /> : null}
+        {route?.name === "blog-post" && BlogTab ? <BlogTab slug={route.slug} /> : null}
+        {tab === "playground" && PresetView ? <PresetView key={site.preset} preset={site.preset} reserveRows={6} /> : null}
+        {tab === "docs" && DocsTab ? <DocsTab /> : null}
       </Box>
       <HintLine tab={tab} hints={notFound ? NOT_FOUND_HINTS : tab === "docs" && site.docsPane === "content" ? DOCS_READING_HINTS : undefined} />
       {devtools}

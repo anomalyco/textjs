@@ -4,7 +4,7 @@ import { DevToolsWindow } from "../site/DevToolsWindow";
 
 export interface SandboxConsoleProps {
   frame: StyledFrame | null;
-  engine: InputEngine;
+  engine: InputEngine | null;
   source?: string;
   filter?: string;
   className?: string;
@@ -30,12 +30,12 @@ export function SandboxConsole({ frame, engine, source, filter, className, captu
   const [focused, setFocused] = useState(false);
 
   useEffect(() => {
-    engine.setFocused(focused);
+    engine?.setFocused(focused);
   }, [engine, focused]);
 
   useEffect(() => {
     const el = wrap.current;
-    if (!el || !captureWheel) return;
+    if (!el || !captureWheel || !engine) return;
     const onWheel = (e: WheelEvent): void => {
       if (!focused) return;
       e.preventDefault();
@@ -71,17 +71,17 @@ export function SandboxConsole({ frame, engine, source, filter, className, captu
               sink.current?.blur();
               return;
             }
-            engine.handleKeyDown(e.nativeEvent);
+            engine?.handleKeyDown(e.nativeEvent);
           }}
           onInput={(e) => {
             const el = e.currentTarget;
             const value = el.value;
             el.value = "";
-            engine.handleTextInput(value);
+            engine?.handleTextInput(value);
           }}
           onPaste={(e) => {
             e.preventDefault();
-            engine.handlePaste(e.clipboardData.getData("text/plain"));
+            engine?.handlePaste(e.clipboardData.getData("text/plain"));
           }}
         />
       </DevToolsWindow>

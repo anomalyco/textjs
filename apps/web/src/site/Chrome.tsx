@@ -1,12 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useConsoleLogDown } from "../console-health";
-import { getCompanion } from "../console-companion/boot";
+import { activateCompanion } from "../console-companion/bridge";
 import { isPadRoute, siteStore } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
 import { A, useLocation } from "../router";
 import { ChevronRight, CloseIcon, Logo, MenuIcon, SearchIcon } from "./icons";
 import { LogoMenu, useLogoMenu } from "./LogoMenu";
-import { openSearch } from "./SearchModal";
+import { openSearch, preloadSearchDialog } from "./SearchModal";
 import { Sheet, useCloseOnMedia } from "./Sheet";
 
 export function isMac(): boolean {
@@ -69,12 +69,27 @@ export function Header(): ReactNode {
           ))}
         </nav>
         <div className="header-right">
-          <button type="button" className="search-btn" onClick={openSearch}>
+          <button
+            type="button"
+            className="search-btn"
+            onClick={openSearch}
+            onMouseEnter={() => void preloadSearchDialog()}
+            onFocus={() => void preloadSearchDialog()}
+            onPointerDown={() => void preloadSearchDialog()}
+          >
             <SearchIcon />
             <span>Search</span>
             <kbd>⌘K</kbd>
           </button>
-          <button type="button" className="icon-btn search-icon-btn" onClick={search} aria-label="Search documentation">
+          <button
+            type="button"
+            className="icon-btn search-icon-btn"
+            onClick={search}
+            onMouseEnter={() => void preloadSearchDialog()}
+            onFocus={() => void preloadSearchDialog()}
+            onPointerDown={() => void preloadSearchDialog()}
+            aria-label="Search documentation"
+          >
             <SearchIcon size={18} />
           </button>
           <button
@@ -167,7 +182,7 @@ export function ConsolePill(): ReactNode {
       data-textjs-interactive=""
       onClick={() => {
         if (on) siteStore.set({ consoleInput: false });
-        else getCompanion()?.activate();
+        else activateCompanion();
       }}
       aria-pressed={on}
       title={on ? "Keystrokes outside form fields are sent to the console app. Click to pause." : "Click to send keystrokes into the console app."}

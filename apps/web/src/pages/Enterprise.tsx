@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { A } from "../router";
+import "./resources.css";
 
 export const SALES_EMAIL = "enterprise@textjs.org";
 const SALES_BODY = ["Company:", "Team size:", "DevTools dock position (bottom, left, right or undocked):", "%c spans per frame (text.stats().spanCount):", ""].join("\r\n");

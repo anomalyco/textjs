@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type FocusEvent, type MouseEvent, type ReactNode } from "react";
+import { createElement, useEffect, useMemo, useRef, useState, type ComponentType, type FocusEvent, type MouseEvent, type ReactNode } from "react";
 import { siteStore } from "../../console-companion/store";
-import { exampleFrame, HOME_EXAMPLE_GRID, homeExampleHeader } from "../../console-companion/tabs/ExampleTab";
+import { preloadCompanionTab } from "../../console-companion/tabs-loader";
 import { useSite } from "../../console-companion/useSite";
-import { PREVIEWS } from "../../docs/previews";
+import { exampleFrame, HOME_EXAMPLE_GRID, homeExampleHeader } from "../../docs/preview-meta";
 import { A } from "../../router";
 import { SandboxConsole } from "../../sandbox/SandboxConsole";
 import { useSandbox } from "../../sandbox/useSandbox";
@@ -14,6 +14,33 @@ import { useInView } from "../../site/useInView";
 import { Crosses } from "./Crosses";
 
 const { cols: COLS, rows: ROWS } = HOME_EXAMPLE_GRID;
+
+type KitModule = typeof import("../../demos/Kit");
+let kitCache: KitModule | null = null;
+let kitPromise: Promise<KitModule> | null = null;
+
+function loadKit(): Promise<KitModule> {
+  if (kitCache) return Promise.resolve(kitCache);
+  if (!kitPromise) {
+    kitPromise = import("../../demos/Kit").then((m) => {
+      kitCache = m;
+      return m;
+    });
+  }
+  return kitPromise;
+}
+
+function renderKitTab(mod: KitModule | null, id: string): ReactNode {
+  if (!mod) return null;
+  const map: Record<string, ComponentType | undefined> = {
+    table: mod.TablePreview,
+    charts: mod.ChartsPreview,
+    controls: mod.ControlsPreview,
+    keymap: mod.KeymapPreview,
+  };
+  const Comp = map[id];
+  return Comp ? createElement(Comp) : null;
+}
 
 const TABS: Array<{ id: string; label: string; hint: string; href: string }> = [
   { id: "table", label: "Table", hint: "↑ ↓ move · s sort · Space select", href: "/docs/components-data" },
@@ -33,7 +60,20 @@ const GROUPS: Array<{ title: string; href: string; items: string[] }> = [
 /** The in-page sandbox, or, while this example runs in the console, a mirror of the console's frames. */
 function Preview({ id, enabled, active, available }: { id: string; enabled: boolean; active: boolean; available: boolean }): ReactNode {
   const site = useSite();
-  const app = useMemo(() => PREVIEWS[id]?.render() ?? null, [id]);
+  const [kit, setKit] = useState<KitModule | null>(kitCache);
+  useEffect(() => {
+    if (!enabled && !active) return;
+    void preloadCompanionTab("example");
+    if (kit) return;
+    let alive = true;
+    void loadKit().then((m) => {
+      if (alive) setKit(m);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [enabled, active, kit]);
+  const app = useMemo(() => renderKitTab(kit, id), [kit, id]);
   const [wireframe, setWireframe] = useState(false);
   const sandbox = useSandbox(app, { cols: COLS, rows: ROWS, theme: site.theme === "geistLight" ? "geistDark" : site.theme, enabled: enabled && !active, wireframe });
   const companionFrame = useCompanionFrame(active);

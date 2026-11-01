@@ -5,56 +5,55 @@
 
 import { extractStyledFrame, InputEngine, type StyledFrame } from "@textjs/core";
 import { createConsoleRoot, type ConsoleRoot } from "@textjs/react";
-import { applyViewportChoice, loadViewportChoice, VIEWPORT_CHOICE_KEY, type ViewportChoice } from "@textjs/react/dom";
+import { applyViewportChoice, VIEWPORT_CHOICE_KEY, type ViewportChoice } from "@textjs/react/dom";
 import { CompanionApp } from "./App";
+import {
+  activateCompanion,
+  BYPASS_SELECTOR,
+  COMPANION_COLS,
+  COMPANION_ROWS,
+  companionReady,
+  ENGAGE_SELECTOR,
+  getCompanion,
+  LEARN_VIEWPORT_KEY,
+  PLAYGROUND_VIEWPORT_KEY,
+  registerBootedCompanion,
+  setBootingCompanion,
+  shouldRouteToConsole,
+  subscribeCompanionFrame,
+  TERMINAL_COLS,
+  TERMINAL_ROWS,
+  viewportChoiceFor,
+  viewportChoiceKey,
+  viewportLimitsFor,
+  type Companion,
+  type FrameListener,
+} from "./bridge";
 import { siteStore, type CompanionTab } from "./store";
-import { exampleGrid, runsExamples } from "./tabs/ExampleTab";
+import { isCompanionTabLoaded, preloadCompanionTab } from "./tabs-loader";
 import { viewportConsole } from "./viewport-console";
 
-/** The Home hero mirrors the console on the page, so Home keeps (at most) this shape. */
-export const COMPANION_COLS = 100;
-export const COMPANION_ROWS = 26;
-export const TERMINAL_COLS = 80;
-export const TERMINAL_ROWS = 30;
-
-/**
- * The companion fills the docked DevTools console ("Fit console", the
- * default) unless the visitor picked a size on a pad. Home caps the fit at
- * the hero mirror's shape; elsewhere it uses the whole console.
- */
-export function viewportLimitsFor(
-  tab: CompanionTab,
-  example: string | null = null,
-): { minCols: number; maxCols: number; minRows: number; maxRows: number; fallbackCols: number; fallbackRows: number } {
-  // An example gets exactly its grid, so the page can mirror it cell for cell.
-  const grid = runsExamples(tab) && example !== null ? exampleGrid(example, tab) : null;
-  if (grid) return { minCols: grid.cols, maxCols: grid.cols, minRows: grid.rows, maxRows: grid.rows, fallbackCols: grid.cols, fallbackRows: grid.rows };
-  // terminal.shop's ssh layout is a fixed 80 × 30 grid.
-  if (tab === "terminal")
-    return { minCols: TERMINAL_COLS, maxCols: TERMINAL_COLS, minRows: TERMINAL_ROWS, maxRows: TERMINAL_ROWS, fallbackCols: TERMINAL_COLS, fallbackRows: TERMINAL_ROWS };
-  return tab === "home"
-    ? { minCols: 40, maxCols: COMPANION_COLS, minRows: 12, maxRows: COMPANION_ROWS, fallbackCols: COMPANION_COLS, fallbackRows: COMPANION_ROWS }
-    : { minCols: 40, maxCols: 200, minRows: 12, maxRows: 60, fallbackCols: 120, fallbackRows: 36 };
-}
-
-/** The Playground's "Console size" choice (also /opencode and /coffee). It keeps the original key, so earlier choices stay. */
-export const PLAYGROUND_VIEWPORT_KEY = VIEWPORT_CHOICE_KEY;
-export const LEARN_VIEWPORT_KEY = "textjs:viewport:learn";
-
-/**
- * Where a page's "Console size" choice is kept: the Playground demos share one and Learn keeps its own.
- * Every other page (Home and its hero mirror, docs, blog) has no size control and always fits.
- */
-export function viewportChoiceKey(tab: CompanionTab): string | null {
-  if (tab === "playground" || tab === "opencode" || tab === "terminal") return PLAYGROUND_VIEWPORT_KEY;
-  if (tab === "learn") return LEARN_VIEWPORT_KEY;
-  return null;
-}
-
-export function viewportChoiceFor(tab: CompanionTab): ViewportChoice {
-  const key = viewportChoiceKey(tab);
-  return (key === null ? null : loadViewportChoice(key)) ?? "fit";
-}
+export {
+  activateCompanion,
+  BYPASS_SELECTOR,
+  COMPANION_COLS,
+  COMPANION_ROWS,
+  companionReady,
+  ENGAGE_SELECTOR,
+  getCompanion,
+  LEARN_VIEWPORT_KEY,
+  PLAYGROUND_VIEWPORT_KEY,
+  shouldRouteToConsole,
+  subscribeCompanionFrame,
+  TERMINAL_COLS,
+  TERMINAL_ROWS,
+  VIEWPORT_CHOICE_KEY,
+  viewportChoiceFor,
+  viewportChoiceKey,
+  viewportLimitsFor,
+  type Companion,
+  type ViewportChoice,
+};
 
 /**
  * Called when the page changes: applies the new page's limits and, when it moves to another size scope,
@@ -63,21 +62,6 @@ export function viewportChoiceFor(tab: CompanionTab): ViewportChoice {
 export function followViewportScope(root: ConsoleRoot, from: CompanionTab, to: CompanionTab, example: string | null): void {
   root.renderer.viewport.configure(viewportLimitsFor(to, example));
   if (viewportChoiceKey(from) !== viewportChoiceKey(to)) applyViewportChoice(root, viewportChoiceFor(to));
-}
-
-const EDITABLE = "input,textarea,select,[contenteditable=''],[contenteditable='true']";
-/** Elements that own their keyboard input (sandboxes, search) and must never feed the companion. */
-export const BYPASS_SELECTOR = `${EDITABLE},[data-console-bypass]`;
-
-function isSink(el: Element | null): boolean {
-  return el !== null && el.hasAttribute("data-textjs-input-sink");
-}
-
-/** Returns `true` when keystrokes should be routed into the console app right now. */
-export function shouldRouteToConsole(active: Element | null, consoleInput: boolean): boolean {
-  if (!consoleInput) return false;
-  if (active === null || isSink(active)) return true;
-  return active.closest(BYPASS_SELECTOR) === null;
 }
 
 /**
@@ -92,67 +76,33 @@ export class GatedInputEngine extends InputEngine {
   }
 }
 
-/** Explicit console surfaces (live DevTools mirrors) that route keystrokes into the companion when clicked. */
-export const ENGAGE_SELECTOR = "[data-console-engage]";
-
-type FrameListener = (frame: StyledFrame) => void;
-
-export interface Companion {
-  root: ConsoleRoot;
-  engine: GatedInputEngine;
-  /** Latest styled snapshot (for inline DevTools mirrors). */
-  getFrame(): StyledFrame | null;
-  subscribeFrame(listener: FrameListener): () => void;
-  /** Focus keyboard capture for the console app (used by "click to type" buttons). */
-  activate(): void;
-}
-
-let companion: Companion | null = null;
-let booting: Promise<Companion> | null = null;
-const pending = new Set<FrameListener>();
-
-export function getCompanion(): Companion | null {
-  return companion;
-}
-
-/** Resolves once the companion has booted (`null` when it was never started, e.g. in tests). */
-export function companionReady(): Promise<Companion> | null {
-  return booting;
-}
-
-export function subscribeCompanionFrame(listener: FrameListener): () => void {
-  if (companion) return companion.subscribeFrame(listener);
-  pending.add(listener);
-  let off: (() => void) | null = null;
-  void booting?.then((c) => {
-    if (pending.delete(listener)) off = c.subscribeFrame(listener);
-  });
-  return () => {
-    pending.delete(listener);
-    off?.();
-  };
-}
-
 const finePointer = (): boolean => typeof matchMedia === "function" && matchMedia("(pointer: fine)").matches;
 
+let bootStarted: Promise<Companion> | null = null;
+
 export function bootCompanion(): Promise<Companion> {
-  if (booting) return booting;
-  booting = (async () => {
+  if (bootStarted) return bootStarted;
+  const promise = (async () => {
     const engine = new GatedInputEngine(() => shouldRouteToConsole(document.activeElement, siteStore.getSnapshot().consoleInput));
     engine.attach();
-    const choice = viewportChoiceFor(siteStore.getSnapshot().tab);
-    const limits = viewportLimitsFor(siteStore.getSnapshot().tab, siteStore.getSnapshot().example);
+    const initialSnap = siteStore.getSnapshot();
+    const choice = viewportChoiceFor(initialSnap.tab);
+    const limits = viewportLimitsFor(initialSnap.tab, initialSnap.example);
     const target = viewportConsole();
-    const root = await createConsoleRoot({
-      ...(choice === "fit" ? { responsive: true } : { width: choice.cols, height: choice.rows }),
-      // The driver only turns the curtain on by default for the global console.
-      ...(target ? { console: target, curtain: true } : {}),
-      viewport: limits,
-      input: engine,
-      theme: siteStore.getSnapshot().theme,
-      tabFocus: false,
-      identifierPrefix: "txc",
-    });
+    const [root] = await Promise.all([
+      createConsoleRoot({
+        ...(choice === "fit" ? { responsive: true } : { width: choice.cols, height: choice.rows }),
+        // The driver only turns the curtain on by default for the global console.
+        ...(target ? { console: target, curtain: true } : {}),
+        viewport: limits,
+        input: engine,
+        theme: initialSnap.theme,
+        tabFocus: false,
+        identifierPrefix: "txc",
+      }),
+      preloadCompanionTab(initialSnap.tab),
+      initialSnap.example !== null ? preloadCompanionTab("example") : Promise.resolve(),
+    ]);
 
     let wireframe = siteStore.getSnapshot().wireframe;
     root.renderer.setWireframe(wireframe);
@@ -180,9 +130,25 @@ export function bootCompanion(): Promise<Companion> {
       }
       if (snap.tab !== tab || snap.example !== example) {
         const from = tab;
-        tab = snap.tab;
-        example = snap.example;
-        followViewportScope(root, from, tab, example);
+        const nextTab = snap.tab;
+        const nextExample = snap.example;
+        tab = nextTab;
+        example = nextExample;
+        const needsTab = !isCompanionTabLoaded(nextTab);
+        const needsEx = nextExample !== null && !isCompanionTabLoaded("example");
+        if (needsTab || needsEx) {
+          void Promise.all([
+            needsTab ? preloadCompanionTab(nextTab) : Promise.resolve(),
+            needsEx ? preloadCompanionTab("example") : Promise.resolve(),
+          ]).then(() => {
+            const cur = siteStore.getSnapshot();
+            if (cur.tab === nextTab && cur.example === nextExample) {
+              followViewportScope(root, from, nextTab, nextExample);
+            }
+          });
+        } else {
+          followViewportScope(root, from, nextTab, nextExample);
+        }
       }
     });
 
@@ -215,6 +181,11 @@ export function bootCompanion(): Promise<Companion> {
       queueMicrotask(publish);
     });
 
+    // If the visitor navigated while createConsoleRoot was initializing, ensure the current tab is ready.
+    const latestSnap = siteStore.getSnapshot();
+    if (!isCompanionTabLoaded(latestSnap.tab)) await preloadCompanionTab(latestSnap.tab);
+    if (latestSnap.example !== null && !isCompanionTabLoaded("example")) await preloadCompanionTab("example");
+
     root.render(<CompanionApp />);
 
     const c: Companion = {
@@ -232,10 +203,10 @@ export function bootCompanion(): Promise<Companion> {
         engine.focus();
       },
     };
-    companion = c;
-    for (const l of pending) c.subscribeFrame(l);
-    pending.clear();
+    registerBootedCompanion(c);
     return c;
   })();
-  return booting;
+  bootStarted = promise;
+  setBootingCompanion(promise);
+  return promise;
 }

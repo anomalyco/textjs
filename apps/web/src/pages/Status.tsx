@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { formatPostDate } from "../blog";
+import { formatPostDate } from "../blog/meta";
 import { TurbologLockup } from "../site/brand-marks";
 import { Inline } from "../site/Markdown";
 import { useInView } from "../site/useInView";
@@ -9,6 +9,7 @@ import type { BenchResult, Summary } from "./status-bench";
 import { COMPONENTS, LAUNCH, type Component, type Tone } from "./status-components";
 import history from "./status-history.json";
 import { INCIDENTS, incidentDays, type Incident, type IncidentStatus } from "./status-incidents";
+import "./resources.css";
 
 const DAYS = 90;
 

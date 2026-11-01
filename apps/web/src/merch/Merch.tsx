@@ -6,6 +6,7 @@ import { useScrollLock } from "../site/Sheet";
 import { cart, useCart } from "./cart";
 import { MERCH, onSale, saleOf, type CartLine, type CheckoutProvider } from "./config";
 import { formatPrice, getProduct, IMAGE_HEIGHT, IMAGE_WIDTH, PRODUCTS, productPath, type Product, type ProductImage } from "./products";
+import "./merch.css";
 
 export function MerchPage({ slug, provider = MERCH.provider }: { slug: string; provider?: CheckoutProvider | null }): ReactNode {
   const product = slug ? getProduct(slug) : undefined;

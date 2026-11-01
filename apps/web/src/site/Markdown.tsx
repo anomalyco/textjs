@@ -1,6 +1,6 @@
 import { Fragment, useMemo, type ReactNode } from "react";
 import { parseInline, parseMarkdown, type ListItem, type MarkdownBlock } from "@textjs/react";
-import { slugify } from "../docs/registry";
+import { slugify } from "../docs/meta";
 import { A } from "../router";
 import { CodeBlock } from "./CodeBlock";
 // Eager (not lazy): a Suspense fallback swapping to the taller preview would shift the page.

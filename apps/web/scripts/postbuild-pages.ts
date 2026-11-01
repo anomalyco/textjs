@@ -1,7 +1,8 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { OgCard } from "../src/og";
+import type { Route } from "../src/router";
 import { renderOgImages, type OgImage } from "./og/render";
 
 const rootDir = join(import.meta.dirname, "..");
@@ -10,11 +11,26 @@ const distDir = process.env.TEXTJS_WEB_DIST ?? join(rootDir, "dist");
 const ssrDir = process.env.TEXTJS_WEB_SSR ?? join(rootDir, "node_modules", ".cache", "textjs-ssr");
 const baseHtml = readFileSync(join(distDir, "index.html"), "utf8");
 
+interface ManifestChunk {
+  file: string;
+  src?: string;
+  imports?: string[];
+  css?: string[];
+}
+
+const manifestPath = join(distDir, ".vite", "manifest.json");
+const manifest: Record<string, ManifestChunk> | null = existsSync(manifestPath)
+  ? (JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, ManifestChunk>)
+  : null;
+
 interface ServerEntry {
   ROUTES: ReadonlyArray<{ path: string; title: string; description: string; canonical?: string; noindex?: boolean }>;
   NOT_FOUND_PATH: string;
   PREFIT_MIRRORS_SCRIPT: string;
   PREFIT_MIRRORS_WHILE_PARSING_SCRIPT: string;
+  ROUTE_MANIFEST_SRC: Record<Exclude<Route["name"], "not-found">, string>;
+  matchRoute(pathname: string): Route;
+  learnVideo(slug: string): { poster: string } | null;
   render(pathname: string): Promise<string>;
   renderRss(): string;
   humansTxt(date: string): string;
@@ -25,6 +41,40 @@ interface ServerEntry {
 }
 
 const server = (await import(pathToFileURL(join(ssrDir, "entry-server.js")).href)) as ServerEntry;
+
+/** Collect JS modulepreloads and CSS files needed by a route's dynamic chunk. */
+function routeAssets(routePath: string): { css: string[]; js: string[] } {
+  if (!manifest) return { css: [], js: [] };
+  const route = server.matchRoute(routePath);
+  if (route.name === "not-found") return { css: [], js: [] };
+  const srcKey = server.ROUTE_MANIFEST_SRC[route.name];
+  if (!srcKey || !manifest[srcKey]) return { css: [], js: [] };
+
+  const visited = new Set<string>();
+  const css = new Set<string>();
+  const js = new Set<string>();
+  const entryFiles = new Set<string>();
+  const indexEntry = manifest["index.html"];
+  if (indexEntry) {
+    entryFiles.add(indexEntry.file);
+    for (const c of indexEntry.css ?? []) css.add(c);
+    for (const imp of indexEntry.imports ?? []) {
+      if (manifest[imp]) entryFiles.add(manifest[imp]!.file);
+    }
+  }
+
+  const walk = (key: string): void => {
+    if (visited.has(key)) return;
+    visited.add(key);
+    const chunk = manifest[key];
+    if (!chunk) return;
+    for (const c of chunk.css ?? []) css.add(c);
+    if (!entryFiles.has(chunk.file)) js.add(chunk.file);
+    for (const imp of chunk.imports ?? []) walk(imp);
+  };
+  walk(srcKey);
+  return { css: [...css], js: [...js] };
+}
 
 function escapeAttr(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
@@ -62,6 +112,33 @@ function withMeta(html: string, title: string, description: string, urlPath: str
   return out;
 }
 
+/**
+ * Place render-blocking stylesheets ahead of font preloads and scripts, and modulepreload
+ * this route's lazy chunk so hydration resolves with zero waterfall.
+ */
+function withRouteHeadHints(html: string, routePath: string): string {
+  const { css, js } = routeAssets(routePath);
+  let out = html;
+  if (css.length > 0) {
+    // Strip Vite's trailing stylesheet link and emit all stylesheets (base + route) before font preloads.
+    out = out.replace(/\s*<link rel="stylesheet"[^>]*>/g, "");
+    const cssLinks = css.map((f) => `<link rel="stylesheet" crossorigin href="/${f}">`).join("\n    ");
+    out = out.replace(/(<link rel="preload" href="\/fonts\/)/, `${cssLinks}\n    $1`);
+  }
+  const extraHead: string[] = [];
+  const route = server.matchRoute(routePath);
+  if (route.name === "learn" && route.slug && server.learnVideo(route.slug)) {
+    extraHead.push('<link rel="preconnect" href="https://media.textjs.org" crossorigin>');
+  }
+  for (const f of js) {
+    extraHead.push(`<link rel="modulepreload" crossorigin href="/${f}">`);
+  }
+  if (extraHead.length > 0) {
+    out = out.replace("</head>", `  ${extraHead.join("\n    ")}\n  </head>`);
+  }
+  return out;
+}
+
 async function withMarkup(html: string, routePath: string): Promise<string> {
   const markup = await server.render(routePath);
   const root = '<div id="root"></div>';
@@ -69,10 +146,11 @@ async function withMarkup(html: string, routePath: string): Promise<string> {
   const mirrors = markup.includes("mirror-scale");
   const prefit = mirrors ? `<script>${server.PREFIT_MIRRORS_SCRIPT}</script>` : "";
   const watch = mirrors ? `<script>${server.PREFIT_MIRRORS_WHILE_PARSING_SCRIPT}</script>` : "";
+  const hinted = withRouteHeadHints(html, routePath);
   // A page that marks its fold holds first paint until everything above it is parsed (Chrome
   // 124+), so a long page arriving in several chunks never paints a half-built hero.
   const fold = markup.includes('id="fold"') ? '<link rel="expect" href="#fold" blocking="render">\n  </head>' : "</head>";
-  return html.replace("</head>", fold).replace(root, `${watch}<div id="root" data-route="${escapeAttr(routePath)}">${markup}</div>${prefit}`);
+  return hinted.replace("</head>", fold).replace(root, `${watch}<div id="root" data-route="${escapeAttr(routePath)}">${markup}</div>${prefit}`);
 }
 
 function withNoindex(html: string): string {
@@ -124,4 +202,5 @@ writeFileSync(join(distDir, "home.ansi"), await server.renderHomeAnsi());
 writeFileSync(join(distDir, "404.html"), withImage(notFoundHtml, imageFor(server.NOT_FOUND_PATH)));
 writeFileSync(join(distDir, "CNAME"), "textjs.org\n");
 writeFileSync(join(distDir, ".nojekyll"), "");
+rmSync(join(distDir, ".vite"), { recursive: true, force: true });
 rmSync(ssrDir, { recursive: true, force: true });

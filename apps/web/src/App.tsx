@@ -1,16 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
-import { BlogPage } from "./pages/Blog";
-import { BlogPostPage } from "./pages/BlogPost";
-import { ChangelogPage } from "./pages/Changelog";
-import { DocsPage } from "./pages/Docs";
-import { EnterprisePage } from "./pages/Enterprise";
-import { ErrorPage, ErrorsIndexPage } from "./pages/Errors";
-import { HomePage } from "./pages/Home";
-import { LearnPage } from "./pages/Learn";
-import { MerchPage } from "./merch/Merch";
-import { PlaygroundPage } from "./pages/Playground";
-import { StatusPage } from "./pages/Status";
-import { A, matchRoute, titleFor, useLocation, type Route } from "./router";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { getLoadedRoutes, isRouteLoaded, preloadRoute } from "./route-loader";
+import { A, matchRoute, titleFor, useLocation, type LocationState, type Route } from "./router";
 import { ConsolePill, Footer, Header } from "./site/Chrome";
 import { SearchModal } from "./site/SearchModal";
 import { safeDecode } from "./url";
@@ -29,35 +19,36 @@ export function NotFoundPage(): ReactNode {
 }
 
 export function RouteView({ route }: { route: Route }): ReactNode {
+  const r = getLoadedRoutes();
   switch (route.name) {
     case "home":
-      return <HomePage />;
+      return r.HomePage ? <r.HomePage /> : null;
     case "docs":
-      return <DocsPage slug={route.slug} />;
+      return r.DocsPage ? <r.DocsPage slug={route.slug} /> : null;
     // OpenCode and terminal.shop are the last two Playground demos, at their own URLs.
     case "playground":
-      return <PlaygroundPage demo={route.preset} />;
+      return r.PlaygroundPage ? <r.PlaygroundPage demo={route.preset} /> : null;
     case "opencode":
     case "coffee":
-      return <PlaygroundPage demo={route.name} />;
+      return r.PlaygroundPage ? <r.PlaygroundPage demo={route.name} /> : null;
     case "learn":
-      return <LearnPage slug={route.slug} />;
+      return r.LearnPage ? <r.LearnPage slug={route.slug} /> : null;
     case "errors":
-      return <ErrorsIndexPage />;
+      return r.ErrorsIndexPage ? <r.ErrorsIndexPage /> : null;
     case "error":
-      return <ErrorPage code={route.code} />;
+      return r.ErrorPage ? <r.ErrorPage code={route.code} /> : null;
     case "changelog":
-      return <ChangelogPage />;
+      return r.ChangelogPage ? <r.ChangelogPage /> : null;
     case "blog":
-      return <BlogPage />;
+      return r.BlogPage ? <r.BlogPage /> : null;
     case "blog-post":
-      return <BlogPostPage slug={route.slug} />;
+      return r.BlogPostPage ? <r.BlogPostPage slug={route.slug} /> : null;
     case "enterprise":
-      return <EnterprisePage />;
+      return r.EnterprisePage ? <r.EnterprisePage /> : null;
     case "status":
-      return <StatusPage />;
+      return r.StatusPage ? <r.StatusPage /> : null;
     case "merch":
-      return <MerchPage slug={route.slug} />;
+      return r.MerchPage ? <r.MerchPage slug={route.slug} /> : null;
     case "not-found":
       return <NotFoundPage />;
   }
@@ -65,21 +56,44 @@ export function RouteView({ route }: { route: Route }): ReactNode {
 
 export function App(): ReactNode {
   const location = useLocation();
-  const route = matchRoute(location.pathname);
+  const targetRoute = matchRoute(location.pathname);
+  const [displayed, setDisplayed] = useState<LocationState>(location);
+
+  // If the target route module is already loaded, transition synchronously in the same render;
+  // otherwise keep the previous view mounted until the chunk (and its CSS) finishes loading so
+  // <main> never collapses to 0px and causes a layout shift.
+  const readyNow = isRouteLoaded(targetRoute.name);
+  const activeLocation = readyNow ? location : displayed;
+  if (readyNow && displayed !== location) {
+    setDisplayed(location);
+  }
+
+  useEffect(() => {
+    if (readyNow) return;
+    let alive = true;
+    void preloadRoute(targetRoute.name).then(() => {
+      if (alive) setDisplayed(location);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [readyNow, targetRoute.name, location]);
+
+  const route = matchRoute(activeLocation.pathname);
   const first = useRef(true);
 
   useEffect(() => {
-    document.title = titleFor(route);
+    document.title = titleFor(targetRoute);
   }, [location.pathname]);
 
   useLayoutEffect(() => {
     const initial = first.current;
     first.current = false;
-    if (location.hash) {
-      const id = safeDecode(location.hash.slice(1));
+    if (activeLocation.hash) {
+      const id = safeDecode(activeLocation.hash.slice(1));
       requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: "start" }));
     } else if (!initial) window.scrollTo(0, 0);
-  }, [location.key]);
+  }, [activeLocation.key]);
 
   return (
     <>

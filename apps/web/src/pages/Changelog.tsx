@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import changelog from "../../../../CHANGELOG.md?raw";
-import { formatPostDate } from "../blog";
+import { formatPostDate } from "../blog/meta";
 import { A } from "../router";
 import { Inline, MarkdownDoc } from "../site/Markdown";
+import "./resources.css";
 
 export interface ChangelogRelease {
   /** `1.0.0` or `Unreleased`. */

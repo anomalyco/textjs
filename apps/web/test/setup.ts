@@ -16,3 +16,9 @@ plugin({
     }));
   },
 });
+
+const [{ preloadAllRoutes }, { preloadAllCompanionTabs }] = await Promise.all([
+  import("../src/route-loader"),
+  import("../src/console-companion/tabs-loader"),
+]);
+await Promise.all([preloadAllRoutes(), preloadAllCompanionTabs()]);
