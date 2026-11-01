@@ -77,6 +77,8 @@ export interface SiteState {
   opencode: OpenCodeConnection;
   /** Live docs example (preview id) running in the console instead of the Docs view, or `null`. */
   example: string | null;
+  /** `/exit` in OpenCode paused and cleared the console; engaging the pad again restarts it. */
+  opencodeExited: boolean;
 }
 
 type Listener = () => void;
@@ -107,6 +109,7 @@ const DEFAULT_STATE: SiteState = {
   consoleInput: false,
   opencode: { mode: "sandbox" },
   example: null,
+  opencodeExited: false,
 };
 
 export class SiteStore {

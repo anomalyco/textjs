@@ -7,6 +7,7 @@ import { scanApp, toStaticManifest } from "@textjs/next/vite";
 import { createDemoClient } from "../lib/demo";
 import { connectOpenCode, createTransport, isLoopbackEndpoint, parseV2Event, readSse } from "../lib/client";
 import { getOpenCodeStore, OpenCodeStore, resetOpenCodeStore } from "../lib/store";
+import { slashAction } from "../lib/commands";
 import type { AssistantMessage, ToolPart } from "../lib/types";
 import { createOpencodeProxy, normalizeTargetUrl, opencodeDevMiddleware } from "../server/opencode-proxy";
 import { createBridgeHandler, isAllowedOrigin, selectsTarget, startProxy } from "../../../packages/text/src/cli/proxy";
@@ -391,6 +392,27 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     expect(posts.map((r) => [r.path.split("/").pop(), r.body])).toEqual([
       ["agent", { agent: "plan" }], ["model", { model: { id: "claude-opus-5-5", providerID: "anthropic", variant: "low" } }], ["command", { name: "review", text: "my changes" }],
     ]);
+  });
+});
+
+describe("/exit", () => {
+  test("exits the app like the native TUI, with /quit, /q and the bare exit words as aliases", async () => {
+    for (const word of ["/exit", "/quit", "/q", "exit", "quit", ":q"]) expect(slashAction(` ${word} `)).toBe("exit");
+    expect(slashAction("/exits")).toBeUndefined();
+    expect(slashAction("exit the loop")).toBeUndefined();
+    const { t } = await mount();
+    await t.type("/exit");
+    await t.press("Enter");
+    await t.waitFor(() => t.root.unmounted, "the app to exit");
+    expect(mock.requests.filter((r) => r.method !== "GET")).toEqual([]);
+  });
+
+  test("an embed's store hands /exit to the host instead", () => {
+    let exits = 0;
+    const store = new OpenCodeStore({ client: createDemoClient(), onExit: () => void exits++ });
+    expect(store.exitToHost()).toBe(true);
+    expect(exits).toBe(1);
+    expect(new OpenCodeStore({ client: createDemoClient() }).exitToHost()).toBe(false);
   });
 });
 

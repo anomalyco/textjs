@@ -258,3 +258,63 @@ describe("Ctrl+` opens Text.js DevTools", () => {
     await h.unmount();
   });
 });
+
+describe("/exit in OpenCode", () => {
+  afterAll(async () => {
+    await site(() => resetLocation("/"));
+    await site(() => siteStore.reset());
+  });
+
+  test("pauses and leaves the console to the DevTools prompt; engaging the pad restarts and repaints", async () => {
+    await site(() => resetLocation("/opencode"));
+    await site(() => siteStore.set({ consoleInput: true }));
+    const h = await mount(<CompanionApp />, { cols: 100, rows: 32, tabFocus: false });
+    await h.type("/exit");
+    expect(h.frame()).toContain("/exit");
+    await h.key("return");
+    await h.wait(10);
+    expect(siteStore.getSnapshot().opencodeExited).toBe(true);
+    expect(siteStore.getSnapshot().consoleInput).toBe(false);
+    expect(h.root.renderer.stats().paused).toBe(true);
+    const logs = h.console.logs.length;
+    const clears = h.console.clears;
+    await h.wait(50);
+    h.frame();
+    expect(h.console.logs.length).toBe(logs);
+
+    // FocusPad's click: getCompanion().activate()
+    await site(() => siteStore.set({ consoleInput: true }));
+    expect(siteStore.getSnapshot().opencodeExited).toBe(false);
+    expect(h.root.renderer.stats().paused).toBe(false);
+    const f = h.frame();
+    expect(h.console.clears).toBe(clears + 1);
+    expect(h.console.logs.length).toBe(logs + 1);
+    expect(f).toContain("Ask anything");
+    expect(f).not.toContain("/exit");
+    await h.unmount();
+  });
+
+  test("leaving the page while exited resumes the console", async () => {
+    await site(() => resetLocation("/opencode"));
+    await site(() => siteStore.set({ consoleInput: true }));
+    const h = await mount(<CompanionApp />, { cols: 100, rows: 32, tabFocus: false });
+    await h.type("/q");
+    await h.key("return");
+    await h.wait(10);
+    expect(h.root.renderer.stats().paused).toBe(true);
+    await site(() => resetLocation("/"));
+    expect(siteStore.getSnapshot().opencodeExited).toBe(false);
+    expect(h.root.renderer.stats().paused).toBe(false);
+    expect(h.frame()).toContain("React 19 in console.log");
+    await h.unmount();
+  });
+
+  test("the page pad says how to restart", async () => {
+    await site(() => resetLocation("/opencode"));
+    expect(await render("/opencode")).toContain('<span class="pad-title">OpenCode, in the console</span>');
+    await site(() => siteStore.set({ opencodeExited: true }));
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { OpenCodePage } = await import("../src/pages/OpenCode");
+    expect(renderToStaticMarkup(<OpenCodePage />)).toContain('<span class="pad-title">OpenCode exited. Click to restart.</span>');
+  });
+});
