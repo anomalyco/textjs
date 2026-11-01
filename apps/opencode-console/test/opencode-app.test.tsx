@@ -671,8 +671,11 @@ describe("dev proxy (/__opencode)", () => {
     const g = globalThis as { window?: unknown; fetch: typeof fetch };
     const realFetch = g.fetch;
     const warns: string[] = [];
+    const notes: string[] = [];
     const origWarn = console.warn;
+    const origInfo = console.info;
     console.warn = (...args: unknown[]) => warns.push(args.join(" "));
+    console.info = (...args: unknown[]) => notes.push(args.join(" "));
     try {
       g.window = { location: { origin: "http://localhost:3001", hostname: "localhost", search: "" } };
 
@@ -703,9 +706,13 @@ describe("dev proxy (/__opencode)", () => {
       g.fetch = (async (_input: RequestInfo | URL) => new Response("{}", { status: 401, headers: { "content-type": "application/json" } })) as typeof fetch;
       await expect(discoverServer("http://0.0.0.0:49374")).rejects.toThrow("Auth required — run bunx @textjs/next proxy and connect to http://127.0.0.1:4096.");
 
-      expect(warns.every((w) => !w.includes("\n"))).toBe(true);
+      // Falling back to the demo is the documented first run: a one-line note, never a console warning.
+      expect(warns.every((w) => !w.includes("\n") && !w.includes("demo mode"))).toBe(true);
+      expect(notes.length).toBeGreaterThan(0);
+      expect(notes.every((w) => !w.includes("\n") && w.endsWith("(demo mode)"))).toBe(true);
     } finally {
       console.warn = origWarn;
+      console.info = origInfo;
       g.fetch = realFetch;
       delete g.window;
     }

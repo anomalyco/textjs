@@ -795,7 +795,9 @@ async function detect(t: Transport, mode: ConnectionMode): Promise<OpenCodeClien
 }
 
 function offline(reason: string, targetUrl?: string): Connection {
-  console.warn(`OpenCode Lite: ${reason} (demo mode)`);
+  // A note, not a warning: the demo is the documented first run without a server (and /connect shows the reason).
+  // `text run` has no window: its terminal is the UI, so nothing is printed over it.
+  if (typeof window !== "undefined") console.info(`OpenCode Lite: ${reason} (demo mode)`);
   return { client: createDemoClient(), reason, targetUrl };
 }
 
