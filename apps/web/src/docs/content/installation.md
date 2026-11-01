@@ -9,7 +9,7 @@
 bunx create-text-app@latest
 ```
 
-Pick a template — `starter`, `dashboard` or `opencode` — then start the dev server:
+Pick a template (`starter`, `dashboard` or `opencode`), then start the dev server:
 
 ```bash
 cd my-app

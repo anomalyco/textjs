@@ -1,4 +1,4 @@
-Lists, tables and trees for data sets of any size. Only visible rows are rendered, so 100,000 items cost the same as 20.
+`<List>`, `<Table>` and `<Tree>` display large data sets. Only visible rows are rendered.
 
 ```tsx#table
 <Table

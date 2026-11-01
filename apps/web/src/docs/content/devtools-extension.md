@@ -1,4 +1,4 @@
-The Text.js DevTools extension adds a **Text.js** panel next to Console. It inspects the app that is rendering in the Console. DevTools inside DevTools.
+The Text.js DevTools extension adds a **Text.js** panel next to Console. It inspects the app that is rendering in the Console.
 
 - **Components:** the React tree of every console root, with props, hooks, keys, and the `tx-box` / `tx-text` scene nodes behind them, laid out in cells.
 - **Frame:** the current frame as a cell grid. Hover a cell to see which component painted it. Click to select the node. It is highlighted in the live console.

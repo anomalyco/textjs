@@ -1,4 +1,4 @@
-Charts drawn with block elements: eight levels per cell for bars, a 2×2 dot grid per cell for lines.
+Charts are drawn with block elements. Bars use eight levels per cell, and lines use a 2×2 dot grid per cell.
 
 ```tsx#charts
 <LineChart
@@ -48,7 +48,7 @@ Fills its width with the latest points. `height` above `1` renders a filled area
 <Sparkline data={throughput} height={3} />
 ```
 
-`sparkline(values)` returns the same thing as a string.
+`sparkline(values)` returns the same sparkline as a string.
 
 ## `<ProgressBar>`
 

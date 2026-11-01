@@ -49,7 +49,7 @@ export const getPosts = unstable_cache(
 );
 ```
 
-The key is the key parts plus the arguments, encoded by value (`undefined` and `null`, `Map`, `Set`, `Date` and `URL` arguments stay distinct). Without key parts, the function's source and the place it was created identify it; pass key parts whenever the function closes over values, for example when it's created per request or in a loop. Results are JSON-serialized, so every call returns a fresh copy (and `Date` objects come back as strings); a result that can't be serialized throws. `cache(fn, { key, tags, revalidate })` is the same thing with an options object.
+The key is the key parts plus the arguments, encoded by value (`undefined` and `null`, `Map`, `Set`, `Date` and `URL` arguments stay distinct). Without key parts, the function's source and the place it was created identify it; pass key parts whenever the function closes over values, for example when it's created per request or in a loop. Results are JSON-serialized, so every call returns a fresh copy (and `Date` objects come back as strings); a result that can't be serialized throws. `cache(fn, { key, tags, revalidate })` takes the same settings as an options object.
 
 Inside a cached route handler, data entries pass their tags and their shortest `revalidate` up to the route: revalidating `"posts"` also refreshes `/api/posts`. A data call with `revalidate: 0` makes the route dynamic.
 

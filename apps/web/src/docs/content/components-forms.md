@@ -1,4 +1,4 @@
-Controls, dialogs and toasts. Every control joins the `Tab` order and answers to `Space` or `Enter`.
+Text.js includes form controls, dialogs and toasts. Every control joins the `Tab` order and responds to `Space` or `Enter`.
 
 ```tsx#controls
 <Checkbox label="Web Analytics" description="privacy-friendly" defaultChecked />
@@ -22,7 +22,7 @@ All of them accept `autoFocus`, `focused`, `id` and `disabled`. Controlled and u
 
 ### Buttons
 
-`variant` is `primary`, `secondary`, `ghost` or `danger`. Focus fills the button with the accent; nothing else moves.
+`variant` is `primary`, `secondary`, `ghost` or `danger`. Focus fills the button with the accent color without changing its size.
 
 ## `<Dialog>`
 

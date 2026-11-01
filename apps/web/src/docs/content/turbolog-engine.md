@@ -1,4 +1,4 @@
-Turbolog turns each React commit into one `console.log` call — or none.
+Turbolog turns each React commit into one `console.log` call, or none if no cell changed.
 
 ## Goals
 
@@ -14,7 +14,7 @@ React ─▶ Yoga ─▶ CellBuffer ─▶ row-hash gate ─▶ RLE ─▶ conso
 
 ## CellBuffer
 
-The frame lives in flat typed arrays — characters, colors and attributes — allocated once.
+The frame lives in flat typed arrays for characters, colors and attributes, allocated once.
 
 ## Dirty gate
 

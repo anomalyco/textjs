@@ -1,4 +1,4 @@
-Ship the console anywhere. `text build` produces a portable `dist/`; an adapter turns it into the exact output a platform expects.
+`text build` produces a portable `dist/`. An adapter turns it into the output a platform expects.
 
 ## Adapters
 

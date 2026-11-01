@@ -1,4 +1,4 @@
-Text.js is a React framework for apps that render entirely inside `console.log`.
+Text.js is a React framework for apps that render in the DevTools console with `console.log`.
 
 ```tsx#counter
 import { useState } from "react";
@@ -22,11 +22,11 @@ The preview is live. Click it and press `↑`.
 
 ## What's included
 
-- **React 19** — concurrent rendering, Suspense and error boundaries.
-- **App Router** — layouts, pages, dynamic segments and route handlers.
-- **Yoga layout** — flexbox in WebAssembly, snapped to integer cells.
-- **Turbolog** — every frame is one `console.log` call.
-- **No DOM UI** — the page only hosts a focus pad and a hidden input.
+- **React 19**: concurrent rendering, Suspense and error boundaries.
+- **App Router**: layouts, pages, dynamic segments and route handlers.
+- **Yoga layout**: flexbox in WebAssembly, snapped to integer cells.
+- **Turbolog**: one `console.log` call per changed frame.
+- **No DOM UI**: the page only hosts a focus pad and a hidden input.
 
 ## How it works
 
@@ -36,11 +36,11 @@ State flows down: React, then layout, then a cell buffer, then the console.
 React 19 ▼ Yoga ▼ CellBuffer ▼ console.log(format, ...css)
 ```
 
-Unchanged frames are skipped entirely. Idle apps log nothing.
+Unchanged frames are skipped, so idle apps log nothing.
 
 ## Next steps
 
-- [Installation](/docs/installation) — create your first app.
-- [Routing](/docs/routing) — pages, layouts and navigation.
-- [Turbolog](/docs/turbolog-engine) — how frames are encoded.
-- [OpenCode](/docs/opencode) — a full agent TUI built with Text.js.
+- [Installation](/docs/installation): create your first app.
+- [Routing](/docs/routing): pages, layouts and navigation.
+- [Turbolog](/docs/turbolog-engine): how frames are encoded.
+- [OpenCode](/docs/opencode): an agent TUI built with Text.js.

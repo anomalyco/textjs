@@ -1,4 +1,4 @@
-`@textjs/next/testing` (or `@textjs/react/testing`) renders your app offscreen, presses keys and hands you the frame as text. No browser, no DevTools, no `console.log`.
+`@textjs/next/testing` (or `@textjs/react/testing`) renders your app offscreen, presses keys and returns the frame as text. Tests run without a browser or DevTools.
 
 ```tsx@counter.test.tsx
 import { afterEach, expect, test } from "bun:test";
@@ -14,7 +14,7 @@ test("counts up", async () => {
 });
 ```
 
-It works with any runner that supports `async` tests: Bun, Vitest, Jest.
+It works with any runner that supports `async` tests, including Bun, Vitest and Jest.
 
 ## Rendering
 

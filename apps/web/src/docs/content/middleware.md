@@ -1,4 +1,4 @@
-Run code before a request completes. Redirect, rewrite, set headers and cookies, or answer the request yourself.
+Middleware runs code before a request completes. It can redirect, rewrite, set headers and cookies, or return a response itself.
 
 ## Convention
 

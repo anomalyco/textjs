@@ -1,4 +1,4 @@
-Structural primitives, backed by Yoga flexbox.
+These primitives lay out the cell grid with Yoga flexbox.
 
 ## `<Box>`
 
@@ -59,7 +59,7 @@ A centered overlay that dims what's beneath and traps focus.
 </Modal>
 ```
 
-## Small pieces
+## Spacer, Divider and Badge
 
 ```tsx
 <Spacer />

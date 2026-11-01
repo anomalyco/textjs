@@ -1,4 +1,4 @@
-Suspense and error boundaries, rendered in the console.
+Loading states and error boundaries render in the console. Define them per route segment with `loading.tsx` and `error.tsx`.
 
 ## Loading UI
 
