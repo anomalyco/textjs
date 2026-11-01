@@ -59,6 +59,11 @@ async function mount(path = "/") {
 const requested = (method: string, prefix: string): boolean => mock.requests.some((r) => r.method === method && r.path.startsWith(prefix));
 
 describe("OpenCode Lite console app (live V2 server)", () => {
+  test("a slash action at the caret preserves text to its right",async()=>{
+    const {t}=await mount();await t.paste("/help remaining draft");await t.press("a",{ctrlKey:true});
+    for(let i=0;i<5;i++)await t.press("ArrowRight");await t.press("Enter");expect(t.frame()).toContain("see all available");
+    await t.press("Escape");expect(t.frame()).toContain("remaining draft");expect(t.frame()).not.toContain("/help");
+  });
   test("leader+Enter queues without dropping the draft into the command palette", async () => {
     const { t } = await mount("/session/ses_alpha");
     await t.waitFor(() => t.frame().includes("It lives in"));

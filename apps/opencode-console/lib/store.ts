@@ -735,7 +735,7 @@ export class OpenCodeStore {
     void send.catch((error) => {
       if (client !== this.client) return;
       this.set((s) => ({
-        busy: { ...s.busy, [target]: false },
+        busy: queued ? s.busy : { ...s.busy, [target]: false },
         messages: { ...s.messages, [target]: (s.messages[target] ?? []).filter((m) => m !== pending) },
       }));
       this.notify(`Prompt failed: ${error instanceof Error ? error.message : String(error)}`, "danger");

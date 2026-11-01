@@ -330,12 +330,12 @@ export function Composer({
           directory={directory}
           space={anchor.current?.layout.y ?? 10}
           onHide={(clear) => {
-            if (clear) change("");
+            if (clear) editor.current?.replace(value.slice(caret), 0);
             dismiss(true);
           }}
           onSelect={(option, drill) => {
             if (option.command?.action && !option.command.args) {
-              change("");
+              editor.current?.replace(value.slice(caret), 0);
               dispatch(option.command.action);
               return;
             }
