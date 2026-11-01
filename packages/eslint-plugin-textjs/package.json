@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-textjs",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "ESLint rules for Text.js: console-safe JSX, cell-width glyphs, frame-paced timers, keymaps and App Router conventions.",
   "type": "module",
   "license": "MIT",

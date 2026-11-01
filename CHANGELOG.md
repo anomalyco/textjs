@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-11-01
+
 ### Performance
 
 - `@textjs/react`: `Box` and `Text` pass pre-stripped scene props to the reconciler instead of copying prop objects on mount and update.

@@ -138,7 +138,7 @@ export const reconciler = createReconciler<
   warnsIfNotActing: false,
 
   rendererPackageName: "@textjs/react",
-  rendererVersion: "1.0.2",
+  rendererVersion: "1.0.3",
   extraDevToolsConfig: null,
 
   bindToConsole(methodName, args, _badgeName) {

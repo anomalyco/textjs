@@ -1,6 +1,6 @@
 {
   "name": "@textjs/app",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "The Console Framework for the Web. Build React 19 App Router apps that render in the DevTools console.",
   "type": "module",
   "license": "MIT",
