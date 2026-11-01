@@ -31,6 +31,8 @@ export interface Provider {
   id: string;
   /** Everything besides the text that changes the audio (part of the cache key, and printed). */
   describe(): Record<string, unknown>;
+  /** The text the provider actually sends, when it rewrites some words (part of the cache key). */
+  voiceText?(text: string): string;
   synthesize(text: string, dir: string, base: string): Promise<Speech>;
 }
 
@@ -47,7 +49,58 @@ export const ELEVENLABS_VOICES: Record<string, string> = {
   alice: "Xb7hH8MSUJpSbSDYk0k2",
 };
 
+/**
+ * Words sent to ElevenLabs as inline IPA (eleven_v4 reads `/…/` as phonemes). Spelled out, Eric draws the name out
+ * as "text… J… S"; this says it as one word, stressed on the S. Matched whole-word and case-insensitively, so it
+ * covers "TextJS" (the spoken form of Text.js) and the "textjs" in package names.
+ */
+export const ELEVENLABS_IPA: Record<string, string> = { textjs: "/ˌtɛkstdʒeɪˈɛs/" };
+
 const FORMAT = 2;
+
+interface Rewrite {
+  sent: string;
+  /** Rewritten spans: [start, end) in the original text and [start, end) in `sent`. */
+  spans: Array<[number, number, number, number]>;
+}
+
+function rewriteIpa(text: string): Rewrite {
+  const spans: Rewrite["spans"] = [];
+  let sent = "";
+  let at = 0;
+  const re = new RegExp(`\\b(${Object.keys(ELEVENLABS_IPA).join("|")})\\b`, "gi");
+  for (const m of text.matchAll(re)) {
+    sent += text.slice(at, m.index);
+    const ipa = ELEVENLABS_IPA[m[0].toLowerCase()]!;
+    spans.push([m.index!, m.index! + m[0].length, sent.length, sent.length + ipa.length]);
+    sent += ipa;
+    at = m.index! + m[0].length;
+  }
+  return { sent: sent + text.slice(at), spans };
+}
+
+/** Maps alignment of the rewritten text back onto the original's characters (rewritten words spread evenly). */
+function unrewrite(text: string, { spans }: Rewrite, sent: Alignment): Alignment {
+  const starts: number[] = [];
+  const ends: number[] = [];
+  let i = 0;
+  let j = 0;
+  for (const [s, e, ss, se] of [...spans, [text.length, text.length, Infinity, Infinity] as const]) {
+    for (; i < s; i++, j++) {
+      starts.push(sent.starts[j]!);
+      ends.push(sent.ends[j]!);
+    }
+    if (s === text.length) break;
+    const t0 = sent.starts[ss]!;
+    const t1 = sent.ends[se - 1]!;
+    for (; i < e; i++) {
+      starts.push(t0 + ((i - s) / (e - s)) * (t1 - t0));
+      ends.push(t0 + ((i - s + 1) / (e - s)) * (t1 - t0));
+    }
+    j = se;
+  }
+  return { starts, ends };
+}
 
 function toWav(input: string[], out: string): void {
   run([FFMPEG, "-y", "-loglevel", "error", ...input, "-ac", "1", "-ar", "48000", "-c:a", "pcm_s16le", out]);
@@ -61,14 +114,16 @@ export function elevenlabs(opts: { voice?: string; model?: string } = {}): Provi
   return {
     id: "elevenlabs",
     describe: () => ({ voice, model, voiceSettings }),
+    voiceText: (text) => rewriteIpa(text).sent,
     async synthesize(text, dir, base) {
       const key = setting("ELEVENLABS_API_KEY");
       if (!key) throw new Error("ELEVENLABS_API_KEY is not set (env or ~/.config/textjs/elevenlabs.env); use --provider say for a draft");
+      const rewrite = rewriteIpa(text);
       for (let attempt = 1; ; attempt++) {
         const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}/with-timestamps?output_format=pcm_44100`, {
           method: "POST",
           headers: { "xi-api-key": key, "content-type": "application/json", accept: "application/json" },
-          body: JSON.stringify({ text, model_id: model, voice_settings: voiceSettings }),
+          body: JSON.stringify({ text: rewrite.sent, model_id: model, voice_settings: voiceSettings }),
         });
         if (!res.ok) {
           const body = (await res.text()).slice(0, 400);
@@ -82,10 +137,11 @@ export function elevenlabs(opts: { voice?: string; model?: string } = {}): Provi
           audio_base64: string;
           alignment: { characters: string[]; character_start_times_seconds: number[]; character_end_times_seconds: number[] } | null;
         };
-        if (!json.alignment || json.alignment.characters.join("") !== text) {
+        if (!json.alignment || json.alignment.characters.join("") !== rewrite.sent) {
           // Alignment that doesn't cover the text exactly can't place cues; fail loudly rather than drift.
           throw new Error(`ElevenLabs alignment does not match the text for ${base}`);
         }
+        const sent = { starts: json.alignment.character_start_times_seconds, ends: json.alignment.character_end_times_seconds };
         const raw = join(dir, `${base}.pcm`);
         writeFileSync(raw, Buffer.from(json.audio_base64, "base64"));
         const file = join(dir, `${base}.wav`);
@@ -94,7 +150,7 @@ export function elevenlabs(opts: { voice?: string; model?: string } = {}): Provi
         return {
           file,
           duration: duration(file),
-          alignment: { starts: json.alignment.character_start_times_seconds, ends: json.alignment.character_end_times_seconds },
+          alignment: unrewrite(text, rewrite, sent),
         };
       }
     },
@@ -167,14 +223,16 @@ export function defaultProviderName(): string {
 /** Synthesizes `text`, or returns the cached result for the same text, provider and settings. */
 export async function speak(p: Provider, text: string): Promise<Speech & { cached: boolean; hash: string }> {
   const hash = createHash("sha256")
-    .update(JSON.stringify({ format: FORMAT, provider: p.id, settings: p.describe(), text }))
+    .update(JSON.stringify({ format: FORMAT, provider: p.id, settings: p.describe(), text: p.voiceText?.(text) ?? text }))
     .digest("hex")
     .slice(0, 20);
   const dir = join(CACHE, "tts", p.id);
   mkdirSync(dir, { recursive: true });
   const meta = join(dir, `${hash}.json`);
   if (existsSync(meta) && existsSync(join(dir, `${hash}.wav`))) {
-    return { ...(JSON.parse(readFileSync(meta, "utf8")) as Speech), file: join(dir, `${hash}.wav`), cached: true, hash };
+    const cached = JSON.parse(readFileSync(meta, "utf8")) as Speech & { text: string };
+    // The hash covers the rewritten text; the alignment must still be for this text.
+    if (cached.text === text) return { ...cached, file: join(dir, `${hash}.wav`), cached: true, hash };
   }
   const speech = await p.synthesize(text, dir, hash);
   writeFileSync(meta, JSON.stringify({ text, settings: p.describe(), duration: speech.duration, alignment: speech.alignment }));

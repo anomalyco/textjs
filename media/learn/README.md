@@ -147,6 +147,9 @@ Every render writes `out/review/<slug>/`. Before calling a chapter done:
   alignment. The key is read from `ELEVENLABS_API_KEY` or `~/.config/textjs/elevenlabs.env` and never printed.
   The course narrator is **Eric** (premade "Eric – Smooth, Trustworthy", `cjVigY5qzO86Huf0OWal`, Adam's pick), set
   as `DEFAULT_VOICE` in `lib/tts.ts` so every chapter inherits it; don't override it per chapter.
+  Text.js is spoken as "TextJS", and `ELEVENLABS_IPA` sends "textjs" (any case) as inline IPA, `/ˌtɛkstdʒeɪˈɛs/`,
+  so Eric says it as one word rather than "text… J… S". Captions still read "Text.js": the alignment is mapped back
+  onto the spoken text.
   `ELEVENLABS_VOICE_ID` (an id or a shortlist name: `eric`, `brian`, `sarah`, `daniel`, `river`, `alice`) and
   `ELEVENLABS_MODEL_ID` (default `eleven_v4`) override the defaults. Only premade voices are used; never a voice
   cloned from a real person. `bun media/learn/voices.ts` renders the same paragraph in each shortlisted voice to
