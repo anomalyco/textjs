@@ -1,0 +1,32 @@
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                ▄                                    │                                                                 ▄
+                               █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█                               │                                █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+             ┃ /models       Switch model                                              ┃             │              ┃ /models      Switch model                                      ctrl+x m ┃
+             ┃ /thinking     Switch model variant                                      ┃             │              ┃ /effort      Switch model variant                                       ┃
+             ┃ /variants     Switch model variant                                      ┃             │              ┃ /thinking    Switch model variant                                       ┃
+             ┃ /effort       Switch model variant                                      ┃             │              ┃ /variants    Switch model variant                                       ┃
+             ┃                                                                                       │              ┃
+             ┃  /model                                                                               │              ┃  /model
+             ┃                                                                                       │              ┃
+             ┃  Build · Flint 40B Free OpenCode                                                      │              ┃  Build · Flint 40B Free OpenCode
+             ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀             │              ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+             ~/project:master                          shift+tab agents  ctrl+p commands             │              ~/project:master                          shift+tab agents  ctrl+p commands
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                             2.1.4   │                                                                                              2.1.4
+                                                                                                     │

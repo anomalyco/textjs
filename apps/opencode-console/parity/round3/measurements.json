@@ -1,0 +1,25 @@
+{
+  "nativeVersion": "2.1.4",
+  "cols": 100,
+  "rows": 32,
+  "mismatches": {
+    "slash": {
+      "glyph": 107,
+      "fg": 13,
+      "bg": 0,
+      "attrs": 0
+    },
+    "mention": {
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "shell": {
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    }
+  }
+}
