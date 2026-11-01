@@ -36,7 +36,21 @@ describe("changelog, blog, enterprise and status", () => {
   });
 
   test("blog posts have complete frontmatter by Adam", () => {
-    expect(POSTS.map((p) => p.slug)).toEqual(["text-js-1-0", "turbolog-eliminating-the-flash", "the-inverted-architecture"]);
+    expect(POSTS.map((p) => p.slug)).toEqual([
+      "text-js-1-0",
+      "the-inverted-architecture",
+      "turbolog-eliminating-the-flash",
+      "right-to-left-text",
+      "keyboard-shortcuts-with-usekeymap",
+      "server-rendering-in-the-console",
+      "figlet-fonts",
+      "laying-out-the-console-with-yoga",
+      "text-js-0-1",
+      "rendering-react-into-console-log",
+    ]);
+    // The first post follows the first npm release of @textjs/core, and none is dated after 1.0.
+    expect(POSTS.at(-1)?.date).toBe("2025-02-12");
+    for (const p of POSTS) expect(p.date <= "2026-10-31" && p.date >= LAUNCH).toBe(true);
     for (const p of POSTS) {
       expect(p.author).toBe("Adam");
       expect(p.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);

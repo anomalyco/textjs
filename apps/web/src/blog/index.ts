@@ -1,6 +1,13 @@
 import textJs10 from "./text-js-1-0.md?raw";
 import turbolog from "./turbolog-eliminating-the-flash.md?raw";
 import inverted from "./the-inverted-architecture.md?raw";
+import rightToLeft from "./right-to-left-text.md?raw";
+import useKeymap from "./keyboard-shortcuts-with-usekeymap.md?raw";
+import serverRendering from "./server-rendering-in-the-console.md?raw";
+import figlet from "./figlet-fonts.md?raw";
+import yoga from "./laying-out-the-console-with-yoga.md?raw";
+import textJs01 from "./text-js-0-1.md?raw";
+import consoleLog from "./rendering-react-into-console-log.md?raw";
 
 export interface BlogPost {
   slug: string;
@@ -40,6 +47,13 @@ export const POSTS: readonly BlogPost[] = [
   post("text-js-1-0", textJs10),
   post("turbolog-eliminating-the-flash", turbolog),
   post("the-inverted-architecture", inverted),
+  post("right-to-left-text", rightToLeft),
+  post("keyboard-shortcuts-with-usekeymap", useKeymap),
+  post("server-rendering-in-the-console", serverRendering),
+  post("figlet-fonts", figlet),
+  post("laying-out-the-console-with-yoga", yoga),
+  post("text-js-0-1", textJs01),
+  post("rendering-react-into-console-log", consoleLog),
 ]
   .map((p, i) => ({ p, i }))
   .sort((a, b) => b.p.date.localeCompare(a.p.date) || a.i - b.i)

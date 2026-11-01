@@ -106,6 +106,7 @@ Zero-flash frames and server rendering.
 ### Added
 
 - `apps/opencode-console`: a connected OpenCode client rendered in `console.log`, with a demo fallback when no server is running.
+- An `opencode` template for `create-text-app`.
 - textjs.org: a new landing page, the live console companion, Playground, OpenCode page and documentation.
 - A GitHub Pages deployment workflow with static route generation.
 
@@ -118,4 +119,4 @@ The first milestone.
 - `@textjs/core`: `CellBuffer` on flat typed arrays, Yoga WASM layout, `Intl.Segmenter` text measurement, and the `%c` run-length encoding driver. One `console.log` per dirty frame and none when idle.
 - `@textjs/react`: a React 19 reconciler, PascalCase components (`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner` and more), cell-level Tailwind-style `className` utilities, themes and the DOM `FocusPad`.
 - `textjs`: the file-system App Router (`layout`, `page`, `loading`, `error`, `not-found`, dynamic segments, route handlers), `text dev`, `text build`, `text start` and the in-console `[▼]` inspector.
-- `create-text-app` with `starter`, `dashboard` and `opencode` templates.
+- `create-text-app` with `starter` and `dashboard` templates.

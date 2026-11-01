@@ -70,8 +70,15 @@
   <url><loc>https://textjs.org/changelog</loc><priority>0.6</priority></url>
   <url><loc>https://textjs.org/blog</loc><priority>0.7</priority></url>
   <url><loc>https://textjs.org/blog/text-js-1-0</loc><lastmod>2026-10-31</lastmod><priority>0.6</priority></url>
-  <url><loc>https://textjs.org/blog/turbolog-eliminating-the-flash</loc><lastmod>2026-10-31</lastmod><priority>0.6</priority></url>
   <url><loc>https://textjs.org/blog/the-inverted-architecture</loc><lastmod>2026-10-31</lastmod><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/blog/turbolog-eliminating-the-flash</loc><lastmod>2026-10-31</lastmod><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/blog/right-to-left-text</loc><lastmod>2026-10-06</lastmod><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/blog/keyboard-shortcuts-with-usekeymap</loc><lastmod>2026-08-25</lastmod><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/blog/server-rendering-in-the-console</loc><lastmod>2026-06-16</lastmod><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/blog/figlet-fonts</loc><lastmod>2025-12-02</lastmod><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/blog/laying-out-the-console-with-yoga</loc><lastmod>2025-06-10</lastmod><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/blog/text-js-0-1</loc><lastmod>2025-03-25</lastmod><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/blog/rendering-react-into-console-log</loc><lastmod>2025-02-12</lastmod><priority>0.6</priority></url>
   <url><loc>https://textjs.org/enterprise</loc><priority>0.5</priority></url>
   <url><loc>https://textjs.org/status</loc><priority>0.5</priority></url>
   <url><loc>https://textjs.org/merch</loc><priority>0.5</priority></url>
