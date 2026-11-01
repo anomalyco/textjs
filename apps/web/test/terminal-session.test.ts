@@ -183,7 +183,7 @@ describe("F-01: sealed __Host- cookies", () => {
     for (const cfg of [{ ...config, TERMINAL_COOKIE_SECRET: undefined }, { ...config, TERMINAL_COOKIE_SECRET: "too-short" }]) {
       expect(await (await handleTerminal(req("/api/terminal/_status", { cookie }), cfg)).json()).toMatchObject({ session: { signedIn: false, configured: false } });
       const login = await handleTerminal(req("/api/terminal/login"), cfg);
-      expect(login.headers.get("location")).toBe("/terminal?signin_error=unconfigured");
+      expect(login.headers.get("location")).toBe("/coffee?signin_error=unconfigured");
       expect(login.headers.getSetCookie()).toEqual([]);
       expect((await handleTerminal(req("/api/terminal/prod/api/cart", { cookie }), cfg)).status).toBe(401);
       // Browsing stays up.
@@ -217,7 +217,7 @@ describe("F-01: sealed __Host- cookies", () => {
       input.endsWith("/token") ? Response.json({ access_token: "z".repeat(4000), refresh_token: "r", expires_in: 1800 }) : fetch(input, init);
     const { callback, cookie } = await signIn("/cart", config, undefined, huge);
     expect(cookie).toBe("");
-    expect(callback.headers.get("location")).toBe("/terminal?signin_error=session_too_large");
+    expect(callback.headers.get("location")).toBe("/coffee?signin_error=session_too_large");
     for (const c of callback.headers.getSetCookie()) expect(new TextEncoder().encode(c).byteLength).toBeLessThanOrEqual(MAX_COOKIE_BYTES);
   });
 });
@@ -262,7 +262,7 @@ describe("sign in", () => {
 
   test("no client id: sign in reports it on the page", async () => {
     const res = await handleTerminal(req("/api/terminal/login"), { TERMINAL_COOKIE_SECRET: SECRET });
-    expect(res.headers.get("location")).toBe("/terminal?signin_error=unconfigured");
+    expect(res.headers.get("location")).toBe("/coffee?signin_error=unconfigured");
     expect(res.headers.getSetCookie()).toEqual([]);
   });
 
@@ -273,7 +273,8 @@ describe("sign in", () => {
 
   test("the callback exchanges the code with the verifier (no secret) and sets a sealed session", async () => {
     const { cookie, callback } = await signIn("/cart");
-    expect(callback.headers.get("location")).toBe("/terminal?at=%2Fcart");
+    // The registered redirect URI is /terminal/callback; the visitor lands on the Coffee demo.
+    expect(callback.headers.get("location")).toBe("/coffee?at=%2Fcart");
     const form = api.tokenRequests[0]!;
     expect(form).toMatchObject({ grant_type: "authorization_code", client_id: CLIENT_ID, redirect_uri: "https://textjs.org/terminal/callback" });
     expect(form.code_verifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
@@ -283,7 +284,7 @@ describe("sign in", () => {
     expect(session.a).toBe(MOCK_TOKEN);
     expect(session.r).toMatch(/^rt_/);
     expect(callback.headers.get("location")).not.toContain(MOCK_TOKEN);
-    expect((await signIn("/shop")).callback.headers.get("location")).toBe("/terminal");
+    expect((await signIn("/shop")).callback.headers.get("location")).toBe("/coffee");
   });
 
   test("F-07: the callback reports fixed codes, and requests without our state never cancel a sign in", async () => {
@@ -303,7 +304,7 @@ describe("sign in", () => {
     for (const [path, cookie, code, clears] of cases) {
       const res = await handleTerminal(req(path, { cookie }), config);
       expect(res.status).toBe(302);
-      expect(res.headers.get("location")).toBe(`/terminal?signin_error=${code}`);
+      expect(res.headers.get("location")).toBe(`/coffee?signin_error=${code}`);
       const set = setCookies(res);
       expect(set[SESSION]).toBeUndefined();
       expect(set[OAUTH] !== undefined).toBe(clears);
@@ -317,7 +318,7 @@ describe("sign in", () => {
     const authorized = await fetch(login.headers.get("location")!, { redirect: "manual" });
     const back = new URL(authorized.headers.get("location")!);
     const res = await handleTerminal(req(`${back.pathname}${back.search}`, { cookie: oauth }), config, { now: () => t0 + 11 * 60_000 });
-    expect(res.headers.get("location")).toBe("/terminal?signin_error=expired");
+    expect(res.headers.get("location")).toBe("/coffee?signin_error=expired");
   });
 });
 
@@ -543,7 +544,7 @@ describe("api proxy", () => {
       }
       expect((await handleTerminal(req("/api/terminal/prod/api/product"), cfg)).status).toBe(503);
       expect(await (await handleTerminal(req("/api/terminal/_status"), cfg)).json()).toMatchObject({ session: { configured: false }, environments: { prod: { enabled: false } } });
-      expect((await handleTerminal(req("/api/terminal/login"), cfg)).headers.get("location")).toBe("/terminal?signin_error=unconfigured");
+      expect((await handleTerminal(req("/api/terminal/login"), cfg)).headers.get("location")).toBe("/coffee?signin_error=unconfigured");
     }
     expect((await handleTerminal(req("/api/terminal/prod/api/product"), { ...config, TERMINAL_ENVIRONMENT: " prod " })).status).toBe(200);
   });

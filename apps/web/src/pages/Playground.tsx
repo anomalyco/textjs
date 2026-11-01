@@ -5,7 +5,7 @@ import dashboardSource from "../demos/Dashboard.tsx?raw";
 import streamingSource from "../demos/Streaming.tsx?raw";
 import snakeSource from "../demos/Snake.tsx?raw";
 import { A } from "../router";
-import { OpenCodeMark, TerminalMark } from "../site/brand-marks";
+import { OpenCodeWordmark, TerminalWordmark } from "../site/brand-marks";
 import { CopyButton } from "../site/CodeBlock";
 import { ConsolePad } from "../site/ConsolePad";
 import { HighlightedCode } from "../site/highlight";
@@ -18,14 +18,15 @@ const SOURCES: Record<PresetId, string> = {
   snake: snakeSource,
 };
 
-const MARKS: Partial<Record<DemoId, () => ReactNode>> = { opencode: OpenCodeMark, terminal: TerminalMark };
+/** OpenCode and terminal.shop are apps of their own: their wordmarks lead the message. */
+const WORDMARKS: Partial<Record<DemoId, () => ReactNode>> = { opencode: OpenCodeWordmark, coffee: TerminalWordmark };
 
 /** Prevents a layout-effect warning while prerendering; the picker only scrolls in the browser. */
 const useBrowserLayoutEffect = typeof window === "undefined" ? () => undefined : useLayoutEffect;
 
 function Picker({ demo }: { demo: DemoId }): ReactNode {
   const ref = useRef<HTMLElement>(null);
-  // Narrow windows scroll the picker sideways: keep the current demo in view (/terminal opens on the last one).
+  // Narrow windows scroll the picker sideways: keep the current demo in view (/coffee opens on the last one).
   useBrowserLayoutEffect(() => {
     const nav = ref.current;
     const item = nav?.querySelector<HTMLElement>('[aria-current="page"]');
@@ -37,7 +38,6 @@ function Picker({ demo }: { demo: DemoId }): ReactNode {
   return (
     <nav className="pad-picker" aria-label="Demos" ref={ref}>
       {DEMOS.map((d) => {
-        const Mark = MARKS[d.id];
         const current = d.id === demo;
         return (
           <A
@@ -52,7 +52,6 @@ function Picker({ demo }: { demo: DemoId }): ReactNode {
               getCompanion()?.activate();
             }}
           >
-            {Mark ? <Mark /> : null}
             {d.label}
           </A>
         );
@@ -63,17 +62,18 @@ function Picker({ demo }: { demo: DemoId }): ReactNode {
 
 /**
  * The Playground: one focus pad with a demo picker. Its own demos live at /playground and
- * /playground/<demo>; OpenCode and terminal.shop keep /opencode and /terminal. Every option renders
+ * /playground/<demo>; OpenCode and terminal.shop are at /opencode and /coffee. Every option renders
  * this same component, so switching between them keeps the pad mounted and moves nothing.
  */
 export function PlaygroundPage({ demo }: { demo: DemoId }): ReactNode {
   const [showSource, setShowSource] = useState(false);
   const preset = PRESETS.find((p) => p.id === demo);
-  const { action, hints } = preset ?? PAGE_HINTS[demo as "opencode" | "terminal"];
+  const { action, hints } = preset ?? PAGE_HINTS[demo === "coffee" ? "terminal" : "opencode"];
+  const Wordmark = WORDMARKS[demo];
 
   return (
     <>
-      <ConsolePad hints={hints} action={action} top={<Picker demo={demo} />}>
+      <ConsolePad hints={hints} action={action} top={<Picker demo={demo} />} banner={Wordmark ? <Wordmark /> : null}>
         {preset ? (
           <button type="button" className="text-link pad-source" onClick={() => setShowSource((s) => !s)} aria-expanded={showSource}>
             {showSource ? "Hide source" : "View source"}

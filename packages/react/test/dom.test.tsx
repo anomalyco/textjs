@@ -69,6 +69,11 @@ describe("DOM companion", () => {
     expect(pad).toContain("Open on a desktop");
     // No viewport presets, pause toggles or on-page preview by default.
     for (const gone of ["80×24", "Pause", "Preview", "data-textjs-mirror"]) expect(pad).not.toContain(gone);
+    // A banner leads the message on desktop and the notice on touch devices.
+    const branded = renderToStaticMarkup(<FocusPad root={null} banner={<b>acme</b>} />);
+    expect(branded.match(/<div class="tx-pad-banner"><b>acme<\/b><\/div>/g)?.length).toBe(2);
+    expect(branded.indexOf("tx-pad-banner")).toBeLessThan(branded.indexOf("tx-pad-steps"));
+    expect(pad).not.toContain("tx-pad-banner");
     const typed = renderToStaticMarkup(<FocusPad root={null} action="type a prompt" />);
     expect(typed).toContain("Then click here and type a prompt.");
     const canvas = renderToStaticMarkup(<TextCanvas app={<Text>hi</Text>} title="demo" theme="geistLight" />);

@@ -1,5 +1,5 @@
 // Pad layout parity: every Playground demo (Dashboard, Streaming, Snake at /playground[/<demo>],
-// OpenCode at /opencode, Coffee at /terminal) shares one stage layout, so switching between them in
+// OpenCode at /opencode, Coffee at /coffee) shares one stage layout, so switching between them in
 // the picker must not move the picker, keycaps, subtitle, pad or its slots by a single pixel.
 // Loads each route directly and via client navigation at several viewports, measures the bounding
 // boxes of corresponding elements and asserts they are identical (±0px). Also checks that the
@@ -41,6 +41,8 @@ const SAME = {
   touchHeadline: ".tx-pad-touch h2",
   touchSub: ".tx-pad-touch p",
   slotTop: ".pad-slot-top",
+  // Every demo reserves the banner row; OpenCode and Coffee fill it with their wordmarks.
+  banner: ".tx-pad-desk .pad-slot-banner",
   picker: ".pad-picker",
   slotBottom: ".pad-slot-bottom",
   footer: "footer",
@@ -192,6 +194,9 @@ for (const vp of VIEWPORTS) {
       const m = await measure(page);
       const d = diff(ref, m);
       check(`${vp.name} picker → "${label}" (${href}) matches Dashboard`, d.length === 0, d.join("\n    "));
+      const mark = await page.evaluate(() => document.querySelector(".tx-pad-desk .pad-slot-banner svg")?.getAttribute("aria-label") ?? null);
+      const want = { OpenCode: "OpenCode", Coffee: "terminal.shop" }[label] ?? null;
+      check(`${vp.name} "${label}" banner: ${want ?? "empty"}`, mark === want, String(mark));
     }
     const s = await page.evaluate(() => window.__shifts);
     check(`${vp.name} switching through every demo: no layout shift`, s.length === 0, JSON.stringify(s));
@@ -211,7 +216,7 @@ for (const vp of VIEWPORTS) {
   check(`${vp.name} / → /opencode (nav): identical boxes`, diff(ref, fromHome).length === 0, diff(ref, fromHome).join("\n    "));
   const s3 = await p2.evaluate(() => window.__shifts);
   check(`${vp.name} / → /opencode (nav): no layout shift`, s3.length === 0, JSON.stringify(s3));
-  for (const direct of ["/terminal", "/playground/snake"]) {
+  for (const direct of ["/coffee", "/playground/snake"]) {
     await p2.goto(`${base}${direct}`, { waitUntil: "load" });
     await settle(p2);
     const m = await measure(p2);

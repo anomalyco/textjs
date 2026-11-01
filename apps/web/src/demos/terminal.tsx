@@ -14,7 +14,7 @@ export interface LaunchParams {
 }
 
 /**
- * Reads (and the caller strips) the one-shot params the OAuth callback adds to /terminal.
+ * Reads (and the caller strips) the one-shot params the OAuth callback adds to /coffee.
  * `at` may only name a browsing page (never checkout), and `signin_error` is a code mapped
  * to a fixed message, so a link can't put words on the sign in screen.
  */
@@ -25,7 +25,7 @@ export function launchParams(search: string): LaunchParams {
 
 let shop: EmbeddedShop | null = null;
 
-/** One shop per page load, so leaving /terminal and coming back resumes where you were. */
+/** One shop per page load, so leaving /coffee and coming back resumes where you were. */
 export function getTerminalShop(): EmbeddedShop {
   if (shop) return shop;
   const params = typeof window === "undefined" ? launchParams("") : launchParams(window.location.search);

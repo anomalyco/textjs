@@ -1,9 +1,3 @@
-/showcase /playground 301
-/showcase/ /playground 301
-/playground/dashboard /playground 301
-/playground/counter /playground 301
-/playground/form /playground 301
-
 # nextjs.org docs paths, most specific first.
 /docs/app /docs 301
 /docs/app/getting-started /docs 301

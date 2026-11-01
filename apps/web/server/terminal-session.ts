@@ -1,7 +1,7 @@
 /**
  * textjs.org's side of "sign in with Terminal": a Cloudflare Pages Function (see
  * `functions/`) that runs the OAuth 2.0 authorization code + PKCE flow against Terminal's
- * OpenAuth server and proxies the Terminal API for the console shop at /terminal.
+ * OpenAuth server and proxies the Terminal API for the console shop at /coffee.
  *
  *   GET  /terminal/callback           OAuth redirect URI: checks state, exchanges the code
  *   GET  /api/terminal/_status        environment + whether you're signed in (never a token)
@@ -53,7 +53,11 @@ export const UPSTREAMS: Record<TerminalEnv, { api: string; auth: string; label: 
 
 export const API_PREFIX = "/api/terminal";
 export const CALLBACK_PATH = "/terminal/callback";
-export const PAGE_PATH = "/terminal";
+/**
+ * The Coffee demo. The redirect URI registered with Terminal stays `/terminal/callback` (changing it
+ * means re-registering the app); the callback then sends the visitor here.
+ */
+export const PAGE_PATH = "/coffee";
 /** Client id used on loopback hosts when none is configured: Terminal accepts any id for localhost redirects. */
 export const LOCAL_CLIENT_ID = "textjs-local";
 export const MAX_BODY_BYTES = 64 * 1024;
@@ -317,7 +321,7 @@ function redirect(location: string, cookies: string[] = []): Response {
 
 const fail = (status: number, code: string, message: string, cookies: string[] = []): Response => json({ type: "error", code, message }, status, cookies);
 
-/** Where the page opens after the callback: `/terminal`, plus `?at=` / `?signin_error=<code>`. */
+/** Where the page opens after the callback: `/coffee`, plus `?at=` / `?signin_error=<code>`. */
 function pageUrl(params: Record<string, string> = {}): string {
   const q = new URLSearchParams(params).toString();
   return q ? `${PAGE_PATH}?${q}` : PAGE_PATH;

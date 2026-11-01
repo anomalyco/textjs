@@ -10,10 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - textjs.org: a Learn chapter video that's playing moves to a mini player in the corner when you scroll past it. The Captions button under each video turns captions on or off and remembers the choice.
 - `<TextDevOverlay>` takes `pill`, `shortcut` and `shell` props, so apps without the App Router can mount the inspector with their own keys and theme controls.
+- `<FocusPad>` takes a `banner`, shown as the first row of the message (for example an app's wordmark) and above the notice on touch devices.
 
 ### Changed
 
-- textjs.org: the Playground picker lists Dashboard, Streaming, Snake, OpenCode and Coffee (terminal.shop). Each demo has its own URL, and `/opencode` and `/terminal` open the Playground with that demo picked. Counter and Form moved out of the Playground; the docs still run both as live examples.
+- textjs.org: the Playground picker lists Dashboard, Streaming, Snake, OpenCode and Coffee (terminal.shop). Each demo has its own URL: OpenCode is at `/opencode` and terminal.shop at `/coffee`, and their wordmarks head the message. Counter and Form moved out of the Playground; the docs still run both as live examples.
 
 ### Fixed
 
@@ -76,7 +77,6 @@ Zero-flash frames and server rendering.
 
 - Frames are appended instead of `console.clear()` + `console.log()` per frame. DevTools applies a clear synchronously but paints new messages on a 50ms throttle, so clearing left the console blank in 70.6% of DevTools paints at 15fps and 81.1% at 60fps. A leading zero-width curtain span hides earlier frames. The console is cleared only on the first frame, after `invalidate()`, at idle once 100 frames are stacked, or at 300.
 - Emitted frames are paced to at least 66ms apart (about 15fps). Faster frames restart the DevTools throttle and are dropped: at 60fps DevTools painted 67 of 295 emitted frames.
-- The Showcase was folded into the Playground (`/showcase` redirects).
 - Playground and OpenCode are full-screen focus pads.
 
 ### Performance
