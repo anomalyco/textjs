@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildApp } from "../src/cli/build";
 import { prerenderInChild } from "../src/server/live-build";
-import { replaceWithMap } from "../src/server/live-dev";
+import { replaceWithMap, textjsLivePlugin } from "../src/server/live-dev";
 import { readRuntimeExport } from "../src/server/live-routes";
 import { createFixture } from "./server-fixture";
 
@@ -85,6 +85,31 @@ describe("client bundle", () => {
     },
     120_000,
   );
+});
+
+describe("client graph guard", () => {
+  const guard = (opts: { ssr?: boolean; scan?: boolean }, id: string): unknown => {
+    const plugin = textjsLivePlugin({ root: "/proj" })[0] as { resolveId: (this: unknown, id: string, importer: string, opts: object) => unknown };
+    const ctx = {
+      error(message: string): never {
+        throw new Error(message);
+      },
+    };
+    return plugin.resolveId.call(ctx, id, "/proj/app/status/page.tsx", opts);
+  };
+
+  test("browser code importing *.server or node:* is an error", () => {
+    expect(() => guard({}, "../../lib/status.server")).toThrow(/only runs on the server/);
+    expect(() => guard({}, "node:os")).toThrow(/only runs on the server/);
+    expect(guard({ ssr: true }, "node:os")).toBeNull();
+  });
+
+  test("Vite's dependency scan crawls server pages and route handlers too: not an error there", () => {
+    // `optimizeDeps.entries` is every file under app/. Failing the scan made Vite rediscover
+    // dependencies at runtime and reload with a second copy of React ("Invalid hook call").
+    expect(guard({ scan: true }, "../../lib/status.server")).toBeNull();
+    expect(guard({ scan: true }, "node:os")).toBeNull();
+  });
 });
 
 describe("server JSX runtime rewrite", () => {

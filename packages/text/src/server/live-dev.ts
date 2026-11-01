@@ -137,7 +137,8 @@ export function textjsLivePlugin(options: { appDir?: string; root?: string } = {
       if (id.endsWith(SERVER_STUB_QUERY)) return `${STUB_PREFIX}${id.slice(0, -SERVER_STUB_QUERY.length)}`;
       if (id.endsWith(SERVER_ONLY_QUERY)) return `${SERVER_ONLY_PREFIX}${id.slice(0, -SERVER_ONLY_QUERY.length)}`;
       // Client graph guard: browser code (yours, not dependencies') must not import server-only modules.
-      if (!opts?.ssr && importer && !importer.startsWith("\0") && !importer.includes(`${sep}node_modules${sep}`) && !importer.includes("/node_modules/")) {
+      // The dependency scan crawls every file under `app/`, server pages and route handlers included: it isn't the client graph.
+      if (!opts?.ssr && !(opts as { scan?: boolean } | undefined)?.scan && importer && !importer.startsWith("\0") && !importer.includes(`${sep}node_modules${sep}`) && !importer.includes("/node_modules/")) {
         const bare = id.split("?")[0] as string;
         if (bare.startsWith("node:") || SERVER_MODULE.test(bare)) {
           this.error(
