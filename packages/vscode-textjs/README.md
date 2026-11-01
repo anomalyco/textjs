@@ -1,10 +1,10 @@
 # ▼ Text.js for VS Code
 
-See your console app while you write it. Live Preview, App Router scaffolding, snippets and `TX###` error links for [Text.js](https://textjs.org), the Console Framework for the Web.
+Live Preview, App Router scaffolding, snippets and `TX###` error links for [Text.js](https://textjs.org), the Console Framework for the Web.
 
 ## Live Preview
 
-Open a `page.tsx`, `layout.tsx` or component and run **Text.js: Open Preview** (`⌘K V`). The panel draws the console frame cell for cell, in the same DevTools chrome you see in the browser.
+Open a `page.tsx`, `layout.tsx` or component and run **Text.js: Open Preview** (`⌘K V`). The panel draws the console frame in the same DevTools chrome you see in the browser.
 
 - **Live**: when `text dev` is running and a browser tab has the app open, the preview mirrors that tab. Frames stream from the dev server, and keys you type in the preview go back to the app.
 - **Headless**: with no dev server, or no tab open, the extension renders the file itself with the project's own Vite and `@textjs/next`. Route files render with their layouts, at a grid sized to the panel. Saving a file re-renders it.

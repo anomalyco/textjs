@@ -1,6 +1,6 @@
 # ▼ Text.js DevTools
 
-A Chrome DevTools panel for Text.js console apps: component tree, cell-level frame inspector and frame timeline. DevTools inside DevTools.
+A Chrome DevTools panel for Text.js console apps: component tree, cell-level frame inspector and frame timeline.
 
 ```bash
 bun run build      # dist/ (unpacked) + release/textjs-devtools-<version>.zip

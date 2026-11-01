@@ -74,7 +74,7 @@ To show the same UI on the page, use \`<TextCanvas>\` from \`@textjs/react/dom\`
   TX003: {
     package: "@textjs/react",
     title: "Unknown host element",
-    cause: `The reconciler only understands two intrinsic elements, \`tx-box\` and \`tx-text\`. A lowercase element such as \`<div>\` or \`<span>\` reached it. DOM elements have no meaning inside the console.`,
+    cause: `The reconciler only understands two intrinsic elements, \`tx-box\` and \`tx-text\`. A lowercase element such as \`<div>\` or \`<span>\` reached it.`,
     fix: `Use the exported components instead:
 
 ~~~tsx
@@ -329,7 +329,7 @@ text proxy --port 4097
   TX023: {
     package: "@textjs/next",
     title: "Bridge already running",
-    cause: `Another \`text proxy\` already listens on this port. This is usually fine.`,
+    cause: `Another \`text proxy\` already listens on this port. You can connect to it instead of starting another.`,
     fix: `Connect to the running bridge, or start a second one on another port:
 
 ~~~bash
