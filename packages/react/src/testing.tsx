@@ -22,6 +22,9 @@ import {
 import { keyEventFromCombo } from "./keys";
 import { createConsoleRootSync, type ConsoleRoot, type ConsoleRootOptions } from "./root";
 
+// Yoga's WebAssembly loads through `fetch` (a data: URL). Start it on import, before a test can stub `fetch`.
+void initYoga();
+
 function enableActEnvironment(): void {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 }
