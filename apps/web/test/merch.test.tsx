@@ -47,7 +47,7 @@ describe("merch routes", () => {
       expect(html).toContain(p.name);
     }
     // Everything Fourthwall makes reads Coming soon; the Keycap Set and Notebook read Later.
-    expect(html.match(/merch-flag">Coming soon</g)?.length).toBe(12);
+    expect(html.match(/merch-flag">Coming soon</g)?.length).toBe(14);
     expect(html.match(/merch-flag">Later</g)?.length).toBe(2);
     // Every image reserves its box before it loads.
     for (const tag of html.match(/<img [^>]*>/g) ?? []) if (tag.includes(".webp")) expect(tag).toMatch(/width="1024" height="1280"/);
@@ -80,8 +80,8 @@ describe("merch routes", () => {
 });
 
 describe("merch catalog", () => {
-  test("the collection lists the final round: three tees, two hoodies, two caps, five stickers, keycaps and a notebook", () => {
-    expect(PRODUCTS.map((p) => p.slug)).toEqual(["logo-tee", "block-tee", "console-tee", "console-hoodie", "mark-hoodie", "console-cap", "mark-cap", "sticker-mark", "sticker-wordmark", "sticker-console", "sticker-keys", "sticker-percent-c", "keycaps", "notebook"]);
+  test("the collection lists the final round: three tees, two hoodies, two caps, five stickers, the PSA tee and sticker, keycaps and a notebook", () => {
+    expect(PRODUCTS.map((p) => p.slug)).toEqual(["logo-tee", "block-tee", "console-tee", "console-hoodie", "mark-hoodie", "console-cap", "mark-cap", "sticker-mark", "sticker-wordmark", "sticker-console", "sticker-keys", "sticker-percent-c", "psa-tee", "psa-sticker", "keycaps", "notebook"]);
     expect(PRODUCTS.map((p) => p.number)).toEqual(PRODUCTS.map((_, i) => String(i + 1).padStart(3, "0")));
   });
 

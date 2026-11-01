@@ -8,6 +8,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { command, fmt, fonts, IN, mark, MARK_RATIO, measure, MONO_CAP_HEIGHT, option, svgDoc, text } from "./lib";
+import { psaBlock, psaCard } from "./psa";
 import { blockMarkArt, lineArt, markArt, stackArt, stickerConsole, stickerKeys, stickerMark, stickerPercentC, stickerWordmark, wordmarkArt } from "./options";
 
 const OUT = join(import.meta.dir, "..", "artwork");
@@ -44,6 +45,11 @@ write("sticker-wordmark.svg", titled(stickerWordmark(3, 1.04).svg, "Wordmark Sti
 write("sticker-console.svg", titled(stickerConsole(3).svg, "console.log Sticker, die-cut, 3 × 0.81 in: white Geist Mono on a black pill with a white edge"));
 write("sticker-keys.svg", titled(stickerKeys(3).svg, "⌘⌥J Sticker, die-cut, 3 in wide: three keys, white on black with a white edge"));
 write("sticker-percent-c.svg", titled(stickerPercentC(2).svg, "%c Sticker, die-cut, 2 × 2 in: %c in black on white"));
+
+// ── PSA Tee and Sticker (the 2004 anti-piracy ad's layout, scripts/psa.ts) ───────
+write("psa-tee-front.svg", titled(psaBlock(11), "PSA Tee, front: YOU WOULDN’T RENDER A WEBSITE IN THE CONSOLE in distressed Barlow Condensed Bold, 11 in wide, white, top 3 in below the front neck seam. 1-bit: no halftone"));
+write("psa-tee-back.svg", titled(wordmarkArt(3, INK), "PSA Tee, back: ▼ Text.js, 3 in wide, white, top 2 in below the back neck seam"));
+write("psa-sticker.svg", titled(psaCard(4), "PSA Sticker, die-cut, 4 × 2.25 in: the PSA layout in white on a black 16:9 card with a 0.12 in white edge"));
 
 // ── Keycaps: ⌘ ⌥ J legends on Cherry-profile black PBT ──────────────────────
 {

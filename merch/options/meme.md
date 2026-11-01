@@ -1,6 +1,6 @@
 # PSA tee and sticker (design round)
 
-Adam's riff on the 2004 anti-piracy ad ("You wouldn't steal a car"): YOU WOULDN'T RENDER IN THE CONSOLE. Contact sheet: [meme-options.png](meme-options.png). Not in the store until Adam picks.
+Adam's riff on the 2004 anti-piracy ad ("You wouldn't steal a car"): YOU WOULDN'T RENDER IN THE CONSOLE. Contact sheet: [meme-options.png](meme-options.png). Adam picked tee A and sticker S1; both are in the store as the PSA Tee and PSA Sticker, re-set in the ad's layout ([tech-packs/psa.md](../tech-packs/psa.md)).
 
 ## Legal
 

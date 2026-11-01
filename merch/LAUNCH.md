@@ -1,6 +1,6 @@
 # Launch checklist
 
-The first drop is twelve products that Anomaly's Fourthwall shop makes on demand: three tees, two hoodies, two caps and five stickers. Fourthwall makes, ships and takes payment for them; textjs.org/merch is the storefront and hands the cart to Fourthwall's hosted checkout. The Keycap Set and Notebook show "Later": Fourthwall can't make them at a sensible minimum, so they come from separate makers and ship from Anomaly (section 7).
+The first drop is fourteen products that Anomaly's Fourthwall shop makes on demand: four tees, two hoodies, two caps and six stickers. Fourthwall makes, ships and takes payment for them; textjs.org/merch is the storefront and hands the cart to Fourthwall's hosted checkout. The Keycap Set and Notebook show "Later": Fourthwall can't make them at a sensible minimum, so they come from separate makers and ship from Anomaly (section 7).
 
 | No. | Product | Fourthwall product | Method | Base cost |
 | --- | --- | --- | --- | --- |
@@ -12,10 +12,12 @@ The first drop is twelve products that Anomaly's Fourthwall shop makes on demand
 | 006 | console.log Cap | Yupoong Classic Dad Hat (6245CM), Embroidered | Embroidered, Front Large | From $15.65 |
 | 007 | ▼ Cap | Yupoong Classic Dad Hat (6245CM), Embroidered | Embroidered, Front Large | From $15.65 |
 | 008–012 | ▼, Wordmark, console.log, ⌘⌥J and %c Stickers | Allcolor 957 Die-Cut Stickers | Digital print, die-cut | From $3.78 |
+| 013 | PSA Tee | AS Colour 5082 | Printed, front and back | From $24.17, plus the back |
+| 014 | PSA Sticker | Allcolor 957 Die-Cut Stickers, 4 in | Digital print, die-cut | From $3.78 |
 
-All twelve are on demand with no minimum; most on-demand items are produced in 2 to 5 business days. Fourthwall has no monthly fee and no platform fee on physical products. Each product's base cost is deducted from the price we set, and card payments cost 2.9% + 30¢ (3.9% + 30¢ for international cards).
+All fourteen are on demand with no minimum; most on-demand items are produced in 2 to 5 business days. Fourthwall has no monthly fee and no platform fee on physical products. Each product's base cost is deducted from the price we set, and card payments cost 2.9% + 30¢ (3.9% + 30¢ for international cards).
 
-Specs, sizes and placements are in the tech packs: [tees.md](tech-packs/tees.md), [hoodies.md](tech-packs/hoodies.md), [caps.md](tech-packs/caps.md), [stickers.md](tech-packs/stickers.md). Upload files are the 300 DPI PNGs in `artwork/png/` (`bun run export` rebuilds them from the SVGs).
+Specs, sizes and placements are in the tech packs: [tees.md](tech-packs/tees.md), [hoodies.md](tech-packs/hoodies.md), [caps.md](tech-packs/caps.md), [stickers.md](tech-packs/stickers.md), [psa.md](tech-packs/psa.md). Upload files are the 300 DPI PNGs in `artwork/png/` (`bun run export` rebuilds them from the SVGs).
 
 ## 1. Access
 
@@ -50,9 +52,15 @@ Specs, sizes and placements are in the tech packs: [tees.md](tech-packs/tees.md)
 - [ ] Allcolor 957 Die-Cut Stickers. Make five products: ▼ (3 in), Wordmark (3 in), console.log (3 in), ⌘⌥J (3 in) and %c (2 in), from the matching `png/sticker-*.png`.
 - [ ] The white edge is in the artwork and outside it must stay fully transparent. Check each cut line in the preview.
 
+## 5b. PSA Tee and PSA Sticker
+
+- [ ] PSA Tee: AS Colour Premium Oversized Faded T-Shirt, Printed, Faded Black, XS to 3XL. `png/psa-tee-front.png` in Front Large, 11 in wide, top 3 in below the front neck seam; `png/psa-tee-back.png` in Back Large, 3 in wide, top 2 in below the back neck seam.
+- [ ] PSA Sticker: Allcolor 957 Die-Cut Stickers at 4 in, from `png/psa-sticker.png`.
+- [ ] Order a sample of the tee and check the distress: every pixel is ink or shirt, and the finest pits should still show.
+
 ## 6. Prices
 
-Placeholders in `apps/web/src/merch/products.ts`: tees $40, hoodies $75, caps $35, 3 in stickers $6, the 2 in sticker $5.
+Placeholders in `apps/web/src/merch/products.ts`: tees $40, hoodies $75, caps $35, 3 in stickers $6, the 2 in sticker $5, the 4 in PSA Sticker $7.
 
 - [ ] Confirm them against the base costs once the products exist. Prices must match Fourthwall; `bun run sync` warns about differences.
 
@@ -92,6 +100,8 @@ Fourthwall's only keycap is the Infinikey single custom keycap, which needs 2,00
       "sticker-console": { "": "<uuid>" },
       "sticker-keys": { "": "<uuid>" },
       "sticker-percent-c": { "": "<uuid>" },
+      "psa-tee": { XS: "<uuid>", S: "<uuid>", M: "<uuid>", L: "<uuid>", XL: "<uuid>", "2XL": "<uuid>", "3XL": "<uuid>" },
+      "psa-sticker": { "": "<uuid>" },
     },
   }),
   ```
@@ -102,6 +112,6 @@ Fourthwall's only keycap is the Infinikey single custom keycap, which needs 2,00
 
 ## 9. Launch
 
-- [ ] Samples approved: one of each tee, hoodie and cap, and the five stickers.
+- [ ] Samples approved: one of each tee, hoodie and cap, and the six stickers.
 - [ ] Place one real order of a sticker through textjs.org to test the handoff end to end.
 - [ ] Publish the drop on the blog; the store's "Follow the blog" links point there.

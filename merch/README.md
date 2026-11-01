@@ -12,8 +12,10 @@ Design files for the collection sold at [textjs.org/merch](https://textjs.org/me
 | 006 | console.log Cap | First | Yupoong 6245CM, Embroidered | console.log, 3.4 in, white thread | $35 | [caps.md](tech-packs/caps.md) |
 | 007 | ▼ Cap | First | Yupoong 6245CM, Embroidered | ▼, 1.6 in, white thread | $35 | [caps.md](tech-packs/caps.md) |
 | 008–012 | ▼, Wordmark, console.log, ⌘⌥J and %c Stickers | First | Allcolor 957 Die-Cut Stickers | Digital print, die-cut, 2 or 3 in | $5–$6 | [stickers.md](tech-packs/stickers.md) |
-| 013 | Keycap Set, ⌘ ⌥ J | Later | Not in the catalog at this quantity; self-fulfilled | Reverse dye-sublimation | $25 | [keycaps.md](tech-packs/keycaps.md) |
-| 014 | Notebook | Later | Leuchtturm1917, self-fulfilled | Blind deboss | $28 | [notebook.md](tech-packs/notebook.md) |
+| 013 | PSA Tee | First | AS Colour 5082, Printed | YOU WOULDN'T RENDER A WEBSITE IN THE CONSOLE, 11 in, and ▼ Text.js on the back | $40 | [psa.md](tech-packs/psa.md) |
+| 014 | PSA Sticker | First | Allcolor 957 Die-Cut Stickers | The same layout on a 4 in 16:9 card | $7 | [psa.md](tech-packs/psa.md) |
+| 015 | Keycap Set, ⌘ ⌥ J | Later | Not in the catalog at this quantity; self-fulfilled | Reverse dye-sublimation | $25 | [keycaps.md](tech-packs/keycaps.md) |
+| 016 | Notebook | Later | Leuchtturm1917, self-fulfilled | Blind deboss | $28 | [notebook.md](tech-packs/notebook.md) |
 
 Prices are placeholders, set against Fourthwall's base costs and Vercel's own prices ($40 tee, $30 to $35 cap). They live in `apps/web/src/merch/products.ts`; what is on sale and how it ships lives in `apps/web/src/merch/config.ts`.
 
@@ -25,8 +27,8 @@ merch/
   artwork/        print-ready SVG, physical size in mm, all type outlined
     png/          300 DPI transparent PNGs for Fourthwall's product designer
   options/        the design round: option boards, the final collection sheet, the console.log tee previews,
-                  and the PSA tee and sticker concepts (meme.md, not in the store)
-  fonts/          Barlow Condensed (SIL Open Font License) for the PSA concepts
+                  and the PSA tee and sticker concepts (meme.md; A and S1 are now in the store)
+  fonts/          Barlow Condensed (SIL Open Font License) for the PSA Tee and Sticker
   photos/
     blanks/       the generated blanks and edits the Keycap Set and Notebook photos use (WebP)
     final/        1024 × 1280 product photos (the store serves 600 and 1024 px copies)
@@ -55,7 +57,7 @@ Image models garble letters and logos, so no mark in the photos comes from the m
 2. `scripts/collection.ts` warps the real SVG artwork onto each blank at the size and position from the tech pack, then shades it with the photo's own light and fabric texture (`scripts/composite.ts`).
 3. Close-ups are enlargements of the same blanks (`scripts/enlarge.ts`): a crop is scaled up and re-rendered by the model with the composition kept, so placements measured on the blank carry over.
 4. Embroidered ▼ marks start as a flat stand-in of the exact ▼. The model turns it into stitches in an edit that keeps the rest of the photo, and an affine fit moves the result back onto the exact geometry.
-5. Embroidered lettering on the cap is never drawn by the model. The vector type is mapped through a mesh that follows the crown (`scripts/capmesh.ts`), and satin stitches are drawn across each stroke from its local direction.
+5. Embroidered lettering on the cap starts as the exact vector type mapped through a mesh that follows the crown (`scripts/capmesh.ts`). The model stitches it in an edit (satin direction, sheen, relief, puckering), and `scripts/cap-edit.ts` corrects the result back onto the exact letterforms: each letter's stitches are registered to the type, thread is grown into any stroke the model drew thinner, and anything it drew wider is replaced by the original twill with a soft contact shadow.
 
 Placements were measured on the blanks with `scripts/grid.ts`.
 

@@ -55,6 +55,16 @@ import stickerPercentC1_600 from "./images/sticker-percent-c-1-600.webp";
 import stickerPercentC1_1024 from "./images/sticker-percent-c-1-1024.webp";
 import stickerPercentC2_600 from "./images/sticker-percent-c-2-600.webp";
 import stickerPercentC2_1024 from "./images/sticker-percent-c-2-1024.webp";
+import psaTee1_600 from "./images/psa-tee-1-600.webp";
+import psaTee1_1024 from "./images/psa-tee-1-1024.webp";
+import psaTee2_600 from "./images/psa-tee-2-600.webp";
+import psaTee2_1024 from "./images/psa-tee-2-1024.webp";
+import psaTee3_600 from "./images/psa-tee-3-600.webp";
+import psaTee3_1024 from "./images/psa-tee-3-1024.webp";
+import psaSticker1_600 from "./images/psa-sticker-1-600.webp";
+import psaSticker1_1024 from "./images/psa-sticker-1-1024.webp";
+import psaSticker2_600 from "./images/psa-sticker-2-600.webp";
+import psaSticker2_1024 from "./images/psa-sticker-2-1024.webp";
 import keycaps1_600 from "./images/keycaps-1-600.webp";
 import keycaps1_1024 from "./images/keycaps-1-1024.webp";
 import keycaps2_600 from "./images/keycaps-2-600.webp";
@@ -86,7 +96,7 @@ export interface SizeGuide {
 
 export interface Product {
   slug: string;
-  /** Collection number, shown as 001…014. */
+  /** Collection number, shown as 001…016. */
   number: string;
   name: string;
   color: string;
@@ -345,8 +355,48 @@ export const PRODUCTS: readonly Product[] = [
     ],
   },
   {
-    slug: "keycaps",
+    slug: "psa-tee",
     number: "013",
+    name: "PSA Tee",
+    color: "Faded Black",
+    price: 40,
+    description: [
+      "YOU WOULDN’T RENDER A WEBSITE IN THE CONSOLE, set in the layout of the 2004 anti-piracy ad. Distressed white type across the chest, and ▼ Text.js below the collar on the back.",
+    ],
+    details: [
+      "7.1 oz 100% cotton, garment dyed and pre-shrunk",
+      "Boxy, oversized fit with dropped shoulders",
+      "AS Colour 5082",
+      "Printed on demand in white ink, front and back",
+      "Tear-away label",
+    ],
+    care: TEE_CARE,
+    sizes: TEE_SIZES,
+    fit: "Oversized. Take your usual size for a boxy fit, or one size down for a closer one.",
+    images: [
+      img(psaTee1_600, psaTee1_1024, "Black PSA Tee laid flat with YOU WOULDN’T RENDER A WEBSITE IN THE CONSOLE in distressed white capitals across the chest"),
+      img(psaTee2_600, psaTee2_1024, "Back of the PSA Tee with a small ▼ Text.js below the collar"),
+      img(psaTee3_600, psaTee3_1024, "Close-up of the distressed print on the cotton"),
+    ],
+  },
+  {
+    slug: "psa-sticker",
+    number: "014",
+    name: "PSA Sticker",
+    color: "Black",
+    price: 7,
+    description: ["The PSA Tee’s print on a black 16:9 card with a white edge. 4 inches wide."],
+    details: ["Matte vinyl with a protective laminate", "Die-cut to the outline", "Water resistant, for indoor and outdoor use"],
+    care: ["Apply to a clean, dry surface"],
+    sizes: [],
+    images: [
+      img(psaSticker1_600, psaSticker1_1024, "The PSA Sticker on a black laptop lid"),
+      img(psaSticker2_600, psaSticker2_1024, "Black 16:9 sticker with YOU WOULDN’T RENDER A WEBSITE IN THE CONSOLE in distressed white capitals and a white edge"),
+    ],
+  },
+  {
+    slug: "keycaps",
+    number: "015",
     name: "Keycap Set",
     color: "⌘ ⌥ J",
     price: 25,
@@ -362,7 +412,7 @@ export const PRODUCTS: readonly Product[] = [
   },
   {
     slug: "notebook",
-    number: "014",
+    number: "016",
     name: "Notebook",
     color: "Black",
     price: 28,

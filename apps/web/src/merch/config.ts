@@ -112,7 +112,7 @@ export const MERCH: MerchConfig = {
   sale: {
     // Made to order by Fourthwall: most on-demand items are produced in 2 to 5 business days.
     ...Object.fromEntries(
-      ["logo-tee", "block-tee", "console-tee", "console-hoodie", "mark-hoodie", "console-cap", "mark-cap", "sticker-mark", "sticker-wordmark", "sticker-console", "sticker-keys", "sticker-percent-c"].map((slug) => [
+      ["logo-tee", "block-tee", "console-tee", "console-hoodie", "mark-hoodie", "console-cap", "mark-cap", "sticker-mark", "sticker-wordmark", "sticker-console", "sticker-keys", "sticker-percent-c", "psa-tee", "psa-sticker"].map((slug) => [
         slug,
         { drop: "launch", shipping: "Made to order. Ships after 2 to 5 business days in production." } satisfies Sale,
       ]),
