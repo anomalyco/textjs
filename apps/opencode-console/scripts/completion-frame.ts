@@ -1,7 +1,8 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { resolve } from "node:path";
-import {gzipSync} from "node:zlib";
+import { gzipSync } from "node:zlib";
+import { createTransport, createV2Client } from "../lib/client";
 const [tmp, version] = process.argv.slice(2),
   app = resolve(import.meta.dir, ".."),
   out = resolve(app, "parity/round3");
@@ -46,7 +47,15 @@ try {
     } else await call("type", { text: typed });
     const f = await call("wait_for", { text: marker, styles: true, trim: false });
     if (f.focus?.id !== "opencode-prompt") throw Error("Lost composer focus");
-    await Bun.write(resolve(out,`${name}.json.gz`),gzipSync(JSON.stringify({realSGR:await Bun.file(resolve(tmp,`${name}.ansi`)).text(),mcp:{cols:f.cols,rows:f.rows,text:f.text,styles:f.styles}})));
+    await Bun.write(
+      resolve(out, `${name}.json.gz`),
+      gzipSync(
+        JSON.stringify({
+          realSGR: await Bun.file(resolve(tmp, `${name}.ansi`)).text(),
+          mcp: { cols: f.cols, rows: f.rows, text: f.text, styles: f.styles },
+        }),
+      ),
+    );
     const cells = await Bun.file(resolve(tmp, `${name}.json`)).json();
     await Bun.write(
       resolve(out, `${name}.txt`),
@@ -59,7 +68,9 @@ try {
             .join("") +
           " │ " +
           f.text.split("\n")[i].trimEnd(),
-      ).map(row=>row.trimEnd()).join("\n") + "\n",
+      )
+        .map((row) => row.trimEnd())
+        .join("\n") + "\n",
     );
     await page.setContent(
       '<body style="margin:0;background:#101010;color:#eee;font:13px/16px monospace"><canvas width="1640" height="555"></canvas></body>',
@@ -91,6 +102,38 @@ try {
     await page.screenshot({ path: resolve(out, `${name}.png`) });
     await call("press", { keys: "escape ctrl+u" });
   }
+  // Verify the live wire contract without prompting a model or executing a tool.
+  const http = createTransport(endpoint, "capture", {
+    authorization: `Basic ${Buffer.from("opencode:" + process.env.OPENCODE_PASSWORD).toString("base64")}`,
+  });
+  const api = createV2Client(http, "direct");
+  await api.agents();
+  if ((await api.info()).directory !== resolve(tmp, "project") || (await api.sessions()).length)
+    throw Error("Expected empty disposable capture project");
+  const seed = await http.json<{ data: Record<string, unknown> }>("POST", "/api/session", {
+    title: "Capture seed",
+    location: { directory: resolve(tmp, "project") },
+  });
+  const messages = await Bun.file(resolve(app, "scripts/transcript.json")).json();
+  const imported = await http.json<{ data: { id: string } }>("POST", "/api/experimental/session/import", {
+    info: { ...seed.data, id: "ses_round3capture", title: "Revert fixture" },
+    messages,
+    location: { directory: resolve(tmp, "project") },
+  });
+  const id = imported.data.id,
+    first = messages[0].id;
+  const fork = await api.fork!(id, first);
+  if (fork === id || (await api.messages(fork)).some((m) => m.id === first)) throw Error("Incorrect fork boundary");
+  await api.revert!(id, first);
+  if ((await api.session(id))?.revertedFrom !== first) throw Error("Revert not staged");
+  await api.redo!(id);
+  if ((await api.session(id))?.revertedFrom) throw Error("Redo did not clear the boundary");
+  const exported = (await api.exportSession!(id)) as { messages?: unknown[] };
+  if (!exported.messages?.length) throw Error("Empty export");
+  await api.revert!(id, first);
+  await api.commitRevert!(id);
+  if ((await api.messages(id)).some((m) => m.id === first)) throw Error("Revert not committed");
+  console.log("Private V2: verified fork, stage, redo, sanitized export and commit");
 } finally {
   await mcp.close();
   await browser.close();
