@@ -1,40 +1,70 @@
 /** The merch collection. Specs come from the blank manufacturers; see merch/tech-packs/ in the repo. */
-import tee1_600 from "./images/frame-tee-1-600.webp";
-import tee1_1024 from "./images/frame-tee-1-1024.webp";
-import tee2_600 from "./images/frame-tee-2-600.webp";
-import tee2_1024 from "./images/frame-tee-2-1024.webp";
-import tee3_600 from "./images/frame-tee-3-600.webp";
-import tee3_1024 from "./images/frame-tee-3-1024.webp";
-import tee4_600 from "./images/frame-tee-4-600.webp";
-import tee4_1024 from "./images/frame-tee-4-1024.webp";
-import tee5_600 from "./images/frame-tee-5-600.webp";
-import tee5_1024 from "./images/frame-tee-5-1024.webp";
-import cap1_600 from "./images/cap-1-600.webp";
-import cap1_1024 from "./images/cap-1-1024.webp";
-import cap2_600 from "./images/cap-2-600.webp";
-import cap2_1024 from "./images/cap-2-1024.webp";
-import cap3_600 from "./images/cap-3-600.webp";
-import cap3_1024 from "./images/cap-3-1024.webp";
-import stickers1_600 from "./images/stickers-1-600.webp";
-import stickers1_1024 from "./images/stickers-1-1024.webp";
-import stickers2_600 from "./images/stickers-2-600.webp";
-import stickers2_1024 from "./images/stickers-2-1024.webp";
-import hoodie1_600 from "./images/hoodie-1-600.webp";
-import hoodie1_1024 from "./images/hoodie-1-1024.webp";
-import hoodie2_600 from "./images/hoodie-2-600.webp";
-import hoodie2_1024 from "./images/hoodie-2-1024.webp";
-import hoodie3_600 from "./images/hoodie-3-600.webp";
-import hoodie3_1024 from "./images/hoodie-3-1024.webp";
-import keys1_600 from "./images/keycaps-1-600.webp";
-import keys1_1024 from "./images/keycaps-1-1024.webp";
-import keys2_600 from "./images/keycaps-2-600.webp";
-import keys2_1024 from "./images/keycaps-2-1024.webp";
-import book1_600 from "./images/notebook-1-600.webp";
-import book1_1024 from "./images/notebook-1-1024.webp";
-import book2_600 from "./images/notebook-2-600.webp";
-import book2_1024 from "./images/notebook-2-1024.webp";
-import book3_600 from "./images/notebook-3-600.webp";
-import book3_1024 from "./images/notebook-3-1024.webp";
+import logoTee1_600 from "./images/logo-tee-1-600.webp";
+import logoTee1_1024 from "./images/logo-tee-1-1024.webp";
+import logoTee2_600 from "./images/logo-tee-2-600.webp";
+import logoTee2_1024 from "./images/logo-tee-2-1024.webp";
+import logoTee3_600 from "./images/logo-tee-3-600.webp";
+import logoTee3_1024 from "./images/logo-tee-3-1024.webp";
+import blockTee1_600 from "./images/block-tee-1-600.webp";
+import blockTee1_1024 from "./images/block-tee-1-1024.webp";
+import blockTee2_600 from "./images/block-tee-2-600.webp";
+import blockTee2_1024 from "./images/block-tee-2-1024.webp";
+import consoleTee1_600 from "./images/console-tee-1-600.webp";
+import consoleTee1_1024 from "./images/console-tee-1-1024.webp";
+import consoleTee2_600 from "./images/console-tee-2-600.webp";
+import consoleTee2_1024 from "./images/console-tee-2-1024.webp";
+import consoleTee3_600 from "./images/console-tee-3-600.webp";
+import consoleTee3_1024 from "./images/console-tee-3-1024.webp";
+import consoleHoodie1_600 from "./images/console-hoodie-1-600.webp";
+import consoleHoodie1_1024 from "./images/console-hoodie-1-1024.webp";
+import consoleHoodie2_600 from "./images/console-hoodie-2-600.webp";
+import consoleHoodie2_1024 from "./images/console-hoodie-2-1024.webp";
+import markHoodie1_600 from "./images/mark-hoodie-1-600.webp";
+import markHoodie1_1024 from "./images/mark-hoodie-1-1024.webp";
+import markHoodie2_600 from "./images/mark-hoodie-2-600.webp";
+import markHoodie2_1024 from "./images/mark-hoodie-2-1024.webp";
+import consoleCap1_600 from "./images/console-cap-1-600.webp";
+import consoleCap1_1024 from "./images/console-cap-1-1024.webp";
+import consoleCap2_600 from "./images/console-cap-2-600.webp";
+import consoleCap2_1024 from "./images/console-cap-2-1024.webp";
+import consoleCap3_600 from "./images/console-cap-3-600.webp";
+import consoleCap3_1024 from "./images/console-cap-3-1024.webp";
+import markCap1_600 from "./images/mark-cap-1-600.webp";
+import markCap1_1024 from "./images/mark-cap-1-1024.webp";
+import markCap2_600 from "./images/mark-cap-2-600.webp";
+import markCap2_1024 from "./images/mark-cap-2-1024.webp";
+import markCap3_600 from "./images/mark-cap-3-600.webp";
+import markCap3_1024 from "./images/mark-cap-3-1024.webp";
+import stickerMark1_600 from "./images/sticker-mark-1-600.webp";
+import stickerMark1_1024 from "./images/sticker-mark-1-1024.webp";
+import stickerMark2_600 from "./images/sticker-mark-2-600.webp";
+import stickerMark2_1024 from "./images/sticker-mark-2-1024.webp";
+import stickerWordmark1_600 from "./images/sticker-wordmark-1-600.webp";
+import stickerWordmark1_1024 from "./images/sticker-wordmark-1-1024.webp";
+import stickerWordmark2_600 from "./images/sticker-wordmark-2-600.webp";
+import stickerWordmark2_1024 from "./images/sticker-wordmark-2-1024.webp";
+import stickerConsole1_600 from "./images/sticker-console-1-600.webp";
+import stickerConsole1_1024 from "./images/sticker-console-1-1024.webp";
+import stickerConsole2_600 from "./images/sticker-console-2-600.webp";
+import stickerConsole2_1024 from "./images/sticker-console-2-1024.webp";
+import stickerKeys1_600 from "./images/sticker-keys-1-600.webp";
+import stickerKeys1_1024 from "./images/sticker-keys-1-1024.webp";
+import stickerKeys2_600 from "./images/sticker-keys-2-600.webp";
+import stickerKeys2_1024 from "./images/sticker-keys-2-1024.webp";
+import stickerPercentC1_600 from "./images/sticker-percent-c-1-600.webp";
+import stickerPercentC1_1024 from "./images/sticker-percent-c-1-1024.webp";
+import stickerPercentC2_600 from "./images/sticker-percent-c-2-600.webp";
+import stickerPercentC2_1024 from "./images/sticker-percent-c-2-1024.webp";
+import keycaps1_600 from "./images/keycaps-1-600.webp";
+import keycaps1_1024 from "./images/keycaps-1-1024.webp";
+import keycaps2_600 from "./images/keycaps-2-600.webp";
+import keycaps2_1024 from "./images/keycaps-2-1024.webp";
+import notebook1_600 from "./images/notebook-1-600.webp";
+import notebook1_1024 from "./images/notebook-1-1024.webp";
+import notebook2_600 from "./images/notebook-2-600.webp";
+import notebook2_1024 from "./images/notebook-2-1024.webp";
+import notebook3_600 from "./images/notebook-3-600.webp";
+import notebook3_1024 from "./images/notebook-3-1024.webp";
 
 /** Every product image is 4:5, served at 600 and 1024 px wide. */
 export const IMAGE_WIDTH = 1024;
@@ -56,7 +86,7 @@ export interface SizeGuide {
 
 export interface Product {
   slug: string;
-  /** Collection number, shown as 001…006. */
+  /** Collection number, shown as 001…014. */
   number: string;
   name: string;
   color: string;
@@ -74,112 +104,249 @@ export interface Product {
 
 const img = (small: string, large: string, alt: string): ProductImage => ({ small, large, alt });
 
+const TEE_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
+const TEE_CARE = ["Machine wash cold, inside out", "Tumble dry low or hang dry", "Do not iron the print"];
+const HOODIE_SIZES = ["S", "M", "L", "XL", "2XL", "3XL"];
+const HOODIE_CARE = ["Machine wash cold, inside out", "Tumble dry low or hang dry"];
+const CAP_CARE = ["Spot clean with cold water", "Air dry"];
+
 export const PRODUCTS: readonly Product[] = [
   {
-    slug: "frame-tee",
+    slug: "logo-tee",
     number: "001",
-    name: "Frame Tee",
-    color: "Black",
-    price: 45,
-    description: [
-      "The back is the first frame textjs.org renders into the DevTools console, printed 12 inches wide with all 104\u00a0×\u00a032 cells. The front carries the frame’s first line.",
-      "Three water-based inks match the frame’s three text colors.",
-    ],
+    name: "Logo Tee",
+    color: "Faded Black",
+    price: 40,
+    description: ["A heavyweight tee with the ▼ Text.js wordmark printed in white across the chest, 8 inches wide."],
     details: [
-      "6.5 oz/yd² (220 g/m²) 100% cotton jersey",
-      "Garment dyed, made in Los Angeles by Los Angeles Apparel (1801GD)",
-      "Relaxed fit with a high ribbed collar",
-      "Screen printed: 3 colors on the back, 1 on the chest",
-      "Printed neck label, no tag",
+      "7.1 oz 100% cotton, garment dyed and pre-shrunk",
+      "Boxy, oversized fit with dropped shoulders",
+      "AS Colour 5082",
+      "Printed on demand in white ink",
+      "Tear-away label",
     ],
-    care: ["Machine wash cold, inside out", "Tumble dry low or hang dry", "Do not iron the print"],
-    sizes: ["XS", "S", "M", "L", "XL", "2XL"],
-    fit: "Relaxed. Take your usual size.",
-    sizeGuide: {
-      columns: ["Chest width", "Body length"],
-      rows: [
-        ["17 in", "26.5 in"],
-        ["19 in", "27.5 in"],
-        ["21 in", "28.5 in"],
-        ["23 in", "29.5 in"],
-        ["25 in", "30.5 in"],
-        ["27 in", "31.5 in"],
-      ],
-      note: "Measured flat. Chest width is armpit to armpit; body length is from the high point of the shoulder.",
-    },
+    care: TEE_CARE,
+    sizes: TEE_SIZES,
+    fit: "Oversized. Take your usual size for a boxy fit, or one size down for a closer one.",
     images: [
-      img(tee1_600, tee1_1024, "Two black Frame Tees laid flat, one showing the back print and one the chest print"),
-      img(tee2_600, tee2_1024, "Back of the Frame Tee with the 104 by 32 cell console frame printed across it"),
-      img(tee3_600, tee3_1024, "Front of the Frame Tee with ▼ Text.js printed at the chest"),
-      img(tee4_600, tee4_1024, "Close-up of the back print on the cotton: the TEXT.JS block letters, React 19 in console.log, the counter and Geist Dark"),
-      img(tee5_600, tee5_1024, "The printed neck label inside the collar: ▼ Text.js, the size, fiber content and care"),
+      img(logoTee1_600, logoTee1_1024, "Black Logo Tee laid flat with ▼ Text.js printed across the chest"),
+      img(logoTee2_600, logoTee2_1024, "Close-up of the white ▼ Text.js print on the cotton"),
+      img(logoTee3_600, logoTee3_1024, "Two Logo Tees laid flat, one showing the front print and one the plain back"),
     ],
   },
   {
-    slug: "cap",
+    slug: "block-tee",
     number: "002",
-    name: "Cap",
+    name: "Block Tee",
+    color: "Faded Black",
+    price: 40,
+    description: ["The ▼ as the console’s block-letter font draws it, in rows of 7, 5, 3 and 1 cells, printed in white at the chest."],
+    details: [
+      "7.1 oz 100% cotton, garment dyed and pre-shrunk",
+      "Boxy, oversized fit with dropped shoulders",
+      "AS Colour 5082",
+      "Printed on demand in white ink",
+      "Tear-away label",
+    ],
+    care: TEE_CARE,
+    sizes: TEE_SIZES,
+    fit: "Oversized. Take your usual size for a boxy fit, or one size down for a closer one.",
+    images: [
+      img(blockTee1_600, blockTee1_1024, "Black Block Tee laid flat with a white ▼ made of stepped blocks at the chest"),
+      img(blockTee2_600, blockTee2_1024, "Close-up of the block-letter ▼ print on the cotton"),
+    ],
+  },
+  {
+    slug: "console-tee",
+    number: "003",
+    name: "console.log Tee",
+    color: "Faded Black",
+    price: 40,
+    description: ["console.log in Geist, set in two lines on the chest, with a small ▼ on the left sleeve."],
+    details: [
+      "7.1 oz 100% cotton, garment dyed and pre-shrunk",
+      "Boxy, oversized fit with dropped shoulders",
+      "AS Colour 5082",
+      "Printed on demand in white ink, on the chest and left sleeve",
+      "Tear-away label",
+    ],
+    care: TEE_CARE,
+    sizes: TEE_SIZES,
+    fit: "Oversized. Take your usual size for a boxy fit, or one size down for a closer one.",
+    images: [
+      img(consoleTee1_600, consoleTee1_1024, "Black console.log Tee laid flat with console and .log printed on two lines and a small ▼ on the left sleeve"),
+      img(consoleTee2_600, consoleTee2_1024, "Close-up of the two-line console.log print"),
+      img(consoleTee3_600, consoleTee3_1024, "The left sleeve with a small white ▼ above the hem"),
+    ],
+  },
+  {
+    slug: "console-hoodie",
+    number: "004",
+    name: "console.log Hoodie",
+    color: "Black",
+    price: 75,
+    description: ["A relaxed fleece hoodie with console.log printed in white Geist Mono across the chest."],
+    details: [
+      "9.4 oz fleece, 80% cotton and 20% recycled polyester",
+      "Relaxed fit with dropped shoulders",
+      "Lined hood with no drawcord, kangaroo pocket, ribbed cuffs",
+      "AS Colour 5161",
+      "Printed on demand in white ink",
+    ],
+    care: HOODIE_CARE,
+    sizes: HOODIE_SIZES,
+    fit: "Relaxed. Take your usual size.",
+    images: [
+      img(consoleHoodie1_600, consoleHoodie1_1024, "Black hoodie laid flat with console.log printed across the chest"),
+      img(consoleHoodie2_600, consoleHoodie2_1024, "Close-up of the console.log print on the fleece"),
+    ],
+  },
+  {
+    slug: "mark-hoodie",
+    number: "005",
+    name: "▼ Hoodie",
+    color: "Black",
+    price: 75,
+    description: ["The same relaxed fleece hoodie with a 3.5 inch ▼ embroidered in white thread at the chest."],
+    details: [
+      "9.4 oz fleece, 80% cotton and 20% recycled polyester",
+      "Relaxed fit with dropped shoulders",
+      "Lined hood with no drawcord, kangaroo pocket, ribbed cuffs",
+      "AS Colour 5161",
+      "Embroidered on demand in white thread",
+    ],
+    care: HOODIE_CARE,
+    sizes: HOODIE_SIZES,
+    fit: "Relaxed. Take your usual size.",
+    images: [
+      img(markHoodie1_600, markHoodie1_1024, "Black hoodie laid flat with a white embroidered ▼ at the chest"),
+      img(markHoodie2_600, markHoodie2_1024, "Close-up of the ▼ in white satin stitches on the fleece"),
+    ],
+  },
+  {
+    slug: "console-cap",
+    number: "006",
+    name: "console.log Cap",
     color: "Black",
     price: 35,
-    description: ["An unstructured six-panel cap with the ▼ embroidered on the front and textjs.org above the strap, both in black thread."],
+    description: ["An unstructured six-panel cap with console.log embroidered across the front in white Geist Mono."],
     details: [
       "100% cotton chino twill",
       "Unstructured, low profile, 3⅛ inch crown",
       "Pre-curved visor with four rows of stitching",
       "Adjustable strap with antique brass buckle",
       "Yupoong 6245CM",
+      "Embroidered on demand in white thread",
     ],
-    care: ["Spot clean with cold water", "Air dry"],
+    care: CAP_CARE,
     sizes: [],
     images: [
-      img(cap1_600, cap1_1024, "Black cap with a tonal embroidered ▼ on the front"),
-      img(cap2_600, cap2_1024, "Back of the cap with textjs.org embroidered above the strap and brass buckle"),
-      img(cap3_600, cap3_1024, "Close-up of the ▼ in black satin stitches on the cotton twill, across the front seam"),
+      img(consoleCap1_600, consoleCap1_1024, "Black cap with console.log embroidered in white across the front panels"),
+      img(consoleCap2_600, consoleCap2_1024, "Close-up of the console.log embroidery following the curve of the crown"),
+      img(consoleCap3_600, consoleCap3_1024, "Back of the cap with the strap and brass buckle"),
     ],
   },
   {
-    slug: "sticker-sheet",
-    number: "003",
-    name: "Sticker Sheet",
+    slug: "mark-cap",
+    number: "007",
+    name: "▼ Cap",
     color: "Black",
-    price: 8,
-    description: [
-      "Seven kiss-cut stickers on one 5.83\u00a0×\u00a08.27 inch sheet: the ▼ cut to shape, the wordmark, %c, the ▼ from the console’s block-letter font, and ⌘, ⌥ and J.",
-    ],
-    details: ["Glossy vinyl, white stickers on a black sheet", "Kiss-cut, peel individually", "▼ sticker 2.5 inches wide"],
-    care: ["Apply to a clean, dry surface", "For indoor use"],
-    sizes: [],
-    images: [
-      img(stickers1_600, stickers1_1024, "Black sticker sheet with a black ▼ edged in white, the ▼ Text.js wordmark, %c, a block ▼ and ⌘ ⌥ J keys"),
-      img(stickers2_600, stickers2_1024, "The ▼, wordmark and ⌘ stickers on a black laptop lid"),
-    ],
-  },
-  {
-    slug: "hoodie",
-    number: "004",
-    name: "Hoodie",
-    color: "Black",
-    price: 95,
-    description: ["A heavyweight fleece hoodie with the ▼ embroidered at the chest in black thread on black."],
+    price: 35,
+    description: ["The same cap with the ▼ embroidered on the front in white thread, 1.6 inches wide."],
     details: [
-      "14 oz heavy fleece",
-      "Garment dyed, made in Los Angeles by Los Angeles Apparel (HF09)",
-      "Loose fit, kangaroo pocket, ribbed cuffs and hem",
-      "Tonal embroidery, 1.75 inches wide",
-      "Printed neck label, no tag",
+      "100% cotton chino twill",
+      "Unstructured, low profile, 3⅛ inch crown",
+      "Pre-curved visor with four rows of stitching",
+      "Adjustable strap with antique brass buckle",
+      "Yupoong 6245CM",
+      "Embroidered on demand in white thread",
     ],
-    care: ["Machine wash cold, inside out", "Tumble dry low or hang dry"],
-    sizes: ["XS", "S", "M", "L", "XL", "2XL", "3XL"],
-    fit: "Loose. Size down for a closer fit.",
+    care: CAP_CARE,
+    sizes: [],
     images: [
-      img(hoodie1_600, hoodie1_1024, "Black hoodie with the hood up, front"),
-      img(hoodie2_600, hoodie2_1024, "Black hoodie laid flat with the small tonal ▼ at the chest"),
-      img(hoodie3_600, hoodie3_1024, "Close-up of the ▼ in black satin stitches on the fleece"),
+      img(markCap1_600, markCap1_1024, "Black cap with a white embroidered ▼ on the front"),
+      img(markCap2_600, markCap2_1024, "Close-up of the ▼ in white satin stitches across the front seam"),
+      img(markCap3_600, markCap3_1024, "Back of the cap with the strap and brass buckle"),
+    ],
+  },
+  {
+    slug: "sticker-mark",
+    number: "008",
+    name: "▼ Sticker",
+    color: "Black",
+    price: 6,
+    description: ["The ▼ in black with a white edge, cut to shape. 3 inches wide."],
+    details: ["Matte vinyl with a protective laminate", "Die-cut to the outline", "Water resistant, for indoor and outdoor use"],
+    care: ["Apply to a clean, dry surface"],
+    sizes: [],
+    images: [
+      img(stickerMark1_600, stickerMark1_1024, "The ▼ sticker on a black laptop lid"),
+      img(stickerMark2_600, stickerMark2_1024, "Die-cut sticker of a black ▼ with a white edge"),
+    ],
+  },
+  {
+    slug: "sticker-wordmark",
+    number: "009",
+    name: "Wordmark Sticker",
+    color: "White",
+    price: 6,
+    description: ["▼ Text.js in black on a white rounded rectangle. 3 inches wide."],
+    details: ["Matte vinyl with a protective laminate", "Die-cut to the outline", "Water resistant, for indoor and outdoor use"],
+    care: ["Apply to a clean, dry surface"],
+    sizes: [],
+    images: [
+      img(stickerWordmark1_600, stickerWordmark1_1024, "The wordmark sticker held between two fingers"),
+      img(stickerWordmark2_600, stickerWordmark2_1024, "White rounded-rectangle sticker with ▼ Text.js in black"),
+    ],
+  },
+  {
+    slug: "sticker-console",
+    number: "010",
+    name: "console.log Sticker",
+    color: "Black",
+    price: 6,
+    description: ["console.log in white Geist Mono on a black pill with a white edge. 3 inches wide."],
+    details: ["Matte vinyl with a protective laminate", "Die-cut to the outline", "Water resistant, for indoor and outdoor use"],
+    care: ["Apply to a clean, dry surface"],
+    sizes: [],
+    images: [
+      img(stickerConsole1_600, stickerConsole1_1024, "The console.log sticker on a black notebook cover"),
+      img(stickerConsole2_600, stickerConsole2_1024, "Black pill-shaped sticker with console.log in white"),
+    ],
+  },
+  {
+    slug: "sticker-keys",
+    number: "011",
+    name: "⌘⌥J Sticker",
+    color: "Black",
+    price: 6,
+    description: ["⌘⌥J opens the Console in Chrome DevTools on macOS. Three keys on one sticker, 3 inches wide."],
+    details: ["Matte vinyl with a protective laminate", "Die-cut to the outline", "Water resistant, for indoor and outdoor use"],
+    care: ["Apply to a clean, dry surface"],
+    sizes: [],
+    images: [
+      img(stickerKeys1_600, stickerKeys1_1024, "The ⌘⌥J sticker on a black laptop lid"),
+      img(stickerKeys2_600, stickerKeys2_1024, "Black sticker with three keys: ⌘, ⌥ and J"),
+    ],
+  },
+  {
+    slug: "sticker-percent-c",
+    number: "012",
+    name: "%c Sticker",
+    color: "White",
+    price: 5,
+    description: ["%c applies CSS to a console.log message. Black on white, 2 inches square."],
+    details: ["Matte vinyl with a protective laminate", "Die-cut to the outline", "Water resistant, for indoor and outdoor use"],
+    care: ["Apply to a clean, dry surface"],
+    sizes: [],
+    images: [
+      img(stickerPercentC1_600, stickerPercentC1_1024, "The %c sticker on a black water bottle"),
+      img(stickerPercentC2_600, stickerPercentC2_1024, "White square sticker with %c in black"),
     ],
   },
   {
     slug: "keycaps",
-    number: "005",
+    number: "013",
     name: "Keycap Set",
     color: "⌘ ⌥ J",
     price: 25,
@@ -189,13 +356,13 @@ export const PRODUCTS: readonly Product[] = [
     sizes: [],
     fit: "Fits MX-style switches. Check that your bottom row takes 1.25u modifiers.",
     images: [
-      img(keys1_600, keys1_1024, "Three black keycaps with gray legends: ⌘, ⌥ and J"),
-      img(keys2_600, keys2_1024, "The ⌘, ⌥ and J keycaps in place on a black keyboard"),
+      img(keycaps1_600, keycaps1_1024, "Three black keycaps with gray legends: ⌘, ⌥ and J"),
+      img(keycaps2_600, keycaps2_1024, "The ⌘, ⌥ and J keycaps in place on a black keyboard"),
     ],
   },
   {
     slug: "notebook",
-    number: "006",
+    number: "014",
     name: "Notebook",
     color: "Black",
     price: 28,
@@ -209,9 +376,9 @@ export const PRODUCTS: readonly Product[] = [
     care: ["Keep dry"],
     sizes: [],
     images: [
-      img(book1_600, book1_1024, "Black A5 notebook with a blind-debossed ▼ on the cover"),
-      img(book2_600, book2_1024, "Close-up of the debossed ▼ pressed into the cover grain"),
-      img(book3_600, book3_1024, "The notebook open to a dot-grid spread"),
+      img(notebook1_600, notebook1_1024, "Black A5 notebook with a blind-debossed ▼ on the cover"),
+      img(notebook2_600, notebook2_1024, "Close-up of the debossed ▼ pressed into the cover grain"),
+      img(notebook3_600, notebook3_1024, "The notebook open to a dot-grid spread"),
     ],
   },
 ];

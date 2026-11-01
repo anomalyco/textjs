@@ -75,10 +75,18 @@
   <url><loc>https://textjs.org/enterprise</loc><priority>0.5</priority></url>
   <url><loc>https://textjs.org/status</loc><priority>0.5</priority></url>
   <url><loc>https://textjs.org/merch</loc><priority>0.5</priority></url>
-  <url><loc>https://textjs.org/merch/frame-tee</loc><priority>0.4</priority></url>
-  <url><loc>https://textjs.org/merch/hoodie</loc><priority>0.4</priority></url>
-  <url><loc>https://textjs.org/merch/cap</loc><priority>0.4</priority></url>
-  <url><loc>https://textjs.org/merch/sticker-sheet</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/logo-tee</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/block-tee</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/console-tee</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/console-hoodie</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/mark-hoodie</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/console-cap</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/mark-cap</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/sticker-mark</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/sticker-wordmark</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/sticker-console</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/sticker-keys</loc><priority>0.4</priority></url>
+  <url><loc>https://textjs.org/merch/sticker-percent-c</loc><priority>0.4</priority></url>
   <url><loc>https://textjs.org/merch/keycaps</loc><priority>0.4</priority></url>
   <url><loc>https://textjs.org/merch/notebook</loc><priority>0.4</priority></url>
   <url><loc>https://textjs.org/learn</loc><priority>0.8</priority></url>

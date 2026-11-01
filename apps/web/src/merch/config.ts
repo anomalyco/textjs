@@ -110,12 +110,14 @@ export const MERCH: MerchConfig = {
   provider: null,
   notify: { label: "Follow the blog", href: "/blog" },
   sale: {
-    // Screen printed as a Fourthwall pre-order drop: Fourthwall charges when the drop closes and ships 4 to 8 weeks after.
-    "frame-tee": { drop: "launch", preorder: true, shipping: "Charged when the drop closes. Ships 4 to 8 weeks later." },
     // Made to order by Fourthwall: most on-demand items are produced in 2 to 5 business days.
-    cap: { drop: "launch", shipping: "Made to order. Ships after 2 to 5 business days in production." },
-    "sticker-sheet": { drop: "launch", shipping: "Made to order. Ships after 2 to 5 business days in production." },
-    hoodie: { drop: "later" },
+    ...Object.fromEntries(
+      ["logo-tee", "block-tee", "console-tee", "console-hoodie", "mark-hoodie", "console-cap", "mark-cap", "sticker-mark", "sticker-wordmark", "sticker-console", "sticker-keys", "sticker-percent-c"].map((slug) => [
+        slug,
+        { drop: "launch", shipping: "Made to order. Ships after 2 to 5 business days in production." } satisfies Sale,
+      ]),
+    ),
+    // Not in Fourthwall's on-demand catalog: bought from a separate maker and self-fulfilled (merch/LAUNCH.md).
     keycaps: { drop: "later" },
     notebook: { drop: "later" },
   },

@@ -57,6 +57,18 @@ export interface Layer {
   edge?: number;
   /** Embroidery thread color: the stitch photo supplies only the thread's light and texture. */
   thread?: string;
+  /**
+   * A curved surface (a cap's crown): the art's unit square is split into `cols` × `rows` cells and
+   * `points` ((rows + 1) × (cols + 1), row-major, top row first) gives each grid corner's photo position.
+   * Each cell is mapped as two affine triangles. `quad` is still used to size the art raster.
+   */
+  mesh?: { cols: number; rows: number; points: Point[] };
+  /**
+   * Satin stitches drawn from the artwork itself (with `thread`): threads run across each stroke, found from
+   * the stroke's local orientation, `spacing` photo pixels apart; `radius` is about half the stroke width in
+   * photo pixels; `angle` (degrees) is the fill direction where there is no clear stroke.
+   */
+  satin?: { spacing: number; radius: number; angle?: number };
 }
 
 export interface Job {
@@ -246,7 +258,53 @@ export async function composite(job: Job): Promise<Buffer> {
       const alphaAt = (u: number, v: number): number => sample(u, v, 3) / 255;
       const cyl = layer.cylinder;
       /** Photo position → art coordinates (through the cylinder, if any). */
+      const mesh = layer.mesh;
+      let uvMap: Float32Array | null = null;
+      if (mesh) {
+        // Rasterize the mesh: every photo pixel it covers gets its art coordinates.
+        uvMap = new Float32Array(W * H * 2).fill(Number.NaN);
+        const P = (i: number, j: number): number[] => mesh.points[j * (mesh.cols + 1) + i] as number[];
+        const tri = (a: number[], b: number[], c: number[], ua: number[], ub: number[], uc: number[]): void => {
+          const x0 = Math.max(0, Math.floor(Math.min(a[0]!, b[0]!, c[0]!)) - 1), x1 = Math.min(W - 1, Math.ceil(Math.max(a[0]!, b[0]!, c[0]!)) + 1);
+          const y0 = Math.max(0, Math.floor(Math.min(a[1]!, b[1]!, c[1]!)) - 1), y1 = Math.min(H - 1, Math.ceil(Math.max(a[1]!, b[1]!, c[1]!)) + 1);
+          const den = (b[1]! - c[1]!) * (a[0]! - c[0]!) + (c[0]! - b[0]!) * (a[1]! - c[1]!);
+          if (Math.abs(den) < 1e-9) return;
+          for (let y = y0; y <= y1; y++)
+            for (let x = x0; x <= x1; x++) {
+              const X = x + 0.5, Y = y + 0.5;
+              const l1 = ((b[1]! - c[1]!) * (X - c[0]!) + (c[0]! - b[0]!) * (Y - c[1]!)) / den;
+              const l2 = ((c[1]! - a[1]!) * (X - c[0]!) + (a[0]! - c[0]!) * (Y - c[1]!)) / den;
+              const l3 = 1 - l1 - l2;
+              if (l1 < -1e-4 || l2 < -1e-4 || l3 < -1e-4) continue;
+              uvMap![(y * W + x) * 2] = l1 * ua[0]! + l2 * ub[0]! + l3 * uc[0]!;
+              uvMap![(y * W + x) * 2 + 1] = l1 * ua[1]! + l2 * ub[1]! + l3 * uc[1]!;
+            }
+        };
+        for (let j = 0; j < mesh.rows; j++)
+          for (let i = 0; i < mesh.cols; i++) {
+            const u0 = i / mesh.cols, u1 = (i + 1) / mesh.cols, v0 = j / mesh.rows, v1 = (j + 1) / mesh.rows;
+            tri(P(i, j), P(i + 1, j), P(i + 1, j + 1), [u0, v0], [u1, v0], [u1, v1]);
+            tri(P(i, j), P(i + 1, j + 1), P(i, j + 1), [u0, v0], [u1, v1], [u0, v1]);
+          }
+      }
       const toUV = (px0: number, py0: number): [number, number] => {
+        if (uvMap) {
+          // Bilinear lookup in the rasterized mesh (outside it, the art is transparent).
+          const fx0 = px0 - 0.5, fy0 = py0 - 0.5;
+          const xi = Math.floor(fx0), yi = Math.floor(fy0);
+          let uu = 0, vv = 0, wsum = 0;
+          for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) {
+            const X = xi + dx, Y = yi + dy;
+            if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
+            const mu = uvMap[(Y * W + X) * 2]!;
+            if (Number.isNaN(mu)) continue;
+            const w = (dx ? fx0 - xi : 1 - (fx0 - xi)) * (dy ? fy0 - yi : 1 - (fy0 - yi));
+            uu += mu * w;
+            vv += uvMap[(Y * W + X) * 2 + 1]! * w;
+            wsum += w;
+          }
+          return wsum > 0.5 ? [uu / wsum, vv / wsum] : [-1, -1];
+        }
         let sx = px0, sy = py0;
         if (cyl) {
           // Unroll: arc length across, and undo the curve a horizontal line takes when seen from above (elev = sine of the view's elevation).
@@ -264,10 +322,30 @@ export async function composite(job: Job): Promise<Buffer> {
       const sh = layer.shadow;
       const RING = Array.from({ length: 12 }, (_, k) => [Math.cos((k * Math.PI) / 6), Math.sin((k * Math.PI) / 6)] as const);
 
-      const xs = q.map((p) => p[0]!), ys = q.map((p) => p[1]!);
+      const xs = (mesh ? mesh.points : q).map((p) => p[0]!), ys = (mesh ? mesh.points : q).map((p) => p[1]!);
       const pad = (layer.relief ?? 0) * 3 + 4 + (sh ? Math.abs(sh.dx) + Math.abs(sh.dy) + sh.blur * 2 : 0) + (cyl ? cyl.r * (cyl.elev ?? 0) : 0);
       const minX = Math.max(0, Math.floor(Math.min(...xs) - pad)), maxX = Math.min(W - 1, Math.ceil(Math.max(...xs) + pad));
       const minY = Math.max(0, Math.floor(Math.min(...ys) - pad)), maxY = Math.min(H - 1, Math.ceil(Math.max(...ys) + pad));
+      // Satin: the structure tensor of the artwork's alpha gives each stroke's orientation (threads cross it).
+      let Jxx: Float32Array | null = null, Jxy: Float32Array | null = null, Jyy: Float32Array | null = null;
+      if (layer.satin) {
+        const A = new Float32Array(W * H);
+        for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) A[y * W + x] = alphaPx(x + 0.5, y + 0.5);
+        const As = blur(A, 1);
+        const gxx = new Float32Array(W * H), gxy = new Float32Array(W * H), gyy = new Float32Array(W * H);
+        for (let y = Math.max(1, minY); y <= Math.min(H - 2, maxY); y++)
+          for (let x = Math.max(1, minX); x <= Math.min(W - 2, maxX); x++) {
+            const i = y * W + x;
+            const gx = (As[i + 1]! - As[i - 1]!) / 2, gy = (As[i + W]! - As[i - W]!) / 2;
+            gxx[i] = gx * gx;
+            gxy[i] = gx * gy;
+            gyy[i] = gy * gy;
+          }
+        const r = Math.max(1, Math.round(layer.satin.radius));
+        Jxx = blur(gxx, r);
+        Jxy = blur(gxy, r);
+        Jyy = blur(gyy, r);
+      }
       const disp = layer.displace ?? 0;
       const shade = layer.shade ?? 0.8;
       const texture = layer.texture ?? 0.5;
@@ -327,7 +405,7 @@ export async function composite(job: Job): Promise<Buffer> {
               const tx = Math.max(0, Math.min(tw - 1, Math.floor(fx < tw ? fx : 2 * tw - 1 - fx))), ty = Math.max(0, Math.min(th - 1, Math.floor(fy < th ? fy : 2 * th - 1 - fy)));
               const k = (ty * tw + tx) * 4;
               rgb = [tex[k]!, tex[k + 1]!, tex[k + 2]!];
-              if (thread) {
+              if (thread && !layer.satin) {
                 const l = (0.2126 * rgb[0]! + 0.7152 * rgb[1]! + 0.0722 * rgb[2]!) / 255;
                 // Satin columns are rounded: darker toward the edge of each stroke.
                 let inner = 0;
@@ -336,6 +414,49 @@ export async function composite(job: Job): Promise<Buffer> {
                 const f = Math.min(1.1, Math.max(0.45, 0.8 + 0.2 * ((l - texMean) / texStd))) * (0.68 + 0.32 * inner * inner);
                 rgb = [thread[0]! * f, thread[1]! * f, thread[2]! * f];
               }
+            }
+            if (layer.satin && thread && Jxx && Jxy && Jyy) {
+              // Threads run across the stroke: along the dominant gradient direction of the alpha.
+              const jxx = Jxx[i]!, jxy = Jxy[i]!, jyy = Jyy[i]!;
+              const strength = Math.sqrt((jxx - jyy) * (jxx - jyy) + 4 * jxy * jxy);
+              const fill = ((layer.satin.angle ?? 35) * Math.PI) / 180;
+              const stroke = 0.5 * Math.atan2(2 * jxy, jxx - jyy);
+              const k = Math.min(1, strength * 60);
+              const tx = Math.cos(stroke) * k + Math.cos(fill) * (1 - k), ty = Math.sin(stroke) * k + Math.sin(fill) * (1 - k);
+              const tl = Math.hypot(tx, ty) || 1;
+              const tX = tx / tl, tY = ty / tl;
+              // Threads as a line-integral convolution of value noise along the thread direction: streaks that
+              // follow the local direction without a global phase, so curves don't moiré.
+              const cell = layer.satin.spacing;
+              const hsh = (ix: number, iy: number): number => {
+                const h = Math.sin(ix * 127.1 + iy * 311.7) * 43758.5453;
+                return h - Math.floor(h);
+              };
+              const vnoise = (X: number, Y: number): number => {
+                const gx0 = X / cell, gy0 = Y / cell;
+                const ix = Math.floor(gx0), iy = Math.floor(gy0), fx = gx0 - ix, fy = gy0 - iy;
+                const a0 = hsh(ix, iy), a1 = hsh(ix + 1, iy), a2 = hsh(ix, iy + 1), a3 = hsh(ix + 1, iy + 1);
+                return (a0 * (1 - fx) + a1 * fx) * (1 - fy) + (a2 * (1 - fx) + a3 * fx) * fy;
+              };
+              const steps = 7;
+              const stepLen = (layer.satin.radius * 1.6) / steps;
+              let lic = 0;
+              for (let k = -steps; k <= steps; k++) lic += vnoise(sx + k * stepLen * tX, sy + k * stepLen * tY);
+              lic /= 2 * steps + 1;
+              const round = Math.max(0, Math.min(1, 0.5 + (lic - 0.5) * 3.2));
+              // Satin sheen depends on the thread direction against the light from the upper left.
+              const lx = -0.6, ly = -0.8;
+              const facing = Math.abs(tX * lx + tY * ly);
+              let inner = 0;
+              for (const [cx0, cy0] of RING) inner += alphaPx(sx + cx0 * layer.satin.radius * 0.8, sy + cy0 * layer.satin.radius * 0.8);
+              inner /= RING.length;
+              let fiber = 0;
+              if (tex) {
+                const l = (0.2126 * rgb[0]! + 0.7152 * rgb[1]! + 0.0722 * rgb[2]!) / 255;
+                fiber = Math.max(-1.5, Math.min(1.5, (l - texMean) / texStd));
+              }
+              const f = (0.62 + 0.32 * round + 0.03 * fiber) * (0.8 + 0.28 * facing) * (0.72 + 0.28 * inner);
+              rgb = [thread[0]! * f, thread[1]! * f, thread[2]! * f];
             }
             const edgeLight = Math.max(0, a - aUp) * 0.9 - Math.max(0, a - aDown) * 0.6;
             for (let ch = 0; ch < 3; ch++) {

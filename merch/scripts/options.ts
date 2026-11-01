@@ -156,7 +156,7 @@ function percentCArt(wIn: number): string {
 }
 
 /** "console" over ".log", Geist SemiBold, flush left, tight. `wIn` is the width of "console". */
-function stackArt(wIn: number): string {
+function stackArt(wIn: number, fill = WHITE): string {
   const font = fonts.sansSemiBold;
   const size = 100;
   const ls = -0.045 * size;
@@ -166,7 +166,7 @@ function stackArt(wIn: number): string {
   const [, b2] = vext(font, ".log", size);
   const top = -capH - size * 0.02;
   const k = (wIn * IN) / w1;
-  const body = `<g transform="scale(${fmt(k)}) translate(${fmt(size * 0.02)} ${fmt(-top)})">${path(text(font, "console", 0, 0, size, ls), WHITE)}${path(text(font, ".log", 0, lead, size, ls), WHITE)}</g>`;
+  const body = `<g transform="scale(${fmt(k)}) translate(${fmt(size * 0.02)} ${fmt(-top)})">${path(text(font, "console", 0, 0, size, ls), fill)}${path(text(font, ".log", 0, lead, size, ls), fill)}</g>`;
   return svgDoc(wIn * IN, (lead + b2 - top) * k, body, "console / .log");
 }
 
@@ -527,7 +527,7 @@ const THREAD_WHITE = "#efefea";
 const CAP_LEAN = "Its top edge follows the brim seam and its point follows the cap's front center seam, so it leans slightly with the cap.";
 // The stone cap is an edit of cap-front-2 and sits a little larger: ▼ 1.6 in at about 103 px/in, top edge 8° with the brim, axis leaning 12° with the seam.
 const STONE_MARK: Quad = [[388.3, 638.5], [551.7, 661.5], [521.5, 802.3], [358.1, 779.3]];
-const capBack = (): string => readFileSync(join(ROOT, "artwork", "cap-back.svg"), "utf8");
+const capBack = (): string => lineArt(fonts.monoBold, [["textjs.org", "#111111"]], 2.87);
 const CAP_BACK_QUAD: Quad = [[208, 748], [452, 732], [452, 772], [208, 790]];
 
 const CAP: Item = {
@@ -669,7 +669,7 @@ const HOODIE: Item = {
       method: "DTG, front and back",
       colors: "White",
       placement: "Back: 11 × 9.63 in, centered, top 3.5 in below the back neck seam. Front: 1.5 in, left chest",
-      flag: "Needs a printed hoodie, as D. Fourthwall lists printed and embroidered versions of a blank as separate products, so the front ▼ is printed as well.",
+      flag: "Needs a printed hoodie, as D. The AS Colour 5161 is listed once printed and once embroidered, so the front ▼ is printed as well; some other Fourthwall blanks allow mixed printed and embroidered regions.",
       photo: async () => {
         const a = markArt(11);
         return shot(optionBasePath("hoodie-back"), 140, [ink(a, on(HOODIE_BACK, a, 3.5), { texture: 0.7, displace: 0.8 })]);
@@ -941,3 +941,49 @@ if (import.meta.main) {
   await close();
 }
 
+
+export {
+  BLACK,
+  BOTTLE,
+  CAP_BACK_QUAD,
+  CAP_MARK,
+  embroider,
+  embroideryPrompt,
+  FITS,
+  fit,
+  HAND_STICKER,
+  HOODIE_BACK,
+  HOODIE_FLAT,
+  ink,
+  LAPTOP_PPI,
+  lineArt,
+  markArt,
+  NOTEBOOK,
+  on,
+  onSurface,
+  PAIR_BACK,
+  PAIR_FRONT,
+  pngFromWebp,
+  rect,
+  refine,
+  shot,
+  sizeIn,
+  stackArt,
+  blockMarkArt,
+  stickerConsole,
+  stickerKeys,
+  stickerMark,
+  stickerMm,
+  stickerPercentC,
+  stickerWordmark,
+  studio,
+  sub,
+  TEE_BACK,
+  TEE_FRONT,
+  THREAD_WHITE,
+  vinyl,
+  WHITE,
+  wordmarkArt,
+  type Garment,
+  type Sticker,
+};

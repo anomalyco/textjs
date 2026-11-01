@@ -1,61 +1,70 @@
-# Launch checklist: first drop on Fourthwall
+# Launch checklist
 
-The first drop is the Frame Tee, Cap and Sticker Sheet. Anomaly's Fourthwall shop makes, ships and takes payment for them; textjs.org/merch is the storefront and hands the cart to Fourthwall's hosted checkout. The Hoodie, Keycap Set and Notebook show "Later".
+The first drop is twelve products that Anomaly's Fourthwall shop makes on demand: three tees, two hoodies, two caps and five stickers. Fourthwall makes, ships and takes payment for them; textjs.org/merch is the storefront and hands the cart to Fourthwall's hosted checkout. The Keycap Set and Notebook show "Later": Fourthwall can't make them at a sensible minimum, so they come from separate makers and ship from Anomaly (section 7).
 
-| Item | Fourthwall product | Method | How it sells | Ships |
+| No. | Product | Fourthwall product | Method | Base cost |
 | --- | --- | --- | --- | --- |
-| 001 Frame Tee | Bespoke request (ask for Los Angeles Apparel 1801GD) | Screen print, 3 colors back, 1 front | Pre-order drop with a minimum order | 4 to 8 weeks after the drop closes |
-| 002 Cap | Yupoong Classic Dad Hat (6245CM) | Embroidery, front and back | On demand, no minimum | After 2 to 5 business days in production |
-| 003 Sticker Sheet | Kiss Cut Sticker Sheet with Custom Background (5.83 × 8.27 in) | Digital print, kiss-cut | On demand, no minimum | After 2 to 5 business days in production |
+| 001 | Logo Tee | AS Colour 5082 Premium Oversized Faded T-Shirt | Printed, front | From $24.17 |
+| 002 | Block Tee | AS Colour 5082 | Printed, front | From $24.17 |
+| 003 | console.log Tee | AS Colour 5082 | Printed, front and left sleeve | From $24.17, plus the sleeve |
+| 004 | console.log Hoodie | AS Colour 5161 Unisex Premium Relaxed Hoodie, Printed | Printed, front | From $38.46 |
+| 005 | ▼ Hoodie | AS Colour 5161, Embroidered | Embroidered, center chest | From $41.24 |
+| 006 | console.log Cap | Yupoong Classic Dad Hat (6245CM), Embroidered | Embroidered, Front Large | From $15.65 |
+| 007 | ▼ Cap | Yupoong Classic Dad Hat (6245CM), Embroidered | Embroidered, Front Large | From $15.65 |
+| 008–012 | ▼, Wordmark, console.log, ⌘⌥J and %c Stickers | Allcolor 957 Die-Cut Stickers | Digital print, die-cut | From $3.78 |
 
-Fourthwall has no monthly fee and no platform fee on physical products. Each product's base cost is deducted from the price we set, and card payments cost 2.9% + 30¢ (3.9% + 30¢ for international cards).
+All twelve are on demand with no minimum; most on-demand items are produced in 2 to 5 business days. Fourthwall has no monthly fee and no platform fee on physical products. Each product's base cost is deducted from the price we set, and card payments cost 2.9% + 30¢ (3.9% + 30¢ for international cards).
+
+Specs, sizes and placements are in the tech packs: [tees.md](tech-packs/tees.md), [hoodies.md](tech-packs/hoodies.md), [caps.md](tech-packs/caps.md), [stickers.md](tech-packs/stickers.md). Upload files are the 300 DPI PNGs in `artwork/png/` (`bun run export` rebuilds them from the SVGs).
 
 ## 1. Access
 
 - [ ] Michelle adds Adam to Anomaly's Fourthwall shop.
 - [ ] Note the shop domain (for example `anomaly-shop.fourthwall.com`); checkout links use it.
-- [ ] Optional: connect a checkout domain such as `checkout.textjs.org` and style checkout to match the site (Fourthwall recommends the Clean Frame theme). Add Fourthwall's redirect script so links in order emails come back to textjs.org.
+- [ ] Optional: connect a checkout domain such as `checkout.textjs.org` and style checkout to match the site (Fourthwall recommends the Clean Frame theme).
 
-## 2. Cap (on demand)
+## 2. Tees
 
-- [ ] Products → Create new product → Design a new product → Yupoong Classic Dad Hat, Embroidered, Black.
-- [ ] Front Large: `artwork/png/cap-front.png` (1.6 in wide, centered on the front seam).
-- [ ] Back: `artwork/png/cap-back.png` (textjs.org, 2.87 in wide). If the Back area is narrower, scale it down only as far as Fourthwall's 0.25 in lowercase minimum allows.
-- [ ] Thread: black on both. Check the stitch preview stays under 15,000 stitches.
-- [ ] Order a sample. Approve the tonal contrast in daylight before listing.
+- [ ] Products → Create new product → Design a new product → AS Colour Premium Oversized Faded T-Shirt, Printed, Faded Black, sizes XS to 3XL. Make three products from it.
+- [ ] Logo Tee: `png/logo-tee-front.png` in Front Large, 8 in wide, top 3 in below the neck seam.
+- [ ] Block Tee: `png/block-tee-front.png` in Front Large, 4.5 in wide, top 3 in below the neck seam.
+- [ ] console.log Tee: `png/console-tee-front.png` in Front Large, 10 in wide, its left edge 6 in toward the wearer's right of center, top 3 in below the neck seam; `png/console-tee-sleeve.png` in Left Sleeve, 1.25 in wide, pointing down the arm, 1 in above the hem band.
+- [ ] Adam picks the sleeve ▼ (store default) or the upper-back ▼ from `options/console-tee-sleeve-vs-back.png`. For the back, use the same PNG in Back Large, 1 in below the back neck seam.
+- [ ] Check what the sleeve adds to the base cost and adjust the price if needed.
 
-## 3. Sticker Sheet (on demand)
+## 3. Hoodies
 
-- [ ] Design a new product → Kiss Cut Sticker Sheet with Custom Background.
-- [ ] Upload `artwork/png/sticker-sheet-stickers.png` (1749 × 2481 px, 300 DPI). Everything outside the stickers must stay fully transparent; reviewers report that partly transparent pixels change the cut.
-- [ ] Background color `#0a0a0a`. Fourthwall adds the 0.12 in white border itself; `artwork/sticker-sheet.svg` shows where it lands.
-- [ ] Order a sample and check the cuts around the ▼ and ⌘ ⌥ J.
+- [ ] console.log Hoodie: AS Colour Unisex Premium Relaxed Hoodie, Printed, Black, S to 3XL. `png/console-hoodie-front.png` in Front, 9 in wide, top 3.5 in below the front neck seam.
+- [ ] ▼ Hoodie: the same hoodie, Embroidered. `png/mark-hoodie-chest.png` in Center Chest, 3.5 in wide, top 3.5 in below the front neck seam, white thread.
+- [ ] Check the ▼'s stitch count in the designer. The estimate is 11,000 to 13,000 against Fourthwall's 15,000 limit; if it is over, set it to 3.25 in and update the tech pack and product page.
 
-## 4. Frame Tee (bespoke pre-order drop)
+## 4. Caps
 
-- [ ] Design a new product → All Products, filter by Request or Min. orders required, and submit a bespoke request with `tech-packs/frame-tee.md`, `artwork/frame-tee-back.svg`, `artwork/frame-tee-front.svg` and `artwork/neck-label.svg`.
-- [ ] Ask the sourcing team for:
-  - Los Angeles Apparel 1801GD in Black
-  - water-based discharge inks, matched to White, PANTONE Cool Gray 6 C and Cool Gray 9 C
-  - a printed neck label in place of the manufacturer's tag
-  - the minimum order and the per-unit price at 75, 150 and 300 units
-- [ ] Approve the quote, then the skeleton listing.
-- [ ] Order the sample (paid). Fourthwall allows two rounds of revisions; check the 4.9 mm text in Cool Gray 9 C and the discharge tone on the garment-dyed black.
-- [ ] Pick the drop window with the sourcing team. Customers aren't charged until the drop closes and the minimum is met; Fourthwall ships 4 to 8 weeks after the drop ends.
-- [ ] Decide now what happens if the drop misses the minimum: cancel and refund everyone, or pay for the remaining units.
+- [ ] Yupoong Classic Dad Hat, Embroidered, Black. Make two products.
+- [ ] console.log Cap: `png/console-cap-front.png` in Front Large, 3.4 in wide, centered on the front seam, white thread. The lowercase is 0.27 in, just over Fourthwall's 0.25 in minimum: don't scale it down.
+- [ ] ▼ Cap: `png/mark-cap-front.png` in Front Large, 1.6 in wide, centered on the front seam, apex 0.6 in above the brim, white thread.
+- [ ] Order a sample of each and check the lettering where it crosses the front seam.
 
-If bespoke doesn't work out, the on-demand fallback is the AS Colour 5082 Premium Oversized Faded Tee (7.1 oz, garment dyed) printed DTG, with the label in its Inside Label area. The print is digital and the three grays aren't spot-matched; update the product page details before launching it that way.
+## 5. Stickers
 
-## 5. Neck label
-
-- [ ] Decide whose name or RN number goes on the label. US textile labels need fiber content, country of origin and the seller's name or RN; the current artwork has the first two but not the third.
-- [ ] Update `artwork/neck-label.svg` per size, then `bun run export` in `merch/`.
+- [ ] Allcolor 957 Die-Cut Stickers. Make five products: ▼ (3 in), Wordmark (3 in), console.log (3 in), ⌘⌥J (3 in) and %c (2 in), from the matching `png/sticker-*.png`.
+- [ ] The white edge is in the artwork and outside it must stay fully transparent. Check each cut line in the preview.
 
 ## 6. Prices
 
-- [ ] Confirm $45, $35 and $8 against the quote and base costs (cap from $15.65, sticker sheet $5.05). Prices live in `apps/web/src/merch/products.ts` and must match Fourthwall; `bun run sync` warns about differences.
+Placeholders in `apps/web/src/merch/products.ts`: tees $40, hoodies $75, caps $35, 3 in stickers $6, the 2 in sticker $5.
 
-## 7. Connect the site
+- [ ] Confirm them against the base costs once the products exist. Prices must match Fourthwall; `bun run sync` warns about differences.
+
+## 7. Keycap Set and Notebook (later, not on Fourthwall)
+
+Fourthwall's only keycap is the Infinikey single custom keycap, which needs 2,000 orders, and its notebook (JournalBook) is UV printed with lined pages and can't deboss. Both come from separate makers and are sold on Fourthwall as self-fulfilled products (no platform fee; Anomaly ships them) or, with Fourthwall Pro and 3PL access, stocked in Fourthwall's warehouse ($1.35 per item fulfilled).
+
+- [ ] Keycap Set: quote three-key sets from a small-batch maker ([keycaps.md](tech-packs/keycaps.md) lists the spec and vendors).
+- [ ] Notebook: quote Leuchtturm1917's business service for a blind deboss (minimum 50, [notebook.md](tech-packs/notebook.md)).
+- [ ] Decide who ships them, then add each as a self-fulfilled product and move it to `drop: "launch"` in `apps/web/src/merch/config.ts`.
+
+## 8. Connect the site
 
 - [ ] In Fourthwall, Settings → For developers → Storefront API → Create token (it starts with `ptkn_`). Keep it out of the repo.
 - [ ] Put the products in one collection (or use `all`), then from `merch/`:
@@ -64,26 +73,35 @@ If bespoke doesn't work out, the on-demand fallback is the AS Colour 5082 Premiu
   FOURTHWALL_STOREFRONT_TOKEN=ptkn_… FOURTHWALL_SHOP=anomaly-shop.fourthwall.com bun run sync
   ```
 
-  If Fourthwall's product slugs differ from the store's, pass `FOURTHWALL_ALIASES='{"frame-tee":"<fourthwall slug>"}'`.
+  If Fourthwall's product slugs differ from the store's, pass `FOURTHWALL_ALIASES='{"logo-tee":"<fourthwall slug>"}'`.
 - [ ] Paste the printed block into `apps/web/src/merch/config.ts`, replacing `provider: null`:
 
   ```ts
   provider: fourthwall({
     shopDomain: "anomaly-shop.fourthwall.com",
     variants: {
-      "frame-tee": { XS: "<uuid>", S: "<uuid>", M: "<uuid>", L: "<uuid>", XL: "<uuid>", "2XL": "<uuid>" },
-      cap: { "": "<uuid>" },
-      "sticker-sheet": { "": "<uuid>" },
+      "logo-tee": { XS: "<uuid>", S: "<uuid>", M: "<uuid>", L: "<uuid>", XL: "<uuid>", "2XL": "<uuid>", "3XL": "<uuid>" },
+      "block-tee": { XS: "<uuid>", S: "<uuid>", M: "<uuid>", L: "<uuid>", XL: "<uuid>", "2XL": "<uuid>", "3XL": "<uuid>" },
+      "console-tee": { XS: "<uuid>", S: "<uuid>", M: "<uuid>", L: "<uuid>", XL: "<uuid>", "2XL": "<uuid>", "3XL": "<uuid>" },
+      "console-hoodie": { S: "<uuid>", M: "<uuid>", L: "<uuid>", XL: "<uuid>", "2XL": "<uuid>", "3XL": "<uuid>" },
+      "mark-hoodie": { S: "<uuid>", M: "<uuid>", L: "<uuid>", XL: "<uuid>", "2XL": "<uuid>", "3XL": "<uuid>" },
+      "console-cap": { "": "<uuid>" },
+      "mark-cap": { "": "<uuid>" },
+      "sticker-mark": { "": "<uuid>" },
+      "sticker-wordmark": { "": "<uuid>" },
+      "sticker-console": { "": "<uuid>" },
+      "sticker-keys": { "": "<uuid>" },
+      "sticker-percent-c": { "": "<uuid>" },
     },
   }),
   ```
 
-  Only variant IDs go in the site; checkout uses Fourthwall's `/cart/checkout?products=<variant>:<qty>` links and needs no token in the browser.
-- [ ] If the drop dates or shipping times change, edit the `sale` lines in the same file.
+  Only variant IDs go in the site; checkout uses Fourthwall's `/cart/checkout?products=<variant>:<qty>` links and needs no token in the browser. A product with no variant in this map stays "Coming soon".
+- [ ] If shipping times change, edit the `sale` lines in the same file.
 - [ ] `cd apps/web && bun test`, then deploy.
 
-## 8. Launch
+## 9. Launch
 
-- [ ] Samples approved for all three items.
-- [ ] Place one real order of the cap through textjs.org to test the handoff end to end.
+- [ ] Samples approved: one of each tee, hoodie and cap, and the five stickers.
+- [ ] Place one real order of a sticker through textjs.org to test the handoff end to end.
 - [ ] Publish the drop on the blog; the store's "Follow the blog" links point there.

@@ -22,9 +22,10 @@ describe("merch routes", () => {
     expect(matchRoute("/merch/")).toEqual({ name: "merch", slug: "" });
     for (const p of PRODUCTS) expect(matchRoute(productPath(p.slug))).toEqual({ name: "merch", slug: p.slug });
     expect(matchRoute("/merch/nope")).toEqual({ name: "not-found" });
-    expect(matchRoute("/merch/frame-tee/extra")).toEqual({ name: "not-found" });
+    expect(matchRoute("/merch/logo-tee/extra")).toEqual({ name: "not-found" });
+    expect(matchRoute("/merch/frame-tee")).toEqual({ name: "not-found" });
     expect(titleFor({ name: "merch", slug: "" })).toBe("Merch | Text.js");
-    expect(titleFor({ name: "merch", slug: "frame-tee" })).toBe("Frame Tee | Text.js Merch");
+    expect(titleFor({ name: "merch", slug: "console-tee" })).toBe("console.log Tee | Text.js Merch");
   });
 
   test("are prerendered, linked from the footer and listed in the sitemap", () => {
@@ -45,9 +46,9 @@ describe("merch routes", () => {
       expect(html).toContain(`href="${productPath(p.slug)}"`);
       expect(html).toContain(p.name);
     }
-    // The first drop reads Coming soon; the rest read Later.
-    expect(html.match(/merch-flag">Coming soon</g)?.length).toBe(3);
-    expect(html.match(/merch-flag">Later</g)?.length).toBe(3);
+    // Everything Fourthwall makes reads Coming soon; the Keycap Set and Notebook read Later.
+    expect(html.match(/merch-flag">Coming soon</g)?.length).toBe(12);
+    expect(html.match(/merch-flag">Later</g)?.length).toBe(2);
     // Every image reserves its box before it loads.
     for (const tag of html.match(/<img [^>]*>/g) ?? []) if (tag.includes(".webp")) expect(tag).toMatch(/width="1024" height="1280"/);
     expect(html).toContain('class="footer"');
@@ -72,13 +73,18 @@ describe("merch routes", () => {
       expect(html).not.toMatch(/type="(email|text|tel)"/);
       expect(html).not.toContain("▲");
     }
-    const tee = await render("/merch/frame-tee");
-    expect(tee).toContain("Size guide");
-    expect(tee).toContain("104\u00a0×\u00a032 cells");
+    const tee = await render("/merch/console-tee");
+    expect(tee).toContain("small ▼ on the left sleeve");
+    for (const s of ["XS", "3XL"]) expect(tee).toContain(`value="${s}"`);
   });
 });
 
 describe("merch catalog", () => {
+  test("the collection lists the final round: three tees, two hoodies, two caps, five stickers, keycaps and a notebook", () => {
+    expect(PRODUCTS.map((p) => p.slug)).toEqual(["logo-tee", "block-tee", "console-tee", "console-hoodie", "mark-hoodie", "console-cap", "mark-cap", "sticker-mark", "sticker-wordmark", "sticker-console", "sticker-keys", "sticker-percent-c", "keycaps", "notebook"]);
+    expect(PRODUCTS.map((p) => p.number)).toEqual(PRODUCTS.map((_, i) => String(i + 1).padStart(3, "0")));
+  });
+
   test("every product has a number, price, copy and 4:5 images that exist", () => {
     const numbers = new Set<string>();
     for (const p of PRODUCTS) {
@@ -106,16 +112,16 @@ describe("merch catalog", () => {
 
 describe("checkout providers", () => {
   const tee = { M: "11111111-1111-4111-8111-111111111111", L: "22222222-2222-4222-8222-222222222222" };
-  const fw = fourthwall({ shopDomain: "textjs-shop.fourthwall.com", variants: { "frame-tee": tee, cap: { "": "33333333-3333-4333-8333-333333333333" } } });
+  const fw = fourthwall({ shopDomain: "textjs-shop.fourthwall.com", variants: { "logo-tee": tee, "mark-cap": { "": "33333333-3333-4333-8333-333333333333" } } });
 
   test("Fourthwall builds direct checkout links and refuses lines it can't sell", () => {
     expect(fw.cart).toBe(true);
-    expect(fw.sells({ slug: "frame-tee", size: "M" })).toBe(true);
-    expect(fw.sells({ slug: "frame-tee", size: "XS" })).toBe(false);
-    expect(fw.checkoutUrl([{ slug: "frame-tee", size: "M", quantity: 2 }, { slug: "cap", size: "", quantity: 1 }])).toBe(
+    expect(fw.sells({ slug: "logo-tee", size: "M" })).toBe(true);
+    expect(fw.sells({ slug: "logo-tee", size: "XS" })).toBe(false);
+    expect(fw.checkoutUrl([{ slug: "logo-tee", size: "M", quantity: 2 }, { slug: "mark-cap", size: "", quantity: 1 }])).toBe(
       `https://textjs-shop.fourthwall.com/cart/checkout?products=${tee.M}:2,33333333-3333-4333-8333-333333333333:1&currency=USD`,
     );
-    expect(fw.checkoutUrl([{ slug: "frame-tee", size: "XS", quantity: 1 }])).toBeNull();
+    expect(fw.checkoutUrl([{ slug: "logo-tee", size: "XS", quantity: 1 }])).toBeNull();
     expect(fw.checkoutUrl([])).toBeNull();
     // Only variant UUIDs: anything else could smuggle extra query parameters into the link.
     const bad = fourthwall({ shopDomain: "x.fourthwall.com", variants: { cap: { "": "abc&coupon=FREE" } } });
@@ -134,56 +140,58 @@ describe("checkout providers", () => {
     expect(p.checkoutUrl([{ slug: "hoodie", size: "M", quantity: 1 }])).toBeNull();
   });
 
-  test("the store ships closed, with the tee, cap and stickers in the first drop", () => {
+  test("the store ships closed, with everything but the keycaps and notebook in the first drop", () => {
     expect(MERCH.provider).toBeNull();
     expect(MERCH.notify.href.startsWith("/")).toBe(true);
-    expect(PRODUCTS.filter((p) => saleOf(p.slug).drop === "launch").map((p) => p.slug)).toEqual(["frame-tee", "cap", "sticker-sheet"]);
-    expect(saleOf("frame-tee").preorder).toBe(true);
+    expect(PRODUCTS.filter((p) => saleOf(p.slug).drop === "later").map((p) => p.slug)).toEqual(["keycaps", "notebook"]);
+    for (const p of PRODUCTS) expect(saleOf(p.slug).preorder).toBeUndefined();
   });
 
   test("a configured provider opens the first drop and leaves later items closed", () => {
     const index = renderToStaticMarkup(<MerchPage slug="" provider={fw} />);
     expect(index).not.toContain("Coming soon");
-    expect(index).toContain('merch-flag">Pre-order<');
-    expect(index.match(/merch-flag">Later</g)?.length).toBe(3);
+    expect(index).not.toContain("Pre-order");
+    expect(index.match(/merch-flag">Later</g)?.length).toBe(2);
     expect(index).toContain("Cart, 0 items");
-    const teePage = renderToStaticMarkup(<MerchPage slug="frame-tee" provider={fw} />);
-    expect(teePage).toMatch(/<button[^>]*>Pre-order<\/button>/);
-    expect(teePage).toContain(`${saleOf("frame-tee").shipping} Checkout on Fourthwall.`);
+    const teePage = renderToStaticMarkup(<MerchPage slug="logo-tee" provider={fw} />);
+    expect(teePage).toMatch(/<button[^>]*>Add to cart<\/button>/);
+    expect(teePage).toContain(`${saleOf("logo-tee").shipping} Checkout on Fourthwall.`);
     // Sizes without a variant are shown as sold out.
     expect(teePage).toMatch(/class="merch-size is-out"><input type="radio" disabled="" name="[^"]+" value="XS"\/>/);
     expect(teePage).toMatch(/class="merch-size"><input type="radio" name="[^"]+" value="M"\/>/);
-    expect(renderToStaticMarkup(<MerchPage slug="cap" provider={fw} />)).toMatch(/<button[^>]*>Add to cart<\/button>/);
-    const hoodie = renderToStaticMarkup(<MerchPage slug="hoodie" provider={fw} />);
-    expect(hoodie).toMatch(/<button[^>]*disabled[^>]*>Later<\/button>/);
-    expect(hoodie).not.toContain("is-out");
+    expect(renderToStaticMarkup(<MerchPage slug="mark-cap" provider={fw} />)).toMatch(/<button[^>]*>Add to cart<\/button>/);
+    // A first-drop product with no variant yet stays closed.
+    expect(renderToStaticMarkup(<MerchPage slug="console-cap" provider={fw} />)).toMatch(/<button[^>]*disabled[^>]*>Coming soon<\/button>/);
+    const keycaps = renderToStaticMarkup(<MerchPage slug="keycaps" provider={fw} />);
+    expect(keycaps).toMatch(/<button[^>]*disabled[^>]*>Later<\/button>/);
+    expect(keycaps).not.toContain("is-out");
   });
 
   test("the Fourthwall sync maps catalog variants by slug and size", () => {
     const v = (id: string, size: string | undefined, value: number) => ({ id, unitPrice: { value, currency: "USD" }, attributes: { description: `Black, ${size ?? "One size"}`, size: size ? { name: size } : undefined } });
     const catalog: FourthwallProduct[] = [
-      { slug: "text-js-frame-tee", name: "Frame Tee", variants: [v("t-m", "M", 45), v("t-l", "L", 45)] },
-      { slug: "cap", name: "Cap", variants: [v("c", undefined, 30)] },
+      { slug: "text-js-logo-tee", name: "Logo Tee", variants: [v("t-m", "M", 40), v("t-l", "L", 40)] },
+      { slug: "mark-cap", name: "▼ Cap", variants: [v("c", undefined, 30)] },
     ];
-    const { variants, warnings } = fourthwallVariants(catalog, { "frame-tee": "text-js-frame-tee" });
-    expect(variants["frame-tee"]).toEqual({ M: "t-m", L: "t-l" });
-    expect(variants.cap).toEqual({ "": "c" });
-    expect(warnings).toContain("frame-tee: size XS not on Fourthwall");
-    expect(warnings.some((w) => w.startsWith("cap: Fourthwall price 30"))).toBe(true);
-    expect(warnings).toContain('hoodie: no Fourthwall product with slug "hoodie"');
+    const { variants, warnings } = fourthwallVariants(catalog, { "logo-tee": "text-js-logo-tee" });
+    expect(variants["logo-tee"]).toEqual({ M: "t-m", L: "t-l" });
+    expect(variants["mark-cap"]).toEqual({ "": "c" });
+    expect(warnings).toContain("logo-tee: size XS not on Fourthwall");
+    expect(warnings.some((w) => w.startsWith("mark-cap: Fourthwall price 30"))).toBe(true);
+    expect(warnings).toContain('mark-hoodie: no Fourthwall product with slug "mark-hoodie"');
   });
 
   test("the cart merges lines and drops them at zero", () => {
     cart.clear();
-    cart.add({ slug: "frame-tee", size: "M" });
-    cart.add({ slug: "frame-tee", size: "M" });
-    cart.add({ slug: "cap", size: "" });
+    cart.add({ slug: "logo-tee", size: "M" });
+    cart.add({ slug: "logo-tee", size: "M" });
+    cart.add({ slug: "mark-cap", size: "" });
     expect(cart.get()).toEqual([
-      { slug: "frame-tee", size: "M", quantity: 2 },
-      { slug: "cap", size: "", quantity: 1 },
+      { slug: "logo-tee", size: "M", quantity: 2 },
+      { slug: "mark-cap", size: "", quantity: 1 },
     ]);
-    cart.setQuantity({ slug: "frame-tee", size: "M" }, 0);
-    expect(cart.get()).toEqual([{ slug: "cap", size: "", quantity: 1 }]);
+    cart.setQuantity({ slug: "logo-tee", size: "M" }, 0);
+    expect(cart.get()).toEqual([{ slug: "mark-cap", size: "", quantity: 1 }]);
     cart.clear();
   });
 });
