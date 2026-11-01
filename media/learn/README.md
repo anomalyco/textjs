@@ -3,10 +3,24 @@
 Narrated, motion-designed video versions of the `/learn` chapters. One command renders a chapter:
 
 ```bash
-bun install && bun run build:packages      # once, at the repo root
-(cd media/learn && bun install)            # once: playwright-core
-bun media/learn/render.ts getting-started  # → media/learn/out/learn/getting-started/
+bun install && bun run build:packages           # once, at the repo root
+(cd media/learn && bun install)                 # once: playwright-core
+bun media/learn/render.ts getting-started --vm  # → media/learn/out/learn/getting-started/
 ```
+
+**Render on a VM (`--vm`), not on the Mac.** A render has two halves:
+
+1. **On the Mac** (`render.ts`): narration (ElevenLabs; the key never leaves the Mac), the timeline, and filming the
+   live scenes in real Chrome + real DevTools (Mac fonts). Both are cached, so this is quick after the first run.
+   It then writes a self-contained job bundle to `out/job/<slug>/`: timeline, footage, the narration clips used, Geist.
+2. **On an exe.dev VM** (`produce.ts`, via the `exe-video` skill's `video-vm`): `--vm` syncs `media/learn` plus the
+   job bundle (`--include out/job/<slug>`), renders frames, mixes and encodes, writes poster, 720p and review sheets,
+   runs `check-holds.ts`, pulls `out/learn/<slug>/` and `out/review/<slug>/` back, and pauses the VM. The VM is
+   `video-<worktree>` unless `--vm-name video-…` picks another (one per chapter to render chapters in parallel).
+   `--keep-vm` leaves it running. `--still` and `--scene` work on the VM too (results land in `out/work/<slug>/vm/`).
+
+Without `--vm` the same `produce.ts` runs locally. `bun media/learn/produce.ts <slug>` re-produces an existing job
+bundle without touching narration or footage.
 
 Output (`out/` is gitignored; the folder layout matches the R2 bucket at `media.textjs.org`):
 
@@ -18,7 +32,8 @@ Output (`out/` is gitignored; the folder layout matches the R2 bucket at `media.
 | `out/learn/<slug>/<slug>.vtt` | WebVTT captions, timed to the narration's words |
 | `out/learn/<slug>/manifest.json` | Duration, scenes, voice/model, loudness |
 | `out/review/<slug>/` | Contact sheet, settled frames for every scene and cue, transition strips, last frame |
-| `out/work/<slug>/` | Timeline, captured footage, segments, audio stems (scratch) |
+| `out/job/<slug>/` | The job bundle produce.ts reads (timeline, filmed footage + its cache key, clips, fonts) |
+| `out/work/<slug>/` | Timeline, segments, audio stems, stills (scratch) |
 
 Then review (see [Review](#review)) and run `bun media/learn/check-holds.ts <slug>`.
 
@@ -27,9 +42,11 @@ Then review (see [Review](#review)) and run `bun media/learn/check-holds.ts <slu
 ```
 bun media/learn/render.ts <slug> [options]
 
+  --vm                       Produce on an exe.dev VM (sync, render, pull, pause); see above
+  --vm-name video-…          VM to use (default video-<worktree>); --keep-vm to leave it running
   --provider elevenlabs|say  Narration voice (default: elevenlabs when a key is configured, else macOS `say`)
   --fps 60                   Output frame rate (30 also works; rendering runs at ~90 frames/s)
-  --workers 6                Parallel headless pages rendering frames
+  --workers N                Parallel headless pages rendering frames (default: CPUs − 1, at most 8)
   --subtitles                Burn lower-third subtitles in (default: off; the .vtt track is the captions)
   --music                    Add the synthesized ambient pad, ducked under the voice (default: off)
   --scene <id>               Render one scene (plus its transitions) to out/work/<slug>/<slug>-<id>-preview.mp4

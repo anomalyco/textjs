@@ -14,14 +14,13 @@ export interface StageServer {
 }
 
 /** Bundles the stage and serves it with the timeline, fonts and captured footage. */
-export async function serveStage(timeline: Timeline, captureDir: string): Promise<StageServer> {
+export async function serveStage(timeline: Timeline, captureDir: string, fonts = join(REPO, "apps/web/public/fonts")): Promise<StageServer> {
   const build = await Bun.build({ entrypoints: [join(ROOT, "stage/main.ts")], target: "browser", format: "esm", minify: false });
   if (!build.success) throw new Error(build.logs.map((l) => String(l)).join("\n"));
   const js = await build.outputs[0]!.text();
   const css = readFileSync(join(ROOT, "stage/style.css"), "utf8");
   const json = JSON.stringify(timeline);
   const html = `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/style.css"></head><body><script type="module" src="/main.js"></script></body></html>`;
-  const fonts = join(REPO, "apps/web/public/fonts");
   const srv = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,

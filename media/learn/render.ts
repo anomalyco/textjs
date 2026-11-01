@@ -7,19 +7,18 @@
  * See README.md for options and the pipeline.
  */
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { basename, join, relative } from "node:path";
 import { parseArgs } from "node:util";
-import { soundtrack } from "./lib/audio";
 import { captureLive } from "./lib/capture";
 import { vtt } from "./lib/captions";
-import { duration as probeDuration, FFMPEG, OUT, ROOT, run } from "./lib/env";
-import { renderVideo, serveStage, still } from "./lib/frames";
-import { review } from "./lib/review";
+import { OUT, REPO, ROOT } from "./lib/env";
 import type { ChapterScript } from "./lib/script";
 import { stopServers } from "./lib/servers";
 import { buildTimeline, TRANSITION } from "./lib/timeline";
 import { defaultProviderName, provider as makeProvider } from "./lib/tts";
+import { jobDir, produce, type Job } from "./produce";
 import { cueResolver } from "./stage/common";
 import type { Timeline } from "./stage/types";
 
@@ -28,7 +27,7 @@ const { values: opt, positionals } = parseArgs({
   options: {
     provider: { type: "string" },
     fps: { type: "string", default: "60" },
-    workers: { type: "string", default: "6" },
+    workers: { type: "string" },
     subtitles: { type: "boolean", default: false },
     music: { type: "boolean", default: false },
     recapture: { type: "boolean", default: false },
@@ -38,6 +37,9 @@ const { values: opt, positionals } = parseArgs({
     "no-720p": { type: "boolean", default: false },
     "no-review": { type: "boolean", default: false },
     "no-film": { type: "boolean", default: false },
+    vm: { type: "boolean", default: false },
+    "vm-name": { type: "string" },
+    "keep-vm": { type: "boolean", default: false },
     help: { type: "boolean", short: "h", default: false },
   },
 });
@@ -61,7 +63,8 @@ const providerName = opt.provider ?? defaultProviderName();
 const tts = makeProvider(providerName);
 const publish = join(OUT, "learn", slug);
 const work = join(OUT, "work", slug);
-const captureDir = join(work, "capture");
+const job = jobDir(slug);
+const captureDir = join(job, "capture");
 mkdirSync(publish, { recursive: true });
 mkdirSync(captureDir, { recursive: true });
 
@@ -110,87 +113,53 @@ try {
 }
 writeFileSync(join(work, "timeline.json"), JSON.stringify(timeline, null, 2));
 
-const stage = await serveStage(timeline, captureDir);
+// The job bundle: everything produce.ts needs, nothing secret (narration is already audio).
+mkdirSync(join(job, "clips"), { recursive: true });
+mkdirSync(join(job, "fonts"), { recursive: true });
+for (const f of readdirSync(join(REPO, "apps/web/public/fonts"))) copyFileSync(join(REPO, "apps/web/public/fonts", f), join(job, "fonts", f));
+const clips = built.clips.map((c) => {
+  copyFileSync(c.file, join(job, "clips", basename(c.file)));
+  return { ...c, file: relative(ROOT, join(job, "clips", basename(c.file))) };
+});
+const used = new Set(clips.map((c) => basename(c.file)));
+for (const f of readdirSync(join(job, "clips"))) if (!used.has(f)) rmSync(join(job, "clips", f));
+writeFileSync(join(job, `${slug}.vtt`), vtt(built.captions));
+const bundle: Job = { slug, title: chapter.title, timeline, clips, narration: { provider: providerName, ...tts.describe() } };
+writeFileSync(join(job, "job.json"), JSON.stringify(bundle));
+
+const produceArgs = [
+  ...(opt.scene ? ["--scene", opt.scene] : []),
+  ...(opt.still ?? []).flatMap((s) => ["--still", s]),
+  ...(opt.workers ? ["--workers", opt.workers] : []),
+  ...(opt.music ? ["--music"] : []),
+  ...(opt["no-720p"] ? ["--no-720p"] : []),
+  ...(opt["no-review"] ? ["--no-review"] : []),
+];
+
+if (!opt.vm) {
+  await produce(slug, { scene: opt.scene, still: opt.still, workers: opt.workers ? Number(opt.workers) : 6, music: opt.music, no720p: opt["no-720p"], noReview: opt["no-review"], log });
+  process.exit(0);
+}
+
+// On an exe.dev VM (exe-video skill): sync media/learn plus this job, produce there, pull the results, pause the VM.
+const VM = [process.execPath, join(homedir(), ".config/opencode/skills/exe-video/scripts/video-vm.ts")];
+const vmName = opt["vm-name"] ? ["--name", opt["vm-name"]] : [];
+const vm = (args: string[]): void => {
+  const p = Bun.spawnSync([...VM, ...args], { stdout: "inherit", stderr: "inherit" });
+  if (p.exitCode !== 0) throw new Error(`video-vm ${args[0]} failed (${p.exitCode})`);
+};
+const rel = relative(ROOT, job);
+const checks = opt.scene || opt.still?.length ? "" : ` && bun check-holds.ts ${slug}`;
+log(`▼ producing on a VM${vmName.length ? ` (${vmName[1]})` : ""}`);
 try {
-  if (opt.still?.length) {
-    for (const s of opt.still) {
-      // `12.5`, `scene:try`, `scene:try+3`
-      const m = /^scene:([\w-]+)(?:\+([\d.]+))?$/.exec(s);
-      const sc = m ? timeline.scenes.find((x) => x.id === m[1]) : undefined;
-      const t = sc ? sc.start + Number(m![2] ?? Math.min(2.5, sc.duration / 2)) : Number(s);
-      const file = join(work, `still-${s.replace(/[^\w.+-]/g, "_")}.png`);
-      await still(stage.origin, t, file);
-      log(`  still ${t.toFixed(2)}s → ${file}`);
-    }
-    process.exit(0);
-  }
-
-  let from = 0;
-  let to = timeline.duration;
-  if (opt.scene) {
-    const sc = timeline.scenes.find((x) => x.id === opt.scene);
-    if (!sc) throw new Error(`No scene ${opt.scene}`);
-    from = Math.max(0, sc.start - TRANSITION);
-    to = Math.min(timeline.duration, sc.start + sc.duration + TRANSITION);
-  }
-  log(`▼ frames ${from.toFixed(1)}–${to.toFixed(1)}s at ${fps} fps`);
-  const silent = join(work, "video.mp4");
-  await renderVideo({ origin: stage.origin, fps, from, to, out: silent, workers: Number(opt.workers), work: join(work, "segments"), log });
-
-  log("▼ audio");
-  const audio = soundtrack(built.clips, timeline.duration, work, { music: opt.music });
-  log(`  ${audio.lufs} LUFS integrated, ${audio.peak} dBFS true peak`);
-
-  const name = opt.scene ? `${slug}-${opt.scene}-preview` : `${slug}-1080p`;
-  const out = join(opt.scene ? work : publish, `${name}.mp4`);
-  run([
-    FFMPEG, "-y", "-loglevel", "error", "-i", silent, "-ss", from.toFixed(3), "-t", (to - from).toFixed(3), "-i", audio.file,
-    "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
-    "-metadata", `title=Learn Text.js · ${String(timeline.chapter.number).padStart(2, "0")} ${chapter.title}`,
-    "-movflags", "+faststart", "-shortest", out,
-  ]);
-  log(`  → ${out} (${probeDuration(out).toFixed(1)}s, ${(statSync(out).size / 1e6).toFixed(1)} MB)`);
-  if (opt.scene) process.exit(0);
-
-  const cover = timeline.scenes[0]!;
-  const poster = join(publish, `${slug}-poster.jpg`);
-  run([FFMPEG, "-y", "-loglevel", "error", "-ss", (cover.start + cover.duration - TRANSITION / 2 - 0.4).toFixed(3), "-i", out, "-frames:v", "1", "-q:v", "2", poster]);
-  if (!opt["no-720p"]) {
-    const v720 = join(publish, `${slug}-720p.mp4`);
-    run([FFMPEG, "-y", "-loglevel", "error", "-i", out, "-vf", "scale=1280:720:flags=lanczos", "-c:v", "libx264", "-profile:v", "high", "-preset", "slow", "-crf", "21", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", v720]);
-    log(`  → ${v720} (${(statSync(v720).size / 1e6).toFixed(1)} MB)`);
-  }
-  writeFileSync(
-    join(publish, "manifest.json"),
-    JSON.stringify(
-      {
-        slug,
-        chapter: timeline.chapter,
-        duration: Number(timeline.duration.toFixed(2)),
-        files: { "1080p": `${slug}-1080p.mp4`, "720p": opt["no-720p"] ? null : `${slug}-720p.mp4`, poster: `${slug}-poster.jpg`, captions: `${slug}.vtt` },
-        narration: { provider: providerName, ...tts.describe() },
-        loudness: { lufs: audio.lufs, truePeak: audio.peak },
-        scenes: timeline.scenes.map((s) => ({ id: s.id, kind: s.kind, start: Number(s.start.toFixed(2)), duration: Number(s.duration.toFixed(2)) })),
-      },
-      null,
-      2,
-    ),
-  );
-  writeFileSync(
-    join(work, "holds.json"),
-    JSON.stringify(
-      timeline.scenes.filter((s) => s.kind === "title").map((s) => ({ title: s.id, from: s.start + 2.4, to: s.start + s.duration - TRANSITION / 2 - 0.15 })),
-      null,
-      2,
-    ),
-  );
-  if (!opt["no-review"]) {
-    const dir = join(OUT, "review", slug);
-    rmSync(dir, { recursive: true, force: true });
-    review(out, timeline.scenes, dir, TRANSITION);
-    log(`  review → ${dir}`);
+  vm(["run", ROOT, ...vmName, "--include", rel, "--", `bun produce.ts ${slug} ${produceArgs.map((a) => JSON.stringify(a)).join(" ")}${checks}`]);
+  if (opt.still?.length || opt.scene) vm(["pull", ROOT, ...vmName, `out/work/${slug}/`, join(work, "vm") + "/"]);
+  else {
+    vm(["pull", ROOT, ...vmName, `out/learn/${slug}/`, publish + "/"]);
+    vm(["pull", ROOT, ...vmName, `out/review/${slug}/`, join(OUT, "review", slug) + "/"]);
+    log(`  → ${publish}`);
   }
 } finally {
-  stage.stop();
+  if (!opt["keep-vm"]) vm(["stop", ...vmName]);
 }
 process.exit(0);

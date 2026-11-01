@@ -42,12 +42,13 @@ export function duration(file: string): number {
   return Number(run([FFPROBE, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file]).trim());
 }
 
-const CHROMIUM_CACHE = join(homedir(), "Library", "Caches", "ms-playwright");
+const CHROMIUM_CACHE = process.platform === "darwin" ? join(homedir(), "Library", "Caches", "ms-playwright") : join(homedir(), ".cache", "ms-playwright");
 const collator = new Intl.Collator("en", { numeric: true });
 
 /** Full Chromium (Chrome for Testing), for the real DevTools frontend. */
 export function chromiumPath(): string {
-  const found = [...new Bun.Glob("chromium-*/chrome-mac*/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing").scanSync(CHROMIUM_CACHE)]
+  const pattern = process.platform === "darwin" ? "chromium-*/chrome-mac*/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" : "chromium-*/chrome-linux*/chrome";
+  const found = [...new Bun.Glob(pattern).scanSync(CHROMIUM_CACHE)]
     .sort(collator.compare)
     .at(-1);
   if (found) return join(CHROMIUM_CACHE, found);
