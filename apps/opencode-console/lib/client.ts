@@ -8,8 +8,10 @@
  */
 
 import { createDemoClient } from "./demo";
+import {fileOption, v1Parts, v2Parts} from "./mentions";
 import type {
   AgentOption,
+  Attachment,
   AppEvent,
   AssistantPart,
   ConnectionMode,
@@ -206,6 +208,7 @@ function v2Session(v: unknown): SessionInfo | null {
   return {
     id: v.id,
     parentID: str(v.parentID),
+    revertedFrom: str(rec(v.revert).messageID),
     title: str(v.title),
     agent: str(v.agent),
     model: modelRef(v.model),
@@ -250,7 +253,17 @@ export function v2Message(v: unknown): SessionMessage | null {
     case "user": {
       // Attachment bytes/URIs don't belong in the cell grid or the app store.
       const files = Array.isArray(v.files) ? v.files.filter(isRecord).map((f) => ({ mime: str(f.mime) ?? "", name: str(f.name) || "attachment" })) : undefined;
-      return { ...base, type: "user", text: str(v.text) ?? "", files };
+      const text=str(v.text)??"",mentions:Attachment[]=[];
+      for(const [kind,values] of [["file",v.files],["agent",v.agents],["skill",v.skills]] as const){
+        for(const p of Array.isArray(values)?values.filter(isRecord):[]){
+          const {start,end,text:token}=rec(p.mention), name=str(kind==="skill"?p.id:p.name);
+          if(!name || typeof start!=="number" || typeof end!=="number" || typeof token!=="string" || text.slice(start,end)!==token)continue;
+          const mention={start,end,text:token};
+          if(kind!=="file")mentions.push({kind,name,mention});
+          else {const uri=str(rec(p.source).uri);if(uri?.startsWith("file:///"))mentions.push({kind,name,mention,uri,mime:str(p.mime)??"text/plain"});}
+        }
+      }
+      return { ...base, type: "user", text, files, ...(mentions.length && {mentions}) };
     }
     case "assistant": {
       const tokens = rec(v.tokens);
@@ -284,9 +297,11 @@ export function v2Message(v: unknown): SessionMessage | null {
       return { ...base, type: "note", text: `model → ${modelRef(v.model)?.id ?? "?"}`, tone: "muted" };
     case "agent-switched":
       return { ...base, type: "note", text: `agent → ${str(v.agent) ?? "?"}`, tone: "muted" };
+    case "location-switched":
+      return {...base,type:"note",text:`Directory: ${str(rec(v.location).directory)??str(v.subpath)??""}`,tone:"muted"};
     case "compaction":
       if (v.status === "failed") return { ...base, type: "note", text: `Compaction failed: ${errorMessage(v.error)}`, tone: "danger" };
-      return { ...base, type: "note", text: v.status === "running" ? "compacting conversation…" : "conversation compacted", tone: "info" };
+      return { ...base, type: "note", text: v.status === "running" ? "compacting conversation…" : ["conversation compacted",str(v.summary)].filter(Boolean).join("\n\n"), tone: "info" };
     case "skill":
       return { ...base, type: "note", text: `skill · ${str(v.name) ?? str(v.skill) ?? ""}`, tone: "info" };
     default:
@@ -328,6 +343,9 @@ export function parseV2Event(raw: unknown): AppEvent | null {
   switch (raw.type) {
     case "server.connected":
       return { type: "connected" };
+    case "command.updated":case "skill.updated":case "agent.updated":return {type:"catalog.changed"};
+    case "session.revert.staged":return {type:"revert.changed",sessionID,before:str(rec(d.revert).messageID)};
+    case "session.revert.cleared":case "session.revert.committed":return {type:"revert.changed",sessionID,committed:raw.type.endsWith("committed")};
     case "session.created":
     case "session.deleted":
     case "session.archived":
@@ -362,9 +380,9 @@ export function parseV2Event(raw: unknown): AppEvent | null {
     case "session.shell.ended":
     case "session.compaction.started":
     case "session.compaction.ended":
+    case "session.compaction.failed":
     case "session.step.failed":
     case "session.message.content.updated":
-    case "session.revert.committed":
     case "session.skill.activated":
       return { type: "messages.changed", sessionID };
     case "session.step.started":
@@ -433,7 +451,10 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     mode,
     label: t.label,
     async branch(dir) {
-      const res = await t.json<{data?:{branch?:{current?:string}}}>("GET", `/api/vcs?${new URLSearchParams({"location[directory]": dir})}`);
+      const res = await t.json<{ data?: { branch?: { current?: string } } }>(
+        "GET",
+        `/api/vcs?${new URLSearchParams({ "location[directory]": dir })}`,
+      );
       return res.data?.branch?.current ?? null;
     },
     async info() {
@@ -443,6 +464,18 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     async sessions() {
       const res = await t.json<{ data?: unknown[] }>("GET", "/api/session?limit=50&order=desc&parentID=null");
       return (res?.data ?? []).map(session).filter((s): s is SessionInfo => s !== null && s.parentID === undefined);
+    },
+    async searchSessions(search, directory) {
+      const query = new URLSearchParams({
+        limit: "50",
+        order: "desc",
+        parentID: "null",
+        search,
+        ...(directory && { directory }),
+      });
+      return (await t.json<{ data: unknown[] }>("GET", `/api/session?${query}`)).data
+        .map(session)
+        .filter((s): s is SessionInfo => !!s && !s.parentID);
     },
     async session(id) {
       try {
@@ -454,7 +487,10 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
       }
     },
     async messages(sessionID) {
-      const res = await t.json<{ data?: unknown[] }>("GET", `/api/session/${encodeURIComponent(sessionID)}/message?limit=200&order=desc`);
+      const res = await t.json<{ data?: unknown[] }>(
+        "GET",
+        `/api/session/${encodeURIComponent(sessionID)}/message?limit=200&order=desc`,
+      );
       return (res?.data ?? [])
         .map(v2Message)
         .filter((m): m is SessionMessage => m !== null)
@@ -471,18 +507,101 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
       if (!s) throw new Error("OpenCode returned an invalid session");
       return s;
     },
-    async prompt(sessionID, text) {
-      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/prompt`, { text });
+    async prompt(sessionID, text, options) {
+      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/prompt`, { text, ...v2Parts(options) });
     },
-    async commands() {
-      const res = await t.json<{ data?: unknown[] }>("GET", "/api/command");
-      return (res.data ?? []).flatMap((v) => isRecord(v) && typeof v.name === "string" ? [v.name] : []);
+    async commands(dir) {
+      const res = await t.json<{ data?: unknown[] }>("GET", "/api/command" + locationQuery(dir));
+      return commandCatalog(res.data);
     },
-    async command(sessionID, name, text) {
-      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/command`, { name, text });
+    async skills(dir) {
+      const res = await t.json<{ data?: unknown[] }>("GET", "/api/skill" + locationQuery(dir));
+      return (res.data ?? []).flatMap((v) =>
+        isRecord(v) && typeof v.id === "string" ? [{ id: v.id, description: str(v.description) }] : [],
+      );
+    },
+    async findFiles(query, dir) {
+      const params = new URLSearchParams({ query, limit: "20" });
+      if (dir) params.set("location[directory]", dir);
+      const res = await t.json<{ location: { directory: string }; data: { path: string; type: string }[] }>(
+        "GET",
+        `/api/fs/find?${params}`,
+      );
+      return res.data.flatMap((v) => fileOption(res.location.directory, v.path, v.type === "directory") ?? []);
+    },
+    async command(sessionID, name, text, options) {
+      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/command`, { name, text, ...v2Parts(options) });
     },
     async compact(sessionID, model) {
       await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/compact`, model ? { model } : {});
+    },
+    async revert(id, messageID) {
+      await t.json("POST", `/api/session/${encodeURIComponent(id)}/revert/stage`, { messageID });
+    },
+    async redo(id) {
+      await t.json("DELETE", `/api/session/${encodeURIComponent(id)}/revert`);
+    },
+    async commitRevert(id) {
+      await t.json("POST", `/api/session/${encodeURIComponent(id)}/revert/commit`, {});
+    },
+    async fork(id, before) {
+      const res = await t.json<{ data: { id: string } }>("POST", `/api/session/${encodeURIComponent(id)}/fork`, { before });
+      return res.data.id;
+    },
+    async exportSession(id) {
+      return (await t.json<{ data: unknown }>("GET", `/api/experimental/session/${encodeURIComponent(id)}/export?sanitize=true`))
+        .data;
+    },
+    async reload() {
+      await t.json("POST", "/api/location/reload");
+    },
+    async aside(id, prompt) {
+      return (await t.json<{ data: { text: string } }>("POST", `/api/session/${encodeURIComponent(id)}/generate`, { prompt }, 0))
+        .data.text;
+    },
+    async inbox(id) {
+      const res = await t.json<{ data: JsonRecord[] }>("GET", `/api/session/${encodeURIComponent(id)}/inbox`);
+      return res.data.flatMap((p) =>
+        typeof p.id === "string" && typeof rec(p.payload).text === "string"
+          ? [{ id: p.id, text: String(rec(p.payload).text), delivery: str(p.delivery) ?? "queue" }]
+          : [],
+      );
+    },
+    async cancelQueued(id, item) {
+      await t.json("DELETE", `/api/session/${encodeURIComponent(id)}/inbox/${encodeURIComponent(item)}`);
+    },
+    async diff(id, dir) {
+      return (
+        await t.json<{ data: import("./types").FilePatch[] }>(
+          "GET",
+          id
+            ? `/api/session/${encodeURIComponent(id)}/diff?context=3`
+            : `/api/vcs/diff?${new URLSearchParams({ mode: "working", context: "3", ...(dir && { "location[directory]": dir }) })}`,
+        )
+      ).data;
+    },
+    async report(kind, dir) {
+      if (kind === "stats") {
+        const res = await t.json<{ data: JsonRecord }>("GET", "/api/experimental/session/stats");
+        return ["sessions", "subagents", "prompts", "steps", "cost"].map((k) => ({ label: k, value: String(res.data[k] ?? 0) }));
+      }
+      if (kind === "plugins") {
+        const res = await t.json<{ data: JsonRecord[] }>("GET", "/api/plugin" + locationQuery(dir));
+        return res.data.map((p) => ({
+          label: str(p.id) ?? str(rec(p.source).ref) ?? "Plugin",
+          value: str(rec(p.state).status) ?? "",
+        }));
+      }
+      const res = await t.json<{ data: JsonRecord | null }>("GET", "/api/experimental/usage/limits" + locationQuery(dir));
+      if (!res.data) return [];
+      const go = rec(res.data.go),
+        budgets = res.data.budgets;
+      return [
+        ...Object.entries(go).map(([label, m]) => ({ label, value: `${rec(m).percent}%` })),
+        ...(Array.isArray(budgets)
+          ? budgets.filter(isRecord).map((b) => ({ label: String(b.id), value: `$${b.spent} / $${b.limit}` }))
+          : []),
+      ];
     },
     async shell(sessionID, command) {
       await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/shell`, { command });
@@ -490,19 +609,34 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     async rename(sessionID, title) {
       await t.json("PATCH", `/api/session/${encodeURIComponent(sessionID)}`, { title });
     },
-    async removeSession(id) { await t.json("DELETE",`/api/session/${encodeURIComponent(id)}`); },
+    async removeSession(id) {
+      await t.json("DELETE", `/api/session/${encodeURIComponent(id)}`);
+    },
     async integrations() {
-      const res = await t.json<{data?: unknown[]}>("GET", "/api/integration");
-      return (res.data ?? []).flatMap(x=>isRecord(x) && typeof x.id === "string" ? [{id:x.id,name:str(x.name) ?? x.id,connected:Array.isArray(x.connections) && x.connections.length>0}] : []);
+      const res = await t.json<{ data?: unknown[] }>("GET", "/api/integration");
+      return (res.data ?? []).flatMap((x) =>
+        isRecord(x) && typeof x.id === "string"
+          ? [{ id: x.id, name: str(x.name) ?? x.id, connected: Array.isArray(x.connections) && x.connections.length > 0 }]
+          : [],
+      );
     },
     async mcpServers(directory) {
-      const res=await t.json<{data?:unknown[]}>("GET",`/api/mcp?${new URLSearchParams({"location[directory]":directory})}`);
-      return (res.data??[]).flatMap(x=>isRecord(x) && typeof x.name==="string"?[{name:x.name,status:str(rec(x.status).status)??"disabled"}]:[]);
+      const res = await t.json<{ data?: unknown[] }>(
+        "GET",
+        `/api/mcp?${new URLSearchParams({ "location[directory]": directory })}`,
+      );
+      return (res.data ?? []).flatMap((x) =>
+        isRecord(x) && typeof x.name === "string" ? [{ name: x.name, status: str(rec(x.status).status) ?? "disabled" }] : [],
+      );
     },
     async workspaces() {
-      const res = await t.json<{data?:unknown}>("GET", "/api/worktree");
-      const data=Array.isArray(res.data)?res.data:rec(res.data).directories;
-      return Array.isArray(data) ? data.flatMap(v=>typeof v==="string"?[v]:typeof rec(v).directory==="string"?[rec(v).directory as string]:[]) : [];
+      const res = await t.json<{ data?: unknown }>("GET", "/api/worktree");
+      const data = Array.isArray(res.data) ? res.data : rec(res.data).directories;
+      return Array.isArray(data)
+        ? data.flatMap((v) =>
+            typeof v === "string" ? [v] : typeof rec(v).directory === "string" ? [rec(v).directory as string] : [],
+          )
+        : [];
     },
     async interrupt(sessionID) {
       await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/interrupt`, { resume: true });
@@ -511,7 +645,9 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
       await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/agent`, { agent });
     },
     async setModel(sessionID, model) {
-      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/model`, { model: { id: model.id, providerID: model.providerID, variant: model.variant } });
+      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/model`, {
+        model: { id: model.id, providerID: model.providerID, variant: model.variant },
+      });
     },
     async view(sessionID) {
       const idle = idleTimes.get(sessionID);
@@ -523,25 +659,63 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     async agents() {
       const res = await t.json<{ location?: { directory?: string }; data?: unknown[] }>("GET", "/api/agent");
       directory ??= res?.location?.directory;
-      const visible = (res?.data ?? []).filter((a): a is JsonRecord => isRecord(a) && typeof a.id === "string" && a.hidden !== true);
+      const visible = (res?.data ?? []).filter(
+        (a): a is JsonRecord => isRecord(a) && typeof a.id === "string" && a.hidden !== true,
+      );
       return visible.flatMap((a, colorIndex): AgentOption[] => {
-        if (a.mode === "subagent") return [];
-        return [{ id: a.id as string, name: str(a.name) ?? (a.id as string), description: str(a.description), color: str(a.color), colorIndex }];
+        return [
+          {
+            id: a.id as string,
+            name: str(a.name) ?? (a.id as string),
+            mode: str(a.mode),
+            description: str(a.description),
+            color: str(a.color),
+            colorIndex,
+          },
+        ];
       });
     },
     async models() {
-      const [res,providers,integrations]=await Promise.all([t.json<{data?:unknown[]}>("GET","/api/model"),
-        t.json<{data?:unknown[]}>("GET","/api/provider").catch(()=>null),t.json<{data?:unknown[]}>("GET","/api/integration").catch(()=>null)]);
-      const names=new Map((providers?.data ?? []).filter(isRecord).map(p=>[p.id,str(p.name)]));
-      const connected=(integrations?.data ?? []).some(i=>isRecord(i) && Array.isArray(i.connections) && i.connections.length>0);
+      const [res, providers, integrations] = await Promise.all([
+        t.json<{ data?: unknown[] }>("GET", "/api/model"),
+        t.json<{ data?: unknown[] }>("GET", "/api/provider").catch(() => null),
+        t.json<{ data?: unknown[] }>("GET", "/api/integration").catch(() => null),
+      ]);
+      const names = new Map((providers?.data ?? []).filter(isRecord).map((p) => [p.id, str(p.name)]));
+      const connected = (integrations?.data ?? []).some(
+        (i) => isRecord(i) && Array.isArray(i.connections) && i.connections.length > 0,
+      );
       return (res?.data ?? []).flatMap((m): ModelOption[] => {
-        if (!isRecord(m) || typeof m.id !== "string" || typeof m.providerID !== "string" || m.enabled === false || (m.type && m.type !== "chat")) return [];
+        if (
+          !isRecord(m) ||
+          typeof m.id !== "string" ||
+          typeof m.providerID !== "string" ||
+          m.enabled === false ||
+          (m.type && m.type !== "chat")
+        )
+          return [];
         if (m.status === "deprecated") return [];
-        return [{ id: m.id, providerID: m.providerID, name: str(m.name) ?? m.id, providerName:names.get(m.providerID),group:connected ? names.get(m.providerID) ?? m.providerID : undefined, context: num(rec(m.limit).context), free: Array.isArray(m.cost) && m.cost.length > 0 && m.cost.every(c=>rec(c).input === 0), variants: Array.isArray(m.variants) ? m.variants.flatMap((v) => typeof v?.id === "string" && v.id !== "default" ? [v.id] : []) : [] }];
+        return [
+          {
+            id: m.id,
+            providerID: m.providerID,
+            name: str(m.name) ?? m.id,
+            providerName: names.get(m.providerID),
+            group: connected ? (names.get(m.providerID) ?? m.providerID) : undefined,
+            context: num(rec(m.limit).context),
+            free: Array.isArray(m.cost) && m.cost.length > 0 && m.cost.every((c) => rec(c).input === 0),
+            variants: Array.isArray(m.variants)
+              ? m.variants.flatMap((v) => (typeof v?.id === "string" && v.id !== "default" ? [v.id] : []))
+              : [],
+          },
+        ];
       });
     },
     async children(sessionID) {
-      const res = await t.json<{ data?: unknown[] }>("GET", `/api/session?limit=50&order=desc&parentID=${encodeURIComponent(sessionID)}`);
+      const res = await t.json<{ data?: unknown[] }>(
+        "GET",
+        `/api/session?limit=50&order=desc&parentID=${encodeURIComponent(sessionID)}`,
+      );
       return (res?.data ?? []).map(session).filter((s): s is SessionInfo => s !== null && s.parentID === sessionID);
     },
     async permissions(sessionID) {
@@ -549,10 +723,17 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
       return (res?.data ?? []).map(v2Permission).filter((p): p is PermissionRequest => p !== null);
     },
     async replyPermission(sessionID, requestID, decision, message) {
-      await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/permission/${encodeURIComponent(requestID)}/reply`, message ? { decision, message } : { decision });
+      await t.json(
+        "POST",
+        `/api/session/${encodeURIComponent(sessionID)}/permission/${encodeURIComponent(requestID)}/reply`,
+        message ? { decision, message } : { decision },
+      );
     },
     async forms(sessionID) {
-      const res = await t.json<{ data?: unknown[] }>("GET", sessionID === "global" ? "/api/form" : `/api/session/${encodeURIComponent(sessionID)}/form`);
+      const res = await t.json<{ data?: unknown[] }>(
+        "GET",
+        sessionID === "global" ? "/api/form" : `/api/session/${encodeURIComponent(sessionID)}/form`,
+      );
       return (res?.data ?? []).map(v2Form).filter((f): f is FormInfo => f !== null);
     },
     async replyForm(sessionID, formID, answer) {
@@ -590,7 +771,7 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
 function v1Session(v: unknown): SessionInfo | null {
   if (!isRecord(v) || typeof v.id !== "string") return null;
   const time = rec(v.time);
-  return { id: v.id, parentID: str(v.parentID), title: str(v.title), directory: str(v.directory), time: { created: num(time.created) ?? 0, updated: num(time.updated) ?? num(time.created) ?? 0 } };
+  return { id: v.id, parentID: str(v.parentID), revertedFrom:str(rec(v.revert).messageID), title: str(v.title), directory: str(v.directory), time: { created: num(time.created) ?? 0, updated: num(time.updated) ?? num(time.created) ?? 0 } };
 }
 
 function v1ToolState(v: unknown): ToolState {
@@ -611,7 +792,7 @@ export function v1Message(v: unknown): SessionMessage | null {
   const time = rec(info.time);
   const created = num(time.created) ?? 0;
   if (info.role === "user") {
-    return { type: "user", id, time: { created }, text: parts.filter((p) => p.type === "text" && p.synthetic !== true).map((p) => str(p.text) ?? "").join("\n") };
+    return { type: "user", id, time: { created }, text: parts.filter((p) => p.type === "text" && p.synthetic !== true).map((p) => str(p.text) ?? "").join("\n"),files:parts.filter(p=>p.type==="file").map(p=>({name:str(p.filename)??"attachment",mime:str(p.mime)??""})) };
   }
   return {
     type: "assistant",
@@ -629,6 +810,10 @@ export function v1Message(v: unknown): SessionMessage | null {
   };
 }
 
+function locationQuery(dir?:string) { return dir ? `?${new URLSearchParams({"location[directory]":dir})}` : ""; }
+function commandCatalog(list: unknown) {
+  return Array.isArray(list) ? list.flatMap(v => isRecord(v) && typeof v.name === "string" ? [{name:v.name,description:str(v.description)}] : []) : [];
+}
 export function createV1Client(t: Transport, mode: ConnectionMode): OpenCodeClient {
   let agentModel: ModelRef | null = null;
   return {
@@ -665,7 +850,11 @@ export function createV1Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     },
     async prompt(sessionID, text, options) {
       const model = options?.model ?? agentModel;
-      const body = { parts: [{ type: "text", text }], agent: options?.agent, model: model ? { providerID: model.providerID, modelID: model.id } : undefined };
+      const body = {
+        parts: [{ type: "text", text }, ...v1Parts(options?.attachments)],
+        agent: options?.agent,
+        model: model ? { providerID: model.providerID, modelID: model.id } : undefined,
+      };
       try {
         await t.json("POST", `/session/${encodeURIComponent(sessionID)}/prompt_async`, body);
       } catch (error) {
@@ -677,7 +866,65 @@ export function createV1Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     async interrupt(sessionID) {
       await t.json("POST", `/session/${encodeURIComponent(sessionID)}/abort`);
     },
+    async findFiles(query, dir) {
+      if (!dir) return [];
+      const res = await t.json<string[]>(
+        "GET",
+        `/find/file?${new URLSearchParams({ query, dirs: "true", limit: "20", directory: dir })}`,
+      );
+      return res.flatMap((path) => fileOption(dir, path, path.endsWith("/")) ?? []);
+    },
+    async commands(dir) {
+      return commandCatalog(await t.json("GET", "/command" + (dir ? `?directory=${encodeURIComponent(dir)}` : "")));
+    },
+    async command(id, name, text, options) {
+      await t.json(
+        "POST",
+        `/session/${encodeURIComponent(id)}/command`,
+        {
+          command: name,
+          arguments: text,
+          agent: options?.agent,
+          model: options?.model && `${options.model.providerID}/${options.model.id}`,
+          parts: v1Parts(options?.attachments).filter((p) => p.type === "file"),
+        },
+        0,
+      );
+    },
     async setAgent() {},
+    async shell(id, command, agent) {
+      await t.json("POST", `/session/${encodeURIComponent(id)}/shell`, { agent, command }, 0);
+    },
+    async rename(id, title) {
+      await t.json("PATCH", `/session/${encodeURIComponent(id)}`, { title });
+    },
+    async removeSession(id) {
+      await t.json("DELETE", `/session/${encodeURIComponent(id)}`);
+    },
+    async compact(id, model) {
+      if (!model) throw Error("Select a model first");
+      await t.json(
+        "POST",
+        `/session/${encodeURIComponent(id)}/summarize`,
+        { providerID: model.providerID, modelID: model.id },
+        0,
+      );
+    },
+    async revert(id, messageID) {
+      await t.json("POST", `/session/${encodeURIComponent(id)}/revert`, { messageID });
+    },
+    async redo(id) {
+      await t.json("POST", `/session/${encodeURIComponent(id)}/unrevert`, {});
+    },
+    async fork(id, before) {
+      return (await t.json<{ id: string }>("POST", `/session/${encodeURIComponent(id)}/fork`, { messageID: before })).id;
+    },
+    async share(id) {
+      return (await t.json<{ share: { url: string } }>("POST", `/session/${encodeURIComponent(id)}/share`, {})).share.url;
+    },
+    async unshare(id) {
+      await t.json("DELETE", `/session/${encodeURIComponent(id)}/share`);
+    },
     async setModel(_sessionID, model) {
       agentModel = model;
     },
@@ -685,8 +932,8 @@ export function createV1Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     async agents() {
       const list = await t.json<unknown[]>("GET", "/agent").catch(() => []);
       return (Array.isArray(list) ? list : []).flatMap((a): AgentOption[] => {
-        if (!isRecord(a) || typeof a.name !== "string" || a.mode === "subagent" || a.hidden === true) return [];
-        return [{ id: a.name, name: a.name, description: str(a.description) }];
+        if (!isRecord(a) || typeof a.name !== "string" || a.hidden === true) return [];
+        return [{ id: a.name, name: a.name, mode: str(a.mode), description: str(a.description) }];
       });
     },
     async models() {
@@ -694,7 +941,9 @@ export function createV1Client(t: Transport, mode: ConnectionMode): OpenCodeClie
       return (res?.providers ?? []).flatMap((p): ModelOption[] => {
         if (!isRecord(p) || typeof p.id !== "string") return [];
         const providerID = p.id;
-        return Object.values(rec(p.models)).flatMap((m): ModelOption[] => (isRecord(m) && typeof m.id === "string" ? [{ id: m.id, providerID, name: str(m.name) ?? m.id }] : []));
+        return Object.values(rec(p.models)).flatMap((m): ModelOption[] =>
+          isRecord(m) && typeof m.id === "string" ? [{ id: m.id, providerID, name: str(m.name) ?? m.id }] : [],
+        );
       });
     },
     async defaultModel() {
