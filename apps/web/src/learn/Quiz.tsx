@@ -54,7 +54,7 @@ export function Quiz({ chapter }: { chapter: Chapter }): ReactNode {
               })}
             </div>
             <p className={`learn-feedback${answered ? (right ? " right" : " wrong") : ""}`} aria-live="polite">
-              {answered ? (right ? `Correct. ${q.explanation}` : "Not quite. Try another answer.") : "\u00a0"}
+              {answered ? (right ? `Correct. ${q.explanation}` : "Incorrect. Try another answer.") : "\u00a0"}
             </p>
           </fieldset>
         );

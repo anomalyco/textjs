@@ -1,8 +1,8 @@
-Hand-rolled rows got us this far. The component kit does the rest: `<Table>` with keyboard navigation and sorting, `<List>` with virtualized scrolling, and charts drawn with eighth blocks and quadrant dots.
+Replace the hand-rolled rows with components: `<Table>` with keyboard navigation and sorting, `<List>` with virtualized scrolling, and charts drawn with eighth blocks and quadrant dots.
 
 ## A sortable table
 
-Columns are data. A column without a `width` shares the remaining space by `grow`; `value` is what sorting compares and `render` is what you see.
+Columns are an array of objects. A column without a `width` shares the remaining space by `grow`, `value` is what sorting compares, and `render` draws the cell.
 
 ```diff-tsx@app/deployments/page.tsx
 +import { Table, type SortState, type TableColumn } from "@textjs/next";
@@ -51,8 +51,8 @@ With focus on the table, `↑` `↓` move the highlight, `s` cycles the sort col
    );
 ```
 
-The chart box has a fixed height, so switching charts never moves the table. In a console that matters: the fewer rows change, the less is logged.
+The chart box has a fixed height, so switching charts never moves the table, and the table rows are not re-encoded or logged.
 
-## And the rest
+## More components
 
 `<List>`, `<Tree>`, `<Tabs>`, `<Select>`, `<Input>`, `<Modal>`, `<Toaster>`, `<CommandPalette>`, `<ProgressBar>`, `<LineChart>` and more are documented under [Components](/docs/components-data).

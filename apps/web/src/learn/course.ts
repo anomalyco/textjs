@@ -117,7 +117,7 @@ export const CHAPTERS: readonly Chapter[] = [
   {
     slug: "input-and-keymaps",
     title: "Input & Keymaps",
-    summary: "Navigate deployments with the keyboard, and get a help overlay for free.",
+    summary: "Navigate deployments with the keyboard and add a ? help overlay.",
     minutes: 8,
     markdown: inputMd,
     action: "press ↓",
@@ -216,7 +216,7 @@ export const CHAPTERS: readonly Chapter[] = [
         question: "Why give the chart box a fixed height?",
         options: ["Charts require it", "So switching charts doesn't move the table", "To enable color"],
         answer: 1,
-        explanation: "Stable layout means fewer changed rows, and fewer changed rows means less to log.",
+        explanation: "Rows that don't change aren't re-encoded or logged.",
       },
     ],
   },
@@ -236,7 +236,7 @@ export const CHAPTERS: readonly Chapter[] = [
         question: "What does @textjs/react/testing need to run?",
         options: ["Chrome with DevTools open", "Any test runner with async tests", "A real terminal"],
         answer: 1,
-        explanation: "It renders offscreen into a cell buffer. No browser, no DevTools.",
+        explanation: "It renders offscreen into a cell buffer, without a browser or DevTools.",
       },
       {
         question: "What does app.lastFrame() return?",
@@ -263,7 +263,7 @@ export const CHAPTERS: readonly Chapter[] = [
         question: "What changes when the app runs in a terminal?",
         options: ["Your components", "Only the output: ANSI instead of %c spans", "The router"],
         answer: 1,
-        explanation: "Layout, components, keymaps and route handlers are shared. Only the final encoding differs.",
+        explanation: "Layout, components, keymaps and route handlers are shared. The terminal output is ANSI instead of %c spans.",
       },
       {
         question: "How does an app quit itself?",
@@ -281,7 +281,7 @@ export const CHAPTERS: readonly Chapter[] = [
     markdown: shippingMd,
     action: "press Enter",
     hints: [
-      { keys: "Enter", label: "ship it" },
+      { keys: "Enter", label: "deploy" },
       { keys: "r", label: "reset" },
     ],
     quiz: [
@@ -295,7 +295,7 @@ export const CHAPTERS: readonly Chapter[] = [
         question: "Which console setting should be off?",
         options: ["Preserve log", "Show timestamps", "Autocomplete"],
         answer: 0,
-        explanation: "Text.js clears the console to release old frames. Preserve log keeps them forever.",
+        explanation: "Text.js clears the console to release old frames. With Preserve log on, DevTools ignores the clear.",
       },
     ],
   },

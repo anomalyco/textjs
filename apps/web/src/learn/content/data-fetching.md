@@ -1,4 +1,4 @@
-Acme Deploys needs real data. Route handlers live next to your pages in `app/`, use the Web `Request` and `Response` APIs, and run on `text dev` and `text start`. Same origin, so no CORS.
+Acme Deploys needs real data. Route handlers live next to your pages in `app/`, use the Web `Request` and `Response` APIs, and run on `text dev` and `text start`. They share the app's origin, so requests need no CORS setup.
 
 ## A route handler
 
@@ -15,7 +15,7 @@ Acme Deploys needs real data. Route handlers live next to your pages in `app/`, 
 +}
 ```
 
-Hit it from the console prompt while `text dev` is running:
+Call it from the console prompt while `text dev` is running:
 
 ```js
 await (await fetch("/api/deployments")).json()

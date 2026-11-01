@@ -1,4 +1,4 @@
-Every cell has a character, a foreground, a background and a handful of attributes. Text.js compiles them into `%c` CSS spans, so the console shows real colors, bold and italics, not escape codes.
+Every cell has a character, a foreground, a background and a set of attributes. Text.js compiles them into `%c` CSS spans, so the console shows real colors, bold and italics.
 
 ## Text attributes
 

@@ -1,4 +1,4 @@
-You can't screenshot a console in CI, and you don't need to. `@textjs/react/testing` renders your app offscreen, presses keys and hands you the frame as plain text. No browser, no DevTools, no `console.log`.
+`@textjs/react/testing` renders your app offscreen, presses keys and returns the frame as plain text. Tests run without a browser or DevTools.
 
 ## Your first test
 

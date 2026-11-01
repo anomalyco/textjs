@@ -1,4 +1,4 @@
-The App Router maps files in `app/` to URLs, exactly like Next.js. The browser's address bar and history stay in sync, so back, forward and deep links all work, while every pixel of UI stays in the console.
+The App Router maps files in `app/` to URLs, exactly like Next.js. The browser's address bar and history stay in sync, so back, forward and deep links work while the UI renders in the console.
 
 ## Files are routes
 
