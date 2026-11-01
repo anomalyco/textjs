@@ -21,7 +21,7 @@ export function ToolingSection(): ReactNode {
       <div className="container">
         <div className="section-head">
           <p className="eyebrow">Developer Experience</p>
-          <h2>Editor, linter, testing and debugging tools</h2>
+          <h2>Editor, lint and test tooling</h2>
         </div>
         <div className="tool-grid">
           {TOOLS.map((t) => (
