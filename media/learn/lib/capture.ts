@@ -20,6 +20,10 @@ export interface LiveAction {
   click?: string;
   /** Write a project file (starter only): Fast Refresh picks it up. */
   write?: { file: string; content: string };
+  /** Type an expression into the DevTools console prompt and run it (Enter). */
+  prompt?: string;
+  /** CSS selector in DevTools to click (the last match), e.g. a logged object to expand it. */
+  dtClick?: string;
 }
 
 export interface Measure {
@@ -316,6 +320,14 @@ export async function captureLive(spec: LiveSpec, opts: { dir: string; url: stri
             else opts.log?.(`capture: click target ${a.click} not found`);
           }
           if (a.write) app.write(a.write.file, a.write.content);
+          if (a.prompt) {
+            await dt.locator(".console-prompt-editor-container").click();
+            await dt.keyboard.type(a.prompt, { delay: 28 });
+            // Close any autocomplete suggestion so Enter runs the expression.
+            await dt.keyboard.press("End");
+            await dt.keyboard.press("Enter");
+          }
+          if (a.dtClick) await dt.locator(a.dtClick).last().click({ force: true, timeout: 3000 }).catch((err) => opts.log?.(`capture: dtClick ${a.dtClick} failed: ${String(err).split("\n")[0]}`));
         },
       });
     }
