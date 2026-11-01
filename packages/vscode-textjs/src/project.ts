@@ -22,7 +22,7 @@ function readJson(file: string): Record<string, unknown> | null {
 function dependsOnText(pkg: Record<string, unknown>): boolean {
   for (const k of ["dependencies", "devDependencies", "peerDependencies"]) {
     const deps = pkg[k] as Record<string, string> | undefined;
-    if (deps && ("@textjs/next" in deps)) return true;
+    if (deps && ("@textjs/app" in deps)) return true;
   }
   return false;
 }
@@ -35,7 +35,7 @@ function isDir(p: string): boolean {
   }
 }
 
-/** `true` when `dir` is a Text.js app: a `text.config.*`, or a package that depends on `@textjs/next` with an `app/` directory. */
+/** `true` when `dir` is a Text.js app: a `text.config.*`, or a package that depends on `@textjs/app` with an `app/` directory. */
 export function isProjectRoot(dir: string): boolean {
   if (CONFIG_FILES.some((f) => existsSync(join(dir, f)))) return true;
   const pkg = readJson(join(dir, "package.json"));

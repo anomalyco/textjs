@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BarChart, Box, Sparkline, Spinner, Table, Text, useInput, type SortState, type TableColumn } from "@textjs/next";
+import { BarChart, Box, Sparkline, Spinner, Table, Text, useInput, type SortState, type TableColumn } from "@textjs/app";
 import type { Deployment } from "../../lib/deployments";
 import { Status } from "../status";
 

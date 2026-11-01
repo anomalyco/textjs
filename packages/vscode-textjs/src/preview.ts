@@ -6,7 +6,7 @@
 
 import * as vscode from "vscode";
 import { basename, join, relative } from "node:path";
-import { FrameEncoder, frameToText, type InputMessage } from "@textjs/next/frame-protocol";
+import { FrameEncoder, frameToText, type InputMessage } from "@textjs/app/frame-protocol";
 import type { StyledFrame } from "@textjs/core";
 import { postInput } from "./dev-server";
 import type { DevServerMonitor } from "./dev-monitor";

@@ -27,7 +27,7 @@ tester().run("valid-route-module", validRouteModule, {
   valid: [
     { filename: PAGE, code: `export default function Page() { return null; }` },
     { filename: LAYOUT, code: `function RootLayout({ children }: any) { return children; }\nexport default RootLayout;` },
-    { filename: PAGE, code: `import Link from "@textjs/next/link";\nexport default Link;` },
+    { filename: PAGE, code: `import Link from "@textjs/app/link";\nexport default Link;` },
     { filename: PAGE, code: `export default memo(function Page() { return null; });` },
     { filename: PAGE, code: `export const dynamic = "force-dynamic";\nexport default () => null;` },
     { filename: PAGE, code: `export const dynamic = "force-static" as const;\nexport default () => null;` },

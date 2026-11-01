@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { usePathname, useRouter } from "@textjs/next/navigation";
+import { usePathname, useRouter } from "@textjs/app/navigation";
 import { HEIGHT, WIDTH } from "../lib/frame";
 import { useKeys } from "../lib/keys";
 import { PUBLIC_PATHS, useShop, useShopState } from "../lib/store";

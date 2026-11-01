@@ -35,7 +35,7 @@ Turn off **Preserve log** in the console settings. Text.js appends one message p
 ## Manual setup
 
 ```bash
-bun add @textjs/next react react-dom
+bun add @textjs/app react react-dom
 ```
 
 ```json@package.json
@@ -45,7 +45,7 @@ bun add @textjs/next react react-dom
 ```
 
 ```tsx@app/page.tsx
-import { Text } from "@textjs/next";
+import { Text } from "@textjs/app";
 
 export default function Page() {
   return <Text className="p-1">Hello from console.log</Text>;

@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { segmentGraphemes, sliceColumns } from "@textjs/core";
-import { Box, diffTexts, Spinner, Text, ThemeProvider, useApp, useClipboard, useKeymap, useTheme, useViewport } from "@textjs/next";
-import { usePathname, useRouter } from "@textjs/next/navigation";
+import { Box, diffTexts, Spinner, Text, ThemeProvider, useApp, useClipboard, useKeymap, useTheme, useViewport } from "@textjs/app";
+import { usePathname, useRouter } from "@textjs/app/navigation";
 import { savedTheme, useTokens } from "../lib/native-theme";
 import { useStore, useStoreState, type ConnectionState } from "../lib/store";
 import type { SessionMessage, ToolPart } from "../lib/types";

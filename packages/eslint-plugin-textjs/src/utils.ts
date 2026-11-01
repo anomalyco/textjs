@@ -13,7 +13,7 @@ export const createRule = ESLintUtils.RuleCreator<TextjsDocs>((name) => `${DOCS_
 export type Context = Readonly<TSESLint.RuleContext<string, readonly unknown[]>>;
 
 /** Packages whose components and hooks render into the console. */
-const DEFAULT_PACKAGES = ["@textjs/react", "@textjs/next"];
+const DEFAULT_PACKAGES = ["@textjs/react", "@textjs/app"];
 
 /** Subpaths that render to the page, not the console. */
 const DOM_SOURCES = [/^react-dom(\/|$)/, /^@textjs\/react\/dom$/];
@@ -40,7 +40,7 @@ export interface TextjsImports {
   isTest: boolean;
   /** Local name → imported name, for value imports from Text.js packages. */
   names: Map<string, string>;
-  /** Value import declarations from a Text.js main entry (`@textjs/next`, `@textjs/react`). */
+  /** Value import declarations from a Text.js main entry (`@textjs/app`, `@textjs/react`). */
   mainImports: TSESTree.ImportDeclaration[];
 }
 
@@ -97,7 +97,7 @@ export function textjsImports(context: Context): TextjsImports {
         values++;
         if (isRenderingImport(imported)) renders = true;
       } else if (spec.type === AST_NODE_TYPES.ImportDefaultSpecifier) {
-        // `import Link from "@textjs/next/link"`
+        // `import Link from "@textjs/app/link"`
         if (/\/link$/.test(source)) {
           names.set(spec.local.name, "Link");
           renders = true;
@@ -131,7 +131,7 @@ export function resolveCallee(callee: TSESTree.Expression, imports: TextjsImport
 
 /**
  * A fixer that makes `exportName` available, returning the local name to use.
- * Adds a specifier to the first `@textjs/next` / `@textjs/react` named import.
+ * Adds a specifier to the first `@textjs/app` / `@textjs/react` named import.
  */
 export function ensureImport(
   context: Context,

@@ -1,4 +1,4 @@
-import { useInput, type KeyEvent } from "@textjs/next";
+import { useInput, type KeyEvent } from "@textjs/app";
 
 /** Bubble Tea's `tea.KeyMsg.String()` names for a Text.js key event. */
 export function keyString(e: Pick<KeyEvent, "key" | "input" | "ctrl" | "shift" | "alt" | "meta">): string {

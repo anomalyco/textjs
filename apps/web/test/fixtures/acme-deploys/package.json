@@ -12,7 +12,7 @@
   "dependencies": {
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "@textjs/next": "^1.0.0"
+    "@textjs/app": "^1.0.2"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

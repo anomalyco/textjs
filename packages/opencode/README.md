@@ -40,7 +40,7 @@ For a password-protected foreground server, export `OPENCODE_PASSWORD` in the br
 
 ## Text.js projects
 
-`@textjs/next` runs the same bridge as `text proxy`, with the same flags.
+`@textjs/app` runs the same bridge as `text proxy`, with the same flags.
 
 ## Errors
 

@@ -1,10 +1,10 @@
-`@textjs/next/testing` renders your app offscreen, presses keys and returns the frame as plain text. Tests run without a browser or DevTools.
+`@textjs/app/testing` renders your app offscreen, presses keys and returns the frame as plain text. Tests run without a browser or DevTools.
 
 ## Your first test
 
 ```diff-tsx@app/deployments/page.test.tsx
 +import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
-+import { cleanup, render } from "@textjs/next/testing";
++import { cleanup, render } from "@textjs/app/testing";
 +import { DEPLOYMENTS } from "../../lib/deployments";
 +import DeploymentsPage from "./page";
 +

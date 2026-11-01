@@ -100,7 +100,7 @@ Narration markup (`lib/narration.ts`):
 - `{name}` — a cue at the start of the next word: `"Press Enter {enter1}and the count goes up."`
 - `[display|spoken]` — subtitles show `display`, the voice says `spoken`: `"[r|R]"`.
 - `{+1.5}` — a 1.5 s pause (each stretch between pauses is synthesized and cached separately). Use before quiz answers.
-- Common terms are pronounced automatically (`PRONOUNCE`: Text.js, console.log, %c, ⌘⌥J, @textjs/next, page.tsx,
+- Common terms are pronounced automatically (`PRONOUNCE`: Text.js, console.log, %c, ⌘⌥J, @textjs/app, page.tsx,
   useInput…); add chapter-specific ones with `pronounce`.
 
 Cue references in props: `"name"`, `"name+0.4"`, `"name-0.2"`, a number of seconds, or `start` / `voice` /

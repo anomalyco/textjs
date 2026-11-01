@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { Box, Spacer, Text, useApp, useInput } from "@textjs/next";
-import Link from "@textjs/next/link";
-import { usePathname, useRouter } from "@textjs/next/navigation";
+import { Box, Spacer, Text, useApp, useInput } from "@textjs/app";
+import Link from "@textjs/app/link";
+import { usePathname, useRouter } from "@textjs/app/navigation";
 
 export const metadata = { title: { default: "Acme Deploys", template: "%s · Acme" } };
 

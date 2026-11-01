@@ -39,10 +39,10 @@ In `text dev`, segment config applies but nothing is stored, so every request ru
 
 ## Data cache
 
-Cache any async function with `unstable_cache` from `@textjs/next/cache`:
+Cache any async function with `unstable_cache` from `@textjs/app/cache`:
 
 ```ts@lib/posts.ts
-import { unstable_cache } from "@textjs/next/cache";
+import { unstable_cache } from "@textjs/app/cache";
 
 export const getPosts = unstable_cache(
   async (author: string) => db.posts.byAuthor(author),
@@ -68,7 +68,7 @@ On Vercel and Cloudflare, background refreshes are registered with `waitUntil()`
 ## On-demand revalidation
 
 ```ts@app/api/revalidate/route.ts
-import { revalidatePath, revalidateTag } from "@textjs/next/cache";
+import { revalidatePath, revalidateTag } from "@textjs/app/cache";
 
 export async function POST(request: Request) {
   // Anyone can POST here: require a secret shared with your CMS or webhook.
@@ -100,7 +100,7 @@ export default defineConfig({ cacheHandler: "./cache-handler.ts" });
 ```
 
 ```ts@cache-handler.ts
-import type { CacheStore } from "@textjs/next/cache";
+import type { CacheStore } from "@textjs/app/cache";
 
 const store: CacheStore = {
   async get(key) { return redis.get(key).then((v) => (v ? JSON.parse(v) : undefined)); },

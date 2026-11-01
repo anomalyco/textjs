@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react";
-import { Box, Text, tokenize, type Token } from "@textjs/next";
+import { Box, Text, tokenize, type Token } from "@textjs/app";
 import { useTokens } from "../lib/native-theme";
 
 export function SyntaxRun({ pieces, language }: { pieces: readonly Token[]; language?: string }) {

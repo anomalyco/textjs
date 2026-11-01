@@ -233,7 +233,7 @@ export const CHAPTERS: readonly Chapter[] = [
     ],
     quiz: [
       {
-        question: "What does @textjs/next/testing need to run?",
+        question: "What does @textjs/app/testing need to run?",
         options: ["Chrome with DevTools open", "Any test runner with async tests", "A real terminal"],
         answer: 1,
         explanation: "It renders offscreen into a cell buffer, without a browser or DevTools.",

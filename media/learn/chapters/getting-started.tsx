@@ -174,7 +174,7 @@ const script: ChapterScript = {
       kind: "editor",
       narration:
         "Every route is a page.tsx file in the app folder. {replace}Replace the starter page with the dashboard's title card. " +
-        "{imports}Box and Text come from @textjs/next. " +
+        "{imports}Box and Text come from @textjs/app. " +
         "{box}Box is a layout container. Its class names are Flexbox utilities, measured in cells: a column with a rounded border, " +
         "{pad}and padding of two cells across and one down. " +
         "{text}Inside, a bold title, {muted}and a line in the theme's muted color. " +

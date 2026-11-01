@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from "react";
-import { Box, Text, useInterval, useTheme, type Metadata } from "@textjs/next";
-import Link from "@textjs/next/link";
+import { Box, Text, useInterval, useTheme, type Metadata } from "@textjs/app";
+import Link from "@textjs/app/link";
 import { DEPLOYMENTS, formatAge, mulberry32, STATUS, throughputSeries } from "../lib/data";
 
 export const metadata: Metadata = { title: "Overview" };

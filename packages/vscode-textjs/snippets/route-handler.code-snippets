@@ -23,7 +23,7 @@
     "prefix": "txconfig",
     "description": "▼ text.config.ts",
     "body": [
-      "import { defineConfig } from \"@textjs/next\";",
+      "import { defineConfig } from \"@textjs/app\";",
       "",
       "export default defineConfig({",
       "  title: \"${1:My App}\",",

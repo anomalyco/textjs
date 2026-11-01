@@ -1,5 +1,5 @@
 import { memo, useMemo, type ReactNode } from "react";
-import { Box, Text, tokenize, parseUnifiedDiff, diffTexts, type DiffInput } from "@textjs/next";
+import { Box, Text, tokenize, parseUnifiedDiff, diffTexts, type DiffInput } from "@textjs/app";
 import { useTokens } from "../lib/native-theme";
 import { SyntaxRun } from "./TranscriptCode";
 

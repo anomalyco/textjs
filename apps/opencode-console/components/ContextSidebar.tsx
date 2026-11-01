@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Text, ScrollBox, useFocus, useKeymap, useViewport } from "@textjs/next";
+import { Box, Text, ScrollBox, useFocus, useKeymap, useViewport } from "@textjs/app";
 import { InputTrap } from "./PickerPanel";
 import { useStore, useStoreState } from "../lib/store";
 import { useTokens } from "../lib/native-theme";

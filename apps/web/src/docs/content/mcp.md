@@ -133,7 +133,7 @@ Failures come back as tool errors, never as a crash. A tool that times out is ca
 To embed the server in your own process, or use another transport:
 
 ```ts
-import { createTextMcpServer } from "@textjs/next/mcp";
+import { createTextMcpServer } from "@textjs/app/mcp";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 const { server, controller } = createTextMcpServer({ root: process.cwd() });

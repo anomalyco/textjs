@@ -6,7 +6,7 @@ The Text.js extension shows your console frame next to the code. It mirrors the 
 
 ## Getting started
 
-1. Open a folder that contains a Text.js app: a `text.config.ts`, or a package that depends on `@textjs/next` and has an `app/` directory. Monorepos with several apps work too.
+1. Open a folder that contains a Text.js app: a `text.config.ts`, or a package that depends on `@textjs/app` and has an `app/` directory. Monorepos with several apps work too.
 2. Open a `page.tsx`, `layout.tsx` or component.
 3. Run **Text.js: Open Preview** (`⌘K V` on macOS, `Ctrl+K V` on Windows and Linux), or click the preview button in the editor title bar.
 
@@ -15,7 +15,7 @@ The Text.js extension shows your console frame next to the code. It mirrors the 
 The panel draws the frame in the same DevTools chrome and Menlo cells as your browser console. A badge in the toolbar shows where the frames come from:
 
 - **Live**: `text dev` is running and a browser tab has the app open. The preview mirrors that tab, and keys you type in the preview go back to the app.
-- **Headless**: there's no dev server, or no tab open. The extension renders the open file with the project's own Vite and `@textjs/next`. Route files render with their layouts, at a grid sized to the panel, and saving a file renders it again.
+- **Headless**: there's no dev server, or no tab open. The extension renders the open file with the project's own Vite and `@textjs/app`. Route files render with their layouts, at a grid sized to the panel, and saving a file renders it again.
 
 Click the console to type into the app, and click outside it to stop. Editor shortcuts such as `⌘P` and `⌘⇧P` still go to VS Code.
 

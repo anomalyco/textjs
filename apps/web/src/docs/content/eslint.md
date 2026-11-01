@@ -41,7 +41,7 @@ export default [
 
 ## Console files
 
-Most rules only apply to files that render into the console: files that import a component or hook (`Box`, `Text`, `useInput`, …) from `@textjs/next` or `@textjs/react`. Files that import `react-dom` or `@textjs/react/dom` are page code and are left alone, so a website can mix DOM pages and console apps in one project. Importing a utility like `tokenize` or `parseMarkdown` doesn't make a file a console file.
+Most rules only apply to files that render into the console: files that import a component or hook (`Box`, `Text`, `useInput`, …) from `@textjs/app` or `@textjs/react`. Files that import `react-dom` or `@textjs/react/dom` are page code and are left alone, so a website can mix DOM pages and console apps in one project. Importing a utility like `tokenize` or `parseMarkdown` doesn't make a file a console file.
 
 ```js@eslint.config.js
 import textjs from "eslint-plugin-textjs";
@@ -117,7 +117,7 @@ Every frame is one `console.log`. Your own logs land between frames, get scrolle
 "textjs/no-console-in-components": ["warn", { allow: ["error"], logger: "log" }]
 ```
 
-Show messages in the UI with `useToast()` or a log `<ScrollBox>`, or inspect state in the `[▼]` Dev Overlay (`` Ctrl+` ``). With `logger`, the suggestion rewrites `console.warn(…)` to `log.warn(…)`. Test files and `@textjs/next/testing` renders are skipped.
+Show messages in the UI with `useToast()` or a log `<ScrollBox>`, or inspect state in the `[▼]` Dev Overlay (`` Ctrl+` ``). With `logger`, the suggestion rewrites `console.warn(…)` to `log.warn(…)`. Test files and `@textjs/app/testing` renders are skipped.
 
 ### `prefer-use-interval`
 

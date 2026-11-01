@@ -8,7 +8,7 @@ tester().run("no-sub-frame-timers", rule, {
     // Not a console file / shadowed / user hooks.
     { filename: FILE, code: `setInterval(tick, 16);` },
     { filename: FILE, code: `${CONSOLE}function f(setInterval: any) { setInterval(tick, 16); }` },
-    { filename: FILE, code: `import { Text } from "@textjs/next";\nimport { useInterval } from "./hooks";\nuseInterval(tick, 16);` },
+    { filename: FILE, code: `import { Text } from "@textjs/app";\nimport { useInterval } from "./hooks";\nuseInterval(tick, 16);` },
     { filename: FILE, code: `${CONSOLE}useInterval(tick, 40);`, options: [{ minInterval: 33 }] },
   ],
   invalid: [

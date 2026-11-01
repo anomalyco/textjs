@@ -133,7 +133,7 @@ export const INCIDENTS: readonly Incident[] = [
       },
       { status: "resolved", at: "2026-10-15T09:00:00Z", body: "This incident has been resolved." },
     ],
-    postmortem: "Starting with Text.js 1.0, apps import from `@textjs/next` instead of `textjs`, and the OpenCode bridge is `bunx @textjs/next proxy`, which runs from any directory.",
+    postmortem: "Starting with Text.js 1.0, apps import from `@textjs/next` instead of `textjs`, and the OpenCode bridge is `bunx @textjs/app proxy`, which runs from any directory.",
     commits: [],
     links: [{ label: "Text.js 1.0: One rename", href: "/blog/text-js-1-0#one-rename" }, V1],
   },

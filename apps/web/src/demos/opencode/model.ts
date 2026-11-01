@@ -76,7 +76,7 @@ export function nextId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}${idCounter.toString(36)}`;
 }
 
-const PAGE_BEFORE = `import { Box, Text } from "@textjs/next";
+const PAGE_BEFORE = `import { Box, Text } from "@textjs/app";
 
 export default function Page() {
   return (
@@ -87,7 +87,7 @@ export default function Page() {
 }
 `;
 
-const PAGE_AFTER = `import { Box, Text, useTheme } from "@textjs/next";
+const PAGE_AFTER = `import { Box, Text, useTheme } from "@textjs/app";
 import { SessionList } from "./session-list";
 
 export default function Page() {
@@ -101,7 +101,7 @@ export default function Page() {
 }
 `;
 
-const PAGE_DIV = `import { Box, Text } from "@textjs/next";
+const PAGE_DIV = `import { Box, Text } from "@textjs/app";
 
 export default function Page() {
   return (
@@ -114,7 +114,7 @@ export default function Page() {
 }
 `;
 
-const PAGE_CENTER = `import { Box, Center, Text } from "@textjs/next";
+const PAGE_CENTER = `import { Box, Center, Text } from "@textjs/app";
 
 export default function Page() {
   return (
@@ -164,7 +164,7 @@ const SETTINGS_BEFORE = `export default function SettingsPage() {
 }
 `;
 
-const SETTINGS_AFTER = `import { useAppTheme } from "@textjs/next";
+const SETTINGS_AFTER = `import { useAppTheme } from "@textjs/app";
 
 export default function SettingsPage() {
   const { themeName, setTheme } = useAppTheme();

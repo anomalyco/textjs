@@ -39,7 +39,7 @@ app/
 ## text.config.ts
 
 ```ts@text.config.ts
-import { defineConfig } from "@textjs/next";
+import { defineConfig } from "@textjs/app";
 
 export default defineConfig({
   title: "Acme",

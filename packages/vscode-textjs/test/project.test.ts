@@ -19,7 +19,7 @@ beforeAll(() => {
   mkdirSync(join(app, "app/_lib"), { recursive: true });
   mkdirSync(join(app, "components"), { recursive: true });
   writeFileSync(join(dir, "bun.lock"), "");
-  writeFileSync(join(app, "package.json"), JSON.stringify({ name: "shop", scripts: { dev: "text dev" }, dependencies: { "@textjs/next": "^1.0.0" } }));
+  writeFileSync(join(app, "package.json"), JSON.stringify({ name: "shop", scripts: { dev: "text dev" }, dependencies: { "@textjs/app": "^1.0.0" } }));
   writeFileSync(join(app, "tsconfig.json"), "{}");
   for (const f of ["app/page.tsx", "app/(store)/items/[id]/page.tsx", "app/api/health/route.ts", "app/_lib/page.tsx", "components/Card.tsx"]) writeFileSync(join(app, f), "");
 });

@@ -30,7 +30,7 @@ export const PRONOUNCE: Record<string, string> = {
   "%c": "percent C",
   "⌘⌥J": "Command Option J",
   "Ctrl+Shift+J": "Control Shift J",
-  "@textjs/next": "at textjs slash next",
+  "@textjs/app": "at textjs slash app",
   "@textjs/react": "at textjs slash react",
   "create-text-app": "create text app",
   "localhost:3000": "localhost three thousand",

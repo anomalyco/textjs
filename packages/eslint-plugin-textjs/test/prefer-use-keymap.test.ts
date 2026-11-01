@@ -11,7 +11,7 @@ tester().run("prefer-use-keymap", rule, {
     // Non-literal comparisons and other hooks.
     { filename: FILE, code: `${CONSOLE}useInput((e) => { if (e.key === bindings.up || e.key === bindings.down) move(); });` },
     { filename: FILE, code: `${CONSOLE}useKeymap({ up: inc, down: dec });` },
-    { filename: FILE, code: `import { useInput } from "./my-input";\nimport { Text } from "@textjs/next";\nuseInput((e) => { if (e.key === "up") a(); if (e.key === "down") b(); });` },
+    { filename: FILE, code: `import { useInput } from "./my-input";\nimport { Text } from "@textjs/app";\nuseInput((e) => { if (e.key === "up") a(); if (e.key === "down") b(); });` },
     { filename: FILE, code: `${CONSOLE}useInput(handler);` },
     { filename: FILE, code: `${CONSOLE}useInput((e) => { if (e.key === "up") a(); if (e.key === "down") b(); });`, options: [{ minKeys: 3 }] },
   ],

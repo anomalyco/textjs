@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AppRouter, createMemoryHistory, type RouteManifest } from "@textjs/next/router";
+import { AppRouter, createMemoryHistory, type RouteManifest } from "@textjs/app/router";
 import * as home from "./app/page";
 import * as session from "./app/session/[id]/page";
 import { Shell } from "./components/Shell";

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Box, Text, useAppTheme, useInput } from "@textjs/next";
+import { Box, Text, useAppTheme, useInput } from "@textjs/app";
 import { Status, STATUS, type DeployStatus } from "./status";
 
 const ORDER: DeployStatus[] = ["ready", "building", "error", "queued"];

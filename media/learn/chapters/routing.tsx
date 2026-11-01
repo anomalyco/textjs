@@ -1,7 +1,7 @@
 /**
  * Chapter 5 · Routing. Facts come from the course itself (apps/web/src/learn): titles, summaries, code steps and
  * quiz questions are read from course.ts and the chapter markdown, never retyped. Preview frames are real renders of
- * the lesson's layout inside the real App Router (`@textjs/next`'s router, link and navigation, memory history).
+ * the lesson's layout inside the real App Router (`@textjs/app`'s router, link and navigation, memory history).
  */
 import { join } from "node:path";
 import type { ReactNode } from "react";
@@ -11,9 +11,9 @@ import { applyDiff, diffLines, fileLines, lineOf, tokenize, type ChapterScript }
 import { renderFrame, ui } from "../lib/tui";
 
 const { Box, Spacer, Text } = ui;
-const router: typeof import("../../../packages/text/src/router") = await import(join(REPO, "packages/text/src/router.tsx"));
-const { Link }: typeof import("../../../packages/text/src/link") = await import(join(REPO, "packages/text/src/link.tsx"));
-const nav: typeof import("../../../packages/text/src/navigation") = await import(join(REPO, "packages/text/src/navigation.ts"));
+const router: typeof import("../../../packages/app/src/router") = await import(join(REPO, "packages/app/src/router.tsx"));
+const { Link }: typeof import("../../../packages/app/src/link") = await import(join(REPO, "packages/app/src/link.tsx"));
+const nav: typeof import("../../../packages/app/src/navigation") = await import(join(REPO, "packages/app/src/navigation.ts"));
 
 const chapter = getChapter("routing")!;
 const number = CHAPTERS.indexOf(chapter) + 1;
@@ -82,8 +82,8 @@ const script: ChapterScript = {
     "/deployments/dpl_8fK2": "slash deployments, slash D P L 8 F K 2",
     "/deployments": "slash deployments",
     "/settings": "slash settings",
-    "@textjs/next/link": "at textjs slash next slash link",
-    "@textjs/next/navigation": "at textjs slash next slash navigation",
+    "@textjs/app/link": "at textjs slash app slash link",
+    "@textjs/app/navigation": "at textjs slash app slash navigation",
     "acme.local": "acme dot local",
     "params.id": "params dot I D",
     "router.back()": "router dot back",
@@ -170,7 +170,7 @@ const script: ChapterScript = {
         "layout.tsx wraps every page, and it stays mounted while you move between them. Put the top bar and the navigation in it. " +
         "{metadata}metadata sets the document title: Acme Deploys by default, and a template for pages that set their own. " +
         "{pathname}usePathname returns the current path, {bar}and the top bar shows it after acme.local. " +
-        "{links}Link comes from @textjs/next/link. {shortcut}shortcut binds a single key to each link: one, two and three. " +
+        "{links}Link comes from @textjs/app/link. {shortcut}shortcut binds a single key to each link: one, two and three. " +
         "{children}The current page renders as children, below the navigation. " +
         "{save}Save, and every route renders inside this layout.",
       tail: 2.0,
@@ -196,7 +196,7 @@ const script: ChapterScript = {
       kind: "editor",
       narration:
         "useRouter navigates from code, with push, replace, back and forward. " +
-        "{imports}Import useInput from @textjs/next, {nav}and useRouter next to usePathname. " +
+        "{imports}Import useInput from @textjs/app, {nav}and useRouter next to usePathname. " +
         "{router}Get the router in the layout, {back}and when the key is backspace, call router.back().",
       tail: 1.8,
       props: {
@@ -266,7 +266,7 @@ const script: ChapterScript = {
       kind: "editor",
       narration:
         "A dynamic segment receives its value in params. " +
-        "{imports}Import the PageProps type from @textjs/next, {props}and give it the shape of your params. " +
+        "{imports}Import the PageProps type from @textjs/app, {props}and give it the shape of your params. " +
         "{render}Render the ID in bold. " +
         "{save}At /deployments/dpl_8fK2, params.id is dpl_8fK2, inside the same layout. " +
         "{deep}Deep links like this one work with text dev. A static host needs a single SPA rewrite to serve them, and chapter ten covers it.",

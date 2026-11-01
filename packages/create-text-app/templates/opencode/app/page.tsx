@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, Input, Select, Spinner, Text, useTheme, type SelectOption } from "@textjs/next";
-import { useRouter } from "@textjs/next/navigation";
+import { Box, Input, Select, Spinner, Text, useTheme, type SelectOption } from "@textjs/app";
+import { useRouter } from "@textjs/app/navigation";
 import { opencode, timeAgo, type Session } from "../lib/opencode";
 
 export default function Sessions(): ReactNode {

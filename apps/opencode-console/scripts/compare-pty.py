@@ -109,7 +109,7 @@ def main():
         try:
             for name, cwd, cmd in [
                 ('real', project, [shutil.which('opencode'), '--server', env['OPENCODE_SERVER_URL']]),
-                ('textjs', APP, [shutil.which('bun'), ROOT/'packages/text/bin/text.ts', 'run']),
+                ('textjs', APP, [shutil.which('bun'), ROOT/'packages/app/bin/text.ts', 'run']),
             ]:
                 tmux('new-session', '-d', '-x', '120', '-y', '40', '-s', name, '-c', str(cwd),
                      'exec ' + shlex.join(map(str, cmd)))
@@ -195,7 +195,7 @@ def main():
             for label, session, marker in [('permission', permission, 'Permission required'), ('question', question, 'main')]:
                 for name, cwd, cmd in [
                     ('real', project, ['opencode', '--server', env['OPENCODE_SERVER_URL'], '--session', session]),
-                    ('textjs', APP, ['bun', ROOT/'packages/text/bin/text.ts', 'run', '--path', f'/session/{session}']),
+                    ('textjs', APP, ['bun', ROOT/'packages/app/bin/text.ts', 'run', '--path', f'/session/{session}']),
                 ]:
                     target = f'{name}-{label}'
                     tmux('new-session', '-d', '-x', '100', '-y', '33', '-s', target, '-c', str(cwd), 'exec '+shlex.join(map(str, cmd)))

@@ -17,7 +17,7 @@
  * `npm run …`). The apps only run from the monorepo, so they use the workspace.
  *
  * Steps per target and package manager:
- *   install  scaffold + install; the template's `@textjs/next` range must be `^<version>`
+ *   install  scaffold + install; the template's `@textjs/app` range must be `^<version>`
  *   tsc      `tsc --noEmit` (bun only)
  *   lint     eslint-plugin-textjs `recommended` over the project's sources (bun only)
  *   dev      `text dev` + headless Chromium: press every advertised key, visit every
@@ -52,7 +52,7 @@ import { stripVTControlCharacters } from "node:util";
 import { packPackages } from "./verify-pack";
 
 const ROOT = resolve(import.meta.dir, "..");
-const VERSION = (JSON.parse(readFileSync(join(ROOT, "packages/text/package.json"), "utf8")) as { version: string }).version;
+const VERSION = (JSON.parse(readFileSync(join(ROOT, "packages/app/package.json"), "utf8")) as { version: string }).version;
 
 // ---------------------------------------------------------------------------
 // CLI options
@@ -967,8 +967,8 @@ function prepare(target: Target, pm: Pm, work: string, tarballs: Record<string, 
       if (s !== "install" && !pkg.scripts[s]) issues.push(`create-text-app suggests \`${m[0].trim()}\`, but package.json has no "${s}" script`);
     }
     if (pm === "npm" && !/npm run dev/.test(r.out)) issues.push("npx create-text-app did not print npm commands");
-    const range = pkg.dependencies["@textjs/next"];
-    if (range !== `^${VERSION}`) issues.push(`template depends on @textjs/next ${range}, expected ^${VERSION}`);
+    const range = pkg.dependencies["@textjs/app"];
+    if (range !== `^${VERSION}`) issues.push(`template depends on @textjs/app ${range}, expected ^${VERSION}`);
     const leftover = exec("grep", ["-rln", "{{", dir, "--exclude-dir=node_modules"], work);
     if (leftover.out.trim()) issues.push(`unfilled {{placeholders}} in ${leftover.out.trim()}`);
     pointAtTarballs(dir, tarballs, pm);
@@ -981,7 +981,7 @@ function prepare(target: Target, pm: Pm, work: string, tarballs: Record<string, 
     pointAtTarballs(dir, tarballs, pm);
   } else {
     // Apps import repo-relative modules: they run from the workspace, as their READMEs describe.
-    const textBin = join(ROOT, "packages/text/bin/text.ts");
+    const textBin = join(ROOT, "packages/app/bin/text.ts");
     const appDir = join(ROOT, target.source);
     return {
       dir: appDir,
@@ -1175,7 +1175,7 @@ async function main(): Promise<number> {
     ["@textjs/core", "packages/core"],
     ["@textjs/react", "packages/react"],
     ["@textjs/opencode", "packages/opencode"],
-    ["@textjs/next", "packages/text"],
+    ["@textjs/app", "packages/app"],
     ["@textjs/font", "packages/font"],
     ["create-text-app", "packages/create-text-app"],
     ["eslint-plugin-textjs", "packages/eslint-plugin-textjs"],

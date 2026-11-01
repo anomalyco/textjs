@@ -12,7 +12,7 @@ import {
   usePaste,
   useViewport,
   type ScrollBoxHandle,
-} from "@textjs/next";
+} from "@textjs/app";
 import {
   formCustom,
   formDisplayValue,

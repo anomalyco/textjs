@@ -10,9 +10,9 @@ import { BROKEN_TEST, TESTING_SUITE } from "../src/learn/apps/chapters";
 import { splitChapter } from "../src/learn/ChapterBody";
 import { getChapter } from "../src/learn/course";
 import { applyDiff, parseDiff } from "../src/learn/DiffCode";
-import { resolveAdapter } from "../../../packages/text/src/server/adapters/build-step";
-import type { AdapterContext } from "../../../packages/text/src/server/adapters/shared";
-import { vercelConfig } from "../../../packages/text/src/server/adapters/vercel";
+import { resolveAdapter } from "../../../packages/app/src/server/adapters/build-step";
+import type { AdapterContext } from "../../../packages/app/src/server/adapters/shared";
+import { vercelConfig } from "../../../packages/app/src/server/adapters/vercel";
 import { DEPLOYMENTS } from "./fixtures/acme-deploys/lib/deployments";
 import DeploymentsPage from "./fixtures/acme-deploys/app/deployments/page";
 
@@ -102,7 +102,7 @@ describe("Terminal chapter", () => {
 });
 
 describe("Shipping chapter", () => {
-  const TEXT_CLI = join(import.meta.dir, "../../../packages/text/bin/text.ts");
+  const TEXT_CLI = join(import.meta.dir, "../../../packages/app/bin/text.ts");
   const kB = (line: string): number[] => [...line.matchAll(/([\d.]+) kB/g)].map((m) => Number(m[1]));
   // Timings and bundle sizes move with every build; everything else must match the CLI exactly.
   const normalize = (out: string): string =>

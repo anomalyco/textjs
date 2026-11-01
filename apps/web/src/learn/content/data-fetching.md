@@ -28,7 +28,7 @@ Fetch in an effect and show a `<Spinner>` until the data arrives. `r` refetches;
 ```diff-tsx@app/deployments/page.tsx
 -import { DEPLOYMENTS } from "../../lib/deployments";
 +import { useEffect, useState } from "react";
-+import { Spinner, useInput } from "@textjs/next";
++import { Spinner, useInput } from "@textjs/app";
 +import type { Deployment } from "../../lib/deployments";
  
  export default function DeploymentsPage() {
@@ -62,7 +62,7 @@ Fetch in an effect and show a `<Spinner>` until the data arrives. `r` refetches;
 Instead of handling `loading` by hand, a `loading.tsx` next to the page is shown while it suspends, and `error.tsx` catches anything it throws. Both are plain components:
 
 ```tsx@app/deployments/loading.tsx
-import { Spinner } from "@textjs/next";
+import { Spinner } from "@textjs/app";
 
 export default function Loading() {
   return <Spinner label="Loading deployments…" />;

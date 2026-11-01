@@ -12,20 +12,31 @@ export const LEARN_MEDIA_BASE = "https://media.textjs.org";
 
 /** Published chapter videos: slug → length in seconds. */
 export const PUBLISHED: Readonly<Record<string, number>> = {
-  "getting-started": 236.1,
+  "getting-started": 234.3,
   layout: 218.7,
-  styling: 204.6,
+  styling: 204.4,
   "input-and-keymaps": 205.1,
-  routing: 224.9,
+  routing: 226.1,
   "data-fetching": 212.3,
-  components: 192.5,
-  testing: 198.9,
-  terminal: 210.9,
-  shipping: 172.6,
+  components: 184.8,
+  testing: 194.4,
+  terminal: 211.1,
+  shipping: 183.7,
 };
 
 /** Re-rendered chapters: slug → file revision (2 and up). */
-export const REVISIONS: Readonly<Record<string, number>> = {};
+export const REVISIONS: Readonly<Record<string, number>> = {
+  "getting-started": 3,
+  layout: 3,
+  styling: 3,
+  "input-and-keymaps": 2,
+  routing: 3,
+  "data-fetching": 2,
+  components: 3,
+  testing: 2,
+  terminal: 2,
+  shipping: 2,
+};
 
 export interface LearnVideo {
   src: string;

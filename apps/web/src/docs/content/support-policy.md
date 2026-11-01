@@ -27,7 +27,7 @@ New features, performance work and refactors land on the active line only.
 
 These only change in a major release, after a deprecation warning in at least one minor:
 
-- Public exports of `@textjs/next`, `@textjs/react` and `@textjs/core`, including `@textjs/next/server` and `@textjs/next/cache`
+- Public exports of `@textjs/app`, `@textjs/react` and `@textjs/core`, including `@textjs/app/server` and `@textjs/app/cache`
 - `text.config.ts` options, the `text` CLI commands and flags
 - File conventions in `app/`, `middleware.ts` and route segment config
 - Adapter output layouts (`.vercel/output`, `_worker.js`, `dist/server.js`)

@@ -15,7 +15,7 @@ Every cell has a character, a foreground, a background and a set of attributes. 
 The `color` prop accepts hex values, plain color names (`emerald`) and theme tokens; Tailwind palette shades go through classes (`text-emerald-400`). Tokens follow the active theme, so prefer them for anything semantic. Add a status component:
 
 ```diff-tsx@app/status.tsx
-+import { Text } from "@textjs/next";
++import { Text } from "@textjs/app";
 +
 +export type DeployStatus = "ready" | "building" | "error" | "queued";
 +
@@ -37,8 +37,8 @@ The `color` prop accepts hex values, plain color names (`emerald`) and theme tok
 `bg-surface` raises the card off the background. The deployment id picks up the status color, goes italic while building and is struck through on error.
 
 ```diff-tsx@app/page.tsx
--import { Box, Spacer, Text, useInput } from "@textjs/next";
-+import { Box, Spacer, Text, useAppTheme, useInput } from "@textjs/next";
+-import { Box, Spacer, Text, useInput } from "@textjs/app";
++import { Box, Spacer, Text, useAppTheme, useInput } from "@textjs/app";
 +import { Status, STATUS, type DeployStatus } from "./status";
 +
 +const ORDER: DeployStatus[] = ["ready", "building", "error", "queued"];

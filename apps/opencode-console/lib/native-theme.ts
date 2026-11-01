@@ -1,4 +1,4 @@
-import { createTheme, useTheme, type TextTheme } from "@textjs/next";
+import { createTheme, useTheme, type TextTheme } from "@textjs/app";
 import catalog from "./themes.json";
 
 export type NativeTheme = keyof typeof catalog;

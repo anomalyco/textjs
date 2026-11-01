@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { Box, Text, useTheme, type Metadata } from "@textjs/next";
-import Link from "@textjs/next/link";
-import { useRouter } from "@textjs/next/navigation";
-import { useInput } from "@textjs/next";
+import { Box, Text, useTheme, type Metadata } from "@textjs/app";
+import Link from "@textjs/app/link";
+import { useRouter } from "@textjs/app/navigation";
+import { useInput } from "@textjs/app";
 
 export const metadata: Metadata = { title: "About" };
 

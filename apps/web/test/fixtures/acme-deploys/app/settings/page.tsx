@@ -1,4 +1,4 @@
-import { Box, Text } from "@textjs/next";
+import { Box, Text } from "@textjs/app";
 
 export default function SettingsPage() {
   return (

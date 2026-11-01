@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import type { Metadata } from "@textjs/next";
+import type { Metadata } from "@textjs/app";
 import { Shell } from "../components/Shell";
 import { getShopStore, ShopProvider, useProvidedShop } from "../lib/store";
 

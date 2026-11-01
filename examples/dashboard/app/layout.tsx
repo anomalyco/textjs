@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, KeyHint, Text, useTheme, type Metadata } from "@textjs/next";
-import Link from "@textjs/next/link";
-import { usePathname } from "@textjs/next/navigation";
+import { Box, KeyHint, Text, useTheme, type Metadata } from "@textjs/app";
+import Link from "@textjs/app/link";
+import { usePathname } from "@textjs/app/navigation";
 
 export const metadata: Metadata = {
   title: { default: "Edge Console", template: "%s · Edge Console" },

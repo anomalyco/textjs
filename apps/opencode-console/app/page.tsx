@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Box, Text, useTheme, useViewport, type Metadata } from "@textjs/next";
-import { useRouter } from "@textjs/next/navigation";
+import { Box, Text, useTheme, useViewport, type Metadata } from "@textjs/app";
+import { useRouter } from "@textjs/app/navigation";
 import { Composer, Hints } from "../components/Composer";
 import { Logo } from "../components/Logo";
 import { ConnectionBadge } from "../components/Shell";

@@ -66,7 +66,7 @@ export default defineConfig(({ isSsrBuild }) => ({
     },
   },
   // The build-time prerenderer bundles the workspace packages (TypeScript sources) and keeps React external.
-  ssr: { noExternal: [/^@textjs\//, "@textjs/next"] },
+  ssr: { noExternal: [/^@textjs\//, "@textjs/app"] },
   server: { port: 3000 },
   preview: { port: 3000 },
 }));

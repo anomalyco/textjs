@@ -6,7 +6,7 @@ import { useInView } from "../../site/useInView";
 import { Crosses } from "./Crosses";
 
 const CODE = `import { Suspense } from "react";
-import { Box, Text } from "@textjs/next";
+import { Box, Text } from "@textjs/app";
 import { db } from "@/lib/db";
 
 export const runtime = "server";

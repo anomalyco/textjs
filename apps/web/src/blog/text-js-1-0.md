@@ -33,6 +33,8 @@ The framework package is now `@textjs/next`. The name `textjs` was taken on npm.
 + import { Box, Text } from "@textjs/next";
 ```
 
+**Update, 1.0.2:** the package is now `@textjs/app`, and `@textjs/next` is deprecated. To switch, run `bun remove @textjs/next && bun add @textjs/app` and import from `@textjs/app`.
+
 ## Numbers
 
 On a dense `100×32` dashboard (46 text nodes, 149 `%c` spans), measured with `packages/core/test/perf.test.ts`:
