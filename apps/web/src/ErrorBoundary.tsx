@@ -35,7 +35,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
       >
         <div style={{ maxWidth: 560, border: "1px solid #262626", borderRadius: 8, padding: 24, background: "#111" }}>
           <div style={{ fontSize: 14, color: "#a1a1a1", marginBottom: 8 }}>▼ Text.js</div>
-          <h1 style={{ fontSize: 20, margin: "0 0 12px", fontWeight: 600 }}>Something went wrong.</h1>
+          <h1 style={{ fontSize: 20, margin: "0 0 12px", fontWeight: 600 }}>Something went wrong</h1>
           <p style={{ fontSize: 13, color: "#a1a1a1", margin: "0 0 16px", lineHeight: 1.6 }}>
             The website hit an unexpected error. The console app may still be running in DevTools.
           </p>

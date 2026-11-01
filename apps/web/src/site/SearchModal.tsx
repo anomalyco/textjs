@@ -16,7 +16,7 @@ const PAGES: Item[] = [
   { key: "p:/", group: "Pages", label: "Home", sub: "textjs.org", href: "/" },
   { key: "p:/docs", group: "Pages", label: "Documentation", sub: "/docs", href: "/docs" },
   { key: "p:/playground", group: "Pages", label: "Playground", sub: "/playground", href: "/playground" },
-  { key: "p:/opencode", group: "Pages", label: "OpenCode in Console", sub: "/opencode", href: "/opencode" },
+  { key: "p:/opencode", group: "Pages", label: "OpenCode in the Console", sub: "/opencode", href: "/opencode" },
 ];
 
 const openListeners = new Set<(open: boolean) => void>();
@@ -149,7 +149,7 @@ export function SearchModal(): ReactNode {
           <span>
             <kbd>↵</kbd> open
           </span>
-          <span style={{ marginLeft: "auto" }}>On docs pages, the console searches too: /</span>
+          <span style={{ marginLeft: "auto" }}>On docs pages, press / in the console to search</span>
         </div>
       </div>
     </div>

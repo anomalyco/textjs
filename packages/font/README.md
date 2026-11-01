@@ -1,6 +1,6 @@
 # @textjs/font
 
-`next/font` for FIGlet. A complete FIGfont 2 (`.flf`) parser and renderer that matches the `figlet` program character for character, plus 17 bundled fonts, one module each.
+`next/font` for FIGlet. A complete FIGfont 2 (`.flf`) parser and renderer whose output matches the `figlet` program exactly, plus 17 bundled fonts, one module each.
 
 ```tsx
 import { FigletText } from "@textjs/font/react";
@@ -47,7 +47,7 @@ Implemented: header and comment lines, hardblanks, endmarks, the 102 required ch
 
 `standard`, `slant`, `small`, `smslant`, `big`, `banner`, `block`, `lean`, `shadow`, `smshadow`, `script`, `smscript`, `mini`, `bubble`, `digital`, `ivrit` (right to left), `term`. Import each from `@textjs/font/<name>`; `@textjs/font/all` exports every font and `BUNDLED_FONTS` for galleries. Fonts parse lazily on first render.
 
-All glyphs use printable ASCII and Latin-1, so they stay cell-exact in Menlo/SF Mono. (`bubble`, `digital` and `term` draw input U+0080–U+009F as itself: C1 controls, which nobody types.)
+All glyphs use printable ASCII and Latin-1, so they stay cell-exact in Menlo/SF Mono. (`bubble`, `digital` and `term` draw input U+0080–U+009F, the C1 control characters, as itself.)
 
 ## Licensing
 

@@ -10,9 +10,11 @@ import { LearnConsole } from "../src/learn/apps/LearnConsole";
 import { certificateLines, CERT_WIDTH, formatCertificateDate } from "../src/learn/certificate";
 import { chapterHeadings, splitChapter } from "../src/learn/ChapterBody";
 import { CHAPTERS, COMPLETE_SLUG, learnHints, learnPath } from "../src/learn/course";
+import { ChapterVideo } from "../src/learn/ChapterVideo";
 import { applyDiff, parseDiff } from "../src/learn/DiffCode";
 import { EMPTY_PROGRESS, parseProgress, PROGRESS_KEY, progressStore } from "../src/learn/progress";
 import { quizPassed } from "../src/learn/Quiz";
+import { formatDuration, learnVideo, PUBLISHED } from "../src/learn/video";
 import { matchRoute, resetLocation, titleFor } from "../src/router";
 import { Header } from "../src/site/Chrome";
 import { mount, type Harness } from "./helpers";
@@ -103,7 +105,7 @@ describe("learn prerender", () => {
 
   test("pages render their final markup, with no pending Suspense boundaries", async () => {
     const overview = await render("/learn");
-    expect(overview).toContain("Build a deploy dashboard in your console.");
+    expect(overview).toContain("Build a deploy dashboard in your console");
     expect(overview).toContain("Start learning");
     for (const c of CHAPTERS) expect(overview).toContain(`href="/learn/${c.slug}"`);
     expect(overview).toContain("data-textjs-focus-pad");
@@ -298,5 +300,29 @@ describe("chapter console apps", () => {
     } finally {
       await h.unmount();
     }
+  });
+});
+
+describe("chapter videos", () => {
+  test("stay off until a chapter is published", () => {
+    for (const c of CHAPTERS) if (!(c.slug in PUBLISHED)) expect(learnVideo(c.slug)).toBeNull();
+    expect(renderToStaticMarkup(<ChapterVideo slug="nope" title="Nope" />)).toBe("");
+  });
+
+  test("published chapters point at the R2 layout", () => {
+    const v = learnVideo("getting-started", { "getting-started": 239.5 }, "https://media.example");
+    expect(v).toEqual({
+      src: "https://media.example/learn/getting-started/getting-started-1080p.mp4",
+      srcSmall: "https://media.example/learn/getting-started/getting-started-720p.mp4",
+      poster: "https://media.example/learn/getting-started/getting-started-poster.jpg",
+      captions: "https://media.example/learn/getting-started/getting-started.vtt",
+      duration: 239.5,
+    });
+    expect(formatDuration(239.5)).toBe("4:00");
+    // The frame reserves its box before the player loads (no layout shift); the video waits for the viewport.
+    const html = renderToStaticMarkup(<ChapterVideo slug="getting-started" title="Getting Started" video={v} />);
+    expect(html).toContain('class="learn-video-frame"');
+    expect(html).not.toContain("<video");
+    expect(html).toContain("4:00 · narrated · captions");
   });
 });

@@ -15,7 +15,7 @@ interface Component {
 
 const COMPONENTS: readonly Component[] = [
   { name: "console.log", status: "Operational", tone: "ok", detail: "One call per dirty frame. Zero per idle frame." },
-  { name: "console.clear", status: "Rarely used", tone: "info", detail: "First frame, after invalidate(), and at idle once 100 frames are stacked." },
+  { name: "console.clear", status: "Rarely used", tone: "info", detail: "First frame, after invalidate(), at idle once 100 frames are stacked, and at 300." },
   { name: "Yoga", status: "Operational", tone: "ok", detail: "WebAssembly flexbox layout, pointScaleFactor 1." },
   { name: "Turbolog encoder", status: "Operational", tone: "ok", detail: "Row-hash gate and run-length %c encoding." },
   { name: "DevTools Throttler", status: "Respected", tone: "info", detail: "50ms viewport throttle. Frames are paced at least 66ms apart." },
@@ -94,7 +94,7 @@ function LiveBenchmark(): ReactNode {
         <div>
           <h2 id="st-live-title">Live benchmark</h2>
           <p>
-            The real <code>@textjs/core</code> pipeline, running in this tab on a 100×32 dashboard. Frames go to an in-memory console.
+            The <code>@textjs/core</code> pipeline runs in this tab on a 100×32 dashboard and writes frames to an in-memory console.
           </p>
         </div>
         <button type="button" className="btn btn-secondary btn-sm" onClick={run} disabled={state.phase === "running"}>
@@ -117,7 +117,7 @@ function LiveBenchmark(): ReactNode {
         {state.phase === "error"
           ? `The benchmark could not run: ${state.message}`
           : result
-            ? `${result.frames.toLocaleString("en-US")} frames in batches of 10. Medians shown. Your browser, your CPU.`
+            ? `${result.frames.toLocaleString("en-US")} frames in batches of 10, measured on this device. Medians shown.`
             : "Starts automatically once the page is idle."}
       </p>
     </section>
@@ -227,7 +227,7 @@ const INCIDENTS = [
   {
     title: "Elevated blank paints in the DevTools Console",
     version: "0.4.0",
-    body: "Clearing before every frame left the console empty in 70–81% of DevTools paints. Frames are now appended. Blank paints: 1.0%, all on the first frame.",
+    body: "Clearing before every frame left the console empty in 70–81% of DevTools paints. Frames are now appended, and blank paints are down to 1.0%, all on the first frame.",
   },
 ];
 

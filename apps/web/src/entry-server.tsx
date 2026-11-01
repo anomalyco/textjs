@@ -22,20 +22,20 @@ export interface PrerenderRoute {
 
 export const ROUTES: readonly PrerenderRoute[] = [
   { path: "/", title: titleFor({ name: "home" }), description: "" },
-  { path: "/docs", title: "Documentation | Text.js", description: "Learn how to build full-stack interactive React 19 apps inside browser DevTools console.log." },
+  { path: "/docs", title: "Documentation | Text.js", description: "Learn how to build React apps that render in the DevTools console." },
   // Every page also lives at /docs/<slug> (/docs/introduction included).
   ...DOCS.map((d) => ({ path: `/docs/${d.slug}`, title: titleFor(matchRoute(`/docs/${d.slug}`)), description: d.description, canonical: docPath(d.slug) })),
   { path: "/playground", title: titleFor({ name: "playground" }), description: "Pick a Text.js demo, open the DevTools console and press a few keys." },
-  { path: "/opencode", title: titleFor({ name: "opencode" }), description: "OpenCode Lite coding-agent TUI running inside browser DevTools console.log." },
-  { path: "/terminal", title: titleFor({ name: "terminal" }), description: "The terminal.shop storefront in your DevTools console. Sign in with Terminal and order coffee from console.log." },
+  { path: "/opencode", title: titleFor({ name: "opencode" }), description: "OpenCode Lite, a console client for the OpenCode coding agent. Connect a local server or try the sandbox." },
+  { path: "/terminal", title: titleFor({ name: "terminal" }), description: "Browse the terminal.shop storefront and order coffee from the DevTools console." },
   ...LEARN_ROUTES,
-  { path: "/errors", title: titleFor({ name: "errors" }), description: "Every Text.js error and warning code, what it means and how to fix it." },
-  ...TX_ERRORS.map((e) => ({ path: `/errors/${e.code}`, title: titleFor({ name: "error", code: e.code }), description: `${e.code}: ${e.title}. What it means and how to fix it.` })),
-  { path: "/changelog", title: titleFor({ name: "changelog" }), description: "Every notable change to Text.js, release by release." },
+  { path: "/errors", title: titleFor({ name: "errors" }), description: "Every Text.js error and warning code, with its cause and fix." },
+  ...TX_ERRORS.map((e) => ({ path: `/errors/${e.code}`, title: titleFor({ name: "error", code: e.code }), description: `${e.code}: ${e.title}. Cause and fix.` })),
+  { path: "/changelog", title: titleFor({ name: "changelog" }), description: "Release notes for every Text.js version." },
   { path: "/blog", title: titleFor({ name: "blog" }), description: "Releases and engineering notes from the Text.js team." },
   ...POSTS.map((p) => ({ path: postPath(p.slug), title: titleFor({ name: "blog-post", slug: p.slug }), description: p.summary })),
-  { path: "/enterprise", title: titleFor({ name: "enterprise" }), description: "Text.js Enterprise: console compliance, a 99.99% console.log SLA and a named console engineer." },
-  { path: "/status", title: titleFor({ name: "status" }), description: "Turbolog status: component health, a live in-browser pipeline benchmark and performance history." },
+  { path: "/enterprise", title: titleFor({ name: "enterprise" }), description: "Text.js Enterprise: a 99.99% console.log SLA, a named console engineer and security reviews." },
+  { path: "/status", title: titleFor({ name: "status" }), description: "Turbolog component status, an in-browser pipeline benchmark and performance history." },
 ];
 
 /** Route path used for the static 404 page. */

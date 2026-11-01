@@ -45,7 +45,7 @@ function Hero(): ReactNode {
           <div className="hero-body">
             <h1>The Console Framework</h1>
             <p className="lede">
-              Build interactive React apps rendered entirely inside <code>console.log</code>.
+              Build full-stack React apps that render inside <code>console.log</code>.
             </p>
             <div className="hero-ctas">
               <A href="/docs" className="btn btn-primary btn-lg">
@@ -54,7 +54,7 @@ function Hero(): ReactNode {
               <CopyCommand command="bunx create-text-app" />
             </div>
             <p className="hero-whisper desktop-only">
-              This page is running in your console. Open it with <kbd><DevtoolsShortcut /></kbd>, click the preview below, press <kbd>↑</kbd> <kbd>↓</kbd>.
+              This page is running in your console. Open it with <kbd><DevtoolsShortcut /></kbd>, click the preview below and press <kbd>↑</kbd> <kbd>↓</kbd>.
             </p>
           </div>
           <div className="split">
@@ -79,21 +79,14 @@ function Hero(): ReactNode {
 }
 
 const FEATURES: Array<{ title: ReactNode; body: ReactNode }> = [
-  { title: "App Router", body: <>File-system layouts, dynamic routes, and URL history.</> },
-  { title: "Yoga Flexbox", body: <>WebAssembly layout snapped to integer cells.</> },
+  { title: "React 19", body: <>Concurrent rendering, Suspense and error boundaries.</> },
+  { title: "App Router", body: <>File-system layouts, dynamic routes and URL history.</> },
+  { title: "Responsive grid", body: <>The grid fits the docked DevTools panel at any page zoom.</> },
   {
-    title: (
-      <>
-        One <code>console.log</code>
-      </>
-    ),
-    body: <>Run-length encoded frames in 0.18ms. Zero logs when idle.</>,
-  },
-  {
-    title: "Zero DOM",
+    title: "Keyboard input",
     body: (
       <>
-        An empty <code>&lt;body&gt;</code> and one hidden input.
+        Keys, paste and IME composition reach the app through one hidden <code>&lt;textarea&gt;</code>.
       </>
     ),
   },
@@ -122,7 +115,7 @@ function OpenCodeSpotlight(): ReactNode {
       <div className="container spotlight">
         <div>
           <h2>OpenCode in console.log</h2>
-          <p className="muted">The OpenCode TUI, running in DevTools. Bring your own server or use the sandbox.</p>
+          <p className="muted">A console client for OpenCode. Connect your local server, or try the sandbox with a scripted agent.</p>
         </div>
         <A href="/opencode" className="btn btn-secondary">
           Explore OpenCode <ArrowRight size={14} />
@@ -141,8 +134,8 @@ export function HomePage(): ReactNode {
       <KitSection />
       <ServerSection />
       <AnywhereSection />
-      <ToolingSection />
       <OpenCodeSpotlight />
+      <ToolingSection />
       <LearnSection />
     </>
   );

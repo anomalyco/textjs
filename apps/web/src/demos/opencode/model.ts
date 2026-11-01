@@ -195,12 +195,12 @@ export function scriptFor(prompt: string, agent: Agent): Step[] {
       { kind: "tool", ms: 600, part: { type: "tool", tool: "glob", title: '"app/**/*.tsx"', status: "completed", output: "app/layout.tsx\napp/page.tsx\napp/sessions/[id]/page.tsx\napp/sessions/[id]/loading.tsx\napp/settings/page.tsx" } },
       {
         kind: "text",
-        text: `Here's how I'd approach **${topic}** — no files will be changed in \`plan\` mode.
+        text: `Here's how I'd approach **${topic}**. Plan mode is read-only, so no files will change.
 
 1. **Locate the route.** The work lives under \`app/sessions/[id]/page.tsx\`, rendered inside the root \`layout.tsx\`.
 2. **Extract a component.** Move the list into \`SessionList\` so \`<ScrollBox stickyScroll>\` can own scrolling.
 3. **Add a loading state.** \`loading.tsx\` streams a \`<Spinner>\` through React Suspense while data resolves.
-4. **Verify.** Run \`text build\` and \`bun test\`; expect **0** DOM nodes and **1** \`console.log\` per frame.
+4. **Verify.** Run \`text build\` and \`bun test\`.
 
 Press \`shift+tab\` to switch to **build** and I'll implement it.`,
       },
@@ -231,10 +231,10 @@ Press \`shift+tab\` to switch to **build** and I'll implement it.`,
     return [
       { kind: "think", ms: 700, text: "Settings needs a theme toggle wired to the app shell's ThemeProvider." },
       { kind: "tool", ms: 450, part: { type: "tool", tool: "read", title: "app/settings/page.tsx", status: "completed", code: SETTINGS_BEFORE, language: "tsx" } },
-      { kind: "text", text: "Text.js exposes the active theme through `useAppTheme()`, so this is a small change — no CSS required (there is no CSS)." },
+      { kind: "text", text: "Text.js exposes the active theme through `useAppTheme()`, so the toggle only needs a few lines in the settings page." },
       { kind: "tool", ms: 650, part: { type: "tool", tool: "edit", title: "app/settings/page.tsx", status: "completed", diff: { before: SETTINGS_BEFORE, after: SETTINGS_AFTER, filename: "app/settings/page.tsx" } } },
       { kind: "tool", ms: 1100, part: { type: "tool", tool: "shell", title: "bun run typecheck", status: "completed", output: "$ tsc --noEmit\n✓ 0 errors in 42 files (1.8s)" } },
-      { kind: "text", text: "Done — press **t** on `/settings` to flip between `geistDark` and `geistLight`. The switch repaints in a single frame and re-encodes only the rows whose colors changed." },
+      { kind: "text", text: "Added the toggle. Press **t** on `/settings` to switch between `geistDark` and `geistLight`." },
     ];
   }
   if (/explain|how|what|why|\?/.test(p)) {
@@ -252,15 +252,15 @@ Press \`shift+tab\` to switch to **build** and I'll implement it.`,
           code: `render(buffer: CellBuffer): DriverRenderResult {
   const { frame } = this.encode(buffer);
   if (frame === null) return SKIPPED; // zero noop logs
-  console.log(frame.format, ...frame.args); // appended, never cleared
+  console.log(frame.format, ...frame.args); // appended below the previous frame
 }`,
         },
       },
       {
         kind: "text",
-        text: `Good question. Short version of **${topic}**:
+        text: `Here's the short version:
 
-- React commits into a **scene graph**, not the DOM.
+- React commits into a **scene graph** of \`tx-box\` and \`tx-text\` nodes.
 - **Yoga** computes flexbox layout in integer cells (\`pointScaleFactor = 1\`).
 - The painter rasterizes into a **TypedArray CellBuffer**.
 - Each row is hashed; unchanged rows reuse cached \`%c\` spans.
@@ -270,13 +270,13 @@ Press \`shift+tab\` to switch to **build** and I'll implement it.`,
 console.log("%c▼ Text.js%c 1.0", "color:#fff;font-weight:700", "color:#888");
 \`\`\`
 
-If nothing changed, nothing is logged. That's why an idle app costs **0** console calls.`,
+If no row changed, the driver returns before logging, so an idle app makes **0** console calls.`,
       },
     ];
   }
   return [
     { kind: "think", ms: 800, text: `Breaking down: ${topic}` },
-    { kind: "text", text: `On it. First I'll look at the project layout to see where **${topic}** belongs.` },
+    { kind: "text", text: `I'll look at the project layout to see where **${topic}** belongs.` },
     { kind: "tool", ms: 500, part: { type: "tool", tool: "shell", title: "ls -R app", status: "completed", output: "app:\nlayout.tsx  page.tsx  sessions/  settings/\n\napp/sessions:\n[id]/\n\napp/sessions/[id]:\nloading.tsx  page.tsx" } },
     { kind: "tool", ms: 450, part: { type: "tool", tool: "read", title: "app/page.tsx", status: "completed", code: PAGE_BEFORE, language: "tsx" } },
     { kind: "text", text: "The index route only renders a heading. I'll extract a `SessionList` and give the page some structure." },
@@ -289,10 +289,10 @@ If nothing changed, nothing is logged. That's why an idle app costs **0** consol
         tool: "shell",
         title: "text build",
         status: "completed",
-        output: "▼ Text.js 1.0.0 (Turbolog)\n\n  Creating an optimized console production build…\n  ✓ Compiled successfully in 812ms\n\nRoute (app)                    Size     First Frame\n┌ ○ /                          1.2 kB   0.18ms\n├ ƒ /sessions/[id]             2.4 kB   0.21ms\n└ ○ /settings                  0.9 kB   0.16ms\n\n○ Static   ƒ Dynamic   ▼ 0 DOM nodes",
+        output: "   ▼ Text.js 1.0.0 (Turbolog) — Creating an optimized console production build...\n\n ✓ Compiled successfully in 0.8s\n ✓ Collecting route data\n ✓ Generating static console cells (2/3)\n\nRoute (app)                              Type       Target\n┌ ○ /                                    Static     console.log (%c)\n├ ƒ /sessions/[id]                       Dynamic    console.log (%c)\n└ ○ /settings                            Static     console.log (%c)\n\n○  (Static)   prerendered as static console cells\nƒ  (Dynamic)  on-demand console reconciliation",
       },
     },
-    { kind: "text", text: `Done. I updated \`app/page.tsx\` for **${topic}**; the build passes and every route renders its first frame in under **0.25ms**.` },
+    { kind: "text", text: `I updated \`app/page.tsx\` with a \`SessionList\` for **${topic}**, and \`text build\` passes.` },
   ];
 }
 

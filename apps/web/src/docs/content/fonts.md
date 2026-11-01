@@ -1,4 +1,4 @@
-`next/font`, for FIGlet. `@textjs/font` parses FIGfont 2 (`.flf`) files and lays them out exactly like the `figlet` program, down to the last smushed underscore. Fonts are plain ES modules: import one and only that one ships.
+`@textjs/font` parses FIGfont 2 (`.flf`) files and lays them out exactly like the `figlet` program. Each font is an ES module, so only the fonts you import ship.
 
 ```tsx#fonts
 import { FigletText } from "@textjs/font/react";
@@ -102,4 +102,4 @@ The bundled fonts are the FIGlet 2.2.5 distribution fonts, byte for byte, under 
 
 ## Verified against `figlet`
 
-The test suite replays 273 outputs recorded from the real `figlet` 2.2.5 binary: every bundled font in every layout mode, wrapping, justification, right-to-left text, paragraph mode and FIGlet's own regression input. Each one matches character for character.
+The test suite replays 273 outputs recorded from the real `figlet` 2.2.5 binary: every bundled font in every layout mode, wrapping, justification, right-to-left text, paragraph mode and FIGlet's own regression input. All of them match exactly.

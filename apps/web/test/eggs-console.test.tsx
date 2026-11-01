@@ -312,7 +312,7 @@ describe("/exit in OpenCode", () => {
 
   test("the page pad says how to restart", async () => {
     await site(() => resetLocation("/opencode"));
-    expect(await render("/opencode")).toContain('<span class="pad-title">OpenCode, in the console</span>');
+    expect(await render("/opencode")).toContain('<span class="pad-title">OpenCode in the console</span>');
     await site(() => siteStore.set({ opencodeExited: true }));
     const { renderToStaticMarkup } = await import("react-dom/server");
     const { OpenCodePage } = await import("../src/pages/OpenCode");

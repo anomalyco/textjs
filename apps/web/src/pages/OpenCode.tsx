@@ -73,7 +73,7 @@ function ConnectPanel(): ReactNode {
     ) : conn.mode === "sandbox" ? (
       <>
         <span className="dot dot-idle" />
-        <span className="status-text">Sandbox — a scripted agent. Connect yours:</span>
+        <span className="status-text">Sandbox with a scripted agent. Connect your own server:</span>
       </>
     ) : conn.mode === "connecting" ? (
       <>
@@ -142,7 +142,7 @@ export function OpenCodePage(): ReactNode {
   const { action, hints } = PAGE_HINTS.opencode;
   const exited = useSite().opencodeExited;
   return (
-    <ConsolePad hints={hints} action={action} top={<span className="pad-title">{exited ? "OpenCode exited. Click to restart." : "OpenCode, in the console"}</span>}>
+    <ConsolePad hints={hints} action={action} top={<span className="pad-title">{exited ? "OpenCode exited. Click to restart." : "OpenCode in the console"}</span>}>
       <ConnectPanel />
     </ConsolePad>
   );

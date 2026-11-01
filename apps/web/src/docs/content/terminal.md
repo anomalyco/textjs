@@ -1,4 +1,4 @@
-The same app, in a real terminal. Layout, components, keymaps and route handlers are shared; only the last step changes, from `%c` spans to truecolor ANSI.
+`text run` renders an App Router app in a terminal. Layout, components, keymaps and route handlers are shared with the browser. Output is truecolor ANSI instead of `%c` spans.
 
 ```bash
 text run              # render ./app at /

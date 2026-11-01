@@ -9,7 +9,7 @@ Every page renders in one of two places:
 | React tree runs in | The browser tab | `text dev` / `text start` / the `bun` adapter (Bun or Node) |
 | Browser downloads | The full app: React, Yoga WASM, your routes | The frame player, about 19 kB gzip |
 | Data access | `fetch()` to route handlers | Directly: databases, files, `node:*`, secrets |
-| Async components | Use `use()` or effects | `async function` components just work |
+| Async components | Use `use()` or effects | `async function` components are supported |
 | Keystroke latency | Same task, synchronous | One round trip to the server |
 | Works on a static host | Yes | No, it needs `text start` or `bun dist/server.js` |
 
@@ -78,7 +78,7 @@ async function Deployments({ team }: { team: string }) {
 }
 ```
 
-Each promise is cached per session and keyed by component and props, so a retried render reuses the request already in flight. The cache is cleared when the route changes and on `router.refresh()`. That's how you re-run data access after input:
+Each promise is cached per session and keyed by component and props, so a retried render reuses the request already in flight. The cache is cleared when the route changes and on `router.refresh()`. To re-run data access after input, call `router.refresh()`:
 
 ```tsx
 const router = useRouter();

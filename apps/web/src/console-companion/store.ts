@@ -30,7 +30,7 @@ export interface Preset {
 export const PRESETS: readonly Preset[] = [
   { id: "counter", label: "Counter", description: "useState and useInput", action: "press ↑ ↓", hints: [{ keys: "↑ ↓", label: "count" }, { keys: "r", label: "reset" }] },
   { id: "form", label: "Form", description: "Inputs and a select", action: "type your name", hints: [{ keys: "Tab", label: "next field" }, { keys: "Enter", label: "submit" }] },
-  { id: "streaming", label: "Streaming", description: "Markdown, token by token", action: "press r", hints: [{ keys: "r", label: "stream again" }] },
+  { id: "streaming", label: "Streaming", description: "Streaming Markdown and diffs", action: "press r", hints: [{ keys: "r", label: "stream again" }] },
   { id: "dashboard", label: "Dashboard", description: "Live metrics", action: "press ← →", hints: [{ keys: "← →", label: "switch region" }] },
   { id: "snake", label: "Snake", description: "A game loop", action: "press an arrow key", hints: [{ keys: "← ↑ → ↓", label: "steer" }, { keys: "Space", label: "pause" }] },
 ];

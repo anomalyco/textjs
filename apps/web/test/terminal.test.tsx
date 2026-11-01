@@ -33,13 +33,13 @@ describe("/terminal", () => {
   test("a calm focus pad, prerendered", async () => {
     const html = renderToStaticMarkup(<RouteView route={{ name: "terminal" }} />);
     expect(html).toContain("data-textjs-focus-pad");
-    expect(html).toContain("terminal.shop, in the console");
+    expect(html).toContain("terminal.shop in the console");
     expect(html).toContain("Then click here and press ↑ ↓ to browse.");
     expect(html).toContain("no API key needed");
     expect(html).toContain("Open on a desktop");
     expect(ROUTES.find((r) => r.path === "/terminal")?.description).toContain("terminal.shop");
     const pre = await render("/terminal");
-    expect(pre).toContain("terminal.shop, in the console");
+    expect(pre).toContain("terminal.shop in the console");
     expect(pre).not.toContain("<!--$?-->");
   });
 

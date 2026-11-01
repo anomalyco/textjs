@@ -43,7 +43,7 @@ export function certificateLines(name: string, date: string): string[] {
     row("─".repeat(Math.min(inner - 12, Math.max(16, [...who].length + 8)))),
     row(),
     row("has completed Learn Text.js, building Acme Deploys"),
-    row("in ten chapters, entirely inside console.log."),
+    row("in ten chapters, inside console.log."),
     row(),
     row(),
     sig(date, "▼ Text.js"),

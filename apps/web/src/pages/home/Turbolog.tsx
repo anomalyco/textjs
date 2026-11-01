@@ -142,7 +142,7 @@ function Pipeline({ play }: { play: boolean }): ReactNode {
           <i className="dot dirty" /> Dirty frame: one <code>console.log</code>
         </span>
         <span>
-          <i className="dot idle" /> Idle frame: stops at the gate, zero calls, zero bytes
+          <i className="dot idle" /> Idle frame: stops at the dirty gate (0 calls, 0 B)
         </span>
       </div>
     </div>
@@ -207,9 +207,9 @@ function Throttle({ play }: { play: boolean }): ReactNode {
   return (
     <div className={`tl-throttle${play ? " play" : ""}`}>
       <div className="tl-throttle-copy">
-        <h3>Append, don’t clear.</h3>
+        <h3>Zero-flash frames</h3>
         <p>
-          DevTools applies <code>console.clear()</code> at once but paints new messages on a 50ms throttle. Clearing before every frame left the console blank in {clear15.blankPct}% of
+          DevTools applies <code>console.clear()</code> synchronously but paints new messages on a 50ms throttle. Clearing before every frame left the console blank in {clear15.blankPct}% of
           paints. Turbolog appends each frame below a zero-width curtain, so the swap happens inside one paint.
         </p>
         <div className="tl-stats">
@@ -227,8 +227,8 @@ function Throttle({ play }: { play: boolean }): ReactNode {
           </div>
           <span className="tl-screen-label">Visible</span>
         </div>
-        <Lane kind="clear" label="clear() + log()" note="≤ 0.3" />
-        <Lane kind="append" label="log(), appended" note="1.0" />
+        <Lane kind="clear" label="clear() + log()" note={`${clear15.blankPct}% blank`} />
+        <Lane kind="append" label="log(), appended" note={`${append15.blankPct.toFixed(1)}% blank`} />
         <span className="tl-playhead" aria-hidden="true">
           <i />
         </span>
@@ -265,18 +265,18 @@ export function TurbologSection(): ReactNode {
         <div className="section-head">
           <p className="eyebrow">Turbolog</p>
           <h2>
-            One <code>console.log</code> per frame. None when idle.
+            Every changed frame is one <code>console.log</code> call
           </h2>
-          <p>Every React commit runs through six stages and ends in a single appended call, or in no call at all.</p>
+          <p>Each React commit passes through six stages. A commit that changes no cells stops at the gate.</p>
         </div>
         <div className="frame tl-frame">
           <Crosses />
           <Pipeline play={inView} />
           <Throttle play={inView} />
           <div className="tl-metrics">
-            <Metric value={pipeline.fullFrameMs} digits={3} unit="ms" label="Full repaint: layout, paint and encode" />
-            <Metric value={pipeline.typingMs} digits={3} unit="ms" label="One-row edit, like a keystroke" />
-            <Metric value={0} digits={0} unit=" calls" label="When nothing changed, and 0 bytes allocated" />
+            <Metric value={pipeline.fullFrameMs} digits={3} unit="ms" label="Full repaint (layout, paint, encode)" />
+            <Metric value={pipeline.typingMs} digits={3} unit="ms" label="One-row edit, such as a keystroke" />
+            <Metric value={0} digits={0} unit=" calls" label="Idle frame, 0 bytes allocated" />
             <Metric value={pipeline.spans} digits={0} unit=" spans" label={<><code>%c</code> arguments for 3,200 cells</>} />
           </div>
         </div>

@@ -1,4 +1,4 @@
-The same app runs in a real terminal. Layout, components, keymaps and route handlers are shared; only the last step changes, from `%c` CSS spans to truecolor ANSI.
+`text run` runs the same app in a terminal. Layout, components, keymaps and route handlers are shared, and the output is truecolor ANSI instead of `%c` CSS spans.
 
 ## `text run`
 
@@ -38,7 +38,7 @@ Terminal users expect `q`. `useApp().exit()` unmounts the app and restores the t
 
 ## Your own CLI
 
-For a single component, `renderToTerminal` is all you need:
+For a single component, use `renderToTerminal`:
 
 ```tsx@cli.tsx
 import { renderToTerminal } from "@textjs/next/terminal";
