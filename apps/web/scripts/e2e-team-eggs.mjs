@@ -81,7 +81,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 const shotPage = await context.newPage();
 
-const frameText = () => page.evaluate(() => (window.__frame ? window.__frame[0].replace(/%c/g, "").replace(/%%/g, "%") : ""));
+const frameText = () => page.evaluate(() => (window.__frame ? window.__frame[0].replace(/%%|%c/g, (m) => (m === "%%" ? "%" : "")) : ""));
 const waitFrame = async (has, ms = 4000) => {
   for (let t = 0; t < ms; t += 100) {
     if ((await frameText()).includes(has) === true) return true;
@@ -98,7 +98,7 @@ const pageText = () =>
     const clone = document.body.cloneNode(true);
     for (const el of clone.querySelectorAll("[data-textjs-focus-pad], .devtools, script")) el.remove();
     // Live examples print their render time.
-    return clone.innerText.replace(/\d+(\.\d+)?ms\b/g, "ms");
+    return clone.innerText.replace(/\d+(\.\d+)?ms/g, "ms");
   });
 
 async function engage(path) {

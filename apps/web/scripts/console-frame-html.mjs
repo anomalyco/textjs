@@ -6,13 +6,23 @@ const escape = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/
 /** `args` is the argument list of one `console.log` call. */
 export function frameHtml(args, { background = "#0a0a0a", title = "" } = {}) {
   const [format = "", ...styles] = args;
-  const parts = String(format).split("%c");
-  let body = escape(parts[0].replace(/%%/g, "%"));
+  // Split on %c, keeping %% (a literal %) intact, the way console.log reads its format.
+  const parts = [""];
+  const f = String(format);
+  for (let i = 0; i < f.length; i++) {
+    if (f[i] === "%" && f[i + 1] === "%") {
+      parts[parts.length - 1] += "%";
+      i++;
+    } else if (f[i] === "%" && f[i + 1] === "c") {
+      parts.push("");
+      i++;
+    } else parts[parts.length - 1] += f[i];
+  }
+  let body = escape(parts[0]);
   for (let i = 1; i < parts.length; i++) {
     const css = String(styles[i - 1] ?? "").replace(/"/g, "'");
     // Newlines go between spans so each span stays one line high.
     body += parts[i]
-      .replace(/%%/g, "%")
       .split("\n")
       .map((t) => (t ? `<span style="${css}">${escape(t)}</span>` : ""))
       .join("\n");
