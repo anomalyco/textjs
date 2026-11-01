@@ -29,7 +29,7 @@ export function matchesErrorQuery(e: TxErrorDoc, query: string): boolean {
   if (!q) return true;
   const digits = q.replace(/^tx/, "");
   if (/^\d+$/.test(digits) && (Number(digits) === Number(e.code.slice(2)) || e.code.slice(2).includes(digits))) return true;
-  return [e.code, e.title, e.message, e.package].some((s) => s.toLowerCase().includes(q));
+  return [e.code, e.title, e.message, e.package, e.cause].some((s) => s.toLowerCase().includes(q));
 }
 
 export function ErrorsIndexPage(): ReactNode {
