@@ -6,7 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { toText, type Grid } from "./grid";
 import { renderOurs, withoutExtraMenuRows } from "./ours";
-import { SHOTS, shotId } from "./shots";
+import { EXTRA_SHOTS, SHOTS, shotId } from "./shots";
 
 const only = process.argv.slice(2);
 const dir = (p: string): string => new URL(p, import.meta.url).pathname;
@@ -35,6 +35,12 @@ for (const s of SHOTS) {
   for (let i = 0; i < Math.max(al.length, bl.length); i++) {
     if (al[i] !== bl[i]) console.log(`  ${String(i).padStart(2)} ssh  |${al[i] ?? ""}|\n     ours |${bl[i] ?? ""}|`);
   }
+}
+for (const s of EXTRA_SHOTS) {
+  const id = shotId(s);
+  if (only.length && !only.includes(id) && !only.includes(s.name)) continue;
+  writeFileSync(dir(`./ours/${id}.json`), JSON.stringify(await renderOurs(s)));
+  console.log(`· ${id} (ours only)`);
 }
 console.log(`${same}/${total} identical`);
 process.exit(0);

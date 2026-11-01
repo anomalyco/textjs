@@ -7,12 +7,13 @@ import type { Shot } from "./shots";
 const hex = (c: number): string | null => ((c & 0xff) === 0 ? null : `#${(c >>> 8).toString(16).padStart(6, "0")}`);
 
 export async function renderOurs(shot: Shot): Promise<Grid> {
-  const h = await mountShop({ size: { cols: shot.cols, rows: shot.rows } });
+  const h = await mountShop({ size: { cols: shot.cols, rows: shot.rows }, ...(shot.site ? { site: {}, signedIn: false } : {}) });
   try {
     // A fresh ssh account: nothing saved yet.
     h.api.state.tokens = [];
     h.api.state.user.email = null;
     h.api.state.user.name = null;
+    shot.seed?.(h.api);
     await h.t.waitFor(() => h.store.s.phase === "ready" && !h.screen().includes("terminal ") || h.screen().includes("~ featured ~") || h.screen().includes("is too small"), "ready");
     await h.t.waitFor(() => h.store.s.phase === "ready", "ready");
     await h.t.settle(20);
