@@ -26,6 +26,7 @@
       "dependencies": {
         "@textjs/core": "workspace:*",
         "@textjs/next": "workspace:*",
+        "@textjs/opencode": "workspace:*",
         "@textjs/react": "workspace:*",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
@@ -133,6 +134,13 @@
         "react",
       ],
     },
+    "packages/opencode": {
+      "name": "@textjs/opencode",
+      "version": "1.0.1",
+      "bin": {
+        "textjs-opencode": "bin/textjs-opencode.js",
+      },
+    },
     "packages/react": {
       "name": "@textjs/react",
       "version": "1.0.1",
@@ -158,6 +166,7 @@
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.32.2",
         "@textjs/core": "workspace:*",
+        "@textjs/opencode": "workspace:*",
         "@textjs/react": "workspace:*",
         "@vitejs/plugin-react": "^4.5.2",
         "vite": "^6.3.5",
@@ -439,6 +448,8 @@
     "@textjs/font": ["@textjs/font@workspace:packages/font"],
 
     "@textjs/next": ["@textjs/next@workspace:packages/text"],
+
+    "@textjs/opencode": ["@textjs/opencode@workspace:packages/opencode"],
 
     "@textjs/opencode-console": ["@textjs/opencode-console@workspace:apps/opencode-console"],
 

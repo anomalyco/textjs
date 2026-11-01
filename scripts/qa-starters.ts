@@ -1174,6 +1174,7 @@ async function main(): Promise<number> {
   const tarballs = packPackages(join(work, "pack"), !flag("skip-build"), [
     ["@textjs/core", "packages/core"],
     ["@textjs/react", "packages/react"],
+    ["@textjs/opencode", "packages/opencode"],
     ["@textjs/next", "packages/text"],
     ["@textjs/font", "packages/font"],
     ["create-text-app", "packages/create-text-app"],

@@ -8,6 +8,6 @@
     "jsx": "react-jsx",
     "types": ["node"]
   },
-  "references": [{ "path": "../core" }, { "path": "../react" }],
+  "references": [{ "path": "../core" }, { "path": "../react" }, { "path": "../opencode" }],
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

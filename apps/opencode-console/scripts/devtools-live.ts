@@ -4,7 +4,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { resolve } from "node:path";
-import { startProxy } from "../../../packages/text/src/cli/proxy";
+import { startProxy } from "@textjs/opencode";
 import { startMockOpenCode } from "../test/mock-opencode";
 
 const base = new URL(process.env.BASE!);

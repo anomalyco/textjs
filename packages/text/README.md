@@ -13,7 +13,7 @@ cd my-app && bun install && bun dev
 | `text build` | Optimized console production build + route summary            |
 | `text start` | Serve the production build (static files + route handlers)    |
 | `text run`   | Render the App Router app in a terminal (Bun)                 |
-| `text proxy` | Bridge a local opencode server to textjs.org (CORS, :4096)    |
+| `text proxy` | Bridge textjs.org/opencode to your local OpenCode server; same as `bunx @textjs/opencode proxy` |
 | `text mcp`   | Serve the app headless to coding agents over MCP (stdio)      |
 
 ## Entry points

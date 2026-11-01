@@ -53,6 +53,7 @@ Each frame is laid out with Yoga, run-length encoded into `%c` spans, and writte
 | [`@textjs/react`](packages/react) | Reconciler, components and hooks |
 | [`@textjs/core`](packages/core) | Cell buffer, layout and the `%c` driver |
 | [`create-text-app`](packages/create-text-app) | Project generator |
+| [`@textjs/opencode`](packages/opencode) | Local bridge for textjs.org/opencode |
 
 ## OpenCode
 
@@ -65,7 +66,7 @@ bun run dev:opencode        # From the repo root; no bridge needed
 
 Then open [localhost:3001](http://localhost:3001) and press **⌘⌥J**. Without a server it falls back to a demo.
 
-For the website’s `/opencode` page, run `bunx @textjs/next proxy` from any directory instead. Leave it running, enter `http://127.0.0.1:4096` in the server URL field, click **Connect**, and allow local network access if Chrome asks. The bridge handles CORS and server auth. See [Connecting](apps/opencode-console/README.md#connecting) for foreground servers and port conflicts.
+For the website’s `/opencode` page, run `bunx @textjs/opencode proxy` from any directory instead. Leave it running, enter `http://127.0.0.1:4096` in the server URL field, click **Connect**, and allow local network access if Chrome asks. The bridge handles CORS and server auth. See [Connecting](apps/opencode-console/README.md#connecting) for foreground servers and port conflicts.
 
 ## Development
 

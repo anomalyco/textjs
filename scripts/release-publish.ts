@@ -149,7 +149,8 @@ function main(argv: string[]): number {
 
   function publishOne(p: WorkspacePackage): void {
     console.log(`\n▼ ${p.name}@${version}`);
-    if (!dryRun && alreadyPublished(p.name, version)) {
+    // Dry runs skip too: `npm publish --dry-run` refuses a version that's already on npm.
+    if (alreadyPublished(p.name, version)) {
       console.log("  already on npm, skipping");
       return;
     }
