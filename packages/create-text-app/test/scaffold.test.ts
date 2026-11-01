@@ -122,6 +122,20 @@ describe("create-text-app CLI", () => {
     expect(existsSync(join(tmp, "cli-app/app/deployments/[id]/page.tsx"))).toBe(true);
   });
 
+  test("without a directory, creates my-app (the docs' quickstart says `cd my-app`)", async () => {
+    const cwd = join(tmp, "default-name");
+    mkdirSync(cwd, { recursive: true });
+    const proc = Bun.spawn(["bun", BIN, "--yes"], { cwd, stdout: "pipe", stderr: "pipe", env: { ...process.env, NO_COLOR: "1" } });
+    const [out, code] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
+    expect(code).toBe(0);
+    expect(out).toContain("cd my-app");
+    expect(existsSync(join(cwd, "my-app/app/page.tsx"))).toBe(true);
+    for (const doc of ["README.md", "packages/text/README.md", "apps/web/src/docs/content/installation.md"]) {
+      const text = readFileSync(join(REPO, doc), "utf8");
+      if (text.includes("create-text-app@latest\n")) expect(text).toContain("cd my-app");
+    }
+  });
+
   test("rejects unknown templates", async () => {
     const proc = Bun.spawn(["bun", BIN, "bad-app", "--template", "nextjs", "--yes"], { cwd: tmp, stdout: "pipe", stderr: "pipe", env: { ...process.env, NO_COLOR: "1" } });
     const [err, code] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
