@@ -182,16 +182,185 @@
   background: #000;
 }
 
-.learn-video-frame video {
+.learn-video-frame:focus {
+  outline: none;
+}
+
+.learn-video-player {
+  width: 100%;
+  height: 100%;
+}
+
+.learn-video-player video {
   display: block;
   width: 100%;
   height: 100%;
   background: #000;
 }
 
+/* The mini player: the same <video>, pinned to a corner while its slot (which keeps its size) is out of view. */
+.learn-video-player.floating {
+  position: fixed;
+  right: 20px;
+  /* Stacked above the Console pill (20px from the bottom, 40px tall). */
+  bottom: 72px;
+  z-index: 58;
+  display: flex;
+  flex-direction: column;
+  width: min(clamp(320px, 26vw, 400px), calc(100vw - 40px));
+  height: auto;
+  overflow: hidden;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.85);
+  animation: learn-mini-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.learn-video-player.floating video {
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+.learn-video-player.docking {
+  visibility: hidden;
+}
+
+.learn-video-player.docked {
+  animation: learn-dock-in 0.18s ease-out;
+}
+
+@keyframes learn-dock-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes learn-mini-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.learn-mini-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  padding: 0 4px 0 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.learn-mini-back {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.learn-mini-back span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.learn-mini-back svg {
+  flex: none;
+}
+
+.learn-mini-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.learn-mini-back:hover,
+.learn-mini-btn:hover {
+  color: var(--fg);
+  background: var(--bg-2);
+}
+
+.learn-mini-cc {
+  padding: 0 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.learn-mini-cc[aria-pressed="true"] {
+  color: var(--fg);
+  border-color: var(--line-2);
+  background: var(--bg-2);
+}
+
+/* No Console pill on phones and tablets: the mini player takes its corner. */
+@media (max-width: 640px), (hover: none) and (pointer: coarse) {
+  .learn-video-player.floating {
+    bottom: 16px;
+  }
+}
+
+/* Phones: a compact bar along the bottom, with the video on the left. */
+.learn-video-player.floating.compact {
+  left: 8px;
+  right: 8px;
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  flex-direction: row;
+  align-items: center;
+  width: auto;
+}
+
+.learn-video-player.floating.compact video {
+  flex: none;
+  width: 112px;
+  cursor: pointer;
+}
+
+.learn-video-player.floating.compact .learn-mini-bar {
+  order: 1;
+  flex: 1;
+  min-width: 0;
+  height: 63px;
+  padding: 0 6px 0 4px;
+  border-bottom: 0;
+}
+
+.learn-video-player.floating.compact .learn-mini-btn {
+  min-width: 36px;
+  height: 36px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .learn-video-player.floating,
+  .learn-video-player.docked {
+    animation: none;
+  }
+}
+
 .learn-video figcaption {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   margin-top: 10px;
   font-size: 13px;
@@ -199,10 +368,37 @@
 }
 
 .learn-video-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--mono);
   font-size: 12.5px;
   color: var(--subtle);
   font-variant-numeric: tabular-nums;
+}
+
+.learn-video-cc {
+  height: 22px;
+  margin: -1px 0;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--subtle);
+  font: inherit;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.learn-video-cc:hover {
+  color: var(--fg);
+  border-color: var(--line-2);
+}
+
+.learn-video-cc[aria-pressed="true"] {
+  color: var(--fg);
+  border-color: var(--line-3);
+  background: var(--bg-2);
 }
 
 .learn-live-note kbd {

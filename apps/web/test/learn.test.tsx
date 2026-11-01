@@ -343,6 +343,9 @@ describe("chapter videos", () => {
     const html = renderToStaticMarkup(<ChapterVideo slug="getting-started" title="Getting Started" video={v} />);
     expect(html).toContain('class="learn-video-frame"');
     expect(html).not.toContain("<video");
-    expect(html).toContain("4:00 · narrated · captions");
+    expect(html).toContain("4:00");
+    expect(html).not.toContain("narrated ·");
+    // "Captions" is a real toggle, off until the visitor turns it on.
+    expect(html).toContain('<button type="button" class="learn-video-cc" aria-pressed="false" title="Show captions">Captions</button>');
   });
 });
