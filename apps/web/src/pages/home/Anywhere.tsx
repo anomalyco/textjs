@@ -85,7 +85,7 @@ function AgentPane(): ReactNode {
 
 const TARGETS: Array<{ pane: ReactNode; title: string; cmd: string; body: ReactNode; href: string }> = [
   { pane: <DevToolsPane />, title: "DevTools", cmd: "text dev", body: <>Turbolog writes each frame as <code>%c</code> spans in one <code>console.log</code>.</>, href: "/docs/turbolog-engine" },
-  { pane: <TerminalPane />, title: "Terminal", cmd: "text run", body: <>Renders the same App Router app in truecolor ANSI and runs route handlers in-process.</>, href: "/docs/terminal" },
+  { pane: <TerminalPane />, title: "Terminal", cmd: "text run", body: <><code>text run</code> renders the same App Router app in truecolor ANSI and runs route handlers in-process.</>, href: "/docs/terminal" },
   { pane: <AgentPane />, title: "Coding agents", cmd: "text mcp", body: <>Over MCP, agents navigate routes, press keys and read each frame as plain text.</>, href: "/docs/mcp" },
 ];
 

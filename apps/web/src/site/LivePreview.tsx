@@ -84,7 +84,7 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
 
   const keys = hints ? hints.map((h) => `${h.keys} ${h.label}`).join(" · ") : null;
   const stats = active
-    ? `${keys ? `${keys} · ` : ""}esc back to docs`
+    ? `${keys ? `${keys} · ` : ""}Esc back to docs`
     : keys
       ? keys
       : `${spec?.cols ?? 0}×${spec?.rows ?? 0} · ${sandbox.stats ? `${sandbox.stats.totalMs.toFixed(2)}ms` : "booting Turbolog…"}`;

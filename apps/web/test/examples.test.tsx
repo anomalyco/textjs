@@ -69,7 +69,7 @@ describe("docs examples in the console: companion", () => {
     await site(() => siteStore.activateExample("modal"));
     const f = h.frame();
     expect(f.split("\n")[0]).toContain("▼ Docs › Layout › Modal");
-    expect(f.split("\n")[0]).toContain("esc back to docs");
+    expect(f.split("\n")[0]).toContain("Esc back to docs");
     expect(f).toContain("Commands");
     expect(f).toContain("Switch theme");
     // The open modal consumes the first Esc…
@@ -85,7 +85,7 @@ describe("docs examples in the console: companion", () => {
     await h.key("escape");
     expect(siteStore.getSnapshot().example).toBeNull();
     expect(h.frame()).toContain("/ Search");
-    expect(h.frame()).not.toContain("esc back to docs");
+    expect(h.frame()).not.toContain("Esc back to docs");
   });
 
   test("an unknown example id keeps the Docs view", async () => {
@@ -201,7 +201,7 @@ describe("Home examples in the console: companion", () => {
     await site(() => siteStore.activateExample("table"));
     let f = h.frame();
     expect(f.split("\n")[0]).toContain("▼ Text.js › Components › Table");
-    expect(f.split("\n")[0]).toContain("esc back to counter");
+    expect(f.split("\n")[0]).toContain("Esc back to counter");
     expect(f).toContain("↑↓ move · space select · s sort · ↵ open");
     expect(f).not.toContain("React 19 in console.log");
     // The table's own keys work.
@@ -224,7 +224,7 @@ describe("Home examples in the console: companion", () => {
     expect(siteStore.getSnapshot().example).toBeNull();
     f = h.frame();
     expect(f).toContain("React 19 in console.log");
-    expect(f).not.toContain("esc back to counter");
+    expect(f).not.toContain("Esc back to counter");
   });
 
   test("Home examples stay on Home: a 404 keeps its own view", async () => {
@@ -277,7 +277,7 @@ describe("Home examples in the console: Components section", () => {
     const live = renderToString(<KitSection />);
     expect(live).toContain("Live in your console");
     expect(live).toContain("Back to counter");
-    expect(live).toContain("esc back to counter");
+    expect(live).toContain("Esc back to counter");
     expect(live).toContain("data-console-engage");
     expect(live).not.toContain("data-console-bypass");
   });

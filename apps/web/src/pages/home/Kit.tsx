@@ -142,7 +142,7 @@ export function KitSection(): ReactNode {
               <Preview key={active.id} id={active.id} enabled={inView} active={inConsole} available={available} />
             </div>
             <div className="kit-foot">
-              <span>{inConsole ? `${active.hint} · esc back to counter` : active.hint}</span>
+              <span>{inConsole ? `${active.hint} · Esc back to counter` : active.hint}</span>
               <div className="kit-foot-actions">
                 {inConsole ? (
                   <button type="button" className="preview-run desktop-only" onClick={() => siteStore.exitExample()} title="Show the counter in the console again">
