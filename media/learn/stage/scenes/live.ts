@@ -10,7 +10,7 @@ import type { Box, CaptureStream } from "../types";
  * props: {
  *   url: string,                        // shown in the address bar
  *   open?: cue,                         // DevTools slides up here (needs a `before` still)
- *   shots?: [{ at, target: "window" | "devtools" | "page" | <box>, zoom?, pad? }],
+ *   shots?: [{ at, target: "window" | "devtools" | "page" | <box>, zoom?, pad?, inside? }],  // inside: stay within the window
  *   spots?: [{ at, until, target: <box> }],
  *   keys?: [{ at, label }],             // keycaps on screen when a key is pressed
  *   clicks?: [{ at, target: <box> }],   // a cursor glides to the target and clicks
@@ -100,13 +100,21 @@ export const live: SceneFactory = (data, cue) => {
   };
 
   type Shot = { at: number; cam: Camera };
-  const shotCam = (s: { target: string; zoom?: number; pad?: number }): Camera => {
+  const shotCam = (s: { target: string; zoom?: number; pad?: number; inside?: boolean }): Camera => {
     const b = box(s.target);
     if (!b) return { x: 960, y: 540, zoom: 1 };
     if (s.target === "window") return { x: b.x + b.w / 2, y: b.y + b.h / 2, zoom: s.zoom ?? 1 };
     const pad = s.pad ?? 1.0;
     const zoom = s.zoom ?? Math.min((1920 * 0.8) / (b.w * pad), (1080 * 0.66) / (b.h * pad), 2.6);
-    return { x: b.x + b.w / 2, y: b.y + b.h / 2, zoom };
+    const cam = { x: b.x + b.w / 2, y: b.y + b.h / 2, zoom };
+    // `inside`: keep the view within the browser window (for targets near its edge).
+    if (s.inside) {
+      const hw = 960 / zoom;
+      const hh = 540 / zoom;
+      cam.x = clamp(cam.x, x0 + hw, x0 + width - hw);
+      cam.y = clamp(cam.y, y0 + hh, y0 + winH - hh);
+    }
+    return cam;
   };
   const shots: Shot[] = [{ at: -10, cam: shotCam({ target: "window" }) }, ...((p.shots ?? []) as Array<{ at: string; target: string; zoom?: number; pad?: number }>).map((s) => ({ at: cue(s.at), cam: shotCam(s) }))];
   const SHOT = 1.4;
