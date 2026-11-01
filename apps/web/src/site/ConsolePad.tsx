@@ -26,6 +26,8 @@ export interface ConsolePadProps {
   action: string;
   /** Above the message, in a fixed-height slot (`.pad-slot-top`). */
   top?: ReactNode;
+  /** The first row of the message, in a fixed-height slot (`.pad-slot-banner`) that every demo reserves, filled or not. */
+  banner?: ReactNode;
   /** Below the message, in a fixed-height slot (`.pad-slot-bottom`). */
   children?: ReactNode;
 }
@@ -38,7 +40,7 @@ export interface ConsolePadProps {
  * message sits in a fixed frame (styles.css, "Focus pad"), so switching between
  * the pages, or the OpenCode connection resolving, never moves anything.
  */
-export function ConsolePad({ hints, action, top, children }: ConsolePadProps): ReactNode {
+export function ConsolePad({ hints, action, top, banner, children }: ConsolePadProps): ReactNode {
   const root = useCompanionRoot();
   const site = useSite();
   return (
@@ -50,6 +52,7 @@ export function ConsolePad({ hints, action, top, children }: ConsolePadProps): R
         capturing={site.consoleInput}
         onActivate={() => getCompanion()?.activate()}
         top={<div className="pad-slot pad-slot-top">{top}</div>}
+        banner={<div className="pad-slot pad-slot-banner">{banner}</div>}
         className="pad"
         sizeControl
       >

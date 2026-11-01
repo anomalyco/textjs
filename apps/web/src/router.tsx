@@ -12,7 +12,7 @@ export type Route =
   | { name: "docs"; slug: string }
   | { name: "playground"; preset: PresetId }
   | { name: "opencode" }
-  | { name: "terminal" }
+  | { name: "coffee" }
   | { name: "learn"; slug: string }
   | { name: "errors" }
   | { name: "error"; code: string }
@@ -41,7 +41,7 @@ export function matchRoute(pathname: string): Route {
   const preset = presetForPath(p);
   if (preset) return { name: "playground", preset };
   if (p === "/opencode") return { name: "opencode" };
-  if (p === "/terminal") return { name: "terminal" };
+  if (p === "/coffee") return { name: "coffee" };
   const learn = learnRoute(p);
   if (learn) return learn;
   if (p === "/errors") return { name: "errors" };
@@ -61,9 +61,6 @@ export function matchRoute(pathname: string): Route {
   if (p === "/status") return { name: "status" };
   const merch = merchRoute(p);
   if (merch) return merch;
-  // Retired paths render their new page until the router swaps the URL.
-  const to = REDIRECTS[p];
-  if (to) return matchRoute(to);
   return { name: "not-found" };
 }
 
@@ -82,7 +79,7 @@ export function titleFor(route: Route): string {
     }
     case "opencode":
       return `OpenCode in the Console | ${suffix}`;
-    case "terminal":
+    case "coffee":
       return `terminal.shop in the Console | ${suffix}`;
     case "learn":
       return learnTitle(route.slug);
@@ -127,34 +124,12 @@ function emit(): void {
 }
 
 function setLocation(pathname: string, hash: string): void {
-  let p = normalizePath(pathname);
-  const to = REDIRECTS[p];
-  if (to && hasWindow) {
-    window.history.replaceState(null, "", `${to}${hash}`);
-    p = to;
-  }
-  current = { pathname: p, hash, key: current.key + 1 };
+  current = { pathname: normalizePath(pathname), hash, key: current.key + 1 };
   siteStore.syncRoute(current.pathname);
   emit();
 }
 
-/**
- * Retired paths and where they live now. Showcase was folded into the Playground; Counter and Form
- * left its picker, and the first demo lives at /playground itself.
- */
-export const REDIRECTS: Readonly<Record<string, string>> = {
-  "/showcase": "/playground",
-  "/playground/dashboard": "/playground",
-  "/playground/counter": "/playground",
-  "/playground/form": "/playground",
-};
-
 if (hasWindow) {
-  const to = REDIRECTS[current.pathname];
-  if (to) {
-    window.history.replaceState(null, "", `${to}${window.location.search}${window.location.hash}`);
-    current = { ...current, pathname: to };
-  }
   siteStore.syncRoute(current.pathname);
   window.addEventListener("popstate", () => setLocation(window.location.pathname, window.location.hash));
 }

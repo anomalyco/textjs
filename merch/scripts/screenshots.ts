@@ -9,7 +9,7 @@ import { chromium } from "playwright-core";
 const base = process.env.BASE ?? "http://localhost:4173";
 const out = join(import.meta.dir, "..", "screenshots");
 mkdirSync(out, { recursive: true });
-const routes = process.argv.slice(2).length ? process.argv.slice(2) : ["/merch", "/merch/frame-tee", "/merch/cap"];
+const routes = process.argv.slice(2).length ? process.argv.slice(2) : ["/merch", "/merch/console-tee", "/merch/console-cap"];
 const full = process.env.FULL === "1";
 
 const browser = await chromium.launch({ headless: true });
@@ -18,6 +18,9 @@ for (const [w, h, scale] of [
   [390, 844, 2],
 ] as const) {
   const context = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: scale, isMobile: w < 500, hasTouch: w < 500 });
+  // Only the preview port: never reach another local server (an OpenCode bridge, dev servers).
+  const port = new URL(base).port;
+  await context.route((url) => /^(127\.0\.0\.1|localhost|\[::1\])$/.test(url.hostname) && url.port !== port, (r) => r.abort());
   for (const r of routes) {
     const page = await context.newPage();
     await page.goto(`${base}${r}`, { waitUntil: "networkidle" });

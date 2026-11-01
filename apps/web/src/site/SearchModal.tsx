@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { siteStore } from "../console-companion/store";
 import { docPath, searchDocs } from "../docs/registry";
 import { navigate } from "../router";
 import { SearchIcon } from "./icons";
@@ -12,7 +13,7 @@ const PAGES: Item[] = [
   { key: "p:/docs", group: "Pages", label: "Documentation", sub: "/docs", href: "/docs" },
   { key: "p:/playground", group: "Pages", label: "Playground", sub: "/playground", href: "/playground" },
   { key: "p:/opencode", group: "Pages", label: "OpenCode in the Console", sub: "Playground · /opencode", href: "/opencode" },
-  { key: "p:/terminal", group: "Pages", label: "Coffee from terminal.shop", sub: "Playground · /terminal", href: "/terminal" },
+  { key: "p:/coffee", group: "Pages", label: "Coffee from terminal.shop", sub: "Playground · /coffee", href: "/coffee" },
 ];
 
 const openListeners = new Set<(open: boolean) => void>();
@@ -34,6 +35,8 @@ export function SearchModal(): ReactNode {
     openListeners.add(l);
     const onKey = (e: KeyboardEvent): void => {
       if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "k") {
+        // An example running in the console keeps the Ctrl+K it received (its command palette); ⌘K still searches.
+        if (e.defaultPrevented && siteStore.getSnapshot().example !== null) return;
         e.preventDefault();
         setOpen((v) => !v);
       }

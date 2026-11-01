@@ -55,6 +55,8 @@ await page.goto(`${base}/playground`);
 await settle(1200);
 check("playground pad starts in 'open' state", (await padState()) === "open", await padState());
 check("picker: five demos, OpenCode and Coffee last", (await page.locator(".pad-picker a").allTextContents()).join("|") === "Dashboard|Streaming|Snake|OpenCode|Coffee", (await page.locator(".pad-picker a").allTextContents()).join("|"));
+check("picker pills are words only", (await page.locator(".pad-picker svg").count()) === 0);
+const wordmark = () => page.evaluate(() => document.querySelector(".tx-pad-desk .pad-slot-banner svg")?.getAttribute("aria-label") ?? null);
 check("/playground opens on Dashboard", (await picked()) === "Dashboard", await picked());
 check("no on-page TUI mirror", (await page.locator("[data-textjs-mirror]").count()) === 0);
 const before0 = await last();
@@ -80,10 +82,12 @@ check("pad is live after keystrokes", (await padState()) === "live", await padSt
 await picker("OpenCode").click();
 await settle(800);
 check("OpenCode: picked at /opencode with the connection panel", path() === "/opencode" && (await picked()) === "OpenCode" && (await page.locator(".pad-connect").count()) === 1, page.url());
+check("OpenCode: its wordmark leads the message", (await wordmark()) === "OpenCode", await wordmark());
 check("OpenCode: the console switches without a reload, keys still routed", (await last()).includes("Ask anything") && (await padState()) === "live", await last());
 await picker("Coffee").click();
 await settle(800);
-check("Coffee: picked at /terminal with the terminal.shop note", path() === "/terminal" && (await picked()) === "Coffee" && (await page.locator(".pad-note").innerText()).includes("terminal.shop"), page.url());
+check("Coffee: picked at /coffee with the terminal.shop note", path() === "/coffee" && (await picked()) === "Coffee" && (await page.locator(".pad-note").innerText()).includes("terminal.shop"), page.url());
+check("Coffee: terminal.shop's wordmark leads the message", (await wordmark()) === "terminal.shop", await wordmark());
 await page.goBack();
 await settle(800);
 check("back: OpenCode again", path() === "/opencode" && (await picked()) === "OpenCode" && (await last()).includes("Ask anything"), page.url());
@@ -97,11 +101,14 @@ check("forward: OpenCode", path() === "/opencode" && (await picked()) === "OpenC
 await page.goto(`${base}/playground/snake`);
 await settle(1000);
 check("/playground/snake deep link picks Snake", (await picked()) === "Snake" && (await last()).includes("score"), await picked());
-for (const old of ["/playground/counter", "/playground/form", "/playground/dashboard", "/playground?demo=form"]) {
-  await page.goto(`${base}${old}`);
-  await settle(800);
-  check(`${old} falls back to Dashboard`, path() === "/playground" && (await picked()) === "Dashboard" && (await last()).includes("Requests / s"), `${page.url()} ${await picked()}`);
+// The site hasn't launched, so paths that never shipped are plain 404s: no redirects.
+for (const gone of ["/playground/counter", "/playground/form", "/playground/dashboard", "/showcase", "/terminal"]) {
+  await page.goto(`${base}${gone}`);
+  await settle(600);
+  check(`${gone} is a 404`, path() === gone && (await page.locator(".notfound").count()) === 1 && (await page.locator(".pad-picker").count()) === 0, page.url());
 }
+await page.goto(`${base}/playground`);
+await settle(1000);
 
 // Console size control: a preset pins the grid (and persists), "Fit console" follows DevTools again.
 const grid = (frame) => {
@@ -156,9 +163,6 @@ await settle(600);
 const restarted = await last();
 check("OpenCode: Restart repaints it and routes keys again", (await page.getAttribute(".pad-connect", "data-status")) === "sandbox" && (await padState()) === "live" && (await page.evaluate(() => window.__frames.length)) > framesAtExit && restarted.includes("Claude Opus") && !restarted.includes("/exit"), `${await page.getAttribute(".pad-connect", "data-status")} ${await padState()}\n${restarted.split("\n").slice(-12).join("\n")}`);
 
-await page.goto(`${base}/showcase`);
-await settle(500);
-check("/showcase redirects to /playground", new URL(page.url()).pathname === "/playground", page.url());
 
 await page.goto(`${base}/`);
 await settle(1000);

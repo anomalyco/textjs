@@ -12,44 +12,53 @@ import { Footer } from "../src/site/Chrome";
 
 const ROOT = join(import.meta.dir, "..");
 
-describe("/terminal", () => {
+describe("/coffee (terminal.shop)", () => {
   afterAll(() => resetLocation("/"));
 
   test("route, title, companion tab and the 80 × 30 console", () => {
-    expect(matchRoute("/terminal")).toEqual({ name: "terminal" });
-    expect(matchRoute("/terminal/")).toEqual({ name: "terminal" });
+    expect(matchRoute("/coffee")).toEqual({ name: "coffee" });
+    expect(matchRoute("/coffee/")).toEqual({ name: "coffee" });
+    // Only the OAuth callback and the API live under /terminal, and they're Pages Functions.
+    expect(matchRoute("/terminal")).toEqual({ name: "not-found" });
     expect(matchRoute("/terminal/callback")).toEqual({ name: "not-found" });
-    expect(titleFor({ name: "terminal" })).toBe("terminal.shop in the Console | Text.js");
-    expect(tabForPath("/terminal")).toBe("terminal");
-    expect(isPadRoute("/terminal")).toBe(true);
-    expect(isPadRoute("/terminals")).toBe(false);
+    expect(titleFor({ name: "coffee" })).toBe("terminal.shop in the Console | Text.js");
+    expect(tabForPath("/coffee")).toBe("terminal");
+    expect(tabForPath("/terminal")).toBe("home");
+    expect(isPadRoute("/coffee")).toBe(true);
+    expect(isPadRoute("/coffees")).toBe(false);
+    expect(isPadRoute("/terminal")).toBe(false);
     expect(viewportLimitsFor("terminal")).toEqual({ minCols: 80, maxCols: 80, minRows: 30, maxRows: 30, fallbackCols: 80, fallbackRows: 30 });
     siteStore.set({ consoleInput: true });
-    siteStore.syncRoute("/terminal");
+    siteStore.syncRoute("/coffee");
     expect(siteStore.getSnapshot().consoleInput).toBe(true);
     siteStore.syncRoute("/");
   });
 
   test("the Playground's last demo, prerendered with Coffee picked", async () => {
-    const html = renderToStaticMarkup(<RouteView route={{ name: "terminal" }} />);
+    const html = renderToStaticMarkup(<RouteView route={{ name: "coffee" }} />);
     expect(html).toContain("data-textjs-focus-pad");
-    expect(html).toContain('<a href="/terminal" title="The terminal.shop storefront" aria-current="page"><svg class="brand-mark"');
+    expect(html).toContain('<a href="/coffee" title="The terminal.shop storefront" aria-current="page">Coffee</a>');
+    // terminal.shop's wordmark leads the message, on desktop and in the touch notice.
+    expect(html.match(/<svg class="wordmark-terminal" role="img" aria-label="terminal.shop" width="132" height="32" viewBox="0 0 744 180"/g)?.length).toBe(2);
     expect(html).toContain('fill="#FF5C00"');
     expect(html).toContain(">Coffee</a></nav>");
     expect(html).not.toContain("View source");
     expect(html).toContain("Then click here and press ↑ ↓ to browse.");
     expect(html).toContain("no API key needed");
     expect(html).toContain("Open on a desktop");
-    expect(ROUTES.find((r) => r.path === "/terminal")?.description).toContain("terminal.shop");
-    const pre = await render("/terminal");
-    expect(pre).toContain('aria-current="page"><svg class="brand-mark" width="16" height="15" viewBox="31 29 237 243"');
+    expect(ROUTES.find((r) => r.path === "/coffee")?.description).toContain("terminal.shop");
+    expect(ROUTES.some((r) => r.path.startsWith("/terminal"))).toBe(false);
+    const pre = await render("/coffee");
+    expect(pre).toContain('<div class="pad-slot pad-slot-banner"><svg class="wordmark-terminal"');
     expect(pre).toContain("no API key needed");
     expect(pre).not.toContain("<!--$?-->");
   });
 
-  test("sitemap and footer link", () => {
-    expect(readFileSync(join(ROOT, "public/sitemap.xml"), "utf8")).toContain("<loc>https://textjs.org/terminal</loc>");
-    expect(renderToStaticMarkup(<Footer />)).toContain('href="/terminal"');
+  test("sitemap, and no footer link (the Playground picker has it)", () => {
+    const sitemap = readFileSync(join(ROOT, "public/sitemap.xml"), "utf8");
+    expect(sitemap).toContain("<loc>https://textjs.org/coffee</loc>");
+    expect(sitemap).not.toContain("textjs.org/terminal<");
+    expect(renderToStaticMarkup(<Footer />)).not.toContain('href="/coffee"');
   });
 
   test("callback params: where to resume and what went wrong", () => {

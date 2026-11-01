@@ -1,4 +1,4 @@
-# 006 Notebook (later drop)
+# 014 Notebook (later drop)
 
 An A5 hardcover notebook with the ▼ blind-debossed on the cover.
 

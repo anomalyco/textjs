@@ -25,7 +25,7 @@ export interface Narration {
  * first. Chapters add their own with `pronounce`.
  */
 export const PRONOUNCE: Record<string, string> = {
-  "Text.js": "Text JS",
+  "Text.js": "TextJS",
   "console.log": "console dot log",
   "%c": "percent C",
   "⌘⌥J": "Command Option J",

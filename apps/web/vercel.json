@@ -5,10 +5,6 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "redirects": [
-    { "source": "/showcase", "destination": "/playground", "permanent": true },
-    { "source": "/playground/dashboard", "destination": "/playground", "permanent": true },
-    { "source": "/playground/counter", "destination": "/playground", "permanent": true },
-    { "source": "/playground/form", "destination": "/playground", "permanent": true },
     { "source": "/docs/app", "destination": "/docs", "permanent": true },
     { "source": "/docs/app/getting-started", "destination": "/docs", "permanent": true },
     { "source": "/docs/app/getting-started/installation", "destination": "/docs/installation", "permanent": true },

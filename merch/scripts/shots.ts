@@ -1,5 +1,6 @@
 /**
- * The store's photographs: each shot is a generated blank (scripts/photos.ts) with the real artwork
+ * Photos for the Keycap Set and Notebook (the rest of the collection is in scripts/collection.ts).
+ * Each shot is a generated blank (scripts/photos.ts) with the real artwork
  * composited at the position and size from the tech packs. Placements are measured on the cached
  * high-quality blanks with scripts/grid.ts; regenerating a blank means re-measuring its shot.
  *
@@ -101,13 +102,8 @@ const fit = (src: [Point, Point, Point], dst: Quad, feather: number): Layer[] =>
   return [{ svg: "", quad: dst, mode: "fit", src, dst: [tl, tr, apex], feather }];
 };
 const FITS: Record<string, Layer[]> = {
-  "hoodie-1": fit([[482.8, 595.4], [522.3, 595.1], [501.8, 629.4]], rect(502, 516 + 4 * 20.4 + (1.53 * 20.4) / 2, 1.75 * 20.4, 1.53 * 20.4), 3),
-  "hoodie-2": fit([[484.4, 583.1], [522.0, 582.5], [502.7, 618.2]], rect(502, 586 + 14.5, 33.3, 29.1), 3),
-  "hoodie-3": fit([[238, 523], [793, 523], [513, 995]], rect(512, 768, 560, 490), 24),
-  "cap-1": fit([[389.6, 642], [539.6, 660], [441.4, 773.4]], [[385.9, 636.6], [545.1, 653.4], [525.5, 792.0], [366.3, 775.2]], 6),
   "notebook-1": fit([[524.6, 616], [598.9, 628.6], [551.4, 684.6]], sub([[362, 342], [847, 419], [750, 1117], [204, 1037]], 61.5 / 145, 78 / 210, 83.5 / 145, 97.25 / 210), 4),
   "notebook-2": fit([[180.9, 582.3], [599.1, 585.7], [386.5, 933.7]], rect(390, 768, 420, 367), 18),
-  "cap-3": fit([[245, 541], [769, 541], [517, 970]], rect(512, 768, 520, 455), 24),
 };
 
 const flatMark = (): string => svgDoc(20, 20 * MARK_RATIO, `<path d="${mark(0, 0, 20)}" fill="#1b1b1c"/>`, "mark");
@@ -121,138 +117,6 @@ function embroideryPrompt(fabric: string, orientation = "It points straight down
 }
 
 export const SHOTS: Shot[] = [
-  // ── 001 Frame Tee ──
-  {
-    name: "frame-tee-1",
-    base: "tee-pair",
-    cropY: 120,
-    layers: () => {
-      // Back tee: 21.3 px/in, back neck seam y 349, centre x 640. Front tee: 21.2 px/in, front neck seam y 655, centre x 411.
-      const back = artFile("frame-tee-back.svg");
-      const front = artFile("frame-tee-front.svg");
-      return [
-        { ...print, svg: back, quad: placed(back, 640, 349, 3, 21.3) },
-        { ...print, svg: front, quad: placed(front, 411, 655, 3, 21.2) },
-      ];
-    },
-  },
-  {
-    name: "frame-tee-2",
-    base: "tee-back",
-    cropY: 130,
-    layers: () => {
-      const back = artFile("frame-tee-back.svg");
-      return [{ ...print, svg: back, quad: placed(back, 511, 397, 3, 25.7) }];
-    },
-  },
-  {
-    name: "frame-tee-3",
-    base: "tee-front",
-    cropY: 130,
-    layers: () => {
-      const front = artFile("frame-tee-front.svg");
-      return [{ ...print, svg: front, quad: placed(front, 511, 496, 3, 25.7) }];
-    },
-  },
-  {
-    name: "frame-tee-4",
-    base: "tee-detail",
-    cropY: 128,
-    layers: () => {
-      // Close-up: 12 in of print at 1700 px, the block-letter title centred in the crop.
-      const back = artFile("frame-tee-back.svg");
-      const w = 1700;
-      const h = (w * 208.41) / 304.8;
-      const left = 512 - (w * 52.5) / 104;
-      const top = 640 - (h * 11.5) / 32;
-      return [{ ...print, displace: 1.2, texture: 0.7, svg: back, quad: [[left, top], [left + w, top], [left + w, top + h], [left, top + h]] }];
-    },
-  },
-  {
-    name: "frame-tee-5",
-    base: "tee-label",
-    cropY: 128,
-    layers: () => {
-      const label = artFile("neck-label.svg");
-      return [{ ...print, opacity: 0.9, displace: 0.8, texture: 0.8, svg: label, quad: rect(512, 445 + 103, 330, 206) }];
-    },
-  },
-  // ── 002 Hoodie ──
-  {
-    name: "hoodie-1",
-    base: "hoodie-front",
-    cropY: 110,
-    // 20.4 px/in, front neck seam y 516: ▼ 1.75 in wide, top 4 in below the seam.
-    refine: { fabric: "black heavyweight cotton fleece hoodie", quad: rect(502, 516 + 4 * 20.4 + (1.53 * 20.4) / 2, 1.75 * 20.4, 1.53 * 20.4) },
-    layers: () => FITS["hoodie-1"] ?? [],
-  },
-  {
-    name: "hoodie-2",
-    base: "hoodie-flat",
-    cropY: 120,
-    refine: { fabric: "black heavyweight cotton fleece hoodie", quad: rect(502, 586 + 14.5, 33.3, 29.1) },
-    layers: () => FITS["hoodie-2"] ?? [],
-  },
-  {
-    name: "hoodie-3",
-    base: "fleece-macro",
-    cropY: 200,
-    refine: { fabric: "black heavyweight cotton fleece sweatshirt", quad: rect(512, 768, 560, 490) },
-    layers: () => FITS["hoodie-3"] ?? [],
-  },
-  // ── 003 Cap ──
-  {
-    name: "cap-1",
-    base: "cap-front-2",
-    cropY: 140,
-    // Straddling the front seam, apex 0.6 in above the brim seam, at about 100 px/in: the top edge follows the
-    // brim seam (6° down to the right) and the axis leans 8° with the front seam.
-    refine: { fabric: "black cotton chino twill cap", quad: [[385.9, 636.6], [545.1, 653.4], [525.5, 792.0], [366.3, 775.2]], orientation: "Its top edge follows the brim seam and its point follows the cap's front center seam, so it leans slightly with the cap." },
-    layers: () => FITS["cap-1"] ?? [],
-  },
-  {
-    name: "cap-2",
-    base: "cap-back",
-    cropY: 170,
-    layers: () => {
-      const label = artFile("cap-back.svg").replace(/#111111/g, "#121213");
-      return [{ svg: label, quad: [[208, 748], [452, 732], [452, 772], [208, 790]], mode: "embroidery", stitches: stitches(), stitchPx: 1.2, relief: 1, color: "#151516" }];
-    },
-  },
-  {
-    name: "cap-3",
-    base: "twill-macro",
-    cropY: 128,
-    refine: { fabric: "black cotton chino twill cap", quad: rect(512, 768, 520, 455) },
-    layers: () => FITS["cap-3"] ?? [],
-  },
-  // ── 004 Sticker Sheet ──
-  {
-    name: "stickers-1",
-    base: "sticker-sheet",
-    cropY: 128,
-    layers: () => {
-      const sheet = clean(artFile("sticker-sheet.svg")).replace(/<rect id="background"[^>]*\/>/, "");
-      return [{ svg: sheet, quad: [[301, 373], [809, 431], [730, 1168], [198, 1101]], mode: "print", opacity: 1, displace: 0, shade: 0.5, texture: 0.15, gloss: 0.6 }];
-    },
-  },
-  {
-    name: "stickers-2",
-    base: "sticker-laptop",
-    cropY: 128,
-    layers: () => {
-      // Lid 52–971 × 439–1062 px for a 304 mm lid: 3.02 px/mm. Stickers cut from the sheet artwork with their white border.
-      const sheet = clean(artFile("sticker-sheet.svg")).replace(/<rect id="background"[^>]*\/>/, "");
-      const crop = (x: number, y: number, w: number, h: number): string => sheet.replace(/viewBox="0 0 [\d.]+ [\d.]+"/, `viewBox="${x} ${y} ${w} ${h}"`).replace(/width="[^"]*mm" height="[^"]*mm"/, `width="${w}mm" height="${h}mm"`);
-      const s = 3.02;
-      const sticker = { mode: "print" as const, opacity: 1, displace: 0, shade: 0.7, texture: 0.08, gloss: 0.3 };
-      return [
-        { ...sticker, svg: crop(39, 13, 70, 62), quad: rect(700, 690, 70 * s, 62 * s, -7) },
-        { ...sticker, svg: crop(29, 85, 90, 30), quad: rect(330, 860, 90 * s, 30 * s, 3) },
-        { ...sticker, svg: crop(16.9, 166.9, 32.2, 32.2), quad: rect(440, 640, 32.2 * s, 32.2 * s, -12) },
-      ];
-    },
-  },
   // ── 005 Keycaps ──
   {
     name: "keycaps-1",

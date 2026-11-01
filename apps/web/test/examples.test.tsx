@@ -5,9 +5,10 @@ import { extractStyledFrame, type StyledFrame } from "@textjs/core";
 import { CompanionApp } from "../src/console-companion/App";
 import { viewportLimitsFor } from "../src/console-companion/boot";
 import { SiteStore, siteStore } from "../src/console-companion/store";
-import { exampleFrame, exampleGrid, exampleHeader } from "../src/console-companion/tabs/ExampleTab";
+import { exampleFrame, exampleGrid, exampleHeader, HOME_EXAMPLE_GRID, homeExampleHeader, isHomeExampleFrame } from "../src/console-companion/tabs/ExampleTab";
 import { PREVIEWS } from "../src/docs/previews";
 import { LivePreview } from "../src/site/LivePreview";
+import { KitSection } from "../src/pages/home/Kit";
 import { mount, type Harness } from "./helpers";
 
 async function site(fn: () => void): Promise<void> {
@@ -143,5 +144,141 @@ describe("docs examples in the console: page preview", () => {
     const other = renderToString(<LivePreview id="scrollbox" code="<ScrollBox />" language="tsx" />);
     expect(other).toContain("Run in console");
     expect(other).toContain("data-console-bypass");
+  });
+});
+
+describe("Home examples in the console: store", () => {
+  test("the Components section hands its tab to the console and switches with it; Esc-style exits return to Home", () => {
+    const s = new SiteStore();
+    s.syncRoute("/");
+    s.activateExample("table");
+    expect(s.getSnapshot()).toMatchObject({ tab: "home", example: "table", consoleInput: true });
+    s.activateExample("charts");
+    expect(s.getSnapshot().example).toBe("charts");
+    // A stale exit from the previous tab is ignored; an exit without an id always returns.
+    s.exitExample("table");
+    expect(s.getSnapshot().example).toBe("charts");
+    s.exitExample();
+    expect(s.getSnapshot()).toMatchObject({ tab: "home", example: null, consoleInput: false });
+  });
+
+  test("leaving Home returns the console to the next page's view", () => {
+    const s = new SiteStore();
+    s.syncRoute("/");
+    s.activateExample("keymap");
+    s.syncRoute("/");
+    expect(s.getSnapshot().example).toBe("keymap");
+    s.syncRoute("/docs/keyboard");
+    expect(s.getSnapshot()).toMatchObject({ tab: "docs", example: null });
+  });
+
+  test("Home examples get the Components stage's grid plus one header row", () => {
+    expect(exampleGrid("keymap", "home")).toEqual({ cols: HOME_EXAMPLE_GRID.cols, rows: HOME_EXAMPLE_GRID.rows + 1 });
+    expect(viewportLimitsFor("home", "table")).toMatchObject({ minCols: 76, maxCols: 76, minRows: 17, maxRows: 17 });
+    expect(viewportLimitsFor("home", null)).toMatchObject({ maxCols: 100, maxRows: 26 });
+    expect(viewportLimitsFor("home", "nope")).toMatchObject({ maxCols: 100 });
+    // Other pages never run examples.
+    expect(viewportLimitsFor("blog", "table")).toMatchObject({ maxCols: 200 });
+  });
+});
+
+describe("Home examples in the console: companion", () => {
+  let h: Harness | undefined;
+  beforeEach(async () => {
+    await site(() => siteStore.reset());
+  });
+  afterEach(async () => {
+    await h?.unmount();
+    h = undefined;
+    await site(() => siteStore.reset());
+  });
+
+  test("runs the selected Components tab instead of the counter, and Esc returns to the counter", async () => {
+    await site(() => siteStore.syncRoute("/"));
+    h = await mount(<CompanionApp />, { cols: 104, rows: 32, tabFocus: false });
+    expect(h.frame()).toContain("React 19 in console.log");
+
+    await site(() => siteStore.activateExample("table"));
+    let f = h.frame();
+    expect(f.split("\n")[0]).toContain("▼ Text.js › Components › Table");
+    expect(f.split("\n")[0]).toContain("esc back to counter");
+    expect(f).toContain("↑↓ move · space select · s sort · ↵ open");
+    expect(f).not.toContain("React 19 in console.log");
+    // The table's own keys work.
+    await h.key("return");
+    expect(h.frame()).toMatch(/opened \w+/);
+
+    // Switching tabs on the page switches the console.
+    await site(() => siteStore.activateExample("controls"));
+    f = h.frame();
+    expect(f.split("\n")[0]).toContain("Components › Controls");
+    expect(f).toContain("Web Analytics");
+    // Tab moves focus between controls, as in the in-page sandbox: Space now toggles the switch.
+    const edge = (): string | undefined => h?.frame().split("\n").find((l) => l.includes("Edge runtime"));
+    const before = edge();
+    await h.key("tab");
+    await h.key("space");
+    expect(edge()).not.toBe(before);
+    expect(h.frame()).toContain("[✓] Web Analytics");
+    await h.key("escape");
+    expect(siteStore.getSnapshot().example).toBeNull();
+    f = h.frame();
+    expect(f).toContain("React 19 in console.log");
+    expect(f).not.toContain("esc back to counter");
+  });
+
+  test("Home examples stay on Home: a 404 keeps its own view", async () => {
+    await site(() => siteStore.syncRoute("/nope"));
+    await site(() => siteStore.activateExample("table"));
+    h = await mount(<CompanionApp />, { cols: 104, rows: 32, tabFocus: false });
+    expect(h.frame()).not.toContain("Components › Table");
+  });
+
+  test("the Components mirror shows exactly the in-page sandbox's cells; the hero skips those frames", async () => {
+    await site(() => siteStore.syncRoute("/"));
+    h = await mount(<CompanionApp />, { cols: 104, rows: 32, tabFocus: false });
+    h.frame();
+    const homeFrame = extractStyledFrame(h.root.renderer.buffer);
+    expect(isHomeExampleFrame(homeFrame)).toBe(false);
+    expect(exampleFrame(homeFrame, homeExampleHeader("table"), "table", "home")).toBeNull();
+
+    await site(() => siteStore.activateExample("table"));
+    h.frame();
+    const companion = extractStyledFrame(h.root.renderer.buffer);
+    expect(isHomeExampleFrame(companion)).toBe(true);
+    const mirrored = exampleFrame(companion, homeExampleHeader("table"), "table", "home");
+    expect(mirrored?.height).toBe(HOME_EXAMPLE_GRID.rows);
+    await h.unmount();
+
+    const { cols, rows } = HOME_EXAMPLE_GRID;
+    h = await mount((PREVIEWS.table as { render: () => React.ReactNode }).render(), { cols, rows, tabFocus: false });
+    h.frame();
+    const standalone = extractStyledFrame(h.root.renderer.buffer);
+    const crop = (fr: StyledFrame): string =>
+      text(fr)
+        .split("\n")
+        .map((l) => [...l].slice(0, cols).join("").trimEnd())
+        .join("\n");
+    expect(crop(mirrored as StyledFrame)).toBe(crop(standalone));
+  });
+});
+
+describe("Home examples in the console: Components section", () => {
+  afterEach(() => siteStore.reset());
+
+  test("offers Run in console, and mirrors the console while its tab runs there", () => {
+    siteStore.syncRoute("/");
+    const idle = renderToString(<KitSection />);
+    expect(idle).toContain("Run in console");
+    expect(idle).not.toContain("Live in your console");
+    expect(idle).toContain("data-console-bypass");
+
+    siteStore.activateExample("table");
+    const live = renderToString(<KitSection />);
+    expect(live).toContain("Live in your console");
+    expect(live).toContain("Back to counter");
+    expect(live).toContain("esc back to counter");
+    expect(live).toContain("data-console-engage");
+    expect(live).not.toContain("data-console-bypass");
   });
 });

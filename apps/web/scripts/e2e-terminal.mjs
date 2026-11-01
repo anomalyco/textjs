@@ -1,5 +1,6 @@
-// Headless E2E for /terminal (the Playground's Coffee demo) on `wrangler pages dev` (the real Pages
-// Functions): browse signed out → sign in through the OAuth redirect → add to cart with keys.
+// Headless E2E for /coffee (the Playground's terminal.shop demo) on `wrangler pages dev` (the real
+// Pages Functions): browse signed out → sign in through the OAuth redirect (registered as
+// /terminal/callback, landing back on /coffee) → add to cart with keys.
 //
 //   bun scripts/terminal-mock.ts --port 8790 &
 //   bunx wrangler pages dev dist --port 8788 --compatibility-date 2026-10-01 \
@@ -73,11 +74,11 @@ const clickPad = async () => {
   await settle(300);
 };
 
-await page.goto(`${base}/terminal`);
+await page.goto(`${base}/coffee`);
 check("prerendered pad", (await page.locator("[data-textjs-focus-pad]").count()) === 1);
-check("footer links to /terminal", (await page.locator('footer a[href="/terminal"]').count()) === 1);
+check("no footer link: the Playground picker reaches it", (await page.locator('footer a[href="/coffee"]').count()) === 0);
 const picked = () => page.evaluate(() => document.querySelector('.pad-picker [aria-current="page"]')?.textContent);
-check("/terminal opens the Playground with Coffee picked", (await picked()) === "Coffee", await picked());
+check("/coffee opens the Playground with Coffee picked", (await picked()) === "Coffee", await picked());
 await clickPad();
 const shop = await until("~ featured ~");
 check("signed out: the shop loads public products", shop !== null, await last());
@@ -88,7 +89,7 @@ const prompt = await until("sign in to add coffee to your cart");
 check("adding to the cart asks you to sign in", prompt !== null, await last());
 check("sign in screen offers Terminal OAuth, no API key", (await last()).includes("sign in with terminal (oauth 2.0)") && (await last()).includes("no api key needed"), await last());
 
-const signedInNav = page.waitForURL((u) => u.pathname === "/terminal" && authorizeUrls.length > 0, { timeout: 10000 }).catch(() => null);
+const signedInNav = page.waitForURL((u) => u.pathname === "/coffee" && authorizeUrls.length > 0, { timeout: 10000 }).catch(() => null);
 await press("Enter");
 await (realAuth ? page.waitForTimeout(1500) : signedInNav);
 const authorize = authorizeUrls[0] ? new URL(authorizeUrls[0]) : null;
@@ -101,7 +102,7 @@ check("…code + PKCE S256 + state", q?.get("response_type") === "code" && q?.ge
 check("…and no secret in the URL", !q?.has("client_secret"));
 
 if (!realAuth) {
-  check("back on /terminal after the callback, params stripped", new URL(page.url()).pathname === "/terminal" && new URL(page.url()).search === "", page.url());
+  check("back on /coffee after the callback, params stripped", new URL(page.url()).pathname === "/coffee" && new URL(page.url()).search === "", page.url());
   check("…with Coffee picked", (await picked()) === "Coffee", await picked());
   check("the session cookie is invisible to page JS", !(await page.evaluate(() => document.cookie)).includes("trm_"), await page.evaluate(() => document.cookie));
   await clickPad();
@@ -120,11 +121,11 @@ if (!realAuth) {
   check("account opens", (await last()).includes("Ada Lovelace") || (await last()).includes("orders"), await last());
 
   // A link can't drop you on a checkout step.
-  await page.goto(`${base}/terminal?at=%2Fconfirm`);
+  await page.goto(`${base}/coffee?at=%2Fconfirm`);
   await clickPad();
   const landed = await until("~ featured ~");
   check("?at=/confirm opens the shop, not checkout", landed !== null && !landed.includes("press enter to confirm"), await last());
-  await page.goto(`${base}/terminal?signin_error=Call%201-800-SCAM`);
+  await page.goto(`${base}/coffee?signin_error=Call%201-800-SCAM`);
   await clickPad();
   await until("~ featured ~");
   check("free-text ?signin_error= is never shown", !(await last()).includes("SCAM"), await last());
@@ -136,6 +137,10 @@ if (!realAuth) {
   const minted = await page.evaluate(async () => (await fetch("/api/terminal/prod/api/token", { method: "POST", headers: { "x-terminal-client": "1", "content-type": "application/json" }, body: "{}" })).status);
   check("POST /token can't be reached from the page", minted === 404, String(minted));
 }
+
+// Only the callback and the API live under /terminal; the old page path is a plain 404.
+const statuses = await page.evaluate(async () => Object.fromEntries(await Promise.all(["/terminal", "/coffee"].map(async (p) => [p, (await fetch(p, { redirect: "manual" })).status]))));
+check("/terminal is a 404, /coffee a 200", statuses["/terminal"] === 404 && statuses["/coffee"] === 200, JSON.stringify(statuses));
 
 check("no page errors", errors.length === 0, errors.join("\n"));
 await browser.close();

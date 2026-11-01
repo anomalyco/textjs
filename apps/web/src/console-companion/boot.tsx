@@ -8,7 +8,7 @@ import { createConsoleRoot, type ConsoleRoot } from "@textjs/react";
 import { loadViewportChoice } from "@textjs/react/dom";
 import { CompanionApp } from "./App";
 import { siteStore, type CompanionTab } from "./store";
-import { exampleGrid } from "./tabs/ExampleTab";
+import { exampleGrid, runsExamples } from "./tabs/ExampleTab";
 import { viewportConsole } from "./viewport-console";
 
 /** The Home hero mirrors the console on the page, so Home keeps (at most) this shape. */
@@ -26,8 +26,8 @@ export function viewportLimitsFor(
   tab: CompanionTab,
   example: string | null = null,
 ): { minCols: number; maxCols: number; minRows: number; maxRows: number; fallbackCols: number; fallbackRows: number } {
-  // A docs example gets exactly its preview's grid, so the page can mirror it cell for cell.
-  const grid = tab === "docs" && example !== null ? exampleGrid(example) : null;
+  // An example gets exactly its grid, so the page can mirror it cell for cell.
+  const grid = runsExamples(tab) && example !== null ? exampleGrid(example, tab) : null;
   if (grid) return { minCols: grid.cols, maxCols: grid.cols, minRows: grid.rows, maxRows: grid.rows, fallbackCols: grid.cols, fallbackRows: grid.rows };
   // terminal.shop's ssh layout is a fixed 80 × 30 grid.
   if (tab === "terminal")

@@ -141,8 +141,6 @@ export function Footer(): ReactNode {
               {l.label}
             </A>
           ))}
-          <A href="/opencode">OpenCode</A>
-          <A href="/terminal">Coffee</A>
           <A href="/errors">Errors</A>
           <A href="/changelog">Changelog</A>
           <A href="/blog">Blog</A>

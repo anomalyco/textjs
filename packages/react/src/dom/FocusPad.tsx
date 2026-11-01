@@ -52,6 +52,8 @@ export interface FocusPadProps {
   showMirrorDefault?: boolean;
   /** Content above the message (e.g. a demo picker). Clicks on controls here don't count as activation. */
   top?: ReactNode;
+  /** The first row of the message, above the steps (e.g. the app's wordmark). Also shown above the touch notice. */
+  banner?: ReactNode;
   className?: string;
   style?: CSSProperties;
   /** Content below the message. */
@@ -164,7 +166,7 @@ function Keycap({ children, size, c, lit = false }: { children: ReactNode; size:
  * keyboard, and which keys to press. It lights up as keystrokes arrive.
  * Frames are never mirrored into the page unless `showMirrorDefault` is set.
  */
-export function FocusPad({ root, title, hints = [], action, capturing, onActivate, appearance = "dark", showMirrorDefault = false, top, className, style, children, sizeControl = false }: FocusPadProps): ReactNode {
+export function FocusPad({ root, title, hints = [], action, capturing, onActivate, appearance = "dark", showMirrorDefault = false, top, banner, className, style, children, sizeControl = false }: FocusPadProps): ReactNode {
   const c = PALETTE[appearance];
   const [pageFocused, setPageFocused] = useState(true);
   const [docked, setDocked] = useState(false);
@@ -324,6 +326,7 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
       ) : null}
 
       <div className="tx-pad-desk" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 28, width: "100%", minHeight: 280 }}>
+        {banner ? <div className="tx-pad-banner">{banner}</div> : null}
         {/* Rows whose copy comes from props are keyed by it: switching demos replaces them rather than moving them (no layout shift). */}
         <div key={doThis} className="tx-pad-steps" style={{ display: "flex", gap: 20, flexWrap: "wrap", justifyContent: "center", fontSize: 13 }} aria-hidden="true">
           {step(1, "Open the console", state !== "open", state === "open")}
@@ -392,6 +395,7 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
       </div>
 
       <div className="tx-pad-touch" style={{ flex: 1, flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, minHeight: 240, padding: "0 8px" }}>
+        {banner ? <div className="tx-pad-banner">{banner}</div> : null}
         <h2 style={{ ...headline, fontSize: 32 }}>Open on a desktop</h2>
         <p style={sub}>This demo renders in the Chrome DevTools console, which needs a desktop browser.</p>
       </div>

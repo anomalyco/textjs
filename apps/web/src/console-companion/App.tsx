@@ -6,7 +6,7 @@ import { useSite } from "./useSite";
 import { hintsFor, PRESETS, siteStore, type CompanionTab, type Hint } from "./store";
 import { HomeTab } from "./tabs/HomeTab";
 import { DocsTab } from "./tabs/DocsTab";
-import { exampleGrid, ExampleTab } from "./tabs/ExampleTab";
+import { exampleGrid, ExampleTab, runsExamples } from "./tabs/ExampleTab";
 import { LearnConsole } from "../learn/apps/LearnConsole";
 import { matchRoute } from "../router";
 import { NotFoundTab } from "./tabs/NotFoundTab";
@@ -51,7 +51,6 @@ export function CompanionApp(): ReactNode {
   const site = useSite();
   const focus = useFocusManager();
   const tab = site.tab;
-  const example = tab === "docs" && site.example !== null && exampleGrid(site.example) ? site.example : null;
   // One wireframe flag for F2, the DevTools panel, `text.wireframe()` and the mirror's inspect button; boot applies it.
   const app = useApp();
   const wireframe = site.wireframe;
@@ -60,6 +59,7 @@ export function CompanionApp(): ReactNode {
   const route = tab === "home" || tab === "blog" ? matchRoute(site.pathname) : null;
   // Unknown paths show the 404. Their tab stays Home (or Blog), so off-route demos stop.
   const notFound = route?.name === "not-found";
+  const example = runsExamples(tab) && !notFound && site.example !== null && exampleGrid(site.example, tab) ? site.example : null;
 
   useInput(
     (e) => {
@@ -98,7 +98,7 @@ export function CompanionApp(): ReactNode {
         {devtools}
       </>
     );
-  // A docs example clicked on the page runs here instead of the Docs view.
+  // An example clicked on the page (docs, or Home's Components) runs here instead of the page's view.
   if (example !== null)
     return (
       <>
