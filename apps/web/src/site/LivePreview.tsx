@@ -56,7 +56,7 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
   const site = useSite();
   const [ref, inView] = useInView<HTMLDivElement>();
   const app = useMemo(() => spec?.render() ?? null, [spec]);
-  const hints = PRESETS.find((p) => p.id === id)?.hints;
+  const hints = spec?.hints ?? PRESETS.find((p) => p.id === id)?.hints;
   const available = useConsoleAvailable();
   const active = spec !== undefined && site.tab === "docs" && site.example === id;
   const [wireframe, setWireframe] = useState(false);

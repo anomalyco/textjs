@@ -1,9 +1,9 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
-import { PAGE_HINTS, siteStore, type OpenCodeConnection } from "../console-companion/store";
+import { getCompanion } from "../console-companion/boot";
+import { siteStore, type OpenCodeConnection } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
 import { autoConnectTarget, BRIDGE_COMMAND, DEFAULT_SERVER_URL, discoverServer, normalizeServerUrl, rememberServer } from "../demos/opencode/live";
 import { CopyCommand } from "../site/CodeBlock";
-import { ConsolePad } from "../site/ConsolePad";
 
 async function connectTo(target: string, quiet: boolean): Promise<void> {
   if (!quiet) siteStore.set({ opencode: { mode: "connecting", url: target } });
@@ -28,14 +28,15 @@ function useHydrated(): boolean {
   return useSyncExternalStore(noSubscribe, () => true, () => false);
 }
 
-type PanelStatus = "pending" | "checking" | OpenCodeConnection["mode"];
+type PanelStatus = "pending" | "checking" | "exited" | OpenCodeConnection["mode"];
 
 /**
- * The connection panel below the OpenCode pad, in the pad's fixed-height bottom slot. The status is
+ * The connection panel below the OpenCode demo, in the pad's fixed-height bottom slot. The status is
  * one line in every state: a skeleton until hydrated (prerendering can't know about a remembered
- * server), then checking, sandbox, connecting, live or error. Resolving it never moves the page.
+ * server), then checking, sandbox, connecting, live or error, and after `/exit` a way back in.
+ * Resolving it never moves the page.
  */
-function ConnectPanel(): ReactNode {
+export function ConnectPanel(): ReactNode {
   const site = useSite();
   const conn = site.opencode;
   const hydrated = useHydrated();
@@ -59,12 +60,20 @@ function ConnectPanel(): ReactNode {
     });
   }, []);
 
-  const status: PanelStatus = !hydrated ? "pending" : checking && conn.mode === "sandbox" ? "checking" : conn.mode;
+  const status: PanelStatus = site.opencodeExited ? "exited" : !hydrated ? "pending" : checking && conn.mode === "sandbox" ? "checking" : conn.mode;
   const host = (u: string): string => u.replace(/^https?:\/\//, "");
 
   const line =
     status === "pending" ? (
       <span className="skeleton skeleton-line" />
+    ) : status === "exited" ? (
+      <>
+        <span className="dot dot-idle" />
+        <span className="status-text">OpenCode exited.</span>
+        <button type="button" className="text-link status-action" onClick={() => getCompanion()?.activate()}>
+          Restart
+        </button>
+      </>
     ) : status === "checking" ? (
       <>
         <span className="dot dot-idle pulse" />
@@ -135,15 +144,5 @@ function ConnectPanel(): ReactNode {
         </div>
       )}
     </div>
-  );
-}
-
-export function OpenCodePage(): ReactNode {
-  const { action, hints } = PAGE_HINTS.opencode;
-  const exited = useSite().opencodeExited;
-  return (
-    <ConsolePad hints={hints} action={action} top={<span className="pad-title">{exited ? "OpenCode exited. Click to restart." : "OpenCode in the console"}</span>}>
-      <ConnectPanel />
-    </ConsolePad>
   );
 }

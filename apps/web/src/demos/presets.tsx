@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 import type { PresetId } from "../console-companion/store";
-import { CounterDemo } from "./Counter";
 import { DashboardDemo } from "./Dashboard";
-import { FormDemo } from "./Form";
 import { SnakeDemo } from "./Snake";
 import { StreamingDemo } from "./Streaming";
 
@@ -14,12 +12,8 @@ export interface PresetViewProps {
 
 export function PresetView({ preset, reserveRows = 4 }: PresetViewProps): ReactNode {
   switch (preset) {
-    case "counter":
-      return <CounterDemo />;
     case "dashboard":
       return <DashboardDemo />;
-    case "form":
-      return <FormDemo />;
     case "streaming":
       return <StreamingDemo />;
     case "snake":

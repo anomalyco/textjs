@@ -2327,28 +2327,37 @@ kbd {
   display: none;
 }
 
-.pad-picker button {
+.pad-picker a {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   white-space: nowrap;
   height: 32px;
   padding: 0 16px;
-  border: 0;
   border-radius: 999px;
-  background: transparent;
   color: var(--muted);
   font-size: 14px;
-  cursor: pointer;
+  text-decoration: none;
   transition: color 0.15s ease, background 0.15s ease;
 }
 
-.pad-picker button:hover {
+.pad-picker a:hover {
   color: var(--fg);
 }
 
-.pad-picker button[aria-selected="true"] {
+.pad-picker a[aria-current="page"] {
   background: var(--bg-3);
   color: var(--fg);
   box-shadow: inset 0 0 0 1px var(--line-2);
+}
+
+/* OpenCode and terminal.shop marks (site/brand-marks.tsx): one box for both, in the label's colour. */
+.pad-picker .brand-mark {
+  flex: none;
+  display: block;
+  width: 16px;
+  height: 15px;
 }
 
 /* Bottom of its slot: on wide screens it shares a baseline with the console size control. */

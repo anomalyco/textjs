@@ -1,63 +1,90 @@
-import { useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { getCompanion } from "../console-companion/boot";
-import { PRESETS, siteStore } from "../console-companion/store";
-import { useSite } from "../console-companion/useSite";
-import counterSource from "../demos/Counter.tsx?raw";
+import { DEMOS, PAGE_HINTS, PRESETS, type DemoId, type PresetId } from "../console-companion/store";
 import dashboardSource from "../demos/Dashboard.tsx?raw";
-import formSource from "../demos/Form.tsx?raw";
 import streamingSource from "../demos/Streaming.tsx?raw";
 import snakeSource from "../demos/Snake.tsx?raw";
-import type { PresetId } from "../console-companion/store";
+import { A } from "../router";
+import { OpenCodeMark, TerminalMark } from "../site/brand-marks";
 import { CopyButton } from "../site/CodeBlock";
 import { ConsolePad } from "../site/ConsolePad";
 import { HighlightedCode } from "../site/highlight";
+import { ConnectPanel } from "./OpenCode";
+import { TerminalNote } from "./Terminal";
 
 const SOURCES: Record<PresetId, string> = {
-  counter: counterSource,
-  form: formSource,
-  streaming: streamingSource,
   dashboard: dashboardSource,
+  streaming: streamingSource,
   snake: snakeSource,
 };
 
-function Picker(): ReactNode {
-  const site = useSite();
+const MARKS: Partial<Record<DemoId, () => ReactNode>> = { opencode: OpenCodeMark, terminal: TerminalMark };
+
+/** Prevents a layout-effect warning while prerendering; the picker only scrolls in the browser. */
+const useBrowserLayoutEffect = typeof window === "undefined" ? () => undefined : useLayoutEffect;
+
+function Picker({ demo }: { demo: DemoId }): ReactNode {
+  const ref = useRef<HTMLElement>(null);
+  // Narrow windows scroll the picker sideways: keep the current demo in view (/terminal opens on the last one).
+  useBrowserLayoutEffect(() => {
+    const nav = ref.current;
+    const item = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !item || nav.scrollWidth <= nav.clientWidth) return;
+    const n = nav.getBoundingClientRect();
+    const r = item.getBoundingClientRect();
+    if (r.left < n.left || r.right > n.right) nav.scrollLeft += r.left - n.left - (n.width - r.width) / 2;
+  }, [demo]);
   return (
-    <div className="pad-picker" role="tablist" aria-label="Demo">
-      {PRESETS.map((p) => (
-        <button
-          key={p.id}
-          type="button"
-          role="tab"
-          aria-selected={p.id === site.preset}
-          title={p.description}
-          onClick={() => {
-            siteStore.set({ preset: p.id });
-            // Picking a demo is a click on the stage: keys go straight to the console.
-            getCompanion()?.activate();
-          }}
-        >
-          {p.label}
-        </button>
-      ))}
-    </div>
+    <nav className="pad-picker" aria-label="Demos" ref={ref}>
+      {DEMOS.map((d) => {
+        const Mark = MARKS[d.id];
+        const current = d.id === demo;
+        return (
+          <A
+            key={d.id}
+            href={d.href}
+            title={d.description}
+            aria-current={current ? "page" : undefined}
+            onClick={(e) => {
+              if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+              if (current) e.preventDefault();
+              // Picking a demo is a click on the stage: keys go straight to the console.
+              getCompanion()?.activate();
+            }}
+          >
+            {Mark ? <Mark /> : null}
+            {d.label}
+          </A>
+        );
+      })}
+    </nav>
   );
 }
 
-export function PlaygroundPage(): ReactNode {
-  const site = useSite();
-  const preset = PRESETS.find((p) => p.id === site.preset) ?? PRESETS[0];
+/**
+ * The Playground: one focus pad with a demo picker. Its own demos live at /playground and
+ * /playground/<demo>; OpenCode and terminal.shop keep /opencode and /terminal. Every option renders
+ * this same component, so switching between them keeps the pad mounted and moves nothing.
+ */
+export function PlaygroundPage({ demo }: { demo: DemoId }): ReactNode {
   const [showSource, setShowSource] = useState(false);
-  if (!preset) return null;
+  const preset = PRESETS.find((p) => p.id === demo);
+  const { action, hints } = preset ?? PAGE_HINTS[demo as "opencode" | "terminal"];
 
   return (
     <>
-      <ConsolePad hints={preset.hints} action={preset.action} top={<Picker />}>
-        <button type="button" className="text-link pad-source" onClick={() => setShowSource((s) => !s)} aria-expanded={showSource}>
-          {showSource ? "Hide source" : "View source"}
-        </button>
+      <ConsolePad hints={hints} action={action} top={<Picker demo={demo} />}>
+        {preset ? (
+          <button type="button" className="text-link pad-source" onClick={() => setShowSource((s) => !s)} aria-expanded={showSource}>
+            {showSource ? "Hide source" : "View source"}
+          </button>
+        ) : demo === "opencode" ? (
+          <ConnectPanel />
+        ) : (
+          <TerminalNote />
+        )}
       </ConsolePad>
-      {showSource ? (
+      {preset && showSource ? (
         <div className="container pad-code">
           <div className="codeblock" style={{ margin: 0 }}>
             <div className="codeblock-head">

@@ -16,7 +16,7 @@ export interface Hint {
   label: string;
 }
 
-export type PresetId = "counter" | "form" | "streaming" | "dashboard" | "snake";
+export type PresetId = "dashboard" | "streaming" | "snake";
 
 export interface Preset {
   id: PresetId;
@@ -27,12 +27,41 @@ export interface Preset {
   hints: readonly Hint[];
 }
 
+/** The demos that run in the Playground's own view. The first one opens at /playground. */
 export const PRESETS: readonly Preset[] = [
-  { id: "counter", label: "Counter", description: "useState and useInput", action: "press ↑ ↓", hints: [{ keys: "↑ ↓", label: "count" }, { keys: "r", label: "reset" }] },
-  { id: "form", label: "Form", description: "Inputs and a select", action: "type your name", hints: [{ keys: "Tab", label: "next field" }, { keys: "Enter", label: "submit" }] },
-  { id: "streaming", label: "Streaming", description: "Streaming Markdown and diffs", action: "press r", hints: [{ keys: "r", label: "stream again" }] },
   { id: "dashboard", label: "Dashboard", description: "Live metrics", action: "press ← →", hints: [{ keys: "← →", label: "switch region" }] },
+  { id: "streaming", label: "Streaming", description: "Streaming Markdown and diffs", action: "press r", hints: [{ keys: "r", label: "stream again" }] },
   { id: "snake", label: "Snake", description: "A game loop", action: "press an arrow key", hints: [{ keys: "← ↑ → ↓", label: "steer" }, { keys: "Space", label: "pause" }] },
+];
+
+const DEFAULT_PRESET = (PRESETS[0] as Preset).id;
+
+export function presetPath(id: PresetId): string {
+  return id === DEFAULT_PRESET ? "/playground" : `/playground/${id}`;
+}
+
+/** `/playground` → the first demo, `/playground/snake` → Snake, anything else → `null`. */
+export function presetForPath(pathname: string): PresetId | null {
+  if (pathname === "/playground") return DEFAULT_PRESET;
+  const m = /^\/playground\/([^/]+)$/.exec(pathname);
+  const id = m ? PRESETS.find((p) => p.id === m[1] && p.id !== DEFAULT_PRESET)?.id : undefined;
+  return id ?? null;
+}
+
+/** Every option in the Playground picker: its own demos, then the two full apps with their own routes. */
+export type DemoId = PresetId | "opencode" | "terminal";
+
+export interface PickerDemo {
+  id: DemoId;
+  label: string;
+  description: string;
+  href: string;
+}
+
+export const DEMOS: readonly PickerDemo[] = [
+  ...PRESETS.map((p) => ({ id: p.id, label: p.label, description: p.description, href: presetPath(p.id) })),
+  { id: "opencode", label: "OpenCode", description: "OpenCode Lite, a client for the OpenCode coding agent", href: "/opencode" },
+  { id: "terminal", label: "Coffee", description: "The terminal.shop storefront", href: "/terminal" },
 ];
 
 /** Keys for the non-playground views. */
@@ -105,7 +134,7 @@ function docSlugForPath(pathname: string): string | null {
 const DEFAULT_STATE: SiteState = {
   pathname: "/",
   tab: "home",
-  preset: "counter",
+  preset: DEFAULT_PRESET,
   theme: "geistDark",
   docSlug: "",
   consoleInput: false,
@@ -151,6 +180,8 @@ export class SiteStore {
     const patch: Partial<SiteState> = { pathname, tab: tabForPath(pathname) };
     // Regular pages get their arrow keys and scrolling back.
     if (!isPadRoute(pathname)) patch.consoleInput = false;
+    const preset = presetForPath(pathname);
+    if (preset) patch.preset = preset;
     const slug = docSlugForPath(pathname);
     if (slug !== null) patch.docSlug = slug;
     // A docs example belongs to its page.
@@ -174,12 +205,6 @@ export class SiteStore {
     const next = THEME_ORDER[(i + 1) % THEME_ORDER.length] as ThemeName;
     this.set({ theme: next });
     return next;
-  }
-
-  cyclePreset(dir: 1 | -1): void {
-    const i = PRESETS.findIndex((p) => p.id === this.state.preset);
-    const next = PRESETS[(i + dir + PRESETS.length) % PRESETS.length];
-    if (next) this.set({ preset: next.id });
   }
 }
 

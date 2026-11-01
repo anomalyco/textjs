@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { RouteView } from "../src/App";
 import { BRIDGE_COMMAND } from "../src/demos/opencode/live";
 import { DOCS, docPath } from "../src/docs/registry";
-import { matchRoute, normalizePath, titleFor } from "../src/router";
+import { matchRoute, normalizePath, REDIRECTS, resetLocation, titleFor } from "../src/router";
 import { Footer, Header } from "../src/site/Chrome";
 import { siteStore, tabForPath } from "../src/console-companion/store";
 
@@ -12,10 +12,16 @@ describe("router", () => {
     expect(matchRoute("/")).toEqual({ name: "home" });
     expect(matchRoute("/docs")).toEqual({ name: "docs", slug: "introduction" });
     expect(matchRoute("/docs/")).toEqual({ name: "docs", slug: "introduction" });
-    expect(matchRoute("/playground")).toEqual({ name: "playground" });
+    expect(matchRoute("/playground")).toEqual({ name: "playground", preset: "dashboard" });
+    expect(matchRoute("/playground/streaming")).toEqual({ name: "playground", preset: "streaming" });
+    expect(matchRoute("/playground/snake/")).toEqual({ name: "playground", preset: "snake" });
     expect(matchRoute("/opencode/")).toEqual({ name: "opencode" });
-    // Showcase was folded into the Playground.
-    expect(matchRoute("/showcase")).toEqual({ name: "playground" });
+    // Showcase was folded into the Playground; Counter and Form left its picker.
+    for (const old of ["/showcase", "/playground/dashboard", "/playground/counter", "/playground/form"]) {
+      expect(matchRoute(old)).toEqual({ name: "playground", preset: "dashboard" });
+      expect(REDIRECTS[old]).toBe("/playground");
+    }
+    expect(matchRoute("/playground/nope")).toEqual({ name: "not-found" });
     expect(matchRoute("/nope")).toEqual({ name: "not-found" });
     expect(matchRoute("/docs/does-not-exist")).toEqual({ name: "not-found" });
     for (const d of DOCS) expect(matchRoute(docPath(d.slug))).toEqual({ name: "docs", slug: d.slug });
@@ -30,11 +36,15 @@ describe("router", () => {
     expect(titleFor({ name: "home" })).toBe("Text.js — The Console Framework");
     expect(titleFor({ name: "docs", slug: "routing" })).toBe("Routing | Text.js Docs");
     expect(titleFor({ name: "not-found" })).toContain("404");
+    expect(titleFor({ name: "playground", preset: "dashboard" })).toBe("Playground | Text.js");
+    expect(titleFor({ name: "playground", preset: "snake" })).toBe("Snake | Text.js Playground");
+    expect(titleFor({ name: "opencode" })).toBe("OpenCode in the Console | Text.js");
   });
 
   test("route changes sync the console companion tab", () => {
     expect(tabForPath("/docs/routing")).toBe("docs");
     expect(tabForPath("/playground")).toBe("playground");
+    expect(tabForPath("/playground/snake")).toBe("playground");
     expect(tabForPath("/opencode")).toBe("opencode");
     expect(tabForPath("/")).toBe("home");
     expect(tabForPath("/nope/404")).toBe("home");
@@ -45,8 +55,12 @@ describe("router", () => {
     expect(siteStore.getSnapshot().tab).toBe("opencode");
     // Console input survives moving between pad pages, and is released on regular pages.
     siteStore.set({ consoleInput: true });
-    siteStore.syncRoute("/playground");
+    siteStore.syncRoute("/playground/snake");
     expect(siteStore.getSnapshot().consoleInput).toBe(true);
+    // The URL picks the demo: /playground opens the first one.
+    expect(siteStore.getSnapshot().preset).toBe("snake");
+    siteStore.syncRoute("/playground");
+    expect(siteStore.getSnapshot().preset).toBe("dashboard");
     siteStore.syncRoute("/docs/styling");
     expect(siteStore.getSnapshot().consoleInput).toBe(false);
     siteStore.syncRoute("/");
@@ -84,16 +98,23 @@ describe("page rendering", () => {
   });
 
   test("playground and opencode are one big focus pad, with no TUI on the page", () => {
-    const pg = renderToStaticMarkup(<RouteView route={{ name: "playground" }} />);
-    for (const label of ["Counter", "Form", "Streaming", "Dashboard", "Snake"]) expect(pg).toContain(`>${label}</button>`);
+    const pg = renderToStaticMarkup(<RouteView route={{ name: "playground", preset: "dashboard" }} />);
+    // Five demos, each a link: the Playground's own three, then OpenCode and terminal.shop at their own URLs.
+    const picker = [...pg.matchAll(/<a href="([^"]+)"[^>]*>(?:<svg[^]*?<\/svg>)?([^<]+)<\/a>/g)].map((m) => `${m[2]} ${m[1]}`);
+    expect(picker).toEqual(["Dashboard /playground", "Streaming /playground/streaming", "Snake /playground/snake", "OpenCode /opencode", "Coffee /terminal"]);
+    expect(pg).toContain('<a href="/playground" title="Live metrics" aria-current="page">');
+    for (const gone of [">Counter<", ">Form<"]) expect(pg).not.toContain(gone);
     expect(pg).toContain("data-textjs-focus-pad");
     expect(pg).toContain("Open the console");
-    expect(pg).toContain("The app renders in DevTools. Then click here and press ↑ ↓.");
-    expect(pg).toContain("count");
+    expect(pg).toContain("The app renders in DevTools. Then click here and press ← →.");
+    expect(pg).toContain("switch region");
+    expect(pg).toContain("View source");
     expect(pg).toContain("Open on a desktop");
     for (const gone of ["RLE Inspector", "data-textjs-mirror", "Wireframe", "App title"]) expect(pg).not.toContain(gone);
     const oc = renderToStaticMarkup(<RouteView route={{ name: "opencode" }} />);
     expect(oc).toContain("data-textjs-focus-pad");
+    expect(oc).toContain('<a href="/opencode" title="OpenCode Lite, a client for the OpenCode coding agent" aria-current="page"><svg class="brand-mark"');
+    expect(oc).not.toContain("View source");
     expect(oc).toContain("Then click here and type a prompt.");
     expect(oc).toContain("Enter");
     expect(oc).toContain("http://127.0.0.1:4096");
@@ -108,12 +129,21 @@ describe("page rendering", () => {
   test("header and footer", () => {
     const header = renderToStaticMarkup(<Header />);
     expect(header).not.toContain("github.com");
-    for (const s of ["Text.js", "Docs", "Playground", "OpenCode", "Search", "⌘K"]) expect(header).toContain(s);
+    for (const s of ["Text.js", "Docs", "Learn", "Playground", "Search", "⌘K"]) expect(header).toContain(s);
+    // OpenCode and Coffee live in the Playground picker now.
+    expect(header).not.toContain('href="/opencode"');
+    expect(header).not.toContain('href="/terminal"');
+    // …so Playground stays highlighted on their pages.
+    for (const path of ["/opencode", "/terminal", "/playground/snake"]) {
+      resetLocation(path);
+      expect(renderToStaticMarkup(<Header />)).toContain('<a href="/playground" aria-current="page">Playground</a>');
+    }
+    resetLocation("/");
     expect(header).not.toContain("Showcase");
     expect(header).not.toContain("Live in Console");
     expect(header).not.toContain(">1.0<");
     const footer = renderToStaticMarkup(<Footer />);
-    for (const s of ["Anomaly", "anomaly-signature.svg", "Docs", "Playground", "OpenCode"]) expect(footer).toContain(s);
+    for (const s of ["Anomaly", "anomaly-signature.svg", "Docs", "Playground", '<a href="/opencode">OpenCode</a>', '<a href="/terminal">Coffee</a>']) expect(footer).toContain(s);
     expect(footer).not.toContain("GitHub");
     expect(footer).not.toContain("Community");
   });

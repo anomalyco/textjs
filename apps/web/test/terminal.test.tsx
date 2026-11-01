@@ -30,16 +30,20 @@ describe("/terminal", () => {
     siteStore.syncRoute("/");
   });
 
-  test("a calm focus pad, prerendered", async () => {
+  test("the Playground's last demo, prerendered with Coffee picked", async () => {
     const html = renderToStaticMarkup(<RouteView route={{ name: "terminal" }} />);
     expect(html).toContain("data-textjs-focus-pad");
-    expect(html).toContain("terminal.shop in the console");
+    expect(html).toContain('<a href="/terminal" title="The terminal.shop storefront" aria-current="page"><svg class="brand-mark"');
+    expect(html).toContain('fill="#FF5C00"');
+    expect(html).toContain(">Coffee</a></nav>");
+    expect(html).not.toContain("View source");
     expect(html).toContain("Then click here and press ↑ ↓ to browse.");
     expect(html).toContain("no API key needed");
     expect(html).toContain("Open on a desktop");
     expect(ROUTES.find((r) => r.path === "/terminal")?.description).toContain("terminal.shop");
     const pre = await render("/terminal");
-    expect(pre).toContain("terminal.shop in the console");
+    expect(pre).toContain('aria-current="page"><svg class="brand-mark" width="16" height="15" viewBox="31 29 237 243"');
+    expect(pre).toContain("no API key needed");
     expect(pre).not.toContain("<!--$?-->");
   });
 

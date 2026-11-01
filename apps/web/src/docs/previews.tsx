@@ -14,6 +14,7 @@ import {
   type SelectOption,
   type ThemeName,
 } from "@textjs/react";
+import type { Hint } from "../console-companion/store";
 import { CounterDemo } from "../demos/Counter";
 import { DashboardDemo } from "../demos/Dashboard";
 import { FormDemo } from "../demos/Form";
@@ -209,13 +210,15 @@ export interface PreviewSpec {
   render: () => ReactNode;
   /** Display name (defaults to the capitalized id). */
   label?: string;
+  /** Keys shown in the preview header (Playground demos use their picker hints). */
+  hints?: readonly Hint[];
 }
 
 export const PREVIEWS: Record<string, PreviewSpec> = {
-  counter: { cols: 72, rows: 16, render: () => <CounterDemo /> },
+  counter: { cols: 72, rows: 16, render: () => <CounterDemo />, hints: [{ keys: "↑ ↓", label: "count" }, { keys: "r", label: "reset" }] },
   layout: { cols: 64, rows: 14, render: () => <LayoutPreview /> },
   spinner: { cols: 56, rows: 10, render: () => <SpinnerPreview /> },
-  form: { cols: 84, rows: 19, render: () => <FormDemo /> },
+  form: { cols: 84, rows: 19, render: () => <FormDemo />, hints: [{ keys: "Tab", label: "next field" }, { keys: "Enter", label: "submit" }] },
   scrollbox: { label: "ScrollBox", cols: 60, rows: 12, render: () => <ScrollBoxPreview /> },
   modal: { cols: 72, rows: 14, render: () => <ModalPreview /> },
   streaming: { cols: 80, rows: 24, render: () => <StreamingDemo /> },
