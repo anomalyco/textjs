@@ -10,6 +10,9 @@
   --line: rgba(255, 255, 255, 0.08);
   --line-2: rgba(255, 255, 255, 0.14);
   --line-3: rgba(255, 255, 255, 0.24);
+  /* Frame rules and registration crosses on the landing page: a step brighter than --line so they read on black. */
+  --line-frame: rgba(255, 255, 255, 0.12);
+  --line-cross: rgba(255, 255, 255, 0.34);
   --fg: #ededed;
   --fg-strong: #ffffff;
   --muted: #a1a1a1;
@@ -623,7 +626,7 @@ kbd {
 
 .frame {
   position: relative;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-frame);
 }
 
 .cross {
@@ -631,7 +634,7 @@ kbd {
   width: 21px;
   height: 21px;
   pointer-events: none;
-  color: var(--line-3);
+  color: var(--line-cross);
 }
 
 .cross::before,
