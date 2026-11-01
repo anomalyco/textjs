@@ -106,6 +106,18 @@ check(":q shows no results first", (await page.locator(".kbar-list").innerText()
 await input.press("Enter");
 check(":q + Enter closes", !(await page.locator(".kbar").isVisible()));
 check("still on /", new URL(page.url()).pathname === "/");
+// OpenCode and Coffee left the header; ⌘K still finds them, and they open in the Playground.
+await page.keyboard.press("Meta+k");
+await input.fill("coffee");
+await page.waitForTimeout(100);
+check("⌘K coffee → terminal.shop first", (await page.locator(".kbar-item").first().innerText()).includes("Coffee from terminal.shop"), await page.locator(".kbar-list").innerText());
+await input.press("Enter");
+await page.waitForURL((u) => u.pathname === "/terminal");
+await page.waitForTimeout(300);
+check("…opens /terminal with Coffee picked", (await page.locator('.pad-picker [aria-current="page"]').textContent()) === "Coffee");
+await page.goBack();
+await page.waitForURL((u) => u.pathname === "/");
+await page.waitForTimeout(500);
 
 // ── #3 console.log status ──
 const footer = page.locator(".footer-status");

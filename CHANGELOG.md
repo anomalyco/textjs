@@ -11,9 +11,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - textjs.org: a Learn chapter video that's playing moves to a mini player in the corner when you scroll past it. The Captions button under each video turns captions on or off and remembers the choice.
 - `<TextDevOverlay>` takes `pill`, `shortcut` and `shell` props, so apps without the App Router can mount the inspector with their own keys and theme controls.
 
+### Changed
+
+- textjs.org: the Playground picker lists Dashboard, Streaming, Snake, OpenCode and Coffee (terminal.shop). Each demo has its own URL, and `/opencode` and `/terminal` open the Playground with that demo picked. Counter and Form moved out of the Playground; the docs still run both as live examples.
+
 ### Fixed
 
 - Text that is the last item in a row now keeps its place when it gets shorter. After a `<Spacer>`, it stayed where the longest text had left it, and siblings shrunk to fit an overflowing row stayed shrunk.
+- `<FocusPad>` replaces its steps, subtitle and key rows when `action` or `hints` change, so switching demos in one pad is not reported as a layout shift.
 - `@textjs/react/testing` loads Yoga when it's imported, so a test can stub `fetch` before its first `render()`.
 
 ## [1.0.0] - 2026-10-31

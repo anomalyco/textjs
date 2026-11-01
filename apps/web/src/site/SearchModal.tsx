@@ -11,7 +11,8 @@ const PAGES: Item[] = [
   { key: "p:/", group: "Pages", label: "Home", sub: "textjs.org", href: "/" },
   { key: "p:/docs", group: "Pages", label: "Documentation", sub: "/docs", href: "/docs" },
   { key: "p:/playground", group: "Pages", label: "Playground", sub: "/playground", href: "/playground" },
-  { key: "p:/opencode", group: "Pages", label: "OpenCode in the Console", sub: "/opencode", href: "/opencode" },
+  { key: "p:/opencode", group: "Pages", label: "OpenCode in the Console", sub: "Playground · /opencode", href: "/opencode" },
+  { key: "p:/terminal", group: "Pages", label: "Coffee from terminal.shop", sub: "Playground · /terminal", href: "/terminal" },
 ];
 
 const openListeners = new Set<(open: boolean) => void>();

@@ -324,7 +324,8 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
       ) : null}
 
       <div className="tx-pad-desk" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 28, width: "100%", minHeight: 280 }}>
-        <div className="tx-pad-steps" style={{ display: "flex", gap: 20, flexWrap: "wrap", justifyContent: "center", fontSize: 13 }} aria-hidden="true">
+        {/* Rows whose copy comes from props are keyed by it: switching demos replaces them rather than moving them (no layout shift). */}
+        <div key={doThis} className="tx-pad-steps" style={{ display: "flex", gap: 20, flexWrap: "wrap", justifyContent: "center", fontSize: 13 }} aria-hidden="true">
           {step(1, "Open the console", state !== "open", state === "open")}
           <span style={{ color: c.faint }}>—</span>
           {step(2, "Click here", state === "live", state === "click")}
@@ -344,7 +345,7 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
                 ))}
               </div>
             ))}
-            <p className="tx-pad-sub" style={sub}>{`The app renders in DevTools. Then click here and ${doThis}.`}</p>
+            <p key={doThis} className="tx-pad-sub" style={sub}>{`The app renders in DevTools. Then click here and ${doThis}.`}</p>
           </>
         ) : state === "click" ? (
           <>
@@ -361,13 +362,13 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
               <span style={{ width: 8, height: 8, borderRadius: 999, background: c.live, animation: "tx-pad-pulse 1.6s ease-in-out infinite" }} />
               Live in your console
             </span>
-            <h2 className="tx-pad-headline" style={headline}>{hints.length > 0 ? capitalize(doThis) : "Start typing"}</h2>
+            <h2 key={doThis} className="tx-pad-headline" style={headline}>{hints.length > 0 ? capitalize(doThis) : "Start typing"}</h2>
             <p className="tx-pad-sub" style={sub}>Watch the console.</p>
           </>
         )}
 
         {hints.length > 0 ? (
-          <div className="tx-pad-hints" style={{ display: "flex", gap: 28, flexWrap: "wrap", justifyContent: "center", paddingTop: 4 }}>
+          <div key={hints.map((h) => `${h.keys} ${h.label}`).join("|")} className="tx-pad-hints" style={{ display: "flex", gap: 28, flexWrap: "wrap", justifyContent: "center", paddingTop: 4 }}>
             {hints.map((h) => (
               <span key={h.keys + h.label} style={{ display: "inline-flex", alignItems: "center", gap: 10, fontSize: 14, color: c.muted }}>
                 <span style={{ display: "inline-flex", gap: 4 }}>

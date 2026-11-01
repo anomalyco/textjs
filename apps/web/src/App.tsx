@@ -8,10 +8,8 @@ import { ErrorPage, ErrorsIndexPage } from "./pages/Errors";
 import { HomePage } from "./pages/Home";
 import { LearnPage } from "./pages/Learn";
 import { MerchPage } from "./merch/Merch";
-import { OpenCodePage } from "./pages/OpenCode";
 import { PlaygroundPage } from "./pages/Playground";
 import { StatusPage } from "./pages/Status";
-import { TerminalPage } from "./pages/Terminal";
 import { A, matchRoute, titleFor, useLocation, type Route } from "./router";
 import { ConsolePill, Footer, Header } from "./site/Chrome";
 import { SearchModal } from "./site/SearchModal";
@@ -36,12 +34,12 @@ export function RouteView({ route }: { route: Route }): ReactNode {
       return <HomePage />;
     case "docs":
       return <DocsPage slug={route.slug} />;
+    // OpenCode and terminal.shop are the last two Playground demos, at their own URLs.
     case "playground":
-      return <PlaygroundPage />;
+      return <PlaygroundPage demo={route.preset} />;
     case "opencode":
-      return <OpenCodePage />;
     case "terminal":
-      return <TerminalPage />;
+      return <PlaygroundPage demo={route.name} />;
     case "learn":
       return <LearnPage slug={route.slug} />;
     case "errors":

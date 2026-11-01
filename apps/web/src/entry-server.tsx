@@ -10,6 +10,7 @@ import { DOCS, docPath } from "./docs/registry";
 import { TX_ERRORS } from "@textjs/core";
 import { LEARN_ROUTES } from "./learn/routes";
 import { MERCH_ROUTES } from "./merch/routes";
+import { presetPath } from "./console-companion/store";
 import { Root } from "./Root";
 import { matchRoute, resetLocation, titleFor } from "./router";
 
@@ -28,7 +29,10 @@ export const ROUTES: readonly PrerenderRoute[] = [
   { path: "/docs", title: "Documentation | Text.js", description: "Learn how to build React apps that render in the DevTools console." },
   // Every page also lives at /docs/<slug> (/docs/introduction included).
   ...DOCS.map((d) => ({ path: `/docs/${d.slug}`, title: titleFor(matchRoute(`/docs/${d.slug}`)), description: d.description, canonical: docPath(d.slug) })),
-  { path: "/playground", title: titleFor({ name: "playground" }), description: "Pick a Text.js demo, open the DevTools console and press a few keys." },
+  // The Playground's demos, in picker order. OpenCode and terminal.shop keep their own URLs.
+  { path: "/playground", title: titleFor(matchRoute("/playground")), description: "Pick a Text.js demo, open the DevTools console and press a few keys." },
+  { path: presetPath("streaming"), title: titleFor(matchRoute(presetPath("streaming"))), description: "Watch Markdown and a code diff stream into the DevTools console, then press r to replay it." },
+  { path: presetPath("snake"), title: titleFor(matchRoute(presetPath("snake"))), description: "Play Snake in the DevTools console. The game loop is a Text.js app that reads the arrow keys with useInput." },
   { path: "/opencode", title: titleFor({ name: "opencode" }), description: "OpenCode Lite, a console client for the OpenCode coding agent. Connect a local server or try the sandbox." },
   { path: "/terminal", title: titleFor({ name: "terminal" }), description: "Browse the terminal.shop storefront and order coffee from the DevTools console." },
   ...LEARN_ROUTES,
@@ -58,6 +62,7 @@ export async function render(pathname: string): Promise<string> {
 }
 
 export { titleFor, matchRoute, renderRss };
+export { REDIRECTS } from "./router";
 export { humansTxt, llmsTxt, statusApi } from "./static-files";
 export { renderHomeAnsi } from "./home-ansi";
 export { PREFIT_MIRRORS_SCRIPT, PREFIT_MIRRORS_WHILE_PARSING_SCRIPT } from "./site/DevToolsWindow";

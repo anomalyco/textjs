@@ -314,13 +314,16 @@ describe("/exit in OpenCode", () => {
     await h.unmount();
   });
 
-  test("the page pad says how to restart", async () => {
+  test("the connection panel offers a restart", async () => {
     await site(() => resetLocation("/opencode"));
-    expect(await render("/opencode")).toContain('<span class="pad-title">OpenCode in the console</span>');
+    expect(await render("/opencode")).not.toContain("OpenCode exited.");
     await site(() => siteStore.set({ opencodeExited: true }));
     const { renderToStaticMarkup } = await import("react-dom/server");
-    const { OpenCodePage } = await import("../src/pages/OpenCode");
-    expect(renderToStaticMarkup(<OpenCodePage />)).toContain('<span class="pad-title">OpenCode exited. Click to restart.</span>');
+    const { ConnectPanel } = await import("../src/pages/OpenCode");
+    const html = renderToStaticMarkup(<ConnectPanel />);
+    expect(html).toContain('data-status="exited"');
+    expect(html).toContain('<span class="status-text">OpenCode exited.</span><button type="button" class="text-link status-action">Restart</button>');
+    await site(() => siteStore.set({ opencodeExited: false }));
   });
 });
 

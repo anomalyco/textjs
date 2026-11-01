@@ -34,11 +34,11 @@ const NAV = [
   { href: "/docs", label: "Docs" },
   { href: "/learn", label: "Learn" },
   { href: "/playground", label: "Playground" },
-  { href: "/opencode", label: "OpenCode" },
-  { href: "/terminal", label: "Coffee" },
 ];
 
 function isActive(pathname: string, href: string): boolean {
+  // OpenCode and terminal.shop are Playground demos.
+  if (href === "/playground" && isPadRoute(pathname)) return true;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -141,6 +141,8 @@ export function Footer(): ReactNode {
               {l.label}
             </A>
           ))}
+          <A href="/opencode">OpenCode</A>
+          <A href="/terminal">Coffee</A>
           <A href="/errors">Errors</A>
           <A href="/changelog">Changelog</A>
           <A href="/blog">Blog</A>

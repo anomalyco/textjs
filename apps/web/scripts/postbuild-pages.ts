@@ -10,6 +10,9 @@ const baseHtml = readFileSync(join(distDir, "index.html"), "utf8");
 interface ServerEntry {
   ROUTES: ReadonlyArray<{ path: string; title: string; description: string; canonical?: string; noindex?: boolean }>;
   NOT_FOUND_PATH: string;
+  REDIRECTS: Readonly<Record<string, string>>;
+  matchRoute(pathname: string): unknown;
+  titleFor(route: unknown): string;
   PREFIT_MIRRORS_SCRIPT: string;
   PREFIT_MIRRORS_WHILE_PARSING_SCRIPT: string;
   render(pathname: string): Promise<string>;
@@ -91,11 +94,14 @@ for (const [name, body] of Object.entries(server.statusApi())) writeFileSync(joi
 // `curl textjs.org` (functions/index.ts).
 writeFileSync(join(distDir, "home.ansi"), await server.renderHomeAnsi());
 
-// Showcase was folded into the Playground.
-writeHtml(
-  "/showcase",
-  '<!doctype html><meta charset="utf-8"><title>Playground | Text.js</title><link rel="canonical" href="https://textjs.org/playground"><meta http-equiv="refresh" content="0; url=/playground"><script>location.replace("/playground"+location.hash)</script>\n',
-);
+// Retired paths (router.tsx REDIRECTS), for hosts that skip public/_redirects and vercel.json.
+for (const [from, to] of Object.entries(server.REDIRECTS)) {
+  const title = escapeAttr(server.titleFor(server.matchRoute(to)));
+  writeHtml(
+    from,
+    `<!doctype html><meta charset="utf-8"><title>${title}</title><link rel="canonical" href="https://textjs.org${to}"><meta http-equiv="refresh" content="0; url=${to}"><script>location.replace(${JSON.stringify(to)}+location.hash)</script>\n`,
+  );
+}
 
 const notFound = withNoindex(baseHtml.replace(/<title>[^<]*<\/title>/, "<title>404: This page could not be found | Text.js</title>"));
 writeFileSync(join(distDir, "404.html"), await withMarkup(notFound, server.NOT_FOUND_PATH));

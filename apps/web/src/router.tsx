@@ -1,7 +1,7 @@
 import { useSyncExternalStore, type AnchorHTMLAttributes, type MouseEvent, type ReactNode } from "react";
 import { getDoc } from "./docs/registry";
 import { getPost } from "./blog";
-import { siteStore } from "./console-companion/store";
+import { PRESETS, presetForPath, siteStore, type PresetId } from "./console-companion/store";
 import { learnRoute, learnTitle } from "./learn/routes";
 import { merchRoute, merchTitle } from "./merch/routes";
 import { safeDecode } from "./url";
@@ -10,7 +10,7 @@ import { getErrorPageDoc } from "./pages/tx000";
 export type Route =
   | { name: "home" }
   | { name: "docs"; slug: string }
-  | { name: "playground" }
+  | { name: "playground"; preset: PresetId }
   | { name: "opencode" }
   | { name: "terminal" }
   | { name: "learn"; slug: string }
@@ -38,7 +38,8 @@ export function matchRoute(pathname: string): Route {
     const slug = safeDecode(docs[1] as string);
     return getDoc(slug) ? { name: "docs", slug } : { name: "not-found" };
   }
-  if (p === "/playground") return { name: "playground" };
+  const preset = presetForPath(p);
+  if (preset) return { name: "playground", preset };
   if (p === "/opencode") return { name: "opencode" };
   if (p === "/terminal") return { name: "terminal" };
   const learn = learnRoute(p);
@@ -60,8 +61,9 @@ export function matchRoute(pathname: string): Route {
   if (p === "/status") return { name: "status" };
   const merch = merchRoute(p);
   if (merch) return merch;
-  // Showcase was folded into the Playground.
-  if (p === "/showcase") return { name: "playground" };
+  // Retired paths render their new page until the router swaps the URL.
+  const to = REDIRECTS[p];
+  if (to) return matchRoute(to);
   return { name: "not-found" };
 }
 
@@ -74,8 +76,10 @@ export function titleFor(route: Route): string {
       const doc = getDoc(route.slug);
       return `${doc?.title ?? "Docs"} | Text.js Docs`;
     }
-    case "playground":
-      return `Playground | ${suffix}`;
+    case "playground": {
+      const preset = route.preset === PRESETS[0]?.id ? undefined : PRESETS.find((p) => p.id === route.preset);
+      return preset ? `${preset.label} | Text.js Playground` : `Playground | ${suffix}`;
+    }
     case "opencode":
       return `OpenCode in the Console | ${suffix}`;
     case "terminal":
@@ -134,8 +138,16 @@ function setLocation(pathname: string, hash: string): void {
   emit();
 }
 
-/** Retired paths and where they live now. */
-export const REDIRECTS: Readonly<Record<string, string>> = { "/showcase": "/playground" };
+/**
+ * Retired paths and where they live now. Showcase was folded into the Playground; Counter and Form
+ * left its picker, and the first demo lives at /playground itself.
+ */
+export const REDIRECTS: Readonly<Record<string, string>> = {
+  "/showcase": "/playground",
+  "/playground/dashboard": "/playground",
+  "/playground/counter": "/playground",
+  "/playground/form": "/playground",
+};
 
 if (hasWindow) {
   const to = REDIRECTS[current.pathname];

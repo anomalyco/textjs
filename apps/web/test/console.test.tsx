@@ -75,16 +75,16 @@ describe("console companion (104×32)", () => {
     await site(() => siteStore.syncRoute("/docs/routing"));
     expect(h.frame()).toContain("File-system App Router");
     await site(() => siteStore.syncRoute("/playground"));
-    expect(h.frame()).toContain("playground / counter");
-    expect(h.frame()).toContain("useState(0)");
-    expect(h.frame()).toContain("↑ ↓ count");
-    // Other demos are picked on the page, never from inside the console.
-    await h.key("]", { input: "]" });
-    expect(siteStore.getSnapshot().preset).toBe("counter");
-    await site(() => siteStore.set({ preset: "dashboard" }));
+    expect(h.frame()).toContain("playground / dashboard");
     expect(h.frame()).toContain("Requests / s");
     expect(h.frame()).toContain("← → switch region");
-    await site(() => siteStore.set({ preset: "snake" }));
+    // Other demos are picked on the page (each has its own URL), never from inside the console.
+    await h.key("]", { input: "]" });
+    expect(siteStore.getSnapshot().preset).toBe("dashboard");
+    await site(() => siteStore.syncRoute("/playground/streaming"));
+    expect(h.frame()).toContain("playground / streaming");
+    expect(h.frame()).toContain("r stream again");
+    await site(() => siteStore.syncRoute("/playground/snake"));
     expect(h.frame()).toContain("score 0");
     await site(() => siteStore.syncRoute("/this-page-does-not-exist"));
     expect(siteStore.getSnapshot().tab).toBe("home");
@@ -94,28 +94,20 @@ describe("console companion (104×32)", () => {
   test("every playground demo reacts to its declared keys", async () => {
     if (!h) throw new Error("companion not mounted");
     await site(() => siteStore.syncRoute("/playground"));
-    await site(() => siteStore.set({ preset: "counter" }));
-    const zero = h.frame();
-    await h.key("up");
-    await h.key("up");
-    expect(h.frame()).not.toBe(zero);
-    await h.key("r", { input: "r" });
-    expect(h.frame()).toBe(zero);
-    await site(() => siteStore.set({ preset: "form" }));
-    await h.type("acme");
-    await h.key("return");
-    expect(h.frame()).toContain("✓ Deployed acme to Your DevTools Console.");
-    await site(() => siteStore.set({ preset: "dashboard" }));
+    expect(siteStore.getSnapshot().preset).toBe("dashboard");
     expect(h.frame()).toMatch(/\biad1\b/);
-    await site(() => siteStore.set({ preset: "snake" }));
+    expect(h.frame()).not.toContain("Frames / s");
+    await h.key("left");
+    expect(h.frame()).toContain("Frames / s");
+    await site(() => siteStore.syncRoute("/playground/snake"));
     expect(h.frame()).toContain("press an arrow key");
     await h.key("right");
     expect(h.frame()).not.toContain("press an arrow key");
-    await site(() => siteStore.set({ preset: "streaming" }));
+    await site(() => siteStore.syncRoute("/playground/streaming"));
     await h.wait(400);
     await h.key("r", { input: "r" });
     expect(h.frame()).toContain("r stream again");
-    await site(() => siteStore.set({ preset: "counter" }));
+    await site(() => siteStore.syncRoute("/playground"));
   });
 
   test("OpenCode: full-screen TUI that opens on the prompt, like the real one", async () => {
