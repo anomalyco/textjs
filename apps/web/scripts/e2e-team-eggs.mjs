@@ -19,7 +19,7 @@ const EGGS = [
   ["dax", "/", "dax", "Light angle"],
   ["Stefan Avram", "/enterprise", "stefan", "We're all ears"],
   ["Tas", "/enterprise", "tas", "Flying away from the redlines"],
-  ["Jay", "/merch", "jay", "Frame Tank"],
+  ["Jay", "/merch", "jay", "Sleeve length"],
   ["Aiden Cline", "/merch", "aiden", "Traditional flash"],
   ["Michelle Bakels", "/merch", "michelle", "Same as Across"],
   ["Juliana Ardila", "/merch", "huli", "is money even real"],

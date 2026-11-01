@@ -50,28 +50,27 @@ export function JayEgg(): ReactNode {
     setDrop((d) => (d === null ? -2 : null));
   });
   const art = useMemo(() => jayPortrait(drop), [drop]);
-  const sizes = [
-    ["XS", "17 in", "26.5 in", "0 in"],
-    ["M", "21 in", "28.5 in", "0 in"],
-    ["XL", "25 in", "30.5 in", "0 in"],
-  ];
+  const sizes = ["XS", "S", "M", "L", "XL", "2XL"];
   return (
-    <EggFrame crumb="merch / 001" hints={[{ keys: "d", label: "deal with it" }]}>
+    <EggFrame crumb="merch" hints={[{ keys: "d", label: "deal with it" }]}>
       <Box className="flex-row grow items-center justify-center gap-6">
         <Pixels pixels={art} besides={40} />
         <Box className="flex-col shrink-0 gap-1">
           <Box className="flex-col shrink-0">
-            <Text bold>Frame Tank</Text>
+            <Text bold>▼ Tank</Text>
             <Text color="muted">Black · Sleeveless</Text>
           </Box>
           <Box className="flex-col shrink-0">
-            {[["Size", "Chest", "Length", "Sleeve"], ...sizes].map((row, i) => (
-              <Box key={row[0]} className="flex-row h-1 shrink-0">
-                {row.map((cell, j) => (
-                  <Text key={j} color={i === 0 ? "muted" : j === 3 ? "accent" : "fg"} width={j === 0 ? 6 : 10} wrap="nowrap">
-                    {cell}
-                  </Text>
-                ))}
+            <Box className="flex-row h-1 shrink-0">
+              <Text color="muted" width={6}>
+                Size
+              </Text>
+              <Text color="muted">Sleeve length</Text>
+            </Box>
+            {sizes.map((size) => (
+              <Box key={size} className="flex-row h-1 shrink-0">
+                <Text width={6}>{size}</Text>
+                <Text color="accent">0 in</Text>
               </Box>
             ))}
           </Box>

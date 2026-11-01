@@ -21,7 +21,7 @@ const MARKERS: Record<string, string> = {
   dax: "Light angle",
   stefan: "We're all ears",
   tas: "Flying away from the redlines",
-  jay: "Frame Tank",
+  jay: "Sleeve length",
   aiden: "Traditional flash",
   michelle: "Same as Across",
   juliana: '"is money even real"',
