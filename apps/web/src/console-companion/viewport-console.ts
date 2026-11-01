@@ -12,11 +12,20 @@ export const VIEWPORT_SOURCE = `// Every frame in the Console is one call to log
 })
 //# sourceURL=text:///viewport`;
 
+let target: ConsoleTarget | null | undefined;
+
 /** Indirect eval keeps the file exactly as written. `null` where a CSP blocks eval: frames then use the global console. */
 export function viewportConsole(): ConsoleTarget | null {
+  if (target !== undefined) return target;
   try {
-    return (0, eval)(VIEWPORT_SOURCE) as ConsoleTarget;
+    target = (0, eval)(VIEWPORT_SOURCE) as ConsoleTarget;
   } catch {
-    return null;
+    target = null;
   }
+  return target;
+}
+
+/** `console.clear()` from the same file as the frames, so its "Console was cleared" row links there too. */
+export function clearViewportConsole(): void {
+  (viewportConsole() ?? console).clear();
 }

@@ -4,6 +4,7 @@ import { EmbeddedOpenCode } from "../../../../opencode-console/embed";
 import { createDemoClient } from "../../../../opencode-console/lib/demo";
 import { createTransport, createV1Client, createV2Client } from "../../../../opencode-console/lib/client";
 import { siteStore } from "../../console-companion/store";
+import { clearViewportConsole } from "../../console-companion/viewport-console";
 import { useSite } from "../../console-companion/useSite";
 import { scenario } from "./scenario";
 
@@ -24,7 +25,7 @@ export function OpenCodeLite(): ReactNode {
   const exit = useCallback(() => {
     paused.current = true;
     renderer.pause();
-    if (typeof window !== "undefined") console.clear();
+    if (typeof window !== "undefined") clearViewportConsole();
     siteStore.set({ opencodeExited: true, consoleInput: false });
   }, [renderer]);
   // Clicking the page pad engages console input again, which restarts it.
