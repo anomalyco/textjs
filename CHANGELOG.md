@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- `text proxy` is now `text opencode` (`bunx @textjs/next opencode`), since it only bridges OpenCode. `text proxy` still works and prints the new name.
+
 ## [1.0.1] - 2026-11-01
 
 ### Added

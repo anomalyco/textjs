@@ -53,14 +53,22 @@ afterAll(async () => {
   upstream.stop(true);
 });
 
-describe("text proxy", () => {
-  test("parses proxy flags", () => {
-    expect(parseArgs(["proxy", "--port", "4100", "--target", "http://127.0.0.1:4096", "--allow-origin", "https://x.dev"])).toMatchObject({
-      command: "proxy",
+describe("text opencode", () => {
+  test("parses bridge flags", () => {
+    expect(parseArgs(["opencode", "--port", "4100", "--target", "http://127.0.0.1:4096", "--allow-origin", "https://x.dev"])).toMatchObject({
+      command: "opencode",
       port: 4100,
       target: "http://127.0.0.1:4096",
       allowOrigins: ["https://x.dev"],
     });
+  });
+
+  test("help lists opencode; the 1.0 name proxy stays a hidden alias", async () => {
+    const { HELP } = await import("../src/cli/index");
+    expect(HELP).toContain("opencode Connect textjs.org/opencode");
+    expect(HELP).not.toMatch(/^\s+proxy\s/m);
+    const src = await Bun.file(new URL("../src/cli/index.ts", import.meta.url)).text();
+    expect(src).toMatch(/case "opencode":\s*case "proxy":/);
   });
 
   test("origin allowlist", () => {

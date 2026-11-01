@@ -1,5 +1,5 @@
 /**
- * `text proxy`: a loopback bridge that lets https://textjs.org (and local dev
+ * `text opencode`: a loopback bridge that lets https://textjs.org (and local dev
  * origins) talk to the OpenCode server running on this machine.
  *
  * Browsers block a public page from reading `http://127.0.0.1` unless the

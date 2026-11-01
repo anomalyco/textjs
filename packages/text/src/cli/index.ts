@@ -10,9 +10,9 @@ export interface ParsedArgs {
   dir: string;
   port?: number;
   host?: string | boolean;
-  /** `text proxy --target <url>`. */
+  /** `text opencode --target <url>`. */
   target?: string;
-  /** `text proxy --allow-origin <origin>` (repeatable). */
+  /** `text opencode --allow-origin <origin>` (repeatable). */
   allowOrigins: string[];
   /** `text build --adapter <static|bun|vercel|cloudflare>`. */
   adapter?: string;
@@ -63,15 +63,15 @@ Commands:
   build    Create an optimized console production build
   start    Serve the production build
   run      Render the app in this terminal (Bun)
-  proxy    Bridge your local opencode server to textjs.org (CORS)
+  opencode Connect textjs.org/opencode to the OpenCode server on this machine
   mcp      Serve the app to coding agents over MCP (stdio, Bun)
 
 Options:
-  -p, --port <port>   Port (default 3000; proxy 4096)
+  -p, --port <port>   Port (default 3000; opencode 4096)
   --path <pathname>   run: initial route (default /)
   --adapter <name>    build: static | bun | vercel | cloudflare
-  --target <url>      proxy: OpenCode server URL (default: discover)
-  --allow-origin <o>  proxy: allow another browser origin
+  --target <url>      opencode: OpenCode server URL (default: discover)
+  --allow-origin <o>  opencode: allow another browser origin
   -H, --host [host]   Expose on the network (optionally bind a host)
   -v, --version       Print the Text.js version
   -h, --help          Show this help
@@ -166,7 +166,10 @@ export async function main(argv: readonly string[]): Promise<number> {
         await app.waitUntilExit();
         return 0;
       }
+      case "opencode":
       case "proxy": {
+        // `proxy` was this command's name in 1.0.0 and 1.0.1.
+        if (args.command === "proxy") console.error(color.gray("   text proxy is now text opencode."));
         const { startProxy, DEFAULT_PROXY_PORT } = await import("./proxy");
         const b = await startProxy({ port: args.port ?? DEFAULT_PROXY_PORT, target: args.target, allowOrigins: args.allowOrigins });
         const stop = async (): Promise<void> => {

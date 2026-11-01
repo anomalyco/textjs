@@ -299,7 +299,7 @@ bunx --bun text mcp
   TX020: {
     package: "@textjs/next",
     title: "Unknown CLI command",
-    cause: `The \`text\` CLI has six commands: \`dev\`, \`build\`, \`start\`, \`run\`, \`proxy\` and \`mcp\`.`,
+    cause: `The \`text\` CLI has six commands: \`dev\`, \`build\`, \`start\`, \`run\`, \`opencode\` and \`mcp\`.`,
     fix: `~~~bash
 text --help
 ~~~
@@ -308,42 +308,42 @@ There is no \`text deploy\`. Build for your platform with \`text build --adapter
   },
   TX021: {
     package: "@textjs/next",
-    title: "Invalid proxy target",
+    title: "Invalid OpenCode server URL",
     cause: `\`--target\` (or \`OPENCODE_SERVER_URL\`) must be a bare HTTP(S) origin. It contained a path, query, hash or credentials. Credentials in URLs end up in logs and browser history.`,
     fix: `~~~bash
 # Before
-text proxy --target http://user:pass@127.0.0.1:4096/api
+text opencode --target http://user:pass@127.0.0.1:4096/api
 
 # After
-text proxy --target http://127.0.0.1:4096
+text opencode --target http://127.0.0.1:4096
 ~~~
 
 Set the server password with \`OPENCODE_PASSWORD\` instead.`,
   },
   TX022: {
     package: "@textjs/next",
-    title: "Proxy port collides with OpenCode",
+    title: "Bridge port collides with OpenCode",
     cause: `The bridge was asked to listen on the same local port as the OpenCode server it proxies to.`,
     fix: `~~~bash
-text proxy --port 4097
+text opencode --port 4097
 ~~~`,
   },
   TX023: {
     package: "@textjs/next",
     title: "Bridge already running",
-    cause: `Another \`text proxy\` already listens on this port. You can connect to it instead of starting another.`,
+    cause: `Another \`text opencode\` already listens on this port. You can connect to it instead of starting another.`,
     fix: `Connect to the running bridge, or start a second one on another port:
 
 ~~~bash
-text proxy --port 4097
+text opencode --port 4097
 ~~~`,
   },
   TX024: {
     package: "@textjs/next",
-    title: "Proxy port in use",
+    title: "Bridge port in use",
     cause: `Something other than a Text.js bridge is listening on the requested port.`,
     fix: `~~~bash
-text proxy --port 4097
+text opencode --port 4097
 ~~~
 
 Or find the other process: \`lsof -i :4096\`.`,
