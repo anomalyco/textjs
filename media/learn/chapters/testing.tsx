@@ -204,8 +204,8 @@ const script: ChapterScript = {
           pad: { in: "site", selector: ".learn-pad", at: 0.2 },
           frame: { in: "dt", frame: true, at: "enter+1.6" },
           pass: { in: "dt", text: "5 pass", at: "enter+1.6" },
-          expect: { in: "dt", text: 'expect(app.lastFrame()).toContain("› feat: merge spans")', at: "f+1.6" },
-          received: { in: "dt", text: 'Received: "› feat: stream cells downward"', at: "f+1.6" },
+          expect: { in: "dt", text: 'expect(row).toContain("perf: merge spans across rows")', at: "f+1.6" },
+          received: { in: "dt", text: 'Received: "› ● Ready      feat: stream cells downward', at: "f+1.6" },
         },
       },
       props: {

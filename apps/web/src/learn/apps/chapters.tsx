@@ -354,13 +354,19 @@ export function ComponentsApp(): ReactNode {
 
 /* ─────────────── 08 · Testing ─────────────── */
 
-const TESTS = [
+export const TESTING_SUITE = [
   { name: "lists every deployment", ms: 14 },
   { name: "↓ moves the highlight", ms: 9 },
   { name: "Enter opens the details panel", ms: 11 },
   { name: "2 navigates to /deployments", ms: 7 },
-  { name: "s sorts by build time", ms: 12 },
+  { name: "4 sorts by build time", ms: 12 },
 ];
+
+/** What `f` shows: the ↓ test failing because the highlight stayed on the first row (an 80-column render). */
+export const BROKEN_TEST = {
+  assertion: 'expect(row).toContain("perf: merge spans across rows")',
+  received: "› ● Ready      feat: stream cells downward                    acme-web       38s",
+};
 
 export function TestingApp(): ReactNode {
   const [run, setRun] = useState(0);
@@ -378,17 +384,17 @@ export function TestingApp(): ReactNode {
     e.stopPropagation();
   });
   useEffect(() => {
-    if (run === 0 || shown >= TESTS.length) return;
+    if (run === 0 || shown >= TESTING_SUITE.length) return;
     const t = setTimeout(() => setShown((n) => n + 1), 140);
     return () => clearTimeout(t);
   }, [run, shown]);
-  const done = run > 0 && shown >= TESTS.length;
+  const done = run > 0 && shown >= TESTING_SUITE.length;
   const failIndex = broken ? 1 : -1;
   return (
     <Box className="flex-col grow p-1">
       <Text color="subtle">{"$ bun test"}</Text>
       {run === 0 ? <Text color="muted">Press Enter to run the suite.</Text> : <Text color="muted">deployments.test.tsx:</Text>}
-      {TESTS.slice(0, shown).map((t, i) => (
+      {TESTING_SUITE.slice(0, shown).map((t, i) => (
         <Box key={t.name} className="flex-row h-1 gap-1">
           <Text color={i === failIndex ? "danger" : "success"}>{i === failIndex ? "✗" : "✓"}</Text>
           <Text color={i === failIndex ? "fg" : "muted"} wrap="truncate-end">
@@ -398,15 +404,17 @@ export function TestingApp(): ReactNode {
       ))}
       {done && broken ? (
         <Box className="flex-col shrink-0" marginTop={1}>
-          <Text color="danger">{'expect(app.lastFrame()).toContain("› feat: merge spans")'}</Text>
-          <Text color="muted">{'Received: "› feat: stream cells downward"'}</Text>
+          <Text color="danger" wrap="truncate-end">
+            {BROKEN_TEST.assertion}
+          </Text>
+          <Text color="muted" wrap="truncate-end">{`Received: "${BROKEN_TEST.received}"`}</Text>
         </Box>
       ) : null}
       {done ? (
         <Box className="flex-row gap-2 h-1" marginTop={1}>
-          <Text color="success">{`${broken ? TESTS.length - 1 : TESTS.length} pass`}</Text>
+          <Text color="success">{`${broken ? TESTING_SUITE.length - 1 : TESTING_SUITE.length} pass`}</Text>
           <Text color={broken ? "danger" : "subtle"}>{`${broken ? 1 : 0} fail`}</Text>
-          <Text color="subtle">{`Ran ${TESTS.length} tests across 1 file. [${broken ? 61 : 58}.00ms]`}</Text>
+          <Text color="subtle">{`Ran ${TESTING_SUITE.length} tests across 1 file. [${broken ? 61 : 58}.00ms]`}</Text>
         </Box>
       ) : null}
     </Box>

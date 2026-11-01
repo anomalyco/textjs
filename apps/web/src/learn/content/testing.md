@@ -3,11 +3,19 @@
 ## Your first test
 
 ```diff-tsx@app/deployments/page.test.tsx
-+import { afterEach, expect, test } from "bun:test";
++import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
 +import { cleanup, render } from "@textjs/react/testing";
++import { DEPLOYMENTS } from "../../lib/deployments";
 +import DeploymentsPage from "./page";
 +
-+afterEach(cleanup);
++beforeEach(() => {
++  spyOn(globalThis, "fetch").mockResolvedValue(Response.json(DEPLOYMENTS));
++});
++
++afterEach(() => {
++  mock.restore();
++  return cleanup();
++});
 +
 +test("lists every deployment", async () => {
 +  const app = await render(<DeploymentsPage />, { cols: 80, rows: 12 });
@@ -16,7 +24,7 @@
 +});
 ```
 
-`render` defaults to an 80×24 grid. `lastFrame()` returns the whole frame as text, `lines()` returns it row by row, and `cell(x, y)` gives you a single cell's character and colors.
+The page fetches `/api/deployments`, which has no server under `bun test`, so `beforeEach` stubs `fetch` with the same data. `render` defaults to an 80×24 grid. `lastFrame()` returns the whole frame as text, `lines()` returns it row by row, and `cell(x, y)` gives you a single cell's character and colors.
 
 ## Pressing keys
 
@@ -27,10 +35,11 @@
 +  const app = await render(<DeploymentsPage />);
 +  await app.waitForText("feat: stream cells downward");
 +  await app.press("down");
-+  expect(app.lastFrame()).toContain("› perf: merge spans across rows");
++  const row = app.lines().find((line) => line.includes("›"));
++  expect(row).toContain("perf: merge spans across rows");
 +});
 +
-+test("s sorts by build time", async () => {
++test("4 sorts by build time", async () => {
 +  const app = await render(<DeploymentsPage />);
 +  await app.waitForText("Build");
 +  await app.press("4"); // sort by the 4th column
@@ -38,7 +47,7 @@
 +});
 ```
 
-Pages that `fetch` from route handlers can stub `globalThis.fetch` in a `beforeEach`, or take their data as props.
+The table draws `›` in front of the highlighted row, so the ↓ test finds that row and checks its commit. Digits sort by a column, and the fourth column is Build.
 
 ## Run it
 
