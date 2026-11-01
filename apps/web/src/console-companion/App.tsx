@@ -13,8 +13,9 @@ import { NotFoundTab } from "./tabs/NotFoundTab";
 
 // Only /terminal needs the shop, so it loads on first visit.
 const TerminalConsole = lazy(() => import("../demos/terminal").then((m) => ({ default: m.TerminalConsole })));
+const BlogTab = lazy(() => import("./tabs/BlogTab").then((m) => ({ default: m.BlogTab })));
 
-const PAGE_LABEL: Record<CompanionTab, string> = { home: "", playground: "playground", opencode: "opencode", docs: "docs", learn: "learn", terminal: "terminal" };
+const PAGE_LABEL: Record<CompanionTab, string> = { home: "", playground: "playground", opencode: "opencode", docs: "docs", learn: "learn", terminal: "terminal", blog: "blog" };
 
 const NOT_FOUND_HINTS: readonly Hint[] = [{ keys: "Enter", label: "home" }];
 
@@ -31,9 +32,9 @@ function HintLine({ tab, hints: override }: { tab: CompanionTab; hints?: readonl
   );
 }
 
-function Header({ tab }: { tab: CompanionTab }): ReactNode {
+function Header({ tab, notFound = false }: { tab: CompanionTab; notFound?: boolean }): ReactNode {
   const site = useSite();
-  const label = tab === "playground" ? `playground / ${(PRESETS.find((p) => p.id === site.preset) ?? PRESETS[0])?.label.toLowerCase()}` : PAGE_LABEL[tab];
+  const label = notFound ? "" : tab === "playground" ? `playground / ${(PRESETS.find((p) => p.id === site.preset) ?? PRESETS[0])?.label.toLowerCase()}` : PAGE_LABEL[tab];
   return (
     <Box className="flex-row h-1 shrink-0 px-2 gap-1">
       <Text bold color="fg" wrap="nowrap">
@@ -51,8 +52,9 @@ export function CompanionApp(): ReactNode {
   const tab = site.tab;
   const example = tab === "docs" && site.example !== null && exampleGrid(site.example) ? site.example : null;
   const wireframe = useRef(false);
-  // Unknown paths keep the Home tab (so off-route demos stop) but show the 404.
-  const notFound = tab === "home" && matchRoute(site.pathname).name === "not-found";
+  const route = tab === "home" || tab === "blog" ? matchRoute(site.pathname) : null;
+  // Unknown paths show the 404. Their tab stays Home (or Blog), so off-route demos stop.
+  const notFound = route?.name === "not-found";
 
   useInput(
     (e) => {
@@ -86,9 +88,14 @@ export function CompanionApp(): ReactNode {
 
   return (
     <Box className="flex-col grow pt-1">
-      <Header tab={tab} />
+      <Header tab={tab} notFound={notFound} />
       <Box className="flex-col grow overflow-hidden" paddingTop={1}>
-        {tab === "home" ? notFound ? <NotFoundTab /> : <HomeTab /> : null}
+        {notFound ? <NotFoundTab /> : tab === "home" ? <HomeTab /> : null}
+        {route?.name === "blog-post" ? (
+          <Suspense fallback={null}>
+            <BlogTab slug={route.slug} />
+          </Suspense>
+        ) : null}
         {tab === "playground" ? <PresetView key={site.preset} preset={site.preset} reserveRows={6} /> : null}
         {tab === "docs" ? <DocsTab /> : null}
       </Box>

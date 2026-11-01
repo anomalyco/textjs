@@ -157,3 +157,51 @@ describe("404 in the console", () => {
     await h.unmount();
   });
 });
+
+describe("blog posts in the console", () => {
+  afterAll(async () => {
+    await site(() => resetLocation("/"));
+    await site(() => siteStore.reset());
+  });
+
+  test("a post is readable and scrollable, with its title and date", async () => {
+    await site(() => resetLocation("/blog/the-inverted-architecture"));
+    expect(siteStore.getSnapshot().tab).toBe("blog");
+    const h = await mount(<CompanionApp />, { cols: 100, rows: 26, tabFocus: false });
+    let f = h.frame();
+    for (let i = 0; i < 20 && !f.includes("The Inverted Architecture"); i++) {
+      await h.wait(25);
+      f = h.frame();
+    }
+    const lines = f.split("\n");
+    expect(lines[1]?.trim()).toMatch(/^▼ Text.js +\/ blog$/);
+    // The right column is the ScrollBox's scrollbar.
+    expect(lines[3]?.slice(0, -1).trim()).toBe("The Inverted Architecture");
+    expect(lines[4]?.slice(0, -1).trim()).toBe("October 31, 2026");
+    expect(f).toContain("Our logo is ▼.");
+    expect(lines.at(-1)?.trim()).toBe("↑ ↓ scroll");
+    expect(f).not.toContain("What the page sees");
+    for (let i = 0; i < 60; i++) await h.key("down");
+    f = h.frame();
+    expect(f).not.toContain("Our logo is ▼.");
+    expect(f).toContain("What the page sees");
+    for (let i = 0; i < 60; i++) await h.key("up");
+    expect(h.frame()).toContain("Our logo is ▼.");
+
+    await site(() => resetLocation("/blog/text-js-1-0"));
+    f = h.frame();
+    expect(f).toContain("Today we're releasing Text.js 1.0");
+    for (let i = 0; i < 60; i++) await h.key("down");
+    expect(h.frame()).toMatch(/Full repaint \(layout, paint, encode\) +│ +0\.163ms/);
+
+    await site(() => resetLocation("/blog/no-such-post"));
+    f = h.frame();
+    expect(f).toContain("404 │ This page could not be found.");
+    expect(f.split("\n")[1]?.trim()).toBe("▼ Text.js");
+
+    await site(() => resetLocation("/blog"));
+    expect(siteStore.getSnapshot().tab).toBe("home");
+    expect(h.frame()).toContain("React 19 in console.log");
+    await h.unmount();
+  });
+});

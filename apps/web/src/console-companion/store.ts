@@ -8,7 +8,7 @@ import type { ThemeName } from "@textjs/react";
 import { safeDecode } from "../url";
 
 /** The console app shows exactly one view: the one for the current page. */
-export type CompanionTab = "home" | "playground" | "opencode" | "docs" | "learn" | "terminal";
+export type CompanionTab = "home" | "playground" | "opencode" | "docs" | "learn" | "terminal" | "blog";
 
 /** A key worth pressing: `{ keys: "↑ ↓", label: "count" }` (space-separated keycaps). */
 export interface Hint {
@@ -43,6 +43,7 @@ export const PAGE_HINTS: Record<Exclude<CompanionTab, "playground">, { action: s
   // Each /learn page brings its own keys (learn/course.ts); the course view uses these.
   learn: { action: "press ↓", hints: [{ keys: "↑ ↓", label: "chapters" }, { keys: "Enter", label: "open" }] },
   terminal: { action: "press ↑ ↓ to browse", hints: [{ keys: "↑ ↓", label: "products" }, { keys: "+ −", label: "qty" }, { keys: "c", label: "cart" }] },
+  blog: { action: "press ↓", hints: [{ keys: "↑ ↓", label: "scroll" }] },
 };
 
 export function hintsFor(tab: CompanionTab, preset: PresetId): { action: string; hints: readonly Hint[] } {
@@ -87,6 +88,7 @@ function tabForPath(pathname: string): CompanionTab {
   if (pathname.startsWith("/opencode")) return "opencode";
   if (pathname === "/terminal" || pathname.startsWith("/terminal/")) return "terminal";
   if (pathname === "/learn" || pathname.startsWith("/learn/")) return "learn";
+  if (/^\/blog\/[^/]+\/?$/.test(pathname)) return "blog";
   return "home";
 }
 
