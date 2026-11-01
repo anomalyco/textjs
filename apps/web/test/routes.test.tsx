@@ -94,6 +94,23 @@ describe("page rendering", () => {
     }
   });
 
+  test("the Turbolog lockup appears once on each Turbolog page", () => {
+    const count = (html: string): number => html.match(/class="turbolog-lockup/g)?.length ?? 0;
+    const pages = [
+      renderToStaticMarkup(<RouteView route={{ name: "home" }} />),
+      renderToStaticMarkup(<RouteView route={{ name: "docs", slug: "turbolog-engine" }} />),
+      renderToStaticMarkup(<RouteView route={{ name: "status" }} />),
+      renderToStaticMarkup(<RouteView route={{ name: "blog-post", slug: "turbolog-eliminating-the-flash" }} />),
+    ];
+    for (const html of pages) {
+      expect(count(html)).toBe(1);
+      expect(html).toContain('role="img" aria-label="Turbolog"');
+    }
+    expect(pages[2]).toMatch(/<h1><svg class="turbolog-lockup st-lockup"[^]*?<\/svg> Status<\/h1>/);
+    expect(count(renderToStaticMarkup(<RouteView route={{ name: "docs", slug: "introduction" }} />))).toBe(0);
+    expect(count(renderToStaticMarkup(<RouteView route={{ name: "blog-post", slug: "text-js-1-0" }} />))).toBe(0);
+  });
+
   test("playground and opencode are one big focus pad, with no TUI on the page", () => {
     const pg = renderToStaticMarkup(<RouteView route={{ name: "playground", preset: "dashboard" }} />);
     // Five demos, each a link: the Playground's own three, then OpenCode and terminal.shop at their own URLs.

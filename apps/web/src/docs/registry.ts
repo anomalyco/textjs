@@ -39,6 +39,8 @@ export interface DocPage {
   description: string;
   category: DocCategory;
   markdown: string;
+  /** Shows the product's lockup above the title. */
+  brand?: "turbolog";
 }
 
 export const DOC_CATEGORIES = ["Getting Started", "Building Your Application", "Components", "API Reference", "Architecture"] as const;
@@ -262,6 +264,7 @@ export const DOCS: readonly DocPage[] = [
     description: "Single-console.log RLE encoding, CellBuffer, Chromium internals and benchmarks.",
     category: "Architecture",
     markdown: turbologEngine,
+    brand: "turbolog",
   },
   {
     slug: "release-channels",

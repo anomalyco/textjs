@@ -27,6 +27,13 @@
 
 /* ───────────────────────── Turbolog ───────────────────────── */
 
+/* The lockup replaces the "Turbolog" eyebrow at the same 1lh height, so the heading below doesn't move. */
+.section-head .tl-eyebrow {
+  height: 1lh;
+  vertical-align: top;
+  color: var(--fg);
+}
+
 .tl-frame {
   background: rgba(0, 0, 0, 0.4);
 }

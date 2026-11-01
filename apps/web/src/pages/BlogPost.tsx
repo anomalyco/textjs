@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { formatPostDate, getPost, POSTS, postPath } from "../blog";
 import { A } from "../router";
+import { TurbologLockup } from "../site/brand-marks";
 import { MarkdownDoc } from "../site/Markdown";
 
 export function BlogPostPage({ slug }: { slug: string }): ReactNode {
@@ -15,6 +16,7 @@ export function BlogPostPage({ slug }: { slug: string }): ReactNode {
         ← Blog
       </A>
       <header className="blog-post-head">
+        {post.brand === "turbolog" ? <TurbologLockup className="blog-brand" /> : null}
         <time dateTime={post.date}>{formatPostDate(post.date)}</time>
         <h1>{post.title}</h1>
         <p className="rs-lede">{post.summary}</p>

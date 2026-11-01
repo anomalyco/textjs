@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { DOC_CATEGORIES, DOCS, docPath, getDoc, headingsOf, neighbors } from "../docs/registry";
 import { A, useLocation } from "../router";
+import { TurbologLockup } from "../site/brand-marks";
 import { Footer } from "../site/Chrome";
 import { ChevronDown, CloseIcon, MenuIcon } from "../site/icons";
 import { MarkdownDoc } from "../site/Markdown";
@@ -98,8 +99,12 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
               <span>/</span>
               <span>{doc.category}</span>
             </div>
-            <h1 className="docs-title">{doc.title}</h1>
-            <p className="docs-desc">{doc.description}</p>
+            {/* Keyed so a page with a lockup mounts a new title instead of shifting the previous one down. */}
+            <Fragment key={doc.slug}>
+              {doc.brand === "turbolog" ? <TurbologLockup className="docs-brand" /> : null}
+              <h1 className="docs-title">{doc.title}</h1>
+              <p className="docs-desc">{doc.description}</p>
+            </Fragment>
             <MarkdownDoc key={doc.slug} source={doc.markdown} />
             <nav className="docs-nav" aria-label="Pagination">
               {prev ? (
