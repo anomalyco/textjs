@@ -190,6 +190,12 @@ export async function render(only: string[]): Promise<void> {
     writeFileSync(join(FINAL, `${shot.name}.png`), png);
     for (const [w, bytes] of await webp(png, [600, OUT_W], 0.9)) writeFileSync(w === OUT_W ? join(FINAL, `${shot.name}.webp`) : join(SITE, `${shot.name}-${w}.webp`), bytes);
     writeFileSync(join(SITE, `${shot.name}-${OUT_W}.webp`), readFileSync(join(FINAL, `${shot.name}.webp`)));
+    try {
+      const { encodeSiteImages } = await import("./encode-site-images");
+      encodeSiteImages([shot.name]);
+    } catch {
+      // Keeps canvas-encoded fallback if neither cwebp nor ffmpeg+libwebp is installed locally.
+    }
     console.log(`rendered ${shot.name}`);
   }
   await close();

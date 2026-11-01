@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ABOUT_MINUTES, CHAPTERS, learnPath } from "../../learn/course";
+import { ABOUT_MINUTES, CHAPTERS_META as CHAPTERS, learnPath } from "../../learn/meta";
 import { A } from "../../router";
 import { ArrowRight } from "../../site/icons";
 import { Crosses } from "./Crosses";

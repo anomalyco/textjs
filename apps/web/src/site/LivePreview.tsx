@@ -1,19 +1,34 @@
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
-import { useInView } from "./useInView";
-import { PREVIEWS } from "../docs/previews";
+import { activateCompanion, companionReady, getCompanion } from "../console-companion/bridge";
+import { PRESETS, siteStore } from "../console-companion/store";
+import { preloadCompanionTab } from "../console-companion/tabs-loader";
+import { useSite } from "../console-companion/useSite";
+import { exampleFrame, exampleHeader, PREVIEW_META } from "../docs/preview-meta";
+import type { PreviewSpec } from "../docs/previews";
 import { SandboxConsole } from "../sandbox/SandboxConsole";
 import { useSandbox } from "../sandbox/useSandbox";
-import { useSite } from "../console-companion/useSite";
-import { PRESETS, siteStore } from "../console-companion/store";
-import { companionReady, getCompanion } from "../console-companion/boot";
-import { exampleFrame, exampleHeader } from "../console-companion/tabs/ExampleTab";
-import { DevToolsWindow } from "./DevToolsWindow";
-import { useCompanionFrame } from "./useCompanion";
-import { HighlightedCode } from "./highlight";
 import { CopyButton } from "./CodeBlock";
+import { DevToolsWindow } from "./DevToolsWindow";
+import { HighlightedCode } from "./highlight";
+import { useCompanionFrame } from "./useCompanion";
+import { useInView } from "./useInView";
 
 /** Same rule as `.desktop-only`: phones and tablets have no DevTools console to run in. */
 const CONSOLE_MEDIA = "(max-width: 640px), (hover: none) and (pointer: coarse)";
+
+let previewsCache: Record<string, PreviewSpec> | null = null;
+let previewsPromise: Promise<Record<string, PreviewSpec>> | null = null;
+
+function loadPreviews(): Promise<Record<string, PreviewSpec>> {
+  if (previewsCache) return Promise.resolve(previewsCache);
+  if (!previewsPromise) {
+    previewsPromise = import("../docs/previews").then((m) => {
+      previewsCache = m.PREVIEWS;
+      return m.PREVIEWS;
+    });
+  }
+  return previewsPromise;
+}
 
 /** Whether this device has a live console companion to run examples in (always `false` while hydrating). */
 export function useConsoleAvailable(): boolean {
@@ -40,10 +55,9 @@ export function useConsoleAvailable(): boolean {
 
 /** Make an example the console companion's app and send keystrokes to it. */
 export function runInConsole(id: string): void {
+  void preloadCompanionTab("example");
   siteStore.activateExample(id);
-  const c = getCompanion();
-  if (c) c.activate();
-  else void companionReady()?.then((ready) => ready.activate());
+  activateCompanion();
 }
 
 /**
@@ -52,15 +66,37 @@ export function runInConsole(id: string): void {
  * preview mirrors the console's frames until Esc, a click elsewhere or navigation.
  */
 export function LivePreview({ id, code, language }: { id: string; code: string; language: string }): ReactNode {
-  const spec = PREVIEWS[id];
+  const meta = PREVIEW_META[id];
   const site = useSite();
   const [ref, inView] = useInView<HTMLDivElement>();
+  const active = meta !== undefined && site.tab === "docs" && site.example === id;
+  const [previews, setPreviews] = useState<Record<string, PreviewSpec> | null>(previewsCache);
+
+  useEffect(() => {
+    if ((!inView && !active) || meta === undefined) return;
+    void preloadCompanionTab("example");
+    if (previews) return;
+    let alive = true;
+    void loadPreviews().then((p) => {
+      if (alive) setPreviews(p);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [inView, active, meta, previews]);
+
+  const spec = previews?.[id];
   const app = useMemo(() => spec?.render() ?? null, [spec]);
-  const hints = spec?.hints ?? PRESETS.find((p) => p.id === id)?.hints;
+  const hints = meta?.hints ?? PRESETS.find((p) => p.id === id)?.hints;
   const available = useConsoleAvailable();
-  const active = spec !== undefined && site.tab === "docs" && site.example === id;
   const [wireframe, setWireframe] = useState(false);
-  const sandbox = useSandbox(app, { cols: spec?.cols ?? 60, rows: spec?.rows ?? 10, theme: site.theme === "geistLight" ? "geistDark" : site.theme, enabled: inView && spec !== undefined && !active, wireframe });
+  const sandbox = useSandbox(app, {
+    cols: meta?.cols ?? 60,
+    rows: meta?.rows ?? 10,
+    theme: site.theme === "geistLight" ? "geistDark" : site.theme,
+    enabled: inView && meta !== undefined && !active,
+    wireframe,
+  });
   const companionFrame = useCompanionFrame(active);
   const mirrored = active ? exampleFrame(companionFrame, exampleHeader(site.docSlug, id), id) : null;
 
@@ -87,7 +123,7 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
     ? `${keys ? `${keys} · ` : ""}Esc back to docs`
     : keys
       ? keys
-      : `${spec?.cols ?? 0}×${spec?.rows ?? 0} · ${sandbox.stats ? `${sandbox.stats.totalMs.toFixed(2)}ms` : "booting Turbolog…"}`;
+      : `${meta?.cols ?? 0}×${meta?.rows ?? 0} · ${sandbox.stats ? `${sandbox.stats.totalMs.toFixed(2)}ms` : "booting Turbolog…"}`;
 
   return (
     <div className={`preview${active ? " in-console" : ""}`} ref={ref} data-preview={id}>
@@ -97,7 +133,7 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
         </span>
         <span className="preview-stats">{stats}</span>
         <span style={{ marginLeft: "auto" }}>{language}</span>
-        {spec ? (
+        {meta ? (
           active ? (
             <button type="button" className="preview-run desktop-only" onClick={() => siteStore.exitExample(id)} title="Show the docs in the console again">
               Back to docs
@@ -110,7 +146,7 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
         ) : null}
         <CopyButton text={code} />
       </div>
-      <div className="preview-stage" onMouseDownCapture={available && spec && !active ? onStageMouseDown : undefined} title={available && !active ? "Click to run in your console" : undefined}>
+      <div className="preview-stage" onMouseDownCapture={available && meta && !active ? onStageMouseDown : undefined} title={available && !active ? "Click to run in your console" : undefined}>
         {active ? (
           <div className="sandbox">
             <DevToolsWindow
@@ -119,8 +155,8 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
               engaged={site.consoleInput}
               onActivate={() => runInConsole(id)}
               activateLabel="Click to type"
-              cols={spec?.cols}
-              rows={spec?.rows}
+              cols={meta?.cols}
+              rows={meta?.rows}
             />
           </div>
         ) : (
@@ -129,8 +165,8 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
             engine={sandbox.engine}
             source={`preview://${id}:1`}
             filter={`-url:preview://${id}`}
-            cols={spec?.cols}
-            rows={spec?.rows}
+            cols={meta?.cols}
+            rows={meta?.rows}
             activateLabel={available ? "Click to run in console" : undefined}
             onInspect={() => setWireframe((w) => !w)}
             inspecting={wireframe}

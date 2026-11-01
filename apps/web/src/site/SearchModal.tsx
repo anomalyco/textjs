@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { siteStore } from "../console-companion/store";
-import { docPath, searchDocs } from "../docs/registry";
+import { DOCS_META, docPath } from "../docs/meta";
 import { navigate } from "../router";
 import { SearchIcon } from "./icons";
-import { aliasResults, invertTriangles, isQuitCommand, type SearchItem } from "./search-aliases";
+import type { SearchItem } from "./search-aliases";
 import { useScrollLock } from "./Sheet";
 
 type Item = SearchItem;
+type SearchEngine = {
+  searchDocsMeta: typeof import("../docs/search-index").searchDocsMeta;
+  aliasResults: typeof import("./search-aliases").aliasResults;
+};
 
 const PAGES: Item[] = [
   { key: "p:/", group: "Pages", label: "Home", sub: "textjs.org", href: "/" },
@@ -16,29 +20,67 @@ const PAGES: Item[] = [
   { key: "p:/coffee", group: "Pages", label: "Coffee from terminal.shop", sub: "Playground · /coffee", href: "/coffee" },
 ];
 
+const DEFAULT_DOCS: Item[] = DOCS_META.map((doc) => ({
+  key: `d:${doc.slug}:`,
+  group: "Documentation",
+  label: doc.title,
+  sub: doc.category,
+  href: docPath(doc.slug),
+}));
+
 const openListeners = new Set<(open: boolean) => void>();
+let engineCache: SearchEngine | null = null;
+let enginePromise: Promise<SearchEngine> | null = null;
+
+export function preloadSearchDialog(): Promise<SearchEngine> {
+  if (engineCache) return Promise.resolve(engineCache);
+  if (!enginePromise) {
+    enginePromise = Promise.all([import("../docs/search-index"), import("./search-aliases")]).then(([idx, al]) => {
+      engineCache = { searchDocsMeta: idx.searchDocsMeta, aliasResults: al.aliasResults };
+      return engineCache;
+    });
+  }
+  return enginePromise;
+}
 
 export function openSearch(): void {
+  void preloadSearchDialog();
   for (const l of openListeners) l(true);
+}
+
+function invertTriangles(value: string): string {
+  return value.replace(/\u25B2/g, "\u25BC");
+}
+
+function isQuitCommand(query: string): boolean {
+  return /^:(q!?|wq!?|x)$/.test(query.trim());
 }
 
 export function SearchModal(): ReactNode {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
+  const [engine, setEngine] = useState<SearchEngine | null>(() => engineCache);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
   useScrollLock(open);
 
   useEffect(() => {
-    const l = (v: boolean): void => setOpen(v);
+    const l = (v: boolean): void => {
+      if (v) void preloadSearchDialog().then(setEngine);
+      setOpen(v);
+    };
     openListeners.add(l);
     const onKey = (e: KeyboardEvent): void => {
       if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "k") {
         // An example running in the console keeps the Ctrl+K it received (its command palette); ⌘K still searches.
         if (e.defaultPrevented && siteStore.getSnapshot().example !== null) return;
         e.preventDefault();
-        setOpen((v) => !v);
+        setOpen((v) => {
+          const next = !v;
+          if (next) void preloadSearchDialog().then(setEngine);
+          return next;
+        });
       }
     };
     window.addEventListener("keydown", onKey);
@@ -52,17 +94,25 @@ export function SearchModal(): ReactNode {
     if (open) {
       setQuery("");
       setIndex(0);
+      if (!engine) void preloadSearchDialog().then(setEngine);
       requestAnimationFrame(() => input.current?.focus());
     }
   }, [open]);
 
   const items = useMemo<Item[]>(() => {
+    if (!open) return [];
     const q = query.trim().toLowerCase();
-    const pages = q ? PAGES.filter((p) => p.label.toLowerCase().includes(q) || p.href.includes(q)) : PAGES;
-    const aliases = aliasResults(query);
+    if (!q) return [...PAGES, ...DEFAULT_DOCS];
+    const pages = PAGES.filter((p) => p.label.toLowerCase().includes(q) || p.href.includes(q));
+    if (!engine) {
+      const fallbackDocs = DEFAULT_DOCS.filter((d) => d.label.toLowerCase().includes(q) || (d.sub ?? "").toLowerCase().includes(q));
+      return [...pages, ...fallbackDocs];
+    }
+    const aliases = engine.aliasResults(query);
     const errors = aliases.filter((a) => a.group !== "Documentation");
     const aliasDocs = aliases.filter((a) => a.group === "Documentation");
-    const docs = searchDocs(query, 14)
+    const docs = engine
+      .searchDocsMeta(query, 14)
       .map<Item>((h) => ({
         key: `d:${h.doc.slug}:${h.heading?.id ?? ""}`,
         group: "Documentation",
@@ -72,11 +122,12 @@ export function SearchModal(): ReactNode {
       }))
       .filter((d) => !aliasDocs.some((a) => a.key === d.key));
     return [...pages, ...errors, ...aliasDocs, ...docs];
-  }, [query]);
+  }, [open, query, engine]);
 
   useEffect(() => {
+    if (!open) return;
     list.current?.querySelector(`[data-index="${index}"]`)?.scrollIntoView({ block: "nearest" });
-  }, [index]);
+  }, [open, index]);
 
   if (!open) return null;
 

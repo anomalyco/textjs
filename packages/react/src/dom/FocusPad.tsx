@@ -97,8 +97,8 @@ const PALETTE = {
   },
 } as const;
 
-const FONT = 'Geist, "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
-const MONO = '"Geist Mono", ui-monospace, "SF Mono", Menlo, monospace';
+const FONT = 'Geist, "Geist Fallback", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
+const MONO = '"Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menlo, monospace';
 const EASE = "cubic-bezier(.2,.8,.2,1)";
 
 /*

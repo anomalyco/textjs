@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Performance
+
+- `@textjs/react`: `Box` and `Text` pass pre-stripped scene props to the reconciler instead of copying prop objects on mount and update.
+- `@textjs/core`: `SceneNode.getTextModel()` skips inline tree walks on single-string `<Text>` leaves and reuses cached zeroed `Uint16Array` `runOf` buffers. `CssConsoleDriver` scans consecutive BMP cells with matching style in an inner loop, and `ConsoleRenderer` skips `countYogaNodes()` on unchanged frames.
+- textjs.org: routes and console companion tabs split into per-route JS and CSS chunks. Store photos are re-encoded from the `photos/final` masters, and secondary product shots load on hover or slide change.
+
+### Fixed
+
+- `<ViewportControl>` uses a pixel `minWidth` instead of `20ch` and lists the metric-matched fallback fonts alongside `<FocusPad>`, so the size picker keeps its width when `Geist Mono` loads.
+
 ## [1.0.2] - 2026-11-01
 
 ### Added

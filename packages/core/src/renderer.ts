@@ -433,8 +433,8 @@ export class ConsoleRenderer {
       this.frameRingHead = head;
       this.frameRingSize = size;
       t.fps = size;
+      if (root && t.frameCount % 30 === 1) t.yogaNodes = root.countYogaNodes();
     }
-    if (root && t.frameCount % 30 === 1) t.yogaNodes = root.countYogaNodes();
     const frame = makeFrameResult(t, result.skipped);
     this.options.onFrame?.(frame);
     return frame;

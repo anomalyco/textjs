@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { StyledFrame } from "@textjs/core";
-import { COMPANION_COLS, COMPANION_ROWS, getCompanion, subscribeCompanionFrame } from "../console-companion/boot";
-import { isHomeExampleFrame } from "../console-companion/tabs/ExampleTab";
+import { activateCompanion, COMPANION_COLS, COMPANION_ROWS, subscribeCompanionFrame } from "../console-companion/bridge";
+import { isHomeExampleFrame } from "../docs/preview-meta";
 import { useSite } from "../console-companion/useSite";
 import { A } from "../router";
 import { DevtoolsShortcut } from "../site/Chrome";
@@ -45,7 +45,7 @@ function LiveConsole({ source = "viewport:3" }: { source?: string }): ReactNode 
       engage
       onActivate={() => {
         siteStore.exitExample();
-        getCompanion()?.activate();
+        activateCompanion();
       }}
       onInspect={() => siteStore.set({ wireframe: !site.wireframe })}
       inspecting={site.wireframe}

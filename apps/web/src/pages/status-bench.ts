@@ -119,52 +119,59 @@ export async function runPipelineBench(onProgress?: (done: number) => void): Pro
   const measure = async (frame: (i: number) => void): Promise<Summary> => {
     const samples: number[] = [];
     let i = 0;
+    let sliceStart = performance.now();
     for (let s = 0; s < WARMUP_BATCHES + SAMPLES; s++) {
       const t0 = performance.now();
       for (let b = 0; b < BATCH; b++) frame(i++);
-      const dt = (performance.now() - t0) / BATCH;
+      const t1 = performance.now();
+      const dt = (t1 - t0) / BATCH;
       frames += BATCH;
       if (s >= WARMUP_BATCHES) samples.push(dt);
       done++;
-      if (s % 5 === 4) {
+      if (t1 - sliceStart >= 10) {
         onProgress?.(done / total);
         await yieldToBrowser();
+        sliceStart = performance.now();
       }
     }
     return summarize(samples);
   };
 
-  // Full frame: force relayout of every text node, repaint, re-encode all 32 rows.
-  const fullFrame = await measure(() => {
-    for (const n of leaves) n.yoga?.markDirty();
-    root.calculateLayout(BENCH_COLS, BENCH_ROWS, true);
-    paintScene(root, buf);
-    driver.invalidate();
-    spans = driver.render(buf).spanCount;
-  });
+  try {
+    // Full frame: force relayout of every text node, repaint, re-encode all 32 rows.
+    const fullFrame = await measure(() => {
+      for (const n of leaves) n.yoga?.markDirty();
+      root.calculateLayout(BENCH_COLS, BENCH_ROWS, true);
+      paintScene(root, buf);
+      driver.invalidate();
+      spans = driver.render(buf).spanCount;
+    });
 
-  // Typing: one character changes in the input row.
-  const alphabet = "abcdefghijklmnopqrstuvwxyz";
-  let typed = "";
-  const typing = await measure((i) => {
-    typed = typed.length > 60 ? "" : typed + (alphabet[i % 26] ?? "x");
-    input.setText(`> ${typed}`);
+    // Typing: one character changes in the input row.
+    const alphabet = "abcdefghijklmnopqrstuvwxyz";
+    let typed = "";
+    const typing = await measure((i) => {
+      typed = typed.length > 60 ? "" : typed + (alphabet[i % 26] ?? "x");
+      input.setText(`> ${typed}`);
+      root.calculateLayout(BENCH_COLS, BENCH_ROWS);
+      paintScene(root, buf);
+      driver.render(buf);
+    });
+
+    // Idle: nothing changed, so the driver must not call the console.
     root.calculateLayout(BENCH_COLS, BENCH_ROWS);
     paintScene(root, buf);
     driver.render(buf);
-  });
+    con.calls = 0;
+    const idle = await measure(() => {
+      root.calculateLayout(BENCH_COLS, BENCH_ROWS);
+      paintScene(root, buf);
+      driver.render(buf);
+    });
 
-  // Idle: nothing changed, so the driver must not call the console.
-  root.calculateLayout(BENCH_COLS, BENCH_ROWS);
-  paintScene(root, buf);
-  driver.render(buf);
-  con.calls = 0;
-  const idle = await measure(() => {
-    root.calculateLayout(BENCH_COLS, BENCH_ROWS);
-    paintScene(root, buf);
-    driver.render(buf);
-  });
-
-  onProgress?.(1);
-  return { fullFrame, typing, idle, spans, idleConsoleCalls: con.calls, frames };
+    onProgress?.(1);
+    return { fullFrame, typing, idle, spans, idleConsoleCalls: con.calls, frames };
+  } finally {
+    root.destroy();
+  }
 }

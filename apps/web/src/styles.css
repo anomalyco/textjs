@@ -1,7 +1,5 @@
 /* ▼ textjs.org — Geist-inspired monochrome design system. */
 
-@import "./learn/learn.css";
-
 :root {
   --bg: #000000;
   --bg-1: #0a0a0a;

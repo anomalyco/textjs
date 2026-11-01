@@ -14,6 +14,10 @@ export interface HostElementProps extends SceneNodeProps {
   ref?: Ref<SceneNode>;
 }
 
+/** Pre-stripped scene props attached by `Box`/`Text` so the reconciler skips `toSceneProps` copies. */
+export const SCENE_PROPS: unique symbol = Symbol.for("textjs.sceneProps");
+const EMPTY_SCENE_PROPS: SceneNodeProps = Object.freeze({});
+
 export const TxBox = "tx-box" as unknown as ComponentType<HostElementProps>;
 export const TxText = "tx-text" as unknown as ComponentType<HostElementProps>;
 
@@ -74,29 +78,25 @@ export function buildBoxHostProps(
     titleColor?: ColorInput;
     bottomTitleColor?: ColorInput;
     backdropColor?: ColorInput;
+    children?: ReactNode;
+    ref?: Ref<SceneNode>;
   },
 ): HostElementProps {
-  if (
-    !("key" in raw) &&
-    !raw.className &&
-    !raw.style &&
-    raw.backgroundColor === undefined &&
-    raw.color === undefined &&
-    !raw.focused &&
-    raw.focusedBorderColor === undefined &&
-    !needsTokenResolve(raw.fg) &&
-    !needsTokenResolve(raw.bg) &&
-    !needsTokenResolve(raw.borderColor) &&
-    !needsTokenResolve(raw.titleColor) &&
-    !needsTokenResolve(raw.bottomTitleColor) &&
-    !needsTokenResolve(raw.backdropColor)
-  ) {
-    return raw as HostElementProps;
+  let onlyClass = true;
+  const src = raw as Record<string, unknown>;
+  for (const k in src) {
+    if (k !== "className" && k !== "children" && k !== "ref" && k !== "key" && src[k] !== undefined) {
+      onlyClass = false;
+      break;
+    }
+  }
+  if (onlyClass) {
+    const scene = raw.className ? parseClassName(raw.className, theme) : EMPTY_SCENE_PROPS;
+    return { children: raw.children, ref: raw.ref, [SCENE_PROPS]: scene } as HostElementProps;
   }
   const out: Record<string, unknown> = {};
   if (raw.className) assignDefined(out, parseClassName(raw.className, theme));
   if (raw.style) assignDefined(out, raw.style);
-  const src = raw as Record<string, unknown>;
   for (const k in src) {
     if (
       k === "className" ||
@@ -105,6 +105,8 @@ export function buildBoxHostProps(
       k === "focusedBorderColor" ||
       k === "backgroundColor" ||
       k === "color" ||
+      k === "children" ||
+      k === "ref" ||
       k === "key"
     ) {
       continue;
@@ -118,7 +120,7 @@ export function buildBoxHostProps(
   if (fg !== undefined) out.fg = fg;
   if (raw.focused) out.borderColor = raw.focusedBorderColor ?? theme.borderFocus;
   resolveColorFields(theme, out);
-  return out as HostElementProps;
+  return { children: raw.children, ref: raw.ref, [SCENE_PROPS]: out as SceneNodeProps } as HostElementProps;
 }
 
 /** Single-pass host props builder for `<Text>` (avoids intermediate rest/spread objects). */
@@ -130,17 +132,27 @@ export function buildTextHostProps(
     color?: ColorInput;
     fg?: ColorInput;
     align?: SceneNodeProps["textAlign"];
+    children?: ReactNode;
+    ref?: Ref<SceneNode>;
   },
 ): HostElementProps {
-  if (!("key" in raw) && !raw.className && !raw.style && raw.color === undefined && raw.align === undefined && !needsTokenResolve(raw.fg)) {
-    return raw as HostElementProps;
+  let onlyClass = true;
+  const src = raw as Record<string, unknown>;
+  for (const k in src) {
+    if (k !== "className" && k !== "children" && k !== "ref" && k !== "key" && src[k] !== undefined) {
+      onlyClass = false;
+      break;
+    }
+  }
+  if (onlyClass) {
+    const scene = raw.className ? parseClassName(raw.className, theme) : EMPTY_SCENE_PROPS;
+    return { children: raw.children, ref: raw.ref, [SCENE_PROPS]: scene } as HostElementProps;
   }
   const out: Record<string, unknown> = {};
   if (raw.className) assignDefined(out, parseClassName(raw.className, theme));
   if (raw.style) assignDefined(out, raw.style);
-  const src = raw as Record<string, unknown>;
   for (const k in src) {
-    if (k === "className" || k === "style" || k === "color" || k === "align" || k === "key") continue;
+    if (k === "className" || k === "style" || k === "color" || k === "align" || k === "children" || k === "ref" || k === "key") continue;
     const v = src[k];
     if (v !== undefined) out[k] = v;
   }
@@ -148,6 +160,6 @@ export function buildTextHostProps(
   if (fg !== undefined) out.fg = fg;
   if (raw.align !== undefined) out.textAlign = raw.align;
   resolveColorFields(theme, out);
-  return out as HostElementProps;
+  return { children: raw.children, ref: raw.ref, [SCENE_PROPS]: out as SceneNodeProps } as HostElementProps;
 }
 void COLOR_KEYS;

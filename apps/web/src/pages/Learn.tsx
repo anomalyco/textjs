@@ -9,6 +9,7 @@ import { CHAPTERS, chapterIndex, chapterNumber, COMPLETE_SLUG, COURSE_APP, getCh
 import { LearnPad } from "../learn/LearnPad";
 import { isCourseComplete, progressStore, useProgress, type Progress } from "../learn/progress";
 import { Quiz } from "../learn/Quiz";
+import "../learn/learn.css";
 
 function doneCount(p: Progress): number {
   return CHAPTERS.filter((c) => p.done.includes(c.slug)).length;

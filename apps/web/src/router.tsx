@@ -1,11 +1,11 @@
-import { useSyncExternalStore, type AnchorHTMLAttributes, type MouseEvent, type ReactNode } from "react";
-import { getDoc } from "./docs/registry";
-import { getPost } from "./blog";
+import { useSyncExternalStore, type AnchorHTMLAttributes, type FocusEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import { getPostMeta } from "./blog/meta";
 import { PRESETS, presetForPath, siteStore, type PresetId } from "./console-companion/store";
+import { getDocMeta } from "./docs/meta";
 import { learnRoute, learnTitle } from "./learn/routes";
 import { merchRoute, merchTitle } from "./merch/routes";
-import { safeDecode } from "./url";
 import { getErrorPageDoc } from "./pages/tx000";
+import { safeDecode } from "./url";
 
 export type Route =
   | { name: "home" }
@@ -36,7 +36,7 @@ export function matchRoute(pathname: string): Route {
   const docs = /^\/docs\/([^/]+)$/.exec(p);
   if (docs) {
     const slug = safeDecode(docs[1] as string);
-    return getDoc(slug) ? { name: "docs", slug } : { name: "not-found" };
+    return getDocMeta(slug) ? { name: "docs", slug } : { name: "not-found" };
   }
   const preset = presetForPath(p);
   if (preset) return { name: "playground", preset };
@@ -55,7 +55,7 @@ export function matchRoute(pathname: string): Route {
   const post = /^\/blog\/([^/]+)$/.exec(p);
   if (post) {
     const slug = safeDecode(post[1] as string);
-    return getPost(slug) ? { name: "blog-post", slug } : { name: "not-found" };
+    return getPostMeta(slug) ? { name: "blog-post", slug } : { name: "not-found" };
   }
   if (p === "/enterprise") return { name: "enterprise" };
   if (p === "/status") return { name: "status" };
@@ -70,7 +70,7 @@ export function titleFor(route: Route): string {
     case "home":
       return "Text.js | The Console Framework";
     case "docs": {
-      const doc = getDoc(route.slug);
+      const doc = getDocMeta(route.slug);
       return `${doc?.title ?? "Docs"} | Text.js Docs`;
     }
     case "playground": {
@@ -92,7 +92,7 @@ export function titleFor(route: Route): string {
     case "blog":
       return `Blog | ${suffix}`;
     case "blog-post":
-      return `${getPost(route.slug)?.title ?? "Blog"} | ${suffix}`;
+      return `${getPostMeta(route.slug)?.title ?? "Blog"} | ${suffix}`;
     case "enterprise":
       return `Enterprise | ${suffix}`;
     case "status":
@@ -118,6 +118,18 @@ let current: LocationState = {
   key: 0,
 };
 const listeners = new Set<() => void>();
+let hrefPrefetcher: ((pathname: string) => void) | null = null;
+
+/** Register a warm-up callback for internal `<A>` links (avoids router ↔ loader cycles). */
+export function registerHrefPrefetcher(fn: (pathname: string) => void): void {
+  hrefPrefetcher = fn;
+}
+
+function prefetchHref(href: string): void {
+  if (!hrefPrefetcher || !isInternalHref(href)) return;
+  const pathname = (href.split(/[?#]/)[0] ?? "/").trim() || "/";
+  hrefPrefetcher(normalizePath(pathname));
+}
 
 function emit(): void {
   for (const l of listeners) l();
@@ -159,6 +171,7 @@ export function navigate(href: string, options: { replace?: boolean } = {}): voi
     window.location.assign(href);
     return;
   }
+  prefetchHref(url.pathname);
   const target = `${url.pathname}${url.search}${url.hash}`;
   if (options.replace) window.history.replaceState(null, "", target);
   else window.history.pushState(null, "", target);
@@ -175,7 +188,7 @@ export interface AProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
 }
 
 /** An `<a>` that performs client-side navigation for internal links. */
-export function A({ href, onClick, children, ...rest }: AProps): ReactNode {
+export function A({ href, onClick, onMouseEnter, onFocus, onPointerDown, children, ...rest }: AProps): ReactNode {
   const internal = isInternalHref(href);
   const handle = (e: MouseEvent<HTMLAnchorElement>): void => {
     onClick?.(e);
@@ -184,8 +197,28 @@ export function A({ href, onClick, children, ...rest }: AProps): ReactNode {
     e.preventDefault();
     navigate(href);
   };
+  const handleEnter = (e: MouseEvent<HTMLAnchorElement>): void => {
+    onMouseEnter?.(e);
+    if (internal) prefetchHref(href);
+  };
+  const handleFocus = (e: FocusEvent<HTMLAnchorElement>): void => {
+    onFocus?.(e);
+    if (internal) prefetchHref(href);
+  };
+  const handleDown = (e: PointerEvent<HTMLAnchorElement>): void => {
+    onPointerDown?.(e);
+    if (internal) prefetchHref(href);
+  };
   return (
-    <a href={href} onClick={handle} {...(internal ? {} : { target: "_blank", rel: "noreferrer" })} {...rest}>
+    <a
+      href={href}
+      onClick={handle}
+      onMouseEnter={internal ? handleEnter : onMouseEnter}
+      onFocus={internal ? handleFocus : onFocus}
+      onPointerDown={internal ? handleDown : onPointerDown}
+      {...(internal ? {} : { target: "_blank", rel: "noreferrer" })}
+      {...rest}
+    >
       {children}
     </a>
   );

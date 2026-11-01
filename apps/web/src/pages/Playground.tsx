@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { getCompanion } from "../console-companion/boot";
+import { activateCompanion } from "../console-companion/bridge";
 import { DEMOS, PAGE_HINTS, PRESETS, type DemoId, type PresetId } from "../console-companion/store";
 import dashboardSource from "../demos/Dashboard.tsx?raw";
 import streamingSource from "../demos/Streaming.tsx?raw";
@@ -49,7 +49,7 @@ function Picker({ demo }: { demo: DemoId }): ReactNode {
               if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
               if (current) e.preventDefault();
               // Picking a demo is a click on the stage: keys go straight to the console.
-              getCompanion()?.activate();
+              activateCompanion();
             }}
           >
             {d.label}

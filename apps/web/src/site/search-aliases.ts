@@ -1,5 +1,6 @@
 import { getTxError } from "@textjs/core";
-import { docPath, getDoc, headingsOf } from "../docs/registry";
+import { docPath, getDocMeta } from "../docs/meta";
+import { DOC_HEADINGS } from "../docs/search-index";
 
 export interface SearchItem {
   key: string;
@@ -26,10 +27,10 @@ function errorItem(code: string): SearchItem | null {
 }
 
 function docItem(slug: string, heading?: string): SearchItem | null {
-  const doc = getDoc(slug);
+  const doc = getDocMeta(slug);
   if (!doc) return null;
   if (heading) {
-    const h = headingsOf(doc.markdown).find((x) => x.text === heading);
+    const h = (DOC_HEADINGS[slug] ?? []).find((x) => x.text === heading);
     if (!h) return null;
     return { key: `d:${slug}:${h.id}`, group: "Documentation", label: h.text, sub: doc.title, href: `${docPath(slug)}#${h.id}` };
   }
@@ -62,6 +63,6 @@ export function invertTriangles(value: string): string {
 }
 
 /** Vim's quit commands; Enter with one of these closes the palette like Esc. */
-export function isQuitCommand(query: string): boolean {
+export function isQuitCommand(query: string): string | boolean {
   return /^:(q!?|wq!?|x)$/.test(query.trim());
 }

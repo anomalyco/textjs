@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { parseMarkdown } from "@textjs/react";
 import { DOC_CATEGORIES, DOCS, docPath, getDoc, headingsOf, neighbors, searchDocs, toConsoleMarkdown } from "../src/docs/registry";
+import { POSTS, POSTS_META } from "../src/blog";
+import { PREVIEW_META } from "../src/docs/preview-meta";
+import { DOC_HEADINGS } from "../src/docs/search-index";
 import { PREVIEWS } from "../src/docs/previews";
+import { PRODUCTS } from "../src/merch/products";
+import { PRODUCTS_META } from "../src/merch/meta";
 import { parseFence } from "../src/site/Markdown";
 
 const REQUIRED = [
@@ -41,8 +46,24 @@ describe("documentation registry", () => {
 
   test("heading ids are unique within each page", () => {
     for (const d of DOCS) {
-      const ids = headingsOf(d.markdown).map((h) => h.id);
+      const headings = headingsOf(d.markdown);
+      const ids = headings.map((h) => h.id);
       expect(new Set(ids).size).toBe(ids.length);
+      expect(DOC_HEADINGS[d.slug]).toEqual(headings);
+    }
+  });
+
+  test("split metadata modules match full content modules", () => {
+    expect(POSTS_META).toEqual(POSTS.map(({ markdown: _m, ...meta }) => meta));
+    expect(PRODUCTS_META).toEqual(PRODUCTS.map((p) => ({ slug: p.slug, name: p.name, summary: p.description[0] ?? "" })));
+    expect(Object.keys(PREVIEW_META).sort()).toEqual(Object.keys(PREVIEWS).sort());
+    for (const [id, spec] of Object.entries(PREVIEWS)) {
+      expect(PREVIEW_META[id]).toEqual({
+        cols: spec.cols,
+        rows: spec.rows,
+        ...(spec.label ? { label: spec.label } : {}),
+        ...(spec.hints ? { hints: spec.hints } : {}),
+      });
     }
   });
 

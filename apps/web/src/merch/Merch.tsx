@@ -6,6 +6,7 @@ import { useScrollLock } from "../site/Sheet";
 import { cart, useCart } from "./cart";
 import { MERCH, onSale, saleOf, type CartLine, type CheckoutProvider } from "./config";
 import { formatPrice, getProduct, IMAGE_HEIGHT, IMAGE_WIDTH, PRODUCTS, productPath, type Product, type ProductImage } from "./products";
+import "./merch.css";
 
 export function MerchPage({ slug, provider = MERCH.provider }: { slug: string; provider?: CheckoutProvider | null }): ReactNode {
   const product = slug ? getProduct(slug) : undefined;
@@ -35,7 +36,7 @@ function Collection({ provider, bag }: { provider: CheckoutProvider | null; bag:
       <ul className="merch-grid" aria-label="Products">
         {PRODUCTS.map((p, i) => (
           <li key={p.slug}>
-            <ProductCard product={p} flag={flagFor(p, provider)} eager={i < 3} />
+            <ProductCard product={p} flag={flagFor(p, provider)} eager={i < 3} priority={i === 0} />
           </li>
         ))}
       </ul>
@@ -49,14 +50,34 @@ function flagFor(p: Product, provider: CheckoutProvider | null): string | null {
   return saleOf(p.slug).preorder ? "Pre-order" : null;
 }
 
-function ProductCard({ product: p, flag, eager = false, compact = false }: { product: Product; flag: string | null; eager?: boolean; compact?: boolean }): ReactNode {
+function ProductCard({
+  product: p,
+  flag,
+  eager = false,
+  priority = false,
+  compact = false,
+}: {
+  product: Product;
+  flag: string | null;
+  eager?: boolean;
+  priority?: boolean;
+  compact?: boolean;
+}): ReactNode {
   const [first, second] = p.images as [ProductImage, ProductImage | undefined];
-  const sizes = compact ? "(min-width: 1000px) 25vw, 50vw" : "(min-width: 1000px) 33vw, 50vw";
+  const [showAlt, setShowAlt] = useState(false);
+  const sizes = compact ? "(min-width: 1000px) 320px, calc(50vw - 24px)" : "(min-width: 1000px) 448px, calc(50vw - 24px)";
   return (
-    <A href={productPath(p.slug)} className="merch-card">
+    <A
+      href={productPath(p.slug)}
+      className="merch-card"
+      onPointerEnter={(e) => {
+        if (e.pointerType === "mouse") setShowAlt(true);
+      }}
+      onFocus={() => setShowAlt(true)}
+    >
       <div className="merch-card-media">
-        <Img image={first} sizes={sizes} eager={eager} alt="" />
-        {second ? <Img image={second} sizes={sizes} alt="" className="merch-card-alt" /> : null}
+        <Img image={first} sizes={sizes} eager={eager} priority={priority} alt="" />
+        {second && showAlt ? <Img image={second} sizes={sizes} eager alt="" className="merch-card-alt" /> : null}
         {flag ? <span className="merch-flag">{flag}</span> : null}
       </div>
       <div className="merch-card-meta">
@@ -69,7 +90,21 @@ function ProductCard({ product: p, flag, eager = false, compact = false }: { pro
   );
 }
 
-function Img({ image, sizes, alt, eager = false, className }: { image: ProductImage; sizes: string; alt: string; eager?: boolean; className?: string }): ReactNode {
+function Img({
+  image,
+  sizes,
+  alt,
+  eager = false,
+  priority = false,
+  className,
+}: {
+  image: ProductImage;
+  sizes: string;
+  alt: string;
+  eager?: boolean;
+  priority?: boolean;
+  className?: string;
+}): ReactNode {
   return (
     <img
       src={image.large}
@@ -79,7 +114,8 @@ function Img({ image, sizes, alt, eager = false, className }: { image: ProductIm
       height={IMAGE_HEIGHT}
       alt={alt}
       loading={eager ? "eager" : "lazy"}
-      decoding="async"
+      fetchPriority={priority ? "high" : undefined}
+      decoding={priority ? "sync" : "async"}
       className={className}
     />
   );
@@ -155,9 +191,12 @@ function ProductView({ product: p, provider, bag, onAdded }: { product: Product;
 function Gallery({ product: p }: { product: Product }): ReactNode {
   const track = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
+  const [extraLoaded, setExtraLoaded] = useState(false);
   const count = p.images.length;
+  const warmExtra = (): void => setExtraLoaded(true);
 
   const go = (i: number): void => {
+    setExtraLoaded(true);
     const el = track.current;
     const next = (i + count) % count;
     setIndex(next);
@@ -167,13 +206,16 @@ function Gallery({ product: p }: { product: Product }): ReactNode {
   useEffect(() => {
     const el = track.current;
     if (!el) return;
-    const onScroll = (): void => setIndex(Math.round(el.scrollLeft / Math.max(1, el.clientWidth)));
+    const onScroll = (): void => {
+      setExtraLoaded(true);
+      setIndex(Math.round(el.scrollLeft / Math.max(1, el.clientWidth)));
+    };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
   return (
-    <div className="merch-gallery">
+    <div className="merch-gallery" onPointerEnter={warmExtra} onTouchStart={warmExtra} onFocus={warmExtra}>
       <div className="merch-stage">
         <div
           ref={track}
@@ -191,7 +233,9 @@ function Gallery({ product: p }: { product: Product }): ReactNode {
         >
           {p.images.map((image, i) => (
             <div key={image.large} className="merch-slide" role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${count}`}>
-              <Img image={image} sizes="(min-width: 1000px) 55vw, 100vw" eager={i === 0} alt={image.alt} />
+              {i === 0 || extraLoaded ? (
+                <Img image={image} sizes="(min-width: 1000px) 624px, min(640px, calc(100vw - 32px))" eager={i === 0} priority={i === 0} alt={image.alt} />
+              ) : null}
             </div>
           ))}
         </div>
