@@ -10,6 +10,9 @@ import { BROKEN_TEST, TESTING_SUITE } from "../src/learn/apps/chapters";
 import { splitChapter } from "../src/learn/ChapterBody";
 import { getChapter } from "../src/learn/course";
 import { applyDiff, parseDiff } from "../src/learn/DiffCode";
+import { resolveAdapter } from "../../../packages/text/src/server/adapters/build-step";
+import type { AdapterContext } from "../../../packages/text/src/server/adapters/shared";
+import { vercelConfig } from "../../../packages/text/src/server/adapters/vercel";
 import { DEPLOYMENTS } from "./fixtures/acme-deploys/lib/deployments";
 import DeploymentsPage from "./fixtures/acme-deploys/app/deployments/page";
 
@@ -123,4 +126,18 @@ describe("Shipping chapter", () => {
     expect(shownSizes).toHaveLength(2);
     shownSizes.forEach((size, i) => expect(Math.abs(size / (realSizes[i] ?? 0) - 1)).toBeLessThan(0.1));
   }, 60_000);
+
+  test("static hosting: Vercel and Cloudflare Pages need no rewrite, other hosts get one", () => {
+    const md = markdown("shipping");
+    expect(md).not.toContain("vercel.json");
+    expect(resolveAdapter(undefined, { VERCEL: "1" })).toBe("vercel");
+    expect(resolveAdapter(undefined, { CF_PAGES: "1" })).toBe("cloudflare");
+    // The vercel adapter's config.json serves index.html for extensionless paths after the filesystem.
+    const ctx = { basePath: "", api: [], rewrites: [] } as unknown as AdapterContext;
+    const routes = vercelConfig(ctx, null).routes;
+    const fallback = routes.slice(routes.findIndex((r) => r.handle === "filesystem") + 1).find((r) => r.dest === "/index.html");
+    expect(new RegExp(fallback?.src ?? "$^").test("/deployments/dpl_8fK2")).toBe(true);
+    const redirects = splitChapter(md).find((s) => s.type === "diff" && s.file === "public/_redirects");
+    expect(redirects && applyDiff(parseDiff(redirects.source))).toBe("/*  /index.html  200");
+  });
 });

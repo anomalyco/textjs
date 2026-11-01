@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - `text start` answers a blocked `Host` with `TX028`, like `text dev`. Each server names the setting it reads: `vite.server.allowedHosts` for `text dev` and `server.allowedHosts` for `text start`.
+- textjs.org: the Learn Shipping chapter no longer tells you to add a `vercel.json` rewrite. On Vercel and Cloudflare Pages, `text build` writes the `index.html` fallback itself. The rewrite example now uses Netlify's `_redirects`.
 - `eslint-plugin-textjs`: `route-handler-exports` allows the `dynamic` and `revalidate` exports in `route.ts`, and `valid-route-module` checks `dynamic` values there.
 
 ## [1.0.1] - 2026-11-01
