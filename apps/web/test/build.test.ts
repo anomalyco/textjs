@@ -48,6 +48,13 @@ describe("production build", () => {
     for (const p of ["/assets/index-abc.js", "/assets/missing.js", "/favicon.svg", "/og.png", "/og.svg", "/robots.txt", "/sitemap.xml"]) expect(re.test(p)).toBe(false);
     const all = cfg.headers.find((h) => h.source === "/(.*)")?.headers ?? [];
     expect(all).toContainEqual({ key: "X-Content-Type-Options", value: "nosniff" });
+    expect(all).toContainEqual({ key: "X-Powered-By", value: "Text.js" });
+  });
+
+  test("Cloudflare Pages sends X-Powered-By on every static response", () => {
+    const headers = readFileSync(join(ROOT, "public/_headers"), "utf8");
+    const all = /^\/\*\n((?:[ \t]+.+\n)+)/m.exec(headers)?.[1] ?? "";
+    expect(all).toContain("  X-Powered-By: Text.js\n");
   });
 
   test("sitemap lists every docs page", () => {
