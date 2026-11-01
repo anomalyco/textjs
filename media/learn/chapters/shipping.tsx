@@ -14,7 +14,7 @@ const acme: typeof import("../../../apps/web/src/learn/apps/acme") = await impor
 
 const chapter = getChapter("shipping")!;
 const number = chapterIndex(chapter.slug) + 1;
-const [build, , pageMeta, vercel] = codeBlocks(chapter) as [ReturnType<typeof codeBlocks>[number], ReturnType<typeof codeBlocks>[number], ReturnType<typeof codeBlocks>[number], ReturnType<typeof codeBlocks>[number]];
+const [build, , pageMeta, redirects] = codeBlocks(chapter) as [ReturnType<typeof codeBlocks>[number], ReturnType<typeof codeBlocks>[number], ReturnType<typeof codeBlocks>[number], ReturnType<typeof codeBlocks>[number]];
 const quiz = chapter.quiz;
 if (build.source !== "bun run build") throw new Error("Lesson code changed: review the build scene");
 
@@ -84,17 +84,16 @@ const small = await renderFrame(
   { cols: 80, rows: 24, trim: false },
 );
 
-const vercelLines = fileLines(applyDiff(vercel.source), "json");
+if (redirects.file !== "public/_redirects") throw new Error("Lesson code changed: review the static hosting scene");
+const redirectLines = fileLines(applyDiff(redirects.source), "text");
 
 const script: ChapterScript = {
   slug: chapter.slug,
   pronounce: {
     "textjs.org/learn/certificate": "textjs dot org slash learn slash certificate",
     "/api/deployments": "slash API slash deployments",
-    "/settings": "slash settings",
     "index.html": "index dot HTML",
-    "vercel.json": "vercel dot JSON",
-    "assets/": "assets",
+    "public/_redirects": "public slash redirects",
   },
   scenes: [
     {
@@ -177,17 +176,18 @@ const script: ChapterScript = {
       kind: "editor",
       narration:
         "Without route handlers, the build is a plain static site. " +
-        "{index}Each static route gets its own HTML file. Dynamic routes like [/deployments/[id]|slash deployments, slash I D] need a rewrite to index.html. " +
-        "{vercel}On Vercel, that's a vercel.json. {rewrite}Paths outside assets/ without a file of their own are rewritten to index.html, " +
-        "{deep}so opening a deployment's page directly loads the app, and the router shows the right page.",
+        "{index}Each static route gets its own HTML file, and dynamic routes like [/deployments/[id]|slash deployments, slash I D] are served by index.html. " +
+        "{vercel}On Vercel and Cloudflare Pages, text build detects the platform and sets that up itself. " +
+        "{rewrite}Other static hosts need a rewrite. On Netlify, it's one line in public/_redirects. " +
+        "{deep}Netlify serves files that exist first, so assets and prerendered routes are unaffected.",
       tail: 2.0,
       props: {
-        file: vercel.file,
-        language: "json",
+        file: redirects.file,
+        language: "text",
         mode: "write",
-        lines: vercelLines,
+        lines: redirectLines,
         appear: 0.3,
-        highlights: [{ at: "rewrite", until: "end", lines: [lineOf(vercelLines, "rewrites"), lineOf(vercelLines, "rewrites")], focus: true }],
+        highlights: [{ at: "rewrite", until: "end", lines: [lineOf(redirectLines, "/index.html"), lineOf(redirectLines, "/index.html")], focus: true }],
       },
     },
     {
@@ -221,7 +221,7 @@ const script: ChapterScript = {
       kind: "live",
       narration:
         "Here it is on the lesson page. {click}Click the pad first, so the page has focus, {enter}then press Enter to ship. " +
-        "{log}text build runs, and vercel deploy uploads the output. {live}Acme Deploys is live.",
+        "{log}text build runs, then vercel deploy uploads the project and Vercel runs the build. {live}Acme Deploys is live.",
       tail: 2.8,
       live: {
         server: "site",
