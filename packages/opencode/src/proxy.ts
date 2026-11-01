@@ -460,7 +460,7 @@ export async function startProxy(options: BridgeOptions = {}): Promise<StartedBr
   const addr = server.address() as AddressInfo;
   const url = `http://${host === "::1" ? "[::1]" : host}:${addr.port}`;
   if (options.log !== false) {
-    const dest = target ? `${target.url}${target.source === "service" ? color.dim(" (opencode service)") : ""}` : color.yellow("no server yet — start opencode");
+    const dest = target ? `${target.url}${target.source === "service" ? color.dim(" (opencode service)") : ""}` : color.yellow("no OpenCode server yet. Start opencode.");
     console.log(`\n   ${color.bold("▼ Text.js OpenCode Bridge")}\n\n   ${url} ${color.dim("→")} ${dest}\n   ${color.dim("Open https://textjs.org/opencode to connect.")}\n`);
   }
   return {
