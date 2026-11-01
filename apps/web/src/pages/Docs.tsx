@@ -99,8 +99,9 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
               <span>/</span>
               <span>{doc.category}</span>
             </div>
-            {/* Keyed so a page with a lockup mounts a new title instead of shifting the previous one down. */}
-            <Fragment key={doc.slug}>
+            {/* Keyed so a page with a lockup mounts a new title instead of shifting the previous one down.
+                The key must differ from MarkdownDoc's: duplicate sibling keys left old titles stacked up. */}
+            <Fragment key={`head:${doc.slug}`}>
               {doc.brand === "turbolog" ? <TurbologLockup className="docs-brand" /> : null}
               <h1 className="docs-title">{doc.title}</h1>
               <p className="docs-desc">{doc.description}</p>

@@ -197,6 +197,17 @@ await page.locator(".split-console").click();
 await press(["ArrowUp", "ArrowUp"]);
 check("Home: clicking the preview routes ↑ to the console", (await last()) !== hb);
 
+// Docs: client navigation replaces the title and description (duplicate sibling keys once stacked them up).
+await page.goto(`${base}/docs/routing`);
+await settle(500);
+for (const slug of ["deploying", "styling", "turbolog-engine", "testing"]) {
+  await page.locator(`.docs-sidebar a[href="/docs/${slug}"]`).first().click();
+  await page.waitForURL(`**/docs/${slug}`);
+  await settle(200);
+}
+const heads = await page.evaluate(() => ({ h1: document.querySelectorAll(".docs-main h1").length, desc: document.querySelectorAll(".docs-main .docs-desc").length, brand: document.querySelectorAll(".docs-main .turbolog-lockup").length }));
+check("Docs: navigating keeps one title, one description, no stale lockup", heads.h1 === 1 && heads.desc === 1 && heads.brand === 0, JSON.stringify(heads));
+
 // Docs: Enter reads the highlighted page, and the page itself scrolls.
 await page.goto(`${base}/docs/routing`);
 await settle(1000);
