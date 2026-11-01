@@ -30,7 +30,8 @@ Or build for a target yourself:
 bunx text build --adapter vercel       # .vercel/output → vercel deploy --prebuilt
 bunx text build --adapter cloudflare   # dist/_worker.js → wrangler pages deploy dist
 bunx text build --adapter bun          # dist/server.js → bun dist/server.js
-bunx text build --adapter static       # dist/ for any static host
 ```
+
+A static host (`--adapter static`) can't serve `app/api/metrics/route.ts`, a dynamic route handler. To export a static site, add `export const dynamic = "force-static"` to it or delete it.
 
 See [Deploying](https://textjs.org/docs/deploying).
