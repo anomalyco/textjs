@@ -241,7 +241,8 @@ const KEYS: Record<string, { marker: string; press: (h: Harness) => Promise<void
       await h.key("return");
       await until(h, "Shipped.");
     },
-    expect: (_b, a) => a.includes("Shipped."),
+    // The log is the chapter's real `text build` output, scrolled like a terminal so the newest lines stay in view.
+    expect: (_b, a) => a.includes("Shipped.") && a.includes("+ First Load JS shared by all") && a.includes("✓ Production:"),
   },
 };
 

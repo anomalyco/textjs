@@ -97,3 +97,29 @@ describe("Terminal chapter", () => {
     expect(code).toBe(0);
   }, 15_000);
 });
+
+describe("Shipping chapter", () => {
+  const TEXT_CLI = join(import.meta.dir, "../../../packages/text/bin/text.ts");
+  const kB = (line: string): number[] => [...line.matchAll(/([\d.]+) kB/g)].map((m) => Number(m[1]));
+  // Timings and bundle sizes move with every build; everything else must match the CLI exactly.
+  const normalize = (out: string): string =>
+    out
+      .replace(/in [\d.]+s$/gm, "in Xs")
+      .replace(/[\d.]+ kB/g, "X kB")
+      .replace(/\n+$/, "");
+
+  test("the text build output is what the CLI prints for the course app", () => {
+    const shown = fences(markdown("shipping")).find((f) => f.lang === "text")?.source ?? "";
+    // As `bun run build` runs it: bun test sets NODE_ENV=test, which would make Vite bundle React's development build.
+    const { NODE_ENV: _, ...env } = process.env;
+    const r = Bun.spawnSync([process.execPath, TEXT_CLI, "build"], { cwd: APP, env: { ...env, NO_COLOR: "1", FORCE_COLOR: "" } });
+    const real = r.stdout.toString();
+    expect(r.exitCode).toBe(0);
+    expect(normalize(shown)).toBe(normalize(real));
+    // Sizes may drift a little between releases, but stay within 10% of the real bundle.
+    const shownSizes = kB(shown);
+    const realSizes = kB(real);
+    expect(shownSizes).toHaveLength(2);
+    shownSizes.forEach((size, i) => expect(Math.abs(size / (realSizes[i] ?? 0) - 1)).toBeLessThan(0.1));
+  }, 60_000);
+});
