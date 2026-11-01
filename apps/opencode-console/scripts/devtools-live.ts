@@ -26,10 +26,12 @@ try {
     }),
   });
   try {
+    if([mock.url,bridge.url].some(u=>["4096","49374"].includes(new URL(u).port)))throw Error("Reserved port selected");
     const socket = createServer();
     await new Promise<void>((res) => socket.listen(0, "127.0.0.1", res));
     const port = (socket.address() as { port: number }).port;
     await new Promise<void>((res) => socket.close(() => res()));
+    if([4096,49374].includes(port))throw Error("Reserved debugger port selected");
     const browser = await chromium.launch({
       executablePath: chromium.executablePath(),
       headless: false,
@@ -61,6 +63,7 @@ try {
       const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json());
       const target = targets.find((t: any) => t.type === "page" && t.url === page.url());
       const dt = await browser.newPage({ viewport: { width: 790, height: 580 } });
+      await dt.route(url=>["localhost","127.0.0.1","[::1]"].includes(url.hostname) && url.origin!==`http://127.0.0.1:${port}`,route=>route.abort());
       await dt.goto(`http://127.0.0.1:${port}/devtools/inspector.html?ws=127.0.0.1:${port}/devtools/page/${target.id}&panel=console`);
       await dt.locator("#tab-console").click();
       const cast = dt.locator('button[aria-label="Toggle screencast"].toggled');
@@ -74,6 +77,10 @@ try {
         await dt.locator("#console-messages").screenshot({ path: resolve(out, `${name}.png`) });
       };
       await snap("home", "Ask anything");
+      await page.keyboard.type("/model");await snap("slash","/models");
+      await page.keyboard.press("Escape");await page.keyboard.press("Control+u");
+      await page.keyboard.type("@src");await snap("mention","cart badge.ts");
+      await page.keyboard.press("Escape");await page.keyboard.press("Control+u");
       await page.keyboard.press("Control+x");
       await page.keyboard.press("l");
       await snap("sessions", "Sessions for");
@@ -160,7 +167,7 @@ try {
       )
         throw Error("Expected explicit decisions through mock bridge");
       if (pageErrors.length) throw Error(pageErrors.join("\n"));
-      console.log(`Live bridge DevTools: six captured screens, reject, form reply and paced stream verified (${out})`);
+      console.log(`Live bridge DevTools: captured menus, reject, form reply and paced stream verified (${out})`);
     } finally {
       await browser.close();
     }

@@ -20,6 +20,7 @@ try {
   }
   await run(process.execPath, ["scripts/e2e-keys.mjs"], web);
   await run(process.execPath, ["scripts/e2e-examples.mjs"], web);
+  for (const name of ["e2e-layout", "e2e-eggs", "cls"]) await run(process.execPath,[`scripts/${name}.mjs`],web);
   await run("bun", ["scripts/devtools-live.ts"], app);
 } finally {
   await server.close();
