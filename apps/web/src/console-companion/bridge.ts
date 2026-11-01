@@ -9,6 +9,8 @@ export const COMPANION_COLS = 100;
 export const COMPANION_ROWS = 26;
 export const TERMINAL_COLS = 80;
 export const TERMINAL_ROWS = 30;
+export const TERMINAL_MIN_COLS = 10;
+export const TERMINAL_MIN_ROWS = 6;
 
 /**
  * The companion fills the docked DevTools console ("Fit console", the
@@ -22,9 +24,10 @@ export function viewportLimitsFor(
   // An example gets exactly its grid, so the page can mirror it cell for cell.
   const grid = runsExamples(tab) && example !== null ? exampleGrid(example, tab) : null;
   if (grid) return { minCols: grid.cols, maxCols: grid.cols, minRows: grid.rows, maxRows: grid.rows, fallbackCols: grid.cols, fallbackRows: grid.rows };
-  // terminal.shop's ssh layout is a fixed 80 × 30 grid.
+  // terminal.shop follows the console like the ssh shop follows the terminal: its layouts change
+  // below 80 and 50 columns, and under 20 × 10 it asks for a bigger window. 80 × 30 when unmeasurable.
   if (tab === "terminal")
-    return { minCols: TERMINAL_COLS, maxCols: TERMINAL_COLS, minRows: TERMINAL_ROWS, maxRows: TERMINAL_ROWS, fallbackCols: TERMINAL_COLS, fallbackRows: TERMINAL_ROWS };
+    return { minCols: TERMINAL_MIN_COLS, maxCols: 200, minRows: TERMINAL_MIN_ROWS, maxRows: 60, fallbackCols: TERMINAL_COLS, fallbackRows: TERMINAL_ROWS };
   return tab === "home"
     ? { minCols: 40, maxCols: COMPANION_COLS, minRows: 12, maxRows: COMPANION_ROWS, fallbackCols: COMPANION_COLS, fallbackRows: COMPANION_ROWS }
     : { minCols: 40, maxCols: 200, minRows: 12, maxRows: 60, fallbackCols: 120, fallbackRows: 36 };

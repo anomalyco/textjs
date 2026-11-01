@@ -56,7 +56,7 @@ const ROW = {
   subtitle: ".tx-pad-sub",
   // Live only: the demo's keys in the hero.
   hints: ".tx-pad-hints",
-  // terminal.shop pins its console at 80×30, so the size control's label is shorter there.
+  // The size control's label shows the console size, which differs per page.
   size: ".tx-pad-size",
 };
 

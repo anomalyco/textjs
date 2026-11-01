@@ -115,7 +115,7 @@ export function CompanionApp(): ReactNode {
       </>
     ) : null;
   }
-  // terminal.shop's ssh storefront, 80 × 30, signed in through the site's proxy.
+  // terminal.shop's ssh storefront (responsive like the ssh shop), signed in through the site's proxy.
   if (tab === "terminal") {
     const TerminalConsole = loaded.terminal;
     return TerminalConsole ? <TerminalConsole /> : null;

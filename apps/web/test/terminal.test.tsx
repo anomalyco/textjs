@@ -66,7 +66,7 @@ describe("/coffee when its Functions are down", () => {
 describe("/coffee (terminal.shop)", () => {
   afterAll(() => resetLocation("/"));
 
-  test("route, title, companion tab and the 80 × 30 console", () => {
+  test("route, title, companion tab and a console that follows DevTools", () => {
     expect(matchRoute("/coffee")).toEqual({ name: "coffee" });
     expect(matchRoute("/coffee/")).toEqual({ name: "coffee" });
     // Only the OAuth callback and the API live under /terminal, and they're Pages Functions.
@@ -78,7 +78,7 @@ describe("/coffee (terminal.shop)", () => {
     expect(isPadRoute("/coffee")).toBe(true);
     expect(isPadRoute("/coffees")).toBe(false);
     expect(isPadRoute("/terminal")).toBe(false);
-    expect(viewportLimitsFor("terminal")).toEqual({ minCols: 80, maxCols: 80, minRows: 30, maxRows: 30, fallbackCols: 80, fallbackRows: 30 });
+    expect(viewportLimitsFor("terminal")).toEqual({ minCols: 10, maxCols: 200, minRows: 6, maxRows: 60, fallbackCols: 80, fallbackRows: 30 });
     siteStore.set({ consoleInput: true });
     siteStore.syncRoute("/coffee");
     expect(siteStore.getSnapshot().consoleInput).toBe(true);

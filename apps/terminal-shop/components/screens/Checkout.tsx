@@ -2,14 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "@textjs/app/navigation";
 import { isSafeExternalUrl } from "../../lib/entry";
 import { ADDRESS_FORM, addressFromValues, newAddressValues, validateAddress } from "../../lib/address";
-import { CONTENT, CONTENT_HEIGHT, HEIGHT, WIDTH } from "../../lib/frame";
+import { CONTENT, LARGE_LAYOUT, SMALL, type Layout } from "../../lib/frame";
 import { addressLine, dollars, formatExpiration, formatLast4, formatUSD } from "../../lib/format";
 import { encodeQr, renderQr } from "../../lib/qr";
 import { useShop, useShopState, uuid, type ShopStore } from "../../lib/store";
 import { defaultTheme, palette, type Theme } from "../../lib/theme";
 import type { Address } from "../../lib/types";
 import { centerLines, concat, fit, indent, place, span, viewport, width, wrap, type Line } from "../../lib/ui";
-import { Page, useBusy, useHeaderMode, useKeys, useNav, useRealMoneyConfirm } from "../chrome";
+import { Page, useBusy, useHeaderMode, useKeys, useLayout, useNav, useRealMoneyConfirm } from "../chrome";
 import { Screen } from "../Screen";
 import { useForm } from "../useForm";
 import { listBox, listItem } from "./Cart";
@@ -25,6 +25,13 @@ function shippingBack(store: ShopStore, nav: (p: string) => void): void {
   else nav("/cart");
 }
 
+/** `ensureAddressFocusedInputVisible`: keep the focused field (4 rows) inside an `h`-row viewport. */
+export function addressFormOffset(focus: number, L: Layout, h: number): number {
+  const inputHeight = 4;
+  const targetY = L.size === SMALL ? focus * inputHeight : (focus % 4) * inputHeight;
+  return Math.max(0, targetY + inputHeight - h);
+}
+
 /** Body centered in the container like `lipgloss.Place(widthContainer, …, viewport)`. */
 const centered = (ls: Line[]): Line[] => indent(ls, 1);
 
@@ -36,7 +43,8 @@ export function ShippingScreen(): ReactNode {
   const addresses = useShopState((s) => s.addresses);
   const user = useShopState((s) => s.user);
   const [view, setView] = useState<"list" | "form">(() => (store.s.addresses.length === 0 ? "form" : "list"));
-  const [selected, setSelected] = useState(0);
+  // The ssh shop keeps its cursor for the session; the cart remembers the last address across sessions.
+  const [selected, setSelected] = useState(() => Math.max(0, store.s.addresses.findIndex((a) => a.id === (store.s.subscribing ? store.s.subscription.addressID : store.s.cart.addressID))));
   const [deleting, setDeleting] = useState<number | null>(null);
   const [submitting, run] = useBusy();
   const offset = useRef(0);
@@ -135,15 +143,16 @@ export function ShippingScreen(): ReactNode {
         { key: "x/del", value: "remove" },
         { key: "enter", value: "select" },
       ]}
-      body={(h, t) => {
+      body={(h, t, L) => {
         if (submitting) return [[t.base("  calculating shipping costs...")]];
-        if (view === "form") return centered(viewport(form.lines(CONTENT), h));
+        if (view === "form") return centered(viewport(form.lines(L.widthContent, L.size === SMALL ? 1 : undefined), h, addressFormOffset(form.state.focus, L, h)));
+        const W = L.widthContent;
         const ls: Line[] = [[t.base(" select shipping address")]];
         addresses.forEach((a, i) => {
-          const content = deleting === i ? listItem([[t.accent("are you sure?"), t.base(" (y/n)")]], true, t) : addressItem(a, i === selected, t);
-          ls.push(...listBox(content, i === selected, t));
+          const content = deleting === i ? listItem([[t.accent("are you sure?"), t.base(" (y/n)")]], true, t, W) : addressItem(a, i === selected, t, W);
+          ls.push(...listBox(content, i === selected, t, W - 2));
         });
-        ls.push(...listBox(listItem("add new address", selected === addresses.length, t), selected === addresses.length, t));
+        ls.push(...listBox(listItem("add new address", selected === addresses.length, t, W), selected === addresses.length, t, W - 2));
         if (selected === addresses.length) offset.current = Math.max(0, ls.length - h);
         else {
           const top = selected * 3;
@@ -334,18 +343,19 @@ export function PaymentScreen(): ReactNode {
       page="payment"
       subscriptionPayment={!!subscriptionID}
       commands={commands}
-      body={(h, t) => {
+      body={(h, t, L) => {
         if (status === "submitting") return [[t.base("  verifying payment details...")]];
         if (status === "generating") return [[t.base("  generating payment link...")]];
-        if (view === "https") return centered(paymentHttps(url, t));
+        if (view === "https") return centered(paymentHttps(url, t, L.widthContent));
+        const W = L.widthContent;
         const ls: Line[] = [...(subscriptionID ? [] : [costsLine(store, t), []]), [t.base(" select payment method")]];
         cards.forEach((c, i) => {
           const focused = i === selected;
           const content: Line = deleting === i ? [t.accent("are you sure?"), t.base(" (y/n)")] : [span(`${c.brand}  ${formatLast4(c.last4)}  ${formatExpiration(c.expiration)}`)];
-          ls.push(...listBox(listItem([content], focused, t), focused, t));
+          ls.push(...listBox(listItem([content], focused, t, W), focused, t, W - 2));
         });
         const browser = selected === cards.length;
-        ls.push(...listBox(listItem("add payment information via browser", browser, t), browser, t));
+        ls.push(...listBox(listItem("add payment information via browser", browser, t, W), browser, t, W - 2));
         if (browser) offset.current = Math.max(0, ls.length - h);
         else {
           const top = selected * 3;
@@ -358,7 +368,7 @@ export function PaymentScreen(): ReactNode {
   );
 }
 
-export function paymentHttps(url: string | null, t: Theme): Line[] {
+export function paymentHttps(url: string | null, t: Theme, widthContent = CONTENT): Line[] {
   if (!url) return [[t.error(" failed to generate payment url")]];
   let qr: string[];
   try {
@@ -367,7 +377,7 @@ export function paymentHttps(url: string | null, t: Theme): Line[] {
     return [[t.error(` failed to generate qr code: ${error instanceof Error ? error.message : String(error)}`)]];
   }
   const white = { fg: palette.accent, bg: palette.background };
-  return centerLines([[], ...qr.map((r) => [span(r, white)]), [t.base("scan or copy to enter payment information")], [span(url, { fg: palette.accent, link: true })]], CONTENT);
+  return centerLines([[], ...qr.map((r) => [span(r, white)]), [t.base("scan or copy to enter payment information")], [span(url, { fg: palette.accent, link: true })]], widthContent);
 }
 
 // ── confirm ─────────────────────────────────────────────────────────────────
@@ -612,8 +622,8 @@ export function FinalSubScreen(): ReactNode {
 const THANKS =
   "\n\nAt this very moment as you sit, stunned and in awe of the CLI experience that just befell you, a personalized order confirmation email is on its way to your inbox.\n\nSimultaneously, news of your order is being celebrated wildly by the team. Perhaps too wildly by some. Once the excitement of your order has subsided to manageable levels your order will be sealed, shipped, and tracked courtesy of the Terminal team.\n\nYours sincerely,\n\nPrime, Teej\n\nTerminal Products, Inc.";
 
-export function finalLines(t: Theme): Line[] {
-  const w = CONTENT - 2;
+export function finalLines(t: Theme, L: Layout = LARGE_LAYOUT): Line[] {
+  const w = L.widthContent - 2;
   const body = wrap(`Thank you for ordering with Terminal Products, Inc. ${THANKS} \n\nps. https://www.terminal.shop/xxx`, w);
   const out: Line[] = body.map((l, i) => {
     if (i === 0) return [t.accent(l)];
@@ -637,7 +647,7 @@ export function FinalScreen(): ReactNode {
     else return false;
     return true;
   });
-  return <Page page="final" commands={[{ key: "enter", value: "done" }]} body={(h, t) => centered(viewport(finalLines(t), h, offset))} />;
+  return <Page page="final" commands={[{ key: "enter", value: "done" }]} body={(h, t, L) => centered(viewport(finalLines(t, L), h, offset))} />;
 }
 
 // ── subscribe (variant picker for subscription-only products) ──────────────
@@ -681,14 +691,14 @@ export function SubscribeScreen(): ReactNode {
         { key: "↑/↓", value: "roast" },
         { key: "enter", value: "select" },
       ]}
-      body={(_h, t) => {
-        if (!sub) return place([[t.base("You haven't selected a product to subscribe to.")]], CONTENT, CONTENT_HEIGHT);
+      body={(_h, t, L) => {
+        if (!sub) return place([[t.base("You haven't selected a product to subscribe to.")]], L.widthContent, L.heightContent);
         const ls: Line[] = [];
         sub.product.variants.forEach((v, i) => {
           const name = t.accent(v.name);
           const price = t.base(`$${dollars(v.price)}`);
-          const space = CONTENT - width([name]) - width([price]) - 4;
-          ls.push(...listBox([concat(name, t.base(" ".repeat(Math.max(0, space))), price)], i === sub.selected, t));
+          const space = L.widthContent - width([name]) - width([price]) - 4;
+          ls.push(...listBox([concat(name, t.base(" ".repeat(Math.max(0, space))), price)], i === sub.selected, t, L.widthContent - 2));
         });
         return ls;
       }}
@@ -722,19 +732,21 @@ export function EmailGateScreen(): ReactNode {
     return false;
   });
   const t = defaultTheme;
+  const L = useLayout();
+  const W = L.widthContent;
+  const text = (v: string): Line[] => wrap(v, W).map((l) => [t.base(l)]);
   const host = env === "dev" ? "dev.terminal.shop" : "terminal.shop";
   const ls: Line[] = [
     [t.bold("one quick thing")],
     [],
-    [t.base("we don't have an email for your account, so we can't send you")],
-    [t.base("order or subscription updates. link one to your account first:")],
+    ...text("we don't have an email for your account, so we can't send you order or subscription updates. link one to your account first:"),
     [],
     [t.accent(`  ssh ${host} -t link-email`)],
     [],
-    [t.base("or sign in with the browser (an email account) instead.")],
+    ...text("or sign in with the browser (an email account) instead."),
     [],
-    [t.base("r to reload after linking · esc to go back · ctrl+c to quit")],
+    ...text("r to reload after linking · esc to go back · ctrl+c to quit"),
   ];
-  const body = ls.map((l) => fit(l, CONTENT));
-  return <Screen lines={place(body, WIDTH, HEIGHT)} />;
+  const body = ls.map((l) => fit(l, W));
+  return <Screen lines={place(body, L.viewportWidth, L.viewportHeight)} />;
 }

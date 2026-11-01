@@ -1,12 +1,12 @@
 import { useRef, type ReactNode } from "react";
-import { CONTENT, CONTENT_HEIGHT } from "../../lib/frame";
+import { CONTENT, LARGE_LAYOUT, type Layout } from "../../lib/frame";
 import { dollars } from "../../lib/format";
 import { useShop, useShopState, type ShopStore } from "../../lib/store";
 import { palette, type Theme } from "../../lib/theme";
 import { box, concat, fit, indent, place, span, viewport, width, type Line } from "../../lib/ui";
 import { Page, useHeaderMode, useKeys, useNav } from "../chrome";
 
-/** `CreateBox`: a bordered list item `CONTENT` wide. */
+/** `CreateBox`: a bordered list item `widthContent` wide. */
 export function listBox(content: Line[], selected: boolean, t: Theme, inner = CONTENT - 2): Line[] {
   return box(content, inner, selected ? palette.accent : t.border, t.baseStyle);
 }
@@ -29,8 +29,10 @@ export function listItem(text: Line[] | string, focused: boolean, t: Theme, tota
   return ls;
 }
 
-export function cartLines(store: ShopStore, selected: number, t: Theme): Line[] {
-  if (store.isCartEmpty()) return place([[t.base("Your cart is empty.")]], CONTENT, CONTENT_HEIGHT);
+export function cartLines(store: ShopStore, selected: number, t: Theme, L: Layout = LARGE_LAYOUT): Line[] {
+  // Signed out on textjs.org: the cart lives in a terminal account.
+  if (store.signedOut) return place([[t.base("Your cart is empty.")], [], [t.accent("press enter to sign in")]], L.widthContent, L.heightContent);
+  if (store.isCartEmpty()) return place([[t.base("Your cart is empty.")]], L.widthContent, L.heightContent);
   const out: Line[] = [];
   store.visibleCartItems().forEach((item, i) => {
     const product = store.productFor(item.productVariantID);
@@ -39,9 +41,9 @@ export function cartLines(store: ShopStore, selected: number, t: Theme): Line[] 
     const quantity: Line =
       selected === i ? [t.base("- "), t.accent(String(item.quantity)), t.base(" +  ")] : [t.base("  "), t.accent(String(item.quantity)), t.base("    ")];
     const subtotal = fit([t.base(`$${dollars(item.subtotal)}`)], 5);
-    const space = CONTENT - width([name]) - width(quantity) - width(subtotal) - 4;
+    const space = L.widthContent - width([name]) - width(quantity) - width(subtotal) - 4;
     const content: Line[] = [concat(name, t.base(" ".repeat(Math.max(0, space))), quantity, subtotal), [t.base((product.variants[0]?.name ?? "").toLowerCase())]];
-    out.push(...listBox(content, i === selected, t));
+    out.push(...listBox(content, i === selected, t, L.widthContent - 2));
   });
   return out;
 }
@@ -83,6 +85,10 @@ export function CartScreen(): ReactNode {
         if (current) store.updateCart(current.productVariantID, -1);
         return true;
       case "enter":
+        if (store.signedOut) {
+          store.requireSignIn("sign in to see your cart", "/cart");
+          return true;
+        }
         if (items.length === 0) return true;
         nav(store.s.user?.email ? "/shipping" : "/email?from=cart");
         return true;
@@ -96,14 +102,21 @@ export function CartScreen(): ReactNode {
   return (
     <Page
       page="cart"
-      commands={[
-        { key: "esc", value: "back" },
-        { key: "↑/↓", value: "items" },
-        { key: "+/-", value: "qty" },
-        { key: "enter", value: "checkout" },
-      ]}
-      body={(h, t) => {
-        const ls = cartLines(store, selected, t);
+      commands={
+        store.signedOut
+          ? [
+              { key: "esc", value: "back" },
+              { key: "enter", value: "sign in" },
+            ]
+          : [
+              { key: "esc", value: "back" },
+              { key: "↑/↓", value: "items" },
+              { key: "+/-", value: "qty" },
+              { key: "enter", value: "checkout" },
+            ]
+      }
+      body={(h, t, L) => {
+        const ls = cartLines(store, selected, t, L);
         if (count > 0) {
           const itemHeight = 5;
           const targetY = selected * itemHeight;

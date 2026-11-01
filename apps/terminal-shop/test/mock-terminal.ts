@@ -146,6 +146,10 @@ export function startMockTerminal(opts: { token?: string; email?: string | null;
       requests.push({ method, path, authorized, idempotencyKey: req.headers.get("idempotency-key"), body });
       if (opts.delayMs) await Bun.sleep(opts.delayMs);
       if (path === "/product" && method === "GET") return Response.json({ data: state.products });
+      if (path.startsWith("/product/") && method === "GET") {
+        const p = state.products.find((x) => x.id === path.slice(9));
+        return p ? Response.json({ data: p }) : err(404, "not_found", "resource_not_found", "Product not found");
+      }
       if (!authorized) return err(401, "authentication", "unauthorized", "You don't have permission to access this resource.");
       const ok = (data: unknown): Response => Response.json({ data });
       const b = (body ?? {}) as Record<string, unknown>;
@@ -166,9 +170,25 @@ export function startMockTerminal(opts: { token?: string; email?: string | null;
           region: (req.headers.get("x-terminal-region") as "na") ?? "na",
         });
       }
+      const invalid = (message: string): Response => err(400, "validation", "invalid_parameter", message);
+      const only = (allowed: string[]): string | null => Object.keys(b).find((k) => !allowed.includes(k)) ?? null;
       if (root === "profile") {
-        if (method === "PUT") state.user.name = String(b.name ?? "");
+        if (method === "PUT") {
+          // `z.object({ name: z.string() }).strict()`: email can't be changed here.
+          const extra = only(["name"]);
+          if (extra) return invalid(`Unrecognized key: "${extra}"`);
+          if (typeof b.name !== "string") return invalid("name: Required");
+          state.user.name = b.name;
+        }
         return ok({ user: state.user });
+      }
+      if (root === "account" && sub === "link-email") {
+        // Only an ssh session (clientID "ssh" with a key fingerprint) may start linking.
+        return err(403, "forbidden", "insufficient_permissions", "Email linking must be started from an SSH session");
+      }
+      if (root === "email" && method === "POST") {
+        if (typeof b.email !== "string" || !/^[^\s@]+@[^\s@]+$/.test(b.email)) return invalid("email: Invalid email");
+        return ok("ok");
       }
       if (root === "cart") {
         if (!sub && method === "GET") return ok(cart());
@@ -231,6 +251,7 @@ export function startMockTerminal(opts: { token?: string; email?: string | null;
         }
         const i = state.addresses.findIndex((a) => a.id === sub);
         if (i < 0) return err(404, "not_found", "not_found", "Address not found");
+        if (method === "GET") return ok(state.addresses[i]);
         if (method === "PATCH") {
           state.addresses[i] = { ...(state.addresses[i] as Address), ...(b as object) };
           return ok(state.addresses[i]);
@@ -243,6 +264,15 @@ export function startMockTerminal(opts: { token?: string; email?: string | null;
       if (root === "card") {
         if (!sub && method === "GET") return ok(state.cards);
         if (sub === "collect" && method === "POST") return ok({ url: `https://dev.trm.sh/${id("lnk").slice(-6)}` });
+        if (!sub && method === "POST") {
+          if (typeof b.token !== "string" || !b.token.startsWith("tok_")) return invalid("token: Invalid Stripe token");
+          const card: Card = { id: id("crd"), brand: "Visa", last4: "4242", expiration: { month: 12, year: 2030 }, created: "2026-10-31T22:00:00.000Z" };
+          state.cards.push(card);
+          return ok(card.id);
+        }
+        const card = state.cards.find((c) => c.id === sub);
+        if (!card) return err(404, "not_found", "resource_not_found", "Card not found");
+        if (method === "GET") return ok(card);
         if (method === "DELETE") {
           state.cards = state.cards.filter((c) => c.id !== sub);
           return ok("ok");
@@ -252,6 +282,7 @@ export function startMockTerminal(opts: { token?: string; email?: string | null;
         if (!sub && method === "GET") return ok(state.orders);
         const o = state.orders.find((x) => x.id === sub);
         if (!o) return err(404, "not_found", "not_found", "Order not found");
+        if (method === "GET" && !seg[2]) return ok(o);
         if (method === "DELETE") {
           o.status = "canceled";
           o.canCancel = false;
@@ -272,7 +303,19 @@ export function startMockTerminal(opts: { token?: string; email?: string | null;
         }
         const s = state.subscriptions.find((x) => x.id === sub);
         if (!s) return err(404, "not_found", "not_found", "Subscription not found");
+        if (method === "GET") return ok(s);
         if (method === "PUT") {
+          // Card, address or schedule; at least one.
+          const extra = only(["cardID", "addressID", "schedule"]);
+          if (extra) return invalid(`Unrecognized key: "${extra}"`);
+          if (b.cardID === undefined && b.addressID === undefined && b.schedule === undefined) return invalid("At least one field must be provided for update");
+          if (b.cardID !== undefined && !state.cards.some((c) => c.id === b.cardID)) return err(404, "not_found", "resource_not_found", "Card not found");
+          if (b.addressID !== undefined && !state.addresses.some((a) => a.id === b.addressID)) return err(404, "not_found", "resource_not_found", "Address not found");
+          if (b.schedule !== undefined) {
+            const sc = b.schedule as { type?: unknown; interval?: unknown };
+            const weekly = sc.type === "weekly" && Number.isInteger(sc.interval) && (sc.interval as number) >= 1;
+            if (!weekly && sc.type !== "fixed") return invalid("schedule: Invalid input");
+          }
           Object.assign(s, b);
           return ok(s);
         }
@@ -288,6 +331,10 @@ export function startMockTerminal(opts: { token?: string; email?: string | null;
           state.tokens.push(t);
           return ok({ id: t.id, token: t.token });
         }
+        if (method === "GET") {
+          const t = state.tokens.find((x) => x.id === sub);
+          return t ? ok({ ...t, token: `trm_test_******${t.token.slice(-4)}` }) : err(404, "not_found", "resource_not_found", "Personal token not found");
+        }
         if (method === "DELETE") {
           state.tokens = state.tokens.filter((t) => t.id !== sub);
           return ok("ok");
@@ -295,7 +342,12 @@ export function startMockTerminal(opts: { token?: string; email?: string | null;
       }
       if (root === "app") {
         if (!sub && method === "GET") return ok(state.apps);
+        if (method === "GET") {
+          const a = state.apps.find((x) => x.id === sub);
+          return a ? ok(a) : err(404, "not_found", "resource_not_found", "App not found");
+        }
         if (!sub && method === "POST") {
+          if (typeof b.name !== "string" || typeof b.redirectURI !== "string") return invalid("name and redirectURI are required");
           const a = { id: id("cli"), name: String(b.name), redirectURI: String(b.redirectURI), secret: `sec_${"a".repeat(16)}` };
           state.apps.push({ ...a, secret: "sec_******aaaa" });
           return ok({ id: a.id, secret: a.secret });
@@ -356,7 +408,7 @@ export interface MockSiteProxy extends MockProxy {
  * A stand-in for textjs.org's Pages Function (`apps/web/server/terminal-session.ts`):
  * `mode: "site"`, the session lives server-side (here: a flag), public product reads.
  */
-export function startMockSiteProxy(api: MockTerminal, opts: { signedIn?: boolean; configured?: boolean } = {}): MockSiteProxy {
+export function startMockSiteProxy(api: MockTerminal, opts: { signedIn?: boolean; configured?: boolean; credentials?: boolean } = {}): MockSiteProxy {
   const state = { signedIn: opts.signedIn ?? false, signOuts: 0, failLogout: false };
   const server = Bun.serve({
     port: 0,
@@ -372,7 +424,7 @@ export function startMockSiteProxy(api: MockTerminal, opts: { signedIn?: boolean
             prod: { label: "production", api: "https://api.terminal.shop", enabled: true, serverToken: false },
             dev: { label: "dev sandbox", api: "https://api.dev.terminal.shop", enabled: false, serverToken: false },
           },
-          session: { signedIn: state.signedIn, configured: opts.configured ?? true, signInUrl: "/api/terminal/login", signOutUrl: "/api/terminal/logout" },
+          session: { signedIn: state.signedIn, configured: opts.configured ?? true, signInUrl: "/api/terminal/login", signOutUrl: "/api/terminal/logout", credentials: opts.credentials ?? false },
         });
       }
       if (sub === "/logout" && req.method === "POST") {
@@ -385,6 +437,8 @@ export function startMockSiteProxy(api: MockTerminal, opts: { signedIn?: boolean
       const m = /^\/prod\/api(\/.*)$/.exec(sub);
       if (!m) return Response.json({ message: "not found" }, { status: 404 });
       const path = m[1] as string;
+      // Like the Pages Function: minting credentials only with TERMINAL_ALLOW_CREDENTIALS.
+      if (req.method === "POST" && (path === "/token" || path === "/app") && !opts.credentials) return Response.json({ type: "error", code: "not_found", message: "not found" }, { status: 404 });
       if (!state.signedIn && !(req.method === "GET" && path.startsWith("/product"))) return Response.json({ type: "error", code: "signed_out", message: "sign in to continue" }, { status: 401 });
       const headers = new Headers();
       for (const k of ["accept", "content-type", "idempotency-key", "x-terminal-region"]) {

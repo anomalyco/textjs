@@ -1,13 +1,13 @@
 import { useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "@textjs/app/navigation";
 import { ADDRESS_FORM, addressFromValues, addressValues, newAddressValues, validateAddress } from "../../lib/address";
-import { CONTENT, type Command } from "../../lib/frame";
+import { SMALL, type Command } from "../../lib/frame";
 import { useShop, useShopState } from "../../lib/store";
 import { indent, viewport, type Line } from "../../lib/ui";
 import { Page, useHeaderMode, useKeys, useNav } from "../chrome";
 import { useForm } from "../useForm";
 import { listBox, listItem } from "./Cart";
-import { addressItem } from "./Checkout";
+import { addressFormOffset, addressItem } from "./Checkout";
 
 /** `AddressBookView`: manage saved addresses, or pick one for a subscription. */
 export function AddressesScreen(): ReactNode {
@@ -157,9 +157,9 @@ export function AddressesScreen(): ReactNode {
     <Page
       page="addresses"
       commands={commands}
-      body={(h, t) => {
+      body={(h, t, L) => {
         if (submitting === "saving") return indent([[t.base("  saving address...")]], 1);
-        if (view === "form") return indent(viewport([[t.base(mode === "edit" ? " edit address" : " add address")], ...form.lines(CONTENT)], h), 1);
+        if (view === "form") return indent(viewport([[t.base(mode === "edit" ? " edit address" : " add address")], ...form.lines(L.widthContent, L.size === SMALL ? 1 : undefined)], h, addressFormOffset(form.state.focus, L, h)), 1);
         const ls: Line[] = [[t.base(" saved addresses")]];
         if (notice) ls.push([t.brand(` ${notice}`)]);
         if (addresses.length === 0) {
@@ -167,8 +167,8 @@ export function AddressesScreen(): ReactNode {
           return indent(ls, 1);
         }
         addresses.forEach((a, i) => {
-          const content = deleting === i ? listItem([[t.accent("remove this address?"), t.base(" (y/n)")]], true, t) : addressItem(a, i === selected, t);
-          ls.push(...listBox(content, i === selected, t));
+          const content = deleting === i ? listItem([[t.accent("remove this address?"), t.base(" (y/n)")]], true, t, L.widthContent) : addressItem(a, i === selected, t, L.widthContent);
+          ls.push(...listBox(content, i === selected, t, L.widthContent - 2));
         });
         const top = selected * 4;
         if (top < offset.current) offset.current = top;

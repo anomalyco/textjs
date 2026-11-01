@@ -1,21 +1,26 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "@textjs/app/navigation";
-import { CONTENT, CONTENT_HEIGHT, type Command } from "../../lib/frame";
+import { LARGE, LARGE_LAYOUT, type Command, type Layout } from "../../lib/frame";
 import { FAQS } from "../../lib/faq";
 import { notEmpty, type FieldDef } from "../../lib/form";
-import { dollars } from "../../lib/format";
+import { dollars, formatExpiration, formatLast4 } from "../../lib/format";
 import { useShop, useShopState, type ShopStore, type StoreState } from "../../lib/store";
 import { palette, type Theme } from "../../lib/theme";
-import type { Address, AddressInput, App, Order, Subscription, Token } from "../../lib/types";
+import type { Address, AddressInput, App, Card, Order, Subscription, Token } from "../../lib/types";
 import { block, box, concat, fit, hjoin, place, span, viewport, width, wordWrap, type Line } from "../../lib/ui";
-import { Page, useBlink, useBusy, useHeaderMode, useKeys, useNav } from "../chrome";
+import { Page, useBlink, useBusy, useHeaderMode, useKeys, useNav, useRealMoneyConfirm } from "../chrome";
 import { useForm } from "../useForm";
 import { listItem } from "./Cart";
-import { addressItem } from "./Checkout";
+import { addressItem, paymentHttps } from "./Checkout";
 
-export type AccountPage = "orders" | "subscriptions" | "tokens" | "apps" | "addresses" | "link-email" | "faq" | "about" | "debug";
+export type AccountPage = "orders" | "subscriptions" | "tokens" | "apps" | "addresses" | "link-email" | "payment" | "profile" | "faq" | "about" | "debug";
 
-export const ACCOUNT_PAGES: AccountPage[] = ["orders", "subscriptions", "tokens", "apps", "addresses", "link-email", "faq", "about", "debug"];
+/**
+ * The SSH shop's account pages, in its order. "payment methods" is the shop's own
+ * `paymentPage` entry (written but commented out of its menu); "profile" is ours, for the
+ * one profile field the API changes (`PUT /profile` takes a name).
+ */
+export const ACCOUNT_PAGES: AccountPage[] = ["orders", "subscriptions", "tokens", "apps", "addresses", "link-email", "payment", "profile", "faq", "about", "debug"];
 
 export const PAGE_NAMES: Record<AccountPage, string> = {
   orders: "order history",
@@ -24,14 +29,45 @@ export const PAGE_NAMES: Record<AccountPage, string> = {
   apps: "apps (oauth 2.0)",
   addresses: "addresses",
   "link-email": "link email",
+  payment: "payment methods",
+  profile: "profile",
   faq: "faq",
   about: "about",
   debug: "debug info",
 };
 
-const MENU_WIDTH = Math.max(...ACCOUNT_PAGES.map((p) => PAGE_NAMES[p].length)) + 4;
-/** `GetAccountPageContent` width: `widthContent - menuWidth - 3`. */
-export const DETAIL_WIDTH = CONTENT - MENU_WIDTH - 3;
+/** Pages that show account data; signed out (textjs.org), they ask you to sign in. */
+const SIGN_IN_PROMPTS: Partial<Record<AccountPage, string>> = {
+  orders: "sign in to see your orders",
+  subscriptions: "sign in to manage your subscriptions",
+  tokens: "sign in to manage access tokens",
+  apps: "sign in to manage oauth apps",
+  addresses: "sign in to manage your addresses",
+  "link-email": "sign in to link an email",
+  payment: "sign in to manage payment methods",
+  profile: "sign in to see your profile",
+};
+
+const NAME_WIDTH = Math.max(...ACCOUNT_PAGES.map((p) => PAGE_NAMES[p].length));
+
+/** `updateAccountViewports` / `getAccountDetailContent`: menu and detail widths for the layout. */
+export interface AccountDims {
+  layout: Layout;
+  /** Below the large layout the menu and the detail stack, both full width. */
+  stacked: boolean;
+  menuWidth: number;
+  /** `GetAccountPageContent`'s `totalWidth`. */
+  detail: number;
+}
+
+export function accountDims(L: Layout = LARGE_LAYOUT): AccountDims {
+  if (L.size < LARGE) return { layout: L, stacked: true, menuWidth: L.widthContent, detail: L.widthContent };
+  const menuWidth = NAME_WIDTH + 4;
+  return { layout: L, stacked: false, menuWidth, detail: L.widthContent - menuWidth - 3 };
+}
+
+/** Width of the account detail column in the large layout. */
+export const DETAIL_WIDTH = accountDims().detail;
 
 const APP_FORM: FieldDef[][] = [
   [
@@ -40,15 +76,22 @@ const APP_FORM: FieldDef[][] = [
   ],
 ];
 
-export function accountMenu(selected: number, t: Theme): Line[] {
-  const w = MENU_WIDTH - 4 + 2;
+const PROFILE_FORM: FieldDef[][] = [[{ key: "name", title: "name", validate: notEmpty("name") }]];
+
+export function accountMenu(selected: number, t: Theme, d: AccountDims = accountDims()): Line[] {
   const hl = { fg: palette.accent, bg: t.highlight };
-  return ACCOUNT_PAGES.map((p, i) => [span(" "), ...fit([span(` ${PAGE_NAMES[p]}`, i === selected ? hl : t.baseStyle)], w, "left", i === selected ? hl : t.baseStyle)]);
+  return ACCOUNT_PAGES.map((p, i) => {
+    const style = i === selected ? hl : t.baseStyle;
+    if (d.stacked) return [span(" "), ...fit([span(PAGE_NAMES[p], style)], d.layout.widthContent, "center", style)];
+    return [span(" "), ...fit([span(` ${PAGE_NAMES[p]}`, style)], NAME_WIDTH + 2, "left", style)];
+  });
 }
 
-const detailBox = (content: Line[], selected: boolean, t: Theme, inner = DETAIL_WIDTH): Line[] => box(content, inner, selected ? palette.accent : t.border, t.baseStyle);
+const detailBox = (content: Line[], selected: boolean, t: Theme, inner: number): Line[] => box(content, inner, selected ? palette.accent : t.border, t.baseStyle);
 
-const centeredEmpty = (ls: Line[]): Line[] => place(ls, DETAIL_WIDTH, CONTENT_HEIGHT);
+const centeredEmpty = (ls: Line[], d: AccountDims): Line[] => place(ls, d.detail, d.layout.heightContent);
+
+const text = (v: string, w: number, t: Theme): Line[] => wordWrap(v, w).map((l) => [t.base(l)]);
 
 // ── orders ──────────────────────────────────────────────────────────────────
 
@@ -90,7 +133,8 @@ function addressBlock(a: AddressInput, t: Theme): Line[] {
   return out;
 }
 
-function ordersView(store: ShopStore, ui: OrdersUI, focused: boolean, t: Theme): Line[] {
+function ordersView(store: ShopStore, ui: OrdersUI, focused: boolean, t: Theme, d: AccountDims): Line[] {
+  const W = d.detail;
   const { orders, addresses } = store.s;
   const notice = ui.notice ? [[t.brand(ui.notice)], []] : [];
   if (ui.viewing && orders.length > 0) {
@@ -108,7 +152,7 @@ function ordersView(store: ShopStore, ui: OrdersUI, focused: boolean, t: Theme):
     if (ui.editingShipping) {
       const ls: Line[] = [...notice, [t.accent("choose a new shipping address")], [t.base("shipping changes are available before fulfillment starts.")], []];
       if (addresses.length === 0) return [...ls, [t.base("no saved addresses found")], [t.base("add an address from the shipping section first")]];
-      addresses.forEach((a, i) => ls.push(...detailBox(addressItem(a, i === ui.addressSelected, t, DETAIL_WIDTH + 1), i === ui.addressSelected, t, DETAIL_WIDTH + 1)));
+      addresses.forEach((a, i) => ls.push(...detailBox(addressItem(a, i === ui.addressSelected, t, W + 1), i === ui.addressSelected, t, W + 1)));
       return ls;
     }
     const index = orders.length - ui.selected - 1;
@@ -124,13 +168,16 @@ function ordersView(store: ShopStore, ui: OrdersUI, focused: boolean, t: Theme):
       if (tr.status) ls.push([t.base(`status: ${tr.status}`)]);
       if (tr.service) ls.push([t.base(`service: ${tr.service}`)]);
       if (tr.number) ls.push([t.base(`tracking: ${tr.number}`)]);
+      // The API also has these; the console can open the link.
+      if (tr.statusDetails) ls.push([t.base(`details: ${tr.statusDetails}`)]);
+      if (tr.url) ls.push([t.base("track: "), span(tr.url, { fg: palette.accent, link: true })]);
       ls.push([]);
     }
     ls.push([t.accent("items")], ...order.items.map((i) => [t.base(orderItemText(store, i))]), []);
     ls.push([t.accent("totals")], [t.base(`subtotal: $${dollars(order.amount.subtotal)}`)], [t.base(`shipping: $${dollars(order.amount.shipping)}`)], [t.base(`total: $${dollars(order.amount.subtotal + order.amount.shipping)}`)]);
-    return ls.flatMap((l) => wrapLine(l, DETAIL_WIDTH));
+    return ls.flatMap((l) => wrapLine(l, W));
   }
-  if (orders.length === 0) return centeredEmpty([...(ui.notice ? [[t.brand(ui.notice)], []] : []), [t.base("no orders found")]].map((l) => l));
+  if (orders.length === 0) return centeredEmpty([...(ui.notice ? [[t.brand(ui.notice)], []] : []), [t.base("no orders found")]], d);
   const out: Line[] = [...notice];
   orders.forEach((order, i) => {
     const index = orders.length - i - 1;
@@ -138,7 +185,7 @@ function ordersView(store: ShopStore, ui: OrdersUI, focused: boolean, t: Theme):
     let item: Line[] = [[t.accent(`order #${index}`), t.base(`  $${String(dollars(order.amount.subtotal + order.amount.shipping)).padStart(2, " ")}`)], [t.base(`date: ${order.created}`)]];
     if (ui.canceling === i) item = [[t.accent("cancel order?")], [t.base("are you sure? (y/n)")]];
     if (ui.submitting && ui.canceling === i) item = [[t.base(" canceling order...")]];
-    out.push(...detailBox(listItem(item, sel, t, DETAIL_WIDTH, false), sel, t));
+    out.push(...detailBox(listItem(item, sel, t, W, false), sel, t, W));
   });
   return out;
 }
@@ -173,7 +220,15 @@ interface SubsUI {
   deleting: number | null;
   viewing: boolean;
   notice: string;
+  /** A new weekly interval picked with +/- in the detail view, not saved yet. */
+  interval: number | null;
+  saving: boolean;
 }
+
+const subsUI = (patch: Partial<SubsUI> = {}): SubsUI => ({ selected: 0, deleting: null, viewing: false, notice: "", interval: null, saving: false, ...patch });
+
+export const MIN_WEEKS = 1;
+export const MAX_WEEKS = 12;
 
 function subscriptionTitle(store: ShopStore, s: Subscription, t: Theme): Line | null {
   const p = store.productForVariant(s.productVariantID);
@@ -184,10 +239,14 @@ function subscriptionTitle(store: ShopStore, s: Subscription, t: Theme): Line | 
   return [t.accent(`${s.quantity}x ${p.product.name}`), t.base(` (every ${interval} ${unit})`)];
 }
 
-function subscriptionsView(store: ShopStore, ui: SubsUI, focused: boolean, t: Theme): Line[] {
+const weeks = (n: number): string => `every ${n} ${n === 1 ? "week" : "weeks"}`;
+
+function subscriptionsView(store: ShopStore, ui: SubsUI, focused: boolean, t: Theme, d: AccountDims): Line[] {
+  const W = d.detail;
   const { subscriptions, addresses, cards } = store.s;
   if (ui.viewing && subscriptions.length > 0) {
     if (ui.deleting !== null) return [[t.accent("are you sure?")], [t.base("(y/n)")]];
+    if (ui.saving) return [[t.base(" updating subscription...")]];
     const sub = subscriptions[ui.selected] as Subscription;
     const ls: Line[] = [[t.base("< "), t.accent("esc "), t.base("back to subscriptions")], []];
     if (ui.notice) ls.push([t.brand(ui.notice)], []);
@@ -204,11 +263,14 @@ function subscriptionsView(store: ShopStore, ui: SubsUI, focused: boolean, t: Th
     }
     ls.push([t.accent("next shipment")], [t.base(sub.next ?? "")], [], [t.accent("schedule")]);
     if (sub.schedule?.type === "fixed") ls.push([t.base("monthly")]);
-    else if (sub.schedule?.type === "weekly") ls.push([t.base(`every ${sub.schedule.interval} ${sub.schedule.interval === 1 ? "week" : "weeks"}`)]);
-    else ls.push([t.base(`${(sub.schedule as { type?: string } | undefined)?.type ?? ""} every 0`)]);
-    return ls;
+    else if (sub.schedule?.type === "weekly") {
+      if (ui.interval !== null && ui.interval !== sub.schedule.interval) {
+        ls.push([t.base("- "), t.accent(weeks(ui.interval)), t.base(" +")], [t.brand("press enter to save, esc to keep "), t.brand(weeks(sub.schedule.interval))]);
+      } else ls.push([t.base(weeks(sub.schedule.interval))]);
+    } else ls.push([t.base(`${(sub.schedule as { type?: string } | undefined)?.type ?? ""} every 0`)]);
+    return ls.flatMap((l) => wrapLine(l, W));
   }
-  if (subscriptions.length === 0) return centeredEmpty([[t.base("no active subscriptions")]]);
+  if (subscriptions.length === 0) return centeredEmpty([[t.base("no active subscriptions")]], d);
   const out: Line[] = [];
   subscriptions.forEach((s, i) => {
     const title = subscriptionTitle(store, s, t);
@@ -216,95 +278,184 @@ function subscriptionsView(store: ShopStore, ui: SubsUI, focused: boolean, t: Th
     if (!title) content = [[t.base("unknown product")]];
     else {
       const price = t.base(` $${String(dollars(s.quantity * s.price)).padStart(2, " ")}`);
-      const space = DETAIL_WIDTH - width(title) - width([price]) - 2;
+      const space = W - width(title) - width([price]) - 2;
       content = [concat(title, t.base(" ".repeat(Math.max(0, space))), price), [t.base(`next shipment: ${s.next ?? ""}`)]];
     }
     if (ui.deleting === i) content = [[t.accent("are you sure?")], [t.base("(y/n)")]];
-    out.push(...detailBox(content, focused && i === ui.selected, t));
+    out.push(...detailBox(content, focused && i === ui.selected, t, W));
   });
   return out;
 }
 
+function subscriptionsFooter(store: ShopStore, ui: SubsUI): Command[] {
+  if (!ui.viewing) return [{ key: "↑/↓", value: "navigate" }, { key: "enter", value: "view details" }, { key: "x/del", value: "cancel" }, { key: "esc", value: "back" }];
+  const sub = store.s.subscriptions[ui.selected];
+  const weekly = sub?.schedule?.type === "weekly";
+  if (weekly && ui.interval !== null && ui.interval !== (sub.schedule as { interval: number }).interval) return [{ key: "+/-", value: "schedule" }, { key: "enter", value: "save" }, { key: "esc", value: "keep" }];
+  return [{ key: "e", value: "address" }, { key: "c", value: "card" }, ...(weekly ? [{ key: "+/-", value: "schedule" }] : []), { key: "x/del", value: "cancel" }, { key: "esc", value: "back" }];
+}
+
 // ── tokens + apps ───────────────────────────────────────────────────────────
 
-function tokensView(s: StoreState, ui: { selected: number; deleting: number | null }, focused: boolean, t: Theme): Line[] {
+interface TokensUI {
+  selected: number;
+  deleting: number | null;
+}
+
+function tokensView(s: StoreState, ui: TokensUI, focused: boolean, t: Theme, d: AccountDims, opts: { canCreate: boolean; code: string | null; creating: boolean }): Line[] {
+  const W = d.detail;
   const out: Line[] = [];
   s.tokens.forEach((token: Token, i) => {
     let content: Line[] = [[t.accent(token.id)], [t.base(`created: ${token.created}`)]];
     if (s.newToken && token.id === s.newToken.id) content.push([t.brand(s.newToken.token, { bold: true })], [t.base("(will not be shown again)")]);
     else content.push([t.base(token.token)]);
     if (ui.deleting === i) content = [[t.accent("are you sure you want to revoke?")], [t.base("(y/n)")]];
-    out.push(...detailBox(content, focused && i === ui.selected, t));
+    out.push(...detailBox(content, focused && i === ui.selected, t, W));
   });
   const addSel = ui.selected === s.tokens.length;
-  if (s.proxy?.mode === "site") out.push(...sshOnly(s, "tokens", "new access tokens are made in the ssh shop:", t));
-  else out.push(...detailBox(listItem("add access token", addSel, t, DETAIL_WIDTH, false), focused && addSel, t));
+  if (!opts.canCreate) out.push(...sshOnly(s, "tokens", "new access tokens are made in the ssh shop:", t, W));
+  else if (opts.code !== null) out.push(...detailBox([[t.base("to create a token, press "), t.brand(opts.code, { bold: true }), t.base(" · n to cancel")]], true, t, W));
+  else out.push(...detailBox(listItem(opts.creating ? "creating token..." : "add access token", addSel, t, W, false), focused && addSel, t, W));
   return out;
 }
 
 /**
- * textjs.org never mints long-lived credentials (its proxy doesn't forward `POST /token`
- * or `POST /app`), so creating them points at the ssh shop. Listing and revoking still work.
+ * Without `TERMINAL_ALLOW_CREDENTIALS`, textjs.org never mints long-lived credentials (its
+ * proxy doesn't forward `POST /token` or `POST /app`), so creating them points at the ssh
+ * shop. Listing and revoking still work.
  */
-function sshOnly(s: StoreState, command: "tokens" | "apps", text: string, t: Theme): Line[] {
+function sshOnly(s: StoreState, command: "tokens" | "apps", message: string, t: Theme, W: number): Line[] {
   const host = s.env === "dev" ? "dev.terminal.shop" : "terminal.shop";
-  return [[], ...wordWrap(text, DETAIL_WIDTH).map((l) => [t.base(l)]), [t.accent(`  ssh ${host} -t ${command}`)]];
+  return [[], ...text(message, W, t), [t.accent(`  ssh ${host} -t ${command}`)]];
 }
 
-function appsView(s: StoreState, ui: { selected: number; deleting: number | null; editing: boolean; submitting: boolean }, focused: boolean, form: Line[], t: Theme): Line[] {
+interface AppsUI {
+  selected: number;
+  deleting: number | null;
+  editing: boolean;
+}
+
+function appsView(s: StoreState, ui: AppsUI & { submitting: boolean }, focused: boolean, form: Line[], t: Theme, d: AccountDims, opts: { canCreate: boolean; code: string | null }): Line[] {
+  const W = d.detail;
   const out: Line[] = [];
   s.apps.forEach((app: App, i) => {
     let content: Line[] = [[t.accent(app.name)], [t.base(`redirect: ${app.redirectURI}`)], [t.base(`client id: ${app.id}`)]];
     if (s.newApp && app.id === s.newApp.id) content.push([t.base("secret: "), t.brand(s.newApp.secret, { bold: true })], [t.base("(will not be shown again)")]);
     else content.push([t.base(`secret: ${app.secret}`)]);
     if (ui.deleting === i) content = [[t.accent("are you sure you want to remove?"), t.base(" (y/n)")]];
-    out.push(...detailBox(content, focused && i === ui.selected, t));
+    out.push(...detailBox(content, focused && i === ui.selected, t, W));
   });
   const addSel = ui.selected === s.apps.length;
-  if (s.proxy?.mode === "site") out.push(...sshOnly(s, "apps", "new oauth apps are made in the ssh shop:", t));
+  if (!opts.canCreate) out.push(...sshOnly(s, "apps", "new oauth apps are made in the ssh shop:", t, W));
+  else if (opts.code !== null) out.push(...detailBox([[t.base("to create this app, press "), t.brand(opts.code, { bold: true }), t.base(" · n to cancel")]], true, t, W));
   else if (ui.editing && !ui.submitting) out.push(...form);
-  else out.push(...detailBox(listItem(ui.submitting ? "submitting app..." : "create app", addSel, t, DETAIL_WIDTH, false), focused && addSel, t));
+  else out.push(...detailBox(listItem(ui.submitting ? "submitting app..." : "create app", addSel, t, W, false), focused && addSel, t, W));
+  return out;
+}
+
+// ── payment methods ─────────────────────────────────────────────────────────
+
+interface CardsUI {
+  selected: number;
+  deleting: number | null;
+  /** `https`: the hosted card page's link and QR code, polling until the card shows up. */
+  view: "list" | "https";
+  url: string | null;
+  status: "idle" | "generating" | "removing";
+  notice: string;
+}
+
+const cardsUI = (): CardsUI => ({ selected: 0, deleting: null, view: "list", url: null, status: "idle", notice: "" });
+
+function cardLine(c: Card): string {
+  return `${c.brand}  ${formatLast4(c.last4)}  ${formatExpiration(c.expiration)}`;
+}
+
+function cardsView(s: StoreState, ui: CardsUI, focused: boolean, t: Theme, d: AccountDims): Line[] {
+  const W = d.detail;
+  if (ui.status === "generating") return [[t.base("  generating payment link...")]];
+  if (ui.status === "removing") return [[t.base("  removing card...")]];
+  if (ui.view === "https") return paymentHttps(ui.url, t, W);
+  const out: Line[] = [];
+  if (ui.notice) out.push([t.brand(` ${ui.notice}`)]);
+  s.cards.forEach((c, i) => {
+    const sel = focused && i === ui.selected;
+    const used = s.subscriptions.filter((x) => x.cardID === c.id).length;
+    let content: Line[] = [[span(cardLine(c))]];
+    if (used) content.push([t.base(`pays for ${used} subscription${used === 1 ? "" : "s"}`)]);
+    content = listItem(content, sel, t, W);
+    if (ui.deleting === i) content = listItem([[t.accent("remove this card?"), t.base(" (y/n)")]], true, t, W);
+    out.push(...detailBox(content, sel, t, W - 2));
+  });
+  const addSel = focused && ui.selected === s.cards.length;
+  out.push(...detailBox(listItem("add payment information via browser", addSel, t, W), addSel, t, W - 2));
+  return out;
+}
+
+function cardsFooter(s: StoreState, ui: CardsUI): Command[] {
+  if (ui.status !== "idle") return [{ key: "…", value: ui.status === "removing" ? "removing" : "generating" }];
+  if (ui.view === "https") return [{ key: "esc", value: "back" }, { key: "enter", value: "open" }];
+  if (ui.deleting !== null) return [{ key: "y", value: "remove" }, { key: "n/esc", value: "keep" }];
+  return [{ key: "↑/↓", value: "cards" }, ...(ui.selected < s.cards.length ? [{ key: "x/del", value: "remove" }] : [{ key: "enter", value: "add" }]), { key: "esc", value: "back" }];
+}
+
+// ── profile ─────────────────────────────────────────────────────────────────
+
+function profileView(s: StoreState, focused: boolean, editing: boolean, saving: boolean, notice: string, form: Line[], t: Theme, d: AccountDims): Line[] {
+  const W = d.detail;
+  const host = s.env === "dev" ? "dev.terminal.shop" : "terminal.shop";
+  const user = s.user;
+  if (saving) return [[t.base("  saving profile...")]];
+  const out: Line[] = [];
+  if (notice) out.push([t.brand(notice)], []);
+  if (editing) return [...out, [t.base("change the name on your account")], [], ...form];
+  out.push([t.accent("name")], [t.base(user?.name?.trim() ? user.name : "none")], []);
+  out.push([t.accent("email")]);
+  if (user?.email) out.push([t.base(user.email)]);
+  else out.push([t.base("none")], ...text("link one from your ssh session:", W, t), [t.accent(`  ssh ${host} -t link-email`)]);
+  out.push([], [t.accent("id")], [t.base(user?.id ?? "none")], []);
+  if (!focused) out.push(...text("select this item to change your name.", W, t));
   return out;
 }
 
 // ── static pages ────────────────────────────────────────────────────────────
 
-function addressesPreview(addresses: Address[], t: Theme): Line[] {
+function addressesPreview(addresses: Address[], t: Theme, W: number): Line[] {
   const count = addresses.length === 0 ? "no saved addresses yet." : addresses.length === 1 ? "1 saved address." : `${addresses.length} saved addresses.`;
-  return [[t.base("manage saved shipping addresses")], [], [t.base(count)], [], ...wordWrap("select this item to add, edit, or remove addresses.", DETAIL_WIDTH).map((l) => [t.base(l)])];
+  return [[t.base("manage saved shipping addresses")], [], [t.base(count)], [], ...text("select this item to add, edit, or remove addresses.", W, t)];
 }
 
 /**
  * `LinkEmailView`. Linking needs the ssh session itself (the API refuses tokens), so
- * this points at the ssh command instead of showing the form.
+ * selecting it points at the ssh command instead of showing the form.
  */
-function linkEmailView(s: StoreState, t: Theme): Line[] {
+function linkEmailView(s: StoreState, focused: boolean, t: Theme, W: number): Line[] {
   const host = s.env === "dev" ? "dev.terminal.shop" : "terminal.shop";
-  const text = (v: string): Line[] => wordWrap(v, DETAIL_WIDTH).map((l) => [t.base(l)]);
   const out: Line[] = [
-    ...text("link this ssh key to an email account"),
+    ...text("link this ssh key to an email account", W, t),
     [],
-    ...text("this lets multiple ssh keys open the same terminal account."),
-    ...text("we'll email you a confirmation link, and the browser will ask for the code shown here."),
+    ...text("this lets multiple ssh keys open the same terminal account.", W, t),
+    ...text("we'll email you a confirmation link, and the browser will ask for the code shown here.", W, t),
     [],
   ];
-  if (s.user?.email) return [...out, ...text("this account is already linked to:"), [t.base(s.user.email)]];
-  return [...out, ...text("linking starts from your ssh session:"), [t.accent(`  ssh ${host} -t link-email`)]];
+  if (s.user?.email) return [...out, ...text("this account is already linked to:", W, t), [t.base(s.user.email)]];
+  if (!focused) return [...out, ...text("select this item to start.", W, t)];
+  return [...out, ...text("linking starts from your ssh session:", W, t), [t.accent(`  ssh ${host} -t link-email`)]];
 }
 
-function faqView(t: Theme): Line[] {
+function faqView(t: Theme, W: number): Line[] {
   const out: Line[] = [];
   for (const f of FAQS) {
-    out.push(...wordWrap(f.question, DETAIL_WIDTH).map((l) => [t.accent(l)]));
-    out.push(...wordWrap(f.answer, DETAIL_WIDTH).map((l) => [t.base(l)]));
+    out.push(...wordWrap(f.question, W).map((l) => [t.accent(l)]));
+    out.push(...wordWrap(f.answer, W).map((l) => [t.base(l)]));
     out.push([]);
   }
   return out;
 }
 
-function aboutView(cursor: boolean, t: Theme): Line[] {
+function aboutView(cursor: boolean, t: Theme, W: number): Line[] {
   return [
-    ...wordWrap("1. # Amazingly awesome products for developers brought to you by a group of talented, good looking, and humble heroes...", DETAIL_WIDTH).map((l) => [t.base(l)]),
+    ...text("1. # Amazingly awesome products for developers brought to you by a group of talented, good looking, and humble heroes...", W, t),
     [],
     [t.base("2. # @theprimeagen")],
     [],
@@ -314,7 +465,7 @@ function aboutView(cursor: boolean, t: Theme): Line[] {
   ];
 }
 
-function debugView(s: StoreState, confirmProd: boolean, t: Theme): Line[] {
+function debugView(s: StoreState, confirmProd: boolean, signedOut: boolean, t: Theme, W: number): Line[] {
   const value = (v: string | null | undefined): string => (v && v.trim() ? v : "none");
   const row = (k: string, v: string | null | undefined): Line => [t.base(`${k}: `), t.accent(value(v))];
   const mode =
@@ -329,7 +480,13 @@ function debugView(s: StoreState, confirmProd: boolean, t: Theme): Line[] {
             : "none";
   const env = s.proxy?.environments[s.env];
   const site = s.proxy?.mode === "site";
-  const headline = s.auth === "session" ? "signed in with terminal, the token stays on the server" : s.auth === "server" ? "connected with a server-side token" : "connected with a token in this browser";
+  const headline = signedOut
+    ? "not signed in"
+    : s.auth === "session"
+      ? "signed in with terminal, the token stays on the server"
+      : s.auth === "server"
+        ? "connected with a server-side token"
+        : "connected with a token in this browser";
   const lines: Line[] = [[t.accent(headline)], []];
   lines.push(
     [t.accent("session")],
@@ -343,16 +500,20 @@ function debugView(s: StoreState, confirmProd: boolean, t: Theme): Line[] {
     row("  email", s.user?.email),
     row("  name", s.user?.name),
     [],
-    ...wordWrap("copy this when reporting an issue.", DETAIL_WIDTH).map((l) => [t.base(l)]),
+    ...text("copy this when reporting an issue.", W, t),
     [],
   );
   if (confirmProd) {
-    lines.push([t.error("switch to production?", { bold: true })], ...wordWrap("orders there are real: your card is charged and coffee ships.", DETAIL_WIDTH).map((l) => [t.base(l)]), [t.base("are you sure? "), t.accent("(y/n)")]);
-  } else {
-    if (site) lines.push([t.bold("x"), t.base(" sign out")]);
-    else lines.push([t.bold("e"), t.base(s.env === "dev" ? " switch to production" : " switch to dev sandbox"), t.base("   "), t.bold("x"), t.base(" sign out")]);
-  }
+    lines.push([t.error("switch to production?", { bold: true })], ...text("orders there are real: your card is charged and coffee ships.", W, t), [t.base("are you sure? "), t.accent("(y/n)")]);
+  } else if (signedOut) lines.push([t.bold("enter"), t.base(" sign in")]);
+  else if (site) lines.push([t.bold("x"), t.base(" sign out")]);
+  else lines.push([t.bold("e"), t.base(s.env === "dev" ? " switch to production" : " switch to dev sandbox"), t.base("   "), t.bold("x"), t.base(" sign out")]);
   return lines;
+}
+
+function signInView(page: AccountPage, t: Theme, d: AccountDims): Line[] {
+  const prompt = SIGN_IN_PROMPTS[page] ?? "sign in to continue";
+  return centeredEmpty([...wordWrap(prompt, d.detail).map((l) => [t.accent(l)]), [], [t.base("press enter to sign in")]], d);
 }
 
 // ── screen ──────────────────────────────────────────────────────────────────
@@ -362,6 +523,7 @@ export function AccountScreen(): ReactNode {
   const nav = useNav();
   const params = useSearchParams();
   const s = useShopState((st) => st);
+  const signedOut = store.signedOut;
   const cursor = useBlink();
   const initialSub = params.get("subscription");
   const initialPage = (params.get("page") as AccountPage | null) ?? (initialSub ? "subscriptions" : null);
@@ -369,17 +531,35 @@ export function AccountScreen(): ReactNode {
   const [focused, setFocused] = useState(() => !!initialSub);
   const [offset, setOffset] = useState(0);
   const [orders, setOrders] = useState<OrdersUI>(ordersUI);
-  const [subs, setSubs] = useState<SubsUI>(() => ({
-    selected: Math.max(0, s.subscriptions.findIndex((x) => x.id === initialSub)),
-    deleting: null,
-    viewing: !!initialSub,
-    notice: params.get("notice") ?? "",
-  }));
-  const [tokens, setTokens] = useState<{ selected: number; deleting: number | null }>({ selected: 0, deleting: null });
-  const [apps, setApps] = useState<{ selected: number; deleting: number | null; editing: boolean }>({ selected: 0, deleting: null, editing: false });
+  const [subs, setSubs] = useState<SubsUI>(() =>
+    subsUI({ selected: Math.max(0, s.subscriptions.findIndex((x) => x.id === initialSub)), viewing: !!initialSub, notice: params.get("notice") ?? "" }),
+  );
+  const [tokens, setTokens] = useState<TokensUI>({ selected: 0, deleting: null });
+  const [apps, setApps] = useState<AppsUI>({ selected: 0, deleting: null, editing: false });
+  const [cards, setCards] = useState<CardsUI>(cardsUI);
+  const [profile, setProfile] = useState({ editing: false, saving: false, notice: "" });
   const [appSubmitting, runApp] = useBusy();
+  const [tokenCreating, runToken] = useBusy();
   const [confirmProd, setConfirmProd] = useState(false);
+  // textjs.org (production): minting a token or an app takes a letter shown only in the console.
+  const tokenConfirm = useRealMoneyConfirm();
+  const appConfirm = useRealMoneyConfirm();
+  const pendingApp = useRef<{ name: string; redirectURI: string } | null>(null);
+  const askFirst = store.confirmRealOrders && s.env === "prod";
+  const polling = useRef(0);
   const page = ACCOUNT_PAGES[selected] as AccountPage;
+  const gated = signedOut && !!SIGN_IN_PROMPTS[page];
+
+  useEffect(
+    () => () => {
+      polling.current++;
+    },
+    [],
+  );
+
+  const createApp = (name: string, redirectURI: string): void => {
+    void runApp(() => store.createApp(name, redirectURI).catch((e) => store.fail(e)));
+  };
 
   const appForm = useForm({
     groups: APP_FORM,
@@ -391,19 +571,54 @@ export function AccountScreen(): ReactNode {
     },
     onSubmit: (values) => {
       setApps((a) => ({ ...a, editing: false }));
-      void runApp(() => store.createApp((values.name ?? "").trim(), (values.redirectUri ?? "").trim()).catch((e) => store.fail(e)));
+      const app = { name: (values.name ?? "").trim(), redirectURI: (values.redirectUri ?? "").trim() };
+      if (askFirst) {
+        pendingApp.current = app;
+        appConfirm.arm();
+      } else createApp(app.name, app.redirectURI);
+    },
+  });
+
+  const profileForm = useForm({
+    groups: PROFILE_FORM,
+    active: focused && page === "profile" && profile.editing && !profile.saving,
+    onKey: (key) => {
+      if (key !== "esc") return false;
+      setProfile((p) => ({ ...p, editing: false }));
+      setFocused(false);
+      return true;
+    },
+    onSubmit: (values) => {
+      const name = (values.name ?? "").trim();
+      setProfile({ editing: false, saving: true, notice: "" });
+      store.updateProfile(name).then(
+        () => {
+          setProfile({ editing: false, saving: false, notice: "name updated" });
+          setFocused(false);
+        },
+        (e) => {
+          store.fail(e);
+          setProfile({ editing: true, saving: false, notice: "" });
+        },
+      );
     },
   });
 
   const subViewing = focused && page === "subscriptions" && subs.viewing;
-  useHeaderMode("account", !(page === "apps" && apps.editing), subViewing ? ["c"] : []);
+  const formActive = (page === "apps" && apps.editing) || (page === "profile" && profile.editing);
+  useHeaderMode("account", !formActive && tokenConfirm.code === null && appConfirm.code === null, subViewing ? ["c"] : []);
 
   const unfocus = (): void => {
     setFocused(false);
     setOrders(ordersUI());
-    setSubs({ selected: 0, deleting: null, viewing: false, notice: "" });
+    setSubs(subsUI());
     setTokens({ selected: 0, deleting: null });
     setApps({ selected: 0, deleting: null, editing: false });
+    setCards(cardsUI());
+    setProfile((p) => ({ ...p, editing: false }));
+    tokenConfirm.disarm();
+    appConfirm.disarm();
+    polling.current++;
     setOffset(0);
   };
 
@@ -488,7 +703,7 @@ export function AccountScreen(): ReactNode {
     const remove = (): void => {
       const sub = list[ui.selected];
       if (!sub) return;
-      set({ deleting: null, viewing: false });
+      set({ deleting: null, viewing: false, interval: null });
       store.deleteSubscription(sub.id).then(
         () => {
           if (store.s.subscriptions.length === 0) unfocus();
@@ -496,13 +711,38 @@ export function AccountScreen(): ReactNode {
         (e) => store.fail(e),
       );
     };
+    if (ui.saving) return true;
     if (ui.viewing) {
       const sub = list[ui.selected];
-      if (key === "n" || key === "esc") {
+      const current = sub?.schedule?.type === "weekly" ? sub.schedule.interval : null;
+      const changed = current !== null && ui.interval !== null && ui.interval !== current;
+      if (key === "+" || key === "=" || key === "right" || key === "l" || key === "-" || key === "left" || key === "h") {
+        if (ui.deleting === null && current !== null) {
+          const step = key === "+" || key === "=" || key === "right" || key === "l" ? 1 : -1;
+          set({ notice: "", interval: Math.max(MIN_WEEKS, Math.min(MAX_WEEKS, (ui.interval ?? current) + step)) });
+          // The schedule is the last section: bring it into view.
+          setOffset(1000);
+        }
+      } else if (key === "enter") {
+        if (changed && sub) {
+          set({ saving: true });
+          store.updateSubscription(sub.id, { schedule: { type: "weekly", interval: ui.interval as number } }).then(
+            () => {
+              setSubs((x) => ({ ...x, saving: false, interval: null, notice: "schedule updated" }));
+              setOffset(0);
+            },
+            (e) => {
+              store.fail(e);
+              set({ saving: false });
+            },
+          );
+        }
+      } else if (key === "n" || key === "esc") {
         if (ui.deleting !== null) set({ deleting: null });
-        else set({ viewing: false, notice: "" });
+        else if (changed) set({ interval: null });
+        else set({ viewing: false, notice: "", interval: null });
       } else if (key === "backspace") {
-        if (ui.deleting === null) set({ viewing: false, notice: "" });
+        if (ui.deleting === null) set({ viewing: false, notice: "", interval: null });
       } else if (key === "e") {
         if (ui.deleting === null && sub) nav(`/addresses?subscription=${encodeURIComponent(sub.id)}`);
       } else if (key === "c") {
@@ -522,7 +762,7 @@ export function AccountScreen(): ReactNode {
       if (ui.deleting === null) set({ notice: "", selected: Math.max(0, ui.selected - 1) });
     } else if (key === "enter") {
       if (ui.deleting === null && list.length > 0) {
-        set({ notice: "", viewing: true });
+        set({ notice: "", viewing: true, interval: null });
         setOffset(0);
       }
     } else if (key === "delete" || key === "d" || key === "x") {
@@ -534,8 +774,16 @@ export function AccountScreen(): ReactNode {
     return true;
   };
 
-  const tokenKeys = (key: string): boolean => {
-    const set = (patch: Partial<typeof tokens>): void => setTokens((x) => ({ ...x, ...patch }));
+  const canCreate = store.canCreateCredentials;
+
+  const tokenKeys = (key: string, repeat: boolean): boolean => {
+    const set = (patch: Partial<TokensUI>): void => setTokens((x) => ({ ...x, ...patch }));
+    if (tokenCreating) return true;
+    if (tokenConfirm.code !== null) {
+      if (repeat) return true;
+      if (tokenConfirm.answer(key) === "confirm") void runToken(() => store.createToken().catch((e) => store.fail(e)));
+      return true;
+    }
     if (key === "j" || key === "down" || key === "tab") {
       if (tokens.deleting === null) set({ selected: Math.min(s.tokens.length, tokens.selected + 1) });
     } else if (key === "k" || key === "up" || key === "shift+tab") {
@@ -555,13 +803,23 @@ export function AccountScreen(): ReactNode {
       }
     } else if (key === "n" || key === "esc") set({ deleting: null });
     else if (key === "enter") {
-      if (tokens.deleting === null && tokens.selected === s.tokens.length && !store.siteMode) store.createToken().catch((e) => store.fail(e));
+      if (repeat || tokens.deleting !== null || tokens.selected !== s.tokens.length || !canCreate) return true;
+      if (askFirst) tokenConfirm.arm();
+      else void runToken(() => store.createToken().catch((e) => store.fail(e)));
     } else return false;
     return true;
   };
 
-  const appKeys = (key: string): boolean => {
-    const set = (patch: Partial<typeof apps>): void => setApps((x) => ({ ...x, ...patch }));
+  const appKeys = (key: string, repeat: boolean): boolean => {
+    const set = (patch: Partial<AppsUI>): void => setApps((x) => ({ ...x, ...patch }));
+    if (appConfirm.code !== null) {
+      if (repeat) return true;
+      const answer = appConfirm.answer(key);
+      const app = pendingApp.current;
+      if (answer !== null) pendingApp.current = null;
+      if (answer === "confirm" && app) createApp(app.name, app.redirectURI);
+      return true;
+    }
     if (apps.editing) return false;
     if (key === "j" || key === "down" || key === "tab") {
       if (apps.deleting === null) set({ selected: Math.min(s.apps.length, apps.selected + 1) });
@@ -577,7 +835,7 @@ export function AccountScreen(): ReactNode {
       }
     } else if (key === "n" || key === "esc") set({ deleting: null, editing: false });
     else if (key === "enter") {
-      if (apps.deleting === null && apps.selected === s.apps.length && !store.siteMode) {
+      if (apps.deleting === null && apps.selected === s.apps.length && canCreate) {
         appForm.reset({});
         set({ editing: true });
       }
@@ -585,16 +843,107 @@ export function AccountScreen(): ReactNode {
     return true;
   };
 
-  useKeys((key) => {
+  const pollCards = (count: number, run: number): void => {
+    setTimeout(async () => {
+      if (polling.current !== run) return;
+      try {
+        const next = await store.pollCards(count);
+        if (polling.current !== run) return;
+        if (next) {
+          setCards((c) => ({ ...c, view: "list", url: null, selected: next.length - 1, notice: "card added" }));
+          return;
+        }
+      } catch (error) {
+        store.fail(error);
+      }
+      pollCards(count, run);
+    }, store.pollMs);
+  };
+
+  const cardKeys = (key: string): boolean => {
+    const ui = cards;
+    const set = (patch: Partial<CardsUI>): void => setCards((c) => ({ ...c, ...patch }));
+    if (ui.status !== "idle") return true;
+    if (ui.view === "https") {
+      if (key === "esc" || key === "left" || key === "h") {
+        polling.current++;
+        set({ view: "list", url: null });
+      } else if (key === "enter" && ui.url && typeof window !== "undefined") {
+        window.open(ui.url, "_blank", "noopener,noreferrer");
+      }
+      return true;
+    }
+    if (ui.deleting !== null) {
+      const card = s.cards[ui.deleting];
+      if (key === "y" && card) {
+        set({ status: "removing", deleting: null });
+        store.deleteCard(card.id).then(
+          () => setCards((c) => ({ ...c, status: "idle", notice: "card removed", selected: Math.min(c.selected, store.s.cards.length) })),
+          (e) => {
+            store.fail(e);
+            set({ status: "idle" });
+          },
+        );
+      } else if (key === "n" || key === "esc" || key === "backspace") set({ deleting: null });
+      return true;
+    }
+    if (key === "j" || key === "down" || key === "tab") set({ notice: "", selected: Math.min(s.cards.length, ui.selected + 1) });
+    else if (key === "k" || key === "up" || key === "shift+tab") set({ notice: "", selected: Math.max(0, ui.selected - 1) });
+    else if (key === "delete" || key === "d" || key === "backspace" || key === "x") {
+      if (ui.selected < s.cards.length) set({ notice: "", deleting: ui.selected });
+    } else if (key === "enter") {
+      if (ui.selected < s.cards.length) return true;
+      set({ notice: "", status: "generating", view: "https" });
+      store.collectCard().then(
+        (res) => {
+          set({ status: "idle", url: res.url });
+          const run = ++polling.current;
+          pollCards(store.s.cards.length, run);
+        },
+        (e) => {
+          store.fail(e);
+          set({ status: "idle", url: null });
+        },
+      );
+    } else return false;
+    return true;
+  };
+
+  const focus = (): void => {
+    setFocused(true);
+    setOrders(ordersUI());
+    setSubs(subsUI());
+    setTokens({ selected: 0, deleting: null });
+    setApps({ selected: 0, deleting: null, editing: false });
+    setCards(cardsUI());
+  };
+
+  useKeys((key, e) => {
     if (focused) {
-      if ((key === "esc" || key === "left" || key === "h") && !apps.editing && !orders.viewing && !subs.viewing && orders.canceling === null && subs.deleting === null && tokens.deleting === null && apps.deleting === null) {
+      const busy = orders.viewing || subs.viewing || orders.canceling !== null || subs.deleting !== null || tokens.deleting !== null || apps.deleting !== null || cards.deleting !== null || cards.view !== "list";
+      const confirming = tokenConfirm.code !== null || appConfirm.code !== null;
+      if ((key === "esc" || key === "left" || key === "h") && !apps.editing && !profile.editing && !busy && !confirming) {
         unfocus();
         return true;
       }
-      if (page === "orders") return orderKeys(key);
-      if (page === "subscriptions") return subKeys(key);
-      if (page === "tokens") return tokenKeys(key);
-      if (page === "apps") return appKeys(key);
+      let handled = false;
+      if (page === "orders") handled = orderKeys(key);
+      else if (page === "subscriptions") handled = subKeys(key);
+      else if (page === "tokens") handled = tokenKeys(key, e.repeat);
+      else if (page === "apps") handled = appKeys(key, e.repeat);
+      else if (page === "payment") handled = cardKeys(key);
+      else if (page === "profile") handled = profile.editing || profile.saving;
+      if (handled) return true;
+      // The detail viewport pages (`modifiedKeyMap`).
+      if (key === "pgdown" || key === "ctrl+d") {
+        setOffset((o) => o + 10);
+        return true;
+      }
+      if (key === "pgup" || key === "ctrl+u") {
+        setOffset((o) => Math.max(0, o - 10));
+        return true;
+      }
+      if (page !== "faq" && page !== "about" && page !== "debug" && page !== "addresses") return false;
     }
     if (page === "debug") {
       if (confirmProd) {
@@ -604,15 +953,19 @@ export function AccountScreen(): ReactNode {
         } else if (key === "n" || key === "esc") setConfirmProd(false);
         return true;
       }
-      if (key === "e") {
+      if (key === "e" && !store.siteMode) {
         if (s.env === "dev") {
           if (store.canUse("prod")) setConfirmProd(true);
           else store.switchEnv("prod");
         } else if (store.switchEnv("dev")) store.reconnect();
         return true;
       }
-      if (key === "x") {
+      if (key === "x" && !signedOut) {
         store.signOut();
+        return true;
+      }
+      if (key === "enter" && signedOut) {
+        store.requireSignIn("sign in to your terminal account", "/account?page=debug");
         return true;
       }
     }
@@ -623,6 +976,7 @@ export function AccountScreen(): ReactNode {
         setSelected((i) => Math.min(ACCOUNT_PAGES.length - 1, i + 1));
         setOffset(0);
         setConfirmProd(false);
+        setProfile((p) => ({ ...p, notice: "" }));
         return true;
       case "shift+tab":
       case "up":
@@ -630,6 +984,7 @@ export function AccountScreen(): ReactNode {
         setSelected((i) => Math.max(0, i - 1));
         setOffset(0);
         setConfirmProd(false);
+        setProfile((p) => ({ ...p, notice: "" }));
         return true;
       case "pgdown":
       case "ctrl+d":
@@ -642,63 +997,81 @@ export function AccountScreen(): ReactNode {
       case "enter":
       case "right":
       case "l":
+        if (gated) {
+          store.requireSignIn(SIGN_IN_PROMPTS[page] as string, `/account?page=${page}`);
+          return true;
+        }
         if (page === "addresses") nav("/addresses");
-        else if (page === "orders" || page === "subscriptions" || page === "tokens" || page === "apps") {
+        else if (page === "orders" || page === "subscriptions" || page === "tokens" || page === "apps" || page === "payment" || page === "link-email") focus();
+        else if (page === "profile") {
+          profileForm.reset({ name: s.user?.name ?? "" });
+          setProfile({ editing: true, saving: false, notice: "" });
           setFocused(true);
-          setOrders(ordersUI());
-          setSubs({ selected: 0, deleting: null, viewing: false, notice: "" });
-          setTokens({ selected: 0, deleting: null });
-          setApps({ selected: 0, deleting: null, editing: false });
         }
         return true;
     }
     return false;
   });
 
-  let commands: Command[] = page === "faq" ? [{ key: "↑/↓", value: "scroll" }, { key: "pgup/pgdn", value: "page" }] : [{ key: "↑/↓", value: "navigate" }, { key: "enter", value: "select" }];
+  let commands: Command[] = page === "faq" ? [{ key: "↑/↓", value: "scroll" }, { key: "pgup/pgdn", value: "page" }] : [{ key: "↑/↓", value: "navigate" }, { key: "enter", value: gated ? "sign in" : "select" }];
   if (focused && page === "orders") commands = ordersFooter(store, orders);
-  if (focused && page === "subscriptions")
-    commands = subs.viewing
-      ? [{ key: "e", value: "address" }, { key: "c", value: "card" }, { key: "x/del", value: "cancel" }, { key: "esc", value: "back" }]
-      : [{ key: "↑/↓", value: "navigate" }, { key: "enter", value: "view details" }, { key: "x/del", value: "cancel" }, { key: "esc", value: "back" }];
-  if (focused && page === "tokens") commands = [{ key: "↑/↓", value: "navigate" }, { key: "x/del", value: "revoke" }, { key: "esc", value: "back" }];
-  if (focused && page === "apps") commands = [{ key: "↑/↓", value: "navigate" }, { key: "x/del", value: "remove" }, { key: "esc", value: "back" }];
+  if (focused && page === "subscriptions") commands = subscriptionsFooter(store, subs);
+  if (focused && page === "tokens") commands = tokenConfirm.code !== null ? [{ key: tokenConfirm.code, value: "create" }, { key: "n", value: "cancel" }] : [{ key: "↑/↓", value: "navigate" }, { key: "x/del", value: "revoke" }, { key: "esc", value: "back" }];
+  if (focused && page === "apps") commands = appConfirm.code !== null ? [{ key: appConfirm.code, value: "create" }, { key: "n", value: "cancel" }] : [{ key: "↑/↓", value: "navigate" }, { key: "x/del", value: "remove" }, { key: "esc", value: "back" }];
+  if (focused && page === "payment") commands = cardsFooter(s, cards);
+  if (focused && page === "profile") commands = profile.saving ? [{ key: "…", value: "saving" }] : [{ key: "esc", value: "cancel" }, { key: "enter", value: "save" }];
 
   return (
     <Page
       page="account"
       commands={commands}
-      body={(h, t) => {
+      body={(h, t, L) => {
+        const d = accountDims(L);
+        const W = d.detail;
         let detail: Line[];
-        switch (page) {
-          case "orders":
-            detail = ordersView(store, orders, focused, t);
-            break;
-          case "subscriptions":
-            detail = subscriptionsView(store, subs, focused, t);
-            break;
-          case "tokens":
-            detail = tokensView(s, tokens, focused, t);
-            break;
-          case "apps":
-            detail = appsView(s, { ...apps, submitting: appSubmitting }, focused, appForm.lines(DETAIL_WIDTH, 1), t);
-            break;
-          case "addresses":
-            detail = addressesPreview(s.addresses, t);
-            break;
-          case "link-email":
-            detail = linkEmailView(s, t);
-            break;
-          case "faq":
-            detail = faqView(t);
-            break;
-          case "about":
-            detail = aboutView(cursor, t);
-            break;
-          default:
-            detail = debugView(s, confirmProd, t);
+        if (gated) detail = signInView(page, t, d);
+        else
+          switch (page) {
+            case "orders":
+              detail = ordersView(store, orders, focused, t, d);
+              break;
+            case "subscriptions":
+              detail = subscriptionsView(store, subs, focused, t, d);
+              break;
+            case "tokens":
+              detail = tokensView(s, tokens, focused, t, d, { canCreate, code: tokenConfirm.code, creating: tokenCreating });
+              break;
+            case "apps":
+              detail = appsView(s, { ...apps, submitting: appSubmitting }, focused, appForm.lines(W, 1), t, d, { canCreate, code: appConfirm.code });
+              break;
+            case "addresses":
+              detail = addressesPreview(s.addresses, t, W);
+              break;
+            case "link-email":
+              detail = linkEmailView(s, focused, t, W);
+              break;
+            case "payment":
+              detail = cardsView(s, cards, focused, t, d);
+              break;
+            case "profile":
+              detail = profileView(s, focused, profile.editing, profile.saving, profile.notice, profileForm.lines(W, 1), t, d);
+              break;
+            case "faq":
+              detail = faqView(t, W);
+              break;
+            case "about":
+              detail = aboutView(cursor, t, W);
+              break;
+            default:
+              detail = debugView(s, confirmProd, signedOut, t, W);
+          }
+        const menu = accountMenu(selected, t, d);
+        if (d.stacked) {
+          // `AccountView` below the large layout stacks the menu and the detail viewports.
+          const menuOffset = selected + 1 - Math.floor(h / 2);
+          return [...viewport(menu, h, menuOffset).map((l) => fit(l, L.widthContent)), ...viewport(detail, h, offset).map((l) => fit(l, L.widthContent))];
         }
-        return hjoin(block(viewport(accountMenu(selected, t), h), MENU_WIDTH), block([], 2), block(viewport(detail, h, offset), CONTENT - MENU_WIDTH));
+        return hjoin(block(viewport(menu, h), d.menuWidth), block([], 2), block(viewport(detail, h, offset), L.widthContent - d.menuWidth));
       }}
     />
   );

@@ -64,7 +64,7 @@ describe("site mode, signed out", () => {
     expect(h.api.requests.every((r) => r.path === "/product" && !r.authorized)).toBe(true);
   });
 
-  test("adding to the cart, the cart and the account ask you to sign in", async () => {
+  test("adding to the cart asks you to sign in; the cart and the account show where to", async () => {
     h = await mountShop({ site: {}, signedIn: false });
     await h.until("~ featured ~");
     await h.press("down", "down", "+");
@@ -76,12 +76,25 @@ describe("site mode, signed out", () => {
     await h.press("esc");
     await h.until("~ featured ~");
     await h.press("c");
-    await h.until("sign in to see your cart and account");
+    await h.until("Your cart is empty.");
+    expect(h.screen()).toContain("press enter to sign in");
+    await h.press("enter");
+    await h.until("sign in to see your cart");
     await h.press("esc");
-    await h.until("~ featured ~");
-    expect(h.history.getLocation().pathname).toBe("/shop");
+    await h.until("Your cart is empty.");
+    expect(h.history.getLocation().pathname).toBe("/cart");
     await h.press("a");
-    await h.until("sign in to see your cart and account");
+    await h.until("sign in to see your orders");
+    expect(h.screen()).toContain("enter sign in");
+    // faq, about and debug info don't need an account.
+    for (let i = 0; i < 8; i++) await h.press("down");
+    await h.until("help, i have a question about my order!");
+    await h.press("down", "down");
+    await h.until("not signed in");
+    expect(h.api.requests.every((r) => r.path === "/product" && !r.authorized)).toBe(true);
+    await h.press("up", "up", "up", "enter");
+    await h.until("sign in to see your profile");
+    expect(h.screen()).toContain("sign in with terminal (oauth 2.0)");
   });
 
   test("sign in leaves for the proxy's OAuth start with the page to come back to", async () => {
@@ -89,23 +102,30 @@ describe("site mode, signed out", () => {
     h = await mountShop({ site: {}, signedIn: false, store: { assign: (u) => assigned.push(u) } });
     await h.until("~ featured ~");
     await h.press("c");
-    await h.until("sign in to see your cart and account");
+    await h.until("press enter to sign in");
+    await h.press("enter");
+    await h.until("sign in to see your cart");
     await h.press("enter");
     await h.t.waitFor(() => assigned.length === 1, "sign in redirect");
     expect(new URL(assigned[0]!).pathname).toBe("/api/terminal/login");
     expect(new URL(assigned[0]!).search).toBe("?return=%2Fcart");
+    await h.press("esc", "a", "down", "enter");
+    await h.until("sign in to manage your subscriptions");
+    await h.press("enter");
+    await h.t.waitFor(() => assigned.length === 2, "second sign in redirect");
+    expect(new URL(assigned[1]!).searchParams.get("return")).toBe("/account?page=subscriptions");
   });
 
   test("without a configured OAuth client, sign in says so and browsing still works", async () => {
     h = await mountShop({ site: { configured: false }, signedIn: false, store: { assign: (u) => assigned.push(u) } });
     await h.until("~ featured ~");
-    await h.press("c");
+    await h.press("c", "enter");
     await h.until("sign in isn't set up on this deployment yet");
     const before = assigned.length;
     await h.press("enter");
     expect(assigned.length).toBe(before);
     await h.press("esc");
-    await h.until("~ featured ~");
+    await h.until("Your cart is empty.");
   });
 
   test("F-09: enter on cron (or any product) asks to sign in and comes back to the shop", async () => {
@@ -228,6 +248,31 @@ describe("site mode, signed in", () => {
     expect(h.screen()).toContain("ssh terminal.shop -t apps");
   });
 
+  test("with TERMINAL_ALLOW_CREDENTIALS, a new token or app takes the console-only letter", async () => {
+    h = await mountShop({ site: { credentials: true }, signedIn: true, store: { confirmRealOrders: true, initialPath: "/account?page=tokens" } });
+    await h.until("add access token");
+    const posts = (path: string): number => h!.api.requests.filter((r) => r.method === "POST" && r.path === path).length;
+    await h.press("enter", "down", "enter");
+    await h.until("to create a token, press");
+    const code = /to create a token, press (\w)/.exec(h.screen())?.[1] ?? "";
+    expect(code).toMatch(/^[bfgiloptuvwz]$/);
+    await h.press("y", "enter");
+    expect(posts("/token")).toBe(0);
+    await h.press(code);
+    await h.until("(will not be shown again)");
+    expect(posts("/token")).toBe(1);
+    await h.press("esc", "down", "enter", "enter");
+    await h.until("redirect uri");
+    await h.t.type("x");
+    await h.press("tab");
+    await h.t.type("https://example.com/cb");
+    await h.press("enter");
+    await h.until("to create this app, press");
+    await h.press("n");
+    await h.until("create app");
+    expect(posts("/app")).toBe(0);
+  });
+
   test("F-12: a non-https card link from the API is refused", async () => {
     h = await mountShop({ site: {}, signedIn: true });
     await h.until("~ featured ~");
@@ -276,8 +321,9 @@ describe("site mode, signed in", () => {
     await act(async () => h!.store.setError(null));
     await h.press("x");
     await h.t.waitFor(() => site(h!).signOuts === 1 && h!.store.s.auth === null, "signed out");
-    await h.until("sign in to see your cart and account");
-    await h.press("esc");
+    await h.until("not signed in");
+    expect(h.screen()).toContain("enter sign in");
+    await h.press("s");
     await h.until("~ featured ~");
   });
 
