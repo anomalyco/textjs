@@ -1,6 +1,6 @@
 {
   "name": "@textjs/font",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "next/font for FIGlet: a FIGlet 2.2 .flf parser and renderer with 17 bundled, tree-shakable FIGfonts for Text.js.",
   "type": "module",
   "license": "MIT AND BSD-3-Clause",
@@ -52,7 +52,7 @@
     "references": "bun scripts/generate-references.ts"
   },
   "peerDependencies": {
-    "@textjs/react": "^1.0.0",
+    "@textjs/react": "^1.0.1",
     "react": "^19.0.0"
   },
   "peerDependenciesMeta": {

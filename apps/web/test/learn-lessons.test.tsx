@@ -104,6 +104,7 @@ describe("Shipping chapter", () => {
   // Timings and bundle sizes move with every build; everything else must match the CLI exactly.
   const normalize = (out: string): string =>
     out
+      .replace(/Text\.js \d+\.\d+\.\d+/g, "Text.js X.Y.Z")
       .replace(/in [\d.]+s$/gm, "in Xs")
       .replace(/[\d.]+ kB/g, "X kB")
       .replace(/\n+$/, "");
