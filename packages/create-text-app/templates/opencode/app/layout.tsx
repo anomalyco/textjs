@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children?: ReactNode }): Reac
         </Text>
       </Box>
       <Box className="grow flex-col px-2 pt-1">{children}</Box>
-      <Box className="flex-row h-1 gap-3 px-2 shrink-0">
+      <Box className="flex-row h-1 gap-3 px-2 mb-1 shrink-0">
         <KeyHint keys="enter" label="send" />
         <KeyHint keys="esc" label="back" />
       </Box>

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children?: ReactNode }): ReactNode {
   const theme = useTheme();
   return (
-    <Box className="flex-col w-full h-full px-2 pt-1">
+    <Box className="flex-col w-full h-full px-2 py-1">
       <Box className="flex-row items-end gap-2 shrink-0">
         <AsciiFont text="▼ TEXT.JS" font="compact" color={theme.fg} />
       </Box>
