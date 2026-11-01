@@ -4,7 +4,7 @@ import { A } from "../router";
 import { CloseIcon } from "../site/icons";
 import { useScrollLock } from "../site/Sheet";
 import { cart, useCart } from "./cart";
-import { MERCH, saleOf, type CartLine, type CheckoutProvider } from "./config";
+import { MERCH, onSale, saleOf, type CartLine, type CheckoutProvider } from "./config";
 import { formatPrice, getProduct, IMAGE_HEIGHT, IMAGE_WIDTH, PRODUCTS, productPath, type Product, type ProductImage } from "./products";
 
 export function MerchPage({ slug, provider = MERCH.provider }: { slug: string; provider?: CheckoutProvider | null }): ReactNode {
@@ -28,15 +28,7 @@ function Collection({ provider, bag }: { provider: CheckoutProvider | null; bag:
       <header className="merch-head">
         <div>
           <h1>Merch</h1>
-          <p>
-            Tees, hoodies, caps and stickers, made to order. The Keycap Set and Notebook come later.
-            {provider ? null : (
-              <>
-                {" "}
-                Ordering isn’t open yet. <A href={MERCH.notify.href}>{MERCH.notify.label}</A> for the release.
-              </>
-            )}
-          </p>
+          <p>{provider ? "Made to order." : "Made to order. Coming soon."}</p>
         </div>
         {bag}
       </header>
@@ -51,12 +43,10 @@ function Collection({ provider, bag }: { provider: CheckoutProvider | null; bag:
   );
 }
 
-/** The label on a product image, vercel.store style: Later, Coming soon or Pre-order. */
+/** The label on a product image, vercel.store style: Coming soon or Pre-order. */
 function flagFor(p: Product, provider: CheckoutProvider | null): string | null {
-  const sale = saleOf(p.slug);
-  if (sale.drop === "later") return "Later";
-  if (!provider) return "Coming soon";
-  return sale.preorder ? "Pre-order" : null;
+  if (!onSale(provider, p.slug, p.sizes)) return "Coming soon";
+  return saleOf(p.slug).preorder ? "Pre-order" : null;
 }
 
 function ProductCard({ product: p, flag, eager = false, compact = false }: { product: Product; flag: string | null; eager?: boolean; compact?: boolean }): ReactNode {
@@ -252,7 +242,7 @@ function SizePicker({ product: p, provider, value, onChange }: { product: Produc
       <legend className="merch-label">Size</legend>
       <div className="merch-sizes">
         {p.sizes.map((s) => {
-          const out = provider !== null && saleOf(p.slug).drop === "launch" && !provider.sells({ slug: p.slug, size: s });
+          const out = provider !== null && onSale(provider, p.slug, p.sizes) && !provider.sells({ slug: p.slug, size: s });
           return (
             <label key={s} className={`merch-size${out ? " is-out" : ""}`}>
               <input type="radio" name={name} value={s} checked={value === s} onChange={() => onChange(s)} disabled={out} />
@@ -271,23 +261,12 @@ function BuyBox({ product: p, provider, size, onAdded }: { product: Product; pro
   const [hint, setHint] = useState(false);
   useEffect(() => setHint(false), [size]);
   const sale = saleOf(p.slug);
-  const sold = provider !== null && sale.drop === "launch" && (p.sizes.length ? p.sizes.some((s) => provider.sells({ slug: p.slug, size: s })) : provider.sells({ slug: p.slug, size: "" }));
-  if (!provider || !sold) {
-    const later = sale.drop === "later";
+  if (!provider || !onSale(provider, p.slug, p.sizes)) {
     return (
       <div className="merch-buy">
-        <button type="button" className="btn btn-secondary btn-lg merch-buy-btn" disabled aria-describedby="merch-status">
-          {later ? "Later" : "Coming soon"}
+        <button type="button" className="btn btn-secondary btn-lg merch-buy-btn" disabled>
+          Coming soon
         </button>
-        <p id="merch-status" className="merch-status">
-          {later ? (
-            "Planned for a later drop."
-          ) : (
-            <>
-              Ordering isn’t open yet. <A href={MERCH.notify.href}>{MERCH.notify.label}</A> for the release.
-            </>
-          )}
-        </p>
       </div>
     );
   }
@@ -450,7 +429,7 @@ function CartDrawer({ open, onClose, provider }: { open: boolean; onClose: () =>
             <span>Subtotal</span>
             <span>{formatPrice(subtotal)}</span>
           </div>
-          <p className="merch-status">Shipping and taxes are calculated at checkout on {provider.name}.</p>
+          <p className="merch-status">Shipping and taxes at checkout.</p>
           {checkout && items.length > 0 ? (
             <a href={checkout} className="btn btn-primary btn-lg merch-buy-btn">
               Check out

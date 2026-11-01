@@ -20,7 +20,6 @@ import { composite } from "./composite";
 import { enlarge } from "./enlarge";
 import { fonts, MARK_RATIO } from "./lib";
 import {
-  CAP_MARK,
   LAPTOP_PPI,
   studio,
   vinyl,
@@ -66,6 +65,7 @@ const TEE_CHEST = { name: "tee-chest", x: 255, y: 420, k: 2, subject: "a black h
 const TEE_SLEEVE_DOWN = { name: "tee-sleeve-down", x: 512, y: 420, k: 2, subject: "a black heavyweight cotton t-shirt laid flat with its sleeves angled down, its left sleeve" };
 const TEE_NAPE = { name: "tee-nape", x: 255, y: 250, k: 2, subject: "the back of a black heavyweight cotton t-shirt laid flat, below the collar" };
 const HOODIE_CHEST = { name: "hoodie-chest", x: 246, y: 420, k: 2, subject: "a black cotton fleece hoodie laid flat" };
+export { capMarkQuad, CAP_CLOSE_SURFACE };
 const CAP_CLOSE = { name: "cap-front", x: 190, y: 450, k: 2, subject: "a black unstructured cotton chino twill dad cap" };
 const big = async (e: typeof TEE_CHEST, blank: string): Promise<string> => enlarge({ ...e, base: blank === "tee-front-sleeves-down" ? optionBasePath(blank) : basePath(blank) });
 
@@ -118,13 +118,32 @@ function capLettering(surface = CAP_FRONT_2, cols = 48, rows = 8, spacing = 1.3,
   return embroider(a, quad, THREAD_WHITE, stitchPx, relief, { mesh, satin: { spacing, radius } });
 }
 
+/** The cap close-up (an enlargement of cap-front-2), with its centre seam re-measured on the enlargement. */
+const CAP_CLOSE_SURFACE = {
+  ...enlargedCap(CAP_FRONT_2, 190, 450, 2),
+  seamLine: [[436, 792], [445, 740], [455, 700], [468, 640], [478, 600], [490, 540], [507, 480], [523, 420], [535, 380], [550, 340], [563, 300]] as Point[],
+};
+
+/**
+ * The ▼ on the cap, from the tech pack: 1.6 × 1.4 in, apex 0.6 in above the brim, symmetric about the centre
+ * front seam. Its corners are placed on the crown's surface (the left half, on the panel turning away,
+ * foreshortens), and the quad is the parallelogram whose top edge and bottom midpoint hit them.
+ */
+function capMarkQuad(surface = CAP_FRONT_2): Quad {
+  const { points: p } = capMesh(surface, 1.6, 1.4, 0.6, 2, 1, "seam");
+  const tl = p[0]!, tr = p[2]!, apex = p[4]!;
+  const half: Point = [(tr[0] - tl[0]) / 2, (tr[1] - tl[1]) / 2];
+  return [tl, tr, [apex[0] + half[0], apex[1] + half[1]], [apex[0] - half[0], apex[1] - half[1]]];
+}
+
 // ── Embroidered ▼ edits, fitted back onto the exact mark ────────────────────────────────────────
 const WHITE_FLAT = "#e9e9e6";
 /** Where each edit drew the ▼ (top-left, top-right, apex), measured with scripts/grid.ts. */
 const DRAWN: Record<string, [Point, Point, Point]> = {
   "hoodie-mark": [[465, 609], [541, 609], [503, 676]],
   "hoodie-mark-close": [[432, 380], [588, 380], [511, 515]],
-  "cap-mark-close": [[393, 373], [708, 408], [517, 660]],
+  "cap-mark": [[376, 668], [517, 680], [420, 797]],
+  "cap-mark-close-seam": [[384, 426], [667, 453], [460, 689]],
 };
 const fitted = (key: string, quad: Quad, feather: number): Layer[] => {
   const src = DRAWN[key];
@@ -211,18 +230,24 @@ export const SHOTS: Shot[] = [
   {
     name: "console-cap-2",
     render: async () => {
-      const layer = capLettering(enlargedCap(CAP_FRONT_2, CAP_CLOSE.x, CAP_CLOSE.y, 2), 64, 10, 2.4, 7, 2.6, 1.8);
+      const layer = capLettering(CAP_CLOSE_SURFACE, 64, 10, 2.4, 7, 2.6, 1.8);
       return crop(await stitched({ name: "close", base: await big(CAP_CLOSE, "cap-front-2"), layer, detail: "close-up" }), 128, []);
     },
   },
   { name: "console-cap-3", render: async () => crop(basePath("cap-back"), 170, []) },
-  // 007 ▼ Cap (the design-round edit, option B)
-  { name: "mark-cap-1", render: async () => pngOf(optionPhoto("cap", "B")) },
+  // 007 ▼ Cap: centred on the centre front seam (capMarkQuad), stitched by an edit and fitted back onto the exact ▼.
+  {
+    name: "mark-cap-1",
+    render: async () => {
+      const q = capMarkQuad();
+      return crop(await capEdit(basePath("cap-front-2"), q, "cap-mark"), 140, fitted("cap-mark", q, 6));
+    },
+  },
   {
     name: "mark-cap-2",
     render: async () => {
-      const q = scaleQ(CAP_MARK, CAP_CLOSE.x, CAP_CLOSE.y, 2);
-      return crop(await capEdit(await big(CAP_CLOSE, "cap-front-2"), q, "cap-mark-close"), 128, fitted("cap-mark-close", q, 10));
+      const q = capMarkQuad(CAP_CLOSE_SURFACE);
+      return crop(await capEdit(await big(CAP_CLOSE, "cap-front-2"), q, "cap-mark-close-seam"), 128, fitted("cap-mark-close-seam", q, 10));
     },
   },
   { name: "mark-cap-3", render: async () => crop(basePath("cap-back"), 170, []) },

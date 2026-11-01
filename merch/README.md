@@ -2,20 +2,20 @@
 
 Design files for the collection sold at [textjs.org/merch](https://textjs.org/merch): print-ready artwork, product photography, a tech pack per product family, and the research behind them. The store itself lives in `apps/web/src/merch/`. Fulfillment runs through Anomaly's Fourthwall shop; [LAUNCH.md](LAUNCH.md) is the checklist. The designs come from the November 2026 design round in [options/](options/README.md); `options/final-collection.png` shows the result.
 
-| No. | Product | Drop | Fourthwall product | Decoration | Price | Tech pack |
+| No. | Product | Maker | Fourthwall product | Decoration | Price | Tech pack |
 | --- | --- | --- | --- | --- | --- | --- |
-| 001 | Logo Tee | First | AS Colour 5082, Printed | ▼ Text.js, 8 in, white | $40 | [tees.md](tech-packs/tees.md) |
-| 002 | Block Tee | First | AS Colour 5082, Printed | Block-letter ▼, 4.5 in, white | $40 | [tees.md](tech-packs/tees.md) |
-| 003 | console.log Tee | First | AS Colour 5082, Printed | console / .log, 10 in, and a ▼ on the left sleeve | $40 | [tees.md](tech-packs/tees.md) |
-| 004 | console.log Hoodie | First | AS Colour 5161, Printed | console.log, 9 in, white | $75 | [hoodies.md](tech-packs/hoodies.md) |
-| 005 | ▼ Hoodie | First | AS Colour 5161, Embroidered | ▼, 3.5 in, white thread | $75 | [hoodies.md](tech-packs/hoodies.md) |
-| 006 | console.log Cap | First | Yupoong 6245CM, Embroidered | console.log, 3.4 in, white thread | $35 | [caps.md](tech-packs/caps.md) |
-| 007 | ▼ Cap | First | Yupoong 6245CM, Embroidered | ▼, 1.6 in, white thread | $35 | [caps.md](tech-packs/caps.md) |
-| 008–012 | ▼, Wordmark, console.log, ⌘⌥J and %c Stickers | First | Allcolor 957 Die-Cut Stickers | Digital print, die-cut, 2 or 3 in | $5–$6 | [stickers.md](tech-packs/stickers.md) |
-| 013 | PSA Tee | First | AS Colour 5082, Printed | YOU WOULDN'T RENDER A WEBSITE IN THE CONSOLE, 11 in, and ▼ Text.js on the back | $40 | [psa.md](tech-packs/psa.md) |
-| 014 | PSA Sticker | First | Allcolor 957 Die-Cut Stickers | The same layout on a 4 in 16:9 card | $7 | [psa.md](tech-packs/psa.md) |
-| 015 | Keycap Set, ⌘ ⌥ J | Later | Not in the catalog at this quantity; self-fulfilled | Reverse dye-sublimation | $25 | [keycaps.md](tech-packs/keycaps.md) |
-| 016 | Notebook | Later | Leuchtturm1917, self-fulfilled | Blind deboss | $28 | [notebook.md](tech-packs/notebook.md) |
+| 001 | Logo Tee | Fourthwall | AS Colour 5082, Printed | ▼ Text.js, 8 in, white | $40 | [tees.md](tech-packs/tees.md) |
+| 002 | Block Tee | Fourthwall | AS Colour 5082, Printed | Block-letter ▼, 4.5 in, white | $40 | [tees.md](tech-packs/tees.md) |
+| 003 | console.log Tee | Fourthwall | AS Colour 5082, Printed | console / .log, 10 in, and a ▼ on the left sleeve | $40 | [tees.md](tech-packs/tees.md) |
+| 004 | console.log Hoodie | Fourthwall | AS Colour 5161, Printed | console.log, 9 in, white | $75 | [hoodies.md](tech-packs/hoodies.md) |
+| 005 | ▼ Hoodie | Fourthwall | AS Colour 5161, Embroidered | ▼, 3.5 in, white thread | $75 | [hoodies.md](tech-packs/hoodies.md) |
+| 006 | console.log Cap | Fourthwall | Yupoong 6245CM, Embroidered | console.log, 3.4 in, white thread | $35 | [caps.md](tech-packs/caps.md) |
+| 007 | ▼ Cap | Fourthwall | Yupoong 6245CM, Embroidered | ▼, 1.6 in, white thread | $35 | [caps.md](tech-packs/caps.md) |
+| 008–012 | ▼, Wordmark, console.log, ⌘⌥J and %c Stickers | Fourthwall | Allcolor 957 Die-Cut Stickers | Digital print, die-cut, 2 or 3 in | $5–$6 | [stickers.md](tech-packs/stickers.md) |
+| 013 | PSA Tee | Fourthwall | AS Colour 5082, Printed | YOU WOULDN'T RENDER A WEBSITE IN THE CONSOLE, 11 in, and ▼ Text.js on the back | $40 | [psa.md](tech-packs/psa.md) |
+| 014 | PSA Sticker | Fourthwall | Allcolor 957 Die-Cut Stickers | The same layout on a 4 in 16:9 card | $7 | [psa.md](tech-packs/psa.md) |
+| 015 | Keycap Set, ⌘ ⌥ J | Separate maker | Not in the catalog at this quantity; self-fulfilled | Reverse dye-sublimation | $25 | [keycaps.md](tech-packs/keycaps.md) |
+| 016 | Notebook | Separate maker | Leuchtturm1917, self-fulfilled | Blind deboss | $28 | [notebook.md](tech-packs/notebook.md) |
 
 Prices are placeholders, set against Fourthwall's base costs and Vercel's own prices ($40 tee, $30 to $35 cap). They live in `apps/web/src/merch/products.ts`; what is on sale and how it ships lives in `apps/web/src/merch/config.ts`.
 
