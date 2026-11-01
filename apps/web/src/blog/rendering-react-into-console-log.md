@@ -5,7 +5,7 @@ author: Adam
 summary: Text.js draws a React app in the DevTools console as one styled console.log call per frame. How a frame is built, and why it is one call.
 ---
 
-Text.js renders React apps in the Chrome DevTools console. The page has no UI of its own. Each frame of the app is a single `console.log` call.
+Text.js renders React apps in the Chrome DevTools console. Apart from a hidden input, the page has no UI. Each frame of the app is a single `console.log` call.
 
 ## The console as a display
 

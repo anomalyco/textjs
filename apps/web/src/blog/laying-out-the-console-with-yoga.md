@@ -71,7 +71,7 @@ The width of a string in cells is not its length in JavaScript. Text is first sp
 
 The last row matters for drawing. Borders, the `▼` mark, arrows and spinner frames are always measured as one cell, so a box border never pushes its contents out of line.
 
-Printable ASCII skips segmentation entirely, and other widths are cached per code point and per cluster.
+Printable ASCII skips segmentation, and other widths are cached per code point and per cluster.
 
 ## Wrapping
 

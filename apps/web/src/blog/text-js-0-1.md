@@ -100,7 +100,7 @@ export function GET(): Response {
 }
 ```
 
-The router keeps `window.location` in sync through `history.pushState`, so Back, Forward and deep links work, and `metadata.title` is written to `document.title`. The app itself draws in the console. The page only hosts the input.
+The router keeps `window.location` in sync through `history.pushState`, so Back, Forward and deep links work, and `metadata.title` is written to `document.title`. The app draws in the console, and the page hosts a focus pad that collects input.
 
 ## The CLI
 
