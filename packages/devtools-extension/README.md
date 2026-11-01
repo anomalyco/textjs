@@ -8,11 +8,12 @@ bun test           # router, content relay, page bridge, panel store/transport, 
 bun run e2e        # Playwright Chromium + examples/dashboard, full message path
 bun run harness    # panel UI against harness/fixture.json → harness/shots/
 bun e2e/probe-devtools.ts --shots   # real DevTools: panel created, connected, screenshot
+bun run store      # store/: upload zip, loaded and checked in Chromium, plus Web Store images
 ```
 
 The e2e tests, probe and harness need Chromium (Chrome for Testing; branded Chrome ignores `--load-extension`). They use `TEXTJS_CHROMIUM` if set, otherwise playwright-core's browser or the newest one in the Playwright cache (`bunx playwright-core install chromium`).
 
-Load `dist/` from `chrome://extensions` (Developer mode → Load unpacked). Nothing here publishes anything.
+Load `dist/` from `chrome://extensions` (Developer mode → Load unpacked). Nothing here publishes anything. `store/LISTING.md` has the Chrome Web Store listing text and submission steps.
 
 ## Layout
 

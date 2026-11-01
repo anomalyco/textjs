@@ -1,23 +1,18 @@
 {
   "name": "vscode-textjs",
   "displayName": "Text.js",
-  "description": "Live console preview, App Router scaffolding, snippets and TX error links for Text.js — The Console Framework for the Web.",
+  "description": "Preview Text.js apps next to your code, scaffold App Router files, and link TX error codes to their docs.",
   "version": "1.0.0",
   "private": true,
   "publisher": "textjs",
   "license": "MIT",
   "homepage": "https://textjs.org/docs/vscode",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/anomalyco/textjs",
-    "directory": "packages/vscode-textjs"
-  },
   "icon": "media/icon.png",
   "galleryBanner": {
-    "color": "#0a0a0a",
+    "color": "#000000",
     "theme": "dark"
   },
-  "categories": ["Programming Languages", "Snippets", "Visualization", "Other"],
+  "categories": ["Snippets", "Visualization", "Other"],
   "keywords": ["textjs", "text.js", "react", "console", "devtools", "tui", "preview", "app router"],
   "engines": {
     "vscode": "^1.90.0"

@@ -2,12 +2,10 @@ The Text.js extension for VS Code shows your console frame next to the code. It 
 
 ## Install
 
-The extension isn't on the Marketplace yet. Build the `.vsix` from the repository and install it:
+Install [Text.js](https://marketplace.visualstudio.com/items?itemName=textjs.vscode-textjs) from the Visual Studio Marketplace. In VS Code, open the Extensions view (`⌘⇧X`) and search for `textjs.vscode-textjs`, or run:
 
 ```bash
-cd packages/vscode-textjs
-bun run package
-code --install-extension vscode-textjs-1.0.0.vsix
+code --install-extension textjs.vscode-textjs
 ```
 
 It activates in any folder that contains a Text.js app: a `text.config.ts`, or a package that depends on `@textjs/next` and has an `app/` directory. Monorepos with several apps work too.
