@@ -62,7 +62,7 @@ Zero-flash frames.
 - Frames are appended instead of `console.clear()` + `console.log()` per frame. DevTools applies a clear synchronously but paints new messages on a 50ms throttle, so clearing flashed an empty console in 70–95% of DevTools paints at 30–120fps. A leading zero-width curtain span hides earlier frames. The console is cleared only on the first frame, after `invalidate()`, at idle once 100 frames are stacked, or at 300.
 - Emitted frames are paced to at least 66ms apart (about 15fps). Faster frames restart the DevTools throttle and are dropped: at 30fps DevTools painted fewer distinct frames than at 15fps.
 - The Showcase was folded into the Playground (`/showcase` redirects).
-- Playground and OpenCode are full-screen focus pads: open the console, click, press keys.
+- Playground and OpenCode are full-screen focus pads.
 
 ### Performance
 

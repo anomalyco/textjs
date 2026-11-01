@@ -1,4 +1,4 @@
-`eslint-plugin-textjs` catches the mistakes that only show up once a frame reaches DevTools: DOM tags in console components, boxes inside text, glyphs Menlo doesn't have, stray `console.log` calls and App Router exports that are silently ignored.
+`eslint-plugin-textjs` catches Text.js mistakes in the editor: DOM tags in console components, boxes inside text, glyphs Menlo doesn't have, stray `console.log` calls and App Router exports that are silently ignored.
 
 ## Setup
 

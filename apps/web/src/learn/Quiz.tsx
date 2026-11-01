@@ -25,7 +25,7 @@ export function Quiz({ chapter }: { chapter: Chapter }): ReactNode {
         <h2 id="quiz">Quiz</h2>
         <span className={`learn-status${done ? " done" : ""}`}>{done ? "✓ Chapter complete" : `${chapter.quiz.length} questions`}</span>
       </div>
-      <p className="learn-quiz-lede">Answer both to complete the chapter.</p>
+      <p className="learn-quiz-lede">Answer every question to complete the chapter.</p>
       {chapter.quiz.map((q, qi) => {
         const picked = picks[qi];
         const answered = picked !== undefined;
@@ -54,7 +54,7 @@ export function Quiz({ chapter }: { chapter: Chapter }): ReactNode {
               })}
             </div>
             <p className={`learn-feedback${answered ? (right ? " right" : " wrong") : ""}`} aria-live="polite">
-              {answered ? (right ? `Correct. ${q.explanation}` : "Not quite. Try another answer.") : "\u00a0"}
+              {answered ? (right ? `Correct. ${q.explanation}` : "Incorrect. Try another answer.") : "\u00a0"}
             </p>
           </fieldset>
         );

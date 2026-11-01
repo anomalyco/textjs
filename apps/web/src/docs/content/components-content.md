@@ -1,4 +1,4 @@
-Markdown, code, diffs and lettering for the cell grid.
+These components render Markdown, code, diffs and large lettering on the cell grid.
 
 ## `<Markdown>`
 

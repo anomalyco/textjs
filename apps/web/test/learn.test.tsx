@@ -105,7 +105,7 @@ describe("learn prerender", () => {
 
   test("pages render their final markup, with no pending Suspense boundaries", async () => {
     const overview = await render("/learn");
-    expect(overview).toContain("Build a deploy dashboard in your console.");
+    expect(overview).toContain("Build a deploy dashboard in your console");
     expect(overview).toContain("Start learning");
     for (const c of CHAPTERS) expect(overview).toContain(`href="/learn/${c.slug}"`);
     expect(overview).toContain("data-textjs-focus-pad");

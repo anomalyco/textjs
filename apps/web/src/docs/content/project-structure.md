@@ -1,4 +1,4 @@
-Folders define routes. Special files define UI.
+Folders in `app/` define routes, and special files define the UI for each route.
 
 ## Folders
 

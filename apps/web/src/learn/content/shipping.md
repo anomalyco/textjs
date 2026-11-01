@@ -1,4 +1,4 @@
-Acme Deploys is ready to deploy itself. `text build` produces a static client and, if you have route handlers, a server for `text start`.
+`text build` produces a static client and, if you have route handlers, a server for `text start`.
 
 ## Build
 
@@ -13,11 +13,11 @@ bun run build
 ✓ Built in 1.8s
 ```
 
-`text start` serves the build and runs your route handlers. Any host that runs Bun or Node 20 will do.
+`text start` serves the build and runs your route handlers. It runs on any host with Bun 1.2+ or Node.js 22+.
 
 ## Metadata
 
-The browser tab is the only pixel of chrome your app has. Set its title in the root layout; pages can override it.
+Set the browser tab title in the root layout. Pages can override it.
 
 ```diff-tsx@app/deployments/page.tsx
 +export const metadata = { title: "Deployments" }; // → "Deployments · Acme"
@@ -35,8 +35,8 @@ Without route handlers the build is a plain static site. Every route is served b
 
 ## Before you ship
 
-- Turn off **Preserve log** and **Group similar messages** in your console settings, and tell your users to do the same.
-- Test at 80×24. Someone will dock DevTools to the side.
-- Run `bun test`. It's faster than opening the console.
+- Turn off **Preserve log** in your console settings. Your users need it off too.
+- Test narrow sizes such as 80×24. DevTools docked to the side gives a narrow grid.
+- Run `bun test`.
 
 Press `Enter` in the console to ship. Then claim your certificate.

@@ -1,4 +1,4 @@
-Hebrew, Arabic, Persian and every other right-to-left script render in the right order, aligned to the cell grid, in DevTools, in terminals and in DOM mirrors. Text.js implements the Unicode Bidirectional Algorithm (UAX #9, Unicode 18.0) itself and passes the complete official conformance suites: all 770,241 `BidiTest.txt` cases (every input in every paragraph direction) and all 91,707 `BidiCharacterTest.txt` cases.
+Text.js renders Hebrew, Arabic, Persian and other right-to-left scripts in the correct order, aligned to the cell grid, in DevTools, terminals and DOM mirrors. It implements the Unicode Bidirectional Algorithm (UAX #9, Unicode 18.0) and passes the official conformance suites: all 770,241 `BidiTest.txt` cases (every input in every paragraph direction) and all 91,707 `BidiCharacterTest.txt` cases.
 
 ```tsx#bidi
 import { Box, Text } from "@textjs/react";
@@ -50,7 +50,7 @@ On a nested `<Text>`, `dir` isolates the span like HTML's `<bdi>`: its content i
 | Output | How the order is pinned |
 | :-- | :-- |
 | DevTools (`CssConsoleDriver`) | Spans containing right-to-left characters are wrapped in `LRO … PDF` (U+202D / U+202C). DevTools' `%c` sanitizer drops `direction` and `unicode-bidi`. |
-| Terminals (`AnsiDriver`, `text run`) | Rows with right-to-left text are wrapped in `LRO … PDF` for terminals that run bidi per line. `renderToTerminal` switches to ECMA-48 BDSM explicit mode (`CSI 8 l`, honoured by VTE-based terminals) once on entry and back to implicit mode (`CSI 8 h`) on exit; one-shot `renderToAnsi` frames that contain right-to-left text start with `CSI 8 l`. Pass `bidi: "none"` to emit cells as-is. |
+| Terminals (`AnsiDriver`, `text run`) | Rows with right-to-left text are wrapped in `LRO … PDF` for terminals that run bidi per line. `renderToTerminal` switches to ECMA-48 BDSM explicit mode (`CSI 8 l`, honored by VTE-based terminals) once on entry and back to implicit mode (`CSI 8 h`) on exit; one-shot `renderToAnsi` frames that contain right-to-left text start with `CSI 8 l`. Pass `bidi: "none"` to emit cells as-is. |
 | DOM mirrors (`<ConsoleMirror>`) | The mirror is `direction: ltr` (so an RTL host page can't flip it), and spans containing right-to-left text get `unicode-bidi: bidi-override`. |
 
 `<Box title>`, `<Box bottomTitle>` and `<Divider title>` go through the same steps (`drawLogicalText(buffer, x, y, text, …)` draws any single line this way), so their labels display in order and joined.

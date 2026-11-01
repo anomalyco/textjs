@@ -1,4 +1,4 @@
-Declare shortcuts once. Text.js routes them, lists them in a `?` overlay, shows them in your footer and makes them searchable in a command palette.
+Declare shortcuts once with `useKeymap`. Text.js routes them, lists them in a `?` overlay, shows them in your footer and makes them searchable in a command palette.
 
 ```tsx#keymap
 useKeymap(

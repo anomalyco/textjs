@@ -14,7 +14,7 @@ It activates in any folder that contains a Text.js app: a `text.config.ts`, or a
 
 ## Live Preview
 
-Open a `page.tsx`, `layout.tsx` or component and run **Text.js: Open Preview** (`⌘K V`), or click the preview button in the editor title bar. The panel draws the frame cell for cell, in the same DevTools chrome and Menlo cells as your browser console.
+Open a `page.tsx`, `layout.tsx` or component and run **Text.js: Open Preview** (`⌘K V`), or click the preview button in the editor title bar. The panel draws the frame in the same DevTools chrome and Menlo cells as your browser console.
 
 The preview gets its frames from one of two sources. The badge in the toolbar shows which one is active:
 

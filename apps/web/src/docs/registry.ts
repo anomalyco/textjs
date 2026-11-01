@@ -48,7 +48,7 @@ export const DOCS: readonly DocPage[] = [
   {
     slug: "introduction",
     title: "Introduction",
-    description: "What Text.js is, why console.log, and the Inverted Architecture.",
+    description: "What Text.js is, what it includes and how a frame is rendered.",
     category: "Getting Started",
     markdown: introduction,
   },
@@ -114,7 +114,7 @@ export const DOCS: readonly DocPage[] = [
   {
     slug: "deploying",
     title: "Deploying",
-    description: "text build --adapter static, bun, vercel or cloudflare: deploy outputs for every platform.",
+    description: "Deploy with text build --adapter static, bun, vercel or cloudflare, or run text start behind a proxy.",
     category: "Building Your Application",
     markdown: deploying,
   },
@@ -144,7 +144,7 @@ export const DOCS: readonly DocPage[] = [
   {
     slug: "testing",
     title: "Testing",
-    description: "Render apps offscreen, press keys and assert on frames with textjs/testing.",
+    description: "Render apps offscreen, press keys and assert on frames with @textjs/next/testing.",
     category: "Building Your Application",
     markdown: testing,
   },
@@ -152,7 +152,7 @@ export const DOCS: readonly DocPage[] = [
     slug: "terminal",
     title: "Running in a Terminal",
     nav: "Terminal",
-    description: "text run and renderToTerminal: the same app, drawn with truecolor ANSI.",
+    description: "Render an App Router app or a single component in a terminal with text run and renderToTerminal.",
     category: "Building Your Application",
     markdown: terminal,
   },
@@ -189,7 +189,7 @@ export const DOCS: readonly DocPage[] = [
     slug: "components-layout",
     title: "Layout Components",
     nav: "Layout",
-    description: "<Box>, <Text>, <ScrollBox>, <Modal>, <SplitPane>, <Stack>, <Grid> and small pieces.",
+    description: "<Box>, <Text>, <ScrollBox>, <Modal>, <SplitPane>, <Stack>, <Grid>, <Spacer>, <Divider> and <Badge>.",
     category: "Components",
     markdown: componentsLayout,
   },
@@ -212,7 +212,7 @@ export const DOCS: readonly DocPage[] = [
   {
     slug: "fonts",
     title: "Fonts",
-    description: "@textjs/font: FIGlet fonts as ES modules, rendered exactly like the figlet program.",
+    description: "@textjs/font: FIGlet fonts as ES modules, laid out exactly like the figlet program.",
     category: "Components",
     markdown: fonts,
   },

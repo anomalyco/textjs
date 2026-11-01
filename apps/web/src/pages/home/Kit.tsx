@@ -12,10 +12,10 @@ const COLS = 76;
 const ROWS = 16;
 
 const TABS: Array<{ id: string; label: string; hint: string; href: string }> = [
-  { id: "table", label: "Table", hint: "Click it, then ↑ ↓ move · s sort · Space select", href: "/docs/components-data" },
-  { id: "charts", label: "Charts", hint: "Lines, bars, sparklines and progress, eight levels per cell", href: "/docs/components-charts" },
-  { id: "controls", label: "Controls", hint: "Click it, then Tab focus · Space toggle · ← → adjust", href: "/docs/components-forms" },
-  { id: "keymap", label: "useKeymap", hint: "Click it, then ? help · Ctrl+K palette", href: "/docs/keyboard" },
+  { id: "table", label: "Table", hint: "↑ ↓ move · s sort · Space select", href: "/docs/components-data" },
+  { id: "charts", label: "Charts", hint: "Line charts, bar charts, sparklines and progress bars", href: "/docs/components-charts" },
+  { id: "controls", label: "Controls", hint: "Tab focus · Space toggle · ← → adjust", href: "/docs/components-forms" },
+  { id: "keymap", label: "useKeymap", hint: "? help · Ctrl+K command palette", href: "/docs/keyboard" },
 ];
 
 const GROUPS: Array<{ title: string; href: string; items: string[] }> = [
@@ -42,9 +42,9 @@ export function KitSection(): ReactNode {
       <div className="container">
         <div className="section-head">
           <p className="eyebrow">Components</p>
-          <h2>Every component, cell for cell.</h2>
+          <h2>Tables, charts, forms and shortcuts</h2>
           <p>
-            Tables, trees, charts, forms, dialogs and toasts. Declare shortcuts once with <code>useKeymap</code> and get a <kbd>?</kbd> help screen and a command palette for free.
+            Shortcuts declared with <code>useKeymap</code> also appear in a <kbd>?</kbd> help screen, footer hints and a <kbd>Ctrl+K</kbd> command palette.
           </p>
         </div>
         <div className="frame kit-frame" ref={ref}>

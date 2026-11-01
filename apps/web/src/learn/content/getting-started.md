@@ -1,4 +1,4 @@
-Over ten chapters you'll build **Acme Deploys**, a deploy dashboard that renders entirely inside the DevTools console. Each chapter ends with the app exactly as your code leaves it, running live in the console on this page.
+Over ten chapters you'll build **Acme Deploys**, a deploy dashboard that renders in the DevTools console. Each chapter ends with the app exactly as your code leaves it, running live in the console on this page.
 
 ## Create the app
 
@@ -11,7 +11,7 @@ bun install
 bun dev
 ```
 
-Open `http://localhost:3000`, then open the console with ⌘⌥J (Ctrl+Shift+J elsewhere). The page is blank on purpose. Your app is in the console.
+Open `http://localhost:3000`, then open the console with ⌘⌥J (Ctrl+Shift+J elsewhere). The page shows a focus pad. Your app renders in the console.
 
 ## Your first page
 
@@ -59,4 +59,4 @@ Save the file. Fast Refresh redraws the frame and keeps your component state.
  }
 ```
 
-That's a complete Text.js app: React state, a layout box and one `console.log` per changed frame. Nothing is logged while it sits idle.
+That's a complete Text.js app. It has React state, a layout box and one `console.log` per changed frame, and it logs nothing while idle.

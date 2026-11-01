@@ -1,10 +1,10 @@
-Turbolog turns each React commit into one `console.log` call — or none.
+Turbolog turns each React commit into one `console.log` call, or none if no cell changed.
 
 ## Goals
 
 1. **One call per dirty frame.** Never log line by line.
 2. **Zero calls when idle.** No allocation, no clear, no log.
-3. **Few style arguments.** Under 100 `%c` spans for 3,200 cells.
+3. **Few style arguments.** 149 `%c` spans for the 3,200 cells of a dense `100×32` dashboard.
 
 ## Pipeline
 
@@ -14,7 +14,7 @@ React ─▶ Yoga ─▶ CellBuffer ─▶ row-hash gate ─▶ RLE ─▶ conso
 
 ## CellBuffer
 
-The frame lives in flat typed arrays — characters, colors and attributes — allocated once.
+The frame lives in flat typed arrays for characters, colors and attributes, allocated once.
 
 ## Dirty gate
 
@@ -48,13 +48,12 @@ console.log("%c▼ Text.js%c ready", "color:#ededed;font-weight:700", "color:#45
 
 ## Benchmarks
 
-`100×32` grid, Chrome, median of 1,000 frames:
+`packages/core/test/perf.test.ts` on a dense `100×32` dashboard, mean of 1,000 frames (Apple M5 Pro, Bun 1.4.4):
 
-| Scenario | Total | `%c` args |
+| Frame | Time | `%c` spans |
 | :-- | --: | --: |
-| Idle | **0.08ms** | 0 |
-| Counter | **0.18ms** | 41 |
-| Dashboard | **0.32ms** | 88 |
-| Full repaint | **0.57ms** | 92 |
+| Full repaint (layout, paint, encode) | **0.163ms** | 149 |
+| One-row edit | **0.011ms** | 149 |
+| Idle | **0.000ms** | 0 |
 
-Run `text.stats()` in DevTools while a demo from the [Playground](/playground) is running.
+The [Status](/status) page runs the same pipeline in your browser. Run `text.stats()` in DevTools while a demo from the [Playground](/playground) is running.

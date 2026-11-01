@@ -1,4 +1,4 @@
-The console is a grid of cells. Text.js lays it out with Yoga, the same Flexbox engine React Native uses, so `<Box>` behaves the way you already expect. Units are cells: `p-1` is one column and one row of padding.
+The console is a grid of cells. Text.js lays it out with Yoga, the same Flexbox engine React Native uses, so `<Box>` follows the CSS flexbox rules. Units are cells: `p-1` is one column and one row of padding.
 
 ## A top bar
 
