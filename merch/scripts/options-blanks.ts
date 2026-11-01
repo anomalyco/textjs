@@ -25,6 +25,12 @@ export const OPTION_BASES: OptionBase[] = [
     prompt: "The same black hoodie, turned over to show its back, laid flat in the same position on the same black backdrop with the hood laid flat above the shoulders, photographed from directly above with identical lighting and framing. Completely blank: no text, no logos, no prints, no labels.",
   },
   {
+    id: "tee-front-sleeves-down",
+    size: "1024x1536",
+    from: "tee-front",
+    prompt: "Photograph edit. The same black t-shirt laid flat in the same place, with the same body, collar, hem, folds, lighting and framing, but both short sleeves are folded down so they hang alongside the body at a steep angle, pointing mostly downward like arms at the sides, each sleeve about 20 degrees out from vertical, the hem of each sleeve clearly visible. The backdrop stays the same matte black. Completely blank: no text, no logos, no prints, no labels.",
+  },
+  {
     id: "cap-stone",
     size: "1024x1536",
     from: "cap-front-2",

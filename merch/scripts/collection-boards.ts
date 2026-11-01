@@ -77,7 +77,7 @@ export async function boards(): Promise<void> {
     </style>
     <header><h1>console.log Tee: where the ▼ goes</h1><p>Same front in both. A is in the store; B is the alternative.</p></header>
     <main>
-      <section><h2>A · Left sleeve, 1.25 in (store default)</h2><p class="sub">Fourthwall's Left Sleeve region. The ▼ points down the arm, so the flat lay shows it turned; the close-up hangs the sleeve as worn.</p>
+      <section><h2>A · Left sleeve, 1.25 in (store default)</h2><p class="sub">Fourthwall's Left Sleeve region. The ▼ points down the arm; the tee is laid flat with its sleeves folded down, as worn.</p>
         <div class="pair"><figure>${img("console-tee-1")}</figure><figure>${img("console-tee-3")}</figure></div></section>
       <section><h2>B · Upper back, 1.25 in</h2><p class="sub">Back Large region, centered, top edge 1 in below the back neck seam.</p>
         <div class="pair"><figure>${img("console-tee-back")}</figure><figure>${img("console-tee-back-close")}</figure></div></section>

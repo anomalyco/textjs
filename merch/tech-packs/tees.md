@@ -48,9 +48,9 @@ All three prints are solid white with no gradients or halftones, so either metho
 | Sleeve artwork | `artwork/console-tee-sleeve.svg`, `png/console-tee-sleeve.png` |
 | Sleeve size | ▼ 1.25 × 1.09 in |
 | Sleeve placement | Left Sleeve, centered on the sleeve, bottom 1 in above the hem band, pointing down the arm |
-| Photos | `photos/final/console-tee-1.webp` (front), `-2` (front close-up), `-3` (sleeve, turned to hang as worn) |
+| Photos | `photos/final/console-tee-1.webp` (front), `-2` (front close-up), `-3` (sleeve close-up) |
 
-The sleeve ▼ points down the arm, so in a flat lay, where the sleeve sits at about 40°, it reads as a turned triangle.
+The sleeve ▼ points down the arm. Photograph this tee with the sleeves folded down along the body, as in `console-tee-1`: in a flat lay with the sleeves out at about 40°, the ▼ turns far enough to read as ▲, which reads as Vercel's mark. The same applies to Fourthwall's generated mockups; replace them with these photos.
 
 ### Alternative: ▼ on the upper back
 

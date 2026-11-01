@@ -39,6 +39,7 @@ import {
   wordmarkArt,
   type Garment,
 } from "./options";
+import { optionBasePath } from "./options-blanks";
 import { basePath } from "./photos";
 import { close, png, webp } from "./render";
 
@@ -57,11 +58,11 @@ const optionPhoto = (item: string, label: string): string => join(ROOT, "options
 
 // ── Enlargements (k = 2: a 512 × 768 crop of the blank becomes 1024 × 1536) ─────────────────────
 const TEE_CHEST = { name: "tee-chest", x: 255, y: 420, k: 2, subject: "a black heavyweight cotton t-shirt laid flat" };
-const TEE_SLEEVE = { name: "tee-sleeve", x: 512, y: 380, k: 2, subject: "a black heavyweight cotton t-shirt laid flat, its left sleeve" };
+const TEE_SLEEVE_DOWN = { name: "tee-sleeve-down", x: 512, y: 420, k: 2, subject: "a black heavyweight cotton t-shirt laid flat with its sleeves angled down, its left sleeve" };
 const TEE_NAPE = { name: "tee-nape", x: 255, y: 250, k: 2, subject: "the back of a black heavyweight cotton t-shirt laid flat, below the collar" };
 const HOODIE_CHEST = { name: "hoodie-chest", x: 246, y: 420, k: 2, subject: "a black cotton fleece hoodie laid flat" };
 const CAP_CLOSE = { name: "cap-front", x: 190, y: 450, k: 2, subject: "a black unstructured cotton chino twill dad cap" };
-const big = async (e: typeof TEE_CHEST, blank: string): Promise<string> => enlarge({ ...e, base: basePath(blank) });
+const big = async (e: typeof TEE_CHEST, blank: string): Promise<string> => enlarge({ ...e, base: blank === "tee-front-sleeves-down" ? optionBasePath(blank) : basePath(blank) });
 
 // ── Placements ──────────────────────────────────────────────────────────────────────────────────
 // Hoodie: the flat-lay blank is drawn taller than a real 5161 (neck to hem reads 25 in at 28 px/in while the
@@ -75,15 +76,18 @@ function onHoodie(svg: string, topIn: number, g: Garment = HOODIE, ppiV = HOODIE
 const HOODIE_TOP = 3.5;
 const HOODIE_MARK: Quad = onHoodie(markArt(3.5), HOODIE_TOP);
 
-// console.log tee: the ▼ on the left sleeve (the viewer's right in a front flat lay). Measured on tee-front:
-// the sleeve runs out at 38.7° and its hem's midpoint is at (905, 710); the ▼ sits 2.4 in in from the hem edge
-// (1 in above the 0.9 in hem band), turned so it points down the arm.
-const SLEEVE_AXIS: Point = [0.78, 0.62];
+// console.log tee: the ▼ on the left sleeve (the viewer's right in a front flat lay). The tee is laid flat with
+// its sleeves folded down (tee-front-sleeves-down, an edit of tee-front), so the sleeve hangs about 14.5° from
+// vertical, as on a body, and the ▼ reads pointing down. With the sleeves out at 40° it read as ▲.
+// Measured on tee-front-sleeves-down: the neck seam is at (513, 495); the sleeve's hem midpoint is at (820, 752)
+// and its axis runs (0.25, 0.968). The ▼ sits 2.2 in up the sleeve from the hem edge, turned with the axis.
+const TEE_SLEEVES_DOWN: Garment = { cx: 513, seam: 495, ppi: 25.7 };
+const SLEEVE_AXIS: Point = [0.25, 0.968];
 const SLEEVE_MARK_IN = 1.25;
 const sleeveQuad = (): Quad => {
-  const d = 2.4 * TEE_FRONT.ppi;
-  const c: Point = [905 - SLEEVE_AXIS[0] * d, 710 - SLEEVE_AXIS[1] * d];
-  return rect(c[0], c[1], SLEEVE_MARK_IN * TEE_FRONT.ppi, SLEEVE_MARK_IN * MARK_RATIO * TEE_FRONT.ppi, -51.5);
+  const d = 2.2 * TEE_SLEEVES_DOWN.ppi;
+  const c: Point = [820 - SLEEVE_AXIS[0] * d, 752 - SLEEVE_AXIS[1] * d];
+  return rect(c[0], c[1], SLEEVE_MARK_IN * TEE_SLEEVES_DOWN.ppi, SLEEVE_MARK_IN * MARK_RATIO * TEE_SLEEVES_DOWN.ppi, -14.5);
 };
 // Option (b): a ▼ on the upper back, top 1 in below the back neck seam.
 const NAPE_MARK_IN = 1.25;
@@ -153,7 +157,10 @@ export const SHOTS: Shot[] = [
     },
   },
   // 003 console.log Tee: two-line Geist on the chest, ▼ on the left sleeve
-  { name: "console-tee-1", render: async () => crop(basePath("tee-front"), 130, [ink(stack(), stackQuad(TEE_FRONT)), ink(markArt(SLEEVE_MARK_IN), sleeveQuad())]) },
+  {
+    name: "console-tee-1",
+    render: async () => crop(optionBasePath("tee-front-sleeves-down"), 130, [ink(stack(), stackQuad(TEE_SLEEVES_DOWN)), ink(markArt(SLEEVE_MARK_IN), sleeveQuad())]),
+  },
   {
     name: "console-tee-2",
     render: async () => {
@@ -162,14 +169,10 @@ export const SHOTS: Shot[] = [
     },
   },
   {
-    // The sleeve close-up is turned so the sleeve hangs straight down, as it does when worn: in the flat lay the
-    // sleeve runs out at 38.5°, and a ▼ turned that far reads as ▲.
     name: "console-tee-3",
     render: async () => {
-      const q = scaleQ(sleeveQuad(), TEE_SLEEVE.x, TEE_SLEEVE.y, 2);
-      const full = await composite({ base: await big(TEE_SLEEVE, "tee-front"), layers: [ink(markArt(SLEEVE_MARK_IN), q, { displace: 1.2, texture: 0.6 })] });
-      const c: Point = [(q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4, (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4];
-      return turned(full, c, 51.5, 500, 0.62);
+      const q = scaleQ(sleeveQuad(), TEE_SLEEVE_DOWN.x, TEE_SLEEVE_DOWN.y, 2);
+      return crop(await big(TEE_SLEEVE_DOWN, "tee-front-sleeves-down"), 150, [ink(markArt(SLEEVE_MARK_IN), q, { displace: 1.2, texture: 0.6 })]);
     },
   },
   // 004 console.log Hoodie
@@ -240,28 +243,6 @@ export const NAPE_SHOTS: Shot[] = [
     },
   },
 ];
-
-/**
- * A 4:5 window `ww` wide, turned `deg` degrees about `c` (which lands at the window's horizontal centre and
- * `ay` of its height), scaled up to 1024 × 1280.
- */
-async function turned(bytes: Buffer, c: Point, deg: number, ww: number, ay: number): Promise<Buffer> {
-  const k = W / ww;
-  const html = `<!doctype html><style>html,body{margin:0;overflow:hidden;background:#000}canvas{display:block}</style><canvas id="c" width="${W}" height="${H}"></canvas><script>
-    const img = new Image();
-    img.onload = () => {
-      const x = document.getElementById("c").getContext("2d");
-      x.imageSmoothingQuality = "high";
-      x.translate(${W / 2}, ${H * ay});
-      x.scale(${k}, ${k});
-      x.rotate(${(deg * Math.PI) / 180});
-      x.translate(${-c[0]}, ${-c[1]});
-      x.drawImage(img, 0, 0);
-    };
-    img.src = "data:image/png;base64,${bytes.toString("base64")}";
-  </script>`;
-  return png(html, W, H, 1);
-}
 
 async function pngOf(file: string): Promise<Buffer> {
   const type = file.endsWith(".webp") ? "webp" : "png";
