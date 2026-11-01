@@ -2,4 +2,5 @@ name = "textjs-curl-http"
 main = "index.ts"
 compatibility_date = "2026-10-01"
 workers_dev = false
-routes = [{ pattern = "textjs.org/", zone_id = "a92110a41bc34311f9201bf34c799bc6" }]
+# http only: an https route would put this Worker in front of every home page load.
+routes = [{ pattern = "http://textjs.org/", zone_id = "a92110a41bc34311f9201bf34c799bc6" }]
