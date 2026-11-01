@@ -1,5 +1,5 @@
-import { lazy, Suspense, useCallback, type ReactNode } from "react";
-import { Box, KeyHint, Text, useFocusManager, useInput } from "@textjs/react";
+import { lazy, Suspense, useCallback, useEffect, type ReactNode } from "react";
+import { Box, KeyHint, Text, useApp, useFocusManager, useInput } from "@textjs/react";
 import { OpenCodeLite } from "../demos/opencode/OpenCodeLite";
 import { PresetView } from "../demos/presets";
 import { useSite } from "./useSite";
@@ -52,8 +52,10 @@ export function CompanionApp(): ReactNode {
   const tab = site.tab;
   const example = tab === "docs" && site.example !== null && exampleGrid(site.example) ? site.example : null;
   // One wireframe flag for F2, the DevTools panel, `text.wireframe()` and the mirror's inspect button; boot applies it.
+  const app = useApp();
   const wireframe = site.wireframe;
   const setWireframe = useCallback((on: boolean) => siteStore.set({ wireframe: on }), []);
+  useEffect(() => app.renderer.setWireframe(wireframe), [app, wireframe]);
   const route = tab === "home" || tab === "blog" ? matchRoute(site.pathname) : null;
   // Unknown paths show the 404. Their tab stays Home (or Blog), so off-route demos stop.
   const notFound = route?.name === "not-found";
