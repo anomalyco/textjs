@@ -302,6 +302,8 @@ export const CHAPTERS: readonly Chapter[] = [
 ];
 
 export const TOTAL_MINUTES = CHAPTERS.reduce((n, c) => n + c.minutes, 0);
+/** Course length rounded to five minutes, for prose. */
+export const ABOUT_MINUTES = Math.round(TOTAL_MINUTES / 5) * 5;
 
 export function getChapter(slug: string): Chapter | undefined {
   return CHAPTERS.find((c) => c.slug === slug);

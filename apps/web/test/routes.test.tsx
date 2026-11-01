@@ -57,18 +57,20 @@ describe("page rendering", () => {
   test("landing page", () => {
     const html = renderToStaticMarkup(<RouteView route={{ name: "home" }} />);
     expect(html).toContain("The Console Framework");
-    expect(html).toContain("Build interactive React apps rendered entirely inside");
+    expect(html).toContain("Build full-stack React apps that render inside");
     expect(html).toContain("bunx create-text-app");
     expect(html).toContain("app/page.tsx");
     expect(html).toContain("app/layout.tsx");
     expect(html).toContain("text.config.ts");
     expect(html).toContain("text://viewport:1");
     expect(html).toContain("This page is running in your console.");
-    for (const card of ["App Router", "Yoga Flexbox", "Zero DOM"]) expect(html).toContain(card);
+    for (const card of ["React 19", "App Router", "Responsive grid", "Keyboard input"]) expect(html).toContain(card);
     expect(html).toContain("OpenCode in console.log");
     expect(html).toContain("Explore OpenCode");
-    for (const section of ["One <code>console.log</code> per frame. None when idle.", "Append, don’t clear.", "Every component, cell for cell.", "Render where your data lives.", "One app. Three consoles.", "The rest of the toolchain.", "Build a deploy dashboard in your console."]) expect(html).toContain(section);
-    for (const gone of ["Introducing Text.js 1.0", "How Turbolog works", "DOM Frameworks (Next.js)", "Render down."]) expect(html).not.toContain(gone);
+    for (const section of ["Every changed frame is one <code>console.log</code> call", "Zero-flash frames", "Tables, charts, forms and shortcuts", "Render routes on the server", "The same app runs in DevTools, a terminal or a coding agent", "Editor, linter, testing and debugging tools", "Build a deploy dashboard in your console"]) expect(html).toContain(section);
+    // Headings are statements, not slogans: no trailing periods.
+    for (const h of html.matchAll(/<h[23][^>]*>(.*?)<\/h[23]>/g)) expect(h[1]).not.toMatch(/\.$/);
+    for (const gone of ["Introducing Text.js 1.0", "How Turbolog works", "DOM Frameworks (Next.js)", "Render down.", "for free", "DevTools inside DevTools", "No browser, no DevTools", "0.18ms"]) expect(html).not.toContain(gone);
     expect(html).not.toContain("▲");
   });
 

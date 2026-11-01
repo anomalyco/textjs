@@ -49,7 +49,7 @@ const ITEMS: Array<{ title: string; body: ReactNode; href: string }> = [
     title: "Caching",
     body: (
       <>
-        <code>revalidate</code>, <code>unstable_cache</code> and <code>revalidateTag</code>. Stale while revalidating.
+        <code>revalidate</code>, <code>unstable_cache</code> and <code>revalidateTag</code>, with stale-while-revalidate.
       </>
     ),
     href: "/docs/caching",
@@ -58,7 +58,7 @@ const ITEMS: Array<{ title: string; body: ReactNode; href: string }> = [
     title: "Deploy adapters",
     body: (
       <>
-        <code>text build --adapter</code> <code>static</code>, <code>bun</code>, <code>vercel</code> or <code>cloudflare</code>.
+        <code>text build --adapter</code> <code>static</code>, <code>bun</code>, <code>vercel</code> or <code>cloudflare</code>. Server-rendered routes need <code>bun</code> or <code>text start</code>.
       </>
     ),
     href: "/docs/deploying",
@@ -104,9 +104,9 @@ export function ServerSection(): ReactNode {
       <div className="container">
         <div className="section-head">
           <p className="eyebrow">Server Rendering</p>
-          <h2>Render where your data lives.</h2>
+          <h2>Render routes on the server</h2>
           <p>
-            Export <code>runtime = "server"</code> and the route renders on the server, async components and all. The browser downloads a 19 kB frame player instead of your app.
+            Export <code>runtime = "server"</code> to render a route, including async components, on the server. The browser downloads a 19 kB frame player instead of your app.
           </p>
         </div>
         <div className="frame sv-frame" ref={ref}>

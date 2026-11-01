@@ -1,18 +1,18 @@
 import type { ReactNode } from "react";
-import { CHAPTERS, learnPath, TOTAL_MINUTES } from "../../learn/course";
+import { ABOUT_MINUTES, CHAPTERS, learnPath } from "../../learn/course";
 import { A } from "../../router";
 import { ArrowRight } from "../../site/icons";
 import { Crosses } from "./Crosses";
 
 const TOOLS: Array<{ label: string; title: string; body: ReactNode; href: string }> = [
-  { label: "Text.js panel", title: "DevTools extension", body: <>Components, a cell-by-cell frame inspector and a per-frame timeline. DevTools inside DevTools.</>, href: "/docs/devtools-extension" },
+  { label: "Text.js panel", title: "DevTools extension", body: <>A component tree, a cell-by-cell frame inspector and a per-frame timeline.</>, href: "/docs/devtools-extension" },
   { label: "⌘K V", title: "VS Code", body: <>A live preview of the frame next to your code, plus App Router scaffolding and snippets.</>, href: "/docs/vscode" },
   { label: "eslint-plugin-textjs", title: "ESLint", body: <>Catches DOM tags in console components, boxes inside text and glyphs Menlo doesn’t have.</>, href: "/docs/eslint" },
-  { label: "@textjs/next/testing", title: "Testing", body: <><code>render</code>, <code>press</code>, <code>lastFrame</code>. No browser, no DevTools.</>, href: "/docs/testing" },
+  { label: "@textjs/next/testing", title: "Testing", body: <>Render offscreen, press keys and assert on <code>lastFrame()</code> in any test runner.</>, href: "/docs/testing" },
   { label: "TX###", title: "Error codes", body: <>Every framework error carries a stable code and a page that explains the fix.</>, href: "/errors" },
   { label: "window.text", title: "Console REPL", body: <>Pause, resize, wireframe and copy the running app from the console prompt.</>, href: "/docs/hooks-and-repl" },
-  { label: "UAX #9", title: "Right-to-left", body: <>A complete bidi implementation. All 770,241 <code>BidiTest.txt</code> cases pass.</>, href: "/docs/internationalization" },
-  { label: "@textjs/font", title: "FIGlet fonts", body: <>Parses <code>.flf</code> files and lays them out exactly like <code>figlet</code>, down to the last smush.</>, href: "/docs/fonts" },
+  { label: "UAX #9", title: "Right-to-left", body: <>Implements the Unicode Bidirectional Algorithm and passes all 770,241 <code>BidiTest.txt</code> cases.</>, href: "/docs/internationalization" },
+  { label: "@textjs/font", title: "FIGlet fonts", body: <>Parses <code>.flf</code> files and matches 273 outputs recorded from the <code>figlet</code> binary.</>, href: "/docs/fonts" },
 ];
 
 export function ToolingSection(): ReactNode {
@@ -21,8 +21,7 @@ export function ToolingSection(): ReactNode {
       <div className="container">
         <div className="section-head">
           <p className="eyebrow">Developer Experience</p>
-          <h2>The rest of the toolchain.</h2>
-          <p>Editors, linters, tests and inspectors, each aware that your UI lives in the console.</p>
+          <h2>Editor, linter, testing and debugging tools</h2>
         </div>
         <div className="tool-grid">
           {TOOLS.map((t) => (
@@ -49,9 +48,9 @@ export function LearnSection(): ReactNode {
           <Crosses />
           <div className="home-learn-copy">
             <p className="eyebrow">Learn Text.js</p>
-            <h2>Build a deploy dashboard in your console.</h2>
+            <h2>Build a deploy dashboard in your console</h2>
             <p className="muted">
-              A free course in {CHAPTERS.length} chapters, about {Math.round(TOTAL_MINUTES / 5) * 5} minutes. Every chapter runs live in DevTools as you read it.
+              A free course in {CHAPTERS.length} chapters, about {ABOUT_MINUTES} minutes. Each chapter runs live in DevTools as you read it.
             </p>
             <div className="home-learn-actions">
               <A href="/learn" className="btn btn-primary">
