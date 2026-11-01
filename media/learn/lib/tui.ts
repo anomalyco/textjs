@@ -12,8 +12,11 @@ const core: typeof import("../../../packages/core/src/index") = await import(joi
 /** Components for chapter scripts (what `@textjs/next` re-exports). */
 export const ui: typeof import("../../../packages/react/src/index") = await import(join(REPO, "packages/react/src/index.ts"));
 
-export async function renderFrame(element: ReactNode, opts: { cols: number; rows: number; keys?: string[]; trim?: boolean }): Promise<TuiFrame> {
-  const app = await testing.render(element, { cols: opts.cols, rows: opts.rows });
+export async function renderFrame(
+  element: ReactNode,
+  opts: { cols: number; rows: number; keys?: string[]; trim?: boolean; theme?: import("../../../packages/react/src/theme").ThemeName },
+): Promise<TuiFrame> {
+  const app = await testing.render(element, { cols: opts.cols, rows: opts.rows, ...(opts.theme ? { theme: opts.theme } : {}) });
   for (const k of opts.keys ?? []) await app.press(k);
   const frame = core.extractStyledFrame(app.root.renderer.buffer);
   await app.unmount();
@@ -26,6 +29,7 @@ export async function renderFrame(element: ReactNode, opts: { cols: number; rows
       ...(s.dim ? { dim: true } : {}),
       ...(s.italic ? { italic: true } : {}),
       ...(s.underline ? { underline: true } : {}),
+      ...(s.strikethrough ? { strikethrough: true } : {}),
     })),
   );
   let width = frame.width;

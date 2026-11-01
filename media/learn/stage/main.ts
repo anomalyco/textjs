@@ -7,6 +7,7 @@ import { cueResolver, mark, type Camera, type Scene, type SceneFactory } from ".
 import { clamp, easeInOut, h, mix, ramp } from "./motion";
 import { course } from "./scenes/course";
 import { editor } from "./scenes/editor";
+import { frames } from "./scenes/frames";
 import { live } from "./scenes/live";
 import { logs } from "./scenes/logs";
 import { pipeline } from "./scenes/pipeline";
@@ -15,7 +16,7 @@ import { terminal } from "./scenes/terminal";
 import { title } from "./scenes/title";
 import type { SceneData, Timeline } from "./types";
 
-const SCENES: Record<string, SceneFactory> = { title, course, pipeline, terminal, editor, live, logs, quiz };
+const SCENES: Record<string, SceneFactory> = { title, course, pipeline, terminal, editor, live, logs, quiz, frames };
 
 declare global {
   interface Window {

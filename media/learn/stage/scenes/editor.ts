@@ -19,8 +19,9 @@ interface Line {
  *   appear?: cue,                                   // write: when the code types in
  *   hunks?: cue[],                                  // diff: one cue per hunk
  *   settle?: cue,                                   // diff: tints fade back to plain code
- *   highlights?: [{ at, until?, lines: [from, to], focus? }],
+ *   highlights?: [{ at, until?, lines: [from, to], focus?, zoom? }],  // zoom: lean in closer (default 1.07) on long files
  *   preview?: { at, frame: TuiFrame, size?, refresh?: cue, label? },
+ *   maxSize?: number,                               // cap the code font size (long lines in short files)
  * }
  */
 export const editor: SceneFactory = (data, cue) => {
@@ -54,7 +55,7 @@ export const editor: SceneFactory = (data, cue) => {
   const bodyH = edH - 52 - 56;
   const maxLh = 44;
   const lh = Math.floor(Math.min(maxLh, bodyH / lines.length));
-  const size = Math.round(Math.min(25, lh / 1.66));
+  const size = Math.round(Math.min(p.maxSize ?? 25, lh / 1.66));
   const gutter = 70;
   const code = place(h("div", "code", win), 0, 52 + 28, edW, bodyH);
   Object.assign(code.style, { fontSize: `${size}px`, lineHeight: `${lh}px` });
@@ -91,12 +92,12 @@ export const editor: SceneFactory = (data, cue) => {
   const settle = p.settle ? cue(p.settle) : Infinity;
   const appear = cue(p.appear, 0.3);
 
-  type HL = { at: number; until: number; from: number; to: number; focus: boolean; band: HTMLElement };
-  const hls: HL[] = ((p.highlights ?? []) as Array<{ at: string; until?: string; lines: [number, number]; focus?: boolean }>).map((x, i, all) => {
+  type HL = { at: number; until: number; from: number; to: number; focus: boolean; zoom?: number; band: HTMLElement };
+  const hls: HL[] = ((p.highlights ?? []) as Array<{ at: string; until?: string; lines: [number, number]; focus?: boolean; zoom?: number }>).map((x, i, all) => {
     const band = h("div", "hl", code);
     band.style.zIndex = "-1";
     const next = all[i + 1];
-    return { at: cue(x.at), until: x.until ? cue(x.until) : next ? cue(next.at) : data.duration + 5, from: x.lines[0], to: x.lines[1], focus: x.focus ?? false, band };
+    return { at: cue(x.at), until: x.until ? cue(x.until) : next ? cue(next.at) : data.duration + 5, from: x.lines[0], to: x.lines[1], focus: x.focus ?? x.zoom !== undefined, zoom: x.zoom, band };
   });
   code.style.zIndex = "0";
   code.style.isolation = "isolate";
@@ -139,12 +140,15 @@ export const editor: SceneFactory = (data, cue) => {
     const hs = heights(t);
     const tops: number[] = [];
     hs.reduce((y, v, i) => ((tops[i] = y), y + v), 0);
-    for (const x of hls) {
+    for (const [i, x] of hls.entries()) {
       if (!x.focus) continue;
-      const k = Math.min(ramp(t, x.at - 0.2, 1.2, easeInOut), 1 - ramp(t, x.until - 0.6, 1.2, easeInOut));
+      // Handing over to the next focused highlight: hold until it has taken the camera, so the move is one glide.
+      const next = hls.slice(i + 1).find((o) => o.focus);
+      const until = x.zoom && next?.zoom && next.at <= x.until + 0.05 ? Math.max(x.until, next.at + 1.6) : x.until;
+      const k = Math.min(ramp(t, x.at - 0.2, 1.2, easeInOut), 1 - ramp(t, until - 0.6, 1.2, easeInOut));
       if (k <= 0) continue;
       const y = edY + 52 + 28 + (tops[x.from]! + tops[x.to]! + hs[x.to]!) / 2;
-      const target = { x: 960, y: mix(540, y, 0.45), zoom: 1.07 };
+      const target = { x: 960, y: mix(540, y, x.zoom ? 0.7 : 0.45), zoom: x.zoom ?? 1.07 };
       cam = { x: mix(cam.x, target.x, k), y: mix(cam.y, target.y, k), zoom: mix(cam.zoom, target.zoom, k) };
     }
     return cam;

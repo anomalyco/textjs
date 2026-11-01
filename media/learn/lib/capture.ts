@@ -139,7 +139,7 @@ function measureInPage(page: Page, m: Measure): Promise<Box | null> {
   }, { selector: m.selector, text: m.text });
 }
 
-async function screencast(page: Page, session: CDPSession, dir: string, url: string, css: { w: number; h: number }, dpr: number): Promise<{ stream: CaptureStream; stop: () => Promise<void>; setZero: (t0: number) => void }> {
+async function screencast(page: Page, session: CDPSession, dir: string, url: string, css: { w: number; h: number }, dpr: number): Promise<{ stream: CaptureStream; stop: () => Promise<void>; setZero: (t0: number) => void; poke: () => void }> {
   mkdirSync(dir, { recursive: true });
   const raw: Array<{ time: number; file: string }> = [];
   let t0 = 0;
@@ -169,19 +169,27 @@ async function screencast(page: Page, session: CDPSession, dir: string, url: str
     }
     busy = false;
   };
-  session.on("Page.screencastFrame", (f) => {
-    void session.send("Page.screencastFrameAck", { sessionId: f.sessionId }).catch(() => {});
-    if (pending === null) pending = f.metadata.timestamp ?? Date.now() / 1000;
+  const kick = (time: number): void => {
+    if (pending === null) pending = time;
     if (!busy) {
       busy = true;
       pumping = pump();
     }
+  };
+  session.on("Page.screencastFrame", (f) => {
+    void session.send("Page.screencastFrameAck", { sessionId: f.sessionId }).catch(() => {});
+    kick(f.metadata.timestamp ?? Date.now() / 1000);
   });
   await session.send("Page.startScreencast", { format: "jpeg", quality: 30, maxWidth: css.w, maxHeight: css.h, everyNthFrame: 1 });
   const stream: CaptureStream = { css, dpr, frames: [] };
   return {
     stream,
     setZero: (t) => (t0 = t),
+    // A screenshot can land just before a paint that then raises no further screencast frame; after an action,
+    // look again a few times (unchanged screenshots are dropped).
+    poke: () => {
+      for (const ms of [120, 300, 600, 1000]) setTimeout(() => kick(Date.now() / 1000), ms);
+    },
     async stop() {
       await session.send("Page.stopScreencast").catch(() => {});
       await pumping;
@@ -316,6 +324,8 @@ export async function captureLive(spec: LiveSpec, opts: { dir: string; url: stri
             else opts.log?.(`capture: click target ${a.click} not found`);
           }
           if (a.write) app.write(a.write.file, a.write.content);
+          siteCast.poke();
+          dtCast.poke();
         },
       });
     }
