@@ -114,13 +114,14 @@ Scene kinds (`stage/scenes/*`, props documented at the top of each file):
 | `course` | headline + the ten chapters, current one highlighted |
 | `pipeline` | cards on a line with flowing dots (code, real Text.js frames, a mini console) |
 | `terminal` | commands type at cues, followed by their real output |
-| `editor` | `mode: "write"` (with `replaces` for the previous file) or `"diff"` (hunks apply at cues); highlight sweeps with optional camera lean-in; `preview` shows the rendered frame |
+| `editor` | `mode: "write"` (with `replaces` for the previous file) or `"diff"` (hunks apply at cues); highlight sweeps with optional camera lean-in (`focus`, or `zoom: 1.22` for long files); `preview` shows the rendered frame; `maxSize` caps the font for long lines |
 | `live` | real page + real DevTools in a floating browser; `shots` (camera), `spots` (highlight), `keys` (keycaps), `clicks` (cursor), `open` (DevTools slides up) |
 | `logs` | console.log calls over time: one frame per key press, nothing while idle |
 | `quiz` | a course quiz question; the answer lights at a cue |
+| `frames` | real Text.js frames (`renderFrame`) in a console panel, swapped at cues: a layout reflowing by width, a theme change, focus moving; captions and keycaps |
 
 Helpers: `lib/script.ts` (`fileLines`, `diffLines`, `lineOf`, `tokenize` — the site's own highlighter), `lib/tui.ts`
-(`renderFrame(<Box>…</Box>, { cols, rows, keys })` renders a real Text.js frame offscreen for motion graphics),
+(`renderFrame(<Box>…</Box>, { cols, rows, keys, theme })` renders a real Text.js frame offscreen for motion graphics),
 `lib/servers.ts` (`starterTranscript()` for real CLI output).
 
 Typecheck with `node_modules/.bin/tsc -p media/learn` (from the repo root). New scene kinds go in `stage/scenes/` and

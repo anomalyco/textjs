@@ -92,7 +92,7 @@ export function tui(frame: TuiFrame, size: number, opts: { cols?: [number, numbe
       if (s.bold) span.style.fontWeight = "700";
       if (s.dim) span.style.opacity = "0.6";
       if (s.italic) span.style.fontStyle = "italic";
-      if (s.underline) span.style.textDecoration = "underline";
+      if (s.underline || s.strikethrough) span.style.textDecoration = [s.underline ? "underline" : "", s.strikethrough ? "line-through" : ""].join(" ").trim();
     }
     if (!row.length) line.textContent = " ";
   }

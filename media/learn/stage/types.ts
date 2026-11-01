@@ -15,6 +15,7 @@ export interface TuiSpan {
   dim?: boolean;
   italic?: boolean;
   underline?: boolean;
+  strikethrough?: boolean;
 }
 
 /** A console frame from a real Text.js render (`@textjs/react/testing`). */
