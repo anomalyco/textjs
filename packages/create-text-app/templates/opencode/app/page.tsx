@@ -32,7 +32,7 @@ export default function Sessions(): ReactNode {
         <Text color={theme.accent} wrap="nowrap">
           {"› "}
         </Text>
-        <Input value={draft} onChange={setDraft} onSubmit={(v) => void start(v).catch((e: unknown) => setError(String(e)))} placeholder="Ask OpenCode anything… (enter starts a new session)" autoFocus />
+        <Input value={draft} onChange={setDraft} onSubmit={(v) => void start(v).catch((e: unknown) => setError(String(e)))} placeholder="Ask OpenCode anything… (Enter starts a new session)" autoFocus />
       </Box>
       <Text bold color={theme.fg}>
         Sessions
@@ -40,12 +40,12 @@ export default function Sessions(): ReactNode {
       {error ? (
         <Box className="flex-col">
           <Text color={theme.warning}>Could not reach the OpenCode server: {error}</Text>
-          <Text color={theme.subtle}>Start one with `opencode serve --port 4096`, or set OPENCODE_URL, then reload.</Text>
+          <Text color={theme.subtle}>Start one with <Text color={theme.fg}>opencode serve --port 4096</Text>, or set OPENCODE_URL, then reload.</Text>
         </Box>
       ) : sessions === null ? (
         <Spinner label="Connecting to OpenCode…" />
       ) : sessions.length === 0 ? (
-        <Text color={theme.subtle}>No sessions yet — type a prompt above.</Text>
+        <Text color={theme.subtle}>No sessions yet. Type a prompt above.</Text>
       ) : (
         <Select options={options} limit={14} onChange={(id) => router.push(`/session/${id}`)} />
       )}
