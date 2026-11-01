@@ -74,7 +74,7 @@ describe("/errors", () => {
     expect(matchRoute("/errors/TX000")).toEqual({ name: "error", code: "TX000" });
     expect(matchRoute("/errors/tx000")).toEqual({ name: "error", code: "TX000" });
     expect(titleFor({ name: "error", code: "TX000" })).toBe("TX000: Success | Text.js");
-    expect(TX_ERRORS.some((e) => e.code === "TX000")).toBe(false);
+    expect(TX_ERRORS.map((e) => e.code as string)).not.toContain("TX000");
     expect(ROUTES.find((r) => r.path === "/errors/TX000")?.noindex).toBe(true);
     const html = await render("/errors/TX000");
     expect(html).toContain('<code class="tx-code">TX000</code>');
