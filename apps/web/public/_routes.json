@@ -1,6 +1,11 @@
 {
   "version": 1,
-  "description": "Only the Terminal sign in + API proxy run as Functions; everything else is static.",
-  "include": ["/api/terminal", "/api/terminal/*", "/terminal/callback"],
+  "description": "Only / (terminal clients get an ANSI frame), the Terminal sign in and the API proxy run as Functions; everything else is static.",
+  "include": [
+    "/",
+    "/api/terminal",
+    "/api/terminal/*",
+    "/terminal/callback"
+  ],
   "exclude": []
 }

@@ -1,2 +1,24 @@
 /showcase /playground 301
 /showcase/ /playground 301
+
+# nextjs.org docs paths, most specific first.
+/docs/app /docs 301
+/docs/app/getting-started /docs 301
+/docs/app/getting-started/installation /docs/installation 301
+/docs/app/getting-started/project-structure /docs/project-structure 301
+/docs/app/getting-started/layouts-and-pages /docs/routing 301
+/docs/app/getting-started/fonts /docs/fonts 301
+/docs/app/getting-started/css /docs/styling 301
+/docs/app/getting-started/route-handlers /docs/route-handlers 301
+/docs/app/getting-started/caching /docs/caching 301
+/docs/app/getting-started/caching-and-revalidating /docs/caching 301
+/docs/app/getting-started/error-handling /docs/loading-and-errors 301
+/docs/app/getting-started/deploying /docs/deploying 301
+/docs/app/api-reference/file-conventions/middleware /docs/middleware 301
+/docs/app/api-reference/file-conventions/proxy /docs/middleware 301
+/docs/app/guides/internationalization /docs/internationalization 301
+/docs/app/guides/testing /docs/testing 301
+/docs/app/api-reference/config/eslint /docs/eslint 301
+/docs/app/* /docs 302
+/learn/dashboard-app /learn 302
+/learn/dashboard-app/* /learn 302

@@ -2,15 +2,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { docPath, searchDocs } from "../docs/registry";
 import { navigate } from "../router";
 import { SearchIcon } from "./icons";
+import { aliasResults, invertTriangles, isQuitCommand, type SearchItem } from "./search-aliases";
 import { useScrollLock } from "./Sheet";
 
-interface Item {
-  key: string;
-  group: string;
-  label: string;
-  sub?: string;
-  href: string;
-}
+type Item = SearchItem;
 
 const PAGES: Item[] = [
   { key: "p:/", group: "Pages", label: "Home", sub: "textjs.org", href: "/" },
@@ -60,14 +55,19 @@ export function SearchModal(): ReactNode {
   const items = useMemo<Item[]>(() => {
     const q = query.trim().toLowerCase();
     const pages = q ? PAGES.filter((p) => p.label.toLowerCase().includes(q) || p.href.includes(q)) : PAGES;
-    const docs = searchDocs(query, 14).map<Item>((h) => ({
-      key: `d:${h.doc.slug}:${h.heading?.id ?? ""}`,
-      group: "Documentation",
-      label: h.heading ? h.heading.text : h.doc.title,
-      sub: h.heading ? h.doc.title : h.doc.category,
-      href: `${docPath(h.doc.slug)}${h.heading ? `#${h.heading.id}` : ""}`,
-    }));
-    return [...pages, ...docs];
+    const aliases = aliasResults(query);
+    const errors = aliases.filter((a) => a.group !== "Documentation");
+    const aliasDocs = aliases.filter((a) => a.group === "Documentation");
+    const docs = searchDocs(query, 14)
+      .map<Item>((h) => ({
+        key: `d:${h.doc.slug}:${h.heading?.id ?? ""}`,
+        group: "Documentation",
+        label: h.heading ? h.heading.text : h.doc.title,
+        sub: h.heading ? h.doc.title : h.doc.category,
+        href: `${docPath(h.doc.slug)}${h.heading ? `#${h.heading.id}` : ""}`,
+      }))
+      .filter((d) => !aliasDocs.some((a) => a.key === d.key));
+    return [...pages, ...errors, ...aliasDocs, ...docs];
   }, [query]);
 
   useEffect(() => {
@@ -100,9 +100,11 @@ export function SearchModal(): ReactNode {
             autoCapitalize="off"
             spellCheck={false}
             onChange={(e) => {
-              setQuery(e.target.value);
+              const native = e.nativeEvent as InputEvent;
+              setQuery(native.isComposing ? e.target.value : invertTriangles(e.target.value));
               setIndex(0);
             }}
+            onCompositionEnd={(e) => setQuery(invertTriangles(e.currentTarget.value))}
             onKeyDown={(e) => {
               if (e.key === "ArrowDown") {
                 e.preventDefault();
@@ -112,7 +114,8 @@ export function SearchModal(): ReactNode {
                 setIndex((i) => Math.max(0, i - 1));
               } else if (e.key === "Enter") {
                 e.preventDefault();
-                go(items[index]);
+                if (isQuitCommand(query)) setOpen(false);
+                else go(items[index]);
               } else if (e.key === "Escape") {
                 e.preventDefault();
                 setOpen(false);

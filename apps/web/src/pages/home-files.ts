@@ -64,4 +64,5 @@ export default defineConfig({
 });
 `,
   },
+  { name: "app/globals.css", language: "css", code: "" },
 ];

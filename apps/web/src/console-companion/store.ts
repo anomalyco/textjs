@@ -79,6 +79,8 @@ export interface SiteState {
   example: string | null;
   /** `/exit` in OpenCode paused and cleared the console; engaging the pad again restarts it. */
   opencodeExited: boolean;
+  /** Yoga layout wireframe in the companion (F2, `text.wireframe()` and the mirror's inspect button). */
+  wireframe: boolean;
 }
 
 type Listener = () => void;
@@ -110,6 +112,7 @@ const DEFAULT_STATE: SiteState = {
   opencode: { mode: "sandbox" },
   example: null,
   opencodeExited: false,
+  wireframe: false,
 };
 
 export class SiteStore {

@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { A } from "../router";
 import { DevtoolsShortcut, Footer } from "../site/Chrome";
 import { ArrowRight } from "../site/icons";
-import { certificateLines, formatCertificateDate, NAME_PLACEHOLDER } from "../learn/certificate";
+import { certificateLines, formatCertificateDate, linkedInAddUrl, NAME_PLACEHOLDER } from "../learn/certificate";
 import { ChapterBody, chapterHeadings } from "../learn/ChapterBody";
 import { ChapterVideo } from "../learn/ChapterVideo";
 import { CHAPTERS, chapterIndex, chapterNumber, COMPLETE_SLUG, COURSE_APP, getChapter, learnPath, OVERVIEW_HINTS, CERTIFICATE_HINTS, ABOUT_MINUTES, type Chapter } from "../learn/course";
@@ -274,6 +274,15 @@ function CertificatePage(): ReactNode {
             >
               Reset progress
             </button>
+            <a
+              className="text-link"
+              href={complete ? (linkedInAddUrl(progress.completedAt) ?? undefined) : undefined}
+              target="_blank"
+              rel="noreferrer"
+              style={{ visibility: complete ? "visible" : "hidden" }}
+            >
+              Add to LinkedIn
+            </a>
           </p>
         </article>
         <Footer />

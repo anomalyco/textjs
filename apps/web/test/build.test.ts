@@ -20,13 +20,14 @@ describe("production build", () => {
 
       const html = readFileSync(join(out, "index.html"), "utf8");
       expect(html).toContain("<title>Text.js — The Console Framework</title>");
+      expect(html.split("\n")[1]).toBe("<!-- ⌘⌥J · Ctrl+Shift+J -->");
       expect(html).toContain('rel="icon" type="image/svg+xml" href="/favicon.svg"');
       expect(html).toContain('property="og:url" content="https://textjs.org/"');
       expect(html).toContain('property="og:image" content="https://textjs.org/og.png"');
       expect(html).toContain('name="twitter:image" content="https://textjs.org/og.png"');
       expect(html).toContain("background:#000000");
       expect(html).not.toContain("▲");
-      for (const f of ["favicon.svg", "og.png", "og.svg", "robots.txt", "sitemap.xml"]) expect(existsSync(join(out, f))).toBe(true);
+      for (const f of ["favicon.svg", "og.png", "og.svg", "robots.txt", "sitemap.xml", "enterprise/sample-invoice.pdf"]) expect(existsSync(join(out, f))).toBe(true);
       const assets = readdirSync(join(out, "assets"));
       expect(assets.some((a) => a.endsWith(".css"))).toBe(true);
       expect(assets.filter((a) => a.endsWith(".js")).length).toBeGreaterThanOrEqual(3);
@@ -44,9 +45,17 @@ describe("production build", () => {
     expect(rewrite).toBeDefined();
     const re = new RegExp(`^${rewrite?.source ?? ""}$`);
     for (const p of ["/", "/docs/routing", "/playground", "/opencode", "/nope"]) expect(re.test(p)).toBe(true);
-    for (const p of ["/assets/index-abc.js", "/assets/missing.js", "/favicon.svg", "/og.png", "/og.svg", "/robots.txt", "/sitemap.xml"]) expect(re.test(p)).toBe(false);
+    for (const p of ["/assets/index-abc.js", "/assets/missing.js", "/favicon.svg", "/og.png", "/og.svg", "/robots.txt", "/sitemap.xml", "/humans.txt", "/llms.txt", "/home.ansi", "/api/v2/status.json", "/api/v2/components.json", "/api/v2/summary.json", "/enterprise/sample-invoice.pdf"]) expect(re.test(p)).toBe(false);
+    expect(re.test("/enterprise")).toBe(true);
     const all = cfg.headers.find((h) => h.source === "/(.*)")?.headers ?? [];
     expect(all).toContainEqual({ key: "X-Content-Type-Options", value: "nosniff" });
+    expect(all).toContainEqual({ key: "X-Powered-By", value: "Text.js" });
+  });
+
+  test("Cloudflare Pages sends X-Powered-By on every static response", () => {
+    const headers = readFileSync(join(ROOT, "public/_headers"), "utf8");
+    const all = /^\/\*\n((?:[ \t]+.+\n)+)/m.exec(headers)?.[1] ?? "";
+    expect(all).toContain("  X-Powered-By: Text.js\n");
   });
 
   test("sitemap lists every docs page", () => {

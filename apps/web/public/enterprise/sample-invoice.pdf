@@ -1,0 +1,75 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R /F2 6 0 R /F3 7 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 1016 >>
+stream
+0 g
+BT /F2 20 Tf 72 712 Td (Anomaly) Tj ET
+BT /F2 20 Tf 400 712 Td (INVOICE) Tj ET
+0.4 g
+BT /F1 10 Tf 72 696 Td (anoma.ly) Tj ET
+BT /F2 10 Tf 400 696 Td (SAMPLE) Tj ET
+BT /F1 9 Tf 72 640 Td (Bill to) Tj ET
+BT /F1 9 Tf 400 640 Td (Date) Tj ET
+0 g
+BT /F1 10 Tf 400 626 Td (October 31, 2026) Tj ET
+0.8 G
+0.5 w 72 580 m 540 580 l S
+0.4 g
+BT /F2 9 Tf 72 566 Td (Description) Tj ET
+BT /F2 9 Tf 323 566 Td (Qty) Tj ET
+BT /F2 9 Tf 402.49 566 Td (Unit price) Tj ET
+BT /F2 9 Tf 506.01 566 Td (Amount) Tj ET
+0.5 w 72 556 m 540 556 l S
+0 g
+BT /F1 10 Tf 72 538 Td (Text.js 1.0.0, Open Source plan \(MIT\)) Tj ET
+BT /F3 10 Tf 332 538 Td (1) Tj ET
+BT /F3 10 Tf 414 538 Td ($0.00) Tj ET
+BT /F3 10 Tf 510 538 Td ($0.00) Tj ET
+0.5 w 72 524 m 540 524 l S
+BT /F1 10 Tf 390 500 Td (Subtotal) Tj ET
+BT /F3 10 Tf 510 500 Td ($0.00) Tj ET
+BT /F1 10 Tf 390 482 Td (Tax) Tj ET
+BT /F3 10 Tf 510 482 Td ($0.00) Tj ET
+BT /F2 10 Tf 390 464 Td (Total due) Tj ET
+BT /F3 10 Tf 510 464 Td ($0.00) Tj ET
+BT /F1 10 Tf 72 420 Td (Due on receipt.) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+7 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+8 0 obj
+<< /Title (Sample invoice) /Author (Anomaly) /Subject (Text.js Open Source plan) /CreationDate (D:20261031000000Z) >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000267 00000 n 
+0000001334 00000 n 
+0000001431 00000 n 
+0000001533 00000 n 
+0000001628 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R /Info 8 0 R >>
+startxref
+1761
+%%EOF

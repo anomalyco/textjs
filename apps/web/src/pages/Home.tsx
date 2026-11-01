@@ -8,6 +8,7 @@ import { DevToolsWindow } from "../site/DevToolsWindow";
 import { HighlightedCode } from "../site/highlight";
 import { ArrowRight } from "../site/icons";
 import { useCompanionFrame } from "../site/useCompanion";
+import { siteStore } from "../console-companion/store";
 import { HERO_FILES } from "./home-files";
 import { Crosses } from "./home/Crosses";
 import { AnywhereSection } from "./home/Anywhere";
@@ -29,6 +30,8 @@ function LiveConsole({ source = "viewport:3" }: { source?: string }): ReactNode 
       engaged={site.consoleInput}
       engage
       onActivate={() => getCompanion()?.activate()}
+      onInspect={() => siteStore.set({ wireframe: !site.wireframe })}
+      inspecting={site.wireframe}
     />
   );
 }

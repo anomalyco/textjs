@@ -1,3 +1,4 @@
+import "./console-baseline";
 import { createRoot, hydrateRoot } from "react-dom/client";
 import { bootCompanion } from "./console-companion/boot";
 import { Root } from "./Root";

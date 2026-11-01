@@ -8,12 +8,16 @@ const ssrDir = join(rootDir, "node_modules", ".cache", "textjs-ssr");
 const baseHtml = readFileSync(join(distDir, "index.html"), "utf8");
 
 interface ServerEntry {
-  ROUTES: ReadonlyArray<{ path: string; title: string; description: string; canonical?: string }>;
+  ROUTES: ReadonlyArray<{ path: string; title: string; description: string; canonical?: string; noindex?: boolean }>;
   NOT_FOUND_PATH: string;
   PREFIT_MIRRORS_SCRIPT: string;
   PREFIT_MIRRORS_WHILE_PARSING_SCRIPT: string;
   render(pathname: string): Promise<string>;
   renderRss(): string;
+  humansTxt(date: string): string;
+  llmsTxt(): string;
+  statusApi(): Record<string, string>;
+  renderHomeAnsi(): Promise<string>;
 }
 
 const server = (await import(pathToFileURL(join(ssrDir, "entry-server.js")).href)) as ServerEntry;
@@ -54,8 +58,13 @@ async function withMarkup(html: string, routePath: string): Promise<string> {
   return html.replace("</head>", fold).replace(root, `${watch}<div id="root" data-route="${escapeAttr(routePath)}">${markup}</div>${prefit}`);
 }
 
-async function writeRoute(routePath: string, title: string, description: string, canonical = routePath): Promise<void> {
-  const html = await withMarkup(withMeta(baseHtml, title, description, canonical), routePath);
+function withNoindex(html: string): string {
+  return html.replace(/\s*<link\s+rel="canonical"[^>]*>/, "").replace(/(<meta name="viewport"[^>]*>)/, '$1\n    <meta name="robots" content="noindex" />');
+}
+
+async function writeRoute(routePath: string, title: string, description: string, canonical = routePath, noindex = false): Promise<void> {
+  const meta = withMeta(baseHtml, title, description, canonical);
+  const html = await withMarkup(noindex ? withNoindex(meta) : meta, routePath);
   writeHtml(routePath, html);
 }
 
@@ -71,10 +80,16 @@ function writeHtml(routePath: string, html: string): void {
   writeFileSync(file, html);
 }
 
-for (const r of server.ROUTES) await writeRoute(r.path, r.title, r.description, r.canonical);
+for (const r of server.ROUTES) await writeRoute(r.path, r.title, r.description, r.canonical, r.noindex);
 
 mkdirSync(join(distDir, "blog"), { recursive: true });
 writeFileSync(join(distDir, "blog", "rss.xml"), server.renderRss());
+writeFileSync(join(distDir, "humans.txt"), server.humansTxt(new Date().toISOString().slice(0, 10)));
+writeFileSync(join(distDir, "llms.txt"), server.llmsTxt());
+mkdirSync(join(distDir, "api", "v2"), { recursive: true });
+for (const [name, body] of Object.entries(server.statusApi())) writeFileSync(join(distDir, "api", "v2", name), body);
+// `curl textjs.org` (functions/index.ts).
+writeFileSync(join(distDir, "home.ansi"), await server.renderHomeAnsi());
 
 // Showcase was folded into the Playground.
 writeHtml(
@@ -82,10 +97,7 @@ writeHtml(
   '<!doctype html><meta charset="utf-8"><title>Playground | Text.js</title><link rel="canonical" href="https://textjs.org/playground"><meta http-equiv="refresh" content="0; url=/playground"><script>location.replace("/playground"+location.hash)</script>\n',
 );
 
-const notFound = baseHtml
-  .replace(/<title>[^<]*<\/title>/, "<title>404: This page could not be found | Text.js</title>")
-  .replace(/\s*<link\s+rel="canonical"[^>]*>/, "")
-  .replace(/(<meta name="viewport"[^>]*>)/, '$1\n    <meta name="robots" content="noindex" />');
+const notFound = withNoindex(baseHtml.replace(/<title>[^<]*<\/title>/, "<title>404: This page could not be found | Text.js</title>"));
 writeFileSync(join(distDir, "404.html"), await withMarkup(notFound, server.NOT_FOUND_PATH));
 writeFileSync(join(distDir, "CNAME"), "textjs.org\n");
 writeFileSync(join(distDir, ".nojekyll"), "");

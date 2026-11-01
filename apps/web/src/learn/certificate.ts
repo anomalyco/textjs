@@ -53,3 +53,18 @@ export function certificateLines(name: string, date: string): string[] {
     `╰${"─".repeat(inner)}╯`,
   ];
 }
+
+/** LinkedIn's Add to Profile certification form, prefilled (addtoprofile.linkedin.com). */
+export function linkedInAddUrl(completedAt: string | null): string | null {
+  const d = completedAt ? new Date(completedAt) : null;
+  if (!d || Number.isNaN(d.getTime())) return null;
+  const q = new URLSearchParams({
+    startTask: "CERTIFICATION_NAME",
+    name: "Learn Text.js",
+    organizationName: "Text.js",
+    issueYear: String(d.getUTCFullYear()),
+    issueMonth: String(d.getUTCMonth() + 1),
+    certUrl: "https://textjs.org/learn/certificate",
+  });
+  return `https://www.linkedin.com/profile/add?${q.toString().replace(/\+/g, "%20")}`;
+}

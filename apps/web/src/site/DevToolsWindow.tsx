@@ -104,6 +104,9 @@ export interface DevToolsWindowProps {
   /** Grid size used for the placeholder before the first frame. */
   cols?: number;
   rows?: number;
+  /** Makes the element-picker icon a toggle for the frame's layout wireframe. */
+  onInspect?: () => void;
+  inspecting?: boolean;
 }
 
 const TABS = ["Elements", "Console", "Sources", "Network", "Performance", "Memory", "Application"];
@@ -123,27 +126,45 @@ export function DevToolsWindow({
   lineHeight,
   cols,
   rows,
+  onInspect,
+  inspecting = false,
 }: DevToolsWindowProps): ReactNode {
+  const decor = onInspect ? true : undefined;
   return (
     <div className={`devtools ${className ?? ""}`} data-console-engage={engage ? "" : undefined}>
-      <div className="dt-tabs" aria-hidden="true">
-        <span className="dt-icon">
-          <InspectIcon />
-        </span>
-        <span className="dt-icon">
+      <div className="dt-tabs" aria-hidden={onInspect ? undefined : true}>
+        {onInspect ? (
+          <button
+            type="button"
+            className={`dt-icon dt-inspect${inspecting ? " active" : ""}`}
+            aria-pressed={inspecting}
+            aria-label="Show layout wireframe"
+            // Toggling the wireframe doesn't take over the keyboard (the companion engages on document mousedown).
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={onInspect}
+          >
+            <InspectIcon />
+          </button>
+        ) : (
+          <span className="dt-icon">
+            <InspectIcon />
+          </span>
+        )}
+        {/* Only the inspect button is exposed; everything else in the strip is decoration. */}
+        <span className="dt-icon" aria-hidden={decor}>
           <DeviceIcon />
         </span>
-        <span className="dt-sep" />
+        <span className="dt-sep" aria-hidden={decor} />
         {TABS.map((t) => (
-          <span key={t} className={`dt-tab${t === "Console" ? " active" : ""}`}>
+          <span key={t} className={`dt-tab${t === "Console" ? " active" : ""}`} aria-hidden={decor}>
             {t}
           </span>
         ))}
-        <span className="spacer" />
-        <span className="dt-icon">
+        <span className="spacer" aria-hidden={decor} />
+        <span className="dt-icon" aria-hidden={decor}>
           <GearIcon />
         </span>
-        <span className="dt-icon">
+        <span className="dt-icon" aria-hidden={decor}>
           <KebabIcon />
         </span>
       </div>

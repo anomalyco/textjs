@@ -4,8 +4,30 @@
   "buildCommand": "bun run build",
   "outputDirectory": "dist",
   "cleanUrls": true,
-  "redirects": [{ "source": "/showcase", "destination": "/playground", "permanent": true }],
-  "rewrites": [{ "source": "/((?!assets/|favicon\\.svg|og\\.png|og\\.svg|robots\\.txt|sitemap\\.xml|blog/rss\\.xml).*)", "destination": "/index.html" }],
+  "redirects": [
+    { "source": "/showcase", "destination": "/playground", "permanent": true },
+    { "source": "/docs/app", "destination": "/docs", "permanent": true },
+    { "source": "/docs/app/getting-started", "destination": "/docs", "permanent": true },
+    { "source": "/docs/app/getting-started/installation", "destination": "/docs/installation", "permanent": true },
+    { "source": "/docs/app/getting-started/project-structure", "destination": "/docs/project-structure", "permanent": true },
+    { "source": "/docs/app/getting-started/layouts-and-pages", "destination": "/docs/routing", "permanent": true },
+    { "source": "/docs/app/getting-started/fonts", "destination": "/docs/fonts", "permanent": true },
+    { "source": "/docs/app/getting-started/css", "destination": "/docs/styling", "permanent": true },
+    { "source": "/docs/app/getting-started/route-handlers", "destination": "/docs/route-handlers", "permanent": true },
+    { "source": "/docs/app/getting-started/caching", "destination": "/docs/caching", "permanent": true },
+    { "source": "/docs/app/getting-started/caching-and-revalidating", "destination": "/docs/caching", "permanent": true },
+    { "source": "/docs/app/getting-started/error-handling", "destination": "/docs/loading-and-errors", "permanent": true },
+    { "source": "/docs/app/getting-started/deploying", "destination": "/docs/deploying", "permanent": true },
+    { "source": "/docs/app/api-reference/file-conventions/middleware", "destination": "/docs/middleware", "permanent": true },
+    { "source": "/docs/app/api-reference/file-conventions/proxy", "destination": "/docs/middleware", "permanent": true },
+    { "source": "/docs/app/guides/internationalization", "destination": "/docs/internationalization", "permanent": true },
+    { "source": "/docs/app/guides/testing", "destination": "/docs/testing", "permanent": true },
+    { "source": "/docs/app/api-reference/config/eslint", "destination": "/docs/eslint", "permanent": true },
+    { "source": "/docs/app/:path*", "destination": "/docs", "permanent": false },
+    { "source": "/learn/dashboard-app", "destination": "/learn", "permanent": false },
+    { "source": "/learn/dashboard-app/:path*", "destination": "/learn", "permanent": false }
+  ],
+  "rewrites": [{ "source": "/((?!assets/|favicon\\.svg|og\\.png|og\\.svg|robots\\.txt|sitemap\\.xml|blog/rss\\.xml|humans\\.txt|llms\\.txt|home\\.ansi|api/v2/|enterprise/sample-invoice\\.pdf).*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/assets/(.*)",
@@ -18,7 +40,7 @@
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
-        { "key": "X-Powered-By", "value": "Text.js (Turbolog)" }
+        { "key": "X-Powered-By", "value": "Text.js" }
       ]
     }
   ]

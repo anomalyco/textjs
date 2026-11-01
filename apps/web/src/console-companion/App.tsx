@@ -1,9 +1,9 @@
-import { lazy, Suspense, useCallback, useState, type ReactNode } from "react";
-import { Box, KeyHint, Text, useApp, useFocusManager, useInput } from "@textjs/react";
+import { lazy, Suspense, useCallback, type ReactNode } from "react";
+import { Box, KeyHint, Text, useFocusManager, useInput } from "@textjs/react";
 import { OpenCodeLite } from "../demos/opencode/OpenCodeLite";
 import { PresetView } from "../demos/presets";
 import { useSite } from "./useSite";
-import { hintsFor, PRESETS, type CompanionTab, type Hint } from "./store";
+import { hintsFor, PRESETS, siteStore, type CompanionTab, type Hint } from "./store";
 import { HomeTab } from "./tabs/HomeTab";
 import { DocsTab } from "./tabs/DocsTab";
 import { exampleGrid, ExampleTab } from "./tabs/ExampleTab";
@@ -48,18 +48,12 @@ function Header({ tab, notFound = false }: { tab: CompanionTab; notFound?: boole
 
 export function CompanionApp(): ReactNode {
   const site = useSite();
-  const app = useApp();
   const focus = useFocusManager();
   const tab = site.tab;
   const example = tab === "docs" && site.example !== null && exampleGrid(site.example) ? site.example : null;
-  const [wireframe, setWireframeState] = useState(false);
-  const setWireframe = useCallback(
-    (on: boolean) => {
-      setWireframeState(on);
-      app.renderer.setWireframe(on);
-    },
-    [app],
-  );
+  // One wireframe flag for F2, the DevTools panel, `text.wireframe()` and the mirror's inspect button; boot applies it.
+  const wireframe = site.wireframe;
+  const setWireframe = useCallback((on: boolean) => siteStore.set({ wireframe: on }), []);
   const route = tab === "home" || tab === "blog" ? matchRoute(site.pathname) : null;
   // Unknown paths show the 404. Their tab stays Home (or Blog), so off-route demos stop.
   const notFound = route?.name === "not-found";
@@ -69,7 +63,7 @@ export function CompanionApp(): ReactNode {
       if (tab === "opencode") return;
     if (e.key === "f2") {
       e.stopPropagation();
-      setWireframe(!wireframe);
+      setWireframe(!siteStore.getSnapshot().wireframe);
     } else if (e.key === "escape" && example === null) {
       e.stopPropagation();
       focus.blur();

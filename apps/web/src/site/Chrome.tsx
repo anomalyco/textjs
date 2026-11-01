@@ -1,9 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useConsoleLogDown } from "../console-health";
 import { getCompanion } from "../console-companion/boot";
 import { isPadRoute, siteStore } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
 import { A, useLocation } from "../router";
 import { ChevronRight, CloseIcon, Logo, MenuIcon, SearchIcon } from "./icons";
+import { LogoMenu, useLogoMenu } from "./LogoMenu";
 import { openSearch } from "./SearchModal";
 import { Sheet, useCloseOnMedia } from "./Sheet";
 
@@ -43,6 +45,7 @@ function isActive(pathname: string, href: string): boolean {
 export function Header(): ReactNode {
   const { pathname } = useLocation();
   const [menu, setMenu] = useState(false);
+  const [logoMenu, openLogoMenu, closeLogoMenu] = useLogoMenu();
   const close = (): void => setMenu(false);
   useEffect(close, [pathname]);
   useCloseOnMedia(menu, "(min-width: 901px)", close);
@@ -53,10 +56,11 @@ export function Header(): ReactNode {
   return (
     <header className="header">
       <div className="container header-inner" style={{ maxWidth: 1440 }}>
-        <A href="/" className="wordmark" aria-label="Text.js home">
+        <A href="/" className="wordmark" aria-label="Text.js home" onContextMenu={openLogoMenu}>
           <Logo size={20} />
           <span>Text.js</span>
         </A>
+        {logoMenu ? <LogoMenu state={logoMenu} onClose={closeLogoMenu} /> : null}
         <nav className="nav" aria-label="Main">
           {NAV.map((n) => (
             <A key={n.href} href={n.href} aria-current={isActive(pathname, n.href) ? "page" : undefined}>
@@ -107,6 +111,20 @@ export function Header(): ReactNode {
   );
 }
 
+/** Two labels share one grid cell, so the link keeps its width when the status changes. */
+function FooterStatus(): ReactNode {
+  const down = useConsoleLogDown();
+  return (
+    <A href="/status" className="footer-status">
+      <span className={`dot${down ? " dot-red" : ""}`} />
+      <span className="footer-status-label">
+        <span style={down ? { visibility: "hidden" } : undefined}>All systems operational</span>
+        <span style={down ? undefined : { visibility: "hidden" }}>Major outage</span>
+      </span>
+    </A>
+  );
+}
+
 export function Footer(): ReactNode {
   return (
     <footer className="footer">
@@ -129,6 +147,7 @@ export function Footer(): ReactNode {
           <A href="/enterprise">Enterprise</A>
           <A href="/status">Status</A>
         </nav>
+        <FooterStatus />
       </div>
     </footer>
   );

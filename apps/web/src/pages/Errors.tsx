@@ -1,9 +1,10 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { getTxError, TX_ERRORS, TX_PACKAGES, txMessage, type TxErrorDoc } from "@textjs/core";
+import { TX_ERRORS, TX_PACKAGES, txMessage, type TxCode, type TxErrorDoc } from "@textjs/core";
 import { A } from "../router";
 import { CopyButton } from "../site/CodeBlock";
 import { SearchIcon } from "../site/icons";
 import { MarkdownDoc } from "../site/Markdown";
+import { getErrorPageDoc, TX000 } from "./tx000";
 
 export function errorPath(code: string): string {
   return `/errors/${code}`;
@@ -29,7 +30,7 @@ export function matchesErrorQuery(e: TxErrorDoc, query: string): boolean {
   if (!q) return true;
   const digits = q.replace(/^tx/, "");
   if (/^\d+$/.test(digits) && (Number(digits) === Number(e.code.slice(2)) || e.code.slice(2).includes(digits))) return true;
-  return [e.code, e.title, e.message, e.package].some((s) => s.toLowerCase().includes(q));
+  return [e.code, e.title, e.message, e.package, e.cause].some((s) => s.toLowerCase().includes(q));
 }
 
 export function ErrorsIndexPage(): ReactNode {
@@ -84,12 +85,13 @@ export function ErrorsIndexPage(): ReactNode {
 }
 
 export function ErrorPage({ code }: { code: string }): ReactNode {
-  const e = getTxError(code);
+  const e = getErrorPageDoc(code);
   if (!e) return null;
-  const i = TX_ERRORS.indexOf(e);
-  const prev = TX_ERRORS[i - 1];
+  const i = TX_ERRORS.findIndex((x) => x.code === e.code);
+  const prev = i > 0 ? TX_ERRORS[i - 1] : undefined;
   const next = TX_ERRORS[i + 1];
-  const example = txMessage(e.code).replace(/^Text\.js error/, e.kind === "warning" ? "Text.js warning" : "Text.js error");
+  const example =
+    e === TX000 ? `Text.js error ${e.code}: ${e.message}` : txMessage(e.code as TxCode).replace(/^Text\.js error/, e.kind === "warning" ? "Text.js warning" : "Text.js error");
   return (
     <article className="tx-errors">
       <div className="breadcrumbs">

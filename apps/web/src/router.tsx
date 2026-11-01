@@ -4,7 +4,7 @@ import { getPost } from "./blog";
 import { siteStore } from "./console-companion/store";
 import { learnRoute, learnTitle } from "./learn/routes";
 import { safeDecode } from "./url";
-import { getTxError } from "@textjs/core";
+import { getErrorPageDoc } from "./pages/tx000";
 
 export type Route =
   | { name: "home" }
@@ -45,7 +45,7 @@ export function matchRoute(pathname: string): Route {
   const tx = /^\/errors\/([^/]+)$/.exec(p);
   if (tx) {
     const code = safeDecode(tx[1] as string).toUpperCase();
-    return getTxError(code) ? { name: "error", code } : { name: "not-found" };
+    return getErrorPageDoc(code) ? { name: "error", code } : { name: "not-found" };
   }
   if (p === "/changelog") return { name: "changelog" };
   if (p === "/blog") return { name: "blog" };
@@ -81,7 +81,7 @@ export function titleFor(route: Route): string {
     case "errors":
       return `Error Codes | ${suffix}`;
     case "error":
-      return `${route.code}: ${getTxError(route.code)?.title ?? "Error"} | ${suffix}`;
+      return `${route.code}: ${getErrorPageDoc(route.code)?.title ?? "Error"} | ${suffix}`;
     case "changelog":
       return `Changelog | ${suffix}`;
     case "blog":

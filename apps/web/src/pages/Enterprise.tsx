@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import { A } from "../router";
 
 export const SALES_EMAIL = "enterprise@textjs.org";
-const SALES_HREF = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent("Text.js Enterprise")}`;
+const SALES_BODY = ["Company:", "Team size:", "DevTools dock position (bottom, left, right or undocked):", "%c spans per frame (text.stats().spanCount):", ""].join("\r\n");
+export const SALES_HREF = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent("Text.js Enterprise")}&body=${encodeURIComponent(SALES_BODY)}`;
 
 const STATS = [
   { value: "99.99%", label: "of console.log calls return" },
@@ -77,7 +78,7 @@ const FEATURES: ReadonlyArray<{ group: string; rows: ReadonlyArray<[string, Cell
   },
 ];
 
-const FAQ = [
+const FAQ: ReadonlyArray<{ q: string; a: ReactNode }> = [
   {
     q: "Is Enterprise a different framework?",
     a: "No. Enterprise customers run the same MIT-licensed Text.js as everyone else, with support and an SLA.",
@@ -97,6 +98,14 @@ const FAQ = [
   {
     q: "Can we self-host?",
     a: "Yes. text build produces static files, and text start or the bun adapter serves them with route handlers, middleware and server-rendered routes.",
+  },
+  {
+    q: "Is there a procurement-friendly invoice?",
+    a: (
+      <>
+        Yes. <a href="/enterprise/sample-invoice.pdf">Sample invoice (PDF)</a>
+      </>
+    ),
   },
 ];
 
