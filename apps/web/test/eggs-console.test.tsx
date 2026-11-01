@@ -211,7 +211,7 @@ describe("blog posts in the console", () => {
   });
 });
 
-describe("Ctrl+` opens Text.js DevTools", () => {
+describe("Ctrl+` opens the Dev Overlay", () => {
   afterAll(async () => {
     await site(() => resetLocation("/"));
     await site(() => siteStore.reset());
@@ -222,18 +222,18 @@ describe("Ctrl+` opens Text.js DevTools", () => {
     const h = await mount(<CompanionApp />, { cols: 120, rows: 36, tabFocus: false });
     const before = h.frame();
     expect(before).not.toContain("[▼]");
-    expect(before).not.toContain("Text.js DevTools");
+    expect(before).not.toContain("Dev Overlay");
 
     // F2: wireframe on, no panel.
     await h.key("f2");
-    expect(h.frame()).not.toContain("Text.js DevTools");
+    expect(h.frame()).not.toContain("Dev Overlay");
     expect(h.frame()).toContain("┌");
     await h.key("f2");
     expect(h.frame()).toBe(before);
 
     await h.key("`", { ctrl: true });
     let f = h.frame();
-    expect(f).toContain("Text.js DevTools · Turbolog");
+    expect(f).toContain("Dev Overlay · Turbolog");
     for (const label of ["FRAME", "TOGGLES", "ROUTE", "%c spans", "noop frames", "120×36 cells"]) expect(f).toContain(label);
     expect(f).toMatch(/pathname +—|pathname +\//);
     expect(f).toContain("[W] wire  off");
@@ -254,12 +254,12 @@ describe("Ctrl+` opens Text.js DevTools", () => {
     await h.key("`", { ctrl: true });
     expect(h.frame()).toContain("[W] wire  off");
     await h.key("`", { ctrl: true });
-    expect(h.frame()).not.toContain("Text.js DevTools");
+    expect(h.frame()).not.toContain("Dev Overlay");
 
     // OpenCode and terminal.shop own every key.
     await site(() => resetLocation("/opencode"));
     await h.key("`", { ctrl: true });
-    expect(h.frame()).not.toContain("Text.js DevTools");
+    expect(h.frame()).not.toContain("Dev Overlay");
     await h.unmount();
   });
 });

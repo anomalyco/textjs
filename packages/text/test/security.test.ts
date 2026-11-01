@@ -60,6 +60,9 @@ describe("security contract (SCOPED_APP)", () => {
       try {
         const base = (server.resolvedUrls?.local[0] ?? "").replace(/\/$/, "");
         await exerciseScopedApp(base, { cache: false });
+        const blocked = await rawRequest(base, "/api/public", { headers: { host: `attacker.example:${new URL(base).port}` } });
+        expect(blocked.status).toBe(403);
+        expect(blocked.body).toContain('Text.js error TX028: Blocked request. This host ("attacker.example") is not allowed. Add it to `vite.server.allowedHosts` in text.config.ts.');
         // Server-only sources are never served as modules.
         for (const path of ["/middleware.ts", "/text.config.ts", "/app/api/admin/secret/route.ts", "/.env"]) {
           const res = await fetch(`${base}${path}`);
@@ -83,7 +86,9 @@ describe("security contract (SCOPED_APP)", () => {
       try {
         await exerciseScopedApp(server.url, { cache: true });
         const port = new URL(server.url).port;
-        expect((await rawRequest(server.url, "/api/public", { headers: { host: `attacker.example:${port}` } })).status).toBe(403);
+        const blocked = await rawRequest(server.url, "/api/public", { headers: { host: `attacker.example:${port}` } });
+        expect(blocked.status).toBe(403);
+        expect(blocked.body).toContain('Text.js error TX028: Blocked request. This host ("attacker.example") is not allowed. Add it to `server.allowedHosts` in text.config.ts.');
         expect((await rawRequest(server.url, "/api/public", { headers: { host: `localhost:${port}` } })).status).toBe(200);
         expect((await rawRequest(server.url, "/%E0%A4%A")).status).toBe(400);
       } finally {

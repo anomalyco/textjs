@@ -20,6 +20,8 @@ export async function GET() {
 | `revalidate = N` | Cached; stale after `N` seconds |
 | `revalidate = 0` or `dynamic = "force-dynamic"` | Runs on every request |
 
+Other `dynamic` values fail with `TX031`. That includes Next.js's `"error"`, because Text.js can't detect when a handler reads the request.
+
 Cached handlers get one entry per pathname, and their `request` looks like it would at build time: no query string, headers, cookies or body. Read those in a dynamic handler instead. Only `GET` and `HEAD` are cached. Responses with a `5xx` status, a `Set-Cookie` header, or `Cache-Control: private` / `no-store` are returned but never stored.
 
 ## Headers

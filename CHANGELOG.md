@@ -10,6 +10,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `@textjs/opencode`: the textjs.org/opencode bridge as its own package with no dependencies. Run `bunx @textjs/opencode proxy` (or `npx`) to start it without installing Vite, React and the MCP SDK. `text proxy` still works and runs the same bridge.
 
+### Changed
+
+- The in-console `[▼]` pill and inspector are called the Dev Overlay, and the inspector's title reads `▼ Dev Overlay · Turbolog`. Text.js DevTools is the name of the Chrome extension only. `<TextDevOverlay>` and its props are unchanged.
+- Route handlers that export `dynamic = "error"` fail with `TX031`. Text.js treated it as `"force-static"` without checking whether the handler reads the request, which is what the value means in Next.js. Use `"force-static"`.
+
+### Fixed
+
+- `text start` answers a blocked `Host` with `TX028`, like `text dev`. Each server names the setting it reads: `vite.server.allowedHosts` for `text dev` and `server.allowedHosts` for `text start`.
+- textjs.org: the Learn Shipping chapter no longer tells you to add a `vercel.json` rewrite. On Vercel and Cloudflare Pages, `text build` writes the `index.html` fallback itself. The rewrite example now uses Netlify's `_redirects`.
+- `eslint-plugin-textjs`: `route-handler-exports` allows the `dynamic` and `revalidate` exports in `route.ts`, and `valid-route-module` checks `dynamic` values there.
+
 ## [1.0.1] - 2026-11-01
 
 ### Added

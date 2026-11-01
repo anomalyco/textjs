@@ -1,5 +1,5 @@
 /**
- * `@textjs/next/devtools` — the in-console `[▼]` DevTools pill & inspector, and the
+ * `@textjs/next/devtools` — the in-console Dev Overlay (`[▼]` pill and inspector), and the
  * Next.js-style Redbox error overlay, all rendered inside `console.log`.
  */
 
@@ -29,7 +29,7 @@ import { formatParams, type RouteMatch } from "./routing";
 
 export { devErrors, DevErrorStore, type DevError, type DevErrorKind, type DevErrorSnapshot, type ViteErrorLike } from "./dev-errors";
 
-/** `F2` or `` Ctrl+` `` toggles the DevTools inspector. */
+/** `F2` or `` Ctrl+` `` toggles the Dev Overlay inspector. */
 export function isDevToolsShortcut(e: { key: string; code?: string; ctrl: boolean; meta: boolean; alt: boolean }): boolean {
   if (e.key === "f2" && !e.ctrl && !e.meta && !e.alt) return true;
   return e.ctrl && !e.meta && (e.key === "`" || e.code === "Backquote");
@@ -74,7 +74,7 @@ export interface TextDevOverlayProps {
 
 /**
  * The `[▼]` pill in the bottom-left corner of the console frame. `F2` or
- * `` Ctrl+` `` opens the Turbolog DevTools inspector.
+ * `` Ctrl+` `` opens the Dev Overlay inspector.
  */
 export function TextDevOverlay({ initialOpen = false, redbox = true, store = devErrors, pill = true, shortcut = isDevToolsShortcut, shell }: TextDevOverlayProps): ReactNode {
   const theme = useTheme();
@@ -194,7 +194,7 @@ function DevToolsPanelBody({ store, shell: shellProp, onClose }: DevToolsPanelPr
         bg={theme.elevated}
         fg={theme.fg}
         paddingX={1}
-        title={` ${BRAND_MARK} Text.js DevTools · ${ENGINE_NAME} `}
+        title={` ${BRAND_MARK} Dev Overlay · ${ENGINE_NAME} `}
         titleColor={theme.fg}
         bottomTitle=" W wireframe · T theme · R viewport · esc close "
         bottomTitleColor={theme.subtle}

@@ -3,7 +3,7 @@ import { createServer, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
-import { txError } from "@textjs/core";
+import { BRAND_MARK, txError, txMessage } from "@textjs/core";
 import { normalizeBasePath, type ProxyTarget } from "../config";
 import { matchApiRoute } from "../server/scan";
 import { loadLiveProduction } from "../server/live-prod";
@@ -98,7 +98,7 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
       if (loopback ? !isAllowedHost(req.headers.host, allowedHosts) : !isValidHostHeader(req.headers.host)) {
         res.statusCode = loopback ? 403 : 400;
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        res.end(loopback ? `▼ Blocked request. This host (${JSON.stringify((req.headers.host ?? "").replace(/:\d+$/, ""))}) is not allowed. Add it to \`server.allowedHosts\` in text.config.ts.` : "400 | Bad Request");
+        res.end(loopback ? `${BRAND_MARK} ${txMessage("TX028", JSON.stringify((req.headers.host ?? "").replace(/:\d+$/, "")), "server.allowedHosts")}` : "400 | Bad Request");
         return;
       }
       req.url = normalizeRequestTarget(req.url);

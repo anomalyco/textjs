@@ -44,7 +44,7 @@ export interface TextDevServer {
 export interface TextConfig {
   /** Console grid defaults. */
   viewport?: ViewportConfig;
-  /** Show the in-console `[▼]` DevTools pill in development (default `true`). */
+  /** Mount the in-console Dev Overlay (the `[▼]` pill, its inspector and the Redbox) in development (default `true`). */
   devIndicators?: boolean;
   /** Open the FocusPad's inline console preview by default (default `false`). */
   showMirrorDefault?: boolean;

@@ -117,7 +117,7 @@ Every frame is one `console.log`. Your own logs land between frames, get scrolle
 "textjs/no-console-in-components": ["warn", { allow: ["error"], logger: "log" }]
 ```
 
-Show messages in the UI with `useToast()` or a log `<ScrollBox>`, or inspect state in the `[▼]` DevTools (`` Ctrl+` ``). With `logger`, the suggestion rewrites `console.warn(…)` to `log.warn(…)`. Test files and `@textjs/next/testing` renders are skipped.
+Show messages in the UI with `useToast()` or a log `<ScrollBox>`, or inspect state in the `[▼]` Dev Overlay (`` Ctrl+` ``). With `logger`, the suggestion rewrites `console.warn(…)` to `log.warn(…)`. Test files and `@textjs/next/testing` renders are skipped.
 
 ### `prefer-use-interval`
 
@@ -155,7 +155,7 @@ See [Keyboard Shortcuts](/docs/keyboard).
 ### `valid-route-module`
 
 - `page`, `layout`, `loading`, `error` and `not-found` files must default-export a component (`TX015`).
-- `export const dynamic` must be `"auto"`, `"force-static"` or `"force-dynamic"`, written as a plain string literal: `text build` reads it from the source without running the module. It's only read from pages and layouts.
+- `export const dynamic` must be `"auto"`, `"force-static"` or `"force-dynamic"` (`TX031`). Text.js doesn't support Next.js's `"error"`. It's read from pages, layouts and route handlers. In pages and layouts, write it as a plain string literal: `text build` reads it from the source without running the module.
 
 ### `valid-metadata`
 
@@ -170,7 +170,7 @@ Metadata is merged from layouts, then the page (or `not-found`). The rule report
 
 ### `route-handler-exports`
 
-`route.ts` files only answer the HTTP methods they export: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` and `OPTIONS`. Lowercase `get` or `Post` is never called (requests get `405`); the suggestion renames it. Default exports, non-function handlers and other exports are reported; move shared code to `lib/`, or list extra names with `{ allow: [...] }`.
+`route.ts` files only answer the HTTP methods they export: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` and `OPTIONS`. Lowercase `get` or `Post` is never called (requests get `405`); the suggestion renames it. Default exports, non-function handlers and other exports are reported, except the `dynamic` and `revalidate` [route segment config](/docs/caching). Move shared code to `lib/`, or list extra names with `{ allow: [...] }`.
 
 ```ts@app/api/health/route.ts
 export function get() { … }   // ✗ never called

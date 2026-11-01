@@ -1,7 +1,7 @@
 /**
  * `@textjs/next/client` — browser bootstrap used by the virtual entry that `text dev`
  * and `text build` generate: mounts the console root, the App Router, the
- * DevTools overlay and the DOM `<FocusPad>`.
+ * Dev Overlay and the DOM `<FocusPad>`.
  */
 
 import { createElement } from "react";

@@ -513,7 +513,7 @@ async function browserPass(browser: Browser, server: Server, scenario: Scenario,
     }
     await checkPill();
     for (const where of pillCovered) issues.push(`the bottom row starts in the first three cells, where text dev draws its [▼] pill over it: ${where}`);
-    // The in-console DevTools pill turns into `[▼ !]` when the app reported an error.
+    // The Dev Overlay pill turns into `[▼ !]` when the app reported an error.
     const last = await frame();
     if (last.includes("[▼ !]")) issues.push(`the Text.js error pill is lit on ${at()}\n${indent(last)}`);
     if (opts.dev && reactBuild !== "development") issues.push(`text dev did not serve React's development build (saw ${reactBuild ?? "no React bundle"})`);

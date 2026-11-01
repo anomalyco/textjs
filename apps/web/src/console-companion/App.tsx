@@ -81,7 +81,7 @@ export function CompanionApp(): ReactNode {
 
   // OpenCode is a full-screen TUI of its own, like the real thing.
   if (tab === "opencode") return <OpenCodeLite />;
-  // Ctrl+` opens the Text.js DevTools inspector everywhere but OpenCode and terminal.shop.
+  // Ctrl+` opens the Dev Overlay inspector everywhere but OpenCode and terminal.shop.
   const devtools = <SiteDevTools wireframe={wireframe} setWireframe={setWireframe} />;
   if (team !== null && site.teamEgg !== null)
     return (

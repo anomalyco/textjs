@@ -303,11 +303,13 @@ describe("<TextDevOverlay>", () => {
     await mount(manifest, "/projects/acme", { overlay: true, width: 100, height: 30 });
     let lines = t!.lines();
     expect(lines[lines.length - 1]?.startsWith("[▼]")).toBe(true);
-    expect(t!.frame()).not.toContain("Text.js DevTools");
+    expect(t!.frame()).not.toContain("Dev Overlay");
 
     await t!.press("F2");
     let frame = t!.frame();
-    expect(frame).toContain("Text.js DevTools · Turbolog");
+    expect(frame).toContain("Dev Overlay · Turbolog");
+    // "Text.js DevTools" is the Chrome extension's name.
+    expect(frame).not.toContain("DevTools");
     expect(frame).toContain("ƒ Dynamic");
     expect(frame).toContain("/projects/[slug]");
     expect(frame).toContain('{ slug: "acme" }');
@@ -327,16 +329,16 @@ describe("<TextDevOverlay>", () => {
 
     await t!.press("`", { ctrlKey: true });
     frame = t!.frame();
-    expect(frame).not.toContain("Text.js DevTools");
+    expect(frame).not.toContain("Dev Overlay");
     await t!.type("hi");
     expect(t!.frame()).toContain("hi");
     lines = t!.lines();
     expect(lines[lines.length - 1]?.startsWith("[▼]")).toBe(true);
 
     await t!.press("`", { ctrlKey: true });
-    expect(t!.frame()).toContain("Text.js DevTools");
+    expect(t!.frame()).toContain("Dev Overlay");
     await t!.press("Escape");
-    expect(t!.frame()).not.toContain("Text.js DevTools");
+    expect(t!.frame()).not.toContain("Dev Overlay");
   });
 });
 
@@ -355,7 +357,7 @@ describe("<TextDevOverlay> outside the App Router", () => {
     expect(blank).not.toContain("[▼]");
     expect(blank.trim()).toBe("app");
     await t.press("`", { ctrlKey: true });
-    expect(t.frame()).toContain("Text.js DevTools · Turbolog");
+    expect(t.frame()).toContain("Dev Overlay · Turbolog");
     await t.press("Escape");
     expect(t.frame()).toBe(blank);
   });
@@ -387,10 +389,10 @@ describe("<TextDevOverlay> outside the App Router", () => {
     );
     await t.press("F2");
     expect(f2).toBe(1);
-    expect(t.frame()).not.toContain("Text.js DevTools");
+    expect(t.frame()).not.toContain("Dev Overlay");
     await t.press("`", { ctrlKey: true });
     const frame = t.frame();
-    expect(frame).toContain("Text.js DevTools · Turbolog");
+    expect(frame).toContain("Dev Overlay · Turbolog");
     expect(frame).toContain("Tokyo Night");
     await t.press("t");
     expect(cycled).toBe(1);

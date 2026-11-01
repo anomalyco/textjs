@@ -2,6 +2,8 @@ import { AST_NODE_TYPES, type TSESLint, type TSESTree } from "@typescript-eslint
 import { createRule, moduleExports, routeFileKind, unwrapTs } from "../utils.ts";
 
 export const HTTP_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const;
+/** Route segment config read by the route cache (`valid-route-module` checks `dynamic`). */
+export const SEGMENT_CONFIG = ["dynamic", "revalidate"] as const;
 
 type Options = [{ appDir?: string; allow?: string[] }];
 
@@ -20,11 +22,12 @@ export default createRule<Options, "unknownExport" | "methodCase" | "defaultExpo
     type: "problem",
     hasSuggestions: true,
     docs: {
-      description: "Restrict `route.ts` files to HTTP method handlers (`GET`, `POST`, …).",
+      description: "Restrict `route.ts` files to HTTP method handlers (`GET`, `POST`, …) and route segment config (`dynamic`, `revalidate`).",
       recommended: true,
     },
     messages: {
-      unknownExport: "`{{name}}` isn't an HTTP method; route handlers only read GET, HEAD, POST, PUT, PATCH, DELETE and OPTIONS exports. Move shared code to lib/.",
+      unknownExport:
+        "`{{name}}` isn't an HTTP method; route handlers only read GET, HEAD, POST, PUT, PATCH, DELETE and OPTIONS exports, plus `dynamic` and `revalidate`. Move shared code to lib/.",
       methodCase: "`{{name}}` is never called: HTTP method exports are uppercase (`{{method}}`). Requests get 405 Method Not Allowed.",
       defaultExport: "route.ts default exports are ignored; export named handlers (`export function GET(request) { … }`).",
       notFunction: "`{{name}}` must be a function `(request, { params }) => Response`.",
@@ -45,7 +48,7 @@ export default createRule<Options, "unknownExport" | "methodCase" | "defaultExpo
   defaultOptions: [{ appDir: "app", allow: [] }],
   create(context, [{ appDir = "app", allow = [] }]) {
     if (routeFileKind(context.filename, appDir) !== "route") return {};
-    const allowed = new Set(allow);
+    const allowed = new Set<string>([...SEGMENT_CONFIG, ...allow]);
     const methods = new Set<string>(HTTP_METHODS);
     return {
       "Program:exit"(program: TSESTree.Program) {

@@ -36,7 +36,7 @@ export default createRule<Options, "console" | "clear" | "useLogger">({
     },
     messages: {
       console:
-        "console.{{method}}() interleaves with rendered frames (and can't be read under them). Show it in the UI (useToast, a log <ScrollBox>), use the [▼] DevTools, or route it through a logger.",
+        "console.{{method}}() interleaves with rendered frames (and can't be read under them). Show it in the UI (useToast, a log <ScrollBox>), use the [▼] Dev Overlay, or route it through a logger.",
       clear: "console.clear() wipes the rendered frames. The Text.js renderer owns the console; call `window.text.pause()` to stop output instead.",
       useLogger: "Use {{logger}}.{{method}}() instead.",
     },

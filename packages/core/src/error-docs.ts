@@ -380,17 +380,22 @@ bunx create-text-app my-app
   },
   TX028: {
     package: "@textjs/next",
-    title: "Blocked dev server host",
-    cause: `The dev server only answers requests addressed to \`localhost\` or an IP address, which protects it from DNS rebinding. A request arrived with another \`Host\` header, typically through a tunnel or a LAN hostname.`,
-    fix: `Allow the host in \`text.config.ts\`:
+    title: "Blocked host",
+    cause: `\`text dev\`, and \`text start\` while bound to loopback (the default), only answer requests addressed to \`localhost\`, a \`*.localhost\` name or an IP address. This protects them from DNS rebinding. A request arrived with another \`Host\` header, typically through a tunnel, a reverse proxy or a LAN hostname.`,
+    fix: `Allow the host in \`text.config.ts\`. \`text dev\` reads Vite's \`vite.server.allowedHosts\`, and \`text start\` reads \`server.allowedHosts\`. A leading \`.\` allows subdomains:
 
 ~~~ts@text.config.ts
 import { defineConfig } from "@textjs/next";
 
 export default defineConfig({
+  // text dev
   vite: { server: { allowedHosts: ["my-laptop.local", ".ngrok.app"] } },
+  // text start
+  server: { allowedHosts: [".example.com"] },
 });
-~~~`,
+~~~
+
+\`text start --host\` with any address other than loopback skips the check. See [Behind a proxy](/docs/deploying#behind-a-proxy).`,
   },
   TX029: {
     package: "@textjs/next",
@@ -432,6 +437,22 @@ export const runtime = "server";
 
 // After: the default client runtime
 ~~~`,
+  },
+  TX031: {
+    package: "@textjs/next",
+    title: "Invalid dynamic export",
+    cause: `A route handler exports \`dynamic\` with a value Text.js does not support. Next.js also accepts \`"error"\`, which renders the route statically and fails the build if it reads request data. Text.js can't detect request reads, so it rejects \`"error"\`.`,
+    fix: `Use \`"force-static"\` to cache the handler. A cached handler receives a request with no query string, headers, cookies or body:
+
+~~~ts@app/api/posts/route.ts
+// Before
+export const dynamic = "error";
+
+// After
+export const dynamic = "force-static";
+~~~
+
+Use \`"force-dynamic"\`, or remove the export, if the handler reads the request. See [Caching](/docs/caching).`,
   },
 };
 
