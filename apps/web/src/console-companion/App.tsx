@@ -11,6 +11,7 @@ import { LearnConsole } from "../learn/apps/LearnConsole";
 import { matchRoute } from "../router";
 import { NotFoundTab } from "./tabs/NotFoundTab";
 import { SiteDevTools } from "./DevTools";
+import { teamModule, useTeamGate } from "./team-gate";
 
 // Only /terminal needs the shop, so it loads on first visit.
 const TerminalConsole = lazy(() => import("../demos/terminal").then((m) => ({ default: m.TerminalConsole })));
@@ -75,10 +76,20 @@ export function CompanionApp(): ReactNode {
     { isActive: tab !== "terminal" },
   );
 
+  const team = site.teamEgg !== null ? teamModule() : null;
+  useTeamGate(tab !== "opencode" && tab !== "terminal" && example === null && team === null);
+
   // OpenCode is a full-screen TUI of its own, like the real thing.
   if (tab === "opencode") return <OpenCodeLite />;
   // Ctrl+` opens the Text.js DevTools inspector everywhere but OpenCode and terminal.shop.
   const devtools = <SiteDevTools wireframe={wireframe} setWireframe={setWireframe} />;
+  if (team !== null && site.teamEgg !== null)
+    return (
+      <>
+        <team.TeamEgg id={site.teamEgg} />
+        {devtools}
+      </>
+    );
   // Each /learn page runs its chapter's app, with its own header and keys.
   if (tab === "learn")
     return (

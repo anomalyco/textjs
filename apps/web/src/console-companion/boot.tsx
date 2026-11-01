@@ -174,12 +174,13 @@ export function bootCompanion(): Promise<Companion> {
     let scheduled = false;
     const publish = (): void => {
       scheduled = false;
-      if (root.unmounted) return;
+      if (root.unmounted || siteStore.getSnapshot().teamEgg !== null) return;
       latest = extractStyledFrame(root.renderer.buffer);
       for (const l of listeners) l(latest);
     };
     root.onFrame((frame) => {
-      if (frame.skipped || listeners.size === 0 || scheduled) return;
+      // A teammate's view stays in DevTools: the page's mirrors keep the last regular frame.
+      if (frame.skipped || listeners.size === 0 || scheduled || siteStore.getSnapshot().teamEgg !== null) return;
       // Microtask, not rAF: inline mirrors update in the same task as the keypress.
       scheduled = true;
       queueMicrotask(publish);
@@ -190,7 +191,7 @@ export function bootCompanion(): Promise<Companion> {
     const c: Companion = {
       root,
       engine,
-      getFrame: () => latest ?? (root.unmounted ? null : (latest = extractStyledFrame(root.renderer.buffer))),
+      getFrame: () => latest ?? (root.unmounted || siteStore.getSnapshot().teamEgg !== null ? null : (latest = extractStyledFrame(root.renderer.buffer))),
       subscribeFrame(listener) {
         listeners.add(listener);
         listener(c.getFrame() as StyledFrame);

@@ -57,6 +57,8 @@ export default defineConfig(({ isSsrBuild }) => ({
             manualChunks(id) {
               if (id.includes("yoga-layout")) return "yoga";
               if (/node_modules\/(react|react-dom|scheduler|react-reconciler)\//.test(id)) return "react";
+              // Only lazy views draw images: its own chunk keeps <Image> out of every page load.
+              if (id.includes("/packages/react/src/components/Image.")) return "image";
               if (id.includes("/packages/core/") || id.includes("/packages/react/")) return "turbolog";
               return undefined;
             },

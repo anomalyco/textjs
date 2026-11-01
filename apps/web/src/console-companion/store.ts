@@ -110,6 +110,8 @@ export interface SiteState {
   opencodeExited: boolean;
   /** Yoga layout wireframe in the companion (F2, `text.wireframe()` and the mirror's inspect button). */
   wireframe: boolean;
+  /** A teammate's console view (console-companion/team), shown in DevTools only, or `null`. */
+  teamEgg: string | null;
 }
 
 type Listener = () => void;
@@ -143,6 +145,7 @@ const DEFAULT_STATE: SiteState = {
   example: null,
   opencodeExited: false,
   wireframe: false,
+  teamEgg: null,
 };
 
 export class SiteStore {
@@ -186,7 +189,10 @@ export class SiteStore {
     const slug = docSlugForPath(pathname);
     if (slug !== null) patch.docSlug = slug;
     // A docs example belongs to its page.
-    if (pathname !== this.state.pathname) patch.example = null;
+    if (pathname !== this.state.pathname) {
+      patch.example = null;
+      patch.teamEgg = null;
+    }
     this.set(patch);
   }
 
