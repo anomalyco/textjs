@@ -12,7 +12,7 @@ Every cell has a character, a foreground, a background and a set of attributes. 
 
 ## Theme tokens
 
-Colors accept hex values, Tailwind palette names (`emerald-400`) and theme tokens. Tokens follow the active theme, so prefer them for anything semantic. Add a status component:
+The `color` prop accepts hex values, plain color names (`emerald`) and theme tokens; Tailwind palette shades go through classes (`text-emerald-400`). Tokens follow the active theme, so prefer them for anything semantic. Add a status component:
 
 ```diff-tsx@app/status.tsx
 +import { Text } from "@textjs/next";

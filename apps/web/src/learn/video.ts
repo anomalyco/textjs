@@ -12,6 +12,9 @@ export const LEARN_MEDIA_BASE = "https://media.textjs.org";
 /** Published chapter videos: slug → length in seconds. */
 export const PUBLISHED: Readonly<Record<string, number>> = {
   "getting-started": 236.9,
+  layout: 219.8,
+  styling: 205.8,
+  "input-and-keymaps": 205.8,
 };
 
 export interface LearnVideo {
