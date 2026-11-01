@@ -27,6 +27,12 @@ export const VIRTUAL_ENTRY = "virtual:textjs/entry";
 export const VIRTUAL_API = "virtual:textjs/api";
 /** The script `src` used by the generated `index.html`. */
 export const ENTRY_URL = "/@textjs/entry";
+/**
+ * The URL every page's HTML is transformed as (Vite's SPA fallback does the same).
+ * The request URL can't be used: Vite maps `/?q` to the project directory and then
+ * watches the inline `<style>`'s "file", `/`, so chokidar crawls the whole disk.
+ */
+export const HTML_TRANSFORM_URL = "/index.html";
 
 const RESOLVED = (id: string): string => `\0${id}`;
 
@@ -184,6 +190,12 @@ async function resolveRewrites(rewrites: TextConfig["rewrites"]): Promise<Compil
   return list.map(compileRewrite);
 }
 
+/** Whether Vite's `server.proxy` owns `url` (same key semantics: a path prefix, or a RegExp source starting with `^`). */
+export function matchesProxy(proxy: TextConfig["proxy"], url: string): boolean {
+  if (!proxy) return false;
+  return Object.keys(proxy).some((key) => (key.startsWith("^") ? new RegExp(key).test(url) : url.startsWith(key)));
+}
+
 function isHtmlRequest(url: string, accept: string | undefined): boolean {
   const pathname = url.split("?")[0] ?? "/";
   if (pathname.startsWith("/@") || pathname.startsWith("/node_modules/") || pathname.startsWith("/__")) return false;
@@ -337,6 +349,8 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
       const userHook = await options.configureServer?.(server as never);
 
       server.middlewares.use(async (req, res, next) => {
+        // Vite's proxy middleware runs after this one: leave `proxy` paths to it (a `fetch()` sends `Accept: */*`, which reads as a page request).
+        if (matchesProxy(options.proxy, req.url ?? "/")) return next();
         const started = performance.now();
         const origin = requestOrigin(req);
         let url = req.url ?? "/";
@@ -369,7 +383,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
           if ((req.method === "GET" || req.method === "HEAD") && isHtmlRequest(url, req.headers.accept)) {
             const custom = userHtml();
             const raw = custom ? readFileSync(custom, "utf8") : createIndexHtml(title(), `${basePath}${ENTRY_URL}`);
-            const html = await server.transformIndexHtml(req.url ?? "/", raw, req.originalUrl);
+            const html = await server.transformIndexHtml(HTML_TRANSFORM_URL, raw, req.originalUrl);
             res.statusCode = 200;
             res.setHeader("Content-Type", "text/html; charset=utf-8");
             res.setHeader("Cache-Control", "no-cache");

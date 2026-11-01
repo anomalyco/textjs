@@ -76,6 +76,8 @@ bun run typecheck
 bun run build
 ```
 
+`bun scripts/qa-starters.ts` scaffolds every create-text-app template from packed tarballs, installs it with bun and npm, and runs `text dev`, `build`, `start` and `run` against headless Chromium and a pty, along with `examples/` and the OpenCode and terminal apps. It fails on any console error or warning. It needs `bun install --cwd bench/devtools` once for Playwright; CI runs it in `.github/workflows/qa-starters.yml`.
+
 ## License
 
 MIT

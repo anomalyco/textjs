@@ -1,14 +1,11 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Box, Text, useTheme } from "@textjs/next";
+import { useState, type ReactNode } from "react";
+import { Box, Text, useInterval, useTheme } from "@textjs/next";
 import Link from "@textjs/next/link";
 import { DEPLOYMENTS, nextSample, sparkline, STATUS_COLOR } from "../lib/data";
 
 function useSeries(length: number, start: number): number[] {
   const [series, setSeries] = useState(() => Array.from({ length }, () => start));
-  useEffect(() => {
-    const id = setInterval(() => setSeries((s) => [...s.slice(1), nextSample(s[s.length - 1] ?? start)]), 1000);
-    return () => clearInterval(id);
-  }, [start]);
+  useInterval(() => setSeries((s) => [...s.slice(1), nextSample(s[s.length - 1] ?? start)]), 1000);
   return series;
 }
 

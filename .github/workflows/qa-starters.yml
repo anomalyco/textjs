@@ -1,0 +1,49 @@
+# ▼ First-run QA: scaffold every create-text-app template from packed tarballs,
+# install with bun and npm, and drive text dev / build / start / run, the
+# examples and the runnable apps in headless Chromium. Fails on any console
+# error or warning, page error, CLI warning, tsc error or lint finding.
+#
+# Run locally: bun scripts/qa-starters.ts (see the header for options).
+
+name: QA starters
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-starters-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    name: Templates, examples and apps
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      - name: Install
+        run: |
+          bun install --frozen-lockfile
+          cd bench/devtools
+          bun install --frozen-lockfile
+          bunx playwright-core install --with-deps chromium
+
+      - name: QA
+        run: bun scripts/qa-starters.ts

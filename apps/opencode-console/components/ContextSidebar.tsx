@@ -125,7 +125,7 @@ function SidebarBody({ id, overlay }: { id: string; overlay: boolean }) {
       </ScrollBox>
       {onboard && vp.rows >= 22 && (
         <Box bg={t.high} marginTop={1} paddingX={2} paddingY={1} gap={1} flexDirection="row">
-          <Text flexShrink={0}>⬖</Text>
+          <Text flexShrink={0}>◆</Text>
           <Box flexDirection="column" flexShrink={1} gap={1}>
             <Box flexDirection="row" justifyContent="space-between">
               <Text bold>Getting started</Text>

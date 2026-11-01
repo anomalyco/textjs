@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Box, Text, useTheme, type Metadata } from "@textjs/next";
+import { useRef, useState, type ReactNode } from "react";
+import { Box, Text, useInterval, useTheme, type Metadata } from "@textjs/next";
 import Link from "@textjs/next/link";
 import { DEPLOYMENTS, formatAge, mulberry32, STATUS, throughputSeries } from "../lib/data";
 
@@ -23,17 +23,14 @@ function Metric({ label, value }: { label: string; value: string }): ReactNode {
 
 function useLiveSeries(length: number): number[] {
   const [series, setSeries] = useState(() => throughputSeries(length));
-  useEffect(() => {
-    const rand = mulberry32(99);
-    const timer = setInterval(() => {
-      setSeries((prev) => {
-        const last = prev[prev.length - 1] ?? 0.5;
-        const next = Math.max(0.08, Math.min(1, last + (rand() - 0.48) * 0.25));
-        return [...prev.slice(1), next];
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const rand = useRef(mulberry32(99));
+  useInterval(() => {
+    setSeries((prev) => {
+      const last = prev[prev.length - 1] ?? 0.5;
+      const next = Math.max(0.08, Math.min(1, last + (rand.current() - 0.48) * 0.25));
+      return [...prev.slice(1), next];
+    });
+  }, 1000);
   return series;
 }
 

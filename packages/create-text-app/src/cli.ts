@@ -40,6 +40,9 @@ export function parseCliArgs(argv: readonly string[]): CliArgs {
   return out;
 }
 
+/** The docs' quickstart (`bunx create-text-app@latest`, then `cd my-app`) relies on this default. */
+export const DEFAULT_DIR = "my-app";
+
 const HELP = `Usage: create-text-app [project-directory] [options]
 
 Options:
@@ -143,7 +146,7 @@ export async function main(argv: readonly string[]): Promise<number> {
 
   try {
     let dir = args.dir;
-    if (dir === undefined) dir = interactive ? await ask("What is your project named?", "my-text-app") : "my-text-app";
+    if (dir === undefined) dir = interactive ? await ask("What is your project named?", DEFAULT_DIR) : DEFAULT_DIR;
     const nameError = validateProjectName(toPackageName(dir));
     if (nameError) {
       console.error(`${red("⨯")} ${txMessage("TX027", bold(JSON.stringify(dir)), nameError)}`);

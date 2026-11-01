@@ -47,7 +47,7 @@ export default function RootLayout({ children }: { children?: ReactNode }): Reac
   const health = useApiHealth();
 
   return (
-    <Box className="flex-col w-full h-full pt-1">
+    <Box className="flex-col w-full h-full py-1">
       <Box className="flex-row h-1 px-2 gap-3 shrink-0">
         <Text bold color={theme.fg} wrap="nowrap">
           ▼ Edge Console
