@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState, type ReactNode } from "react";
-import { Box, Text, Textarea, useInput, useTheme, useViewport, type TextTheme } from "@textjs/next";
+import { Box, Text, Textarea, useInput, useInterval, useTheme, useViewport, type TextTheme } from "@textjs/next";
 import { useStore, useStoreState } from "../lib/store";
 import { shortPath } from "../lib/format";
 import { usage as contextUsage, dollars } from "../lib/usage";
@@ -29,11 +29,7 @@ export function useAgentColor(theme: TextTheme, agent: string): string {
 export function Dots({ color }: { color: string }): ReactNode {
   const vp = useViewport();
   const [i, setI] = useState(0);
-  useEffect(() => {
-    if (vp.paused) return;
-    const id = setInterval(() => setI((n) => (n + 1) % 6), 120);
-    return () => clearInterval(id);
-  }, [vp.paused]);
+  useInterval(() => setI((n) => (n + 1) % 6), vp.paused ? null : 120);
   const pos = i < 4 ? i : 6 - i;
   return (
     <Text color={color} wrap="nowrap" flexShrink={0}>
