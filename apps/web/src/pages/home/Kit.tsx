@@ -13,7 +13,7 @@ const ROWS = 16;
 
 const TABS: Array<{ id: string; label: string; hint: string; href: string }> = [
   { id: "table", label: "Table", hint: "Click it, then ↑ ↓ move · s sort · Space select", href: "/docs/components-data" },
-  { id: "charts", label: "Charts", hint: "Lines, bars, sparklines and progress, eight levels per cell", href: "/docs/components-charts" },
+  { id: "charts", label: "Charts", hint: "Line charts, bar charts, sparklines and progress bars", href: "/docs/components-charts" },
   { id: "controls", label: "Controls", hint: "Click it, then Tab focus · Space toggle · ← → adjust", href: "/docs/components-forms" },
   { id: "keymap", label: "useKeymap", hint: "Click it, then ? help · Ctrl+K palette", href: "/docs/keyboard" },
 ];

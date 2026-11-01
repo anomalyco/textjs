@@ -148,7 +148,7 @@ useKeymap({ "ctrl+return-key": submit });
 useKeymap({ "ctrl+enter": submit });
 ~~~
 
-Sequences are space-separated strokes (\`"g g"\`); alternatives are arrays (\`["j", "down"]\`).`,
+Sequences are space-separated strokes (\`"g g"\`). Alternatives are comma-separated (\`"j, down"\`).`,
   },
   TX008: {
     package: "@textjs/react",
@@ -163,12 +163,13 @@ useKeymap({ "ctrl++": zoomIn, "ctrl+-": zoomOut });
   TX009: {
     package: "@textjs/react",
     title: "Expected a single key stroke",
-    cause: `\`keyEventFromCombo()\` (used by \`app.press()\` in tests) builds exactly one key event. It received a sequence such as \`"g g"\` or a list of alternatives.`,
-    fix: `Press each stroke separately:
+    cause: `A key press is one concrete stroke. \`keyEventFromCombo()\` received a sequence such as \`"g g"\`, or the MCP \`press\` tool received alternatives such as \`"a,b"\`.`,
+    fix: `Build one event per stroke. \`app.press()\` in tests and the MCP \`press\` tool split space-separated sequences for you:
 
 ~~~tsx
-await app.press("g");
-await app.press("g");
+await app.press("g g");
+
+keyEventFromCombo("g");
 ~~~`,
   },
   TX010: {
@@ -315,7 +316,7 @@ text proxy --target http://user:pass@127.0.0.1:4096/api
 text proxy --target http://127.0.0.1:4096
 ~~~
 
-Set the server password with \`OPENCODE_SERVER_PASSWORD\` instead.`,
+Set the server password with \`OPENCODE_PASSWORD\` instead.`,
   },
   TX022: {
     package: "@textjs/next",

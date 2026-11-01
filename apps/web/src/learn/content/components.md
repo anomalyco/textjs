@@ -1,4 +1,4 @@
-Hand-rolled rows got us this far. The component kit does the rest: `<Table>` with keyboard navigation and sorting, `<List>` with virtualized scrolling, and charts drawn with eighth blocks and braille dots.
+Hand-rolled rows got us this far. The component kit does the rest: `<Table>` with keyboard navigation and sorting, `<List>` with virtualized scrolling, and charts drawn with eighth blocks and quadrant dots.
 
 ## A sortable table
 

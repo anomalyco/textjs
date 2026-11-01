@@ -55,7 +55,7 @@ const ITEMS: Array<{ title: string; body: ReactNode; href: string }> = [
     href: "/docs/caching",
   },
   {
-    title: "Deploy anywhere",
+    title: "Deploy adapters",
     body: (
       <>
         <code>text build --adapter</code> <code>static</code>, <code>bun</code>, <code>vercel</code> or <code>cloudflare</code>.

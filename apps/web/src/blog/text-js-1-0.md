@@ -2,7 +2,7 @@
 title: Text.js 1.0
 date: 2026-10-31
 author: Adam
-summary: React 19, the App Router and a 3,200-cell framebuffer, rendered in one console.log per frame. Text.js is stable.
+summary: React 19 and the App Router, rendered into the DevTools console with one console.log per frame. Text.js 1.0 is stable.
 ---
 
 Today we're releasing Text.js 1.0, the Console Framework for the Web.
@@ -11,7 +11,7 @@ Today we're releasing Text.js 1.0, the Console Framework for the Web.
 bunx create-text-app@latest
 ```
 
-Text.js renders React 19 apps inside the Chrome DevTools console. Not a log viewer, not a REPL: layouts, routing, focus, input, forms, charts and streaming Markdown, drawn into `console.log`. The page your users visit can stay empty. The product is one keyboard shortcut away.
+Text.js renders React 19 apps inside the Chrome DevTools console. Not a log viewer, not a REPL: layouts, routing, focus, input, forms, charts and streaming Markdown, drawn into `console.log`. The product is one keyboard shortcut away.
 
 ## What's in 1.0
 

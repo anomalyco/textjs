@@ -25,7 +25,7 @@ export function Quiz({ chapter }: { chapter: Chapter }): ReactNode {
         <h2 id="quiz">Quiz</h2>
         <span className={`learn-status${done ? " done" : ""}`}>{done ? "✓ Chapter complete" : `${chapter.quiz.length} questions`}</span>
       </div>
-      <p className="learn-quiz-lede">Answer both to complete the chapter.</p>
+      <p className="learn-quiz-lede">Answer every question to complete the chapter.</p>
       {chapter.quiz.map((q, qi) => {
         const picked = picks[qi];
         const answered = picked !== undefined;

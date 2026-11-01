@@ -87,13 +87,13 @@ const FEATURES: Array<{ title: ReactNode; body: ReactNode }> = [
         One <code>console.log</code>
       </>
     ),
-    body: <>Run-length encoded frames in 0.18ms. Zero logs when idle.</>,
+    body: <>Run-length encoded frames in 0.163ms. Zero logs when idle.</>,
   },
   {
     title: "Zero DOM",
     body: (
       <>
-        An empty <code>&lt;body&gt;</code> and one hidden input.
+        A focus pad and one hidden input. The UI never touches the DOM.
       </>
     ),
   },

@@ -48,7 +48,7 @@ describe("documentation registry", () => {
 
   test("internal links resolve to real pages and anchors", () => {
     const linkRe = /\]\((\/[^)\s]*)\)/g;
-    const routes = new Set(["/", "/docs", "/playground", "/opencode", ...DOCS.map((d) => docPath(d.slug))]);
+    const routes = new Set(["/", "/docs", "/playground", "/opencode", "/status", ...DOCS.map((d) => docPath(d.slug))]);
     for (const d of DOCS) {
       for (const m of d.markdown.matchAll(linkRe)) {
         const [path, hash] = (m[1] as string).split("#") as [string, string | undefined];

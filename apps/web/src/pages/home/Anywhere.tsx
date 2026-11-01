@@ -6,8 +6,8 @@ import { ArrowRight } from "../../site/icons";
 type Run = [string, ("fg" | "muted" | "ok" | "warn" | "accent" | "dim")?];
 const FRAME: Run[][] = [
   [["▼ Acme Deploys", "fg"], ["          main", "muted"]],
-  [["●", "ok"], [" Ready  web   iad1  ", "fg"], ["0.18ms", "muted"]],
-  [["●", "ok"], [" Ready  api   sfo1  ", "fg"], ["0.21ms", "muted"]],
+  [["●", "ok"], [" Ready  web   iad1  ", "fg"], ["2m", "muted"]],
+  [["●", "ok"], [" Ready  api   sfo1  ", "fg"], ["4m", "muted"]],
   [["◌", "warn"], [" Build  docs  fra1  ", "fg"], ["42%", "muted"]],
 ];
 

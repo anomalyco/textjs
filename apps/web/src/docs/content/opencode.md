@@ -2,7 +2,7 @@
 
 ## Try it
 
-- On this site: open DevTools and press `3`, or visit [OpenCode](/opencode).
+- On this site: visit [OpenCode](/opencode) and open DevTools.
 - Locally: `bunx create-text-app my-app --template opencode`.
 
 The site runs a sandbox with a scripted agent. Type any prompt.
@@ -16,7 +16,7 @@ The site runs a sandbox with a scripted agent. Type any prompt.
 | Prompt | `<Textarea>` |
 | Palette | `<Modal>` + `<Select searchable>` |
 
-```tsx@app/sessions/[id]/page.tsx
+```tsx@app/session/[id]/page.tsx
 export default function SessionPage({ params }: PageProps<{ id: string }>) {
   const { messages, send } = useSession(params.id);
   return (
@@ -35,10 +35,11 @@ export default function SessionPage({ params }: PageProps<{ id: string }>) {
 | Key | Action |
 | :-- | :-- |
 | `Enter` | Send |
-| `Tab` | Toggle build / plan |
-| `Ctrl+P` | Sessions and commands |
-| `Ctrl+N` | New session |
-| `Esc` | Interrupt or leave the prompt |
+| `Shift+Tab` | Switch agent (build / plan) |
+| `Ctrl+P` | Commands |
+| `Ctrl+X` then `L` | Sessions |
+| `Ctrl+X` then `N` | New session |
+| `Esc` twice | Interrupt the running session |
 
 ## Connect a local server
 

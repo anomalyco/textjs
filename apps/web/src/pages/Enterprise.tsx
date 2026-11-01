@@ -13,7 +13,7 @@ const STATS = [
 
 const COMPLIANCE = [
   {
-    title: "SOC 2 Console Compliance",
+    title: "Console visibility",
     body: "Every frame is written to a console you can see, scroll and copy. Nothing renders that DevTools can’t show you.",
   },
   {
@@ -26,7 +26,7 @@ const COMPLIANCE = [
   },
   {
     title: "Least privilege",
-    body: "Text.js needs one permission: console.log. The page itself can stay empty.",
+    body: "Rendering needs no browser permissions. Frames are written with console.log, and the page hosts only a focus pad and a hidden input.",
   },
 ];
 
@@ -92,11 +92,11 @@ const FAQ = [
   },
   {
     q: "Do our users need DevTools open?",
-    a: "To see the application, yes. Text.js renders nothing until there is a console to render into, which keeps infrastructure costs low.",
+    a: "Yes. The application renders in the DevTools console. The page shows the keyboard shortcut that opens it.",
   },
   {
     q: "Can we self-host?",
-    a: "Text.js runs entirely in your users’ browsers. text build produces static files, and text start serves them with your route handlers.",
+    a: "Yes. text build produces static files, and text start or the bun adapter serves them with route handlers, middleware and server-rendered routes.",
   },
   {
     q: "Is there a procurement-friendly invoice?",
@@ -169,7 +169,7 @@ export function EnterprisePage(): ReactNode {
         <div className="section-head">
           <p className="eyebrow">Security</p>
           <h2>A small attack surface. It is one function.</h2>
-          <p>Turbolog defends against the Chromium console’s own behavior, and nothing else runs in your page.</p>
+          <p>Turbolog escapes text that DevTools would otherwise read as a format specifier or a link.</p>
         </div>
         <div className="ent-grid">
           {SECURITY.map((c) => (

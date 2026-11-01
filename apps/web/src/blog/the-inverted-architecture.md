@@ -19,7 +19,7 @@ Each stage exists because the console is a strange display: monospace, row-orien
 
 ## Reconciler
 
-`@textjs/react` is a React 19 reconciler (`react-reconciler@0.34.0`) with three host elements: `tx-box`, `tx-text` and `tx-raw-text`. Everything you import, from `<Box>` to `<Markdown>`, is built on those three. Commits are scheduled on `requestAnimationFrame`, and a keypress or paste renders synchronously in the same task.
+`@textjs/react` is a React 19 reconciler (`react-reconciler@0.34.0`) with two host elements, `tx-box` and `tx-text`, plus text instances for string children. Everything you import, from `<Box>` to `<Markdown>`, is built on those. Commits are scheduled on `requestAnimationFrame`, and a keypress or paste renders synchronously in the same task.
 
 ## Layout
 

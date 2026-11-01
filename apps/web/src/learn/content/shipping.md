@@ -13,7 +13,7 @@ bun run build
 ✓ Built in 1.8s
 ```
 
-`text start` serves the build and runs your route handlers. Any host that runs Bun or Node 20 will do.
+`text start` serves the build and runs your route handlers. It runs on any host with Bun 1.2+ or Node.js 22+.
 
 ## Metadata
 

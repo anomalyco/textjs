@@ -52,7 +52,7 @@ export const CHAPTERS: readonly Chapter[] = [
         question: "Where does a Text.js app render its UI?",
         options: ["In a <canvas> on the page", "In the DevTools console, via console.log", "In a hidden iframe"],
         answer: 1,
-        explanation: "Every changed frame is a single console.log of %c-styled spans. The page itself stays blank.",
+        explanation: "Every changed frame is a single console.log of %c-styled spans. The page shows no app UI.",
       },
       {
         question: "What does an idle app log?",

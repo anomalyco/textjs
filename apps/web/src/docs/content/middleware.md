@@ -111,7 +111,7 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
 
 ## Notes
 
-- Pages render client-side in the console, so a rewrite to another page changes which file is served, not which route the console app renders. Rewrites to route handlers, static files and external origins behave as expected.
+- Client-rendered pages render in the browser, so a rewrite to another page changes which file is served, not which route the console app renders. Rewrites to route handlers, static files and external origins behave as expected.
 - Middleware can read the request body; route handlers still receive it. Requests a matcher excludes never have their body touched.
 - `request.url` always has the server's origin: request targets such as `//other.host/x` are normalized to a single leading slash.
 - The [static adapter](/docs/deploying#static) cannot run middleware.

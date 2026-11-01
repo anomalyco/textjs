@@ -1,6 +1,6 @@
 ## Requirements
 
-- [Bun](https://bun.sh) 1.2+ or Node.js 20.11+
+- [Bun](https://bun.sh) 1.2+ or Node.js 22+
 - A Chromium browser (Chrome, Edge, Arc, Brave)
 
 ## Create an app
@@ -30,7 +30,7 @@ Click the page to focus it, then type. Docking DevTools to the bottom gives the 
 
 ## Console settings
 
-Turn off **Preserve log** and **Group similar messages** in the console settings. Text.js clears and redraws on every frame.
+Turn off **Preserve log** in the console settings. Text.js appends one message per frame and clears the console to release old frames. With Preserve log on, DevTools ignores the clear and old frames accumulate.
 
 ## Manual setup
 

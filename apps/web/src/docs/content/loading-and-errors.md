@@ -55,4 +55,4 @@ In development, uncaught errors open an overlay inside the console with the mess
 
 ## [▼] DevTools
 
-Press `F2` in development to inspect the route, frame timings and layout. Disable with `devIndicators: false`.
+Press `F2` or `` Ctrl+` `` in development to inspect the route, frame timings and layout. Disable with `devIndicators: false`.
