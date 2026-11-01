@@ -41,8 +41,11 @@ Open the page, press **⌘⌥J** (or **Ctrl+Shift+J**), then click back into the
 | `Ctrl+X` then `1`…`0`  | Select an open session by tab number     |
 | `Ctrl+X w` / `Ctrl+Shift+T` | Close / reopen a tab (never deletes a session) |
 | `!` on an empty prompt | Enter shell mode; Esc leaves without running anything |
+| `←` / `→`, `Enter` on permission | Select and confirm; `Ctrl+F` toggles fullscreen, `Esc` minimizes or rejects |
+| `↑` / `↓`, `1`–`9` on a question | Choose an answer; `Tab` changes field, `Esc` dismisses |
+| `Ctrl+R` / `Ctrl+D` in sessions | Rename / arm deletion (repeat `Ctrl+D` to confirm) |
 
-`/help`, `/themes`, `/rename <title>`, `/compact` and `/copy` are local client actions, not prompts. V2 also dispatches commands advertised by `GET /api/command`. Shell mode in the static simulation **never** executes on the host.
+`/help`, `/settings`, `/themes`, `/rename <title>`, `/compact` and `/copy` are local client actions, not prompts. The theme picker previews the highlighted theme, rolls back on Escape and commits on Enter. The context sidebar overlays at ≤120 columns and docks to the right on wider screens. V2 also dispatches commands advertised by `GET /api/command`. Shell mode in the static simulation **never** executes on the host.
 
 ## Layout
 

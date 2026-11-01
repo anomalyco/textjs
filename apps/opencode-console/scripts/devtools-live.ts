@@ -1,7 +1,7 @@
 /** Run against the built website with BASE=http://127.0.0.1:<private-preview-port>.
  * Full Chromium with its bundled DevTools frontend, the real CSRF/auth proxy,
  * and a mock V2 service that cannot run a command or contact a model. */
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { resolve } from "node:path";
 import { startProxy } from "../../../packages/text/src/cli/proxy";
@@ -42,6 +42,17 @@ try {
       await page.route("**/*", (r: any) =>
         [base.origin, bridge.url].includes(new URL(r.request().url()).origin) ? r.continue() : r.abort(),
       );
+      await page.addInitScript(() => {
+        const state = ((window as any).__parity = { frame: "", times: [] as number[] });
+        const log = console.log.bind(console);
+        console.log = (...args) => {
+          if (typeof args[0] === "string" && args[0].includes("%c")) {
+            state.frame = args[0].replace(/%%|%c/g, (s: string) => (s === "%c" ? "" : "%"));
+            if (state.frame.includes("Stream progress:")) state.times.push(performance.now());
+          }
+          log(...args);
+        };
+      });
       await page.goto(base.origin + "/opencode");
       await page.getByLabel("OpenCode server URL").fill(bridge.url);
       await page.getByRole("button", { name: "Connect", exact: true }).click();
@@ -57,6 +68,7 @@ try {
       await page.mouse.click(640, 600);
       await page.evaluate(() => (window as any).text.resize(100, 32));
       const snap = async (name: string, label: string) => {
+        await page.waitForFunction((s: string) => (window as any).__parity.frame.includes(s), label);
         await dt.locator(".console-message-text").filter({ hasText: label }).last().waitFor({ state: "visible" });
         await page.waitForTimeout(180);
         await dt.locator("#console-messages").screenshot({ path: resolve(out, `${name}.png`) });
@@ -97,13 +109,58 @@ try {
       await snap("question", "2. release");
       await page.keyboard.press("2");
       await page.waitForTimeout(250);
+      const sessionID = "ses_alpha",
+        messageID = "msg_paced";
+      const started = Date.now(),
+        model = { id: "claude-opus-5-5", providerID: "anthropic" };
+      const ev = (type: string, data: Record<string, unknown>) =>
+        mock.emit({ type, data: { sessionID, assistantMessageID: messageID, ...data } });
+      ev("session.step.started", { agent: "build", model, started });
+      ev("session.text.started", { ordinal: 0 });
+      let text = "Stream progress: ";
+      ev("session.text.delta", { ordinal: 0, delta: text });
+      for (let i = 0; i < 100; i++) {
+        const delta = i === 99 ? " done." : "x";
+        text += delta;
+        ev("session.text.delta", { ordinal: 0, delta });
+        await Bun.sleep(10);
+      }
+      ev("session.text.ended", { ordinal: 0, text });
+      ev("session.step.ended", { finish: "stop" });
+      mock.messages
+        .get(sessionID)
+        ?.push({
+          id: messageID,
+          type: "assistant",
+          agent: "build",
+          model,
+          time: { created: started, completed: Date.now() },
+          content: [{ type: "text", text }],
+        });
+      ev("session.execution.succeeded", {});
+      await snap("stream", "done.");
+      const times: number[] = await page.evaluate(() => (window as any).__parity.times),
+        gaps = times
+          .slice(1)
+          .map((v, i) => Math.round(v - times[i]!))
+          .sort((a, b) => a - b);
+      if (times.length < 2 || times.length >= 100) throw Error(`Unexpected paced frames: ${times.length}`);
+      const pace = {
+        deltas: 101,
+        frames: times.length,
+        minGapMs: gaps[0],
+        medianGapMs: gaps[Math.floor(gaps.length / 2)],
+        maxGapMs: gaps.at(-1),
+      };
+      await writeFile(resolve(out, "stream.json"), JSON.stringify(pace, null, 2));
+      console.log("DevTools stream cadence:", pace);
       if (
         !mock.requests.some((r) => r.path.endsWith("/per_browser/reply") && (r.body as any)?.decision === "reject") ||
         !mock.requests.some((r) => r.path.endsWith("/frm_browser/reply") && (r.body as any)?.answer?.branch === "release")
       )
         throw Error("Expected explicit decisions through mock bridge");
       if (pageErrors.length) throw Error(pageErrors.join("\n"));
-      console.log(`Live bridge DevTools: five captured screens, reject and form reply verified (${out})`);
+      console.log(`Live bridge DevTools: six captured screens, reject, form reply and paced stream verified (${out})`);
     } finally {
       await browser.close();
     }

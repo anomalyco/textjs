@@ -1,0 +1,11 @@
+[
+  {"id":"msg_rich01","type":"user","text":"Show the change and the verification results.","time":{"created":1800000010000}},
+  {"id":"msg_rich02","type":"assistant","agent":"build","model":{"id":"big-pickle","providerID":"opencode"},"time":{"created":1800000011000,"completed":1800000014000},"finish":"stop","cost":0,
+   "tokens":{"input":1250,"output":72,"reasoning":20,"cache":{"read":0,"write":0}},
+   "content":[
+      {"id":"call_rich1","type":"tool","name":"write","time":{"created":1800000011000,"completed":1800000011700},"state":{"status":"completed","input":{"path":"src/limit.ts","content":"export const limit = 10;\n"},"content":[{"type":"text","text":"Wrote file."}]}},
+      {"id":"call_rich2","type":"tool","name":"shell","time":{"created":1800000012000,"completed":1800000013000},"state":{"status":"completed","input":{"command":"bun test"},"content":[{"type":"text","text":"2 pass\n0 fail"}]}},
+      {"type":"text","text":"## Release notes\n\nThe **limit** is now `10`. Keep the *same units*.\n\n- Updated the default\n- Verified the tests\n\n```ts\nexport const limit = 10;\nconst label = \"done\";\n```\n\n> Keep the override.\n\n| Check | Result |\n| --- | --- |\n| Typecheck | Pass |\n| Tests | Pass |\n\nReady for verification."}
+   ]},
+  {"id":"msg_rich03","type":"idle","outcome":"succeeded","time":{"created":1800000014100}}
+]

@@ -27,7 +27,7 @@ ROOT = APP.parents[1]
 
 
 @contextlib.contextmanager
-def fixture_server(env, project):
+def fixture_server(env, project, rich=False):
     with socket.socket() as s:
         s.bind(('127.0.0.1', 0))
         port = s.getsockname()[1]
@@ -57,7 +57,7 @@ def fixture_server(env, project):
             raise RuntimeError('Private server did not start')
         seed = api('/api/session', {'title': 'Capture seed', 'agent': 'build', 'location': {'directory': str(project)},
                    'model': {'providerID': 'opencode', 'id': 'big-pickle'}})['data']
-        transcript = json.loads((APP/'scripts/transcript.json').read_text())
+        transcript = json.loads((APP/'scripts'/('transcript-rich.json' if rich else 'transcript.json')).read_text())
         session = api('/api/experimental/session/import', {'info': dict(seed, id='ses_parityfixture', title='Parity fixture'),
                       'messages': transcript, 'location': {'directory': str(project)}})['data']['id']
         case = {'agent': 'build', 'location': {'directory': str(project)}, 'model': seed['model']}
@@ -82,6 +82,7 @@ def fixture_server(env, project):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out', type=Path, default=APP / '.text' / 'captures')
+    parser.add_argument('--rich',action='store_true',help='Use the fenced-code, table, quote, write and shell transcript')
     opts = parser.parse_args()
     opts.out.mkdir(parents=True, exist_ok=True)
     (APP / '.text').mkdir(exist_ok=True)
@@ -96,7 +97,7 @@ def main():
                    XDG_CACHE_HOME=tmp+'/cache', XDG_STATE_HOME=tmp+'/state',
                    TERM='tmux-256color', COLORTERM='truecolor', OPENCODE_DISABLE_AUTOUPDATE='1')
         subprocess.run(['git', 'init', '-q', project], env=env, check=True)
-        sid, permission, question = cleanup.enter_context(fixture_server(env, project))
+        sid, permission, question = cleanup.enter_context(fixture_server(env, project, opts.rich))
         subprocess.run(['bun', APP/'scripts/capture-mcp.ts', opts.out.resolve(), env['OPENCODE_SERVER_URL'], sid, permission, question],
                        cwd=ROOT, env=env, check=True, timeout=120)
         sock = 'textjs-parity-' + uuid.uuid4().hex
@@ -171,6 +172,12 @@ def main():
                             wait(name, '~/project:master')
                             for ext, sgr in [('txt', False), ('ansi', True)]:
                                 (dest/f'session-{name}.{ext}').write_text(screen(name, sgr))
+                            tmux('send-keys','-t',name,'C-g');time.sleep(.2)
+                            for ext,sgr in [('txt',False),('ansi',True)]: (dest/f'session-top-{name}.{ext}').write_text(screen(name,sgr))
+                            tmux('send-keys','-t',name,'End');time.sleep(.2)
+                            tmux('send-keys','-t',name,'C-x','b'); wait(name,'Context');time.sleep(.3)
+                            for ext,sgr in [('txt',False),('ansi',True)]: (dest/f'sidebar-{name}.{ext}').write_text(screen(name,sgr))
+                            tmux('send-keys','-t',name,'C-x','b');time.sleep(.2)
                             for theme in ['dracula','opencode']:
                                 tmux('send-keys','-t',name,'-l','/themes'); time.sleep(.2); tmux('send-keys','-t',name,'Enter'); wait(name,'Themes')
                                 tmux('send-keys','-t',name,'-l',theme); time.sleep(.25); tmux('send-keys','-t',name,'Enter'); time.sleep(.25)
@@ -181,10 +188,10 @@ def main():
                         else:
                             tmux('send-keys', '-t', name, 'Escape')
                         time.sleep(.15)
-                for state in ('home', 'home-draft', 'commands', 'models', 'agents', 'sessions', 'session','help','themes','session-dracula'):
+                for state in ('home', 'home-draft', 'commands', 'models', 'agents', 'sessions', 'session','session-top','help','themes','session-dracula','sidebar'):
                     report(dest, state, cols)
-            # Capture attention prompts without ever sending them a key. Even a
-            # stray Return here could answer a real permission request.
+            # Navigate a request but never confirm an answer. Escape is only
+            # sent after observing fullscreen, where it means minimize.
             for label, session, marker in [('permission', permission, 'Permission required'), ('question', question, 'main')]:
                 for name, cwd, cmd in [
                     ('real', project, ['opencode', '--server', env['OPENCODE_SERVER_URL'], '--session', session]),
@@ -200,8 +207,16 @@ def main():
                         dest = opts.out/f'{cols}x{rows}'
                         for ext, sgr in [('txt', False), ('ansi', True)]:
                             (dest/f'{label}-{name}.{ext}').write_text(screen(target, sgr))
+                        if label=='permission':
+                            for sub,key,needle in [('always','Right','This will always allow'),('full','C-f','minimize')]:
+                                tmux('send-keys','-t',target,key); wait(target,needle); time.sleep(.1)
+                                for ext,sgr in [('txt',False),('ansi',True)]: (dest/f'permission-{sub}-{name}.{ext}').write_text(screen(target,sgr))
+                            tmux('send-keys','-t',target,'Escape'); wait(target,'ctrl+f fullscreen')
+                            tmux('send-keys','-t',target,'Left');wait(target,'- echo fixture')
                     tmux('kill-session', '-t', target)
-                for cols,rows in [(100,32),(120,40)]: report(opts.out/f'{cols}x{rows}', label, cols)
+                for cols,rows in [(100,32),(120,40)]:
+                    for state in ([label,'permission-always','permission-full'] if label=='permission' else [label]):
+                        report(opts.out/f'{cols}x{rows}', state, cols)
         finally:
             tmux('kill-server', check=False)
 

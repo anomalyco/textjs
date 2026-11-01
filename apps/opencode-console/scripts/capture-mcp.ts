@@ -38,7 +38,7 @@ try {
     await call("resize", { cols, rows });
     const capture = async (name: string, matched?: Record<string, unknown>) => {
       const frame = matched ?? await call("read_frame", { styles: true, trim: false });
-      const expectedFocus = ["home", "home-draft", "session", "session-dracula"].includes(name) ? "opencode-prompt" : name === "help" ? "opencode-help" : `opencode-picker-${name}`;
+      const expectedFocus = name==="sidebar" ? "session-sidebar" : ["home", "home-draft", "session", "session-top", "session-dracula"].includes(name) ? "opencode-prompt" : name === "help" ? "opencode-help" : `opencode-picker-${name}`;
       if ((frame.focus as { id?: string } | null)?.id !== expectedFocus) throw Error(`${name}: expected focus on ${expectedFocus}`);
       await writeFile(`${dir}/${name}-mcp.json`, JSON.stringify(frame));
       await writeFile(`${dir}/${name}-mcp.txt`, String(frame.text) + "\n");
@@ -61,6 +61,8 @@ try {
         await call("type", { text: endpoint ? "Parity fixture" : "Fix cart" });
         await press("enter");
         await capture("session", await call("wait_for", { text: endpoint ? ["Ready", "~/project:master"] : "99+", href: `/session/${sid ?? "ses_demo_cart"}`, idle: true, styles: true, trim: false }));
+        await press("ctrl+g");await capture("session-top");await press("end");
+        await press("ctrl+x b");await capture("sidebar",await call("wait_for",{text:"Context",idle:true,styles:true,trim:false}));await press("ctrl+x b");
         for(const theme of ["dracula","opencode"]) {
           await call("type",{text:"/themes"}); await press("enter"); await wait("Themes");
           await call("type",{text:theme}); await press("enter");
@@ -80,8 +82,16 @@ try {
       for(const [cols, rows] of [[100,32],[120,40]]) {
         await call("resize", {cols, rows});
         const frame = await call("wait_for", { href, text: label === "permission" ? "Allow once" : "2. release", styles: true, trim: false, idle: true });
-        await writeFile(`${out}/${cols}x${rows}/${label}-mcp.json`, JSON.stringify(frame));
-        await writeFile(`${out}/${cols}x${rows}/${label}-mcp.txt`, frame.text + "\n");
+        const save=async(name:string, f:Record<string,unknown>)=>{
+          await writeFile(`${out}/${cols}x${rows}/${name}-mcp.json`, JSON.stringify(f));
+          await writeFile(`${out}/${cols}x${rows}/${name}-mcp.txt`, f.text + "\n");
+        };
+        await save(label!,frame);
+        if(label==="permission"){
+          await press("right"); await save("permission-always",await call("wait_for",{href,text:"This will always allow",styles:true,trim:false}));
+          await press("ctrl+f");await save("permission-full",await call("wait_for",{href,text:"minimize",styles:true,trim:false}));
+          await press("escape left");
+        }
       }
     }
   }

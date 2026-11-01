@@ -9,7 +9,7 @@ source = reference/'services/www/src/docs/content/cli/keybinds.mdx'
 revision = subprocess.check_output(['git', '-C', reference, 'rev-parse', '--short', 'HEAD'], text=True).strip()
 supported = set('''leader command.palette.show help.show session.new session.list session.sidebar.toggle model.list
 agent.list agent.cycle variant.cycle variant.list model.cycle_recent model.cycle_recent_reverse theme.switch
-session.tab.next session.tab.previous session.tab.close session.tab.reopen
+session.tab.next session.tab.previous session.tab.close session.tab.reopen permission.prompt.fullscreen theme.switch_mode
 session.interrupt session.compact session.toggle.exploration_grouping session.page.up session.page.down session.line.up session.line.down
 session.half.page.up session.half.page.down session.first session.last
 input.submit input.newline input.move.left input.move.right input.move.up input.move.down input.line.home
@@ -19,9 +19,14 @@ dialog.select.prev dialog.select.next dialog.select.page_up dialog.select.page_d
 dialog.select.end dialog.select.submit'''.split()) | {f'session.tab.select.{i}' for i in range(1,11)}
 partial = {
     'app.exit': 'Terminal Ctrl+C only; browser cannot close DevTools.',
-    'session.rename': 'V2 `/rename <title>`; no inline rename dialog.',
+    'session.rename': 'Ctrl+R in the session picker and `/rename <title>` (V2/demo).',
+    'session.delete': 'Ctrl+D twice in the session picker, V2/demo only. Closing a tab never deletes it.',
     'session.toggle.thinking': 'Compact/expanded reasoning, not the native visibility and verbosity modes.',
-    'theme.switch': 'Picker works; only Text.js presets, not the complete native catalog.',
+    'theme.switch': '33 bundled themes, live preview/cancel/commit; cannot infer a remote terminal system palette.',
+    'model.dialog.favorite': 'Ctrl+F when a provider is connected. Favorites are in memory per connection.',
+    'model.dialog.provider': 'Ctrl+A lists integrations. Provider authentication still uses the native client.',
+    'opencode.settings': 'Open settings exposes the implemented appearance and session controls.',
+    'open.menu': 'Ctrl+O opens the session picker, not the full recent-project/workspace menu.',
     'messages.copy': 'Browser Clipboard API; reports unavailability in a terminal.',
     'prompt.paste': 'Text paste through the host; no image clipboard or paste extmarks.',
     'prompt.clear': 'Browser/MCP Ctrl+C clears nonempty input; terminal reserves Ctrl+C for exit.',
@@ -29,7 +34,7 @@ partial = {
     'prompt.history.next': 'In-memory current-connection history; restores draft.',
     'model.cycle_recent': 'In-memory; no cross-launch model preferences.',
     'model.cycle_recent_reverse': 'In-memory; no cross-launch model preferences.',
-    'session.list': 'First 50 root sessions; no project filter/paging.',
+    'session.list': 'Directory/all-project toggle on the first 50 root sessions; no deep paging.',
     'leader': 'Default Ctrl+X, 2s; no cli.json rebinding or which-key preview.',
 }
 out = [f'# Keybinding inventory · OpenCode `{revision}`', '',
