@@ -18,9 +18,11 @@ Text.js renders React 19 apps inside the Chrome DevTools console, with layouts, 
 - **The App Router.** `layout.tsx`, `page.tsx`, `[param]`, `loading.tsx`, `error.tsx`, `not-found.tsx` and `api/*/route.ts`, synced with `window.location`. It follows the Next.js App Router conventions.
 - **Turbolog.** Yoga flexbox lays out a cell grid, a typed-array `CellBuffer` holds it, and a run-length encoder turns it into a single `console.log(format, ...css)` call. Idle frames make zero calls and allocate nothing.
 - **A component kit.** `Box`, `Text`, `ScrollBox`, `Input`, `Select`, `Tabs`, `Markdown`, `Diff`, virtualized `List`, `Table`, `Tree`, charts, dialogs, toasts and a `Ctrl+K` command palette from `useKeymap`.
-- **Zero-flash frames.** Frames are appended below the previous one, so the console no longer flashes empty. More on that in [Turbolog: eliminating the flash](/blog/turbolog-eliminating-the-flash).
+- **Zero-flash frames.** Frames are appended below the previous one, so the console doesn't flash empty between frames. More on that in [Turbolog: eliminating the flash](/blog/turbolog-eliminating-the-flash).
+- **Right-to-left text.** Hebrew and Arabic render in visual order with Arabic shaping, from an implementation of UAX #9 that passes all 770,241 `BidiTest.txt` cases. See [Right-to-left text in the console](/blog/right-to-left-text).
 - **A responsive console.** Text.js fits the docked DevTools panel, including page zoom and a wrapping toolbar. Undocked, it falls back to `120×36`.
 - **`text run`.** The same App Router app renders in a real terminal.
+- **Tools for agents and editors.** `text mcp` serves your app to coding agents over the Model Context Protocol, and the Text.js DevTools extension adds a panel next to Console. `eslint-plugin-textjs` and a VS Code extension are part of 1.0 too.
 
 ## One rename
 

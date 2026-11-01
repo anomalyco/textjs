@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { formatPostDate } from "../blog";
+import { Inline } from "../site/Markdown";
 import { useConsoleLogDown } from "../console-health";
 import { A } from "../router";
 import type { BenchResult, Summary } from "./status-bench";
 import { COMPONENTS, LAUNCH, type Component, type Tone } from "./status-components";
 import history from "./status-history.json";
+import { INCIDENTS, incidentDays, type Incident, type IncidentStatus } from "./status-incidents";
 
 const DAYS = 90;
 
@@ -20,16 +22,25 @@ const LIVE_DAYS = DAY_LIST.filter((d) => d >= LAUNCH).length;
 
 const TODAY = DAY_LIST[DAY_LIST.length - 1];
 
+const IMPACT_DAY = { none: "Operational", minor: "Degraded performance", major: "Partial outage" } as const;
+
 /** `today` overrides the last bar (a `console.log` reassigned in this tab). */
 function UptimeBars({ name, tone, status, today }: { name: string; tone: Tone; status: string; today?: { tone: string; status: string } }): ReactNode {
-  const label = today
-    ? `${name}: ${status} on ${LIVE_DAYS - 1} of the last ${DAYS} days, ${today.status} today, no data before launch`
-    : `${name}: ${status} on ${LIVE_DAYS} of the last ${DAYS} days, no data before launch`;
+  const incidents = incidentDays(name);
+  let affected = 0;
+  for (const d of DAY_LIST) if (incidents.has(d) && !(today && d === TODAY)) affected++;
+  const parts = [`${name}: ${status} on ${LIVE_DAYS - affected - (today ? 1 : 0)} of the last ${DAYS} days`];
+  if (affected > 0) parts.push(`${affected} ${affected === 1 ? "day" : "days"} with incidents`);
+  if (today) parts.push(`${today.status} today`);
+  if (LIVE_DAYS < DAYS) parts.push("no data before launch");
   return (
-    <div className="st-bars" role="img" aria-label={label}>
+    <div className="st-bars" role="img" aria-label={parts.join(", ")}>
       {DAY_LIST.map((d) => {
-        const live = d >= LAUNCH;
-        const day = today && d === TODAY ? today : live ? { tone, status } : null;
+        const incident = incidents.get(d);
+        let day: { tone: string; status: string } | null = null;
+        if (today && d === TODAY) day = today;
+        else if (incident) day = { tone: incident.impact, status: `${IMPACT_DAY[incident.impact]}: ${incident.name}` };
+        else if (d >= LAUNCH) day = { tone, status };
         return <span key={d} className={day ? `st-bar st-bar-${day.tone}` : "st-bar"} title={`${formatPostDate(d)} · ${day ? day.status : "No data"}`} />;
       })}
     </div>
@@ -136,6 +147,11 @@ function LiveBenchmark(): ReactNode {
 }
 
 const RUNS = history.pipeline.runs;
+
+/** `2025-03-25` → `Mar 2025`. */
+function formatMonth(date: string): string {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+}
 const MAX_TYPING = Math.max(...RUNS.map((r) => r.typingMs));
 
 function PerfHistory(): ReactNode {
@@ -166,7 +182,7 @@ function PerfHistory(): ReactNode {
                 <th scope="row">
                   <span className="st-ver">{r.milestone}</span>
                   <span className="st-commit">
-                    {r.label} · <code>{r.commit}</code>
+                    {formatMonth(r.released)} · {r.label} · <code>{r.commit}</code>
                   </span>
                 </th>
                 <td>{fmtMs(r.fullFrameMs)}</td>
@@ -229,18 +245,125 @@ function DevToolsHistory(): ReactNode {
   );
 }
 
-const INCIDENTS = [
-  {
-    title: "Increased display latency after console.clear",
-    version: "1.0.0",
-    body: "After a clear, DevTools’ “Console was cleared” row pushed every later frame onto its 50ms timer. The renderer now waits 110ms once after a clear. Median display lag recovered from 63ms to 10ms.",
-  },
-  {
-    title: "Elevated blank paints in the DevTools Console",
-    version: "0.4.0",
-    body: "Clearing before every frame left the console empty in 70–81% of DevTools paints. Frames are now appended, and blank paints are down to 1.0%, all on the first frame.",
-  },
-];
+const STATUS_LABEL: Record<IncidentStatus, string> = { investigating: "Investigating", identified: "Identified", monitoring: "Monitoring", resolved: "Resolved" };
+
+/** `2026-10-27T15:42:00Z` → `Oct 27, 2026 · 15:42 UTC`. */
+function formatUpdateTime(iso: string): string {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+  return `${date} · ${iso.slice(11, 16)} UTC`;
+}
+
+function shortDay(iso: string, year: boolean): string {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: year ? "numeric" : undefined, timeZone: "UTC" });
+}
+
+/** `Oct 27, 2026` or `Oct 27 – Oct 28, 2026`. */
+function incidentSpan(i: Incident): string {
+  const first = i.updates[0]!.at;
+  const last = i.updates[i.updates.length - 1]!.at;
+  if (first.slice(0, 10) === last.slice(0, 10)) return shortDay(first, true);
+  return `${shortDay(first, first.slice(0, 4) !== last.slice(0, 4))} – ${shortDay(last, true)}`;
+}
+
+function monthOf(i: Incident): string {
+  return new Date(i.updates[0]!.at).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+function IncidentItem({ incident: i }: { incident: Incident }): ReactNode {
+  return (
+    <li id={i.id} className="st-incident">
+      <details>
+        <summary>
+          <span className={`st-incident-name st-impact-${i.impact}`}>{i.name}</span>
+          <span className="st-incident-when">{incidentSpan(i)} · Resolved</span>
+        </summary>
+        <div className="st-incident-body">
+          <ol className="st-updates">
+            {[...i.updates].reverse().map((u) => (
+              <li key={u.at}>
+                <strong>{STATUS_LABEL[u.status]}</strong>
+                <p>
+                  <Inline text={u.body} />
+                </p>
+                <time dateTime={u.at}>{formatUpdateTime(u.at)}</time>
+              </li>
+            ))}
+          </ol>
+          {i.components.length > 0 ? <p className="st-affected">This incident affected: {i.components.join(", ")}.</p> : null}
+          <div className="st-postmortem">
+            <h4>Postmortem</h4>
+            <p>
+              <Inline text={i.postmortem} />
+            </p>
+            <p className="st-fix">
+              {i.commits.length > 0 ? (
+                <>
+                  {i.commits.length === 1 ? "Fix" : "Fixes"}:{" "}
+                  {i.commits.map((c, n) => (
+                    <span key={c}>
+                      {n > 0 ? ", " : null}
+                      <code>{c}</code>
+                    </span>
+                  ))}
+                </>
+              ) : null}
+              {i.links.map((l, n) => (
+                <span key={l.href}>
+                  {i.commits.length > 0 || n > 0 ? " · " : null}
+                  <A href={l.href}>{l.label}</A>
+                </span>
+              ))}
+            </p>
+          </div>
+        </div>
+      </details>
+    </li>
+  );
+}
+
+function PastIncidents(): ReactNode {
+  const months: Array<{ month: string; incidents: Incident[] }> = [];
+  for (const i of INCIDENTS) {
+    const month = monthOf(i);
+    const last = months[months.length - 1];
+    if (last?.month === month) last.incidents.push(i);
+    else months.push({ month, incidents: [i] });
+  }
+  // `/status#<id>` (the incidents API's shortlinks) opens that incident.
+  useEffect(() => {
+    const open = (): void => {
+      const id = decodeURIComponent(location.hash.slice(1));
+      const details = id ? document.getElementById(id)?.querySelector("details") : null;
+      if (!details) return;
+      details.open = true;
+      details.scrollIntoView({ block: "start" });
+    };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
+  }, []);
+  return (
+    <section className="st-card" aria-labelledby="st-incidents-title">
+      <div className="st-card-head">
+        <div>
+          <h2 id="st-incidents-title">Past incidents</h2>
+          <p>Newest first. Times are in UTC.</p>
+        </div>
+      </div>
+      {months.map((m) => (
+        <div key={m.month} className="st-month">
+          <h3>{m.month}</h3>
+          <ul className="st-incidents">
+            {m.incidents.map((i) => (
+              <IncidentItem key={i.id} incident={i} />
+            ))}
+          </ul>
+        </div>
+      ))}
+    </section>
+  );
+}
 
 export function StatusPage(): ReactNode {
   const down = useConsoleLogDown();
@@ -267,24 +390,7 @@ export function StatusPage(): ReactNode {
       <PerfHistory />
       <DevToolsHistory />
 
-      <section className="st-card" aria-labelledby="st-incidents-title">
-        <div className="st-card-head">
-          <div>
-            <h2 id="st-incidents-title">Past incidents</h2>
-          </div>
-        </div>
-        <ul className="st-incidents">
-          {INCIDENTS.map((i) => (
-            <li key={i.title}>
-              <div className="st-incident-head">
-                <strong>{i.title}</strong>
-                <span className="badge badge-green">Resolved in {i.version}</span>
-              </div>
-              <p>{i.body}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <PastIncidents />
     </div>
   );
 }

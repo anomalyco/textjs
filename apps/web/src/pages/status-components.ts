@@ -13,7 +13,8 @@ export const COMPONENTS: readonly Component[] = [
   { name: "Yoga", status: "Operational", tone: "ok", detail: "WebAssembly flexbox layout, pointScaleFactor 1." },
   { name: "Turbolog encoder", status: "Operational", tone: "ok", detail: "Row-hash gate and run-length %c encoding." },
   { name: "DevTools Throttler", status: "Respected", tone: "info", detail: "50ms viewport throttle. Frames are paced at least 66ms apart." },
+  { name: "textjs.org", status: "Operational", tone: "ok", detail: "Docs, Learn, Playground and OpenCode pages." },
 ];
 
-/** The first commit. Days before it have no data, because there was no Text.js. */
-export const LAUNCH = "2026-10-31";
+/** The first npm release of `@textjs/core`. Days before it have no data. */
+export const LAUNCH = "2025-01-30";

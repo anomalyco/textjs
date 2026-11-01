@@ -1,6 +1,6 @@
 ---
 title: "Turbolog: eliminating the flash"
-date: 2026-10-31
+date: 2026-10-20
 author: Adam
 summary: Clearing the console before every frame left it visibly blank in 70–81% of DevTools paints. Appending frames brought that to 1%, all of it on the first frame.
 ---
@@ -28,7 +28,7 @@ So each frame removes the old frame now and paints the new one later. At 15fps, 
 
 ## Appending frames
 
-Turbolog now appends frames. DevTools sticks to the bottom of the console, so the new frame replaces the old one inside a single paint. A leading zero-width span with `margin-top:100vh` (the curtain) pushes earlier frames out of view, and it ends its own line so the DevTools source link never narrows row 0.
+Since 0.4, Turbolog appends frames. DevTools sticks to the bottom of the console, so the new frame replaces the old one inside a single paint. A leading zero-width span with `margin-top:100vh` (the curtain) pushes earlier frames out of view, and it ends its own line so the DevTools source link never narrows row 0.
 
 The console still has to be emptied eventually. A clear happens only on the first frame, after `invalidate()`, at idle once 100 frames have stacked up, and at a hard cap of 300.
 
@@ -59,4 +59,4 @@ The remaining 1% is the first frame, which clears on purpose. Its blank paints a
 
 DevTools' source showed one more cost. It copies every *longhand* of a `%c` style onto every line wrapper, so `font:` and `margin:` shorthands expanded to about 33 properties per span. Spans now use longhands only, about 7 each, with hex colors.
 
-No application code changes are needed. All of this ships in Text.js 1.0.
+Append mode shipped in Text.js 0.4, and the phase-lock fix ships in 1.0. Neither needs application code changes.

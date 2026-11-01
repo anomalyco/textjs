@@ -25,6 +25,7 @@ import { getTxError, TX_ERRORS, VERSION } from "@textjs/core";
 import { humansTxt, llmsTxt, statusApi } from "../src/static-files";
 import { DOCS, docPath } from "../src/docs/registry";
 import { COMPONENTS } from "../src/pages/status-components";
+import { INCIDENTS } from "../src/pages/status-incidents";
 
 describe("hero files", () => {
   test("app/globals.css is empty and renders one numbered line", () => {
@@ -100,12 +101,23 @@ describe("generated static files", () => {
       status: { indicator: "none", description: "All Systems Operational" },
     });
     const { components } = JSON.parse(files["components.json"]);
-    expect(components.map((c: { name: string }) => c.name)).toEqual(["console.log", "console.clear", "Yoga", "Turbolog encoder", "DevTools Throttler"]);
+    expect(components.map((c: { name: string }) => c.name)).toEqual(["console.log", "console.clear", "Yoga", "Turbolog encoder", "DevTools Throttler", "textjs.org"]);
     for (const c of components) expect(c.status).toBe("operational");
     expect(components[1].description).toBe(COMPONENTS[1]?.detail);
     const summary = JSON.parse(files["summary.json"]);
     expect(Object.keys(summary)).toEqual(["page", "components", "incidents", "scheduled_maintenances", "status"]);
     expect(summary.components).toEqual(components);
+    // Every incident is resolved, so none is current.
+    expect(summary.incidents).toEqual([]);
+    const { incidents } = JSON.parse(files["incidents.json"]);
+    expect(incidents.length).toBe(INCIDENTS.length);
+    for (const i of incidents) {
+      expect(i.status).toBe("resolved");
+      expect(i.shortlink).toBe(`https://textjs.org/status#${i.id}`);
+      expect(i.incident_updates[0].status).toBe("resolved");
+      expect(Date.parse(i.resolved_at)).toBeLessThanOrEqual(Date.parse(status.page.updated_at));
+      for (const c of i.components) expect(components.map((x: { id: string }) => x.id)).toContain(c.id);
+    }
   });
 });
 
