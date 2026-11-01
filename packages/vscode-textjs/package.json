@@ -1,7 +1,7 @@
 {
   "name": "vscode-textjs",
   "displayName": "Text.js",
-  "description": "Live console preview, App Router scaffolding, snippets and TX error links for Text.js — The Console Framework for the Web.",
+  "description": "Live console preview, App Router scaffolding, snippets and TX error links for Text.js, the Console Framework for the Web.",
   "version": "1.0.0",
   "private": true,
   "publisher": "textjs",

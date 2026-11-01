@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Text.js DevTools",
   "short_name": "Text.js",
-  "description": "Inspect Text.js console apps: component tree, cell-level frame inspector and frame timeline. DevTools inside DevTools.",
+  "description": "Inspect Text.js console apps: component tree, cell-level frame inspector and frame timeline.",
   "version": "0.0.0",
   "minimum_chrome_version": "111",
   "homepage_url": "https://textjs.org/docs/devtools-extension",

@@ -105,9 +105,9 @@ function ModeBadge({ state }: { state: PreviewState }): ReactNode {
         value={state.preference}
         onChange={(e) => post({ type: "setMode", preference: e.target.value as ModePreference })}
       >
-        <option value="auto">Auto — live when a tab is open</option>
-        <option value="live">Live — mirror the browser tab</option>
-        <option value="headless">Headless — render the file here</option>
+        <option value="auto">Auto: live when a tab is open</option>
+        <option value="live">Live: mirror the browser tab</option>
+        <option value="headless">Headless: render the file here</option>
       </select>
     </label>
   );
