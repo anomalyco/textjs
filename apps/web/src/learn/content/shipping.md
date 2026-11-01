@@ -22,7 +22,7 @@ Route (app)                              Type       Target
 ├ ƒ /deployments/[id]                    Dynamic    console.log (%c)
 ├ ○ /settings                            Static     console.log (%c)
 └ ƒ /api/deployments                     Dynamic    Route Handler
-+ First Load JS shared by all             698.0 kB (241.6 kB gzip)
++ First Load JS shared by all             698.2 kB (241.6 kB gzip)
 
 ○  (Static)   prerendered as static console cells
 ƒ  (Dynamic)  on-demand console reconciliation
