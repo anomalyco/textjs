@@ -3,6 +3,7 @@ import { act } from "react";
 import { CompanionApp } from "../src/console-companion/App";
 import { siteStore } from "../src/console-companion/store";
 import { DashboardDemo } from "../src/demos/Dashboard";
+import { getPost } from "../src/blog";
 import { partsFromSteps, scriptFor } from "../src/demos/opencode/model";
 import { render } from "../src/entry-server";
 import { getLocation, resetLocation } from "../src/router";
@@ -179,15 +180,18 @@ describe("blog posts in the console", () => {
     // The right column is the ScrollBox's scrollbar.
     expect(lines[3]?.slice(0, -1).trim()).toBe("The Inverted Architecture");
     expect(lines[4]?.slice(0, -1).trim()).toBe("October 31, 2026");
-    expect(f).toContain("Our logo is ▼.");
+    // The post's opening words, whatever the copy says today.
+    const opening = (getPost("the-inverted-architecture")?.markdown ?? "").split(/[,.]/)[0] as string;
+    expect(opening.length).toBeGreaterThan(10);
+    expect(f).toContain(opening);
     expect(lines.at(-1)?.trim()).toBe("↑ ↓ scroll");
     expect(f).not.toContain("What the page sees");
     for (let i = 0; i < 60; i++) await h.key("down");
     f = h.frame();
-    expect(f).not.toContain("Our logo is ▼.");
+    expect(f).not.toContain(opening);
     expect(f).toContain("What the page sees");
     for (let i = 0; i < 60; i++) await h.key("up");
-    expect(h.frame()).toContain("Our logo is ▼.");
+    expect(h.frame()).toContain(opening);
 
     await site(() => resetLocation("/blog/text-js-1-0"));
     f = h.frame();
