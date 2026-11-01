@@ -73,3 +73,18 @@ export default function Page() {
     expect(route?.messages.map((m) => m.ruleId)).toEqual(["textjs/route-handler-exports"]);
   });
 });
+
+describe("first-run code", () => {
+  test("create-text-app templates, examples and the runnable apps are clean under the recommended config", async () => {
+    // A new project that adds the plugin as its README shows must start with zero findings.
+    const repo = join(import.meta.dir, "../../..");
+    const eslint = new ESLint({
+      cwd: repo,
+      overrideConfigFile: true,
+      overrideConfig: [{ ignores: ["**/node_modules/**", "**/dist/**"] }, { files: ["**/*.{ts,tsx}"], languageOptions: { parser: tsParser } }, configs.recommended as never],
+    });
+    const results = await eslint.lintFiles(["packages/create-text-app/templates", "examples", "apps/opencode-console", "apps/terminal-shop"]);
+    const findings = results.flatMap((r) => r.messages.map((m) => `${r.filePath.slice(repo.length)}:${m.line} ${m.ruleId}`));
+    expect(findings).toEqual([]);
+  }, 60_000);
+});
