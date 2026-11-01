@@ -20,7 +20,7 @@ const EGGS = [
   ["Stefan Avram", "/enterprise", "stefan", "We're all ears"],
   ["Tas", "/enterprise", "tas", "Flying away from the redlines"],
   ["Jay", "/merch", "jay", "Sleeve length"],
-  ["Aiden Cline", "/merch", "aiden", "Traditional flash"],
+  ["Aiden Cline", "/merch", "aiden", "American traditional"],
   ["Michelle Bakels", "/merch", "michelle", "Same as Across"],
   ["Juliana Ardila", "/merch", "huli", "is money even real"],
   ["Daniel Chen", "/status", "daniel", "Daniel's Chicken Coop"],

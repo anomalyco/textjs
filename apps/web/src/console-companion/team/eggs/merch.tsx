@@ -14,10 +14,10 @@ const JAY = [
   "....hhhhsseessseesshhh....",
   "....hhhhsssssSsssssshh....",
   "....hhhhssssSSSssssshh....",
-  "....hhhhsbbbbbbbbbbshh....",
-  "....hhhhsbbbsssbbbbshh....",
-  "....hhhhhbbbbbbbbbbhhh....",
-  ".....hhhhhbbbbbbbbhhhh....",
+  "....hhhhsssssssssssshh....",
+  "....hhhhssssSSSssssshh....",
+  "....hhhhhsssssssssshhh....",
+  ".....hhhhhsssssssshhhh....",
   ".....hhhhh..ssss..hhhh....",
   "....hhhhhh.ssssss.hhhhh...",
   "...hhhhhtTt.ssss.tTthhhh..",
@@ -81,7 +81,7 @@ export function JayEgg(): ReactNode {
   );
 }
 
-// ── Aiden: the flash sheet ──
+// ── Aiden: the tattoo sleeve ──
 
 interface Flash {
   art: readonly string[];
@@ -111,7 +111,7 @@ export function AidenEgg(): ReactNode {
   });
   const rows = [FLASH.slice(0, 3), FLASH.slice(3, 6), FLASH.slice(6, 9)];
   return (
-    <EggFrame crumb="flash sheet" hints={[{ keys: "Space", label: "add flash" }]}>
+    <EggFrame crumb="tattoo sleeve" hints={[{ keys: "Space", label: "add a tattoo" }]}>
       <Box className="flex-col grow items-center justify-center gap-1">
         <Box className="flex-col shrink-0 px-2" border borderStyle="rounded" borderColor={theme.border}>
           {rows.map((row, r) => (
@@ -136,7 +136,7 @@ export function AidenEgg(): ReactNode {
         </Box>
         <Facts
           rows={[
-            ["Style", "Traditional flash"],
+            ["Style", "American traditional"],
             ["Placement", `Full sleeve, ${count} of ${FLASH.length}`],
           ]}
         />
