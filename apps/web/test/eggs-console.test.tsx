@@ -5,7 +5,7 @@ import { siteStore } from "../src/console-companion/store";
 import { DashboardDemo } from "../src/demos/Dashboard";
 import { partsFromSteps, scriptFor } from "../src/demos/opencode/model";
 import { render } from "../src/entry-server";
-import { resetLocation } from "../src/router";
+import { getLocation, resetLocation } from "../src/router";
 import { mount } from "./helpers";
 
 async function site(fn: () => void): Promise<void> {
@@ -97,6 +97,63 @@ describe("Dashboard: dev1", () => {
   test("the region row fits the narrowest console (40 cols)", async () => {
     const h = await mount(<DashboardDemo />, { cols: 40, rows: 26 });
     expect(h.frame().split("\n")[0]).toBe("  iad1  sfo1  fra1  hnd1  dev1");
+    await h.unmount();
+  });
+});
+
+/** Just enough of `window` for `navigate()`. */
+function fakeWindow(pathname: string): { restore(): void; pushed: string[] } {
+  const g = globalThis as { window?: unknown };
+  const prev = g.window;
+  const pushed: string[] = [];
+  const location = { href: `https://textjs.org${pathname}`, origin: "https://textjs.org", assign: () => undefined };
+  g.window = { location, history: { pushState: (_s: unknown, _t: string, url: string) => pushed.push(url), replaceState: () => undefined } };
+  return { pushed, restore: () => void (g.window = prev) };
+}
+
+describe("404 in the console", () => {
+  afterAll(async () => {
+    await site(() => resetLocation("/"));
+    await site(() => siteStore.reset());
+  });
+
+  test("an unknown path shows Next's 404, centered, with Enter to go home", async () => {
+    await site(() => resetLocation("/this-page-does-not-exist"));
+    const h = await mount(<CompanionApp />, { cols: 100, rows: 26, tabFocus: false });
+    const f = h.frame();
+    const lines = f.split("\n");
+    expect(siteStore.getSnapshot().tab).toBe("home");
+    expect(lines[1]?.trim()).toBe("▼ Text.js");
+    const row = lines.find((l) => l.includes("404")) ?? "";
+    expect(row.trim()).toBe("404 │ This page could not be found.");
+    const left = row.indexOf("404");
+    const right = 100 - (left + "404 │ This page could not be found.".length);
+    expect(Math.abs(left - right)).toBeLessThanOrEqual(1);
+    expect(lines.at(-1)?.trim()).toBe("Enter home");
+    expect(f).not.toContain("React 19 in console.log");
+
+    const w = fakeWindow("/this-page-does-not-exist");
+    try {
+      await h.key("return");
+    } finally {
+      w.restore();
+    }
+    expect(w.pushed).toEqual(["/"]);
+    expect(getLocation().pathname).toBe("/");
+    expect(h.frame()).toContain("React 19 in console.log");
+    expect(h.frame()).not.toContain("could not be found");
+    await h.unmount();
+  });
+
+  test("real pages that share the Home view are not 404s", async () => {
+    const h = await mount(<CompanionApp />, { cols: 100, rows: 26, tabFocus: false });
+    for (const path of ["/", "/changelog", "/status", "/errors/TX020", "/enterprise"]) {
+      await site(() => resetLocation(path));
+      expect(h.frame()).not.toContain("could not be found");
+    }
+    await site(() => resetLocation("/docs/no-such-doc"));
+    // /docs/* keeps the Docs view.
+    expect(h.frame()).not.toContain("could not be found");
     await h.unmount();
   });
 });

@@ -3,21 +3,25 @@ import { Box, KeyHint, Text, useApp, useFocusManager, useInput } from "@textjs/r
 import { OpenCodeLite } from "../demos/opencode/OpenCodeLite";
 import { PresetView } from "../demos/presets";
 import { useSite } from "./useSite";
-import { hintsFor, PRESETS, type CompanionTab } from "./store";
+import { hintsFor, PRESETS, type CompanionTab, type Hint } from "./store";
 import { HomeTab } from "./tabs/HomeTab";
 import { DocsTab } from "./tabs/DocsTab";
 import { exampleGrid, ExampleTab } from "./tabs/ExampleTab";
 import { LearnConsole } from "../learn/apps/LearnConsole";
+import { matchRoute } from "../router";
+import { NotFoundTab } from "./tabs/NotFoundTab";
 
 // Only /terminal needs the shop, so it loads on first visit.
 const TerminalConsole = lazy(() => import("../demos/terminal").then((m) => ({ default: m.TerminalConsole })));
 
 const PAGE_LABEL: Record<CompanionTab, string> = { home: "", playground: "playground", opencode: "opencode", docs: "docs", learn: "learn", terminal: "terminal" };
 
+const NOT_FOUND_HINTS: readonly Hint[] = [{ keys: "Enter", label: "home" }];
+
 /** One quiet row of keys at the bottom of every view. */
-function HintLine({ tab }: { tab: CompanionTab }): ReactNode {
+function HintLine({ tab, hints: override }: { tab: CompanionTab; hints?: readonly Hint[] }): ReactNode {
   const site = useSite();
-  const { hints } = hintsFor(tab, site.preset);
+  const hints = override ?? hintsFor(tab, site.preset).hints;
   return (
     <Box className="flex-row h-1 shrink-0 px-2 gap-3">
       {hints.map((h) => (
@@ -47,6 +51,8 @@ export function CompanionApp(): ReactNode {
   const tab = site.tab;
   const example = tab === "docs" && site.example !== null && exampleGrid(site.example) ? site.example : null;
   const wireframe = useRef(false);
+  // Unknown paths keep the Home tab (so off-route demos stop) but show the 404.
+  const notFound = tab === "home" && matchRoute(site.pathname).name === "not-found";
 
   useInput(
     (e) => {
@@ -82,11 +88,11 @@ export function CompanionApp(): ReactNode {
     <Box className="flex-col grow pt-1">
       <Header tab={tab} />
       <Box className="flex-col grow overflow-hidden" paddingTop={1}>
-        {tab === "home" ? <HomeTab /> : null}
+        {tab === "home" ? notFound ? <NotFoundTab /> : <HomeTab /> : null}
         {tab === "playground" ? <PresetView key={site.preset} preset={site.preset} reserveRows={6} /> : null}
         {tab === "docs" ? <DocsTab /> : null}
       </Box>
-      <HintLine tab={tab} />
+      <HintLine tab={tab} hints={notFound ? NOT_FOUND_HINTS : undefined} />
     </Box>
   );
 }
