@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { formatPostDate } from "../blog";
 import { TurbologLockup } from "../site/brand-marks";
 import { Inline } from "../site/Markdown";
+import { useInView } from "../site/useInView";
 import { useConsoleLogDown } from "../console-health";
 import { A } from "../router";
 import type { BenchResult, Summary } from "./status-bench";
@@ -76,10 +77,13 @@ type BenchState = { phase: "idle" } | { phase: "running"; progress: number } | {
 function LiveBenchmark(): ReactNode {
   const [state, setState] = useState<BenchState>({ phase: "idle" });
   const running = useRef(false);
+  const autoStarted = useRef(false);
+  const [cardRef, near] = useInView<HTMLElement>("200px");
 
   const run = (): void => {
     if (running.current) return;
     running.current = true;
+    autoStarted.current = true;
     setState({ phase: "running", progress: 0 });
     void import("./status-bench")
       .then((m) => m.runPipelineBench((progress) => setState({ phase: "running", progress })))
@@ -91,14 +95,24 @@ function LiveBenchmark(): ReactNode {
   };
 
   useEffect(() => {
+    if (!near || autoStarted.current) return;
+    let timerId: number | null = null;
+    let idleId: number | null = null;
     const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
-    if (w.requestIdleCallback) {
-      const id = w.requestIdleCallback(run, { timeout: 1500 });
-      return () => window.cancelIdleCallback?.(id);
-    }
-    const id = window.setTimeout(run, 300);
-    return () => window.clearTimeout(id);
-  }, []);
+    const schedule = (): void => {
+      timerId = window.setTimeout(() => {
+        if (w.requestIdleCallback) idleId = w.requestIdleCallback(run);
+        else run();
+      }, 600);
+    };
+    if (document.readyState === "complete") schedule();
+    else window.addEventListener("load", schedule, { once: true });
+    return () => {
+      window.removeEventListener("load", schedule);
+      if (timerId !== null) window.clearTimeout(timerId);
+      if (idleId !== null) window.cancelIdleCallback?.(idleId);
+    };
+  }, [near]);
 
   const result = state.phase === "done" ? state.result : null;
   const progress = state.phase === "running" ? state.progress : state.phase === "done" ? 1 : 0;
@@ -112,7 +126,7 @@ function LiveBenchmark(): ReactNode {
   ];
 
   return (
-    <section className="st-card st-live" aria-labelledby="st-live-title">
+    <section ref={cardRef} className="st-card st-live" aria-labelledby="st-live-title">
       <div className="st-card-head">
         <div>
           <h2 id="st-live-title">Live benchmark</h2>

@@ -98,6 +98,7 @@ export function SnakeDemo({ reserveRows = 4, autoStart = false }: SnakeDemoProps
   const h = Math.max(6, Math.min(26, vp.rows - reserveRows - 6));
   const w = Math.max(10, Math.min(40, Math.floor((vp.cols - 8) / 2)));
   const game = useRef<Game>(newGame(w, h));
+  const cellsBuf = useRef<Uint8Array | null>(null);
   const [, setFrame] = useState(0);
   const [high, setHigh] = useState(readHigh);
 
@@ -123,8 +124,8 @@ export function SnakeDemo({ reserveRows = 4, autoStart = false }: SnakeDemoProps
           writeHigh(g.score);
           setHigh(g.score);
         }
+        setFrame((f) => f + 1);
       }
-      setFrame((f) => f + 1);
     }, 16);
     return () => clearInterval(id);
   }, [ticking]);
@@ -155,7 +156,14 @@ export function SnakeDemo({ reserveRows = 4, autoStart = false }: SnakeDemoProps
   });
 
   const g = game.current;
-  const cells = new Uint8Array(g.w * g.h);
+  const cellCount = g.w * g.h;
+  let cells = cellsBuf.current;
+  if (cells === null || cells.length !== cellCount) {
+    cells = new Uint8Array(cellCount);
+    cellsBuf.current = cells;
+  } else {
+    cells.fill(0);
+  }
   g.snake.forEach((p, i) => {
     if (p.x >= 0 && p.y >= 0 && p.x < g.w && p.y < g.h) cells[p.y * g.w + p.x] = i === 0 ? 2 : 1;
   });
