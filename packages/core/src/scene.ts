@@ -236,6 +236,9 @@ const DEFAULT_RESOLVED_STYLE: ResolvedStyle = Object.freeze({
 
 let nextNodeId = 1;
 
+/** Text leaves resized in place by the row fast path, whose Yoga measurement is out of date (see `calculateLayout`). */
+const yogaStale = new Set<SceneNode>();
+
 export class SceneNode {
   readonly id = nextNodeId++;
   readonly type: SceneNodeType;
@@ -359,6 +362,11 @@ export class SceneNode {
     this.markGeometryDirty();
   }
 
+  /** The node's size changed in place; Yoga still caches the old measurement until its next layout. */
+  private markYogaStale(): void {
+    yogaStale.add(this);
+  }
+
   private ensureYoga(): void {
     if (this.yoga !== null || this.destroyed) return;
     const node = createYogaNode();
@@ -473,6 +481,7 @@ export class SceneNode {
   /** Free Yoga memory for this subtree. The node must not be used afterwards. */
   destroy(): void {
     this.destroyed = true;
+    yogaStale.delete(this);
     this.painted = false;
     if (this.pendingTextNodes !== null) this.pendingTextNodes.clear();
     if (this.parent) this.parent.removeChild(this);
@@ -781,7 +790,13 @@ export class SceneNode {
   // Layout
   // ---------------------------------------------------------------------------
 
-  private canFastUpdateRowTextLeaf(mWidth: number, mHeight: number): boolean {
+  /**
+   * Whether a width change of this row's last text leaf (from `prevWidth` to `mWidth` measured cells) can be applied in
+   * place, without running Yoga. Only when nothing else in the row depends on the free space: no sibling grows, and the
+   * row had room to spare before and after (so no item was shrunk). Yoga's own measure cache for the node is then stale;
+   * {@link markYogaStale} re-measures it the next time Yoga runs.
+   */
+  private canFastUpdateRowTextLeaf(prevWidth: number, mWidth: number, mHeight: number): boolean {
     const parent = this.parent;
     if (parent === null || parent.type !== "box" || !parent.relValid) return false;
     if (this.padded || this.resolved.borderStyle !== "none") return false;
@@ -820,17 +835,18 @@ export class SceneNode {
       if (!fixedW) return false;
       cur = cur.parent;
     }
+    // A growing sibling (a <Spacer>, say) takes whatever this leaf gives up, so the leaf would move.
+    for (let i = 0; i < siblings.length - 1; i++) {
+      if (((siblings[i] as SceneNode).props.flexGrow ?? 0) > 0) return false;
+    }
     const PL = parent.layout;
     const L = this.layout;
     const usedBefore = L.x - PL.contentX;
     const availAfter = PL.contentWidth - usedBefore;
     if (mWidth > availAfter) return false;
+    // With no spare room before, Yoga may have shrunk siblings to fit, and they would widen again.
+    if (prevWidth >= availAfter) return false;
     const grow = p.flexGrow ?? 0;
-    if (grow > 0) {
-      for (let i = 0; i < siblings.length - 1; i++) {
-        if (((siblings[i] as SceneNode).props.flexGrow ?? 0) > 0) return false;
-      }
-    }
     const align = p.alignSelf === undefined || p.alignSelf === "auto" ? (pp.alignItems ?? "stretch") : p.alignSelf;
     if (align !== "stretch" && mHeight !== this.rel.height) return false;
     const newW = grow > 0 ? availAfter : mWidth;
@@ -875,8 +891,9 @@ export class SceneNode {
               const widthUnchanged = m.width === mc[lastIdx + 2] && (mc.length === 4 || m.width === mc[2]);
               if (widthUnchanged) {
                 // Identical width & height.
-              } else if (owner.canFastUpdateRowTextLeaf(m.width, m.height)) {
+              } else if (owner.canFastUpdateRowTextLeaf(mc[lastIdx + 2] as number, m.width, m.height)) {
                 mc[lastIdx + 2] = m.width;
+                owner.markYogaStale();
                 if (mc.length === 8) mc[2] = owner.computeMeasure(NaN, MeasureMode.Undefined).width;
                 fastHandled = true;
               } else {
@@ -911,6 +928,15 @@ export class SceneNode {
       this.pendingTextNodes.clear();
     }
     if (!force && !y.isDirty() && width === this.lastLayoutW && height === this.lastLayoutH) return false;
+    if (yogaStale.size > 0) {
+      for (const n of yogaStale) {
+        if (n.destroyed || n.yoga === null) yogaStale.delete(n);
+        else if (n.rootAncestor() === this) {
+          yogaStale.delete(n);
+          n.markTextYogaDirty();
+        }
+      }
+    }
     y.calculateLayout(width, height, Direction.LTR);
     this.lastLayoutW = width;
     this.lastLayoutH = height;

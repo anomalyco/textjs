@@ -20,6 +20,7 @@ import {
   type TableColumn,
 } from "@textjs/react";
 import { siteStore } from "../../console-companion/store";
+import { getChapter } from "../course";
 import { BUILD_TIMES, DEPLOYMENTS, seconds, Status, STATUS, TopBar, type DeployStatus, type Deployment } from "./acme";
 
 /* ─────────────── 01 · Getting started ─────────────── */
@@ -354,13 +355,19 @@ export function ComponentsApp(): ReactNode {
 
 /* ─────────────── 08 · Testing ─────────────── */
 
-const TESTS = [
+export const TESTING_SUITE = [
   { name: "lists every deployment", ms: 14 },
   { name: "↓ moves the highlight", ms: 9 },
   { name: "Enter opens the details panel", ms: 11 },
   { name: "2 navigates to /deployments", ms: 7 },
-  { name: "s sorts by build time", ms: 12 },
+  { name: "4 sorts by build time", ms: 12 },
 ];
+
+/** What `f` shows: the ↓ test failing because the highlight stayed on the first row (an 80-column render). */
+export const BROKEN_TEST = {
+  assertion: 'expect(row).toContain("perf: merge spans across rows")',
+  received: "› ● Ready      feat: stream cells downward                    acme-web       38s",
+};
 
 export function TestingApp(): ReactNode {
   const [run, setRun] = useState(0);
@@ -378,17 +385,17 @@ export function TestingApp(): ReactNode {
     e.stopPropagation();
   });
   useEffect(() => {
-    if (run === 0 || shown >= TESTS.length) return;
+    if (run === 0 || shown >= TESTING_SUITE.length) return;
     const t = setTimeout(() => setShown((n) => n + 1), 140);
     return () => clearTimeout(t);
   }, [run, shown]);
-  const done = run > 0 && shown >= TESTS.length;
+  const done = run > 0 && shown >= TESTING_SUITE.length;
   const failIndex = broken ? 1 : -1;
   return (
     <Box className="flex-col grow p-1">
       <Text color="subtle">{"$ bun test"}</Text>
       {run === 0 ? <Text color="muted">Press Enter to run the suite.</Text> : <Text color="muted">deployments.test.tsx:</Text>}
-      {TESTS.slice(0, shown).map((t, i) => (
+      {TESTING_SUITE.slice(0, shown).map((t, i) => (
         <Box key={t.name} className="flex-row h-1 gap-1">
           <Text color={i === failIndex ? "danger" : "success"}>{i === failIndex ? "✗" : "✓"}</Text>
           <Text color={i === failIndex ? "fg" : "muted"} wrap="truncate-end">
@@ -398,15 +405,17 @@ export function TestingApp(): ReactNode {
       ))}
       {done && broken ? (
         <Box className="flex-col shrink-0" marginTop={1}>
-          <Text color="danger">{'expect(app.lastFrame()).toContain("› feat: merge spans")'}</Text>
-          <Text color="muted">{'Received: "› feat: stream cells downward"'}</Text>
+          <Text color="danger" wrap="truncate-end">
+            {BROKEN_TEST.assertion}
+          </Text>
+          <Text color="muted" wrap="truncate-end">{`Received: "${BROKEN_TEST.received}"`}</Text>
         </Box>
       ) : null}
       {done ? (
         <Box className="flex-row gap-2 h-1" marginTop={1}>
-          <Text color="success">{`${broken ? TESTS.length - 1 : TESTS.length} pass`}</Text>
+          <Text color="success">{`${broken ? TESTING_SUITE.length - 1 : TESTING_SUITE.length} pass`}</Text>
           <Text color={broken ? "danger" : "subtle"}>{`${broken ? 1 : 0} fail`}</Text>
-          <Text color="subtle">{`Ran ${TESTS.length} tests across 1 file. [${broken ? 61 : 58}.00ms]`}</Text>
+          <Text color="subtle">{`Ran ${TESTING_SUITE.length} tests across 1 file. [${broken ? 61 : 58}.00ms]`}</Text>
         </Box>
       ) : null}
     </Box>
@@ -461,42 +470,52 @@ export function TerminalApp(): ReactNode {
 
 /* ─────────────── 10 · Shipping ─────────────── */
 
-const BUILD_LOG = [
-  "▼ Text.js 1.0.0 (Turbolog)",
-  "  Compiling app/ … 4 routes, 1 route handler",
-  "  Bundling 1 client chunk (41.2 kB gzip)",
-  "✓ Built in 1.8s",
-  "  Uploading build output …",
-  "✓ Production: https://acme-deploys.vercel.app",
+/** The chapter's `text build` output (from a real build of the course app), revealed a block at a time as the CLI prints it. */
+const TEXT_BUILD: readonly string[] = /^```text\n([\s\S]*?)\n```/m.exec(getChapter("shipping")?.markdown ?? "")?.[1]?.split("\n") ?? [];
+
+const DEPLOY_LOG: readonly string[] = ["  Uploading build output …", "✓ Production: https://acme-deploys.vercel.app"];
+
+const BUILD_STEPS: readonly number[] = [
+  ...TEXT_BUILD.flatMap((line, i) => (line === "" || i === TEXT_BUILD.length - 1 ? [i + 1] : [])),
+  ...DEPLOY_LOG.map((_, i) => TEXT_BUILD.length + i + 1),
 ];
 
+const BUILD_LOG: readonly string[] = [...TEXT_BUILD, ...DEPLOY_LOG];
+
 export function ShippingApp(): ReactNode {
-  const [lines, setLines] = useState(0);
+  const [step, setStep] = useState(0);
   const [started, setStarted] = useState(false);
   useInput((e) => {
     if (e.key === "return" && !started) setStarted(true);
     else if (e.input === "r") {
       setStarted(false);
-      setLines(0);
+      setStep(0);
     } else return;
     e.stopPropagation();
   });
   useEffect(() => {
-    if (!started || lines >= BUILD_LOG.length) return;
-    const t = setTimeout(() => setLines((n) => n + 1), 260);
+    if (!started || step >= BUILD_STEPS.length) return;
+    const t = setTimeout(() => setStep((n) => n + 1), 260);
     return () => clearTimeout(t);
-  }, [started, lines]);
-  const shipped = lines >= BUILD_LOG.length;
+  }, [started, step]);
+  const shipped = step >= BUILD_STEPS.length;
+  const lines = started ? BUILD_LOG.slice(0, BUILD_STEPS[step - 1] ?? 0) : [];
   return (
-    <Box className="flex-col grow p-1">
-      <Text color="subtle">{"$ text build && vercel deploy --prod"}</Text>
+    <Box className="flex-col grow basis-0 p-1">
+      <Text color="subtle" flexShrink={0}>
+        {"$ text build && vercel deploy --prod"}
+      </Text>
       {!started ? <Text color="muted">Press Enter to ship Acme Deploys.</Text> : null}
-      {BUILD_LOG.slice(0, lines).map((l) => (
-        <Text key={l} color={l.startsWith("✓") ? "success" : "muted"} wrap="truncate-end">
-          {l}
-        </Text>
-      ))}
-      {started && !shipped ? <Spinner label="Working…" /> : null}
+      {/* Fills from the top; once the log is taller than the box, older lines scroll off the top as in a terminal. */}
+      <Box className="flex-col grow basis-0 justify-end overflow-hidden">
+        {lines.map((l, i) => (
+          <Text key={i} color={/^\s*✓/.test(l) ? "success" : "muted"} wrap="truncate-end" flexShrink={0}>
+            {l === "" ? " " : l}
+          </Text>
+        ))}
+        {started && !shipped ? <Spinner label="Working…" /> : null}
+        <Box className="grow" />
+      </Box>
       {shipped ? (
         <Box className="flex-col border rounded px-2 py-1 shrink-0" marginTop={1}>
           <Text bold>▼ Shipped.</Text>

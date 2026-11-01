@@ -38,15 +38,19 @@ Terminal users expect `q`. `useApp().exit()` unmounts the app and restores the t
 
 ## Your own CLI
 
-For a single component, use `renderToTerminal`:
+For a single component, use `renderToTerminal`. It mounts one element without the App Router, and `fetch("/api/…")` only reaches your route handlers under `text run`, so pass the component its data:
 
 ```tsx@cli.tsx
 import { renderToTerminal } from "@textjs/next/terminal";
-import DeploymentsPage from "./app/deployments/page";
+import { Table } from "@textjs/next";
+import { DEPLOYMENTS } from "./lib/deployments";
 
-const app = await renderToTerminal(<DeploymentsPage />);
+const columns = [{ key: "commit", header: "Commit" }, { key: "project", header: "Project", width: 10 }];
+const app = await renderToTerminal(<Table columns={columns} rows={DEPLOYMENTS} autoFocus />);
 await app.waitUntilExit();
 ```
+
+Run it with `bun cli.tsx`. `DeploymentsPage` fetches its rows, so it needs `text run`.
 
 ## What's different
 

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { join } from "node:path";
 import { useEffect, useState } from "react";
 import { Box, Input, Text, useInput, usePaste, useWheel } from "../src/index";
 import { cleanup, keyEventFromCombo, render, renderToString } from "../src/testing";
@@ -78,5 +79,13 @@ describe("@textjs/react/testing", () => {
     expect(keyEventFromCombo("?")).toMatchObject({ key: "?", input: "?" });
     expect(keyEventFromCombo("space")).toMatchObject({ key: "space", input: " " });
     expect(() => keyEventFromCombo("g g")).toThrow();
+  });
+
+  test("renders when the test stubs fetch before the first render", () => {
+    // Yoga's WebAssembly loads through fetch; a fresh process makes sure it isn't loaded already.
+    const r = Bun.spawnSync([process.execPath, join(import.meta.dir, "fixtures/stubbed-fetch.tsx")]);
+    expect(r.stderr.toString()).not.toContain("CompileError");
+    expect(r.stdout.toString().trim()).toBe("hello");
+    expect(r.exitCode).toBe(0);
   });
 });
