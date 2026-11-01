@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import { A } from "../router";
 
 export const SALES_EMAIL = "enterprise@textjs.org";
-const SALES_HREF = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent("Text.js Enterprise")}`;
+const SALES_BODY = ["Company:", "Team size:", "DevTools dock position (bottom, left, right or undocked):", "%c spans per frame (text.stats().spanCount):", ""].join("\r\n");
+export const SALES_HREF = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent("Text.js Enterprise")}&body=${encodeURIComponent(SALES_BODY)}`;
 
 const STATS = [
   { value: "99.99%", label: "of console.log calls return" },

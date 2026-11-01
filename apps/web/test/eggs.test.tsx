@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { matchRoute } from "../src/router";
+import { RouteView } from "../src/App";
+import { SALES_HREF } from "../src/pages/Enterprise";
 import { renderToStaticMarkup } from "react-dom/server";
 import { HERO_FILES } from "../src/pages/home-files";
 import { HighlightedCode } from "../src/site/highlight";
@@ -123,5 +125,16 @@ describe("nextjs.org paths redirect", () => {
     const cfg = JSON.parse(readFileSync(join(root, "vercel.json"), "utf8")) as { redirects: Array<{ source: string; destination: string; permanent: boolean }> };
     const expected = rules.filter((r) => !r.from.endsWith("/")).map((r) => ({ source: r.from.replace(/\/\*$/, "/:path*"), destination: r.to, permanent: r.status === 301 }));
     expect(cfg.redirects).toEqual(expected);
+  });
+});
+
+describe("enterprise", () => {
+  test("the sales email opens with an intake form", () => {
+    const url = new URL(SALES_HREF);
+    expect(url.protocol).toBe("mailto:");
+    expect(url.pathname).toBe("enterprise@textjs.org");
+    expect(url.searchParams.get("subject")).toBe("Text.js Enterprise");
+    expect(url.searchParams.get("body")).toBe("Company:\r\nTeam size:\r\nDevTools dock position (bottom, left, right or undocked):\r\n%c spans per frame (text.stats().spanCount):\r\n");
+    expect(renderToStaticMarkup(<RouteView route={{ name: "enterprise" }} />)).toContain(`href="${SALES_HREF.replace(/&/g, "&amp;")}"`);
   });
 });
