@@ -6,11 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-### Changed
-
-- `<FocusPad>` has a new layout. Each state shows a three-part progress bar, a headline, one large element and a line of text. Before the console is open, the large element is the DevTools shortcut. Waiting for a click, it's a pointer. Once live, it's the app's `hints` as keycaps that light up as keys arrive, and keys without a hint are echoed below. The step labels, the separate "Live" badge and the "Watch the console." line are gone. Rows fade in on state changes, never on first paint, and motion is off under `prefers-reduced-motion`. Secondary text meets WCAG AA contrast in both appearances, and the console size picker shows a focus ring when it's reached with the keyboard.
-- textjs.org: the Playground uses the new `<FocusPad>` layout. The picker's current demo has the keycaps' surface, the OpenCode command field matches the URL field's corners and type size, the terminal.shop note takes two lines instead of three, "View source" sits on the size control's baseline, and quiet text in the pad meets AA contrast.
-
 ## [1.0.1] - 2026-11-01
 
 ### Added
@@ -22,9 +17,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - textjs.org: the Playground picker lists Dashboard, Streaming, Snake, OpenCode and Coffee (terminal.shop). Each demo has its own URL: OpenCode is at `/opencode` and terminal.shop at `/coffee`, and their wordmarks head the message. Counter and Form moved out of the Playground; the docs still run both as live examples.
+- `<FocusPad>` has a new layout. Each state shows a three-part progress bar, a headline, one large element and a line of text. Before the console is open, the large element is the DevTools shortcut. Waiting for a click, it's a pointer. Once live, it's the app's `hints` as keycaps that light up as keys arrive, and keys without a hint are echoed below. The step labels, the separate "Live" badge and the "Watch the console." line are gone. Rows fade in on state changes, never on first paint, and motion is off under `prefers-reduced-motion`. Secondary text meets WCAG AA contrast in both appearances, and the console size picker shows a focus ring when it's reached with the keyboard.
+- textjs.org: the Playground uses the new `<FocusPad>` layout. The picker's current demo has the keycaps' surface, the OpenCode command field matches the URL field's corners and type size, the terminal.shop note takes two lines instead of three, "View source" sits on the size control's baseline, and quiet text in the pad meets AA contrast.
 
 ### Fixed
 
+- `text dev` serves `proxy` paths through the proxy for every request. `fetch()` sends `Accept: */*`, so the dev server answered them with the app's HTML first, and the opencode template failed on its first run with "Unexpected token '<'".
+- `text dev` no longer loads a second copy of React when Vite's dependency scan reads a server-only file. The scan tripped the server-only import check, which printed a stack trace, then "Invalid hook call" in the console, and broke Fast Refresh.
+- `text dev` handles page URLs with a query string, such as `/?demo`. Vite treated them as the project folder and watched the whole disk, so on Linux the page never loaded.
+- create-text-app: the dev pill no longer covers the first key hint on any template's first screen, the default project name is `my-app` to match the docs, the templates pass `eslint-plugin-textjs`'s recommended config, and the dashboard README explains the `--adapter static` build.
 - `<FocusPad>` and `<ViewportControl>` set borders with longhand properties only. React warned "Updating a style property during rerender (border)" in development every time a key hint flashed.
 - Text that is the last item in a row now keeps its place when it gets shorter. After a `<Spacer>`, it stayed where the longest text had left it, and siblings shrunk to fit an overflowing row stayed shrunk.
 - `<FocusPad>` replaces its steps, subtitle and key rows when `action` or `hints` change, so switching demos in one pad is not reported as a layout shift.
