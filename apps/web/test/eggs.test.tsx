@@ -9,6 +9,9 @@ import { consoleLogDown, mayForward } from "../src/console-health";
 import { Footer } from "../src/site/Chrome";
 import { onRequest, wantsAnsi } from "../functions/index";
 import { renderHomeAnsi } from "../src/home-ansi";
+import { encodeLogoConsoleLog } from "../src/site/logo-console-gen";
+import { LOGO_CONSOLE_LOG } from "../src/site/logo-console";
+import { LOGO_SVG, WORDMARK_SVG } from "../src/site/LogoMenu";
 import { renderToStaticMarkup } from "react-dom/server";
 import { HERO_FILES } from "../src/pages/home-files";
 import { HighlightedCode } from "../src/site/highlight";
@@ -290,5 +293,24 @@ describe("curl textjs.org", () => {
     expect(ansi).toContain("\u001b[0;38;2;");
     expect(ansi).not.toContain("\u001b[H");
     expect(ansi).not.toContain("\u25B2");
+  });
+});
+
+describe("logo menu", () => {
+  test("the console.log copy is fresh output of the Turbolog encoder", async () => {
+    expect(await encodeLogoConsoleLog()).toBe(LOGO_CONSOLE_LOG);
+    expect(LOGO_CONSOLE_LOG).toStartWith('console.log("%c');
+    expect(LOGO_CONSOLE_LOG).not.toContain("\u25B2");
+    // It's one call: evaluating it logs once, with the banner.
+    const calls: unknown[][] = [];
+    new Function("console", LOGO_CONSOLE_LOG)({ log: (...a: unknown[]) => calls.push(a) });
+    expect(calls).toHaveLength(1);
+    expect(String(calls[0]?.[0])).toContain("███████    █████ ████");
+  });
+
+  test("SVGs are the header mark", () => {
+    expect(LOGO_SVG).toContain('d="M2 4h20L12 21.5z"');
+    expect(WORDMARK_SVG).toContain('d="M2 4h20L12 21.5z"');
+    expect(WORDMARK_SVG).toContain(">Text.js</text>");
   });
 });
