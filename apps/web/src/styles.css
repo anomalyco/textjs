@@ -272,6 +272,11 @@ kbd {
   box-shadow: 0 0 0 3px rgba(245, 165, 36, 0.18);
 }
 
+.dot-red {
+  background: var(--red);
+  box-shadow: 0 0 0 3px rgba(229, 72, 77, 0.18);
+}
+
 .dot-idle {
   background: var(--subtle);
   box-shadow: none;
@@ -1356,6 +1361,26 @@ kbd {
 
 .footer nav a:hover {
   color: var(--fg);
+}
+
+.footer-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.footer-status:hover {
+  color: var(--fg);
+}
+
+.footer-status-label {
+  display: inline-grid;
+}
+
+.footer-status-label > span {
+  grid-area: 1 / 1;
 }
 
 /* ───────────────────────── Console input pill ───────────────────────── */

@@ -561,6 +561,11 @@
   color: var(--fg-strong);
 }
 
+.st-banner-outage {
+  border-color: rgba(229, 72, 77, 0.35);
+  background: rgba(229, 72, 77, 0.08);
+}
+
 .st-updated {
   margin-left: auto;
   font-size: 13px;
@@ -644,6 +649,10 @@
   color: var(--blue-2);
 }
 
+.st-state-outage {
+  color: var(--red);
+}
+
 .st-bars {
   display: flex;
   gap: 2px;
@@ -668,6 +677,10 @@
 
 .st-bar-info {
   background: var(--blue);
+}
+
+.st-bar-outage {
+  background: var(--red);
 }
 
 .st-axis {

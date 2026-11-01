@@ -5,6 +5,8 @@ import { matchRoute } from "../src/router";
 import { RouteView } from "../src/App";
 import { SALES_HREF } from "../src/pages/Enterprise";
 import { linkedInAddUrl } from "../src/learn/certificate";
+import { consoleLogDown, mayForward } from "../src/console-health";
+import { Footer } from "../src/site/Chrome";
 import { renderToStaticMarkup } from "react-dom/server";
 import { HERO_FILES } from "../src/pages/home-files";
 import { HighlightedCode } from "../src/site/highlight";
@@ -169,5 +171,75 @@ describe("learn certificate", () => {
   test("the link holds its place, hidden, until the course is complete", () => {
     const html = renderToStaticMarkup(<RouteView route={{ name: "learn", slug: "certificate" }} />);
     expect(html).toContain('<a class="text-link" target="_blank" rel="noreferrer" style="visibility:hidden">Add to LinkedIn</a>');
+  });
+});
+
+describe("console.log status", () => {
+  const native = console.log;
+
+  test("forwarding wrappers stay operational", () => {
+    const orig = native;
+    const wrappers: unknown[] = [
+      native,
+      native.bind(console),
+      function (...args: unknown[]) {
+        return orig.apply(console, args);
+      },
+      (...args: unknown[]) => orig(...args),
+      (...args: unknown[]) => {
+        void 0;
+        orig.call(console, ...args);
+      },
+      // Sentry's shape.
+      function sentry(this: unknown, ...args: unknown[]) {
+        const breadcrumb = { level: "log", args };
+        void breadcrumb;
+        return orig.apply(this, args);
+      },
+      new Proxy(native, {}),
+      async (...a: unknown[]) => orig(...a),
+      { log(...a: unknown[]) { orig(...a); } }.log,
+    ];
+    for (const w of wrappers) {
+      expect(mayForward(w)).toBe(true);
+      expect(consoleLogDown(w, native)).toBe(false);
+    }
+  });
+
+  test("replacements that can't call through are a major outage", () => {
+    const noops: unknown[] = [
+      () => {},
+      function () {},
+      function noop() {
+        /* silence */
+      },
+      // biome-ignore lint: test shape
+      (..._args: unknown[]) => undefined,
+      () => null,
+      () => void 0,
+      async () => {},
+      { log() {} }.log,
+      new Function(""),
+      eval("(function () { // quiet\n })"),
+      eval("x => 0"),
+      undefined,
+      null,
+      "log",
+    ];
+    for (const n of noops) {
+      expect(mayForward(n)).toBe(false);
+      expect(consoleLogDown(n, native)).toBe(true);
+    }
+  });
+
+  test("the boot-time console.log is never an outage", () => {
+    const quiet = () => {};
+    expect(consoleLogDown(quiet, quiet)).toBe(false);
+    expect(consoleLogDown(native, native)).toBe(false);
+  });
+
+  test("the footer shows operational in the prerender, with both labels sharing one cell", () => {
+    const html = renderToStaticMarkup(<Footer />);
+    expect(html).toContain('<a href="/status" class="footer-status"><span class="dot"></span><span class="footer-status-label"><span>All systems operational</span><span style="visibility:hidden">Major outage</span></span></a>');
   });
 });

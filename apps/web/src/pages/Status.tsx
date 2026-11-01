@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { formatPostDate } from "../blog";
+import { useConsoleLogDown } from "../console-health";
 import { A } from "../router";
 import type { BenchResult, Summary } from "./status-bench";
-import { COMPONENTS, LAUNCH, type Tone } from "./status-components";
+import { COMPONENTS, LAUNCH, type Component, type Tone } from "./status-components";
 import history from "./status-history.json";
 
 const DAYS = 90;
@@ -17,13 +18,41 @@ function dayList(end: string): string[] {
 const DAY_LIST = dayList(history.measuredAt);
 const LIVE_DAYS = DAY_LIST.filter((d) => d >= LAUNCH).length;
 
-function UptimeBars({ name, tone, status }: { name: string; tone: Tone; status: string }): ReactNode {
+const TODAY = DAY_LIST[DAY_LIST.length - 1];
+
+/** `today` overrides the last bar (a `console.log` reassigned in this tab). */
+function UptimeBars({ name, tone, status, today }: { name: string; tone: Tone; status: string; today?: { tone: string; status: string } }): ReactNode {
+  const label = today
+    ? `${name}: ${status} on ${LIVE_DAYS - 1} of the last ${DAYS} days, ${today.status} today, no data before launch`
+    : `${name}: ${status} on ${LIVE_DAYS} of the last ${DAYS} days, no data before launch`;
   return (
-    <div className="st-bars" role="img" aria-label={`${name}: ${status} on ${LIVE_DAYS} of the last ${DAYS} days, no data before launch`}>
+    <div className="st-bars" role="img" aria-label={label}>
       {DAY_LIST.map((d) => {
         const live = d >= LAUNCH;
-        return <span key={d} className={live ? `st-bar st-bar-${tone}` : "st-bar"} title={`${formatPostDate(d)} · ${live ? status : "No data"}`} />;
+        const day = today && d === TODAY ? today : live ? { tone, status } : null;
+        return <span key={d} className={day ? `st-bar st-bar-${day.tone}` : "st-bar"} title={`${formatPostDate(d)} · ${day ? day.status : "No data"}`} />;
       })}
+    </div>
+  );
+}
+
+const OUTAGE = { tone: "outage", status: "Major outage" } as const;
+const OUTAGE_DETAIL = "console.log was reassigned in this tab. Reload to restore.";
+
+function ComponentRow({ c, down }: { c: Component; down: boolean }): ReactNode {
+  const out = down && c.name === "console.log";
+  return (
+    <div className="st-component">
+      <div className="st-component-head">
+        <code className="st-name">{c.name}</code>
+        <span className={`st-state st-state-${out ? OUTAGE.tone : c.tone}`}>{out ? OUTAGE.status : c.status}</span>
+      </div>
+      <UptimeBars name={c.name} tone={c.tone} status={c.status} today={out ? OUTAGE : undefined} />
+      <div className="st-axis">
+        <span>{DAYS} days ago</span>
+        <span className="st-axis-mid">{out ? OUTAGE_DETAIL : c.detail}</span>
+        <span>Today</span>
+      </div>
     </div>
   );
 }
@@ -214,6 +243,7 @@ const INCIDENTS = [
 ];
 
 export function StatusPage(): ReactNode {
+  const down = useConsoleLogDown();
   return (
     <div className="container st">
       <header className="rs-head">
@@ -221,26 +251,15 @@ export function StatusPage(): ReactNode {
         <h1>Turbolog Status</h1>
       </header>
 
-      <div className="st-banner" role="status">
-        <span className="dot" />
-        <strong>All systems operational</strong>
+      <div className={`st-banner${down ? " st-banner-outage" : ""}`} role="status">
+        <span className={`dot${down ? " dot-red" : ""}`} />
+        <strong>{down ? "Major outage" : "All systems operational"}</strong>
         <span className="st-updated">Updated {formatPostDate(history.measuredAt)}</span>
       </div>
 
       <section className="st-card st-components" aria-label="Components">
         {COMPONENTS.map((c) => (
-          <div key={c.name} className="st-component">
-            <div className="st-component-head">
-              <code className="st-name">{c.name}</code>
-              <span className={`st-state st-state-${c.tone}`}>{c.status}</span>
-            </div>
-            <UptimeBars name={c.name} tone={c.tone} status={c.status} />
-            <div className="st-axis">
-              <span>{DAYS} days ago</span>
-              <span className="st-axis-mid">{c.detail}</span>
-              <span>Today</span>
-            </div>
-          </div>
+          <ComponentRow key={c.name} c={c} down={down} />
         ))}
       </section>
 

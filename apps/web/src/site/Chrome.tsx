@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useConsoleLogDown } from "../console-health";
 import { getCompanion } from "../console-companion/boot";
 import { isPadRoute, siteStore } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
@@ -107,6 +108,20 @@ export function Header(): ReactNode {
   );
 }
 
+/** Two labels share one grid cell, so the link keeps its width when the status changes. */
+function FooterStatus(): ReactNode {
+  const down = useConsoleLogDown();
+  return (
+    <A href="/status" className="footer-status">
+      <span className={`dot${down ? " dot-red" : ""}`} />
+      <span className="footer-status-label">
+        <span style={down ? { visibility: "hidden" } : undefined}>All systems operational</span>
+        <span style={down ? undefined : { visibility: "hidden" }}>Major outage</span>
+      </span>
+    </A>
+  );
+}
+
 export function Footer(): ReactNode {
   return (
     <footer className="footer">
@@ -129,6 +144,7 @@ export function Footer(): ReactNode {
           <A href="/enterprise">Enterprise</A>
           <A href="/status">Status</A>
         </nav>
+        <FooterStatus />
       </div>
     </footer>
   );
