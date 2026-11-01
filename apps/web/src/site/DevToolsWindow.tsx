@@ -139,7 +139,8 @@ export function DevToolsWindow({
             className={`dt-icon dt-inspect${inspecting ? " active" : ""}`}
             aria-pressed={inspecting}
             aria-label="Show layout wireframe"
-            data-console-bypass=""
+            // Toggling the wireframe doesn't take over the keyboard (the companion engages on document mousedown).
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={onInspect}
           >
             <InspectIcon />

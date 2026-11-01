@@ -325,7 +325,7 @@ describe("inspect button", () => {
     expect(plain).toContain('<div class="dt-tabs" aria-hidden="true"><span class="dt-icon">');
     expect(plain).not.toContain("<button");
     const live = renderToStaticMarkup(<DevToolsWindow frame={null} cols={10} rows={2} onInspect={() => undefined} inspecting />);
-    expect(live).toContain('<div class="dt-tabs"><button type="button" class="dt-icon dt-inspect active" aria-pressed="true" aria-label="Show layout wireframe" data-console-bypass="">');
+    expect(live).toContain('<div class="dt-tabs"><button type="button" class="dt-icon dt-inspect active" aria-pressed="true" aria-label="Show layout wireframe">');
     expect(live).toContain('<span class="dt-tab active" aria-hidden="true">Console</span>');
   });
 
