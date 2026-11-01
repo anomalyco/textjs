@@ -113,17 +113,28 @@ function withMeta(html: string, title: string, description: string, urlPath: str
 }
 
 /**
- * Place render-blocking stylesheets ahead of font preloads and scripts, and modulepreload
- * this route's lazy chunk so hydration resolves with zero waterfall.
+ * Place render-blocking stylesheets ahead of font preloads and scripts, preload any
+ * high-priority LCP image, and modulepreload this route's lazy chunk so hydration resolves with zero waterfall.
  */
-function withRouteHeadHints(html: string, routePath: string): string {
+function withRouteHeadHints(html: string, routePath: string, markup: string): string {
   const { css, js } = routeAssets(routePath);
   let out = html;
-  if (css.length > 0) {
-    // Strip Vite's trailing stylesheet link and emit all stylesheets (base + route) before font preloads.
-    out = out.replace(/\s*<link rel="stylesheet"[^>]*>/g, "");
-    const cssLinks = css.map((f) => `<link rel="stylesheet" crossorigin href="/${f}">`).join("\n    ");
-    out = out.replace(/(<link rel="preload" href="\/fonts\/)/, `${cssLinks}\n    $1`);
+  const earlyLinks: string[] = css.map((f) => `<link rel="stylesheet" crossorigin href="/${f}">`);
+  const priorityImg = /<img\s+[^>]*fetchpriority="high"[^>]*>/i.exec(markup)?.[0];
+  if (priorityImg) {
+    const attr = (name: string): string | undefined => new RegExp(`\\b${name}="([^"]*)"`, "i").exec(priorityImg)?.[1];
+    const src = attr("src");
+    const srcset = attr("srcset");
+    const sizes = attr("sizes");
+    if (src && srcset && sizes) {
+      earlyLinks.push(`<link rel="preload" as="image" href="${src}" imagesrcset="${srcset}" imagesizes="${sizes}" fetchpriority="high">`);
+    } else if (src) {
+      earlyLinks.push(`<link rel="preload" as="image" href="${src}" fetchpriority="high">`);
+    }
+  }
+  if (earlyLinks.length > 0) {
+    if (css.length > 0) out = out.replace(/\s*<link rel="stylesheet"[^>]*>/g, "");
+    out = out.replace(/(<link rel="preload" href="\/fonts\/)/, `${earlyLinks.join("\n    ")}\n    $1`);
   }
   const extraHead: string[] = [];
   const route = server.matchRoute(routePath);
@@ -146,7 +157,7 @@ async function withMarkup(html: string, routePath: string): Promise<string> {
   const mirrors = markup.includes("mirror-scale");
   const prefit = mirrors ? `<script>${server.PREFIT_MIRRORS_SCRIPT}</script>` : "";
   const watch = mirrors ? `<script>${server.PREFIT_MIRRORS_WHILE_PARSING_SCRIPT}</script>` : "";
-  const hinted = withRouteHeadHints(html, routePath);
+  const hinted = withRouteHeadHints(html, routePath, markup);
   // A page that marks its fold holds first paint until everything above it is parsed (Chrome
   // 124+), so a long page arriving in several chunks never paints a half-built hero.
   const fold = markup.includes('id="fold"') ? '<link rel="expect" href="#fold" blocking="render">\n  </head>' : "</head>";
