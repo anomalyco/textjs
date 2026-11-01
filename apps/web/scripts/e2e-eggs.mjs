@@ -188,7 +188,7 @@ async function checkPrint(state) {
       h: r.height,
       cx: r.left + r.width / 2,
       cy: r.top + r.height / 2,
-      vw: innerWidth,
+      vw: document.documentElement.clientWidth, // excludes a classic scrollbar (Linux Chromium)
       vh: innerHeight,
       color: getComputedStyle(pre).color,
       bg: getComputedStyle(document.body).backgroundColor,
