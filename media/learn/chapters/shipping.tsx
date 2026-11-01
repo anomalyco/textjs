@@ -29,7 +29,9 @@ const ok = "#62c073";
 const gray = "#707070";
 const buildOutput = [
   { text: "$ text build", color: gray },
-  { text: "   ▼ Text.js 1.0.0 (Turbolog) — Creating an optimized console production build...", color: "#ededed", bold: true },
+  { text: "   ▼ Text.js 1.0.1 (Turbolog)", color: "#ededed", bold: true },
+  "",
+  "   Creating an optimized console production build...",
   "",
   { text: " ✓ Compiled successfully in 0.9s", color: ok },
   { text: " ✓ Collecting route data", color: ok },
@@ -53,7 +55,7 @@ const buildOutput = [
 const startOutput = [
   { text: "$ text start", color: gray },
   "",
-  { text: "   ▼ Text.js 1.0.0 (Turbolog)", color: "#ededed", bold: true },
+  { text: "   ▼ Text.js 1.0.1 (Turbolog)", color: "#ededed", bold: true },
   "   - Local:        http://localhost:3000",
   "",
   { text: " ✓ Starting...", color: ok },
@@ -93,7 +95,6 @@ const script: ChapterScript = {
     "index.html": "index dot HTML",
     "vercel.json": "vercel dot JSON",
     "assets/": "assets",
-    SPA: "S P A",
   },
   scenes: [
     {
@@ -121,7 +122,7 @@ const script: ChapterScript = {
         "{client}It produces a static client, and because the app has a route handler, a server for text start. " +
         "{table}The route table lists every page, and the route handler at /api/deployments. " +
         "{serve}text start serves the build and runs your route handlers. " +
-        "{host}Any host that runs Bun or Node 20 will do.",
+        "{host}It runs on any host with Bun 1.2 or Node 22 and later.",
       tail: 2.0,
       props: {
         title: "~/acme-deploys — zsh",
@@ -176,9 +177,9 @@ const script: ChapterScript = {
       kind: "editor",
       narration:
         "Without route handlers, the build is a plain static site. " +
-        "{index}Every route is served by the same index.html, so the host needs one rewrite. " +
-        "{vercel}On Vercel, that's a vercel.json. {rewrite}Every path outside assets/ is rewritten to index.html, " +
-        "{deep}so opening /settings directly loads the app, and the router shows the right page.",
+        "{index}Each static route gets its own HTML file. Dynamic routes like [/deployments/[id]|slash deployments, slash I D] need a rewrite to index.html. " +
+        "{vercel}On Vercel, that's a vercel.json. {rewrite}Paths outside assets/ without a file of their own are rewritten to index.html, " +
+        "{deep}so opening a deployment's page directly loads the app, and the router shows the right page.",
       tail: 2.0,
       props: {
         file: vercel.file,
@@ -202,16 +203,16 @@ const script: ChapterScript = {
       id: "checks",
       kind: "pipeline",
       narration:
-        "{settings}Turn off Preserve log and Group similar messages in your console settings, and tell your users to do the same. " +
+        "{settings}Turn off Preserve log in your console settings, and tell your users to do the same. " +
         "{size}Test at 80 by 24, because someone will dock DevTools to the side. " +
-        "{test}And run bun test. It's faster than opening the console.",
+        "{test}And run bun test.",
       tail: 1.8,
       props: {
         eyebrow: "Before you ship",
         nodes: [
-          { title: "Console settings", sub: "Turn both off", at: "settings", content: { type: "code", size: 15, lines: tokenize("Preserve log            off\nGroup similar messages  off", "text") } },
+          { title: "Console settings", sub: "Turn it off", at: "settings", content: { type: "code", size: 15, lines: tokenize("Preserve log  off", "text") } },
           { title: "80 × 24", sub: "DevTools docked to the side", at: "size", content: { type: "frame", frame: small, size: 6 } },
-          { title: "bun test", sub: "Faster than the console", at: "test", content: { type: "code", size: 15, lines: tokenize("$ bun test\n 5 pass\n 0 fail", "text") } },
+          { title: "bun test", sub: "5 tests", at: "test", content: { type: "code", size: 15, lines: tokenize("$ bun test\n 5 pass\n 0 fail", "text") } },
         ],
       },
     },
@@ -253,7 +254,7 @@ const script: ChapterScript = {
       id: "quiz-1",
       kind: "quiz",
       move: "down",
-      narration: `Quick check. {q}${quiz[0]!.question} {+2.2} {answer}One SPA rewrite to index.html. {explain}Every route is rendered by the same client, so every path serves index.html.`,
+      narration: `Quick check. {q}${quiz[0]!.question} {+2.2} {answer}A rewrite to index.html. {explain}Static routes are prerendered to their own HTML files. Dynamic segments fall back to the client app in index.html.`,
       tail: 1.4,
       props: {
         eyebrow: "Quick check · 1 of 2",

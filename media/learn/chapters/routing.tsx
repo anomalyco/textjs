@@ -105,7 +105,7 @@ const script: ChapterScript = {
       kind: "pipeline",
       narration:
         "In this chapter, you'll split Acme Deploys into routes that share one layout. " +
-        "{files}The App Router maps files in the app folder to URLs, exactly like Next.js. " +
+        "{files}The App Router maps files in the app folder to URLs, following the Next.js App Router conventions. " +
         "{router}It matches the current path to a page, {history}and keeps the browser's address bar and history in sync, " +
         "{console}while the UI stays in the console. {statement}Back, forward and deep links all work.",
       tail: 1.4,
@@ -269,7 +269,7 @@ const script: ChapterScript = {
         "{imports}Import the PageProps type from @textjs/app, {props}and give it the shape of your params. " +
         "{render}Render the ID in bold. " +
         "{save}At /deployments/dpl_8fK2, params.id is dpl_8fK2, inside the same layout. " +
-        "{deep}Deep links like this one work with text dev. A static host needs a single SPA rewrite to serve them, and chapter ten covers it.",
+        "{deep}Deep links work with text dev. A static host needs a rewrite for dynamic segments like this one, and chapter ten covers it.",
       tail: 2.0,
       props: {
         file: params.file,
