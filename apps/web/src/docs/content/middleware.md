@@ -19,7 +19,7 @@ export const config = {
 };
 ```
 
-Middleware runs before [route handlers](/docs/route-handlers), static files and console pages, on `text dev`, `text start` and every [deploy adapter](/docs/deploying). It uses Web `Request` and `Response`, so the same file runs on Node, Bun, Vercel Edge and Cloudflare Workers.
+Middleware runs before [route handlers](/docs/route-handlers), static files and console pages, on `text dev`, `text start` and every server [deploy adapter](/docs/deploying). It uses Web `Request` and `Response`, so the same file runs on Node, Bun, Vercel Edge and Cloudflare Workers.
 
 ## Matching paths
 

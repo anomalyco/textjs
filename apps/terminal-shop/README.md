@@ -1,6 +1,6 @@
-# ▼ terminal — the `ssh terminal.shop` storefront in `console.log`
+# ▼ terminal
 
-A Text.js port of [terminal.shop](https://www.terminal.shop)'s SSH shop (Go + Bubble Tea, [`terminaldotshop/terminal`](https://github.com/terminaldotshop/terminal) `packages/go/pkg/tui`). It renders the shop's 80 × 30 "large" layout cell for cell inside the DevTools Console and orders coffee through the real Terminal API.
+A Text.js port of [terminal.shop](https://www.terminal.shop)'s SSH shop (Go + Bubble Tea, [`terminaldotshop/terminal`](https://github.com/terminaldotshop/terminal) `packages/go/pkg/tui`). It renders the shop's 80 × 30 "large" layout in the DevTools console and orders coffee through the real Terminal API.
 
 ```bash
 bun run dev:terminal                         # from the repo root → http://localhost:3002
@@ -9,7 +9,7 @@ bun run --cwd apps/terminal-shop typecheck
 bun run --cwd apps/terminal-shop e2e -- --mock   # headless Chromium, full checkout, mock API
 ```
 
-Open the page, press **⌘⌥J**, then click back into the page so it gets the keyboard.
+Open the page, press **⌘⌥J** (**Ctrl+Shift+J** on Windows and Linux), then click back into the page so it gets the keyboard.
 
 ## Signing in
 
@@ -45,7 +45,7 @@ Then go to **a account → debug info**, press **e**, answer **y**, and sign in 
 
 [textjs.org/coffee](https://textjs.org/coffee) runs this same app in the site's console companion (`embed.tsx` → `apps/web/src/demos/terminal.tsx`). It differs in three ways:
 
-- **Sign in is Terminal's OAuth, nothing else.** No token paste, no API key. Cloudflare Pages Functions in `apps/web/functions/` (logic in `apps/web/server/terminal-session.ts`) run the authorization code + PKCE flow. They keep the tokens in a `__Host-` cookie (httpOnly, Secure, SameSite=Lax), so page JavaScript never sees one. The cookie is sealed with AES-256-GCM, so other `*.textjs.org` hosts can't plant, read or forge it. The proxy never forwards anything that mints a long-lived credential: new access tokens and OAuth apps come from `ssh terminal.shop -t tokens` / `-t apps`. Terminal's OpenAuth issuer treats apps as public clients: the token exchange sends `client_id`, `redirect_uri` and the PKCE verifier, with no client secret.
+- **Sign in uses Terminal's OAuth.** There's no token paste or API key. Cloudflare Pages Functions in `apps/web/functions/` (logic in `apps/web/server/terminal-session.ts`) run the authorization code + PKCE flow. They keep the tokens in a `__Host-` cookie (httpOnly, Secure, SameSite=Lax), so page JavaScript never sees one. The cookie is sealed with AES-256-GCM, so other `*.textjs.org` hosts can't plant, read or forge it. The proxy never forwards anything that mints a long-lived credential: new access tokens and OAuth apps come from `ssh terminal.shop -t tokens` / `-t apps`. Terminal's OpenAuth issuer treats apps as public clients: the token exchange sends `client_id`, `redirect_uri` and the PKCE verifier, with no client secret.
 - **Production by default.** It's the real store. Products are public, so you can browse signed out. Cart, account and checkout ask you to sign in. Placing a real order, or subscribing to one, needs one more key: a letter that changes every time and appears only in the console frame. A key script like "press enter, then y" can't buy anything for someone who can't see the console, and held-down keys never confirm. Links (and the sign in round trip) only open the shop, cart, account or menu, never a checkout step. Cards are still entered only on Terminal's hosted card page.
 - **Fixed environment.** A deployment talks to one Terminal (`TERMINAL_ENVIRONMENT`, default `prod`), so `e` doesn't switch.
 
@@ -103,7 +103,7 @@ Deep links work like `ssh terminal.shop -t <command>`: `/cart`, `/account?page=f
 
 ## How it's built
 
-Each screen is ported from its Go view (`shop.go`, `cart.go`, `shipping.go`, `payment.go`, `confirm.go`, `final-sub.go`, `final.go`, `account.go`, `orders.go`, …). `lib/ui.ts` is a small lipgloss-style span layout (place, join, boxes, word wrap with lipgloss' rounding rules), so the views come out cell for cell. `components/Screen.tsx` paints the lines as `<Text>` rows.
+Each screen is ported from its Go view (`shop.go`, `cart.go`, `shipping.go`, `payment.go`, `confirm.go`, `final-sub.go`, `final.go`, `account.go`, `orders.go`, …). `lib/ui.ts` is a small lipgloss-style span layout (place, join, boxes, word wrap with lipgloss' rounding rules), so the views match the Go layout. `components/Screen.tsx` paints the lines as `<Text>` rows.
 
 | Path | Purpose |
 | --- | --- |

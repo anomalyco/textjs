@@ -20,7 +20,7 @@ describe("text build (examples/dashboard)", () => {
       expect(stderr.trim()).toBe("");
       expect(code).toBe(0);
       const out = stripAnsi(stdout);
-      expect(out).toContain(`▼ Text.js ${VERSION} (Turbolog) — Creating an optimized console production build...`);
+      expect(out).toContain(`▼ Text.js ${VERSION} (Turbolog)\n\n   Creating an optimized console production build...`);
       expect(out).toContain("✓ Compiled successfully");
       expect(out).toContain("Route (app)                              Type       Target");
       expect(out).toContain("┌ ○ /                                    Static     console.log (%c)");

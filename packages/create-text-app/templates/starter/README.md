@@ -1,6 +1,6 @@
 # {{name}}
 
-A [Text.js](https://textjs.org) app — The Console Framework for the Web — bootstrapped with `create-text-app`.
+A [Text.js](https://textjs.org) app bootstrapped with `create-text-app`.
 
 ## Getting Started
 
@@ -9,7 +9,7 @@ bun install
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), then press **⌘⌥J** (macOS) or **Ctrl+Shift+J** (Windows/Linux) to open Chrome DevTools. Your app renders in the Console. Click back into the page to capture the keyboard.
+Open [http://localhost:3000](http://localhost:3000), then press **⌘⌥J** (macOS) or **Ctrl+Shift+J** (Windows/Linux) to open Chrome DevTools. Your app renders in the console. Click back into the page to capture the keyboard.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

@@ -389,7 +389,7 @@ export class PreviewController implements vscode.Disposable {
     let hint: string | null = null;
     if (this.mode === "live") {
       if (serverState !== "running") hint = "Start the dev server to mirror the running app";
-      else if (tabs === 0) hint = "Waiting for a browser tab — Open in Browser to connect one";
+      else if (tabs === 0) hint = "Waiting for a browser tab · Open in Browser to connect one";
       else hint = `Mirroring ${tabs === 1 ? "the browser tab" : `1 of ${tabs} tabs`} · click the console to interact`;
     } else if (!isTrusted()) {
       hint = "Restricted Mode · trust this workspace to render previews";

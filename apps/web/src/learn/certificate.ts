@@ -3,6 +3,8 @@
  * the page, character for character.
  */
 
+import { ENGINE_NAME, VERSION } from "@textjs/core";
+
 export const CERT_WIDTH = 60;
 export const NAME_PLACEHOLDER = "Your Name";
 
@@ -48,7 +50,7 @@ export function certificateLines(name: string, date: string): string[] {
     row(),
     sig(date, "▼ Text.js"),
     sig("─".repeat(22), "─".repeat(22)),
-    sig("Date", "Turbolog 1.0.0"),
+    sig("Date", `${ENGINE_NAME} ${VERSION}`),
     row(),
     `╰${"─".repeat(inner)}╯`,
   ];

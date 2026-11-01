@@ -54,7 +54,7 @@ The first stable release. `▼ Text.js 1.0.0 (Turbolog)`.
 - Layout: `Center`, `Stack`, `Grid`, `SplitPane`, `FocusScope`.
 - Hooks for timers, animation, measurement, breakpoints, storage and the clipboard.
 - Right-to-left text. Text.js implements the Unicode Bidirectional Algorithm (UAX #9, Unicode 18.0) and passes all 770,241 `BidiTest.txt` and 91,707 `BidiCharacterTest.txt` cases. Arabic is shaped, and `<Text dir>` isolates a span.
-- Stable `TX###` error codes. Every framework error carries a code and a link to `https://textjs.org/errors/<code>`.
+- Stable `TX###` error codes. Framework errors carry a code and a link to `https://textjs.org/errors/<code>`.
 - `@textjs/react/testing` for rendering components to text in tests.
 - `@textjs/react/terminal` and `text run`, which renders an App Router app in a real terminal.
 - `text mcp`, which serves an app over the Model Context Protocol so coding agents can navigate it, press keys and read frames without a browser.

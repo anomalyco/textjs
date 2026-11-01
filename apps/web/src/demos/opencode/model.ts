@@ -289,7 +289,7 @@ If no row changed, the driver returns before logging, so an idle app makes **0**
         tool: "shell",
         title: "text build",
         status: "completed",
-        output: "   ▼ Text.js 1.0.0 (Turbolog) — Creating an optimized console production build...\n\n ✓ Compiled successfully in 0.8s\n ✓ Collecting route data\n ✓ Generating static console cells (2/3)\n\nRoute (app)                              Type       Target\n┌ ○ /                                    Static     console.log (%c)\n├ ƒ /sessions/[id]                       Dynamic    console.log (%c)\n└ ○ /settings                            Static     console.log (%c)\n\n○  (Static)   prerendered as static console cells\nƒ  (Dynamic)  on-demand console reconciliation",
+        output: "   ▼ Text.js 1.0.1 (Turbolog)\n\n   Creating an optimized console production build...\n\n ✓ Compiled successfully in 0.8s\n ✓ Collecting route data\n ✓ Generating static console cells (2/3)\n\nRoute (app)                              Type       Target\n┌ ○ /                                    Static     console.log (%c)\n├ ƒ /sessions/[id]                       Dynamic    console.log (%c)\n└ ○ /settings                            Static     console.log (%c)\n\n○  (Static)   prerendered as static console cells\nƒ  (Dynamic)  on-demand console reconciliation",
       },
     },
     { kind: "text", text: `I updated \`app/page.tsx\` with a \`SessionList\` for **${topic}**, and \`text build\` passes.` },

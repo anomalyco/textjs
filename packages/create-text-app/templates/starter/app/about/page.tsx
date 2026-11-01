@@ -36,7 +36,7 @@ export default function About(): ReactNode {
         <Link href="/" autoFocus>
           ← Back home
         </Link>
-        <Text color={theme.subtle}>(or press esc)</Text>
+        <Text color={theme.subtle}>(or press Esc)</Text>
       </Box>
     </Box>
   );

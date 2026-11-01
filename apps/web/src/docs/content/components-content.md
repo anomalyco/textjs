@@ -36,7 +36,7 @@ Unified diffs, or computed from `{ before, after }`.
 
 ## `<Spinner>`
 
-Variants: `dots`, `pulse`, `matrix` and `line`. Timers stop while paused.
+Variants: `dots`, `pulse`, `matrix`, `line` and `braille` (for terminals; Menlo has no braille glyphs). Timers stop while paused.
 
 ```tsx
 <Spinner variant="dots" label="Building…" />

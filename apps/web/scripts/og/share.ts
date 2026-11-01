@@ -212,7 +212,7 @@ function prompt(w: number, h: number): string {
 
 <b style="font-weight:700">▼ create-text-app</b> <span class="dim">v${escapeHtml(VERSION)}</span>
 
-<span style="color:#45a557">?</span> <b style="font-weight:700">What is your project named?</b> <span class="dim">(my-text-app)</span> ${cursor}</div></div>
+<span style="color:#45a557">?</span> <b style="font-weight:700">What is your project named?</b> <span class="dim">(my-app)</span> ${cursor}</div></div>
     ${foot(Math.round(w * 0.1), 100)}</div>`;
 }
 

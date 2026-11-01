@@ -1,4 +1,4 @@
-Cache route handler responses and data, then revalidate them on a timer or on demand. Stale entries are served instantly while one background refresh runs.
+Cache route handler responses and data, then revalidate them on a timer or on demand. Stale entries are served immediately while one background refresh runs.
 
 ## Route handlers
 

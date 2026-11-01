@@ -5,7 +5,7 @@ export const STREAMING_MARKDOWN = `## Streaming \`<Markdown>\`
 
 Text.js parses Markdown **incrementally**, so half-finished tokens like \`**bo\` or an unclosed code fence never break the frame.
 
-- Every token re-renders through React 19
+- Each streamed chunk re-renders through React 19
 - Only *dirty rows* are re-encoded by **Turbolog**
 - Exactly **one** \`console.log\` per frame
 

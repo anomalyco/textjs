@@ -805,14 +805,14 @@ function failure(status: number, label: string, discoveredUrl?: string): string 
   const alt = discoveredUrl ? hostLabel(discoveredUrl) : "";
   if (status === 401) {
     return alt && alt !== label
-      ? `Auth required at ${label} — clear /connect to use ${alt}`
-      : "Auth required — check opencode service status or OPENCODE_PASSWORD";
+      ? `Auth required at ${label}. Clear /connect to use ${alt}`
+      : "Auth required. Check opencode service status or OPENCODE_PASSWORD";
   }
-  if (status === 403) return "Forbidden — open the app on localhost";
-  if ([404, 405, 415].includes(status)) return `Not OpenCode at ${label} — check /connect`;
-  if (status && status !== 502) return `HTTP ${status} at ${label} — check opencode service status`;
-  if (alt && alt !== label) return `Can't reach ${label} — clear /connect to use ${alt}`;
-  return `Can't reach ${label} — run opencode service start`;
+  if (status === 403) return "Forbidden. Open the app on localhost";
+  if ([404, 405, 415].includes(status)) return `Not OpenCode at ${label}. Check /connect`;
+  if (status && status !== 502) return `HTTP ${status} at ${label}. Check opencode service status`;
+  if (alt && alt !== label) return `Can't reach ${label}. Clear /connect to use ${alt}`;
+  return `Can't reach ${label}. Run opencode service start`;
 }
 
 const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -865,7 +865,7 @@ export async function connectOpenCode(options: ConnectOptions = {}): Promise<Con
     try {
       url = normalizeUrl(endpoint);
     } catch {
-      return offline("Invalid URL — omit credentials and use /connect or OPENCODE_PASSWORD");
+      return offline("Invalid URL. Omit credentials and use /connect or OPENCODE_PASSWORD");
     }
     const label = hostLabel(url);
     let discoveredUrl: string | undefined;
@@ -907,7 +907,7 @@ export async function connectOpenCode(options: ConnectOptions = {}): Promise<Con
     try {
       status = await fetchProxyStatus(prefix);
     } catch (err) {
-      if (err instanceof HttpError && err.status === 403) return offline("Proxy blocked — open the app on localhost");
+      if (err instanceof HttpError && err.status === 403) return offline("Proxy blocked. Open the app on localhost");
       continue;
     }
     if (!status || !status.targetUrl) continue;
@@ -920,5 +920,5 @@ export async function connectOpenCode(options: ConnectOptions = {}): Promise<Con
       return offline(failure(err instanceof HttpError ? err.status : 0, label), targetUrl);
     }
   }
-  return offline("No local proxy — run bun run dev:opencode");
+  return offline("No local proxy. Run bun run dev:opencode");
 }

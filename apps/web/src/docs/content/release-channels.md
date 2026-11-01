@@ -4,8 +4,8 @@ Text.js ships on three npm dist-tags. Every package (`@textjs/next`, `@textjs/re
 
 | Channel | dist-tag | Version | Install |
 | :-- | :-- | :-- | :-- |
-| Stable | `latest` | `1.0.0` | `bun add @textjs/next` |
-| Canary | `canary` | `1.0.1-canary.N` | `bun add @textjs/next@canary` |
+| Stable | `latest` | `1.0.1` | `bun add @textjs/next` |
+| Canary | `canary` | `1.0.2-canary.N` | `bun add @textjs/next@canary` |
 | LTS | `lts`, `v1-lts` | Published once `2.0.0` ships | `bun add @textjs/next@lts` |
 
 Use stable in production. Use canary to try fixes and features the day they land on `main`. Once an LTS line exists, use it if you upgrade once a year.
@@ -30,7 +30,7 @@ Every push to `main` in the official repository is type-checked, tested and publ
 
 `N` continues from the highest canary already on npm, so numbers never repeat. Canary versions are not committed to the repository. Add `[skip canary]` to a commit message to skip a release.
 
-Canaries are real builds of `main`, not nightlies: they may change or remove unreleased APIs without notice. Pin an exact canary version if you depend on one.
+Canaries are builds of `main`. They may change or remove unreleased APIs without notice. Pin an exact canary version if you depend on one.
 
 ## Provenance
 

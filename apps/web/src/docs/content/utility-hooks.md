@@ -15,7 +15,7 @@ Both always call the latest callback. `null` stops them.
 useAnimationFrame((delta, elapsed) => setPhase(elapsed / 1000), { isActive: playing });
 ```
 
-Ticks once per frame slot. DevTools paints about 15 frames a second, so animating faster spends CPU on frames that are never painted. Loops share one timer per rate and stop while output is paused.
+`useAnimationFrame` ticks once per frame slot. Text.js emits about 15 frames a second, so animating faster spends CPU on frames that are never logged. Loops share one timer per rate and stop while output is paused.
 
 ## `useTween` and `useSpring`
 
@@ -50,7 +50,7 @@ return up("md") ? <TwoColumns /> : <OneColumn />;
 | `lg` | 110 |
 | `xl` | 140 |
 
-Columns are cells, not pixels. Pass your own thresholds as an argument.
+Breakpoints are in columns. Pass your own thresholds as an argument.
 
 ## `useLocalStorage`
 
@@ -58,7 +58,7 @@ Columns are cells, not pixels. Pass your own thresholds as an argument.
 const [theme, setTheme] = useLocalStorage("theme", "geistDark");
 ```
 
-JSON in `localStorage`, in memory outside the browser. Hooks sharing a key stay in sync, across tabs too.
+`useLocalStorage` stores JSON in `localStorage`, and in memory outside the browser. Hooks sharing a key stay in sync, across tabs too.
 
 ## `useClipboard`
 
@@ -70,7 +70,7 @@ return <Text color="muted">{copied ? "Copied" : deployment.id}</Text>;
 
 ## `<FocusScope>`
 
-An invisible focus boundary. With `trap`, `Tab` and `useInput` stay inside it, exactly like a `<Modal>` without the overlay.
+`<FocusScope>` is an invisible focus boundary. With `trap`, `Tab` and `useInput` stay inside it, exactly like a `<Modal>` without the overlay.
 
 ```tsx
 <FocusScope trap={editing}>

@@ -97,12 +97,12 @@ function EmitGlyph(): ReactNode {
 }
 
 const STAGES: Array<{ step: string; title: ReactNode; body: ReactNode; glyph: ReactNode }> = [
-  { step: "React 19", title: "Commit", body: <>A custom React reconciler.</>, glyph: <CommitGlyph /> },
-  { step: "Yoga", title: "Layout", body: <>WebAssembly flexbox on whole cells.</>, glyph: <LayoutGlyph /> },
+  { step: "React 19", title: "Commit", body: <>React commits through a custom reconciler.</>, glyph: <CommitGlyph /> },
+  { step: "Yoga", title: "Layout", body: <>Yoga lays out boxes on whole cells.</>, glyph: <LayoutGlyph /> },
   { step: "CellBuffer", title: "Paint", body: <>Only damaged rows repaint.</>, glyph: <BufferGlyph /> },
   { step: "Row hash", title: "Dirty gate", body: <>Unchanged frames stop here.</>, glyph: <GateGlyph /> },
   { step: "RLE", title: "Encode", body: <>{(3200).toLocaleString("en-US")} cells become {pipeline.spans} <code>%c</code> spans.</>, glyph: <EncodeGlyph /> },
-  { step: "console.log", title: "Emit", body: <>One appended call, at least 66ms apart.</>, glyph: <EmitGlyph /> },
+  { step: "console.log", title: "Emit", body: <>Frames are appended at least 66ms apart.</>, glyph: <EmitGlyph /> },
 ];
 
 function Pipeline({ play }: { play: boolean }): ReactNode {
@@ -177,7 +177,7 @@ function Throttle({ play }: { play: boolean }): ReactNode {
   return (
     <div className={`tl-throttle${play ? " play" : ""}`}>
       <div className="tl-throttle-copy">
-        <h3>Zero-flash frames</h3>
+        <h3>Appended frames</h3>
         <p>Clearing the console before each frame leaves it blank until DevTools paints the next one. Turbolog appends each frame instead.</p>
         <A href="/blog/turbolog-eliminating-the-flash" className="text-link">
           Read the post <ArrowRight size={14} />
@@ -232,7 +232,7 @@ export function TurbologSection(): ReactNode {
           <div className="tl-metrics">
             <Metric value={pipeline.fullFrameMs} digits={3} unit="ms" label="Full repaint (layout, paint, encode)" />
             <Metric value={pipeline.typingMs} digits={3} unit="ms" label="One-row edit, such as a keystroke" />
-            <Metric value={0} digits={0} unit=" calls" label="Idle frame, 0 bytes allocated" />
+            <Metric value={0} digits={0} unit=" calls" label="Idle frame" />
             <Metric value={pipeline.spans} digits={0} unit=" spans" label={<><code>%c</code> arguments for 3,200 cells</>} />
           </div>
         </div>

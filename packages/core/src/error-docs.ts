@@ -92,7 +92,7 @@ To show the same UI on the page, use \`<TextCanvas>\` from \`@textjs/react/dom\`
   TX004: {
     package: "@textjs/react",
     title: "<Box> nested inside <Text>",
-    cause: `\`<Text>\` lays out a run of inline text; it cannot contain a Flexbox container. A \`<Box>\` (or a component that renders one, such as \`<Badge>\` or \`<Spacer>\`) was rendered inside a \`<Text>\`.`,
+    cause: `\`<Text>\` lays out a run of inline text; it cannot contain a Flexbox container. A \`<Box>\` (or a component that renders one, such as \`<Spacer>\` or \`<Divider>\`) was rendered inside a \`<Text>\`.`,
     fix: `Move the \`<Box>\` out and put text siblings side by side in a row:
 
 ~~~tsx
@@ -199,7 +199,7 @@ In the browser, use \`renderToConsole\` instead.`,
   TX012: {
     package: "@textjs/react",
     title: "No 2D canvas for <Image>",
-    cause: `The browser refused a \`2d\` canvas context, usually because canvas is disabled by policy, a fingerprinting shield or the page is out of GPU memory.`,
+    cause: `The browser refused a \`2d\` canvas context, usually because a policy or a fingerprinting shield disables canvas, or the page is out of GPU memory.`,
     fix: `Pass \`pixels\` decoded elsewhere, or render an \`alt\` fallback. \`<Image>\` already shows its \`alt\` text when loading fails:
 
 ~~~tsx
@@ -235,7 +235,7 @@ await renderToConsole(<AppRouter routes={routes} />);
   TX015: {
     package: "@textjs/next",
     title: "Route file has no default component",
-    cause: `\`page\`, \`layout\`, \`loading\`, \`error\`, \`not-found\` and \`template\` files must \`export default\` a React component. This one exports nothing by default, or exports something that is not a function.`,
+    cause: `\`page\`, \`layout\`, \`loading\`, \`error\` and \`not-found\` files must \`export default\` a React component. This one exports nothing by default, or exports something that is not a function.`,
     fix: `~~~tsx@app/settings/page.tsx
 // Before
 export function Settings() {

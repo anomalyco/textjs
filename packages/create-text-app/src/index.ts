@@ -10,9 +10,9 @@ import { txError } from "./errors";
 export const VERSION = "1.0.1";
 
 export const TEMPLATES = {
-  starter: "Clean starter: layout, keyboard counter and <Link> navigation",
-  dashboard: "Real-time metrics & deployments App Router dashboard",
-  opencode: "Connect to a local OpenCode server: sessions & prompt input",
+  starter: "Layout, keyboard counter and <Link> navigation",
+  dashboard: "App Router dashboard with live metrics and deployments",
+  opencode: "Connect to a local OpenCode server: sessions and prompt input",
 } as const;
 
 export type TemplateName = keyof typeof TEMPLATES;

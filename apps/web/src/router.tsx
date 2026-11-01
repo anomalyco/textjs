@@ -68,7 +68,7 @@ export function titleFor(route: Route): string {
   const suffix = "Text.js";
   switch (route.name) {
     case "home":
-      return "Text.js — The Console Framework";
+      return "Text.js | The Console Framework";
     case "docs": {
       const doc = getDoc(route.slug);
       return `${doc?.title ?? "Docs"} | Text.js Docs`;

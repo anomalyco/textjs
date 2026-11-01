@@ -1,6 +1,6 @@
 # @textjs/font
 
-`next/font` for FIGlet. A complete FIGfont 2 (`.flf`) parser and renderer whose output matches the `figlet` program exactly, plus 17 bundled fonts, one module each.
+A FIGfont 2 (`.flf`) parser and renderer whose output matches the `figlet` program, plus 17 bundled fonts, one module each.
 
 ```tsx
 import { FigletText } from "@textjs/font/react";

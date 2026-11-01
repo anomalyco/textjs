@@ -518,7 +518,7 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
       <div className="tx-pad-touch">
         {banner ? <div className="tx-pad-banner">{banner}</div> : null}
         <h2>Open on a desktop</h2>
-        <p>This demo renders in the Chrome DevTools console, which needs a desktop browser.</p>
+        <p>This app renders in the DevTools console, which needs a desktop browser.</p>
       </div>
 
       {children}

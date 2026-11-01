@@ -16,8 +16,8 @@ export default createRule<Options, "interval" | "fps">({
     },
     messages: {
       interval:
-        "A {{delay}}ms interval is faster than DevTools paints frames (one every ~{{min}}ms); the extra updates are coalesced and only burn CPU. Use useAnimationFrame (frame-paced) or a delay of at least {{min}}ms.",
-      fps: "fps: {{fps}} is faster than DevTools paints frames (~{{maxFps}}fps); omit `fps` to follow the renderer's frame pacing.",
+        "A {{delay}}ms interval is faster than Text.js emits frames (at most one every {{min}}ms); the extra updates are coalesced and only burn CPU. Use useAnimationFrame (frame-paced) or a delay of at least {{min}}ms.",
+      fps: "fps: {{fps}} is faster than Text.js emits frames (~{{maxFps}}fps); omit `fps` to follow the renderer's frame pacing.",
     },
     schema: [
       {

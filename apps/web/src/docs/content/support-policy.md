@@ -1,4 +1,4 @@
-How long each Text.js release line receives fixes, and what counts as a breaking change.
+This page covers how long each Text.js release line receives fixes, and what counts as a breaking change.
 
 ## Release lines
 

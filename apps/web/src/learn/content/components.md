@@ -51,7 +51,7 @@ With focus on the table, `↑` `↓` move the highlight, `s` cycles the sort col
    );
 ```
 
-The chart box has a fixed height, so switching charts never moves the table, and the table rows are not re-encoded or logged.
+The chart box has a fixed height, so switching charts never moves the table, and its rows aren't re-encoded.
 
 ## More components
 

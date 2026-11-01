@@ -73,7 +73,7 @@ export function Timeline({ store, state, root }: { store: PanelStore; state: Pan
       {visible.length === 0 ? (
         <div className="empty small-empty">
           <p className="empty-title">No frames recorded yet</p>
-          <p className="empty-body">Interact with the app in the console. Idle apps emit nothing, by design.</p>
+          <p className="empty-body">Click the page and press a key to record frames. Idle apps emit nothing.</p>
         </div>
       ) : (
         <>

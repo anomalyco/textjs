@@ -11,7 +11,7 @@ bun install
 bun dev
 ```
 
-Open `http://localhost:3000`, then open the console with ⌘⌥J (Ctrl+Shift+J elsewhere). The page shows a focus pad. Your app renders in the console.
+Open `http://localhost:3000`, then open the console with `⌘⌥J` (`Ctrl+Shift+J` on Windows and Linux). The page shows a focus pad. Your app renders in the console.
 
 ## Your first page
 

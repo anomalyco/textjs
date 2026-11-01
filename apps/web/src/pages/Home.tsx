@@ -69,7 +69,7 @@ function Hero(): ReactNode {
             </p>
             <div className="hero-ctas">
               <A href="/docs" className="btn btn-primary btn-lg">
-                Get Started
+                Get started
               </A>
               <CopyCommand command="bunx create-text-app" />
             </div>
@@ -99,8 +99,8 @@ function Hero(): ReactNode {
 }
 
 const FEATURES: Array<{ title: ReactNode; body: ReactNode }> = [
-  { title: "React 19", body: <>Concurrent rendering, Suspense and error boundaries.</> },
-  { title: "App Router", body: <>File-system layouts, dynamic routes and URL history.</> },
+  { title: "React 19", body: <>Text.js supports concurrent rendering, Suspense and error boundaries.</> },
+  { title: "App Router", body: <>Folders in <code>app/</code> become routes and layouts, and Back, Forward and deep links work.</> },
   { title: "Responsive grid", body: <>The grid fits the docked DevTools panel at any page zoom.</> },
   {
     title: "Keyboard input",
@@ -135,7 +135,7 @@ function OpenCodeSpotlight(): ReactNode {
       <div className="container spotlight">
         <div>
           <h2>OpenCode in console.log</h2>
-          <p className="muted">A console client for OpenCode. Connect your local server, or try the sandbox with a scripted agent.</p>
+          <p className="muted">Connect your local OpenCode server, or try the sandbox with a scripted agent.</p>
         </div>
         <A href="/opencode" className="btn btn-secondary">
           Explore OpenCode <ArrowRight size={14} />

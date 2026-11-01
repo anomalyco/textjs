@@ -160,7 +160,7 @@ async function scaffoldCommand(kind: ScaffoldKind, uri?: vscode.Uri, route?: str
   const label = SCAFFOLD_LABELS[kind];
   const input = typeof route === "string" ? route : await vscode.window.showInputBox({
     title: `▼ New ${label}`,
-    prompt: kind === "route" ? "Route path under app/ — e.g. api/users/[id]" : "Route path under app/ — e.g. settings, blog/[slug], (marketing)/about. Leave empty for the root.",
+    prompt: kind === "route" ? "Route path under app/, for example api/users/[id]" : "Route path under app/, for example settings, blog/[slug] or (marketing)/about. Leave empty for the root.",
     value: initial,
     valueSelection: [initial.length, initial.length],
     placeHolder: kind === "route" ? "api/health" : "settings",
@@ -229,7 +229,7 @@ class TxLinkProvider implements vscode.DocumentLinkProvider {
       if (!line.includes("TX")) continue;
       for (const m of findTxCodes(line)) {
         const link = new vscode.DocumentLink(new vscode.Range(i, m.start, i, m.end), vscode.Uri.parse(txUrl(m.code)));
-        link.tooltip = `Text.js error ${m.code} — open textjs.org/errors/${m.code}`;
+        link.tooltip = `Text.js error ${m.code}: open textjs.org/errors/${m.code}`;
         links.push(link);
       }
     }
@@ -354,8 +354,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<Textjs
         route = target?.kind === "route" ? target.path : "/";
       }
       await vscode.env.openExternal(vscode.Uri.parse(appUrl(url, monitor.snapshot().status?.basePath, route)));
-      const keys = process.platform === "darwin" ? "⌥⌘J" : "Ctrl+Shift+J";
-      vscode.window.setStatusBarMessage(`$(triangle-down) Opened ${route} — press ${keys} in the browser to open the console`, 6000);
+      const keys = process.platform === "darwin" ? "⌘⌥J" : "Ctrl+Shift+J";
+      vscode.window.setStatusBarMessage(`$(triangle-down) Opened ${route}. Press ${keys} in the browser to open the console.`, 6000);
     }),
     vscode.commands.registerCommand("textjs.newPage", (uri?: vscode.Uri, route?: string) => scaffoldCommand("page", uri instanceof vscode.Uri ? uri : undefined, route)),
     vscode.commands.registerCommand("textjs.newLayout", (uri?: vscode.Uri, route?: string) => scaffoldCommand("layout", uri instanceof vscode.Uri ? uri : undefined, route)),

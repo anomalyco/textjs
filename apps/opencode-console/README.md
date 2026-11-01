@@ -1,6 +1,6 @@
-# ▼ OpenCode Lite — the OpenCode TUI in `console.log`
+# ▼ OpenCode Lite
 
-A connected OpenCode client built with the Text.js App Router. It renders in DevTools, `text run`, and `text mcp`. The website uses the same session routes, components and event store. See [PARITY.md](PARITY.md) for measured differences from the native client.
+OpenCode Lite is the OpenCode TUI in `console.log`, a connected client built with the Text.js App Router. It renders in DevTools, `text run`, and `text mcp`. The website uses the same session routes, components and event store. See [PARITY.md](PARITY.md) for measured differences from the native client.
 
 ```bash
 opencode service status                    # If stopped: opencode service start
@@ -45,7 +45,7 @@ Open the page, press **⌘⌥J** (or **Ctrl+Shift+J**), then click back into the
 | `↑` / `↓`, `1`–`9` on a question | Choose an answer; `Tab` changes field, `Esc` dismisses |
 | `Ctrl+R` / `Ctrl+D` in sessions | Rename / arm deletion (repeat `Ctrl+D` to confirm) |
 
-`/help`, `/settings`, `/themes`, `/rename <title>`, `/compact` and `/copy` are local client actions, not prompts. The theme picker previews the highlighted theme, rolls back on Escape and commits on Enter. The context sidebar overlays at ≤120 columns and docks to the right on wider screens. V2 also dispatches commands advertised by `GET /api/command`. Shell mode in the static simulation **never** executes on the host.
+`/help`, `/settings`, `/themes`, `/rename <title>`, `/compact` and `/copy` run locally in the client instead of sending a prompt. The theme picker previews the highlighted theme, rolls back on Escape and commits on Enter. The context sidebar overlays at ≤120 columns and docks to the right on wider screens. V2 also dispatches commands advertised by `GET /api/command`. Shell mode in the static simulation **never** executes on the host.
 
 ## Layout
 

@@ -156,7 +156,7 @@ export function SearchModal(): ReactNode {
           <span>
             <kbd>↵</kbd> open
           </span>
-          <span style={{ marginLeft: "auto" }}>On docs pages, press / in the console to search</span>
+          <span style={{ marginLeft: "auto" }}>On docs pages, press <kbd>/</kbd> in the console to search</span>
         </div>
       </div>
     </div>

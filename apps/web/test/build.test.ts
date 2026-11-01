@@ -19,7 +19,7 @@ describe("production build", () => {
       expect(log.toLowerCase()).not.toContain("error");
 
       const html = readFileSync(join(out, "index.html"), "utf8");
-      expect(html).toContain("<title>Text.js — The Console Framework</title>");
+      expect(html).toContain("<title>Text.js | The Console Framework</title>");
       expect(html.split("\n")[1]).toBe("<!-- ⌘⌥J · Ctrl+Shift+J -->");
       expect(html).toContain('rel="icon" type="image/svg+xml" href="/favicon.svg"');
       expect(html).toContain('property="og:url" content="https://textjs.org/"');

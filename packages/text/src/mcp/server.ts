@@ -156,7 +156,7 @@ export function formatFrame(f: FrameSnapshot): string {
   if (f.focus) lines.push(`focus: ${f.focus.id}${f.focus.component ? ` ${f.focus.component}` : ""}${f.focus.bounds ? ` ${formatBounds(f.focus.bounds)}` : ""}${f.cursor ? `  cursor: ${f.cursor.x},${f.cursor.y}` : ""}`);
   else lines.push("focus: none");
   if (f.status !== "running") lines.push(`status: ${f.status} (${STATUS_HINTS[f.status]})`);
-  if (f.newErrors > 0) lines.push(`errors: ${f.newErrors} new — call logs with level ["error"]`);
+  if (f.newErrors > 0) lines.push(`errors: ${f.newErrors} new (call logs with level ["error"])`);
   lines.push("");
   lines.push(f.text);
   return lines.join("\n");

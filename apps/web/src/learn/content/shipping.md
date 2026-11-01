@@ -7,7 +7,9 @@ bun run build
 ```
 
 ```text
-   ▼ Text.js 1.0.0 (Turbolog) — Creating an optimized console production build...
+   ▼ Text.js 1.0.1 (Turbolog)
+
+   Creating an optimized console production build...
 
  ✓ Compiled successfully in 0.8s
  ✓ Collecting route data
@@ -40,7 +42,7 @@ Set the browser tab title in the root layout. Pages can override it.
 
 ## Static hosting
 
-Without route handlers the build is a plain static site. Every route is served by the same `index.html`, so the host needs one SPA rewrite:
+Without route handlers the build is a plain static site. Each static route gets its own HTML file. Dynamic routes such as `/deployments/[id]` need a rewrite to `index.html`:
 
 ```diff-json@vercel.json
 +{

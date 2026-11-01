@@ -217,7 +217,7 @@ export const PRODUCTS: readonly Product[] = [
     name: "▼ Hoodie",
     color: "Black",
     price: 75,
-    description: ["The same relaxed fleece hoodie with a 3.5 inch ▼ embroidered in white thread at the chest."],
+    description: ["A relaxed fleece hoodie with a 3.5 inch ▼ embroidered in white thread at the chest."],
     details: [
       "9.4 oz fleece, 80% cotton and 20% recycled polyester",
       "Relaxed fit with dropped shoulders",
@@ -262,7 +262,7 @@ export const PRODUCTS: readonly Product[] = [
     name: "▼ Cap",
     color: "Black",
     price: 35,
-    description: ["The same cap with the ▼ embroidered on the front in white thread, 1.6 inches wide."],
+    description: ["A cap with the ▼ embroidered on the front in white thread, 1.6 inches wide."],
     details: [
       "100% cotton chino twill",
       "Unstructured, low profile, 3⅛ inch crown",
@@ -361,7 +361,7 @@ export const PRODUCTS: readonly Product[] = [
     color: "Faded Black",
     price: 40,
     description: [
-      "YOU WOULDN’T RENDER A WEBSITE IN THE CONSOLE, set in the layout of the 2004 anti-piracy ad. Distressed white type across the chest, and ▼ Text.js below the collar on the back.",
+      "YOU WOULDN’T RENDER A WEBSITE IN THE CONSOLE in distressed white type across the chest, and ▼ Text.js below the collar on the back.",
     ],
     details: [
       "7.1 oz 100% cotton, garment dyed and pre-shrunk",

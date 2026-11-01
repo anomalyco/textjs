@@ -34,7 +34,7 @@ export default function ConnectPage(): ReactNode {
     connection.status === "connecting"
       ? null
       : connection.kind === "demo"
-        ? { color: theme.warning, text: `◆ demo${connection.reason ? ` — ${connection.reason}` : ""}` }
+        ? { color: theme.warning, text: `◆ demo${connection.reason ? ` · ${connection.reason}` : ""}` }
         : { color: theme.success, text: `● ${connection.kind} · ${connection.label} · ${connection.mode}${connection.version ? ` · opencode ${connection.version}` : ""}` };
 
   return (

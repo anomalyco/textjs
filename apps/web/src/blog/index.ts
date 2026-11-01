@@ -101,7 +101,7 @@ export function renderRss(posts: readonly BlogPost[] = POSTS): string {
   <channel>
     <title>Text.js Blog</title>
     <link>${SITE}/blog</link>
-    <description>News and engineering notes from the Text.js team.</description>
+    <description>Releases and engineering notes from the Text.js team.</description>
     <language>en</language>
     <lastBuildDate>${latest}</lastBuildDate>
     <atom:link href="${SITE}/blog/rss.xml" rel="self" type="application/rss+xml" />

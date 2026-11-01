@@ -1,6 +1,6 @@
 # ▼ @textjs/next
 
-**The Console Framework for the Web.** React 19 App Router apps that render inside DevTools `console.log`, powered by the Turbolog engine.
+**The Console Framework for the Web.** Build React 19 App Router apps that render in the DevTools console. Turbolog writes each changed frame as one `console.log` call.
 
 ```bash
 bunx create-text-app my-app

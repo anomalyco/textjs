@@ -64,3 +64,5 @@ export default defineConfig({
 | `text dev` | Dev server with Fast Refresh |
 | `text build` | Production build |
 | `text start` | Serve the build and route handlers |
+| `text run` | Render the app in a terminal ([Terminal](/docs/terminal)) |
+| `text mcp` | Serve the app to coding agents ([MCP](/docs/mcp)) |
