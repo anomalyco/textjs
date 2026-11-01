@@ -1,10 +1,13 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import type { OgCard } from "../src/og";
+import { renderOgImages, type OgImage } from "./og/render";
 
 const rootDir = join(import.meta.dirname, "..");
-const distDir = join(rootDir, "dist");
-const ssrDir = join(rootDir, "node_modules", ".cache", "textjs-ssr");
+// Tests point these at a temporary build.
+const distDir = process.env.TEXTJS_WEB_DIST ?? join(rootDir, "dist");
+const ssrDir = process.env.TEXTJS_WEB_SSR ?? join(rootDir, "node_modules", ".cache", "textjs-ssr");
 const baseHtml = readFileSync(join(distDir, "index.html"), "utf8");
 
 interface ServerEntry {
@@ -18,12 +21,26 @@ interface ServerEntry {
   llmsTxt(): string;
   statusApi(): Record<string, string>;
   renderHomeAnsi(): Promise<string>;
+  ogCards(routes: ServerEntry["ROUTES"], notFoundPath: string): Promise<OgCard[]>;
 }
 
 const server = (await import(pathToFileURL(join(ssrDir, "entry-server.js")).href)) as ServerEntry;
 
 function escapeAttr(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+/** Points the page's Open Graph and Twitter image tags at its own card. */
+function withImage(html: string, image: OgImage): string {
+  const src = escapeAttr(`https://textjs.org${image.url}`);
+  const alt = escapeAttr(image.alt);
+  return html
+    .replace(/(<meta\s+property="og:image"\s+content=")[^"]*(")/, `$1${src}$2`)
+    .replace(/(<meta\s+property="og:image:width"\s+content=")[^"]*(")/, `$1${image.width}$2`)
+    .replace(/(<meta\s+property="og:image:height"\s+content=")[^"]*(")/, `$1${image.height}$2`)
+    .replace(/(<meta\s+property="og:image:alt"\s+content=")[^"]*(")/, `$1${alt}$2`)
+    .replace(/(<meta\s+name="twitter:card"\s+content=")[^"]*(")/, `$1summary_large_image$2`)
+    .replace(/(<meta\s+name="twitter:image"\s+content=")[^"]*(")(\s*\/>)/, `$1${src}$2$3\n    <meta name="twitter:image:alt" content="${alt}" />`);
 }
 
 function withMeta(html: string, title: string, description: string, urlPath: string): string {
@@ -62,10 +79,9 @@ function withNoindex(html: string): string {
   return html.replace(/\s*<link\s+rel="canonical"[^>]*>/, "").replace(/(<meta name="viewport"[^>]*>)/, '$1\n    <meta name="robots" content="noindex" />');
 }
 
-async function writeRoute(routePath: string, title: string, description: string, canonical = routePath, noindex = false): Promise<void> {
+async function routeHtml(routePath: string, title: string, description: string, canonical = routePath, noindex = false): Promise<string> {
   const meta = withMeta(baseHtml, title, description, canonical);
-  const html = await withMarkup(noindex ? withNoindex(meta) : meta, routePath);
-  writeHtml(routePath, html);
+  return withMarkup(noindex ? withNoindex(meta) : meta, routePath);
 }
 
 /**
@@ -80,7 +96,21 @@ function writeHtml(routePath: string, html: string): void {
   writeFileSync(file, html);
 }
 
-for (const r of server.ROUTES) await writeRoute(r.path, r.title, r.description, r.canonical, r.noindex);
+const pages = new Map<string, string>();
+for (const r of server.ROUTES) pages.set(r.path, await routeHtml(r.path, r.title, r.description, r.canonical, r.noindex));
+const notFound = withNoindex(baseHtml.replace(/<title>[^<]*<\/title>/, "<title>404: This page could not be found | Text.js</title>"));
+const notFoundHtml = await withMarkup(notFound, server.NOT_FOUND_PATH);
+
+// Open Graph cards run the console companion for each route, so they render after the pages.
+const ogStarted = performance.now();
+const { images, stats } = await renderOgImages(await server.ogCards(server.ROUTES, server.NOT_FOUND_PATH), distDir);
+console.log(`og: ${stats.cards} images (${stats.rendered} rendered, ${stats.cached} cached), ${(stats.bytes / 1024 / 1024).toFixed(1)} MB in ${Math.round(performance.now() - ogStarted)}ms`);
+const imageFor = (routePath: string): OgImage => {
+  const image = images.get(routePath);
+  if (!image) throw new Error(`og: no image for ${routePath}`);
+  return image;
+};
+for (const [path, html] of pages) writeHtml(path, withImage(html, imageFor(path)));
 
 mkdirSync(join(distDir, "blog"), { recursive: true });
 writeFileSync(join(distDir, "blog", "rss.xml"), server.renderRss());
@@ -91,8 +121,7 @@ for (const [name, body] of Object.entries(server.statusApi())) writeFileSync(joi
 // `curl textjs.org` (functions/index.ts).
 writeFileSync(join(distDir, "home.ansi"), await server.renderHomeAnsi());
 
-const notFound = withNoindex(baseHtml.replace(/<title>[^<]*<\/title>/, "<title>404: This page could not be found | Text.js</title>"));
-writeFileSync(join(distDir, "404.html"), await withMarkup(notFound, server.NOT_FOUND_PATH));
+writeFileSync(join(distDir, "404.html"), withImage(notFoundHtml, imageFor(server.NOT_FOUND_PATH)));
 writeFileSync(join(distDir, "CNAME"), "textjs.org\n");
 writeFileSync(join(distDir, ".nojekyll"), "");
 rmSync(ssrDir, { recursive: true, force: true });

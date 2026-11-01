@@ -59,6 +59,7 @@
       },
       "devDependencies": {
         "@vitejs/plugin-react": "^4.5.2",
+        "playwright-core": "1.62.1",
         "vite": "^6.3.5",
       },
     },
@@ -78,14 +79,14 @@
     },
     "packages/core": {
       "name": "@textjs/core",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "dependencies": {
         "yoga-layout": "^3.2.1",
       },
     },
     "packages/create-text-app": {
       "name": "create-text-app",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "bin": {
         "create-text-app": "bin/create-text-app.js",
       },
@@ -104,7 +105,7 @@
     },
     "packages/eslint-plugin-textjs": {
       "name": "eslint-plugin-textjs",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "dependencies": {
         "@typescript-eslint/utils": "^8.72.1",
       },
@@ -119,12 +120,12 @@
     },
     "packages/font": {
       "name": "@textjs/font",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "devDependencies": {
         "@textjs/react": "workspace:*",
       },
       "peerDependencies": {
-        "@textjs/react": "^1.0.0",
+        "@textjs/react": "^1.0.1",
         "react": "^19.0.0",
       },
       "optionalPeers": [
@@ -134,7 +135,7 @@
     },
     "packages/react": {
       "name": "@textjs/react",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "dependencies": {
         "@textjs/core": "workspace:*",
         "react-reconciler": "^0.34.0",
@@ -150,7 +151,7 @@
     },
     "packages/text": {
       "name": "@textjs/next",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "bin": {
         "text": "bin/text.js",
       },
