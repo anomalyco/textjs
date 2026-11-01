@@ -315,7 +315,10 @@ describe("logo menu", () => {
   test("SVGs are the header mark", () => {
     expect(LOGO_SVG).toContain('d="M2 4h20L12 21.5z"');
     expect(WORDMARK_SVG).toContain('d="M2 4h20L12 21.5z"');
-    expect(WORDMARK_SVG).toContain(">Text.js</text>");
+    // The wordmark is outlined (no <text>), so it renders without Geist installed.
+    expect(WORDMARK_SVG).not.toContain("<text");
+    expect(WORDMARK_SVG).not.toContain("font-family");
+    expect((WORDMARK_SVG.match(/<path /g) ?? []).length).toBe(2);
   });
 });
 
