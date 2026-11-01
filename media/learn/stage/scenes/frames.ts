@@ -14,6 +14,11 @@ import type { TuiFrame } from "../types";
  *   keys?: [{ at, label }],                          // keycaps on screen when a key is pressed
  * }
  */
+const toRgb = (hex: string): string => {
+  const n = parseInt(hex.slice(1, 7), 16);
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+};
+
 export const frames: SceneFactory = (data, cue) => {
   const p = data.props;
   const root = h("div", "scene");
@@ -41,7 +46,12 @@ export const frames: SceneFactory = (data, cue) => {
 
   const steps = (p.steps as Array<{ at: string | number; frame: TuiFrame; caption?: string }>).map((s, i) => {
     const el = tui(s.frame, size);
-    el.style.background = s.frame.rows[0]?.[0]?.bg ?? TUI_BG;
+    const base = s.frame.rows[0]?.[0]?.bg ?? TUI_BG;
+    el.style.background = base;
+    // Spans in the frame's own background are left transparent: an inline background covers the font's full
+    // height and would paint over the box lines of the row above.
+    const rgb = toRgb(base);
+    for (const span of el.querySelectorAll<HTMLElement>("span")) if (span.style.backgroundColor === rgb) span.style.background = "";
     // JetBrains Mono (the VM's stand-in for Menlo) draws box lines the full row height, so borders join up.
     el.style.fontFamily = '"JetBrains Mono", "SF Mono", Menlo, var(--mono)';
     el.style.display = "none";
