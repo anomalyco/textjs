@@ -29,8 +29,20 @@ const GROUPS: Array<{ title: string; href: string; items: string[] }> = [
 function Preview({ id, enabled }: { id: string; enabled: boolean }): ReactNode {
   const site = useSite();
   const app = useMemo(() => PREVIEWS[id]?.render() ?? null, [id]);
-  const sandbox = useSandbox(app, { cols: COLS, rows: ROWS, theme: site.theme === "geistLight" ? "geistDark" : site.theme, enabled });
-  return <SandboxConsole frame={sandbox.frame} engine={sandbox.engine} source={`preview://${id}:1`} filter={`-url:preview://${id}`} cols={COLS} rows={ROWS} />;
+  const [wireframe, setWireframe] = useState(false);
+  const sandbox = useSandbox(app, { cols: COLS, rows: ROWS, theme: site.theme === "geistLight" ? "geistDark" : site.theme, enabled, wireframe });
+  return (
+    <SandboxConsole
+      frame={sandbox.frame}
+      engine={sandbox.engine}
+      source={`preview://${id}:1`}
+      filter={`-url:preview://${id}`}
+      cols={COLS}
+      rows={ROWS}
+      onInspect={() => setWireframe((w) => !w)}
+      inspecting={wireframe}
+    />
+  );
 }
 
 export function KitSection(): ReactNode {

@@ -16,13 +16,15 @@ export interface SandboxConsoleProps {
   rows?: number;
   /** Label of the "click to focus" overlay. */
   activateLabel?: string;
+  onInspect?: () => void;
+  inspecting?: boolean;
 }
 
 /**
  * A DevTools-styled inline console that owns its keyboard input through a
  * private hidden textarea, so typing here never reaches the live companion.
  */
-export function SandboxConsole({ frame, engine, source, filter, className, captureWheel = false, fontSize, lineHeight, cols, rows, activateLabel = "Click to focus" }: SandboxConsoleProps): ReactNode {
+export function SandboxConsole({ frame, engine, source, filter, className, captureWheel = false, fontSize, lineHeight, cols, rows, activateLabel = "Click to focus", onInspect, inspecting }: SandboxConsoleProps): ReactNode {
   const sink = useRef<HTMLTextAreaElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const [focused, setFocused] = useState(false);
@@ -49,10 +51,11 @@ export function SandboxConsole({ frame, engine, source, filter, className, captu
 
   return (
     <div ref={wrap} className={`sandbox ${className ?? ""}`} data-console-bypass="" data-textjs-interactive="" onMouseDown={(e) => {
+      if ((e.target as Element).closest(".dt-inspect")) return;
       e.preventDefault();
       activate();
     }}>
-      <DevToolsWindow frame={frame} source={source} filter={filter} engaged={focused} onActivate={activate} activateLabel={activateLabel} fontSize={fontSize} lineHeight={lineHeight} cols={cols} rows={rows}>
+      <DevToolsWindow frame={frame} source={source} filter={filter} engaged={focused} onActivate={activate} activateLabel={activateLabel} fontSize={fontSize} lineHeight={lineHeight} cols={cols} rows={rows} onInspect={onInspect} inspecting={inspecting}>
         <textarea
           ref={sink}
           className="sandbox-sink"

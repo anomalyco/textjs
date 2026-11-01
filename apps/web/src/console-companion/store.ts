@@ -76,6 +76,8 @@ export interface SiteState {
   opencode: OpenCodeConnection;
   /** Live docs example (preview id) running in the console instead of the Docs view, or `null`. */
   example: string | null;
+  /** Yoga layout wireframe in the companion (F2, `text.wireframe()` and the mirror's inspect button). */
+  wireframe: boolean;
 }
 
 type Listener = () => void;
@@ -105,6 +107,7 @@ const DEFAULT_STATE: SiteState = {
   consoleInput: false,
   opencode: { mode: "sandbox" },
   example: null,
+  wireframe: false,
 };
 
 export class SiteStore {

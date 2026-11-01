@@ -59,7 +59,8 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
   const hints = PRESETS.find((p) => p.id === id)?.hints;
   const available = useConsoleAvailable();
   const active = spec !== undefined && site.tab === "docs" && site.example === id;
-  const sandbox = useSandbox(app, { cols: spec?.cols ?? 60, rows: spec?.rows ?? 10, theme: site.theme === "geistLight" ? "geistDark" : site.theme, enabled: inView && spec !== undefined && !active });
+  const [wireframe, setWireframe] = useState(false);
+  const sandbox = useSandbox(app, { cols: spec?.cols ?? 60, rows: spec?.rows ?? 10, theme: site.theme === "geistLight" ? "geistDark" : site.theme, enabled: inView && spec !== undefined && !active, wireframe });
   const companionFrame = useCompanionFrame(active);
   const mirrored = active ? exampleFrame(companionFrame, exampleHeader(site.docSlug, id), id) : null;
 
@@ -75,7 +76,7 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
   }, [active, id, ref]);
 
   const onStageMouseDown = (e: MouseEvent): void => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || (e.target as Element).closest(".dt-inspect")) return;
     e.preventDefault();
     e.stopPropagation();
     runInConsole(id);
@@ -131,6 +132,8 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
             cols={spec?.cols}
             rows={spec?.rows}
             activateLabel={available ? "Click to run in console" : undefined}
+            onInspect={() => setWireframe((w) => !w)}
+            inspecting={wireframe}
           />
         )}
       </div>

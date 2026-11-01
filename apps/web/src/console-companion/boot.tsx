@@ -122,11 +122,26 @@ export function bootCompanion(): Promise<Companion> {
       identifierPrefix: "txc",
     });
 
+    let wireframe = siteStore.getSnapshot().wireframe;
+    root.renderer.setWireframe(wireframe);
+    // `text.wireframe()` goes through the store too, so the inspect button stays in sync.
+    const repl = (globalThis as { text?: { wireframe?: (enabled?: boolean) => boolean } }).text;
+    if (repl?.wireframe) {
+      repl.wireframe = (enabled) => {
+        const next = enabled ?? !siteStore.getSnapshot().wireframe;
+        siteStore.set({ wireframe: next });
+        return next;
+      };
+    }
     let theme = siteStore.getSnapshot().theme;
     let tab = siteStore.getSnapshot().tab;
     let example = siteStore.getSnapshot().example;
     siteStore.subscribe(() => {
       const snap = siteStore.getSnapshot();
+      if (snap.wireframe !== wireframe) {
+        wireframe = snap.wireframe;
+        root.renderer.setWireframe(wireframe);
+      }
       if (snap.theme !== theme) {
         theme = snap.theme;
         root.setTheme(snap.theme);

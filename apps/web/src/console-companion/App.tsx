@@ -1,9 +1,9 @@
-import { lazy, Suspense, useRef, type ReactNode } from "react";
-import { Box, KeyHint, Text, useApp, useFocusManager, useInput } from "@textjs/react";
+import { lazy, Suspense, type ReactNode } from "react";
+import { Box, KeyHint, Text, useFocusManager, useInput } from "@textjs/react";
 import { OpenCodeLite } from "../demos/opencode/OpenCodeLite";
 import { PresetView } from "../demos/presets";
 import { useSite } from "./useSite";
-import { hintsFor, PRESETS, type CompanionTab } from "./store";
+import { hintsFor, PRESETS, siteStore, type CompanionTab } from "./store";
 import { HomeTab } from "./tabs/HomeTab";
 import { DocsTab } from "./tabs/DocsTab";
 import { exampleGrid, ExampleTab } from "./tabs/ExampleTab";
@@ -42,19 +42,16 @@ function Header({ tab }: { tab: CompanionTab }): ReactNode {
 
 export function CompanionApp(): ReactNode {
   const site = useSite();
-  const app = useApp();
   const focus = useFocusManager();
   const tab = site.tab;
   const example = tab === "docs" && site.example !== null && exampleGrid(site.example) ? site.example : null;
-  const wireframe = useRef(false);
 
   useInput(
     (e) => {
       if (tab === "opencode") return;
     if (e.key === "f2") {
       e.stopPropagation();
-      wireframe.current = !wireframe.current;
-      app.renderer.setWireframe(wireframe.current);
+      siteStore.set({ wireframe: !siteStore.getSnapshot().wireframe });
     } else if (e.key === "escape" && example === null) {
       e.stopPropagation();
       focus.blur();

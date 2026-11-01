@@ -12,6 +12,10 @@ import { renderHomeAnsi } from "../src/home-ansi";
 import { encodeLogoConsoleLog } from "../src/site/logo-console-gen";
 import { LOGO_CONSOLE_LOG } from "../src/site/logo-console";
 import { LOGO_SVG, WORDMARK_SVG } from "../src/site/LogoMenu";
+import { DevToolsWindow } from "../src/site/DevToolsWindow";
+import { siteStore } from "../src/console-companion/store";
+import { CompanionApp } from "../src/console-companion/App";
+import { mount } from "./helpers";
 import { renderToStaticMarkup } from "react-dom/server";
 import { HERO_FILES } from "../src/pages/home-files";
 import { HighlightedCode } from "../src/site/highlight";
@@ -312,5 +316,33 @@ describe("logo menu", () => {
     expect(LOGO_SVG).toContain('d="M2 4h20L12 21.5z"');
     expect(WORDMARK_SVG).toContain('d="M2 4h20L12 21.5z"');
     expect(WORDMARK_SVG).toContain(">Text.js</text>");
+  });
+});
+
+describe("inspect button", () => {
+  test("the element picker is a wireframe toggle only where there's a root", () => {
+    const plain = renderToStaticMarkup(<DevToolsWindow frame={null} cols={10} rows={2} />);
+    expect(plain).toContain('<div class="dt-tabs" aria-hidden="true"><span class="dt-icon">');
+    expect(plain).not.toContain("<button");
+    const live = renderToStaticMarkup(<DevToolsWindow frame={null} cols={10} rows={2} onInspect={() => undefined} inspecting />);
+    expect(live).toContain('<div class="dt-tabs"><button type="button" class="dt-icon dt-inspect active" aria-pressed="true" aria-label="Show layout wireframe" data-console-bypass="">');
+    expect(live).toContain('<span class="dt-tab active" aria-hidden="true">Console</span>');
+  });
+
+  test("Home's mirror toggles the companion wireframe through the store", () => {
+    siteStore.reset();
+    const html = renderToStaticMarkup(<RouteView route={{ name: "home" }} />);
+    expect(html).toContain('aria-pressed="false" aria-label="Show layout wireframe"');
+    expect(siteStore.getSnapshot().wireframe).toBe(false);
+  });
+
+  test("F2 in the companion flips the same flag", async () => {
+    siteStore.reset();
+    const h = await mount(<CompanionApp />, { cols: 100, rows: 26 });
+    await h.key("f2");
+    expect(siteStore.getSnapshot().wireframe).toBe(true);
+    await h.key("f2");
+    expect(siteStore.getSnapshot().wireframe).toBe(false);
+    await h.unmount();
   });
 });

@@ -1047,6 +1047,27 @@ kbd {
   flex: 1;
 }
 
+.dt-inspect {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.dt-inspect:hover {
+  color: var(--dt-text);
+}
+
+.dt-inspect.active {
+  color: var(--dt-accent);
+}
+
+.dt-inspect:focus-visible {
+  outline: 2px solid var(--dt-accent);
+  outline-offset: -4px;
+  border-radius: 4px;
+}
+
 .dt-toolbar {
   display: flex;
   align-items: center;
