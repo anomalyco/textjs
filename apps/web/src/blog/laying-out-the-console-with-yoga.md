@@ -2,7 +2,7 @@
 title: Laying out the console with Yoga
 date: 2025-06-10
 author: Adam
-summary: Text.js runs Yoga in WebAssembly with a point scale factor of 1, so every box lands on a whole cell. Text is measured in cells, grapheme by grapheme.
+summary: Text.js runs Yoga in WebAssembly with a point scale factor of 1, so every box lands on a whole cell. Text is segmented with Intl.Segmenter and measured in cells.
 ---
 
 Every Text.js frame is laid out by Yoga, the flexbox engine used by React Native, compiled to WebAssembly. Boxes and text share one Yoga tree. The console is a grid of character cells, so every position and size that comes out of it has to be a whole number of cells.
@@ -57,9 +57,9 @@ private measure(width: number, widthMode: MeasureMode, _height: number, _heightM
 
 Text that fits is returned at its natural size. Text that doesn't is wrapped at the available width, and its height is the number of lines. The node keeps its last wrap, so measuring the same width again doesn't wrap the text again.
 
-## Cells, not characters
+## Measuring grapheme clusters
 
-The width of a string in cells is not its length in JavaScript. Text is first split into grapheme clusters with `Intl.Segmenter`, so `e` followed by a combining accent is one cluster, and so is an emoji sequence joined with zero-width joiners. Each cluster is then given a width:
+A string's `length` counts UTF-16 code units, which says little about how many cells it fills. Text is first split into grapheme clusters with `Intl.Segmenter`, so `e` followed by a combining accent is one cluster, and so is an emoji sequence joined with zero-width joiners. Each cluster is then given a width:
 
 | Text | Cells | Why |
 | :-- | --: | :-- |
@@ -69,7 +69,7 @@ The width of a string in cells is not its length in JavaScript. Text is first sp
 | `é` (`e` + U+0301) | 1 | Combining marks take none |
 | `─│┌▼←⠋` | 6 | Box drawing, geometric shapes, arrows and braille are pinned to one |
 
-The last row matters for drawing. Borders, the `▼` mark, arrows and spinner frames are always measured as one cell, so a box border never pushes its contents out of line.
+Borders, the `▼` mark, arrows and spinner frames are always measured as one cell, so a box border never pushes its contents out of line.
 
 Printable ASCII skips segmentation, and other widths are cached per code point and per cluster.
 
@@ -85,7 +85,7 @@ Truncation counts cells too, so a line of Chinese text is cut on a character bou
 
 ## In practice
 
-A sidebar with a fixed width and a panel that takes the rest:
+Here a 30-column sidebar sits next to a panel that takes the remaining width:
 
 ```tsx
 <Box flexDirection="row" width="100%" height="100%">

@@ -106,7 +106,7 @@ describe("changelog, blog, enterprise and status", () => {
       expect(i.updates[0]!.at.slice(0, 10) >= LAUNCH).toBe(true);
       expect(i.updates.at(-1)!.at.slice(0, 10) <= history.measuredAt).toBe(true);
       for (const c of i.components) expect(names).toContain(c);
-      expect(i.commits.length).toBeGreaterThan(0);
+      expect(i.commits.length + i.links.length).toBeGreaterThan(0);
       for (const l of i.links) expect(matchRoute(l.href.split("#")[0] as string).name).not.toBe("not-found");
     }
   });

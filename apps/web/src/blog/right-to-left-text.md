@@ -2,7 +2,7 @@
 title: Right-to-left text in the console
 date: 2026-10-06
 author: Adam
-summary: Text.js implements the Unicode Bidirectional Algorithm and passes all 770,241 BidiTest.txt cases. Hebrew and Arabic render in order, shaped and aligned to the cell grid.
+summary: Text.js implements the Unicode Bidirectional Algorithm and passes all 770,241 BidiTest.txt cases. Hebrew and Arabic render in visual order with Arabic shaping, aligned to the cell grid.
 ---
 
 Text.js now renders Hebrew, Arabic, Persian and other right-to-left scripts in the correct order, with Arabic letters joined, on the same cell grid as everything else.

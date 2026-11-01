@@ -15,11 +15,11 @@ Text.js renders React apps in the Chrome DevTools console. Apart from a hidden i
 console.log("%c▼ Text.js%c ready", "color:#ededed;font-weight:700", "color:#45a557");
 ```
 
-These styles can set colors, backgrounds, bold, italic and underline, and the console font is monospace (Menlo on macOS). Every character takes the same width, and every run of characters can have its own colors, so the console works as a grid of styled character cells. Borders, panels, inputs and charts can all be drawn on it.
+These styles can set colors, backgrounds, bold, italic and underline, and the console font is monospace (Menlo on macOS). With a monospace font, and colors that can change on every run of characters, the console works as a grid of styled character cells. Borders, panels, inputs and charts can all be drawn on it.
 
 ## A frame is a grid of cells
 
-`@textjs/core` keeps each frame in a `CellBuffer`. Characters live in one typed array, foreground and background colors in two more, and attributes such as bold and underline in a fourth. The arrays are allocated once for a given size and reused for every frame.
+The renderer keeps each frame in a `CellBuffer`. Characters live in one typed array, foreground and background colors in two more, and attributes such as bold and underline in a fourth. The arrays are allocated once for a given size and reused for every frame.
 
 To log a frame, the driver walks each row and groups neighboring cells that share a style into runs. Each run becomes one `%c` span, and rows are joined with `\n`. Our 100×32 test dashboard, 3,200 cells, encodes to about 200 spans.
 
@@ -43,7 +43,7 @@ export function escapeConsoleText(text: string, allowLink = false): string {
 
 ## Idle frames log nothing
 
-Every row of the buffer is hashed. If no hash changed since the last frame, the driver returns before it builds a string and never touches the console. An app that is waiting for input makes no calls at all.
+Every row of the buffer is hashed. If no hash changed since the last frame, the driver returns before it builds a string and never touches the console. An app that is waiting for input makes no calls.
 
 When a row did change, the driver clears the console and logs the new frame:
 
@@ -62,4 +62,4 @@ The console doesn't receive keystrokes, so the page collects them. A hidden `<te
 
 ## Next
 
-The renderer is published as `@textjs/core`. A React reconciler that renders components into the cell buffer comes next, with Yoga for flexbox layout.
+The `@textjs/core` 0.0.x prototypes on npm hold everything in one package. Text.js 0.1 moves the renderer described here into `@textjs/core`, the React reconciler into `@textjs/react`, and adds an App Router.

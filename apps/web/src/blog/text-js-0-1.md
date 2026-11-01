@@ -2,7 +2,7 @@
 title: Text.js 0.1
 date: 2025-03-25
 author: Adam
-summary: The first milestone. A React 19 reconciler, Yoga layout and a file-system App Router for apps that render in the DevTools console.
+summary: Text.js 0.1 brings a React 19 reconciler, Yoga layout and a file-system App Router to apps that render in the DevTools console.
 ---
 
 Text.js 0.1 is tagged. It is the first version with all three layers: `@textjs/core` draws frames into the console, `@textjs/react` renders React 19 into those frames, and `textjs` adds an App Router and a CLI.
@@ -24,27 +24,36 @@ app/
         └── route.ts
 ```
 
-A layout wraps every page below it and keeps its state across navigation. `<Link>` takes a `shortcut`, so a single key follows it:
+A layout wraps every page below it and keeps its state across navigation. `<Link>` takes a `shortcut`, so a single key follows it, and `activeClassName` styles the link to the current route:
 
 ```tsx@app/layout.tsx
 import type { ReactNode } from "react";
-import { AsciiFont, Box, KeyHint, Text, useTheme, type Metadata } from "textjs";
+import { Box, KeyHint, Text, useTheme, type Metadata } from "textjs";
 import Link from "textjs/link";
 
-export const metadata: Metadata = {
-  title: { default: "Acme", template: "%s · Acme" },
-};
+export const metadata: Metadata = { title: { default: "Acme", template: "%s · Acme" } };
 
 export default function RootLayout({ children }: { children?: ReactNode }): ReactNode {
   const theme = useTheme();
   return (
-    <Box className="flex-col w-full h-full px-2 pt-1">
-      <AsciiFont text="▼ TEXT.JS" font="compact" color={theme.fg} />
-      <Box className="flex-row gap-3 h-1 shrink-0 mt-1">
-        <Link href="/" shortcut="1">Home</Link>
-        <Link href="/about" shortcut="2">About</Link>
+    <Box className="flex-col w-full h-full">
+      <Box className="flex-row h-1 px-1 gap-3 bg-surface shrink-0">
+        <Text bold color={theme.fg} wrap="nowrap">
+          ▼ Acme
+        </Text>
+        <Link href="/" shortcut="1" className="text-muted no-underline" activeClassName="text-fg bold">
+          1 Metrics
+        </Link>
+        <Link href="/deployments/dpl_a1" shortcut="2" className="text-muted no-underline" activeClassName="text-fg bold">
+          2 Latest deploy
+        </Link>
       </Box>
-      <Box className="grow flex-col pt-1">{children}</Box>
+      <Box className="grow flex-col px-2 pt-1">{children}</Box>
+      <Box className="flex-row h-1 gap-2 pl-6 shrink-0 bg-surface">
+        <KeyHint keys="1-2" label="navigate" />
+        <KeyHint keys="tab" label="focus" />
+        <KeyHint keys="F2" label="devtools" />
+      </Box>
     </Box>
   );
 }
@@ -105,7 +114,7 @@ The router keeps `window.location` in sync through `history.pushState`, so Back,
 ## The CLI
 
 - `text dev` starts Vite with React Fast Refresh. Saving a file updates the console in place.
-- `text build` writes a static build.
+- `text build` writes a production build of the app and its route handlers.
 - `text start` serves the build and the route handlers.
 
 `create-text-app` scaffolds a project from the `starter` or `dashboard` template.

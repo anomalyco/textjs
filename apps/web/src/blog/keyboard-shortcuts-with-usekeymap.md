@@ -5,10 +5,10 @@ author: Adam
 summary: Declare a binding once with useKeymap, and Text.js routes the key, lists it in a ? help screen, shows it in the footer and adds it to a Ctrl+K command palette.
 ---
 
-Console apps are driven by the keyboard. Until now, a Text.js app handled keys in `useInput` and listed them a second time in a `<KeyHint>` footer, by hand. `useKeymap` replaces both with one declaration.
+Until now, a Text.js app handled keys in `useInput` and listed them a second time, by hand, in a `<KeyHint>` footer. `useKeymap` replaces both with one declaration.
 
 ```tsx
-import { CommandPalette, KeyHelp, KeyHints, StatusBar, Text, useKeymap } from "textjs";
+import { CommandPalette, KeyHelp, KeyHints, StatusBar, Text, useKeymap } from "@textjs/react";
 
 export default function Sessions() {
   useKeymap(
@@ -46,11 +46,11 @@ Pressing `j` runs `next`. On macOS, `<KeyHints>` shows `j/↓ Next` and `⌃S Sa
 | `G` | Uppercase implies `Shift` |
 | `?` | Printable keys match the character |
 
-A binding is a handler, or an object with `label`, `group`, `hint`, `disabled` and `noRepeat`. Unlabeled bindings work, but they stay out of the help screen and the palette.
+A binding is a handler, or an object with `label`, `group`, `hint`, `command`, `disabled` and `noRepeat`. `command: false` keeps a labeled binding out of the palette. Unlabeled bindings work, but they stay out of the help screen and the palette.
 
 ## Routing
 
-`useKeymap` doesn't add a second input system. Each keymap registers one `useInput` handler, so the existing rules apply. A focused `<Input>` handles keys first, because editors listen at priority 10 and keymaps at 0. A matched key stops propagation. An open `<Modal>` disables bindings outside it, unless the keymap passes `global: true`.
+Each keymap registers one `useInput` handler, so the existing input rules apply. A focused `<Input>` handles keys first, because editors listen at priority 10 and keymaps at 0. A matched key stops propagation. An open `<Modal>` disables bindings outside it, unless the keymap passes `global: true`.
 
 Sequences are matched inside that handler. A key that starts a sequence is held as pending and stops propagation, and the sequence resets when the next key arrives more than `sequenceTimeout` (1,000ms by default) later:
 

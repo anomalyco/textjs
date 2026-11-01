@@ -2,7 +2,7 @@
 
 All notable changes to Text.js are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Releases before 1.0.0 were tagged in git and not published to npm.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Releases 0.1.0 through 0.4.0 were tagged in git and not published to npm.
 
 ## [Unreleased]
 
@@ -36,7 +36,7 @@ The first stable release. `▼ Text.js 1.0.0 (Turbolog)`.
 - The Text.js DevTools extension, a panel next to Console with the component tree, a frame inspector and a timeline.
 - `eslint-plugin-textjs` and a VS Code extension with live previews.
 - `apps/terminal-shop`: the terminal.shop storefront in the console, against the real API (dev sandbox by default, production double-locked).
-- textjs.org: Learn, a 10-chapter course that runs in the console. Build-time prerendering with hydration, self-hosted metric-matched fonts, slash-less `.html` routes and seven new docs pages with live previews.
+- textjs.org: Learn, a 10-chapter course that runs in the console. Build-time prerendering with hydration, self-hosted metric-matched fonts, slash-less `.html` routes and new docs pages with live previews.
 
 ### Performance
 
@@ -63,8 +63,8 @@ Zero-flash frames and server rendering.
 
 ### Changed
 
-- Frames are appended instead of `console.clear()` + `console.log()` per frame. DevTools applies a clear synchronously but paints new messages on a 50ms throttle, so clearing flashed an empty console in 70–95% of DevTools paints at 30–120fps. A leading zero-width curtain span hides earlier frames. The console is cleared only on the first frame, after `invalidate()`, at idle once 100 frames are stacked, or at 300.
-- Emitted frames are paced to at least 66ms apart (about 15fps). Faster frames restart the DevTools throttle and are dropped: at 30fps DevTools painted fewer distinct frames than at 15fps.
+- Frames are appended instead of `console.clear()` + `console.log()` per frame. DevTools applies a clear synchronously but paints new messages on a 50ms throttle, so clearing left the console blank in 70.6% of DevTools paints at 15fps and 81.1% at 60fps. A leading zero-width curtain span hides earlier frames. The console is cleared only on the first frame, after `invalidate()`, at idle once 100 frames are stacked, or at 300.
+- Emitted frames are paced to at least 66ms apart (about 15fps). Faster frames restart the DevTools throttle and are dropped: at 60fps DevTools painted 67 of 295 emitted frames.
 - The Showcase was folded into the Playground (`/showcase` redirects).
 - Playground and OpenCode are full-screen focus pads.
 
@@ -85,14 +85,14 @@ Zero-flash frames and server rendering.
 
 ### Fixed
 
-- `path:line`, `host:port` and `data:` text is no longer linkified by DevTools.
+- `path:line`, `//host:port` and `data:` text is no longer linkified by DevTools.
 - The OpenCode bridge finds the managed daemon (ephemeral port, basic auth), sends the CSRF header on writes and reports failures in one line.
 
 ## [0.3.0] - 2025-11-18
 
 ### Changed
 
-- Discrete input (a keypress, a paste) renders synchronously in the same task, making input about 10× more responsive.
+- Discrete input (a keypress, a paste) renders synchronously in the same task instead of waiting for the next animation frame.
 - A pared-back OpenCode TUI that matches the real one.
 - A complete mobile and responsive pass over textjs.org.
 

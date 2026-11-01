@@ -297,16 +297,20 @@ function IncidentItem({ incident: i }: { incident: Incident }): ReactNode {
               <Inline text={i.postmortem} />
             </p>
             <p className="st-fix">
-              {i.commits.length === 1 ? "Fix" : "Fixes"}:{" "}
-              {i.commits.map((c, n) => (
-                <span key={c}>
-                  {n > 0 ? ", " : null}
-                  <code>{c}</code>
-                </span>
-              ))}
-              {i.links.map((l) => (
+              {i.commits.length > 0 ? (
+                <>
+                  {i.commits.length === 1 ? "Fix" : "Fixes"}:{" "}
+                  {i.commits.map((c, n) => (
+                    <span key={c}>
+                      {n > 0 ? ", " : null}
+                      <code>{c}</code>
+                    </span>
+                  ))}
+                </>
+              ) : null}
+              {i.links.map((l, n) => (
                 <span key={l.href}>
-                  {" · "}
+                  {i.commits.length > 0 || n > 0 ? " · " : null}
                   <A href={l.href}>{l.label}</A>
                 </span>
               ))}

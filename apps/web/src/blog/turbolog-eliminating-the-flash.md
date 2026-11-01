@@ -28,7 +28,7 @@ So each frame removes the old frame now and paints the new one later. At 15fps, 
 
 ## Appending frames
 
-Turbolog now appends frames. DevTools sticks to the bottom of the console, so the new frame replaces the old one inside a single paint. A leading zero-width span with `margin-top:100vh` (the curtain) pushes earlier frames out of view, and it ends its own line so the DevTools source link never narrows row 0.
+Since 0.4, Turbolog appends frames. DevTools sticks to the bottom of the console, so the new frame replaces the old one inside a single paint. A leading zero-width span with `margin-top:100vh` (the curtain) pushes earlier frames out of view, and it ends its own line so the DevTools source link never narrows row 0.
 
 The console still has to be emptied eventually. A clear happens only on the first frame, after `invalidate()`, at idle once 100 frames have stacked up, and at a hard cap of 300.
 

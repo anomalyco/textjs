@@ -31,7 +31,7 @@ export default function StatusPage(): ReactNode {
 }
 ```
 
-`Load` is an `async function` component. On the server it suspends to the nearest `<Suspense>` or `loading.tsx` until its promise resolves, and it can read files, databases and `node:*` modules directly. Hooks, focus, `useInput`, `<Link>` and `useRouter()` behave the same in both runtimes.
+`Load` is an `async function` component. On the server it suspends to the nearest `<Suspense>` or `loading.tsx` until its promise resolves, and it can read files, databases and `node:*` modules directly. Async components load data and can't use hooks. The regular components around them keep hooks, focus, `useInput`, `<Link>` and `useRouter()`, which behave the same in both runtimes.
 
 ## What the browser downloads
 
@@ -39,7 +39,7 @@ A server-rendered page doesn't ship React, Yoga or your routes. The browser load
 
 ## The protocol
 
-Each tab opens its own session on the server: a React root, an in-memory router history and a cell buffer. Two endpoints carry everything:
+Each tab opens its own session on the server: a React root, an in-memory router history and a cell buffer. One endpoint carries both directions:
 
 ```text
 browser tab ──(GET /__textjs/live, server-sent events)──▶ frame deltas
@@ -71,13 +71,13 @@ Partial Prerendering works without a server. `text build` now renders every stat
 
 The shell is everything that renders synchronously. A `<Suspense>` boundary that is still waiting shows its fallback, async components included, and `fetch()` never resolves while the shell renders.
 
-When JavaScript boots, the client renderer or the frame player streams the real frame. This depends on the other change in 0.4. Frames are appended instead of cleared, so the hydrating renderer starts with `initialClear: false` and logs below the shell, and its curtain moves the shell out of view in the same DevTools paint. The console is cleared exactly once, by the shell.
+When JavaScript boots, the client renderer or the frame player streams the real frame. Because 0.4 also appends frames instead of clearing, the hydrating renderer starts with `initialClear: false` and logs below the shell, and its curtain moves the shell out of view in the same DevTools paint. The console is cleared exactly once, by the shell.
 
 ```text
  ✓ Prerendering console shells (5/5) · 1 server-rendered, frame player 50.4 kB (19.2 kB gzip)
 ```
 
-The shell is rendered at the configured `viewport` size, `120 × 36` by default, because the build can't know the visitor's console size. The first live frame resizes to the real console. Dynamic routes render no shell, and `ppr: false` in `text.config.ts` turns prerendering off.
+The shell is rendered at the configured `viewport` size, `100 × 32` by default, because the build can't know the visitor's console size. With `viewport.responsive` on, the first live frame resizes to the docked console. Dynamic routes render no shell, and `ppr: false` in `text.config.ts` turns prerendering off.
 
 ## Choosing a runtime
 
