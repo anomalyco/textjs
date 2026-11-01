@@ -17,12 +17,14 @@ import {
   ProgressBar,
   resamplePixels,
   sampleGradient,
+  Spacer,
   Sparkline,
   sparkline,
   SplitPane,
   Stack,
   StatusBar,
   Text,
+  useTheme,
 } from "../src/index";
 import { cleanup, render } from "../src/testing";
 
@@ -189,6 +191,25 @@ describe("layout helpers", () => {
     expect(app.lines()[0]).toBe("left        ┃right");
     await app.press("shift+left");
     expect(app.lines()[0]).toBe("left   ┃right");
+  });
+
+  test("text after a <Spacer> stays right-aligned when it gets shorter", async () => {
+    function TopBar() {
+      const theme = useTheme();
+      return (
+        <Box className="flex-row h-1 px-1 gap-2">
+          <Text>▼ Acme</Text>
+          <Spacer />
+          <Text color="subtle">{theme.name}</Text>
+        </Box>
+      );
+    }
+    const app = await render(<TopBar />, { cols: 30, rows: 1, theme: "opencodeDark" });
+    expect(app.lastFrame()).toBe(` ▼ Acme${"OpenCode Dark".padStart(22)}`);
+    for (const [theme, name] of [["amberCrt", "Amber CRT"], ["tokyoNight", "Tokyo Night"], ["geistDark", "Geist Dark"]] as const) {
+      await app.act(() => app.root.setTheme(theme));
+      expect(app.lastFrame()).toBe(` ▼ Acme${name.padStart(22)}`);
+    }
   });
 
   test("<Kbd> and <StatusBar>", async () => {

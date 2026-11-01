@@ -14,6 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Text that is the last item in a row now keeps its place when it gets shorter. After a `<Spacer>`, it stayed where the longest text had left it, and siblings shrunk to fit an overflowing row stayed shrunk.
+- `@textjs/react/testing` loads Yoga when it's imported, so a test can stub `fetch` before its first `render()`.
 - textjs.org: file tabs, code blocks and prose tables scroll horizontally only, so iOS Safari never steals vertical page swipes.
 - textjs.org: `scrollbar-gutter: stable` applies to mouse devices only. On iOS Safari it made the first scroll jump.
 

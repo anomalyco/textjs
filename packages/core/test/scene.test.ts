@@ -417,6 +417,67 @@ describe("incremental layout & prop optimizations", () => {
   });
 });
 
+describe("in-place width updates of a row's last text leaf", () => {
+  /** Lays out `make()` incrementally through `values`, comparing each step with a freshly built tree. */
+  function expectMatchesFresh(make: () => { root: SceneNode; raw: SceneNode }, values: string[], w: number): void {
+    const { root, raw } = make();
+    const inc = new CellBuffer(w, 1);
+    root.calculateLayout(w, 1);
+    paintScene(root, inc);
+    for (const v of values) {
+      raw.setText(v);
+      root.calculateLayout(w, 1);
+      paintScene(root, inc);
+      const fresh = make();
+      fresh.raw.setText(v);
+      expect(inc.toPlainString()).toBe(render(fresh.root, w, 1).toPlainString());
+      fresh.root.destroy();
+    }
+    root.destroy();
+  }
+
+  test("a growing sibling before the leaf takes the freed space, so the leaf stays right-aligned", () => {
+    expectMatchesFresh(
+      () => {
+        const raw = createRawText("OpenCode Dark");
+        const root = box({ width: 30, height: 1, flexDirection: "row", columnGap: 2 }, text({}, "left"), box({ flexGrow: 1 }), text({}, raw));
+        return { root, raw };
+      },
+      ["Amber CRT", "Tokyo Night", "OpenCode Dark", "Geist"],
+      30,
+    );
+  });
+
+  test("siblings shrunk to fit an overflowing row widen again when the leaf gets shorter", () => {
+    expectMatchesFresh(
+      () => {
+        const raw = createRawText("value12");
+        const root = box({ width: 20, height: 1, flexDirection: "row" }, text({ wrap: "truncate-end" }, "a long label here!!"), text({}, raw));
+        return { root, raw };
+      },
+      ["v1", "value12", "valu"],
+      20,
+    );
+  });
+
+  test("skips Yoga when the row has room, and Yoga re-measures the leaf on its next layout", () => {
+    const left = createRawText("left");
+    const value = createRawText("OpenCode Dark");
+    const leaf = text({}, value);
+    const root = box({ width: 30, height: 1, flexDirection: "column" }, box({ flexDirection: "row", columnGap: 1, height: 1 }, text({}, left), leaf));
+    root.calculateLayout(30, 1);
+    value.setText("Amber");
+    expect(root.calculateLayout(30, 1)).toBe(false);
+    expect(leaf.layout.width).toBe(5);
+    // Any later Yoga pass must not bring back the old 13-cell measurement.
+    left.setText("leftish");
+    expect(root.calculateLayout(30, 1)).toBe(true);
+    expect(leaf.layout.x).toBe(8);
+    expect(leaf.layout.width).toBe(5);
+    root.destroy();
+  });
+});
+
 describe("painted / screenRect bookkeeping (DevTools inspector inputs)", () => {
   test("band repaints keep flags from the last full paint; moves and scrolls force a full paint", () => {
     const lines = [0, 1, 2, 3, 4].map((i) => text({}, `line ${i}`));
