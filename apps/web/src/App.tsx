@@ -38,7 +38,7 @@ export function RouteView({ route }: { route: Route }): ReactNode {
     case "playground":
       return <PlaygroundPage demo={route.preset} />;
     case "opencode":
-    case "terminal":
+    case "coffee":
       return <PlaygroundPage demo={route.name} />;
     case "learn":
       return <LearnPage slug={route.slug} />;

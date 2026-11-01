@@ -12,7 +12,7 @@ const PAGES: Item[] = [
   { key: "p:/docs", group: "Pages", label: "Documentation", sub: "/docs", href: "/docs" },
   { key: "p:/playground", group: "Pages", label: "Playground", sub: "/playground", href: "/playground" },
   { key: "p:/opencode", group: "Pages", label: "OpenCode in the Console", sub: "Playground · /opencode", href: "/opencode" },
-  { key: "p:/terminal", group: "Pages", label: "Coffee from terminal.shop", sub: "Playground · /terminal", href: "/terminal" },
+  { key: "p:/coffee", group: "Pages", label: "Coffee from terminal.shop", sub: "Playground · /coffee", href: "/coffee" },
 ];
 
 const openListeners = new Set<(open: boolean) => void>();

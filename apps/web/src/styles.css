@@ -2254,7 +2254,9 @@ kbd {
  *   reserve the same number of lines at every width, so demo-specific text never moves the rest.
  */
 .pad-stage {
-  --pad-frame: 360px;
+  /* The frame includes the banner row and the desk's 28px gap below it. */
+  --pad-banner: 32px;
+  --pad-frame: 420px;
   --pad-bottom: 72px;
   padding: 24px;
   min-height: calc(100vh - var(--header-h));
@@ -2331,7 +2333,6 @@ kbd {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
   white-space: nowrap;
   height: 32px;
   padding: 0 16px;
@@ -2352,12 +2353,22 @@ kbd {
   box-shadow: inset 0 0 0 1px var(--line-2);
 }
 
-/* OpenCode and terminal.shop marks (site/brand-marks.tsx): one box for both, in the label's colour. */
-.pad-picker .brand-mark {
-  flex: none;
+/* First row of the message. Every demo reserves it; OpenCode and terminal.shop put their wordmarks
+   here (site/brand-marks.tsx), centred and in the headline's colour. */
+/* Full width, so the row keeps one box whichever wordmark (or none) it holds. */
+.pad-stage .tx-pad-banner {
+  width: 100%;
+}
+
+.pad-slot-banner {
+  height: var(--pad-banner);
+  justify-content: center;
+  color: var(--fg);
+}
+
+.pad-slot-banner svg {
   display: block;
-  width: 16px;
-  height: 15px;
+  flex: none;
 }
 
 /* Bottom of its slot: on wide screens it shares a baseline with the console size control. */
@@ -2506,7 +2517,7 @@ kbd {
 /* Narrow windows: per-demo copy may wrap, so reserve the most lines any demo needs. */
 @media (max-width: 640px) {
   .pad-stage {
-    --pad-frame: 460px;
+    --pad-frame: 520px;
     padding: 12px;
   }
   .pad-stage .tx-pad-sub {
@@ -2528,7 +2539,7 @@ kbd {
 
 @media (max-width: 359px) {
   .pad-stage {
-    --pad-frame: 520px;
+    --pad-frame: 580px;
   }
   .pad-stage .tx-pad-steps {
     min-height: 102px;

@@ -41,9 +41,9 @@ TERMINAL_ENABLE_PRODUCTION=1 bun run dev     # or put it in .env.local
 
 Then go to **a account → debug info**, press **e**, answer **y**, and sign in with a production token (`ssh terminal.shop -t tokens`) or the browser. To go back to the sandbox, press **e** on the same page again, or restart the server without the variable.
 
-## On textjs.org (`/terminal`)
+## On textjs.org (`/coffee`)
 
-[textjs.org/terminal](https://textjs.org/terminal) runs this same app in the site's console companion (`embed.tsx` → `apps/web/src/demos/terminal.tsx`). It differs in three ways:
+[textjs.org/coffee](https://textjs.org/coffee) runs this same app in the site's console companion (`embed.tsx` → `apps/web/src/demos/terminal.tsx`). It differs in three ways:
 
 - **Sign in is Terminal's OAuth, nothing else.** No token paste, no API key. Cloudflare Pages Functions in `apps/web/functions/` (logic in `apps/web/server/terminal-session.ts`) run the authorization code + PKCE flow. They keep the tokens in a `__Host-` cookie (httpOnly, Secure, SameSite=Lax), so page JavaScript never sees one. The cookie is sealed with AES-256-GCM, so other `*.textjs.org` hosts can't plant, read or forge it. The proxy never forwards anything that mints a long-lived credential: new access tokens and OAuth apps come from `ssh terminal.shop -t tokens` / `-t apps`. Terminal's OpenAuth issuer treats apps as public clients: the token exchange sends `client_id`, `redirect_uri` and the PKCE verifier, with no client secret.
 - **Production by default.** It's the real store. Products are public, so you can browse signed out. Cart, account and checkout ask you to sign in. Placing a real order, or subscribing to one, needs one more key: a letter that changes every time and appears only in the console frame. A key script like "press enter, then y" can't buy anything for someone who can't see the console, and held-down keys never confirm. Links (and the sign in round trip) only open the shop, cart, account or menu, never a checkout step. Cards are still entered only on Terminal's hosted card page.
@@ -60,7 +60,7 @@ Configuration (Pages environment):
 
 There's no `TERMINAL_CLIENT_SECRET`. The app's secret is never used, so don't store it anywhere.
 
-**Registering the app (once, per environment):** run `ssh terminal.shop -t apps`, choose "create app", name it `textjs.org`, and set the redirect URI to `https://textjs.org/terminal/callback`. Copy the app id (`cli_…`). Terminal checks `client_id` plus the exact origin + path of `redirect_uri` against that row, and an app has exactly one redirect URI. Local development needs no app. For a sandbox preview deployment, register a second app with `ssh dev.terminal.shop -t apps` and its own `https://<preview-host>/terminal/callback`.
+**Registering the app (once, per environment):** run `ssh terminal.shop -t apps`, choose "create app", name it `textjs.org`, and set the redirect URI to `https://textjs.org/terminal/callback`. The callback then opens the shop at `/coffee`. Copy the app id (`cli_…`). Terminal checks `client_id` plus the exact origin + path of `redirect_uri` against that row, and an app has exactly one redirect URI. Local development needs no app. For a sandbox preview deployment, register a second app with `ssh dev.terminal.shop -t apps` and its own `https://<preview-host>/terminal/callback`.
 
 ```bash
 cd apps/web

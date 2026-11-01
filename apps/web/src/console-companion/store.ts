@@ -49,7 +49,7 @@ export function presetForPath(pathname: string): PresetId | null {
 }
 
 /** Every option in the Playground picker: its own demos, then the two full apps with their own routes. */
-export type DemoId = PresetId | "opencode" | "terminal";
+export type DemoId = PresetId | "opencode" | "coffee";
 
 export interface PickerDemo {
   id: DemoId;
@@ -61,7 +61,7 @@ export interface PickerDemo {
 export const DEMOS: readonly PickerDemo[] = [
   ...PRESETS.map((p) => ({ id: p.id, label: p.label, description: p.description, href: presetPath(p.id) })),
   { id: "opencode", label: "OpenCode", description: "OpenCode Lite, a client for the OpenCode coding agent", href: "/opencode" },
-  { id: "terminal", label: "Coffee", description: "The terminal.shop storefront", href: "/terminal" },
+  { id: "coffee", label: "Coffee", description: "The terminal.shop storefront", href: "/coffee" },
 ];
 
 /** Keys for the non-playground views. */
@@ -82,7 +82,7 @@ export function hintsFor(tab: CompanionTab, preset: PresetId): { action: string;
 
 /** Routes whose page is one big focus pad: console input stays engaged while moving between them. */
 export function isPadRoute(pathname: string): boolean {
-  return pathname.startsWith("/playground") || pathname.startsWith("/opencode") || pathname === "/terminal" || pathname.startsWith("/terminal/");
+  return pathname.startsWith("/playground") || pathname.startsWith("/opencode") || pathname === "/coffee";
 }
 
 export const THEME_ORDER: readonly ThemeName[] = ["geistDark", "opencodeDark", "tokyoNight", "amberCrt", "geistLight"];
@@ -119,7 +119,8 @@ function tabForPath(pathname: string): CompanionTab {
   if (pathname.startsWith("/docs")) return "docs";
   if (pathname.startsWith("/playground")) return "playground";
   if (pathname.startsWith("/opencode")) return "opencode";
-  if (pathname === "/terminal" || pathname.startsWith("/terminal/")) return "terminal";
+  // terminal.shop's storefront, at /coffee.
+  if (pathname === "/coffee") return "terminal";
   if (pathname === "/learn" || pathname.startsWith("/learn/")) return "learn";
   if (/^\/blog\/[^/]+\/?$/.test(pathname)) return "blog";
   return "home";
