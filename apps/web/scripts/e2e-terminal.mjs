@@ -84,6 +84,14 @@ const shop = await until("~ featured ~");
 check("signed out: the shop loads public products", shop !== null, await last());
 await press("ArrowDown", "ArrowDown");
 check("arrow keys browse products", (await last()).includes("segfault"), await last());
+// Signed out, the account opens: faq is public, sections say what signing in unlocks.
+await press("a");
+check("signed out: account sections ask to sign in inline", (await until("sign in to see your orders")) !== null, await last());
+for (let i = 0; i < 8; i++) await press("ArrowDown");
+check("signed out: the faq is readable", (await until("help, i have a question about my order!")) !== null, await last());
+await press("s");
+await until("~ featured ~");
+await press("ArrowDown", "ArrowDown");
 await press("+");
 const prompt = await until("sign in to add coffee to your cart");
 check("adding to the cart asks you to sign in", prompt !== null, await last());
@@ -137,6 +145,22 @@ if (!realAuth) {
   const minted = await page.evaluate(async () => (await fetch("/api/terminal/prod/api/token", { method: "POST", headers: { "x-terminal-client": "1", "content-type": "application/json" }, body: "{}" })).status);
   check("POST /token can't be reached from the page", minted === 404, String(minted));
 }
+
+// The console size picked on the pad changes the layout like a terminal window does.
+for (const [size, needle, label] of [
+  ["60x24", "m ☰", "60 × 24: the medium layout"],
+  ["45x20", "c cart", "45 × 20: the small layout"],
+  ["120x36", "s shop", "120 × 36: the large layout, centered"],
+]) {
+  await page.evaluate((s) => localStorage.setItem("textjs:viewport", s), size);
+  await page.goto(`${base}/coffee`);
+  await clickPad();
+  const f = await until(needle);
+  const lines = (f ?? "").split("\n");
+  const ok = f !== null && (size !== "45x20" || !f.includes("s shop")) && (size !== "120x36" || lines.some((l) => l.indexOf("┌") === 21));
+  check(label, ok, f ?? (await last()));
+}
+await page.evaluate(() => localStorage.setItem("textjs:viewport", "fit"));
 
 // Only the callback and the API live under /terminal; the old page path is a plain 404.
 const statuses = await page.evaluate(async () => Object.fromEntries(await Promise.all(["/terminal", "/coffee"].map(async (p) => [p, (await fetch(p, { redirect: "manual" })).status]))));
