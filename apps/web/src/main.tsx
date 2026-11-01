@@ -5,6 +5,7 @@ import { Root } from "./Root";
 import { getLocation, matchRoute, normalizePath } from "./router";
 import "./styles.css";
 import "./pages/resources.css";
+import "./merch/merch.css";
 
 /** Whether the prerendered markup (`data-route`) was rendered for the route we're on now. */
 function prerenderedFor(container: HTMLElement): boolean {

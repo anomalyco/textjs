@@ -1,0 +1,9 @@
+node_modules/
+# Raw image-model output (large PNGs); the blanks and edits in use are pinned to photos/blanks/.
+photos/cache/
+photos/low/
+photos/high/
+photos/refine/
+photos/final/*.png
+screenshots/
+photos/proof.png

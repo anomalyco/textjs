@@ -3,6 +3,7 @@ import { getDoc } from "./docs/registry";
 import { getPost } from "./blog";
 import { siteStore } from "./console-companion/store";
 import { learnRoute, learnTitle } from "./learn/routes";
+import { merchRoute, merchTitle } from "./merch/routes";
 import { safeDecode } from "./url";
 import { getErrorPageDoc } from "./pages/tx000";
 
@@ -20,6 +21,7 @@ export type Route =
   | { name: "blog-post"; slug: string }
   | { name: "enterprise" }
   | { name: "status" }
+  | { name: "merch"; slug: string }
   | { name: "not-found" };
 
 export function normalizePath(pathname: string): string {
@@ -56,6 +58,8 @@ export function matchRoute(pathname: string): Route {
   }
   if (p === "/enterprise") return { name: "enterprise" };
   if (p === "/status") return { name: "status" };
+  const merch = merchRoute(p);
+  if (merch) return merch;
   // Showcase was folded into the Playground.
   if (p === "/showcase") return { name: "playground" };
   return { name: "not-found" };
@@ -92,6 +96,8 @@ export function titleFor(route: Route): string {
       return `Enterprise | ${suffix}`;
     case "status":
       return `Status | ${suffix}`;
+    case "merch":
+      return merchTitle(route.slug);
     case "not-found":
       return `404: This page could not be found | ${suffix}`;
   }

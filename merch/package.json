@@ -1,0 +1,19 @@
+{
+  "name": "@textjs/merch-design",
+  "private": true,
+  "type": "module",
+  "description": "Print-ready artwork, product photography and Fourthwall tooling for the Text.js merch collection (not a workspace package).",
+  "scripts": {
+    "frame": "cd ../apps/web && bun --preload ./test/setup.ts ../../merch/scripts/frame.tsx",
+    "artwork": "bun scripts/artwork.ts",
+    "export": "bun scripts/export.ts",
+    "photos": "bun scripts/photos.ts bases high",
+    "render": "bun scripts/photos.ts render",
+    "sync": "bun scripts/fourthwall-sync.ts"
+  },
+  "dependencies": {
+    "geist": "^1.9.0",
+    "opentype.js": "^2.0.0",
+    "playwright-core": "1.62.1"
+  }
+}

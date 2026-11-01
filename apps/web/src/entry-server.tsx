@@ -9,6 +9,7 @@ import { POSTS, postPath, renderRss } from "./blog";
 import { DOCS, docPath } from "./docs/registry";
 import { TX_ERRORS } from "@textjs/core";
 import { LEARN_ROUTES } from "./learn/routes";
+import { MERCH_ROUTES } from "./merch/routes";
 import { Root } from "./Root";
 import { matchRoute, resetLocation, titleFor } from "./router";
 
@@ -39,6 +40,7 @@ export const ROUTES: readonly PrerenderRoute[] = [
   ...POSTS.map((p) => ({ path: postPath(p.slug), title: titleFor({ name: "blog-post", slug: p.slug }), description: p.summary })),
   { path: "/enterprise", title: titleFor({ name: "enterprise" }), description: "Text.js Enterprise: a 99.99% console.log SLA, a named console engineer and security reviews." },
   { path: "/status", title: titleFor({ name: "status" }), description: "Turbolog component status, an in-browser pipeline benchmark and performance history." },
+  ...MERCH_ROUTES,
 ];
 
 /** Route path used for the static 404 page. */
