@@ -1,4 +1,4 @@
-import { defineConfig } from "@textjs/next";
+import { defineConfig } from "@textjs/app";
 import { terminalDevMiddleware } from "./server/terminal-proxy";
 
 export default defineConfig({

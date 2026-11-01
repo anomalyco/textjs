@@ -14,7 +14,7 @@ import textjs from "eslint-plugin-textjs";
 export default defineConfig(tseslint.configs.recommended, textjs.configs.recommended);
 ```
 
-ESLint 9 and 10, flat config only. The rules are syntactic: no type information, no `parserOptions.project`, so linting stays fast. Any parser that understands TypeScript and JSX works.
+The plugin supports ESLint 9 and 10 with flat config. The rules are syntactic and don't need type information or `parserOptions.project`. Any parser that understands TypeScript and JSX works.
 
 ## Configs
 
@@ -41,7 +41,7 @@ export default [
 
 ## Console files
 
-Most rules only apply to files that render into the console: files that import a component or hook (`Box`, `Text`, `useInput`, …) from `@textjs/next` or `@textjs/react`. Files that import `react-dom` or `@textjs/react/dom` are page code and are left alone, so a website can mix DOM pages and console apps in one project. Importing a utility like `tokenize` or `parseMarkdown` doesn't make a file a console file.
+Most rules only apply to files that render into the console: files that import a component or hook (`Box`, `Text`, `useInput`, …) from `@textjs/app` or `@textjs/react`. Files that import `react-dom` or `@textjs/react/dom` are page code and are left alone, so a website can mix DOM pages and console apps in one project. Importing a utility like `tokenize` or `parseMarkdown` doesn't make a file a console file.
 
 ```js@eslint.config.js
 import textjs from "eslint-plugin-textjs";
@@ -117,7 +117,7 @@ Every frame is one `console.log`. Your own logs land between frames, get scrolle
 "textjs/no-console-in-components": ["warn", { allow: ["error"], logger: "log" }]
 ```
 
-Show messages in the UI with `useToast()` or a log `<ScrollBox>`, or inspect state in the `[▼]` DevTools (`` Ctrl+` ``). With `logger`, the suggestion rewrites `console.warn(…)` to `log.warn(…)`. Test files and `@textjs/next/testing` renders are skipped.
+Show messages in the UI with `useToast()` or a log `<ScrollBox>`, or inspect state in the `[▼]` Dev Overlay (`` Ctrl+` ``). With `logger`, the suggestion rewrites `console.warn(…)` to `log.warn(…)`. Test files and `@textjs/app/testing` renders are skipped.
 
 ### `prefer-use-interval`
 
@@ -137,11 +137,11 @@ For animation, `useAnimationFrame` follows the renderer's frame pacing and stops
 
 ### `no-sub-frame-timers`
 
-DevTools paints at most one frame every ~66ms (about 15fps). A 16ms interval renders four times per painted frame; the extra frames are coalesced and only burn CPU. Reports `setInterval`/`useInterval` delays under `minInterval` (default `66`) and `useAnimationFrame` with `fps` above 15.
+Text.js emits at most one frame every 66ms (about 15fps). A 16ms interval renders four times per emitted frame; the extra frames are coalesced and only burn CPU. Reports `setInterval`/`useInterval` delays under `minInterval` (default `66`) and `useAnimationFrame` with `fps` above 15.
 
 ### `prefer-use-keymap`
 
-Comparing `e.key` by hand works, but the shortcuts are invisible. `useKeymap` puts labeled bindings in `<KeyHelp>`, `<KeyHints auto>` and the command palette, handles sequences like `g g` and stops propagation for matched keys. Reports `useInput` handlers that compare two or more key literals (`minKeys`) and skips handlers that read `e.input` for typing.
+Comparing `e.key` by hand works, but the shortcuts are invisible. `useKeymap` puts labeled bindings in `<KeyHelp>`, `<KeyHints>` (bindings with `hint: true`) and the command palette, handles sequences like `g g` and stops propagation for matched keys. Reports `useInput` handlers that compare two or more key literals (`minKeys`) and skips handlers that read `e.input` for typing.
 
 ```tsx
 useKeymap({
@@ -155,7 +155,7 @@ See [Keyboard Shortcuts](/docs/keyboard).
 ### `valid-route-module`
 
 - `page`, `layout`, `loading`, `error` and `not-found` files must default-export a component (`TX015`).
-- `export const dynamic` must be `"auto"`, `"force-static"` or `"force-dynamic"`, written as a plain string literal: `text build` reads it from the source without running the module. It's only read from pages and layouts.
+- `export const dynamic` must be `"auto"`, `"force-static"` or `"force-dynamic"` (`TX031`). Text.js doesn't support Next.js's `"error"`. It's read from pages, layouts and route handlers. In pages and layouts, write it as a plain string literal: `text build` reads it from the source without running the module.
 
 ### `valid-metadata`
 
@@ -170,7 +170,7 @@ Metadata is merged from layouts, then the page (or `not-found`). The rule report
 
 ### `route-handler-exports`
 
-`route.ts` files only answer the HTTP methods they export: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` and `OPTIONS`. Lowercase `get` or `Post` is never called (requests get `405`); the suggestion renames it. Default exports, non-function handlers and other exports are reported; move shared code to `lib/`, or list extra names with `{ allow: [...] }`.
+`route.ts` files only answer the HTTP methods they export: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` and `OPTIONS`. Lowercase `get` or `Post` is never called (requests get `405`); the suggestion renames it. Default exports, non-function handlers and other exports are reported, except the `dynamic` and `revalidate` [route segment config](/docs/caching). Move shared code to `lib/`, or list extra names with `{ allow: [...] }`.
 
 ```ts@app/api/health/route.ts
 export function get() { … }   // ✗ never called

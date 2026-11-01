@@ -17,7 +17,7 @@ try {
   await client.connect(
     new StdioClientTransport({
       command: process.execPath,
-      args: [resolve(app, "../../packages/text/bin/text.ts"), "mcp", app, "--cols", "100", "--rows", "32"],
+      args: [resolve(app, "../../packages/app/bin/text.ts"), "mcp", app, "--cols", "100", "--rows", "32"],
       env: {},
     }),
   );

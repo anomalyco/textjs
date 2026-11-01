@@ -1,7 +1,7 @@
 /**
  * Review sheets for the Open Graph images in `dist/og` (run `bun run build` first):
  *
- * - brand/og-preview.png: twelve representative cards.
+ * - brand/og-preview.png: fifteen representative cards.
  * - brand/og-unfurls.png: three of them as X and Slack show them, at their real sizes, to check
  *   nothing important sits under X's domain label or gets lost when scaled down.
  *
@@ -37,12 +37,15 @@ const PREVIEW = [
   ["docs-routing", "Docs"],
   ["learn-layout", "Learn chapter"],
   ["blog-text-js-1-0", "Blog post"],
+  ["changelog", "Changelog"],
+  ["status", "Status"],
   ["playground-streaming", "Playground demo"],
   ["opencode", "OpenCode"],
   ["coffee", "Coffee (terminal.shop)"],
-  ["status", "Status"],
   ["enterprise", "Enterprise"],
-  ["merch-console-tee", "Store product"],
+  ["store", "Store"],
+  ["store-console-tee", "Store product"],
+  ["errors", "Error codes"],
   ["errors-TX014", "Error code"],
   ["404", "404"],
 ] as const;
@@ -52,7 +55,7 @@ await contactSheet(
   PREVIEW.map(([slug, label]) => ({ file: file(slug), label: `${label} · /og/${slug}` })),
   3,
   600,
-  "Open Graph images, 1200×630, one per page (12 of 115)",
+  `Open Graph images, 1200×630, one per page (${PREVIEW.length} of ${files.size})`,
 );
 console.log("brand/og-preview.png");
 

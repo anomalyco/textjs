@@ -1,6 +1,6 @@
-# ▼ OpenCode Lite — the OpenCode TUI in `console.log`
+# ▼ OpenCode Lite
 
-A connected OpenCode client built with the Text.js App Router. It renders in DevTools, `text run`, and `text mcp`. The website uses the same session routes, components and event store. See [PARITY.md](PARITY.md) for measured differences from the native client.
+OpenCode Lite is the OpenCode TUI in `console.log`, a connected client built with the Text.js App Router. It renders in DevTools, `text run`, and `text mcp`. The website uses the same session routes, components and event store. See [PARITY.md](PARITY.md) for measured differences from the native client.
 
 ```bash
 opencode service status                    # If stopped: opencode service start
@@ -15,7 +15,7 @@ Open the page, press **⌘⌥J** (or **Ctrl+Shift+J**), then click back into the
 
 - **Local app:** open the localhost URL printed by `bun run dev:opencode`. Leave `/connect` empty to discover the managed daemon, even if its port changes. No CORS flag or separate bridge is needed. The `/__opencode` dev proxy reads the service password with `opencode service get password` and injects it server-side. `GET /__opencode/_status` reports the target, mode, and upstream status on failure, never the password.
 - **Foreground server:** to select a specific server instead of the managed daemon, run `OPENCODE_SERVER_URL=http://127.0.0.1:4096 bun run dev:opencode`. For a protected foreground server on loopback, export its `OPENCODE_PASSWORD` (or legacy `OPENCODE_SERVER_PASSWORD` and optional `OPENCODE_SERVER_USERNAME`) in the dev server shell. Don't put credentials in a URL. Without an explicit URL or registered service, the dev proxy tries `127.0.0.1:4096`.
-- **Website `/opencode`:** run `bunx @textjs/next proxy` from any directory and leave it running while using `/opencode` (`bun run dev:web` on `localhost:3000` or `https://textjs.org/opencode`). Connect to `http://127.0.0.1:4096` and allow local network access if prompted. If you instead run an unauthenticated foreground server (`opencode serve --port 4096`, adding `--cors https://textjs.org` for remote origins), `/opencode` can connect to it directly without the bridge. If port `4096` is already taken, run `bun run opencode:proxy --port 4097` (optionally `--target http://127.0.0.1:4096`) and connect to `http://127.0.0.1:4097`. Stop the bridge with Ctrl+C when done.
+- **Website `/opencode`:** run `bunx @textjs/opencode proxy` from any directory and leave it running while using `/opencode` (`bun run dev:web` on `localhost:3000` or `https://textjs.org/opencode`). Connect to `http://127.0.0.1:4096` and allow local network access if prompted. If you instead run an unauthenticated foreground server (`opencode serve --port 4096`, adding `--cors https://textjs.org` for remote origins), `/opencode` can connect to it directly without the bridge. If port `4096` is already taken, run `bun run opencode:bridge --port 4097` (optionally `--target http://127.0.0.1:4096`) and connect to `http://127.0.0.1:4097`. Stop the bridge with Ctrl+C when done.
 - **`text start`:** the same proxy is also served by `app/api/opencode/[...path]/route.ts`.
 - **Custom server:** go to `/connect` (or use `?server=http://localhost:4096`). V2 (`/api/*`) and V1 (`/session`, `/event`) servers are both detected. Loopback URLs go through the proxy; anything else is fetched directly. The `?server=` parameter only accepts `localhost`, `127.0.0.1` and `[::1]`, so a crafted link can't send your prompts to someone else's server.
 - **Proxy hardening:** the proxy only answers requests whose `Host` is `localhost`, `127.0.0.1` or `[::1]` (DNS rebinding), rejects cross-site `Sec-Fetch-Site` requests, requires `x-opencode-client: 1` on anything other than `GET` / `HEAD` / `OPTIONS` (CSRF), and refuses request bodies over 4 MB (`413`).
@@ -45,7 +45,7 @@ Open the page, press **⌘⌥J** (or **Ctrl+Shift+J**), then click back into the
 | `↑` / `↓`, `1`–`9` on a question | Choose an answer; `Tab` changes field, `Esc` dismisses |
 | `Ctrl+R` / `Ctrl+D` in sessions | Rename / arm deletion (repeat `Ctrl+D` to confirm) |
 
-`/help`, `/settings`, `/themes`, `/rename <title>`, `/compact` and `/copy` are local client actions, not prompts. The theme picker previews the highlighted theme, rolls back on Escape and commits on Enter. The context sidebar overlays at ≤120 columns and docks to the right on wider screens. V2 also dispatches commands advertised by `GET /api/command`. Shell mode in the static simulation **never** executes on the host.
+`/help`, `/settings`, `/themes`, `/rename <title>`, `/compact` and `/copy` run locally in the client instead of sending a prompt. The theme picker previews the highlighted theme, rolls back on Escape and commits on Enter. The context sidebar overlays at ≤120 columns and docks to the right on wider screens. V2 also dispatches commands advertised by `GET /api/command`. Shell mode in the static simulation **never** executes on the host.
 
 ## Layout
 

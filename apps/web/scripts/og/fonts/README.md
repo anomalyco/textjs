@@ -7,9 +7,8 @@ The Open Graph renderer (`scripts/og/`) draws with the site's own Geist subsets 
 | `geist-og.woff2` | Geist 1.9.0 (`geist` on npm), `Geist-Variable.woff2` | Latin, punctuation, arrows, math, geometric shapes |
 | `geist-mono-og.woff2` | Geist 1.9.0, `GeistMono-Variable.woff2` | Latin, punctuation, arrows, math, technical, box drawing, blocks, geometric shapes |
 | `noto-symbols-og.woff2` | Noto Sans Symbols 2 (google/fonts) | Arrows, technical (⌘ ⌥ ⌫), geometric shapes (◆), symbols, dingbats, braille |
-| `noto-emoji-og.woff2` | Noto Color Emoji (google/fonts) | 🇺🇸 (terminal.shop's region key) |
 
-All four are licensed under the SIL Open Font License 1.1.
+All three are licensed under the SIL Open Font License 1.1.
 
 To add characters, subset again with [fonttools](https://github.com/fonttools/fonttools):
 
@@ -23,6 +22,4 @@ pyftsubset Geist-Variable.woff2 --flavor=woff2 --layout-features='*' \
 pyftsubset NotoSansSymbols2-Regular.ttf --flavor=woff2 \
   --unicodes="U+2190-21FF,U+2300-23FF,U+25A0-25FF,U+2600-26FF,U+2700-27BF,U+2800-28FF" \
   --output-file=noto-symbols-og.woff2
-pyftsubset NotoColorEmoji-Regular.ttf --flavor=woff2 --layout-features='*' --drop-tables+=SVG \
-  --text="🇺🇸" --output-file=noto-emoji-og.woff2
 ```

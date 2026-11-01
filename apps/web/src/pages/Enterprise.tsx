@@ -8,7 +8,7 @@ export const SALES_HREF = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent("T
 
 export const STATS = [
   { value: "99.99%", label: "of console.log calls return" },
-  { value: "1", label: "console.log per dirty frame" },
+  { value: "1", label: "console.log per changed frame" },
   { value: "0", label: "calls per idle frame" },
   { value: "66ms", label: "minimum time between frames" },
 ];
@@ -20,7 +20,7 @@ const COMPLIANCE = [
   },
   {
     title: "Data residency",
-    body: "Frames stay in the user’s DevTools and do not leave the tab. At most 300 are kept.",
+    body: "Frames stay in the user’s DevTools and do not leave the tab.",
   },
   {
     title: "Audit logging",
@@ -35,15 +35,15 @@ const COMPLIANCE = [
 const SECURITY = [
   { title: "Link hijacking defense", body: "Turbolog inserts a word joiner after :// and in path:line text, so DevTools doesn’t restyle it as a link." },
   { title: "Format string isolation", body: "Every literal % is escaped as %%. User input can’t consume a %c style argument." },
-  { title: "Production double lock", body: "Examples that reach real APIs default to a sandbox and need two explicit switches for production." },
+  { title: "Order confirmation", body: "Real orders on /coffee need a confirmation key that appears only in the console frame, so a key script can’t place one." },
   { title: "Local by default", body: "The OpenCode bridge is a loopback server that rejects unknown origins. It keeps the daemon password in memory and never logs it or sends it to the browser." },
 ];
 
 const SUPPORT = [
-  { title: "Named console engineer", body: "One engineer assigned to your team, from evaluation to production." },
-  { title: "Frame reviews", body: "Quarterly review of your %c span counts, dirty rows and idle CPU." },
-  { title: "Migration assistance", body: "Help moving React DOM apps and terminal UIs to Text.js." },
-  { title: "Private Slack channel", body: "A shared channel with the Text.js team." },
+  { title: "Named console engineer", body: "One engineer works with your team from evaluation to production." },
+  { title: "Frame reviews", body: "Every quarter we review your %c span counts, changed rows and idle CPU." },
+  { title: "Migration assistance", body: "We help move React DOM apps and terminal UIs to Text.js." },
+  { title: "Private Slack channel", body: "Your team gets a shared Slack channel with Text.js engineers." },
 ];
 
 type Cell = string | boolean;
@@ -56,7 +56,7 @@ const FEATURES: ReadonlyArray<{ group: string; rows: ReadonlyArray<[string, Cell
     rows: [
       ["App Router, components and hooks", true, true],
       ["Turbolog engine", true, true],
-      ["Zero-flash frames", true, true],
+      ["Appended frames", true, true],
       ["text run (terminal)", true, true],
     ],
   },
@@ -134,7 +134,7 @@ export function EnterprisePage(): ReactNode {
         <div className="container ent-hero-body">
           <p className="eyebrow">Text.js Enterprise</p>
           <h1>The enterprise platform for console applications</h1>
-          <p className="rs-lede">Compliance, uptime and a named engineer for teams that ship their product in DevTools.</p>
+          <p className="rs-lede">Text.js Enterprise adds a 99.99% SLA and a named engineer for teams that ship their product in DevTools.</p>
           <div className="hero-ctas">
             <a href={SALES_HREF} className="btn btn-primary btn-lg">
               Contact sales
@@ -205,8 +205,8 @@ export function EnterprisePage(): ReactNode {
       <section className="container ent-section" id="pricing">
         <div className="section-head">
           <p className="eyebrow">Pricing</p>
-          <h2>Simple pricing</h2>
-          <p>The framework is free and MIT licensed. Enterprise adds an SLA, a named engineer and priority support.</p>
+          <h2>Plans</h2>
+          <p>The framework is free and MIT licensed.</p>
         </div>
         <div className="ent-plans">
           <div className="ent-plan">

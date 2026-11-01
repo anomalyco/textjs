@@ -1,5 +1,5 @@
 import { memo, useRef, type ReactNode } from "react";
-import { Box, ScrollBox, Text, useKeymap, useTheme, type ScrollBoxHandle } from "@textjs/next";
+import { Box, ScrollBox, Text, useKeymap, useTheme, type ScrollBoxHandle } from "@textjs/app";
 import { duration, modelLabel } from "../lib/format";
 import { useStoreState } from "../lib/store";
 import type { AssistantMessage, AssistantPart, ReasoningPart, SessionMessage, ShellMessage, ToolPart, UserMessage } from "../lib/types";

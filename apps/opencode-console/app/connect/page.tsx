@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Box, Input, KeyHint, Spinner, Text, useInput, useTheme, type Metadata } from "@textjs/next";
-import { useRouter } from "@textjs/next/navigation";
+import { Box, Input, KeyHint, Spinner, Text, useInput, useTheme, type Metadata } from "@textjs/app";
+import { useRouter } from "@textjs/app/navigation";
 import { savedEndpoint } from "../../lib/client";
 import { useStore, useStoreState } from "../../lib/store";
 
@@ -34,7 +34,7 @@ export default function ConnectPage(): ReactNode {
     connection.status === "connecting"
       ? null
       : connection.kind === "demo"
-        ? { color: theme.warning, text: `◆ demo${connection.reason ? ` — ${connection.reason}` : ""}` }
+        ? { color: theme.warning, text: `◆ demo${connection.reason ? ` · ${connection.reason}` : ""}` }
         : { color: theme.success, text: `● ${connection.kind} · ${connection.label} · ${connection.mode}${connection.version ? ` · opencode ${connection.version}` : ""}` };
 
   return (

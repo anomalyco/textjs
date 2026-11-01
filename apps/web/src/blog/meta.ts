@@ -15,7 +15,7 @@ export const POSTS_META: readonly BlogPostMeta[] = [
     title: "Text.js 1.0",
     date: "2026-10-31",
     author: "Adam",
-    summary: "React 19 and the App Router, rendered into the DevTools console with one console.log per frame. Text.js 1.0 is stable.",
+    summary: "Text.js 1.0 is stable. It renders React 19 and App Router apps in the DevTools console with one console.log per frame.",
   },
   {
     slug: "the-inverted-architecture",
@@ -79,7 +79,7 @@ export const POSTS_META: readonly BlogPostMeta[] = [
     title: "Rendering React into console.log",
     date: "2025-02-12",
     author: "Adam",
-    summary: "Text.js draws a React app in the DevTools console as one styled console.log call per frame. How a frame is built, and why it is one call.",
+    summary: "Text.js draws a React app in the DevTools console as one styled console.log call per frame.",
   },
 ];
 

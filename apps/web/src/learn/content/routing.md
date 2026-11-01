@@ -1,4 +1,4 @@
-The App Router maps files in `app/` to URLs, exactly like Next.js. The browser's address bar and history stay in sync, so back, forward and deep links work while the UI renders in the console.
+The App Router maps files in `app/` to URLs, following the Next.js App Router conventions. The browser's address bar and history stay in sync, so back, forward and deep links work while the UI renders in the console.
 
 ## Files are routes
 
@@ -21,9 +21,9 @@ Move the list into its own route and add a settings page:
 
 ```diff-tsx@app/layout.tsx
 +import type { ReactNode } from "react";
-+import { Box, Spacer, Text } from "@textjs/next";
-+import Link from "@textjs/next/link";
-+import { usePathname } from "@textjs/next/navigation";
++import { Box, Spacer, Text } from "@textjs/app";
++import Link from "@textjs/app/link";
++import { usePathname } from "@textjs/app/navigation";
 +
 +export const metadata = { title: { default: "Acme Deploys", template: "%s · Acme" } };
 +
@@ -54,11 +54,11 @@ Move the list into its own route and add a settings page:
 `useRouter()` navigates from code. Wire `Backspace` to `router.back()` in the layout:
 
 ```diff-tsx@app/layout.tsx
--import { Box, Spacer, Text } from "@textjs/next";
-+import { Box, Spacer, Text, useInput } from "@textjs/next";
- import Link from "@textjs/next/link";
--import { usePathname } from "@textjs/next/navigation";
-+import { usePathname, useRouter } from "@textjs/next/navigation";
+-import { Box, Spacer, Text } from "@textjs/app";
++import { Box, Spacer, Text, useInput } from "@textjs/app";
+ import Link from "@textjs/app/link";
+-import { usePathname } from "@textjs/app/navigation";
++import { usePathname, useRouter } from "@textjs/app/navigation";
  
  export default function RootLayout({ children }: { children?: ReactNode }) {
    const pathname = usePathname();
@@ -74,11 +74,11 @@ Move the list into its own route and add a settings page:
 `[id]` folders receive their value in `params`:
 
 ```tsx@app/deployments/[id]/page.tsx
-import { Text, type PageProps } from "@textjs/next";
+import { Text, type PageProps } from "@textjs/app";
 
 export default function DeploymentPage({ params }: PageProps<{ id: string }>) {
   return <Text bold>{params.id}</Text>;
 }
 ```
 
-Static hosts need a single SPA rewrite to serve deep links. Chapter 10 covers it.
+On a static host, dynamic segments like this one need a rewrite to `index.html`. Chapter 10 covers it.

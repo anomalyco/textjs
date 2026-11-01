@@ -86,7 +86,7 @@ export function CompanionApp(): ReactNode {
     const OpenCodeLite = loaded.opencode;
     return OpenCodeLite ? <OpenCodeLite /> : null;
   }
-  // Ctrl+` opens the Text.js DevTools inspector everywhere but OpenCode and terminal.shop.
+  // Ctrl+` opens the Dev Overlay inspector everywhere but OpenCode and terminal.shop.
   const devtools = <SiteDevTools wireframe={wireframe} setWireframe={setWireframe} />;
   if (team !== null && site.teamEgg !== null)
     return (

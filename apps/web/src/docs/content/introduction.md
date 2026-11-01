@@ -2,7 +2,7 @@ Text.js is a React framework for apps that render in the DevTools console with `
 
 ```tsx#counter
 import { useState } from "react";
-import { Box, Text, useInput } from "@textjs/next";
+import { Box, Text, useInput } from "@textjs/app";
 
 export default function Page() {
   const [count, setCount] = useState(0);
@@ -26,7 +26,7 @@ The preview is live. Click it and press `↑`.
 - **App Router**: layouts, pages, dynamic segments and route handlers.
 - **Yoga layout**: flexbox in WebAssembly, snapped to integer cells.
 - **Turbolog**: one `console.log` call per changed frame.
-- **No DOM UI**: the page only hosts a focus pad and a hidden input.
+- **Console UI**: the page hosts only a focus pad and a hidden input.
 
 ## How it works
 

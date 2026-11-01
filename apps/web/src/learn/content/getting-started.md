@@ -11,14 +11,14 @@ bun install
 bun dev
 ```
 
-Open `http://localhost:3000`, then open the console with ⌘⌥J (Ctrl+Shift+J elsewhere). The page shows a focus pad. Your app renders in the console.
+Open `http://localhost:3000`, then open the console with `⌘⌥J` (`Ctrl+Shift+J` on Windows and Linux). The page shows a focus pad. Your app renders in the console.
 
 ## Your first page
 
 Every route is a `page.tsx` in `app/`. Replace the starter page with the dashboard's title card:
 
 ```tsx@app/page.tsx
-import { Box, Text } from "@textjs/next";
+import { Box, Text } from "@textjs/app";
 
 export default function Page() {
   return (
@@ -37,9 +37,9 @@ Save the file. Fast Refresh redraws the frame and keeps your component state.
 `useInput` receives every keystroke while the page has focus. Count the hellos:
 
 ```diff-tsx@app/page.tsx
--import { Box, Text } from "@textjs/next";
+-import { Box, Text } from "@textjs/app";
 +import { useState } from "react";
-+import { Box, Text, useInput } from "@textjs/next";
++import { Box, Text, useInput } from "@textjs/app";
  
  export default function Page() {
 +  const [hellos, setHellos] = useState(0);

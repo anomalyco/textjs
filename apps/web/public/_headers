@@ -14,11 +14,13 @@
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
+# Fonts and Open Graph cards aren't content-hashed, so a day, not a year: repeat visits and link
+# unfurls skip the revalidation round trip, and a changed file still shows up within a day.
 /fonts/*
-  Cache-Control: public, max-age=31536000, immutable
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 
 /og/*
-  Cache-Control: public, max-age=31536000, immutable
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 
 /
   Cache-Control: public, max-age=0, must-revalidate

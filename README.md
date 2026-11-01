@@ -2,11 +2,11 @@
 
 # ▼ Text.js
 
-React apps rendered entirely inside `console.log`.
+Build full-stack React apps that render inside `console.log`.
 
 [Docs](https://textjs.org/docs) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
-<img src="apps/web/public/og.png" alt="▼ TEXT.JS — The Console Framework for the Web" width="720" />
+<img src="apps/web/public/og.png" alt="▼ Text.js, the Console Framework for the Web" width="720" />
 
 </div>
 
@@ -17,14 +17,14 @@ bunx create-text-app@latest
 cd my-app && bun install && bun dev
 ```
 
-Open [localhost:3000](http://localhost:3000) and press **⌘⌥J**.
+Open [localhost:3000](http://localhost:3000) and press **⌘⌥J** (**Ctrl+Shift+J** on Windows and Linux).
 
 ## Example
 
 ```tsx
 // app/page.tsx
 import { useState } from "react";
-import { Box, Text, useInput } from "@textjs/next";
+import { Box, Text, useInput } from "@textjs/app";
 
 export default function Page() {
   const [count, setCount] = useState(0);
@@ -49,10 +49,13 @@ Each frame is laid out with Yoga, run-length encoded into `%c` spans, and writte
 
 | Package | Description |
 | --- | --- |
-| [`@textjs/next`](packages/text) | App Router, CLI and route handlers |
+| [`@textjs/app`](packages/app) | App Router, CLI and route handlers |
 | [`@textjs/react`](packages/react) | Reconciler, components and hooks |
 | [`@textjs/core`](packages/core) | Cell buffer, layout and the `%c` driver |
+| [`@textjs/font`](packages/font) | FIGlet font parser and renderer |
 | [`create-text-app`](packages/create-text-app) | Project generator |
+| [`eslint-plugin-textjs`](packages/eslint-plugin-textjs) | ESLint rules for Text.js apps |
+| [`@textjs/opencode`](packages/opencode) | Local bridge for textjs.org/opencode |
 
 ## OpenCode
 
@@ -63,9 +66,9 @@ opencode service status     # If stopped: opencode service start
 bun run dev:opencode        # From the repo root; no bridge needed
 ```
 
-Then open [localhost:3001](http://localhost:3001) and press **⌘⌥J**. Without a server it falls back to a demo.
+Then open [localhost:3001](http://localhost:3001) and press **⌘⌥J** (**Ctrl+Shift+J** on Windows and Linux). Without a server it falls back to a demo.
 
-For the website’s `/opencode` page, run `bunx @textjs/next proxy` from any directory instead. Leave it running, enter `http://127.0.0.1:4096` in the server URL field, click **Connect**, and allow local network access if Chrome asks. The bridge handles CORS and server auth. See [Connecting](apps/opencode-console/README.md#connecting) for foreground servers and port conflicts.
+For the website’s `/opencode` page, run `bunx @textjs/opencode proxy` from any directory instead. Leave it running, enter `http://127.0.0.1:4096` in the server URL field, click **Connect**, and allow local network access if Chrome asks. The bridge handles CORS and server auth. See [Connecting](apps/opencode-console/README.md#connecting) for foreground servers and port conflicts.
 
 ## Development
 

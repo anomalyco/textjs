@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Metadata } from "@textjs/next";
+import type { Metadata } from "@textjs/app";
 import { AccountScreen } from "../../components/screens/Account";
 
 export const metadata: Metadata = { title: "Account" };

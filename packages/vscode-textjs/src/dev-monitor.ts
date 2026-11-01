@@ -4,7 +4,7 @@
  * a preview is open. Pure Node (no `vscode`).
  */
 
-import type { DevStatus } from "@textjs/next/frame-protocol";
+import type { DevStatus } from "@textjs/app/frame-protocol";
 import { connectFrameStream, discover, DiscoveryBackoff, probe, type FrameStreamConnection, type LiveFrame } from "./dev-server";
 
 export interface MonitorSnapshot {

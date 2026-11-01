@@ -8,7 +8,7 @@ export function GET(): Response {
 }
 ```
 
-Export `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD` or `OPTIONS`. Handlers run on `text dev`, `text start` and every [deploy adapter](/docs/deploying), after [middleware](/docs/middleware). Cache `GET` handlers with [route segment config](/docs/caching).
+Export `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD` or `OPTIONS`. Handlers run on `text dev`, `text start` and every server [deploy adapter](/docs/deploying), after [middleware](/docs/middleware). Cache `GET` handlers with [route segment config](/docs/caching).
 
 ## Dynamic handlers
 
@@ -47,7 +47,7 @@ export default defineConfig({
 
 ## Local daemon proxying
 
-Use `proxy` and `configureServer` to reach a process on your machine:
+Use `proxy` to reach a process on your machine:
 
 ```ts@text.config.ts
 export default defineConfig({

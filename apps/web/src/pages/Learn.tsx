@@ -58,7 +58,7 @@ function Overview(): ReactNode {
         <p className="learn-eyebrow">Learn Text.js</p>
         <h1>Build a deploy dashboard in your console</h1>
         <p className="learn-lede">
-          {`A free course in ${CHAPTERS.length} chapters. You'll build ${COURSE_APP} from an empty page to a deployed app with routes, data and tests. Each chapter runs live in DevTools as you read it.`}
+          {`This free course has ${CHAPTERS.length} chapters. You'll build ${COURSE_APP} from an empty page to a deployed app with routes, data and tests. Each chapter runs live in DevTools as you read it.`}
         </p>
         <div className="learn-cta">
           {complete ? (
@@ -96,7 +96,7 @@ function Overview(): ReactNode {
             <Check done={complete} n="▼" />
             <span className="learn-chapter-text">
               <span className="learn-chapter-title">Certificate</span>
-              <span className="learn-chapter-summary">A certificate with your name, rendered in the console.</span>
+              <span className="learn-chapter-summary">Get a certificate with your name, rendered in the console.</span>
             </span>
           </A>
         </li>

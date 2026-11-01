@@ -30,7 +30,8 @@ export function parseChangelog(source: string): { intro: string; releases: Chang
       body: nl < 0 ? "" : s.slice(nl + 1).trim(),
     };
   });
-  return { intro, releases };
+  // An empty section (e.g. `## [Unreleased]` between releases) isn't a release yet.
+  return { intro, releases: releases.filter((r) => r.body !== "") };
 }
 
 const PARSED = parseChangelog(changelog);

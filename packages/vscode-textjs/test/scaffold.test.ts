@@ -46,7 +46,7 @@ describe("scaffold", () => {
   test("page: path, metadata title, component name and cursor", () => {
     const r = scaffold("page", route("settings/billing-plans"));
     expect(r.file).toBe("app/settings/billing-plans/page.tsx");
-    expect(r.content).toContain('import { Box, Text, useTheme, type Metadata } from "@textjs/next";');
+    expect(r.content).toContain('import { Box, Text, useTheme, type Metadata } from "@textjs/app";');
     expect(r.content).toContain('export const metadata: Metadata = { title: "Billing Plans" };');
     expect(r.content).toContain("export default function BillingPlansPage(): ReactNode {");
     expect(r.content).not.toContain("$CURSOR$");
@@ -86,7 +86,7 @@ describe("scaffold", () => {
     expect(error.content).toContain("reset()");
     const nf = scaffold("not-found", route(""));
     expect(nf.file).toBe("app/not-found.tsx");
-    expect(nf.content).toContain('import Link from "@textjs/next/link";');
+    expect(nf.content).toContain('import Link from "@textjs/app/link";');
   });
 
   test("JavaScript projects get .jsx/.js without type annotations", () => {

@@ -6,7 +6,7 @@ import { useInView } from "../../site/useInView";
 import { Crosses } from "./Crosses";
 
 const CODE = `import { Suspense } from "react";
-import { Box, Text } from "@textjs/next";
+import { Box, Text } from "@textjs/app";
 import { db } from "@/lib/db";
 
 export const runtime = "server";
@@ -40,7 +40,7 @@ const ITEMS: Array<{ title: string; body: ReactNode; href: string }> = [
     title: "Middleware",
     body: (
       <>
-        <code>middleware.ts</code> with <code>NextRequest</code>, <code>NextResponse</code> and <code>config.matcher</code>.
+        <code>middleware.ts</code> runs before matched requests, with <code>NextRequest</code>, <code>NextResponse</code> and <code>config.matcher</code>.
       </>
     ),
     href: "/docs/middleware",
@@ -49,7 +49,7 @@ const ITEMS: Array<{ title: string; body: ReactNode; href: string }> = [
     title: "Caching",
     body: (
       <>
-        <code>revalidate</code>, <code>unstable_cache</code> and <code>revalidateTag</code>, with stale-while-revalidate.
+        <code>revalidate</code>, <code>unstable_cache</code> and <code>revalidateTag</code> cache route handlers and data, with stale-while-revalidate.
       </>
     ),
     href: "/docs/caching",
@@ -58,7 +58,7 @@ const ITEMS: Array<{ title: string; body: ReactNode; href: string }> = [
     title: "Deploy adapters",
     body: (
       <>
-        <code>text build --adapter</code> <code>static</code>, <code>bun</code>, <code>vercel</code> or <code>cloudflare</code>. Server-rendered routes need <code>bun</code> or <code>text start</code>.
+        <code>text build --adapter</code> targets <code>static</code>, <code>bun</code>, <code>vercel</code> or <code>cloudflare</code>. Server-rendered routes need <code>bun</code> or <code>text start</code>.
       </>
     ),
     href: "/docs/deploying",
@@ -106,7 +106,7 @@ export function ServerSection(): ReactNode {
           <p className="eyebrow">Server Rendering</p>
           <h2>Render routes on the server</h2>
           <p>
-            Export <code>runtime = "server"</code> to render a route, including async components, on the server. The browser downloads a 19 kB frame player instead of your app.
+            Export <code>runtime = "server"</code> to render a route, including async components, on the server. The browser downloads a 19 kB (gzip) frame player instead of your app.
           </p>
         </div>
         <div className="frame sv-frame" ref={ref}>

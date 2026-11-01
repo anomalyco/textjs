@@ -5,7 +5,7 @@ Loading states and error boundaries render in the console. Define them per route
 Add `loading.tsx` to show a fallback while a page suspends.
 
 ```tsx@app/sessions/[id]/loading.tsx
-import { Spinner } from "@textjs/next";
+import { Spinner } from "@textjs/app";
 
 export default function Loading() {
   return <Spinner variant="dots" label="Loading session…" />;
@@ -24,7 +24,7 @@ export default function Loading() {
 Add `error.tsx` to catch render errors. It receives the error and a `reset` function.
 
 ```tsx@app/sessions/[id]/error.tsx
-import { Text, useInput, type ErrorComponentProps } from "@textjs/next";
+import { Text, useInput, type ErrorComponentProps } from "@textjs/app";
 
 export default function SessionError({ error, reset }: ErrorComponentProps) {
   useInput((e) => e.input === "r" && reset());
@@ -37,7 +37,7 @@ export default function SessionError({ error, reset }: ErrorComponentProps) {
 Call `notFound()` to render the nearest `not-found.tsx`.
 
 ```tsx
-import { notFound } from "@textjs/next/navigation";
+import { notFound } from "@textjs/app/navigation";
 
 if (!session) notFound();
 ```
@@ -53,6 +53,6 @@ In development, uncaught errors open an overlay inside the console with the mess
 ╰───────────────────────────── esc dismiss ───╯
 ```
 
-## [▼] DevTools
+## Dev Overlay
 
-Press `F2` or `` Ctrl+` `` in development to inspect the route, frame timings and layout. Disable with `devIndicators: false`.
+In development, the `[▼]` pill in the console's bottom-left corner is the Dev Overlay. Press `F2` or `` Ctrl+` `` to open it and inspect the route, frame timings and layout. Disable with `devIndicators: false`.

@@ -143,8 +143,8 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
     },
     {
       "depth": 2,
-      "text": "[▼] DevTools",
-      "id": "devtools"
+      "text": "Dev Overlay",
+      "id": "dev-overlay"
     }
   ],
   "route-handlers": [
@@ -611,6 +611,11 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
       "depth": 2,
       "text": "How it works",
       "id": "how-it-works"
+    },
+    {
+      "depth": 2,
+      "text": "Privacy",
+      "id": "privacy"
     },
     {
       "depth": 2,

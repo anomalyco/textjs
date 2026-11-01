@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
-import { AppRouter, createMemoryHistory, type RouteManifest, type RouteModule, type RouteSegmentNode } from "@textjs/next/router";
-import { scanApp, toStaticManifest } from "@textjs/next/vite";
+import { AppRouter, createMemoryHistory, type RouteManifest, type RouteModule, type RouteSegmentNode } from "@textjs/app/router";
+import { scanApp, toStaticManifest } from "@textjs/app/vite";
 import { createDemoClient } from "../lib/demo";
 import { connectOpenCode, createTransport, isLoopbackEndpoint, parseV2Event, readSse } from "../lib/client";
 import { getOpenCodeStore, OpenCodeStore, resetOpenCodeStore } from "../lib/store";
 import { slashAction } from "../lib/commands";
 import type { AssistantMessage, ToolPart } from "../lib/types";
 import { createOpencodeProxy, normalizeTargetUrl, opencodeDevMiddleware } from "../server/opencode-proxy";
-import { createBridgeHandler, isAllowedOrigin, selectsTarget, startProxy } from "../../../packages/text/src/cli/proxy";
+import { createBridgeHandler, isAllowedOrigin, selectsTarget, startProxy } from "@textjs/opencode";
 import { discoverServer, normalizeServerUrl } from "../../web/src/demos/opencode/live";
 import { createTestRoot, type TestRoot } from "./helpers";
 import { startMockOpenCode, type MockOpenCode } from "./mock-opencode";
@@ -687,7 +687,7 @@ describe("dev proxy (/__opencode)", () => {
       }) as typeof fetch;
       const stale = await connectOpenCode({ endpoint: "http://0.0.0.0:4096" });
       expect(stale.client.kind).toBe("demo");
-      expect(stale.reason).toBe("Can't reach localhost:4096 — clear /connect to use localhost:49374");
+      expect(stale.reason).toBe("Can't reach localhost:4096. Clear /connect to use localhost:49374");
 
       // 2. HTML SPA shell on both V2 and V1 endpoints is rejected as Not OpenCode, never misdetected.
       g.fetch = (async (input: RequestInfo | URL) => {
@@ -697,14 +697,14 @@ describe("dev proxy (/__opencode)", () => {
       }) as typeof fetch;
       const spa = await connectOpenCode({ endpoint: "http://127.0.0.1:5173" });
       expect(spa.client.kind).toBe("demo");
-      expect(spa.reason).toBe("Not OpenCode at localhost:5173 — check /connect");
+      expect(spa.reason).toBe("Not OpenCode at localhost:5173. Check /connect");
 
       // 3. Web /opencode client normalizes 0.0.0.0 and gives actionable 1-line errors.
       expect(normalizeServerUrl("http://0.0.0.0:49374")).toBe("http://127.0.0.1:49374");
-      await expect(discoverServer("http://opencode:pw@127.0.0.1:49374")).rejects.toThrow("Don't put credentials in the URL — run bunx @textjs/next proxy and connect to http://127.0.0.1:4096.");
+      await expect(discoverServer("http://opencode:pw@127.0.0.1:49374")).rejects.toThrow("Don't put credentials in the URL. Run bunx @textjs/opencode proxy and connect to http://127.0.0.1:4096.");
 
       g.fetch = (async (_input: RequestInfo | URL) => new Response("{}", { status: 401, headers: { "content-type": "application/json" } })) as typeof fetch;
-      await expect(discoverServer("http://0.0.0.0:49374")).rejects.toThrow("Auth required — run bunx @textjs/next proxy and connect to http://127.0.0.1:4096.");
+      await expect(discoverServer("http://0.0.0.0:49374")).rejects.toThrow("Auth required. Run bunx @textjs/opencode proxy and connect to http://127.0.0.1:4096.");
 
       // Falling back to the demo is the documented first run: a one-line note, never a console warning.
       expect(warns.every((w) => !w.includes("\n") && !w.includes("demo mode"))).toBe(true);

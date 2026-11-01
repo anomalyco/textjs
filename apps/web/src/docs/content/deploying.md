@@ -16,7 +16,7 @@ text build --adapter <name>
 
 The adapter can also come from `TEXTJS_ADAPTER`. When `text build` runs on Vercel (`VERCEL=1`) or Cloudflare Pages (`CF_PAGES=1`), the matching adapter is selected automatically.
 
-Every adapter runs the same pipeline as `text start`: [middleware](/docs/middleware), `rewrites`, [route handlers](/docs/route-handlers) with the [route cache](/docs/caching), static assets, then the console document for page URLs. The server adapters serve hashed files under `/assets/` with `Cache-Control: public, max-age=31536000, immutable`.
+The server adapters (`bun`, `vercel` and `cloudflare`) run the same pipeline as `text start`: [middleware](/docs/middleware), `rewrites`, [route handlers](/docs/route-handlers) with the [route cache](/docs/caching), static assets, then the console document for page URLs. The server adapters serve hashed files under `/assets/` with `Cache-Control: public, max-age=31536000, immutable`.
 
 ## Static
 
@@ -24,9 +24,9 @@ Every adapter runs the same pipeline as `text start`: [middleware](/docs/middlew
 text build --adapter static
 ```
 
-For hosts without a server (GitHub Pages, S3, any CDN). `GET` route handlers with `dynamic = "force-static"` or `revalidate` are prerendered into files: `app/api/feed.json/route.ts` becomes `dist/api/feed.json`. A copy of `index.html` is written to `404.html` so deep links open the console app.
+Use it for hosts without a server, such as GitHub Pages, S3 or a CDN. `GET` route handlers with `dynamic = "force-static"` or `revalidate` are prerendered into files: `app/api/feed.json/route.ts` becomes `dist/api/feed.json`. A copy of `index.html` is written to `404.html` so deep links open the console app.
 
-The build fails, listing every reason, if the app needs a server: `middleware.ts`, [server-rendered routes](/docs/server-rendering), dynamic route handlers, dynamic segments or non-`GET` methods. Configure `rewrites` on the host instead.
+The build fails, listing every reason, if the app needs a server: `middleware.ts`, [server-rendered routes](/docs/server-rendering), dynamic route handlers, route handlers with dynamic segments, or non-`GET` methods. Configure `rewrites` on the host instead.
 
 ## Bun
 
@@ -35,7 +35,7 @@ text build --adapter bun
 PORT=8080 bun dist/server.js
 ```
 
-A single self-contained server with no `node_modules` needed at runtime. It reads `PORT` (default `3000`) and `HOSTNAME` (default `0.0.0.0`), and never serves `server.js` or `.text/`. It is a long-lived process, so it also hosts [server-rendered routes](/docs/server-rendering) (`export const runtime = "server"`) and their live sessions, like `text start`. Use it in a container:
+The `bun` adapter writes a single self-contained server that needs no `node_modules` at runtime. It reads `PORT` (default `3000`) and `HOSTNAME` (default `0.0.0.0`), and never serves `server.js` or `.text/`. It is a long-lived process, so it also hosts [server-rendered routes](/docs/server-rendering) (`export const runtime = "server"`) and their live sessions, like `text start`. Use it in a container:
 
 ```text@Dockerfile
 FROM oven/bun:1
@@ -95,10 +95,10 @@ compatibility_flags = ["nodejs_compat"]
 
 ## Behind a proxy
 
-`text start` binds to `127.0.0.1` and, while bound to loopback, only answers `localhost`, `*.localhost` and IP-address hosts (DNS-rebinding protection). Put the public settings in `text.config.ts`:
+`text start` binds to `127.0.0.1` and, while bound to loopback, only answers `localhost`, `*.localhost` and IP-address hosts (DNS-rebinding protection). Other hosts get a `403` with `TX028`. Put the public settings in `text.config.ts`:
 
 ```ts@text.config.ts
-import { defineConfig } from "@textjs/next";
+import { defineConfig } from "@textjs/app";
 
 export default defineConfig({
   server: {

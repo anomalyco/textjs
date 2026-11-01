@@ -39,7 +39,7 @@ app/
 ## text.config.ts
 
 ```ts@text.config.ts
-import { defineConfig } from "@textjs/next";
+import { defineConfig } from "@textjs/app";
 
 export default defineConfig({
   title: "Acme",
@@ -54,7 +54,7 @@ export default defineConfig({
 | `viewport` | fit console, else `120×36` | `responsive` (default `true`), fallback `width × height`, `theme` |
 | `hints` | `[]` | Two or three keys shown on the page's FocusPad |
 | `action` | `press <first hint>` | What to do once focused, e.g. `"type a prompt"` |
-| `devIndicators` | `true` | In-console `[▼]` pill |
+| `devIndicators` | `true` | In-console Dev Overlay (`[▼]`) |
 | `rewrites` | `[]` | Rewrites and proxies |
 
 ## CLI
@@ -64,3 +64,5 @@ export default defineConfig({
 | `text dev` | Dev server with Fast Refresh |
 | `text build` | Production build |
 | `text start` | Serve the build and route handlers |
+| `text run` | Render the app in a terminal ([Terminal](/docs/terminal)) |
+| `text mcp` | Serve the app to coding agents ([MCP](/docs/mcp)) |

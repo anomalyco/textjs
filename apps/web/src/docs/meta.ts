@@ -41,7 +41,7 @@ export const DOCS_META: readonly DocMeta[] = [
     slug: "loading-and-errors",
     title: "Loading UI and Errors",
     nav: "Loading & Errors",
-    description: "loading.tsx, error.tsx, not-found.tsx, the in-console Redbox and [▼] DevTools.",
+    description: "loading.tsx, error.tsx, not-found.tsx, the in-console Redbox and the Dev Overlay.",
     category: "Building Your Application",
   },
   {
@@ -99,7 +99,7 @@ export const DOCS_META: readonly DocMeta[] = [
   {
     slug: "testing",
     title: "Testing",
-    description: "Render apps offscreen, press keys and assert on frames with @textjs/next/testing.",
+    description: "Render apps offscreen, press keys and assert on frames with @textjs/app/testing.",
     category: "Building Your Application",
   },
   {
@@ -145,7 +145,7 @@ export const DOCS_META: readonly DocMeta[] = [
     slug: "components-interactive",
     title: "Interactive Components",
     nav: "Interactive",
-    description: "<Input>, <Textarea>, <Select> and <Tabs>: focus, shortcuts and cursor freeze.",
+    description: "<Input>, <Textarea>, <Select> and <Tabs>: focus, shortcuts and copying text while the page is unfocused.",
     category: "Components",
   },
   {
@@ -199,7 +199,7 @@ export const DOCS_META: readonly DocMeta[] = [
     slug: "turbolog-engine",
     title: "The Turbolog Engine",
     nav: "Turbolog Engine",
-    description: "Single-console.log RLE encoding, CellBuffer, Chromium internals and benchmarks.",
+    description: "How frames are run-length encoded into one console.log call, plus the CellBuffer, Chromium details and benchmarks.",
     category: "Architecture",
     brand: "turbolog",
   },

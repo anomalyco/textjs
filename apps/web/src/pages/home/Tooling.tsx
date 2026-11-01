@@ -5,11 +5,11 @@ import { ArrowRight } from "../../site/icons";
 import { Crosses } from "./Crosses";
 
 const TOOLS: Array<{ label: string; title: string; body: ReactNode; href: string }> = [
-  { label: "Text.js panel", title: "DevTools extension", body: <>A component tree, a cell-by-cell frame inspector and a per-frame timeline.</>, href: "/docs/devtools-extension" },
-  { label: "⌘K V", title: "VS Code", body: <>A live preview of the frame next to your code, plus App Router scaffolding and snippets.</>, href: "/docs/vscode" },
+  { label: "Text.js panel", title: "DevTools extension", body: <>Adds a panel with the component tree, a frame inspector and a per-frame timeline.</>, href: "/docs/devtools-extension" },
+  { label: "⌘K V", title: "VS Code", body: <>Previews the frame next to your code and scaffolds App Router files.</>, href: "/docs/vscode" },
   { label: "eslint-plugin-textjs", title: "ESLint", body: <>Catches DOM tags in console components, boxes inside text and glyphs Menlo doesn’t have.</>, href: "/docs/eslint" },
-  { label: "@textjs/next/testing", title: "Testing", body: <>Render offscreen, press keys and assert on <code>lastFrame()</code> in any test runner.</>, href: "/docs/testing" },
-  { label: "TX###", title: "Error codes", body: <>Every framework error carries a stable code and a page that explains the fix.</>, href: "/errors" },
+  { label: "@textjs/app/testing", title: "Testing", body: <>Render offscreen, press keys and assert on <code>lastFrame()</code> in any test runner.</>, href: "/docs/testing" },
+  { label: "TX###", title: "Error codes", body: <>Errors and warnings with a <code>TX</code> code link to a page that explains the fix.</>, href: "/errors" },
   { label: "window.text", title: "Console REPL", body: <>Pause, resize, wireframe and copy the running app from the console prompt.</>, href: "/docs/hooks-and-repl" },
   { label: "UAX #9", title: "Right-to-left", body: <>Implements the Unicode Bidirectional Algorithm and passes all 770,241 <code>BidiTest.txt</code> cases.</>, href: "/docs/internationalization" },
   { label: "@textjs/font", title: "FIGlet fonts", body: <>Parses <code>.flf</code> files and matches 273 outputs recorded from the <code>figlet</code> binary.</>, href: "/docs/fonts" },
@@ -50,7 +50,7 @@ export function LearnSection(): ReactNode {
             <p className="eyebrow">Learn Text.js</p>
             <h2>Build a deploy dashboard in your console</h2>
             <p className="muted">
-              A free course in {CHAPTERS.length} chapters, about {ABOUT_MINUTES} minutes. Each chapter runs live in DevTools as you read it.
+              The free course has {CHAPTERS.length} chapters and takes about {ABOUT_MINUTES} minutes.
             </p>
             <div className="home-learn-actions">
               <A href="/learn" className="btn btn-primary">

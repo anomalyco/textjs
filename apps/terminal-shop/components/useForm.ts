@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { usePaste } from "@textjs/next";
+import { usePaste } from "@textjs/app";
 import { formKey, formLines, initForm, insert, type FieldDef, type FormState } from "../lib/form";
 import { isPrintable, useKeys } from "../lib/keys";
 import { useShop } from "../lib/store";

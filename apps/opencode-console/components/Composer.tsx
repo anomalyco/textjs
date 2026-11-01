@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState, type ReactNode } from "react";
-import { Box, Text, Textarea, useInput, useInterval, useTheme, useViewport, type TextTheme } from "@textjs/next";
+import { Box, Text, Textarea, useInput, useInterval, useTheme, useViewport, type TextTheme } from "@textjs/app";
 import { useStore, useStoreState } from "../lib/store";
 import { shortPath } from "../lib/format";
 import { usage as contextUsage, dollars } from "../lib/usage";

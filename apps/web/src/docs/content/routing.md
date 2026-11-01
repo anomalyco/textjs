@@ -5,7 +5,7 @@ The App Router maps folders in `app/` to URLs and keeps them in sync with the br
 Default-export a component from `page.tsx`:
 
 ```tsx@app/sessions/page.tsx
-import { Text } from "@textjs/next";
+import { Text } from "@textjs/app";
 
 export default function SessionsPage() {
   return <Text bold>Sessions</Text>;
@@ -18,8 +18,8 @@ Layouts wrap routes and keep their state across navigation.
 
 ```tsx@app/layout.tsx
 import type { ReactNode } from "react";
-import { Box, Text } from "@textjs/next";
-import Link from "@textjs/next/link";
+import { Box, Text } from "@textjs/app";
+import Link from "@textjs/app/link";
 
 export const metadata = { title: { default: "Acme", template: "%s · Acme" } };
 
@@ -40,7 +40,7 @@ export default function RootLayout({ children }: { children?: ReactNode }) {
 ## Dynamic segments
 
 ```tsx@app/sessions/[id]/page.tsx
-import { Text, type PageProps } from "@textjs/next";
+import { Text, type PageProps } from "@textjs/app";
 
 export default function SessionPage({ params }: PageProps<{ id: string }>) {
   return <Text>Session {params.id}</Text>;
@@ -74,10 +74,10 @@ router.back();
 Read the current route:
 
 ```tsx
-import { useParams, usePathname } from "@textjs/next/navigation";
+import { useParams, usePathname } from "@textjs/app/navigation";
 
 const pathname = usePathname(); // "/sessions/42"
 const { id } = useParams<{ id: string }>(); // "42"
 ```
 
-Back, forward and deep links all work. Static hosts need one SPA rewrite.
+Back, forward and deep links all work. On a static host, dynamic segments need a fallback to `index.html`. The `static` adapter writes one as `404.html`.

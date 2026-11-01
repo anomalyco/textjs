@@ -1,6 +1,6 @@
 /** Messages between the extension host and the preview webview. */
 
-import type { InputMessage, WireFrame } from "@textjs/next/frame-protocol";
+import type { InputMessage, WireFrame } from "@textjs/app/frame-protocol";
 
 export type PreviewMode = "live" | "headless" | "idle";
 export type ServerState = "stopped" | "starting" | "running";

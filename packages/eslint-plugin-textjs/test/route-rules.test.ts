@@ -27,13 +27,15 @@ tester().run("valid-route-module", validRouteModule, {
   valid: [
     { filename: PAGE, code: `export default function Page() { return null; }` },
     { filename: LAYOUT, code: `function RootLayout({ children }: any) { return children; }\nexport default RootLayout;` },
-    { filename: PAGE, code: `import Link from "@textjs/next/link";\nexport default Link;` },
+    { filename: PAGE, code: `import Link from "@textjs/app/link";\nexport default Link;` },
     { filename: PAGE, code: `export default memo(function Page() { return null; });` },
     { filename: PAGE, code: `export const dynamic = "force-dynamic";\nexport default () => null;` },
     { filename: PAGE, code: `export const dynamic = "force-static" as const;\nexport default () => null;` },
     // Not route files.
     { filename: "/repo/components/page.tsx", code: `export const x = 1;` },
     { filename: ROUTE, code: `export function GET() { return new Response(); }` },
+    { filename: ROUTE, code: `export const dynamic = "force-static";\nexport function GET() { return new Response(); }` },
+    { filename: ROUTE, code: `export const dynamic = process.env.STATIC ? "force-static" : "auto";\nexport function GET() { return new Response(); }` },
   ],
   invalid: [
     { filename: PAGE, code: `export function Page() { return null; }`, errors: [{ messageId: "missingDefault", data: { file: "page.tsx" }, line: 1 }] },
@@ -41,6 +43,9 @@ tester().run("valid-route-module", validRouteModule, {
     { filename: LAYOUT, code: `export default <Box />;`, errors: [{ messageId: "notComponent", data: { file: "layout.tsx", kind: "JSX element (wrap it in a function)" } }] },
     { filename: NOT_FOUND, code: `const NotFound = { title: "x" };\nexport default NotFound;`, errors: [{ messageId: "notComponent", data: { file: "not-found.tsx", kind: "object" } }] },
     { filename: PAGE, code: `export const dynamic = "dynamic";\nexport default () => null;`, errors: [{ messageId: "dynamicValue" }] },
+    // Next.js's "error" is rejected at runtime with TX031.
+    { filename: PAGE, code: `export const dynamic = "error";\nexport default () => null;`, errors: [{ messageId: "dynamicValue" }] },
+    { filename: ROUTE, code: `export const dynamic = "error";\nexport function GET() { return new Response(); }`, errors: [{ messageId: "dynamicValue" }] },
     {
       filename: PAGE,
       code: `const mode = "force-dynamic";\nexport const dynamic = mode;\nexport let other = 1;\nexport default () => null;`,
@@ -106,6 +111,7 @@ tester().run("route-handler-exports", routeHandlerExports, {
     { filename: ROUTE, code: `async function forward(req: Request) { return fetch(req); }\nexport const GET = forward;\nexport const HEAD = forward;\nexport { forward as POST };` },
     { filename: ROUTE, code: `export type Body = { id: string };\nexport interface Reply {}\nexport async function DELETE() { return new Response(null, { status: 204 }); }` },
     { filename: ROUTE, code: `export const runtime = "edge";\nexport function GET() { return new Response(); }`, options: [{ allow: ["runtime"] }] },
+    { filename: ROUTE, code: `export const dynamic = "force-static";\nexport const revalidate = 60;\nexport function GET() { return new Response(); }` },
     { filename: ROUTE, code: `export * from "./handlers";` },
     { filename: "/repo/lib/route.ts", code: `export const helper = 1;` },
   ],
@@ -129,7 +135,7 @@ tester().run("route-handler-exports", routeHandlerExports, {
       errors: [{ messageId: "defaultExport" }, { messageId: "noHandlers" }],
     },
     { filename: ROUTE, code: `export const GET = "ok";`, errors: [{ messageId: "notFunction", data: { name: "GET" } }] },
-    { filename: ROUTE, code: `export const dynamic = "force-dynamic";\nexport function GET() { return new Response(); }`, errors: [{ messageId: "unknownExport", data: { name: "dynamic" } }] },
+    { filename: ROUTE, code: `export const runtime = "edge";\nexport function GET() { return new Response(); }`, errors: [{ messageId: "unknownExport", data: { name: "runtime" } }] },
     { filename: ROUTE, code: `const x = 1;`, errors: [{ messageId: "noHandlers", line: 1 }] },
   ],
 });

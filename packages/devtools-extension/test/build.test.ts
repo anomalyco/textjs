@@ -16,6 +16,8 @@ describe("extension build", () => {
     expect(manifest.host_permissions).toBeUndefined();
     expect(manifest.devtools_page).toBe("devtools.html");
     expect(manifest.content_scripts.map((c: { world?: string }) => c.world ?? "ISOLATED")).toEqual(["MAIN", "ISOLATED"]);
+    for (const c of manifest.content_scripts) expect(c.matches).toEqual(["http://*/*", "https://*/*"]);
+    expect(manifest.description.length).toBeLessThanOrEqual(132);
     expect(manifest.content_security_policy.extension_pages).toBe("script-src 'self'; object-src 'self'");
 
     const referenced = [

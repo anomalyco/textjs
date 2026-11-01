@@ -1,6 +1,6 @@
 /**
  * Screenshot harness for the preview webview: renders the dashboard example
- * offscreen with `@textjs/next/testing`, encodes the frames with the real
+ * offscreen with `@textjs/app/testing`, encodes the frames with the real
  * frame protocol and writes one static page per UI state into `.harness/`,
  * then serves them on http://localhost:4719.
  *
@@ -12,11 +12,11 @@ import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createElement } from "react";
 import { extractStyledFrame } from "@textjs/core";
-import { render } from "@textjs/next/testing";
-import { AppRouter, createMemoryHistory } from "@textjs/next/router";
-import { encodeFullFrame, type WireFrame } from "@textjs/next/frame-protocol";
-import { loadRuntimeManifest } from "../../text/src/cli/run";
-import { scanApp } from "../../text/src/server/scan";
+import { render } from "@textjs/app/testing";
+import { AppRouter, createMemoryHistory } from "@textjs/app/router";
+import { encodeFullFrame, type WireFrame } from "@textjs/app/frame-protocol";
+import { loadRuntimeManifest } from "../../app/src/cli/run";
+import { scanApp } from "../../app/src/server/scan";
 import type { PreviewState } from "../src/webview-protocol";
 
 const ROOT = resolve(import.meta.dir, "..");

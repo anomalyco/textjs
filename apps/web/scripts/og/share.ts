@@ -17,7 +17,7 @@ import { BASE_CSS, CHROMIUM_ARGS, escapeHtml, LOCKUP_SVG, OG_FONTS, OG_ORIGIN } 
 const WEB_DIR = join(import.meta.dirname, "..", "..");
 const OUT = join(WEB_DIR, "..", "..", "brand", "share");
 
-const { companionFrame, frameLineHeight } = await import("../../src/og");
+const { companionFrame, frameLineHeight } = await import("./frame");
 const { render } = await import("@textjs/react/testing");
 const { AsciiFont } = await import("@textjs/react");
 const { createElement } = await import("react");
@@ -38,6 +38,22 @@ async function triangleCells(): Promise<boolean[][]> {
 const SHARE_CSS = `
 ${BASE_CSS}
 html, body { width: auto; height: auto; }
+.rule-h, .rule-v { position: absolute; background: rgba(255,255,255,0.14); }
+.rule-h { left: 0; height: 1px; }
+.rule-v { top: 0; width: 1px; }
+.cross { position: absolute; width: 21px; height: 21px; }
+.cross::before, .cross::after { content: ""; position: absolute; background: rgba(255,255,255,0.5); }
+.cross::before { left: 10px; top: 0; width: 1px; height: 21px; }
+.cross::after { top: 10px; left: 0; width: 21px; height: 1px; }
+/* A Chrome DevTools Console panel (site/DevToolsWindow.tsx) holding one real frame. */
+.devtools { position: absolute; border: 1px solid rgba(255,255,255,0.16); border-radius: 14px; overflow: hidden; background: #202124;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 40px 100px -20px rgba(0,0,0,0.9), 0 0 160px -40px rgba(255,255,255,0.12); }
+.dt-tabs { display: flex; background: #292a2d; border-bottom: 1px solid #3c4043; color: #9aa0a6; padding-left: 8px; }
+.dt-tab { display: flex; align-items: center; padding: 0 14px; border-bottom: 2px solid transparent; white-space: nowrap; }
+.dt-tab.active { color: #e8eaed; border-bottom-color: #8ab4f8; }
+.dt-body { position: relative; overflow: hidden; background: #0a0a0a; }
+.dt-body > .fit { position: absolute; left: 0; top: 0; }
+.dt-body [data-textjs-mirror] { font-family: "Geist Mono", "Geist Mono OG", "OG Symbols" !important; }
 .share { position: relative; overflow: hidden; background: #000; }
 .share .grid-full { --line: rgba(255,255,255,0.07); position: absolute; inset: 0; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); }
 .share .foot { position: absolute; display: flex; align-items: center; gap: 18px; }
@@ -196,7 +212,7 @@ function prompt(w: number, h: number): string {
 
 <b style="font-weight:700">▼ create-text-app</b> <span class="dim">v${escapeHtml(VERSION)}</span>
 
-<span style="color:#45a557">?</span> <b style="font-weight:700">What is your project named?</b> <span class="dim">(my-text-app)</span> ${cursor}</div></div>
+<span style="color:#45a557">?</span> <b style="font-weight:700">What is your project named?</b> <span class="dim">(my-app)</span> ${cursor}</div></div>
     ${foot(Math.round(w * 0.1), 100)}</div>`;
 }
 

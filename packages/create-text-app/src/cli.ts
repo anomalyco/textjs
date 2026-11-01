@@ -127,7 +127,7 @@ export function successMessage(opts: { dir: string; displayDir: string; template
     "",
   ];
   if (displayDir !== ".") lines.push(`  ${cyan("cd")} ${displayDir}`);
-  lines.push(`  ${cyan(`${pm} install`)}`, `  ${cyan(runCommand(pm, "dev"))}`, "", `Then open the page and press ${bold("⌘⌥J")} to open Chrome DevTools — your app renders in the Console.`, "");
+  lines.push(`  ${cyan(`${pm} install`)}`, `  ${cyan(runCommand(pm, "dev"))}`, "", `Then open the page and press ${bold("⌘⌥J")} (${bold("Ctrl+Shift+J")} on Windows and Linux). Your app renders in the DevTools console.`, "");
   return lines.join("\n");
 }
 

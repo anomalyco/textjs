@@ -6,7 +6,7 @@
  */
 
 import type { ReactNode } from "react";
-import { AppRouter, createMemoryHistory, type RouteManifest, type RouterHistory } from "@textjs/next/router";
+import { AppRouter, createMemoryHistory, type RouteManifest, type RouterHistory } from "@textjs/app/router";
 import * as layout from "./app/layout";
 import * as root from "./app/page";
 import * as account from "./app/account/page";

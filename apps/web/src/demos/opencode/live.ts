@@ -1,7 +1,7 @@
 /** Connection discovery for the HTML focus pad. All session traffic and SSE
  * are owned by the embedded app, never by the page or its prerenderer. */
 export const DEFAULT_SERVER_URL = "http://127.0.0.1:4096";
-export const BRIDGE_COMMAND = "bunx @textjs/next proxy";
+export const BRIDGE_COMMAND = "bunx @textjs/opencode proxy";
 const REMEMBER_KEY = "textjs:opencode-server";
 const loopback = () => typeof location !== "undefined" && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
@@ -48,9 +48,9 @@ export async function discoverServer(raw: string, timeoutMs = 3000): Promise<Dis
     throw new Error(message);
   };
   let u: URL;
-  try { u = new URL(apiBase); } catch { return fail(`Invalid URL — enter ${DEFAULT_SERVER_URL} and run ${BRIDGE_COMMAND}.`); }
-  if (u.username || u.password) return fail(`Don't put credentials in the URL — run ${BRIDGE_COMMAND} and connect to ${DEFAULT_SERVER_URL}.`);
-  const reach = `Can't reach ${u.host} — run ${BRIDGE_COMMAND} and ${loopback() ? "connect to 127.0.0.1:4096" : "allow local network access"}.`;
+  try { u = new URL(apiBase); } catch { return fail(`Invalid URL. Enter ${DEFAULT_SERVER_URL} and run ${BRIDGE_COMMAND}.`); }
+  if (u.username || u.password) return fail(`Don't put credentials in the URL. Run ${BRIDGE_COMMAND} and connect to ${DEFAULT_SERVER_URL}.`);
+  const reach = `Can't reach ${u.host}. Run ${BRIDGE_COMMAND} and ${loopback() ? "connect to 127.0.0.1:4096" : "allow local network access"}.`;
   if (typeof location !== "undefined" && !loopback()) timeoutMs = Math.max(timeoutMs, 60_000);
   for (const protocol of ["v2", "v1"] as const) {
     let res: Response;
@@ -58,14 +58,14 @@ export async function discoverServer(raw: string, timeoutMs = 3000): Promise<Dis
       res = await fetch(`${apiBase}${protocol === "v2" ? "/api/info" : "/session?limit=1"}`, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(timeoutMs) });
     } catch { return fail(reach); }
     const bridge = res.headers.get("x-textjs-bridge") === "1";
-    if (res.status === 401) return fail(bridge ? "OpenCode rejected the bridge password — check opencode service status or OPENCODE_PASSWORD." : `Auth required — run ${BRIDGE_COMMAND} and connect to ${DEFAULT_SERVER_URL}.`);
-    if (res.status === 403) return fail(`Origin blocked — pass --allow-origin ${typeof location === "undefined" ? "<origin>" : location.origin} to ${BRIDGE_COMMAND}.`);
-    if (res.status === 502 && bridge) return fail("Bridge can't reach OpenCode — run opencode service start (or pass --target).");
-    if (!res.ok && ![404, 405, 415].includes(res.status)) return fail(`OpenCode returned HTTP ${res.status} at ${u.host} — check opencode service status or run ${BRIDGE_COMMAND}.`);
+    if (res.status === 401) return fail(bridge ? "OpenCode rejected the bridge password. Check opencode service status or OPENCODE_PASSWORD." : `Auth required. Run ${BRIDGE_COMMAND} and connect to ${DEFAULT_SERVER_URL}.`);
+    if (res.status === 403) return fail(`Origin blocked. Pass --allow-origin ${typeof location === "undefined" ? "<origin>" : location.origin} to ${BRIDGE_COMMAND}.`);
+    if (res.status === 502 && bridge) return fail("Bridge can't reach OpenCode. Run opencode service start (or pass --target).");
+    if (!res.ok && ![404, 405, 415].includes(res.status)) return fail(`OpenCode returned HTTP ${res.status} at ${u.host}. Check opencode service status or run ${BRIDGE_COMMAND}.`);
     if (!res.ok) continue;
     const data = await res.json().catch(() => null);
     if (protocol === "v2" && typeof data?.version === "string") return { apiBase, protocol, bridge, version: data.version };
     if (protocol === "v1" && Array.isArray(data)) return { apiBase, protocol, bridge };
   }
-  return fail(`Not an OpenCode server at ${u.host} — run ${BRIDGE_COMMAND} and connect to 127.0.0.1:4096.`);
+  return fail(`Not an OpenCode server at ${u.host}. Run ${BRIDGE_COMMAND} and connect to 127.0.0.1:4096.`);
 }

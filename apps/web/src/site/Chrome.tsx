@@ -79,7 +79,10 @@ export function Header(): ReactNode {
           >
             <SearchIcon />
             <span>Search</span>
-            <kbd>⌘K</kbd>
+            <kbd>
+              <span className="os-mac">⌘K</span>
+              <span className="os-other">Ctrl+K</span>
+            </kbd>
           </button>
           <button
             type="button"
@@ -147,7 +150,7 @@ export function Footer(): ReactNode {
         <div className="tx-copyright">
           <img src="/anomaly-signature.svg" alt="" aria-hidden="true" width="163" height="64" loading="lazy" decoding="async" />
           <p>
-            ©2026 <a href="https://anoma.ly">Anomaly</a>. All rights reserved
+            © 2026 <a href="https://anoma.ly">Anomaly</a>. All rights reserved.
           </p>
         </div>
         <nav aria-label="Footer">

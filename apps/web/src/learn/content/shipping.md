@@ -7,7 +7,9 @@ bun run build
 ```
 
 ```text
-   ▼ Text.js 1.0.0 (Turbolog) — Creating an optimized console production build...
+   ▼ Text.js 1.0.1 (Turbolog)
+
+   Creating an optimized console production build...
 
  ✓ Compiled successfully in 0.8s
  ✓ Collecting route data
@@ -40,13 +42,15 @@ Set the browser tab title in the root layout. Pages can override it.
 
 ## Static hosting
 
-Without route handlers the build is a plain static site. Every route is served by the same `index.html`, so the host needs one SPA rewrite:
+Without route handlers the build is a plain static site. Each static route gets its own HTML file. Dynamic routes such as `/deployments/[id]` are served by `index.html`.
 
-```diff-json@vercel.json
-+{
-+  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
-+}
+On Vercel and Cloudflare Pages, `text build` detects the platform and writes that fallback itself. Other static hosts need a rewrite. On Netlify, add a `_redirects` file to `public/`:
+
+```diff-text@public/_redirects
++/*  /index.html  200
 ```
+
+Netlify serves files that exist before it applies the rule, so assets and prerendered routes are unaffected.
 
 ## Before you ship
 

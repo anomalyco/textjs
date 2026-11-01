@@ -111,14 +111,14 @@ const script: ChapterScript = {
         "Hand-rolled rows got Acme Deploys this far. The component kit does the rest. " +
         "{table}Table brings keyboard navigation and sorting. " +
         "{list}List scrolls long lists, and only paints the rows you can see. " +
-        "{charts}And charts are drawn with eighth blocks and braille dots.",
+        "{charts}And charts are drawn with eighth blocks and quadrant dots.",
       tail: 1.6,
       props: {
         eyebrow: "The component kit",
         nodes: [
           { title: "Table", sub: "Keyboard and sorting", at: "table", content: { type: "frame", frame: tableFrame, size: 17 } },
           { title: "List", sub: "Virtualized scrolling", at: "list", content: { type: "frame", frame: listFrame, size: 17 } },
-          { title: "Charts", sub: "Eighth blocks and braille", at: "charts", content: { type: "frame", frame: sparkFrame, size: 17 } },
+          { title: "Charts", sub: "Eighth blocks and quadrant dots", at: "charts", content: { type: "frame", frame: sparkFrame, size: 17 } },
         ],
       },
     },
@@ -135,7 +135,7 @@ const script: ChapterScript = {
       id: "columns",
       kind: "editor",
       narration:
-        "In a Table, columns are data. {imports}Import Table, along with the SortState and TableColumn types. " +
+        "{imports}Import Table, along with the SortState and TableColumn types. " +
         "{status}Each column has a key and a header. Status has a fixed width, and renders the status dot. " +
         "{commit}Commit has no width, so it shares the remaining space by grow. " +
         "{build}For Build, value is what sorting compares, {render}and render is what you see. " +
@@ -239,8 +239,7 @@ const script: ChapterScript = {
       kind: "live",
       narration:
         "Back on the lesson page, {click}click the pad, {c1}and press [c|C] for the bar chart. {c2}Press it again to switch back. " +
-        "{still}The table stays where it is, because the chart box has a fixed height. " +
-        "{log}In a console, that matters. The fewer rows change, the less is logged.",
+        "{still}The table stays where it is, because the chart box has a fixed height.",
       tail: 2.0,
       live: live(
         [
@@ -300,7 +299,7 @@ const script: ChapterScript = {
     {
       id: "quiz-2",
       kind: "quiz",
-      narration: `{q}And why give the chart box a fixed height? {+2.2} {answer}So switching charts doesn't move the table. {+0.3} {explain}Stable layout means fewer changed rows, and fewer changed rows means less to log.`,
+      narration: `{q}And why give the chart box a fixed height? {+2.2} {answer}So switching charts doesn't move the table. {+0.3} {explain}A fixed height keeps the table in place, so its rows don't change and aren't re-encoded.`,
       tail: 1.8,
       props: {
         eyebrow: "Quick check · 2 of 2",

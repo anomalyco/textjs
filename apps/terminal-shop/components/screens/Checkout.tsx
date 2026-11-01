@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useSearchParams } from "@textjs/next/navigation";
+import { useSearchParams } from "@textjs/app/navigation";
 import { isSafeExternalUrl } from "../../lib/entry";
 import { ADDRESS_FORM, addressFromValues, newAddressValues, validateAddress } from "../../lib/address";
 import { CONTENT, CONTENT_HEIGHT, HEIGHT, WIDTH } from "../../lib/frame";

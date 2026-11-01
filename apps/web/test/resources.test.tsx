@@ -32,6 +32,7 @@ describe("changelog, blog, enterprise and status", () => {
     expect(v1?.id).toBe("v1-0-0");
     expect(v1?.body).toContain("@textjs/next");
     const { releases } = parseChangelog("# Changelog\n\nIntro\n\n## [2.0.0] - 2027-01-02\n\n### Added\n\n- x\n");
+    expect(parseChangelog("# Changelog\n\n## [Unreleased]\n\n## [1.0.0] - 2026-10-31\n\n- y\n").releases.map((r) => r.version)).toEqual(["1.0.0"]);
     expect(releases).toEqual([{ version: "2.0.0", date: "2027-01-02", id: "v2-0-0", body: "### Added\n\n- x" }]);
   });
 

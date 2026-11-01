@@ -19,7 +19,7 @@ export default createRule<Options, "missingDefault" | "notComponent" | "dynamicN
   meta: {
     type: "problem",
     docs: {
-      description: "Require a component default export in `page`, `layout`, `loading`, `error` and `not-found` files, and a valid `dynamic` export.",
+      description: "Require a component default export in `page`, `layout`, `loading`, `error` and `not-found` files, and a valid `dynamic` export in pages, layouts and route handlers.",
       recommended: true,
     },
     messages: {
@@ -27,8 +27,8 @@ export default createRule<Options, "missingDefault" | "notComponent" | "dynamicN
       notComponent: "The default export of {{file}} must be a React component, not a {{kind}} (TX015).",
       dynamicNotLiteral:
         'Export `dynamic` as a string literal (`export const dynamic = "force-dynamic"`): `text build` reads it from the source without running the module.',
-      dynamicValue: '`dynamic` must be "auto", "force-static" or "force-dynamic".',
-      dynamicIgnored: "`dynamic` is only read from page and layout files; it has no effect in {{file}}.",
+      dynamicValue: '`dynamic` must be "auto", "force-static" or "force-dynamic" (TX031).',
+      dynamicIgnored: "`dynamic` is only read from page, layout and route files; it has no effect in {{file}}.",
     },
     schema: [
       {
@@ -41,8 +41,18 @@ export default createRule<Options, "missingDefault" | "notComponent" | "dynamicN
   defaultOptions: [{ appDir: "app" }],
   create(context, [{ appDir = "app" }]) {
     const kind = routeFileKind(context.filename, appDir);
-    if (!kind || kind === "route") return {};
+    if (!kind) return {};
     const file = context.filename.replace(/\\/g, "/").split("/").pop() ?? kind;
+    if (kind === "route") {
+      // Route handlers are imported at runtime, so any expression works; only a known string is checked.
+      return {
+        "Program:exit"(program: TSESTree.Program) {
+          const dyn = moduleExports(program).find((e) => e.name === "dynamic" && !e.typeOnly);
+          const str = dyn ? staticString(unwrapTs(dyn.value)) : undefined;
+          if (dyn && str !== undefined && !(DYNAMIC_VALUES as readonly string[]).includes(str)) context.report({ node: dyn.node, messageId: "dynamicValue" });
+        },
+      };
+    }
     return {
       "Program:exit"(program: TSESTree.Program) {
         const exports = moduleExports(program);

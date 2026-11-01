@@ -1,4 +1,4 @@
-Cache route handler responses and data, then revalidate them on a timer or on demand. Stale entries are served instantly while one background refresh runs.
+Cache route handler responses and data, then revalidate them on a timer or on demand. Stale entries are served immediately while one background refresh runs.
 
 ## Route handlers
 
@@ -20,6 +20,8 @@ export async function GET() {
 | `revalidate = N` | Cached; stale after `N` seconds |
 | `revalidate = 0` or `dynamic = "force-dynamic"` | Runs on every request |
 
+Other `dynamic` values fail with `TX031`. That includes Next.js's `"error"`, because Text.js can't detect when a handler reads the request.
+
 Cached handlers get one entry per pathname, and their `request` looks like it would at build time: no query string, headers, cookies or body. Read those in a dynamic handler instead. Only `GET` and `HEAD` are cached. Responses with a `5xx` status, a `Set-Cookie` header, or `Cache-Control: private` / `no-store` are returned but never stored.
 
 ## Headers
@@ -37,10 +39,10 @@ In `text dev`, segment config applies but nothing is stored, so every request ru
 
 ## Data cache
 
-Cache any async function with `unstable_cache` from `@textjs/next/cache`:
+Cache any async function with `unstable_cache` from `@textjs/app/cache`:
 
 ```ts@lib/posts.ts
-import { unstable_cache } from "@textjs/next/cache";
+import { unstable_cache } from "@textjs/app/cache";
 
 export const getPosts = unstable_cache(
   async (author: string) => db.posts.byAuthor(author),
@@ -66,7 +68,7 @@ On Vercel and Cloudflare, background refreshes are registered with `waitUntil()`
 ## On-demand revalidation
 
 ```ts@app/api/revalidate/route.ts
-import { revalidatePath, revalidateTag } from "@textjs/next/cache";
+import { revalidatePath, revalidateTag } from "@textjs/app/cache";
 
 export async function POST(request: Request) {
   // Anyone can POST here: require a secret shared with your CMS or webhook.
@@ -98,7 +100,7 @@ export default defineConfig({ cacheHandler: "./cache-handler.ts" });
 ```
 
 ```ts@cache-handler.ts
-import type { CacheStore } from "@textjs/next/cache";
+import type { CacheStore } from "@textjs/app/cache";
 
 const store: CacheStore = {
   async get(key) { return redis.get(key).then((v) => (v ? JSON.parse(v) : undefined)); },

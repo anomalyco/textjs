@@ -7,7 +7,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { createRoot } from "react-dom/client";
 import { ConsoleMirror } from "@textjs/react/dom";
 import type { StyledFrame } from "@textjs/core";
-import { FrameDecoder, frameToText } from "@textjs/next/frame-protocol";
+import { FrameDecoder, frameToText } from "@textjs/app/frame-protocol";
 import type { HostToWebview, ModePreference, PreviewState, WebviewCommand, WebviewToHost } from "../src/webview-protocol";
 import { Icon, type IconName } from "./icons";
 
@@ -105,9 +105,9 @@ function ModeBadge({ state }: { state: PreviewState }): ReactNode {
         value={state.preference}
         onChange={(e) => post({ type: "setMode", preference: e.target.value as ModePreference })}
       >
-        <option value="auto">Auto — live when a tab is open</option>
-        <option value="live">Live — mirror the browser tab</option>
-        <option value="headless">Headless — render the file here</option>
+        <option value="auto">Auto: live when a tab is open</option>
+        <option value="live">Live: mirror the browser tab</option>
+        <option value="headless">Headless: render the file here</option>
       </select>
     </label>
   );

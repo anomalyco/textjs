@@ -2,8 +2,8 @@ Turbolog turns each React commit into one `console.log` call, or none if no cell
 
 ## Goals
 
-1. **One call per dirty frame.** Never log line by line.
-2. **Zero calls when idle.** No allocation, no clear, no log.
+1. **One call per changed frame.**
+2. **Zero calls when idle.** An unchanged frame returns before it builds a string.
 3. **Few style arguments.** 149 `%c` spans for the 3,200 cells of a dense `100×32` dashboard.
 
 ## Pipeline
@@ -27,7 +27,7 @@ console.log(frame.format, ...frame.args);
 
 ## Frame swap
 
-Frames are appended, not cleared. DevTools removes cleared messages at once but paints new ones on a 50ms throttle, so clearing every frame flashes an empty console. Appended frames swap inside a single paint, and a leading spacer keeps the previous frame out of view. Scroll up to see earlier frames.
+Turbolog appends frames and clears the console only on the first frame, after `invalidate()`, at idle once 100 frames are stacked, and at 300. DevTools removes cleared messages at once but paints new ones on a 50ms throttle, so clearing every frame flashes an empty console. Appended frames swap inside a single paint, and a zero-width curtain span keeps the previous frame out of view. Scroll up to see earlier frames.
 
 Frames are paced to about 15fps. Faster frames reset the DevTools throttle and are dropped.
 

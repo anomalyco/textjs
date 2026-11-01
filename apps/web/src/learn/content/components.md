@@ -5,7 +5,7 @@ Replace the hand-rolled rows with components: `<Table>` with keyboard navigation
 Columns are an array of objects. A column without a `width` shares the remaining space by `grow`, `value` is what sorting compares, and `render` draws the cell.
 
 ```diff-tsx@app/deployments/page.tsx
-+import { Table, type SortState, type TableColumn } from "@textjs/next";
++import { Table, type SortState, type TableColumn } from "@textjs/app";
 +
 +const COLUMNS: TableColumn<Deployment>[] = [
 +  { key: "status", header: "Status", width: 11, render: (d) => <Status status={d.status} /> },
@@ -29,7 +29,7 @@ With focus on the table, `↑` `↓` move the highlight, `s` cycles the sort col
 `<Sparkline>` fills its box with the most recent points. `<BarChart>` aligns labels and values for you.
 
 ```diff-tsx@app/deployments/page.tsx
-+import { BarChart, Sparkline } from "@textjs/next";
++import { BarChart, Sparkline } from "@textjs/app";
 +
 +  const [chart, setChart] = useState<"spark" | "bars">("spark");
 +  useInput((e) => {
@@ -51,7 +51,7 @@ With focus on the table, `↑` `↓` move the highlight, `s` cycles the sort col
    );
 ```
 
-The chart box has a fixed height, so switching charts never moves the table, and the table rows are not re-encoded or logged.
+The chart box has a fixed height, so switching charts never moves the table, and its rows aren't re-encoded.
 
 ## More components
 

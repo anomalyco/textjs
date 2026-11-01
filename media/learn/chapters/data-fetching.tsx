@@ -75,7 +75,7 @@ export function createDeployment(input: Partial<Deployment>): Deployment {
   return deployment;
 }
 `;
-const overview = `import { Text } from "@textjs/next";
+const overview = `import { Text } from "@textjs/app";
 
 export default function Page() {
   return <Text bold>Overview</Text>;

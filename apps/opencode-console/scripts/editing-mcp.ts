@@ -12,7 +12,7 @@ const call = async (name: string, args: Record<string, unknown>) => {
 };
 try {
   await c.connect(
-    new StdioClientTransport({ command: process.execPath, args: [resolve(app, "../../packages/text/bin/text.ts"), "mcp", app], env: {} }),
+    new StdioClientTransport({ command: process.execPath, args: [resolve(app, "../../packages/app/bin/text.ts"), "mcp", app], env: {} }),
   );
   await call("wait_for", { text: "● demo" });
   await call("type", { text: "alpha beta gamma" });

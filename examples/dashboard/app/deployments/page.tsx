@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Box, Select, Text, useTheme, type Metadata, type SelectOption } from "@textjs/next";
-import { useRouter } from "@textjs/next/navigation";
+import { Box, Select, Text, useTheme, type Metadata, type SelectOption } from "@textjs/app";
+import { useRouter } from "@textjs/app/navigation";
 import { DEPLOYMENTS, formatAge, formatDuration, STATUS, type Deployment } from "../../lib/data";
 
 export const metadata: Metadata = { title: "Deployments" };

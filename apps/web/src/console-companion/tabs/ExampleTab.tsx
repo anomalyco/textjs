@@ -64,7 +64,7 @@ export function ExampleTab({ id }: { id: string }): ReactNode {
           </Text>
         </Box>
         <Box className="shrink-0">
-          <KeyHint keys="esc" label={home ? "back to counter" : "back to docs"} />
+          <KeyHint keys="Esc" label={home ? "back to counter" : "back to docs"} />
         </Box>
       </Box>
       <Box className="flex-col shrink-0" width={size.cols} height={size.rows}>

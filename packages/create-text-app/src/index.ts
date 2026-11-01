@@ -7,12 +7,12 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { txError } from "./errors";
 
-export const VERSION = "1.0.1";
+export const VERSION = "1.0.2";
 
 export const TEMPLATES = {
-  starter: "Clean starter: layout, keyboard counter and <Link> navigation",
-  dashboard: "Real-time metrics & deployments App Router dashboard",
-  opencode: "Connect to a local OpenCode server: sessions & prompt input",
+  starter: "Layout, keyboard counter and <Link> navigation",
+  dashboard: "App Router dashboard with live metrics and deployments",
+  opencode: "Connect to a local OpenCode server: sessions and prompt input",
 } as const;
 
 export type TemplateName = keyof typeof TEMPLATES;
@@ -74,7 +74,7 @@ export interface ScaffoldOptions {
   /** Target directory (created when missing; must be empty). */
   dir: string;
   template?: TemplateName;
-  /** `@textjs/next` dependency specifier (default `^1.0.0`). */
+  /** `@textjs/app` dependency specifier (default `^1.0.0`). */
   textjsVersion?: string;
   /** Allow writing into a non-empty directory. */
   force?: boolean;

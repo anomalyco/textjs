@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { useSearchParams } from "@textjs/next/navigation";
+import { useSearchParams } from "@textjs/app/navigation";
 import { CONTENT, CONTENT_HEIGHT, type Command } from "../../lib/frame";
 import { FAQS } from "../../lib/faq";
 import { notEmpty, type FieldDef } from "../../lib/form";

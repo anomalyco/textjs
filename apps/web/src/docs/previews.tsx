@@ -39,7 +39,7 @@ function LayoutPreview(): ReactNode {
         </Box>
       </Box>
       <Box className="flex-row gap-2">
-        <KeyHint keys="0" label="DOM nodes" />
+        <KeyHint keys="0" label="stylesheets" />
         <KeyHint keys="1" label="console.log per frame" />
       </Box>
     </Box>

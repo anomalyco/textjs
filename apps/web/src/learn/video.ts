@@ -4,23 +4,38 @@
  * Off until a chapter's files are uploaded: add its slug to PUBLISHED (with the duration from the render's
  * manifest.json) and the chapter page shows the player. Files live at
  * `${LEARN_MEDIA_BASE}/learn/<slug>/<slug>-{1080p,720p}.mp4`, `<slug>-poster.jpg` and `<slug>.vtt`; the bucket needs
- * CORS for the textjs.org origin (GET) so the captions track loads.
+ * CORS for the textjs.org origin (GET) so the captions track loads. A re-rendered chapter uploads under new names
+ * (`<slug>-v2-1080p.mp4`, …; set its REVISIONS entry), so the live site keeps serving the old files until it deploys.
  */
 
 export const LEARN_MEDIA_BASE = "https://media.textjs.org";
 
 /** Published chapter videos: slug → length in seconds. */
 export const PUBLISHED: Readonly<Record<string, number>> = {
-  "getting-started": 236.1,
+  "getting-started": 234.3,
   layout: 218.7,
-  styling: 204.6,
+  styling: 204.4,
   "input-and-keymaps": 205.1,
-  routing: 224.9,
+  routing: 226.1,
   "data-fetching": 212.3,
-  components: 192.5,
-  testing: 198.9,
-  terminal: 210.9,
-  shipping: 172.6,
+  components: 184.8,
+  testing: 194.4,
+  terminal: 211.1,
+  shipping: 183.7,
+};
+
+/** Re-rendered chapters: slug → file revision (2 and up). */
+export const REVISIONS: Readonly<Record<string, number>> = {
+  "getting-started": 3,
+  layout: 3,
+  styling: 3,
+  "input-and-keymaps": 2,
+  routing: 3,
+  "data-fetching": 2,
+  components: 3,
+  testing: 2,
+  terminal: 2,
+  shipping: 2,
 };
 
 export interface LearnVideo {
@@ -32,10 +47,16 @@ export interface LearnVideo {
   duration: number;
 }
 
-export function learnVideo(slug: string, published: Readonly<Record<string, number>> = PUBLISHED, base = LEARN_MEDIA_BASE): LearnVideo | null {
+export function learnVideo(
+  slug: string,
+  published: Readonly<Record<string, number>> = PUBLISHED,
+  base = LEARN_MEDIA_BASE,
+  revisions: Readonly<Record<string, number>> = REVISIONS,
+): LearnVideo | null {
   const duration = published[slug];
   if (duration === undefined) return null;
-  const dir = `${base}/learn/${slug}/${slug}`;
+  const revision = revisions[slug];
+  const dir = `${base}/learn/${slug}/${slug}${revision && revision > 1 ? `-v${revision}` : ""}`;
   return { src: `${dir}-1080p.mp4`, srcSmall: `${dir}-720p.mp4`, poster: `${dir}-poster.jpg`, captions: `${dir}.vtt`, duration };
 }
 

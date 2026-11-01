@@ -5,7 +5,7 @@ Middleware runs code before a request completes. It can redirect, rewrite, set h
 Create `middleware.ts` in the project root (or `src/`), next to `app/`. Export a `middleware` function (or a default export) and an optional `config`.
 
 ```ts@middleware.ts
-import { NextResponse, type NextRequest } from "@textjs/next/server";
+import { NextResponse, type NextRequest } from "@textjs/app/server";
 
 export function middleware(request: NextRequest) {
   if (!request.cookies.has("session")) {
@@ -19,7 +19,7 @@ export const config = {
 };
 ```
 
-Middleware runs before [route handlers](/docs/route-handlers), static files and console pages, on `text dev`, `text start` and every [deploy adapter](/docs/deploying). It uses Web `Request` and `Response`, so the same file runs on Node, Bun, Vercel Edge and Cloudflare Workers.
+Middleware runs before [route handlers](/docs/route-handlers), static files and console pages, on `text dev`, `text start` and every server [deploy adapter](/docs/deploying). It uses Web `Request` and `Response`, so the same file runs on Node, Bun, Vercel Edge and Cloudflare Workers.
 
 ## Matching paths
 
@@ -102,7 +102,7 @@ Cookies set on a `next()` or `rewrite()` response are also visible to the route 
 The second argument has `waitUntil()`, which keeps serverless runtimes alive after the response is sent:
 
 ```ts@middleware.ts
-import type { NextFetchEvent, NextRequest } from "@textjs/next/server";
+import type { NextFetchEvent, NextRequest } from "@textjs/app/server";
 
 export function middleware(request: NextRequest, event: NextFetchEvent) {
   event.waitUntil(fetch("https://analytics.example.com", { method: "POST", body: request.url }));

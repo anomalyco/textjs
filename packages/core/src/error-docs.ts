@@ -8,9 +8,9 @@
 
 import { errorUrl, TX_MESSAGES, type TxCode } from "./errors";
 
-export type TxPackage = "@textjs/core" | "@textjs/react" | "@textjs/next" | "create-text-app";
+export type TxPackage = "@textjs/core" | "@textjs/react" | "@textjs/app" | "@textjs/opencode" | "create-text-app";
 
-export const TX_PACKAGES: readonly TxPackage[] = ["@textjs/core", "@textjs/react", "@textjs/next", "create-text-app"];
+export const TX_PACKAGES: readonly TxPackage[] = ["@textjs/core", "@textjs/react", "@textjs/app", "@textjs/opencode", "create-text-app"];
 
 export interface TxErrorDoc {
   code: TxCode;
@@ -92,7 +92,7 @@ To show the same UI on the page, use \`<TextCanvas>\` from \`@textjs/react/dom\`
   TX004: {
     package: "@textjs/react",
     title: "<Box> nested inside <Text>",
-    cause: `\`<Text>\` lays out a run of inline text; it cannot contain a Flexbox container. A \`<Box>\` (or a component that renders one, such as \`<Badge>\` or \`<Spacer>\`) was rendered inside a \`<Text>\`.`,
+    cause: `\`<Text>\` lays out a run of inline text; it cannot contain a Flexbox container. A \`<Box>\` (or a component that renders one, such as \`<Spacer>\` or \`<Divider>\`) was rendered inside a \`<Text>\`.`,
     fix: `Move the \`<Box>\` out and put text siblings side by side in a row:
 
 ~~~tsx
@@ -199,7 +199,7 @@ In the browser, use \`renderToConsole\` instead.`,
   TX012: {
     package: "@textjs/react",
     title: "No 2D canvas for <Image>",
-    cause: `The browser refused a \`2d\` canvas context, usually because canvas is disabled by policy, a fingerprinting shield or the page is out of GPU memory.`,
+    cause: `The browser refused a \`2d\` canvas context, usually because a policy or a fingerprinting shield disables canvas, or the page is out of GPU memory.`,
     fix: `Pass \`pixels\` decoded elsewhere, or render an \`alt\` fallback. \`<Image>\` already shows its \`alt\` text when loading fails:
 
 ~~~tsx
@@ -221,21 +221,21 @@ Access-Control-Allow-Origin: *
 ~~~`,
   },
   TX014: {
-    package: "@textjs/next",
+    package: "@textjs/app",
     title: "Used outside <AppRouter>",
     cause: `\`useRouter\`, \`usePathname\`, \`useParams\`, \`useSearchParams\`, \`useAppTheme\` and \`<Link>\` read state that \`<AppRouter>\` provides. The component rendered outside of it, usually in a standalone \`renderToConsole\` call or a unit test.`,
     fix: `Run the app with \`text dev\`, \`text start\` or \`text run\`, which mount \`<AppRouter>\` for you. When rendering by hand (tests, embeds), mount the router instead of the page:
 
 ~~~tsx
-import { AppRouter } from "@textjs/next/router";
+import { AppRouter } from "@textjs/app/router";
 
 await renderToConsole(<AppRouter routes={routes} />);
 ~~~`,
   },
   TX015: {
-    package: "@textjs/next",
+    package: "@textjs/app",
     title: "Route file has no default component",
-    cause: `\`page\`, \`layout\`, \`loading\`, \`error\`, \`not-found\` and \`template\` files must \`export default\` a React component. This one exports nothing by default, or exports something that is not a function.`,
+    cause: `\`page\`, \`layout\`, \`loading\`, \`error\` and \`not-found\` files must \`export default\` a React component. This one exports nothing by default, or exports something that is not a function.`,
     fix: `~~~tsx@app/settings/page.tsx
 // Before
 export function Settings() {
@@ -249,7 +249,7 @@ export default function Settings() {
 ~~~`,
   },
   TX016: {
-    package: "@textjs/next",
+    package: "@textjs/app",
     title: "Route handler returned no Response",
     cause: `A \`route.ts\` handler resolved to \`undefined\` (or another non-\`Response\` value), typically from a missing \`return\` on one branch.`,
     fix: `Return a \`Response\` from every branch:
@@ -263,7 +263,7 @@ export async function GET(request: Request) {
 ~~~`,
   },
   TX017: {
-    package: "@textjs/next",
+    package: "@textjs/app",
     title: "No production build",
     cause: `\`text start\` serves the output of \`text build\`, and the output directory (\`outDir\`, default \`dist\`) has no build in it.`,
     fix: `~~~bash
@@ -274,7 +274,7 @@ text start
 If you changed \`outDir\` in \`text.config.ts\`, run both commands from the same project root.`,
   },
   TX018: {
-    package: "@textjs/next",
+    package: "@textjs/app",
     title: "No app/ directory",
     cause: `\`text run\` renders the App Router in your terminal and could not find the routes directory.`,
     fix: `Run it from the project root, or pass the project directory:
@@ -284,7 +284,7 @@ text run ./my-app
 ~~~`,
   },
   TX019: {
-    package: "@textjs/next",
+    package: "@textjs/app",
     title: "text run / text mcp require Bun",
     cause: `\`text run\` and \`text mcp\` import your \`.tsx\` route files directly, which needs Bun's native TypeScript loader. Started with Node, the CLI re-runs itself with Bun when \`bun\` is on the \`PATH\`; this error means it is not.`,
     fix: `Install [Bun](https://bun.sh), or run the command with Bun directly:
@@ -297,7 +297,7 @@ bunx --bun text mcp
 \`text dev\`, \`text build\` and \`text start\` work on Node.`,
   },
   TX020: {
-    package: "@textjs/next",
+    package: "@textjs/app",
     title: "Unknown CLI command",
     cause: `The \`text\` CLI has six commands: \`dev\`, \`build\`, \`start\`, \`run\`, \`proxy\` and \`mcp\`.`,
     fix: `~~~bash
@@ -307,43 +307,43 @@ text --help
 There is no \`text deploy\`. Build for your platform with \`text build --adapter <name>\` and deploy the output with the platform's CLI. See [Deploying](/docs/deploying).`,
   },
   TX021: {
-    package: "@textjs/next",
-    title: "Invalid proxy target",
+    package: "@textjs/opencode",
+    title: "Invalid OpenCode server URL",
     cause: `\`--target\` (or \`OPENCODE_SERVER_URL\`) must be a bare HTTP(S) origin. It contained a path, query, hash or credentials. Credentials in URLs end up in logs and browser history.`,
     fix: `~~~bash
 # Before
-text proxy --target http://user:pass@127.0.0.1:4096/api
+bunx @textjs/opencode proxy --target http://user:pass@127.0.0.1:4096/api
 
 # After
-text proxy --target http://127.0.0.1:4096
+bunx @textjs/opencode proxy --target http://127.0.0.1:4096
 ~~~
 
 Set the server password with \`OPENCODE_PASSWORD\` instead.`,
   },
   TX022: {
-    package: "@textjs/next",
-    title: "Proxy port collides with OpenCode",
+    package: "@textjs/opencode",
+    title: "Bridge port collides with OpenCode",
     cause: `The bridge was asked to listen on the same local port as the OpenCode server it proxies to.`,
     fix: `~~~bash
-text proxy --port 4097
+bunx @textjs/opencode proxy --port 4097
 ~~~`,
   },
   TX023: {
-    package: "@textjs/next",
+    package: "@textjs/opencode",
     title: "Bridge already running",
-    cause: `Another \`text proxy\` already listens on this port. You can connect to it instead of starting another.`,
+    cause: `Another bridge (\`bunx @textjs/opencode proxy\` or \`text proxy\`) already listens on this port. You can connect to it instead of starting another.`,
     fix: `Connect to the running bridge, or start a second one on another port:
 
 ~~~bash
-text proxy --port 4097
+bunx @textjs/opencode proxy --port 4097
 ~~~`,
   },
   TX024: {
-    package: "@textjs/next",
-    title: "Proxy port in use",
+    package: "@textjs/opencode",
+    title: "Bridge port in use",
     cause: `Something other than a Text.js bridge is listening on the requested port.`,
     fix: `~~~bash
-text proxy --port 4097
+bunx @textjs/opencode proxy --port 4097
 ~~~
 
 Or find the other process: \`lsof -i :4096\`.`,
@@ -379,28 +379,33 @@ bunx create-text-app my-app
 ~~~`,
   },
   TX028: {
-    package: "@textjs/next",
-    title: "Blocked dev server host",
-    cause: `The dev server only answers requests addressed to \`localhost\` or an IP address, which protects it from DNS rebinding. A request arrived with another \`Host\` header, typically through a tunnel or a LAN hostname.`,
-    fix: `Allow the host in \`text.config.ts\`:
+    package: "@textjs/app",
+    title: "Blocked host",
+    cause: `\`text dev\`, and \`text start\` while bound to loopback (the default), only answer requests addressed to \`localhost\`, a \`*.localhost\` name or an IP address. This protects them from DNS rebinding. A request arrived with another \`Host\` header, typically through a tunnel, a reverse proxy or a LAN hostname.`,
+    fix: `Allow the host in \`text.config.ts\`. \`text dev\` reads Vite's \`vite.server.allowedHosts\`, and \`text start\` reads \`server.allowedHosts\`. A leading \`.\` allows subdomains:
 
 ~~~ts@text.config.ts
-import { defineConfig } from "@textjs/next";
+import { defineConfig } from "@textjs/app";
 
 export default defineConfig({
+  // text dev
   vite: { server: { allowedHosts: ["my-laptop.local", ".ngrok.app"] } },
+  // text start
+  server: { allowedHosts: [".example.com"] },
 });
-~~~`,
+~~~
+
+\`text start --host\` with any address other than loopback skips the check. See [Behind a proxy](/docs/deploying#behind-a-proxy).`,
   },
   TX029: {
-    package: "@textjs/next",
+    package: "@textjs/app",
     kind: "warning",
     title: "Unknown text.config option",
     cause: `\`text.config.ts\` exported a key Text.js does not read, usually a typo (\`basepath\` for \`basePath\`) or a Vite option at the top level.`,
     fix: `Fix the spelling, or move Vite options under \`vite\`:
 
 ~~~ts@text.config.ts
-import { defineConfig } from "@textjs/next";
+import { defineConfig } from "@textjs/app";
 
 export default defineConfig({
   basePath: "/console",
@@ -411,7 +416,7 @@ export default defineConfig({
 \`defineConfig\` type-checks the config and catches these in your editor.`,
   },
   TX030: {
-    package: "@textjs/next",
+    package: "@textjs/app",
     title: "Server-rendered routes need a long-lived server",
     cause: `A page exports \`runtime = "server"\`: it renders on the server and streams frames to each open tab over a session that lives as long as the tab. Static hosts, Vercel Functions and Cloudflare Workers can't keep those sessions, so \`text build --adapter static|vercel|cloudflare\` refuses the app instead of shipping routes that can't render.`,
     fix: `Deploy with a server that stays up:
@@ -432,6 +437,22 @@ export const runtime = "server";
 
 // After: the default client runtime
 ~~~`,
+  },
+  TX031: {
+    package: "@textjs/app",
+    title: "Invalid dynamic export",
+    cause: `A route handler exports \`dynamic\` with a value Text.js does not support. Next.js also accepts \`"error"\`, which renders the route statically and fails the build if it reads request data. Text.js can't detect request reads, so it rejects \`"error"\`.`,
+    fix: `Use \`"force-static"\` to cache the handler. A cached handler receives a request with no query string, headers, cookies or body:
+
+~~~ts@app/api/posts/route.ts
+// Before
+export const dynamic = "error";
+
+// After
+export const dynamic = "force-static";
+~~~
+
+Use \`"force-dynamic"\`, or remove the export, if the handler reads the request. See [Caching](/docs/caching).`,
   },
 };
 

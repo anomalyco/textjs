@@ -18,7 +18,7 @@ if (endpoint) {
   env.OPENCODE_PASSWORD = process.env.OPENCODE_PASSWORD;
 }
 const client = new Client({ name: "textjs-parity", version: "1" });
-const transport = new StdioClientTransport({ command: process.execPath, args: [resolve(app, "../../packages/text/bin/text.ts"), "mcp", app, "--cols", "120", "--rows", "40"], env });
+const transport = new StdioClientTransport({ command: process.execPath, args: [resolve(app, "../../packages/app/bin/text.ts"), "mcp", app, "--cols", "120", "--rows", "40"], env });
 async function call(name: string, args: Record<string, unknown> = {}) {
   const result = await client.callTool({ name, arguments: args }) as CallToolResult;
   if (result.isError) throw Error(`${name}: ${JSON.stringify(result.content)}`);

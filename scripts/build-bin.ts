@@ -13,7 +13,7 @@ import { dirname, resolve } from "node:path";
  */
 export function externals(manifest: { name?: string; dependencies?: Record<string, string>; peerDependencies?: Record<string, string> }): string[] {
   const own = [manifest.name, ...Object.keys(manifest.dependencies ?? {}), ...Object.keys(manifest.peerDependencies ?? {})].filter((n): n is string => !!n);
-  const names = new Set(["vite", "@vitejs/plugin-react", "react", "react-dom", "react-reconciler", "yoga-layout", "@modelcontextprotocol/sdk", "zod", "@textjs/core", "@textjs/react", "@textjs/next", ...own]);
+  const names = new Set(["vite", "@vitejs/plugin-react", "react", "react-dom", "react-reconciler", "yoga-layout", "@modelcontextprotocol/sdk", "zod", "@textjs/core", "@textjs/react", "@textjs/app", ...own]);
   return [...names].flatMap((n) => [n, `${n}/*`]);
 }
 

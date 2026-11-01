@@ -7,7 +7,7 @@ tester().run("no-console-in-components", rule, {
     { filename: FILE, code: `export function load() { console.warn("demo mode"); }` },
     { filename: FILE, code: `import { tokenize } from "@textjs/react";\nimport { createRoot } from "react-dom/client";\nconsole.log(tokenize("x"));` },
     // Offscreen tests never touch the real console.
-    { filename: FILE, code: `import { render } from "@textjs/next/testing";\nimport { Text } from "@textjs/next";\nconsole.log(render(<Text />));` },
+    { filename: FILE, code: `import { render } from "@textjs/app/testing";\nimport { Text } from "@textjs/app";\nconsole.log(render(<Text />));` },
     // Shadowed `console`.
     { filename: FILE, code: `${CONSOLE}function A(console: { log(x: string): void }) { console.log("x"); }` },
     { filename: FILE, code: `${CONSOLE}console.error("boom");`, options: [{ allow: ["error"] }] },

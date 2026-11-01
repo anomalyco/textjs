@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { useRouter, useSearchParams } from "@textjs/next/navigation";
+import { useRouter, useSearchParams } from "@textjs/app/navigation";
 import { HEIGHT, WIDTH } from "../../lib/frame";
 import { errorMessage } from "../../lib/api";
 import { useShop, useShopState } from "../../lib/store";

@@ -17,7 +17,7 @@ try {
   await client.connect(
     new StdioClientTransport({
       command: process.execPath,
-      args: [resolve(app, "../../packages/text/bin/text.ts"), "mcp", app],
+      args: [resolve(app, "../../packages/app/bin/text.ts"), "mcp", app],
       env: { OPENCODE_SERVER_URL: url, OPENCODE_PASSWORD: process.env.OPENCODE_PASSWORD },
     }),
   );

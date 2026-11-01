@@ -24,6 +24,7 @@
  */
 
 import { safeEntryPath, type SigninError } from "@textjs/terminal-shop/entry";
+import recordedProducts from "../../terminal-shop/test/fixtures/products.json";
 
 export type TerminalEnv = "dev" | "prod";
 
@@ -41,9 +42,17 @@ export interface SessionConfig {
 
 export type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 
+/** The slice of the Workers Cache API the catalogue uses (`caches.default`). */
+export interface CatalogueCache {
+  match(key: Request): Promise<Response | undefined>;
+  put(key: Request, response: Response): Promise<void>;
+}
+
 export interface SessionOptions {
   fetch?: Fetch;
   now?: () => number;
+  /** Defaults to `caches.default` where it exists (Cloudflare), else no caching. `null` turns it off. */
+  cache?: CatalogueCache | null;
 }
 
 export const UPSTREAMS: Record<TerminalEnv, { api: string; auth: string; label: string }> = {
@@ -580,7 +589,85 @@ function upstreamHeaders(request: Request, write: boolean): Headers {
   return headers;
 }
 
-async function proxy(request: Request, url: URL, cfg: ResolvedConfig, env: string, path: string, doFetch: Fetch, now: number): Promise<Response> {
+// ── signed-out catalogue ────────────────────────────────────────────────────
+//
+// Every visitor to /coffee reads `GET /product` before signing in. A traffic spike must not turn into a
+// spike on api.terminal.shop, or get us rate limited, so signed-out reads are cached per data center
+// (Cache API) and region. While Terminal is down or answers 429, a stale copy stands in, and failing
+// that the recorded catalogue (apps/terminal-shop/test/fixtures/products.json). Signed-in reads and
+// everything else go straight through.
+
+/** How long a cached catalogue is served without asking Terminal again. */
+export const CATALOGUE_FRESH_MS = 5 * 60_000;
+/** How long a cached catalogue may stand in while Terminal is unreachable or rate limiting us. */
+export const CATALOGUE_STALE_S = 24 * 60 * 60;
+/** Says where a signed-out catalogue came from: `live`, `cache`, `stale` or `recorded`. */
+export const CATALOGUE_HEADER = "x-terminal-catalogue";
+export const RECORDED_PRODUCTS: ReadonlyArray<unknown> = recordedProducts;
+
+function cloudflareCache(): CatalogueCache | null {
+  const c = (globalThis as { caches?: { default?: CatalogueCache } }).caches;
+  return c?.default ?? null;
+}
+
+/** Terminal picks products by region (the header, else the visitor's IP), so the cache key does too. */
+export function catalogueKey(request: Request, url: URL, cfg: ResolvedConfig): Request {
+  const region = request.headers.get("x-terminal-region");
+  const ip = request.headers.get("cf-connecting-ip");
+  let where: string;
+  if (region && /^(na|eu|global)$/.test(region)) where = `region-${region}`;
+  else if (!ip || !isPublicIp(ip)) where = "no-ip";
+  else {
+    const country = String((request as { cf?: { country?: unknown } }).cf?.country ?? request.headers.get("cf-ipcountry") ?? "");
+    where = /^[A-Z0-9]{2}$/.test(country) ? `country-${country}` : "country-unknown";
+  }
+  return new Request(`${url.origin}${API_PREFIX}/_catalogue/${cfg.env}/${where}`);
+}
+
+function isCatalogue(text: string): boolean {
+  try {
+    return Array.isArray((JSON.parse(text) as { data?: unknown }).data);
+  } catch {
+    return false;
+  }
+}
+
+function catalogueResponse(body: BodyInit | null, source: "live" | "cache" | "stale" | "recorded", cookies: string[], type = "application/json; charset=utf-8"): Response {
+  return new Response(body, { status: 200, headers: headersWith(cookies, { "content-type": type, [CATALOGUE_HEADER]: source }) });
+}
+
+/** A signed-out `GET /product`: cached, then Terminal, then a stale copy or the recorded catalogue. */
+async function catalogue(request: Request, url: URL, cfg: ResolvedConfig, send: () => Promise<Response>, now: number, cache: CatalogueCache | null, cookies: string[]): Promise<Response> {
+  const key = cache ? catalogueKey(request, url, cfg) : null;
+  const cached = key && cache ? await cache.match(key).catch(() => undefined) : undefined;
+  const cachedType = cached?.headers.get("content-type") ?? undefined;
+  if (cached && now - Number(cached.headers.get("x-fetched-at") ?? 0) < CATALOGUE_FRESH_MS) return catalogueResponse(cached.body, "cache", cookies, cachedType);
+  const standIn = (): Response => (cached ? catalogueResponse(cached.body, "stale", cookies, cachedType) : catalogueResponse(JSON.stringify({ data: RECORDED_PRODUCTS }), "recorded", cookies));
+  let upstream: Response;
+  try {
+    upstream = await send();
+  } catch {
+    return standIn();
+  }
+  if (upstream.status === 429 || upstream.status >= 500) {
+    await upstream.body?.cancel().catch(() => undefined);
+    return standIn();
+  }
+  const type = upstream.headers.get("content-type") ?? "";
+  if (upstream.status !== 200 || !JSON_TYPE.test(type)) {
+    // Not a catalogue: pass it on as the proxy would (only JSON keeps its type).
+    const headers = headersWith(cookies, { "content-type": JSON_TYPE.test(type) ? type : "text/plain; charset=utf-8" });
+    return new Response(upstream.body, { status: upstream.status, headers });
+  }
+  const text = await upstream.text();
+  if (key && cache && isCatalogue(text)) {
+    const stored = new Response(text, { headers: { "content-type": type, "cache-control": `public, max-age=${CATALOGUE_STALE_S}`, "x-fetched-at": String(now) } });
+    await cache.put(key, stored).catch(() => undefined);
+  }
+  return catalogueResponse(text, "live", cookies, type);
+}
+
+async function proxy(request: Request, url: URL, cfg: ResolvedConfig, env: string, path: string, doFetch: Fetch, now: number, cache: CatalogueCache | null): Promise<Response> {
   const method = request.method.toUpperCase();
   const write = method !== "GET" && method !== "HEAD";
   const denied = guard(request, url, write);
@@ -638,6 +725,8 @@ async function proxy(request: Request, url: URL, cfg: ResolvedConfig, env: strin
     return doFetch(`${cfg.api}${path}`, { method, headers, body, redirect: "manual" });
   };
 
+  if (method === "GET" && path === "/product" && !session) return catalogue(request, url, cfg, () => send(null), now, cache, cookies);
+
   let upstream: Response;
   try {
     upstream = await send(session);
@@ -678,7 +767,7 @@ export async function handleTerminal(request: Request, config: SessionConfig, op
     }
     const m = /^\/(dev|prod)\/api(\/.*)$/.exec(sub);
     if (!m) return fail(404, "not_found", "not found");
-    return await proxy(request, url, cfg, m[1] as string, m[2] as string, doFetch, now);
+    return await proxy(request, url, cfg, m[1] as string, m[2] as string, doFetch, now, options.cache === undefined ? cloudflareCache() : options.cache);
   } catch {
     return fail(500, "internal", "something went wrong");
   }

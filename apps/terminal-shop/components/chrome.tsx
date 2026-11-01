@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { useInterval, useViewport } from "@textjs/next";
-import { useRouter } from "@textjs/next/navigation";
+import { useInterval, useViewport } from "@textjs/app";
+import { useRouter } from "@textjs/app/navigation";
 import { composeFrame, type Command, type PageId } from "../lib/frame";
 import { useKeys } from "../lib/keys";
 import { useShop, useShopState } from "../lib/store";

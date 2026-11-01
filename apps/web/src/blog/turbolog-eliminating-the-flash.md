@@ -41,7 +41,7 @@ Sending frames faster than DevTools can paint them doesn't make anything faster.
 
 Clears also added about 50ms of lag to every later frame. After a clear, DevTools inserts a synthetic `Console was cleared` row. It takes the throttler's immediate slot and pushes the next frame onto the 50ms timer, and at a steady 66ms cadence every later frame stays locked to that timer.
 
-The renderer now waits **110ms** once after any clear. After that, each frame arrives more than 50ms after the previous refresh completed and takes DevTools' immediate path. Median display lag went from **63ms to 10ms**.
+The renderer now waits **110ms** once after any clear. After that, each frame arrives more than 50ms after the previous refresh completed and takes DevTools' immediate path. Median display lag went from **63ms to 10.4ms**.
 
 ## Results
 

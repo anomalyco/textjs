@@ -8,6 +8,7 @@ import { linkedInAddUrl } from "../src/learn/certificate";
 import { consoleLogDown, mayForward } from "../src/console-health";
 import { Footer } from "../src/site/Chrome";
 import { onRequest, wantsAnsi } from "../functions/index";
+import curlHttp, { isTerminalHttp } from "../workers/curl-http/index";
 import { renderHomeAnsi } from "../src/home-ansi";
 import { encodeLogoConsoleLog } from "../src/site/logo-console-gen";
 import { LOGO_CONSOLE_LOG } from "../src/site/logo-console";
@@ -295,6 +296,36 @@ describe("curl textjs.org", () => {
     expect(await (await onRequest({ request: req(curl), env: env(null, false), next })).text()).toBe("<!doctype html>");
     const throws = { ASSETS: { fetch: async (): Promise<Response> => { throw new Error("x"); } } };
     expect(await (await onRequest({ request: req(curl), env: throws, next })).text()).toBe("<!doctype html>");
+  });
+
+  test("the http Worker only answers terminal clients, and only runs on plain http", async () => {
+    const http = (headers: Record<string, string>, method = "GET", url = "http://textjs.org/") => new Request(url, { method, headers });
+    const curl = { "User-Agent": "curl/8.7.1", Accept: "*/*" };
+    expect(isTerminalHttp(http(curl))).toBe(true);
+    expect(isTerminalHttp(http(curl, "HEAD"))).toBe(true);
+    expect(isTerminalHttp(http(curl, "POST"))).toBe(false);
+    expect(isTerminalHttp(http(curl, "GET", "https://textjs.org/"))).toBe(false);
+    expect(isTerminalHttp(http(curl, "GET", "http://textjs.org/docs"))).toBe(false);
+    expect(isTerminalHttp(http({ "User-Agent": "curl/8.7.1", Accept: "text/html" }))).toBe(false);
+    expect(isTerminalHttp(http({ "User-Agent": "Mozilla/5.0", Accept: "*/*" }))).toBe(false);
+    // An https route would put the Worker in front of every browser's home page load.
+    const toml = readFileSync(join(import.meta.dirname, "../workers/curl-http/wrangler.toml"), "utf8");
+    expect([...toml.matchAll(/pattern\s*=\s*"([^"]+)"/g)].map((m) => m[1])).toEqual(["http://textjs.org/"]);
+    let passThrough = false;
+    const real = globalThis.fetch;
+    const seen: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      seen.push(input instanceof Request ? input.url : String(input));
+      return new Response("ok");
+    }) as typeof fetch;
+    try {
+      await curlHttp.fetch(http(curl), {}, { passThroughOnException: () => void (passThrough = true) });
+      await curlHttp.fetch(http({ "User-Agent": "Mozilla/5.0" }, "GET", "http://textjs.org/"), {}, { passThroughOnException: () => undefined });
+    } finally {
+      globalThis.fetch = real;
+    }
+    expect(passThrough).toBe(true);
+    expect(seen).toEqual(["https://textjs.org/", "http://textjs.org/"]);
   });
 
   test("the frame is the 80×24 console Home view", async () => {

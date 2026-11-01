@@ -22,7 +22,7 @@ export default createRule<Options, "preferKeymap">({
     },
     messages: {
       preferKeymap:
-        "This useInput handler matches {{count}} keys by hand ({{keys}}). useKeymap({ \"…\": { label, run } }) lists labeled shortcuts in <KeyHelp>, <KeyHints auto> and the command palette, supports sequences like \"g g\", and stops propagation for matched keys.",
+        "This useInput handler matches {{count}} keys by hand ({{keys}}). useKeymap({ \"…\": { label, run } }) lists labeled shortcuts in <KeyHelp>, <KeyHints> (with hint: true) and the command palette, supports sequences like \"g g\", and stops propagation for matched keys.",
     },
     schema: [
       {

@@ -266,7 +266,7 @@ const script: ChapterScript = {
       id: "quiz-1",
       kind: "quiz",
       move: "down",
-      narration: `Quick check. {q}Why use [color="success"|color success] instead of a hex value? {+2.2} {answer}Theme tokens follow the active theme. {explain}Tokens resolve against the current theme, so switching themes repaints everything consistently.`,
+      narration: `Quick check. {q}Why use [color="success"|color success] instead of a hex value? {+2.2} {answer}Theme tokens follow the active theme. {explain}Tokens resolve against the current theme, so switching themes recolors every token.`,
       tail: 1.4,
       props: {
         eyebrow: "Quick check · 1 of 2",

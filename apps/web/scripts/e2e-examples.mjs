@@ -46,7 +46,7 @@ const check = (name, ok, detail = "") => {
   if (!ok) failures++;
 };
 const lines = (s) => s.split("\n").map((l) => l.trimEnd());
-const docsView = (f) => f.includes("/ Search") && !f.includes("esc back to docs");
+const docsView = (f) => f.includes("/ Search") && !f.includes("Esc back to docs");
 const preview = (id) => page.locator(`[data-preview="${id}"]`);
 const liveLabel = (id) => preview(id).locator(".preview-head .live").innerText();
 

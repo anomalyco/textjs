@@ -22,7 +22,7 @@ Export `runtime` from a page:
 ```tsx@app/status/page.tsx
 import { Suspense, type ReactNode } from "react";
 import os from "node:os";
-import { Box, Text } from "@textjs/next";
+import { Box, Text } from "@textjs/app";
 
 export const runtime = "server";
 
@@ -57,7 +57,7 @@ Use the **server** runtime for:
 
 - Dashboards and admin views that read databases, files, queues or private APIs. Credentials stay on the server.
 - Routes with heavy dependencies (SDKs, parsers, syntax tables) that you don't want in the browser bundle.
-- Pages that should load fast on slow networks. The browser downloads the 19 kB player instead of the full app.
+- Pages that should load fast on slow networks. The browser downloads the 19 kB (gzip) player instead of the full app.
 
 You can mix runtimes in one app. Navigating between them loads the target URL as a new document. The browser bundle replaces each server page with a stub, so server modules and anything they import never ship to the client.
 
@@ -85,9 +85,9 @@ const router = useRouter();
 useInput((e) => e.input === "r" && router.refresh());
 ```
 
-Props passed to async components should be serializable: strings, numbers, plain objects, arrays, `Date`, `URL`, `Map`, `Set` and elements. Function props are not part of the key (pass data, not callbacks). Each session caches at most 256 promises. You can also wrap a component by hand with `serverComponent(fn)` from `@textjs/next/server-components`.
+Props passed to async components should be serializable: strings, numbers, plain objects, arrays, `Date`, `URL`, `Map`, `Set` and elements. Function props are not part of the key (pass data, not callbacks). Each session caches at most 256 promises. You can also wrap a component by hand with `serverComponent(fn)` from `@textjs/app/server-components`.
 
-Async components are data loaders, not stateful components: hooks (`useState`, `useInput`, …) don't work inside an `async function`. Render a regular component around or below it for interaction.
+Hooks (`useState`, `useInput`, …) don't work inside an `async function` component. Render a regular component around or below it for interaction.
 
 ## How it works
 
@@ -117,7 +117,7 @@ export default defineConfig({
 1. **The static shell.** Everything that renders synchronously. Every `<Suspense>` boundary that is still waiting shows its fallback, including async server components, `use()` and lazy modules. `fetch()` never resolves while the shell renders, so data loaded in effects stays in its loading state too.
 2. **The dynamic holes.** When JavaScript boots, either the client renderer or the frame player streams the real frame. It is appended below the shell, and the hydrating frame's own curtain moves the shell out of view in the same DevTools paint. The shell records when it painted, so the first hydrating frame waits out DevTools' post-clear window instead of landing on its slow path.
 
-The console is cleared exactly once, by the shell. The hydrating renderer starts in append mode (`initialClear: false`), so nothing flashes, and the shell only paints on the path it was rendered for. Dynamic routes (`[id]`, `force-dynamic`) render no shell.
+During load, only the shell clears the console. The hydrating renderer starts in append mode (`initialClear: false`), so nothing flashes, and the shell only paints on the path it was rendered for. Dynamic routes (`[id]`, `force-dynamic`) render no shell.
 
 ```
  ✓ Prerendering console shells (5/5) · 1 server-rendered, frame player 50.4 kB (19.2 kB gzip)

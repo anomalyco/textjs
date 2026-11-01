@@ -2,15 +2,13 @@ The Text.js extension for VS Code shows your console frame next to the code. It 
 
 ## Install
 
-The extension isn't on the Marketplace yet. Build the `.vsix` from the repository and install it:
+Install [Text.js](https://marketplace.visualstudio.com/items?itemName=textjs.vscode-textjs) from the Visual Studio Marketplace. In VS Code, open the Extensions view (`⌘⇧X`) and search for `textjs.vscode-textjs`, or run:
 
 ```bash
-cd packages/vscode-textjs
-bun run package
-code --install-extension vscode-textjs-1.0.0.vsix
+code --install-extension textjs.vscode-textjs
 ```
 
-It activates in any folder that contains a Text.js app: a `text.config.ts`, or a package that depends on `@textjs/next` and has an `app/` directory. Monorepos with several apps work too.
+It activates in any folder that contains a Text.js app: a `text.config.ts`, or a package that depends on `@textjs/app` and has an `app/` directory. Monorepos with several apps work too.
 
 ## Live Preview
 
@@ -41,7 +39,7 @@ Background tabs get no animation frames, so they normally hold their frames unti
 
 ### Headless mode
 
-The extension starts a small runner in your project. It loads route files through the project's own Vite and `@textjs/next`, so aliases, TypeScript and JSX behave the same as in `text dev`. It mounts the App Router at the route of the open file, with its layouts, using an in-memory history:
+The extension starts a small runner in your project. It loads route files through the project's own Vite and `@textjs/app`, so aliases, TypeScript and JSX behave the same as in `text dev`. It mounts the App Router at the route of the open file, with its layouts, using an in-memory history:
 
 | File | Preview |
 | :-- | :-- |
@@ -59,7 +57,7 @@ Same-origin `fetch("/api/...")` calls run your `route.ts` handlers in-process, a
 | Text.js: Start Dev Server | Runs your `dev` script (or `text dev`) in a terminal |
 | Text.js: Stop Dev Server | Stops a dev server started from VS Code |
 | Text.js: Open Preview | Opens the Live Preview for the active file |
-| Text.js: Open in Browser Console | Opens the current route on the dev server. Then press `⌘⌥J` |
+| Text.js: Open in Browser Console | Opens the current route on the dev server. Then press `⌘⌥J` (`Ctrl+Shift+J` on Windows and Linux) |
 | Text.js: New Page | `app/<route>/page.tsx` with metadata and typed `params` |
 | Text.js: New Layout | `app/<route>/layout.tsx` |
 | Text.js: New Route Handler | `app/<route>/route.ts` with `GET` and `POST` |
@@ -112,4 +110,4 @@ The preview and the dev server run your project's code (its Vite config, `text.c
 | `GET /__textjs/frames` | Server-sent events: one `frame` event per change, encoded as row deltas |
 | `POST /__textjs/input` | A key, paste, wheel or navigation for the tab. Requires JSON and the `x-textjs-mirror: 1` header, so other sites can't send keystrokes |
 
-Tabs send frames to the dev server over Vite's HMR socket, which requires a per-server token. The wire format is exported from `@textjs/next/frame-protocol` (`FrameEncoder`, `FrameDecoder`, `parseInputMessage`) if you want to build your own viewer. None of this exists in `text build` output.
+Tabs send frames to the dev server over Vite's HMR socket, which requires a per-server token. The wire format is exported from `@textjs/app/frame-protocol` (`FrameEncoder`, `FrameDecoder`, `parseInputMessage`) if you want to build your own viewer. None of this exists in `text build` output.
