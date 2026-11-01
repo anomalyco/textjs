@@ -80,4 +80,4 @@ const pathname = usePathname(); // "/sessions/42"
 const { id } = useParams<{ id: string }>(); // "42"
 ```
 
-Back, forward and deep links all work. Static hosts need one SPA rewrite.
+Back, forward and deep links all work. On a static host, dynamic segments need a fallback to `index.html`. The `static` adapter writes one as `404.html`.

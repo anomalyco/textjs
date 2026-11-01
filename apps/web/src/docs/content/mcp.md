@@ -1,4 +1,4 @@
-`text mcp` runs your `app/` directory headless, in-process, and serves it over the [Model Context Protocol](https://modelcontextprotocol.io) so coding agents can use it without DevTools. The agent navigates, presses keys, reads frames as plain text and calls route handlers, without a browser.
+`text mcp` runs your `app/` directory headless, in-process, and serves it over the [Model Context Protocol](https://modelcontextprotocol.io) so coding agents can use it without DevTools. The agent navigates, presses keys, reads frames as plain text and calls route handlers.
 
 ```bash
 bunx --bun text mcp              # serve ./app over stdio
@@ -145,4 +145,4 @@ void controller.start();
 
 - The app runs in Bun, not a browser. `window` and `document` are undefined, as in `text run`.
 - Each server runs one app with one grid. Each MCP client starts its own server.
-- `text mcp` can't attach to a browser tab you have open under `text dev` yet. The dev server's frame mirror (`/__textjs/frames`) makes this possible.
+- `text mcp` runs its own headless copy of the app. It can't attach to a browser tab open under `text dev`.

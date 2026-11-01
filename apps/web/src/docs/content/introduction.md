@@ -26,7 +26,7 @@ The preview is live. Click it and press `↑`.
 - **App Router**: layouts, pages, dynamic segments and route handlers.
 - **Yoga layout**: flexbox in WebAssembly, snapped to integer cells.
 - **Turbolog**: one `console.log` call per changed frame.
-- **No DOM UI**: the page only hosts a focus pad and a hidden input.
+- **Console UI**: the page hosts only a focus pad and a hidden input.
 
 ## How it works
 

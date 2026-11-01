@@ -14,7 +14,7 @@ import textjs from "eslint-plugin-textjs";
 export default defineConfig(tseslint.configs.recommended, textjs.configs.recommended);
 ```
 
-ESLint 9 and 10, flat config only. The rules are syntactic: no type information, no `parserOptions.project`, so linting stays fast. Any parser that understands TypeScript and JSX works.
+The plugin supports ESLint 9 and 10 with flat config. The rules are syntactic and don't need type information or `parserOptions.project`. Any parser that understands TypeScript and JSX works.
 
 ## Configs
 
@@ -137,11 +137,11 @@ For animation, `useAnimationFrame` follows the renderer's frame pacing and stops
 
 ### `no-sub-frame-timers`
 
-DevTools paints at most one frame every ~66ms (about 15fps). A 16ms interval renders four times per painted frame; the extra frames are coalesced and only burn CPU. Reports `setInterval`/`useInterval` delays under `minInterval` (default `66`) and `useAnimationFrame` with `fps` above 15.
+Text.js emits at most one frame every 66ms (about 15fps). A 16ms interval renders four times per emitted frame; the extra frames are coalesced and only burn CPU. Reports `setInterval`/`useInterval` delays under `minInterval` (default `66`) and `useAnimationFrame` with `fps` above 15.
 
 ### `prefer-use-keymap`
 
-Comparing `e.key` by hand works, but the shortcuts are invisible. `useKeymap` puts labeled bindings in `<KeyHelp>`, `<KeyHints auto>` and the command palette, handles sequences like `g g` and stops propagation for matched keys. Reports `useInput` handlers that compare two or more key literals (`minKeys`) and skips handlers that read `e.input` for typing.
+Comparing `e.key` by hand works, but the shortcuts are invisible. `useKeymap` puts labeled bindings in `<KeyHelp>`, `<KeyHints>` (bindings with `hint: true`) and the command palette, handles sequences like `g g` and stops propagation for matched keys. Reports `useInput` handlers that compare two or more key literals (`minKeys`) and skips handlers that read `e.input` for typing.
 
 ```tsx
 useKeymap({
