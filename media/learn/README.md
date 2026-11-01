@@ -144,7 +144,9 @@ Every render writes `out/review/<slug>/`. Before calling a chapter done:
 
 - **ElevenLabs** (`lib/tts.ts`): `POST /v1/text-to-speech/{voice}/with-timestamps`, PCM 44.1 kHz, per-character
   alignment. The key is read from `ELEVENLABS_API_KEY` or `~/.config/textjs/elevenlabs.env` and never printed.
-  `ELEVENLABS_VOICE_ID` (an id or a shortlist name: `brian`, `sarah`, `eric`, `daniel`, `river`, `alice`) and
+  The course narrator is **Eric** (premade "Eric – Smooth, Trustworthy", `cjVigY5qzO86Huf0OWal`, Adam's pick), set
+  as `DEFAULT_VOICE` in `lib/tts.ts` so every chapter inherits it; don't override it per chapter.
+  `ELEVENLABS_VOICE_ID` (an id or a shortlist name: `eric`, `brian`, `sarah`, `daniel`, `river`, `alice`) and
   `ELEVENLABS_MODEL_ID` (default `eleven_v4`) override the defaults. Only premade voices are used; never a voice
   cloned from a real person. `bun media/learn/voices.ts` renders the same paragraph in each shortlisted voice to
   `out/voice-samples/` (`--list` shows the account's premade voices).

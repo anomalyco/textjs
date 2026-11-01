@@ -35,7 +35,7 @@ export interface Provider {
 }
 
 /** The pilot's narrator. Premade voices only: never a voice cloned from a real person. */
-export const DEFAULT_VOICE = { id: "nPczCjzI2devNBz1zQrb", name: "Brian" };
+export const DEFAULT_VOICE = { id: "cjVigY5qzO86Huf0OWal", name: "Eric" };
 export const DEFAULT_MODEL = "eleven_v4";
 
 export const ELEVENLABS_VOICES: Record<string, string> = {

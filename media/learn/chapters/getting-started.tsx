@@ -55,7 +55,7 @@ const script: ChapterScript = {
         "{focus}In this first one, you'll create the app, render your first page, and respond to a key.",
       props: {
         eyebrow: "The course",
-        headline: "Build Acme Deploys.",
+        headline: "Build Acme Deploys",
         body: "A deploy dashboard that renders entirely inside the DevTools console.",
         pill: "Every chapter runs live in DevTools",
         chapters: CHAPTERS.map((c, i) => ({ n: i + 1, title: c.title, minutes: c.minutes })),
@@ -80,7 +80,7 @@ const script: ChapterScript = {
           { title: "console.log", sub: "One call per changed frame", at: "log", content: { type: "code", size: 16, lines: tokenize('console.log(\n  "%c▼ Acme Deploys",\n  "font-weight:700"\n)', "ts") } },
           { title: "DevTools", sub: "The console draws it", at: "console", content: { type: "console", frame: tinyCard, size: 16 } },
         ],
-        statement: { at: "blank", text: "The page itself stays blank." },
+        statement: { at: "blank", text: "The page itself stays blank" },
       },
     },
     {
@@ -282,8 +282,8 @@ const script: ChapterScript = {
         "{idle}And while the app sits idle, nothing changes, {zero}so nothing is logged at all.",
       tail: 1.6,
       props: {
-        eyebrow: "Under the hood",
-        headline: "One console.log per changed frame.",
+        eyebrow: "Frames",
+        headline: "One console.log per changed frame",
         counterLabel: "console.log calls",
         events: [
           { at: "keys", label: "Enter" },
@@ -292,7 +292,7 @@ const script: ChapterScript = {
           { at: "keys+3.3", label: "R" },
         ],
         idle: { at: "idle", label: "idle · nothing logged" },
-        statement: { at: "zero", text: "An idle app logs nothing." },
+        statement: { at: "zero", text: "An idle app logs nothing" },
       },
     },
     {
