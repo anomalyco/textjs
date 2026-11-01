@@ -6,11 +6,62 @@ import { RouteView } from "../src/App";
 import { isPadRoute, siteStore, tabForPath } from "../src/console-companion/store";
 import { viewportLimitsFor } from "../src/console-companion/boot";
 import { launchParams } from "../src/demos/terminal";
+import { RECORDED_STATUS, withRecordedFallback } from "../src/demos/terminal-fallback";
+import { ShopStore } from "../../terminal-shop/lib/store";
 import { render, ROUTES } from "../src/entry-server";
 import { matchRoute, resetLocation, titleFor } from "../src/router";
 import { Footer } from "../src/site/Chrome";
 
 const ROOT = join(import.meta.dir, "..");
+
+describe("/coffee when its Functions are down", () => {
+  const products = JSON.parse(readFileSync(join(ROOT, "../terminal-shop/test/fixtures/products.json"), "utf8"));
+  const answer = (res: () => Response | Promise<Response>) => {
+    const calls: string[] = [];
+    const doFetch = (async (input: RequestInfo | URL) => {
+      calls.push(String(input));
+      return res();
+    }) as typeof fetch;
+    return { calls, fetch: withRecordedFallback("/api/terminal", doFetch) };
+  };
+
+  test("5xx, 429, an HTML error page or no answer: the recorded status and catalogue", async () => {
+    const outages: Array<() => Response | Promise<Response>> = [
+      () => new Response("error code: 1101", { status: 500 }),
+      () => new Response("slow down", { status: 429 }),
+      () => new Response("<!doctype html>404", { status: 404, headers: { "content-type": "text/html" } }),
+      () => new Response("<!doctype html>", { status: 200, headers: { "content-type": "text/html" } }),
+      () => Promise.reject(new TypeError("Failed to fetch")),
+    ];
+    for (const outage of outages) {
+      const f = answer(outage);
+      expect(await (await f.fetch("/api/terminal/_status")).json()).toEqual(RECORDED_STATUS);
+      expect(await (await f.fetch("/api/terminal/prod/api/product", { method: "GET" })).json()).toEqual({ data: products });
+    }
+  });
+
+  test("working answers, real errors and everything else pass through", async () => {
+    const live = answer(() => Response.json({ data: [] }));
+    expect(await (await live.fetch("/api/terminal/prod/api/product")).json()).toEqual({ data: [] });
+    const denied = answer(() => Response.json({ code: "cross_site" }, { status: 403 }));
+    expect((await denied.fetch("/api/terminal/_status")).status).toBe(403);
+    const down = answer(() => new Response("down", { status: 503 }));
+    expect((await down.fetch("/api/terminal/prod/api/cart")).status).toBe(503);
+    expect((await down.fetch("/api/terminal/prod/api/cart/item", { method: "PUT" })).status).toBe(503);
+    expect((await down.fetch("/api/terminal/prod/api/product", { method: "POST" })).status).toBe(503);
+  });
+
+  test("the shop opens signed out on the recorded catalogue", async () => {
+    const f = answer(() => new Response("error code: 1027", { status: 503 }));
+    const store = new ShopStore({ fetch: f.fetch, bases: ["/api/terminal"], splashMs: 0 });
+    await store.start("/shop");
+    const state = store.getSnapshot();
+    expect(state.error).toBe(null);
+    expect(state.phase).toBe("ready");
+    expect(state.products.map((p) => p.id).sort()).toEqual(products.map((p: { id: string }) => p.id).sort());
+    expect(f.calls).toEqual(["/api/terminal/_status", "/api/terminal/prod/api/product"]);
+  });
+});
 
 describe("/coffee (terminal.shop)", () => {
   afterAll(() => resetLocation("/"));
@@ -107,6 +158,8 @@ describe("F-04: static security headers", () => {
     expect(all.get("x-frame-options")).toBe("SAMEORIGIN");
     expect(all.get("content-security-policy")).toBe("frame-ancestors 'self'");
     expect(blocks.get("/assets/*")!.get("cache-control")).toBe("public, max-age=31536000, immutable");
+    for (const path of ["/fonts/*", "/og/*"]) expect(blocks.get(path)!.get("cache-control")).toBe("public, max-age=86400, stale-while-revalidate=604800");
+    expect(all.has("cache-control")).toBe(false);
     // No header is set by two matching rules (Pages would join the values with a comma).
     expect([...blocks.get("/assets/*")!.keys()].some((k) => all.has(k))).toBe(false);
   });

@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Box } from "@textjs/react";
 import { createEmbeddedShop, TerminalShop, type EmbeddedShop } from "@textjs/terminal-shop/embed";
 import { safeEntryPath, signinErrorMessage } from "@textjs/terminal-shop/entry";
+import { withRecordedFallback } from "./terminal-fallback";
 
 /** The proxy (Pages Functions in `functions/`) that holds the Terminal session. */
 export const TERMINAL_API_BASE = "/api/terminal";
@@ -32,7 +33,7 @@ export function getTerminalShop(): EmbeddedShop {
   if (typeof window !== "undefined" && /[?&](at|signin_error)=/.test(window.location.search)) {
     window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.hash}`);
   }
-  shop = createEmbeddedShop({ bases: [TERMINAL_API_BASE], initialPath: params.at, initialError: params.error, confirmRealOrders: true });
+  shop = createEmbeddedShop({ bases: [TERMINAL_API_BASE], fetch: withRecordedFallback(TERMINAL_API_BASE), initialPath: params.at, initialError: params.error, confirmRealOrders: true });
   return shop;
 }
 
