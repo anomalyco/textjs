@@ -96,12 +96,12 @@ function EmitGlyph(): ReactNode {
 }
 
 const STAGES: Array<{ step: string; title: ReactNode; body: ReactNode; glyph: ReactNode }> = [
-  { step: "React 19", title: "Commit", body: <>A custom reconciler commits <code>tx-box</code> and <code>tx-text</code> nodes.</>, glyph: <CommitGlyph /> },
-  { step: "Yoga", title: "Layout", body: <>WebAssembly flexbox, snapped to integer cells.</>, glyph: <LayoutGlyph /> },
-  { step: "CellBuffer", title: "Paint", body: <>Typed arrays for glyphs, colors and attributes. Only damaged rows repaint.</>, glyph: <BufferGlyph /> },
-  { step: "Row hash", title: "Dirty gate", body: <>One FNV-1a hash per row. An unchanged frame returns before it allocates.</>, glyph: <GateGlyph /> },
-  { step: "RLE", title: "Encode", body: <>Matching cells merge into one <code>%c</code> span. {(3200).toLocaleString("en-US")} cells, {pipeline.spans} spans.</>, glyph: <EncodeGlyph /> },
-  { step: "console.log", title: "Emit", body: <>One appended call, at least 66ms after the last.</>, glyph: <EmitGlyph /> },
+  { step: "React 19", title: "Commit", body: <>A custom React reconciler.</>, glyph: <CommitGlyph /> },
+  { step: "Yoga", title: "Layout", body: <>WebAssembly flexbox on whole cells.</>, glyph: <LayoutGlyph /> },
+  { step: "CellBuffer", title: "Paint", body: <>Only damaged rows repaint.</>, glyph: <BufferGlyph /> },
+  { step: "Row hash", title: "Dirty gate", body: <>Unchanged frames stop here.</>, glyph: <GateGlyph /> },
+  { step: "RLE", title: "Encode", body: <>{(3200).toLocaleString("en-US")} cells become {pipeline.spans} <code>%c</code> spans.</>, glyph: <EncodeGlyph /> },
+  { step: "console.log", title: "Emit", body: <>One appended call, at least 66ms apart.</>, glyph: <EmitGlyph /> },
 ];
 
 function Pipeline({ play }: { play: boolean }): ReactNode {
@@ -139,10 +139,10 @@ function Pipeline({ play }: { play: boolean }): ReactNode {
       </div>
       <div className="tl-legend">
         <span>
-          <i className="dot dirty" /> Dirty frame: one <code>console.log</code>
+          <i className="dot dirty" /> Changed frame
         </span>
         <span>
-          <i className="dot idle" /> Idle frame: stops at the dirty gate (0 calls, 0 B)
+          <i className="dot idle" /> Unchanged frame, 0 calls
         </span>
       </div>
     </div>
@@ -209,8 +209,7 @@ function Throttle({ play }: { play: boolean }): ReactNode {
       <div className="tl-throttle-copy">
         <h3>Zero-flash frames</h3>
         <p>
-          DevTools applies <code>console.clear()</code> synchronously but paints new messages on a 50ms throttle. Clearing before every frame left the console blank in {clear15.blankPct}% of
-          paints. Turbolog appends each frame below a zero-width curtain, so the swap happens inside one paint.
+          DevTools clears at once but paints new messages every 50ms, so clearing before each frame left {clear15.blankPct}% of paints blank. Turbolog appends each frame instead.
         </p>
         <div className="tl-stats">
           <Stat label="Blank paints" before={clear15.blankPct} after={append15.blankPct} digits={1} unit="%" />
@@ -267,7 +266,7 @@ export function TurbologSection(): ReactNode {
           <h2>
             Every changed frame is one <code>console.log</code> call
           </h2>
-          <p>Each React commit passes through six stages. A commit that changes no cells stops at the gate.</p>
+          <p>A commit that changes no cells never reaches the console.</p>
         </div>
         <div className="frame tl-frame">
           <Crosses />
