@@ -184,6 +184,12 @@ async function resolveRewrites(rewrites: TextConfig["rewrites"]): Promise<Compil
   return list.map(compileRewrite);
 }
 
+/** Whether Vite's `server.proxy` owns `url` (same key semantics: a path prefix, or a RegExp source starting with `^`). */
+export function matchesProxy(proxy: TextConfig["proxy"], url: string): boolean {
+  if (!proxy) return false;
+  return Object.keys(proxy).some((key) => (key.startsWith("^") ? new RegExp(key).test(url) : url.startsWith(key)));
+}
+
 function isHtmlRequest(url: string, accept: string | undefined): boolean {
   const pathname = url.split("?")[0] ?? "/";
   if (pathname.startsWith("/@") || pathname.startsWith("/node_modules/") || pathname.startsWith("/__")) return false;
@@ -337,6 +343,8 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
       const userHook = await options.configureServer?.(server as never);
 
       server.middlewares.use(async (req, res, next) => {
+        // Vite's proxy middleware runs after this one: leave `proxy` paths to it (a `fetch()` sends `Accept: */*`, which reads as a page request).
+        if (matchesProxy(options.proxy, req.url ?? "/")) return next();
         const started = performance.now();
         const origin = requestOrigin(req);
         let url = req.url ?? "/";

@@ -11,6 +11,7 @@ const REPO = fileURLToPath(new URL("../../..", import.meta.url));
 let dir = "";
 let server: ViteDevServer;
 let base = "";
+let upstream: ReturnType<typeof Bun.serve>;
 
 beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), "textjs-dev-"));
@@ -19,7 +20,11 @@ beforeAll(async () => {
   symlinkSync(join(REPO, "packages/text"), join(dir, "node_modules/@textjs/next"));
   for (const dep of ["react", "react-dom"]) symlinkSync(join(REPO, "node_modules", dep), join(dir, "node_modules", dep));
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "dev-fixture", type: "module", private: true }));
-  writeFileSync(join(dir, "text.config.ts"), 'import { defineConfig } from "@textjs/next";\nexport default defineConfig({ title: "Fixture", viewport: { width: 90 } });\n');
+  upstream = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: (req) => Response.json({ upstream: new URL(req.url).pathname, accept: req.headers.get("accept") }) });
+  writeFileSync(
+    join(dir, "text.config.ts"),
+    `import { defineConfig } from "@textjs/next";\nexport default defineConfig({ title: "Fixture", viewport: { width: 90 }, proxy: { "/upstream": { target: "http://127.0.0.1:${upstream.port}", rewrite: (p) => p.replace(/^\\/upstream/, "") }, "^/rx/.*": "http://127.0.0.1:${upstream.port}" } });\n`,
+  );
   writeFileSync(join(dir, "app/page.tsx"), 'import { Text } from "@textjs/next";\nexport const metadata = { title: "Home" };\nexport default function Page() { return <Text>hello</Text>; }\n');
   writeFileSync(join(dir, "app/api/echo/[name]/route.ts"), "export async function POST(req: Request, { params }: { params: { name: string } }) { return Response.json({ name: params.name, body: await req.text() }); }\n");
   server = await startDevServer({ root: dir, port: 34000 + Math.floor(Math.random() * 2000), log: false });
@@ -28,6 +33,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await server?.close();
+  upstream?.stop(true);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -67,6 +73,15 @@ describe("text dev", () => {
     expect((await fetch(`${base}/`, { headers: { host: `attacker.example:${port}`, accept: "text/html" } })).status).toBe(403);
     const ok = await fetch(`${base}/api/echo/x`, { method: "POST", body: "hi", headers: { host: `localhost:${port}` } });
     expect(await ok.json()).toEqual({ name: "x", body: "hi" });
+  });
+
+  test("`proxy` paths reach the proxy target, not the page fallback (fetch sends Accept: */*)", async () => {
+    // The create-text-app opencode template calls `fetch("/opencode/session")` through `proxy`.
+    expect(await (await fetch(`${base}/upstream/session`)).json()).toEqual({ upstream: "/session", accept: "*/*" });
+    expect(await (await fetch(`${base}/upstream/session`, { headers: { accept: "text/html" } })).json()).toMatchObject({ upstream: "/session" });
+    expect(await (await fetch(`${base}/rx/a`)).json()).toMatchObject({ upstream: "/rx/a" });
+    // Everything else still gets the app.
+    expect(await (await fetch(`${base}/other`, { headers: { accept: "text/html" } })).text()).toContain("<title>Fixture</title>");
   });
 
   test("adding app/ route files refreshes the route manifest", async () => {
