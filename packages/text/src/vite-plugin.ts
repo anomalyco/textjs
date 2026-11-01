@@ -322,7 +322,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
         if (!isAllowedDevHost(server, req.headers.host)) {
           res.statusCode = 403;
           res.setHeader("Content-Type", "text/plain; charset=utf-8");
-          res.end(`${BRAND_MARK} ${txMessage("TX028", JSON.stringify((req.headers.host ?? "").replace(/:\d+$/, "")))}`);
+          res.end(`${BRAND_MARK} ${txMessage("TX028", JSON.stringify((req.headers.host ?? "").replace(/:\d+$/, "")), "vite.server.allowedHosts")}`);
           return;
         }
         // `//evil.com/x` must not become `request.url` → http://evil.com/x.
