@@ -71,6 +71,7 @@ function relativeTo(text: string, directory: string | undefined): string {
 }
 
 function outputText(part: ToolPart): string {
+  if(part.state.status==="running" && (part.name==="shell" || part.name==="bash"))return s(part.state.metadata?.output) ?? "";
   if (part.state.status === "completed" || part.state.status === "error") {
     return (part.state.content ?? [])
       .map((c) => (c.type === "text" ? c.text : `[${c.name ?? (c.uri.startsWith("data:") ? c.mime || "attachment" : c.uri)}]`))

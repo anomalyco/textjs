@@ -237,7 +237,15 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
         if (p) p.state = { status: "running", input, metadata: {} };
         emit({ type: "tool.called", sessionID, messageID, toolID, input });
       });
-      for (let i = 0; i < pause; i++) steps.push(() => undefined);
+      if(name==="shell" || name==="bash") {
+        let partial="";
+        for(const line of output.split("\n"))steps.push(()=>{
+          partial+=line+"\n";const chunk={output:partial.trimEnd()};
+          const p=msg.content.find((p):p is ToolPart => p.type==="tool" && p.id===toolID);
+          if(p?.state.status==="running")p.state.metadata=chunk;
+          emit({type:"tool.progress",sessionID,messageID,toolID,metadata:chunk});
+        });
+      } else for (let i = 0; i < pause; i++) steps.push(() => undefined);
       steps.push(() => {
         const content: ToolContent[] = [{ type: "text", text: output }];
         const p = msg.content.find((c): c is ToolPart => c.type === "tool" && c.id === toolID);
@@ -277,6 +285,10 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
       tool("write", { filePath: "AGENTS.md", content: "Run tests with `bun test`.\n" }, "Wrote AGENTS.md");
       part("text", "Added test instructions to `AGENTS.md` in the sandbox.", 10);
       if (!tree.includes("AGENTS.md")) tree.push("AGENTS.md");
+    } else if (/^\/review\b/.test(prompt)) {
+      const target=paths.find(p=>p.endsWith(".test.ts")||p.endsWith(".test.tsx"))??"README.md";
+      tool("read",{filePath:target},"Test fixture");
+      part("text",`Reviewed \`${target}\`. Run \`bun test\` to check the current changes.`,8);
     } else if (options.scenario) {
       for (const p of options.scenario.script(prompt, agent)) {
         if (p.type === "text" || p.type === "reasoning") part(p.type, p.text, p.type === "text" ? 6 : 12);
