@@ -34,13 +34,28 @@ function capHeight(font: opentype.Font): number {
 
 const fmt = (n: number): string => String(Math.round(n * 1000) / 1000);
 
+/**
+ * Path data with explicit separators. opentype.js's own `toPathData` packs numbers together and drops the
+ * space before a bare 0 ("Q32.954 0" becomes "Q32.9540"), which breaks any glyph that touches y = 0.
+ */
+function pathData(p: opentype.Path): string {
+  let d = "";
+  for (const c of p.commands) {
+    if (c.type === "M" || c.type === "L") d += `${c.type}${fmt(c.x)} ${fmt(c.y)}`;
+    else if (c.type === "Q") d += `Q${fmt(c.x1)} ${fmt(c.y1)} ${fmt(c.x)} ${fmt(c.y)}`;
+    else if (c.type === "C") d += `C${fmt(c.x1)} ${fmt(c.y1)} ${fmt(c.x2)} ${fmt(c.y2)} ${fmt(c.x)} ${fmt(c.y)}`;
+    else if (c.type === "Z") d += "Z";
+  }
+  return d;
+}
+
 /** Outlined text as SVG path data. `x`/`y` are the left edge and baseline; `size` is the em size. */
 export function text(font: opentype.Font, str: string, x: number, y: number, size: number, letterSpacing = 0): string {
   let d = "";
   let cx = x;
   for (const ch of str) {
     const glyph = font.charToGlyph(ch);
-    if (ch !== " ") d += glyph.getPath(cx, y, size).toPathData({ decimalPlaces: 3, flipY: false });
+    if (ch !== " ") d += pathData(glyph.getPath(cx, y, size));
     cx += ((glyph.advanceWidth ?? 0) / font.unitsPerEm) * size + letterSpacing;
   }
   return d;

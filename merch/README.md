@@ -24,7 +24,9 @@ merch/
   LAUNCH.md       launch checklist for Fourthwall
   artwork/        print-ready SVG, physical size in mm, all type outlined
     png/          300 DPI transparent PNGs for Fourthwall's product designer
-  options/        the design round: option boards, the final collection sheet and the console.log tee previews
+  options/        the design round: option boards, the final collection sheet, the console.log tee previews,
+                  and the PSA tee and sticker concepts (meme.md, not in the store)
+  fonts/          Barlow Condensed (SIL Open Font License) for the PSA concepts
   photos/
     blanks/       the generated blanks and edits the Keycap Set and Notebook photos use (WebP)
     final/        1024 × 1280 product photos (the store serves 600 and 1024 px copies)
