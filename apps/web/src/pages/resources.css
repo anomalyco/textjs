@@ -540,6 +540,7 @@
 /* ───────── Status ───────── */
 
 .st {
+  --orange: #f76b15;
   max-width: 960px;
   padding-bottom: 120px;
 }
@@ -845,39 +846,210 @@
   color: var(--green-2);
 }
 
+.st-bar-minor {
+  background: var(--amber);
+}
+
+.st-bar-major {
+  background: var(--orange);
+}
+
+.st-month {
+  padding-top: 20px;
+}
+
+.st-month h3 {
+  margin: 0;
+  padding: 0 24px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--subtle);
+}
+
 .st-incidents {
   list-style: none;
   margin: 0;
-  padding: 8px 0 0;
-}
-
-.st-incidents li {
-  padding: 16px 24px 20px;
-}
-
-.st-incidents li + li {
+  padding: 0;
   border-top: 1px solid var(--line);
 }
 
-.st-incident-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+.st-incident + .st-incident {
+  border-top: 1px solid var(--line);
 }
 
-.st-incident-head strong {
+.st-incident:target {
+  scroll-margin-top: calc(var(--header-h) + 24px);
+}
+
+.st-incident summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  padding: 16px 48px 16px 24px;
+  position: relative;
+  cursor: pointer;
+  list-style: none;
+}
+
+.st-incident summary::-webkit-details-marker {
+  display: none;
+}
+
+.st-incident summary::after {
+  content: "";
+  position: absolute;
+  right: 26px;
+  top: 22px;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--subtle);
+  border-bottom: 1.5px solid var(--subtle);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.st-incident details[open] summary::after {
+  top: 25px;
+  transform: rotate(-135deg);
+}
+
+.st-incident summary:hover .st-incident-name {
+  text-decoration: underline;
+  text-decoration-color: var(--line-3);
+  text-underline-offset: 3px;
+}
+
+.st-incident summary:focus-visible {
+  outline: 2px solid var(--blue-2);
+  outline-offset: -2px;
+}
+
+.st-incident-name {
   font-size: 15px;
   font-weight: 500;
   color: var(--fg);
 }
 
-.st-incidents p {
-  margin: 8px 0 0;
+.st-impact-minor {
+  color: var(--amber);
+}
+
+.st-impact-major {
+  color: var(--orange);
+}
+
+.st-incident-when {
+  font-size: 13px;
+  color: var(--subtle);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.st-incident-body {
+  padding: 0 24px 24px;
   font-size: 14px;
   line-height: 1.6;
+}
+
+.st-updates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.st-updates li {
+  position: relative;
+  padding: 0 0 16px 20px;
+  border-left: 1px solid var(--line-2);
+  margin-left: 3px;
+}
+
+.st-updates li:last-child {
+  padding-bottom: 0;
+}
+
+.st-updates li::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--bg-1);
+  border: 1px solid var(--line-3);
+}
+
+.st-updates li:first-child::before {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.st-updates strong {
+  font-weight: 500;
+  color: var(--fg-strong);
+}
+
+.st-updates p {
+  margin: 2px 0 0;
   color: var(--muted);
+}
+
+.st-updates time {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.st-affected {
+  margin: 16px 0 0;
+  font-size: 13px;
+  color: var(--subtle);
+}
+
+.st-postmortem {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+}
+
+.st-postmortem h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-strong);
+}
+
+.st-postmortem p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.st-postmortem .st-fix {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--subtle);
+}
+
+.st-incident-body a {
+  color: var(--fg);
+  text-decoration: underline;
+  text-decoration-color: var(--line-3);
+  text-underline-offset: 3px;
+}
+
+.st-incident-body a:hover {
+  text-decoration-color: var(--fg);
+}
+
+.st-incident-body code {
+  overflow-wrap: anywhere;
 }
 
 /* ───────── Responsive ───────── */
@@ -956,6 +1128,18 @@
   .st-card-head {
     padding-left: 16px;
     padding-right: 16px;
+  }
+  .st-month h3,
+  .st-incident-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .st-incident summary {
+    padding-left: 16px;
+    padding-right: 40px;
+  }
+  .st-incident summary::after {
+    right: 18px;
   }
   .st-metrics > div {
     padding: 16px;

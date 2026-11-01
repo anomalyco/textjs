@@ -6,6 +6,9 @@ import { RouteView } from "../src/App";
 import { parseFrontmatter, POSTS, postPath, renderRss } from "../src/blog";
 import { ROUTES } from "../src/entry-server";
 import { CHANGELOG_RELEASES, parseChangelog } from "../src/pages/Changelog";
+import { COMPONENTS, LAUNCH } from "../src/pages/status-components";
+import history from "../src/pages/status-history.json";
+import { INCIDENTS } from "../src/pages/status-incidents";
 import { matchRoute, titleFor } from "../src/router";
 import { Footer } from "../src/site/Chrome";
 
@@ -66,8 +69,32 @@ describe("changelog, blog, enterprise and status", () => {
     expect(ent).toContain("mailto:");
     expect(ent).toContain("Contact sales");
     const st = renderToStaticMarkup(<RouteView route={{ name: "status" }} />);
-    for (const s of ["console.log", "console.clear", "Rarely used", "Yoga", "Turbolog encoder", "DevTools Throttler", "Respected", "Live benchmark", "57968b6"]) expect(st).toContain(s);
+    for (const s of ["console.log", "console.clear", "Rarely used", "Yoga", "Turbolog encoder", "DevTools Throttler", "Respected", "Live benchmark", "57968b6", "Past incidents"]) expect(st).toContain(s);
+    for (const i of INCIDENTS) expect(st).toContain(`id="${i.id}"`);
+    // Every one of the 90 days has data, and only past incidents color a bar.
+    expect(st.match(/class="st-bar"/g)).toBeNull();
+    expect(st).not.toContain("st-bar-outage");
+    expect(st).toContain("st-bar-minor");
     for (const html of [cl, blog, post, ent, st]) expect(html).not.toContain("▲");
+  });
+
+  test("status incidents are resolved, ordered and inside the timeline", () => {
+    const names = COMPONENTS.map((c) => c.name);
+    let previous = Infinity;
+    for (const i of INCIDENTS) {
+      const times = i.updates.map((u) => Date.parse(u.at));
+      expect(times).toEqual([...times].sort((a, b) => a - b));
+      expect(i.updates[0]?.status).toBe("investigating");
+      expect(i.updates.at(-1)?.status).toBe("resolved");
+      expect(i.updates.filter((u) => u.status === "resolved").length).toBe(1);
+      expect(times[0]!).toBeLessThan(previous);
+      previous = times[0]!;
+      expect(i.updates[0]!.at.slice(0, 10) >= LAUNCH).toBe(true);
+      expect(i.updates.at(-1)!.at.slice(0, 10) <= history.measuredAt).toBe(true);
+      for (const c of i.components) expect(names).toContain(c);
+      expect(i.commits.length).toBeGreaterThan(0);
+      for (const l of i.links) expect(matchRoute(l.href.split("#")[0] as string).name).not.toBe("not-found");
+    }
   });
 
   test("footer, prerender and sitemap include every page", () => {

@@ -7,6 +7,7 @@ import { TX_ERRORS, VERSION } from "@textjs/core";
 import { DOCS, docPath } from "./docs/registry";
 import { COMPONENTS, LAUNCH } from "./pages/status-components";
 import history from "./pages/status-history.json";
+import { INCIDENTS, type IncidentUpdate } from "./pages/status-incidents";
 
 const ORIGIN = "https://textjs.org";
 
@@ -50,8 +51,18 @@ ${errors.join("\n")}
 `;
 }
 
-/** Atlassian Statuspage v2 API files (`/api/v2/status.json`, `components.json`, `summary.json`). */
-export function statusApi(): Record<"status.json" | "components.json" | "summary.json", string> {
+/** Component status before and after each update: degraded until monitoring, operational after. */
+function updates(list: readonly IncidentUpdate[], degraded: string): Array<IncidentUpdate & { from: string; to: string }> {
+  let current = "operational";
+  return list.map((u) => {
+    const from = current;
+    current = u.status === "investigating" || u.status === "identified" ? degraded : "operational";
+    return { ...u, from, to: current };
+  });
+}
+
+/** Atlassian Statuspage v2 API files (`/api/v2/status.json`, `components.json`, `summary.json`, `incidents.json`). */
+export function statusApi(): Record<"status.json" | "components.json" | "summary.json" | "incidents.json", string> {
   const updatedAt = `${history.measuredAt}T00:00:00.000Z`;
   const createdAt = `${LAUNCH}T00:00:00.000Z`;
   const page = { id: "textjs", name: "Text.js", url: `${ORIGIN}/status`, time_zone: "Etc/UTC", updated_at: updatedAt };
@@ -71,10 +82,48 @@ export function statusApi(): Record<"status.json" | "components.json" | "summary
     group: false,
     only_show_if_degraded: false,
   }));
+  const byName = new Map(components.map((c) => [c.name, c]));
+  const incidents = INCIDENTS.map((i) => {
+    const first = i.updates[0]!;
+    const last = i.updates[i.updates.length - 1]!;
+    const monitoring = i.updates.find((u) => u.status === "monitoring");
+    const affected = i.components.map((name) => byName.get(name)!);
+    const iso = (at: string): string => new Date(at).toISOString();
+    return {
+      id: i.id,
+      name: i.name,
+      status: "resolved",
+      created_at: iso(first.at),
+      updated_at: iso(last.at),
+      monitoring_at: monitoring ? iso(monitoring.at) : null,
+      resolved_at: iso(last.at),
+      impact: i.impact,
+      shortlink: `${ORIGIN}/status#${i.id}`,
+      started_at: iso(first.at),
+      page_id: page.id,
+      incident_updates: updates(i.updates, i.impact === "major" ? "partial_outage" : "degraded_performance")
+        .map((u, n) => ({
+          id: `${i.id}-${n + 1}`,
+          status: u.status,
+          body: u.body,
+          incident_id: i.id,
+          created_at: iso(u.at),
+          updated_at: iso(u.at),
+          display_at: iso(u.at),
+          affected_components: affected.map((c) => ({ code: c.id, name: c.name, old_status: u.from, new_status: u.to })),
+          deliver_notifications: true,
+          custom_tweet: null,
+          tweet_id: null,
+        }))
+        .reverse(),
+      components: affected.map((c) => ({ ...c, updated_at: iso(last.at) })),
+    };
+  });
   const json = (v: unknown): string => `${JSON.stringify(v)}\n`;
   return {
     "status.json": json({ page, status }),
     "components.json": json({ page, components }),
     "summary.json": json({ page, components, incidents: [], scheduled_maintenances: [], status }),
+    "incidents.json": json({ page, incidents }),
   };
 }
