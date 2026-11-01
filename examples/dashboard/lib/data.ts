@@ -83,7 +83,7 @@ export function buildLog(d: Deployment): string[] {
     " + react@19.3.1",
     " 132 packages installed [884.00ms]",
     'Running "text build"',
-    "   ▼ Text.js 0.4.0 (Turbolog) — Creating an optimized console production build...",
+    "   ▼ Text.js 1.0.0 (Turbolog) — Creating an optimized console production build...",
     " ✓ Compiled successfully in 3.1s",
     " ✓ Collecting route data",
     " ✓ Generating static console cells (5/6)",

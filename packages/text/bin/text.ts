@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
-import { main, parseArgs } from "../src/cli/index";
+// Imported by package name (not `../src/cli`) so the CLI and the app resolve
+// the same `@textjs/next` modules.
+import { main, parseArgs } from "@textjs/next/cli";
 
 const argv = process.argv.slice(2);
 const code = await main(argv);

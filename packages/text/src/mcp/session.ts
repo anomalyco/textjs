@@ -190,7 +190,7 @@ export class HeadlessSession {
     this.history = createMemoryHistory(options.path ?? "/");
     this.quietMs = options.quietMs ?? 50;
     this.origin = new URL(options.origin ?? "http://localhost:3000").origin;
-    this.serverCache = new ServerComponentCache(() => this.touch());
+    this.serverCache = new ServerComponentCache({ onActivity: () => this.touch() });
     this.history.listen(() => this.touch());
   }
 

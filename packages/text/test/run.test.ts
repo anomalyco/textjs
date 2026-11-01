@@ -84,6 +84,24 @@ describe("text run", () => {
     expect(app.root.unmounted).toBe(true);
   }, 20_000);
 
+  test("renders async server components (`runtime = \"server\"` /status)", async () => {
+    const term = fakeTerminal(100, 32);
+    const app = await runInTerminal({ root: DASHBOARD, path: "/status", stdin: term.stdin, stdout: term.stdout, skipConfig: true });
+    try {
+      for (let i = 0; i < 500; i++) {
+        const screen = term.screen.join("\n");
+        if (screen.includes("hnd1") && !screen.includes("probing…") && screen.includes("CPUs")) break;
+        await new Promise((r) => setTimeout(r, 10));
+      }
+      const screen = term.screen.join("\n");
+      expect(screen).toContain("CPUs");
+      expect(screen).toMatch(/hnd1\s+Tokyo\s+p50 \d+ms/);
+      expect(screen).not.toContain("Application error");
+    } finally {
+      app.unmount();
+    }
+  }, 20_000);
+
   test("async server components render (no retry loop) in text run", async () => {
     const dir = createFixture({
       "app/page.tsx": `import { Suspense } from "react";

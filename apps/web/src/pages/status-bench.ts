@@ -98,7 +98,7 @@ export async function runPipelineBench(onProgress?: (done: number) => void): Pro
       box({ flexGrow: 1, flexDirection: "column", border: "single", borderColor: "#3f3f46", title: "Conversation", overflow: "scroll", scrollY: 4, paddingX: 1 }, ...messages),
     ),
     box({ height: 3, border: "rounded", borderColor: "#22c55e", paddingX: 1 }, text({ fg: "#fafafa" }, input)),
-    box({ height: 1, bg: "#27272a", paddingX: 1 }, text({ fg: "#a1a1aa" }, "▼ Text.js 0.4.0 (Turbolog)  ·  ready")),
+    box({ height: 1, bg: "#27272a", paddingX: 1 }, text({ fg: "#a1a1aa" }, "▼ Text.js 1.0.0 (Turbolog)  ·  ready")),
   );
 
   const leaves: SceneNode[] = [];

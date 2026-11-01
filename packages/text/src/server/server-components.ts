@@ -24,14 +24,18 @@ export const SERVER_COMPONENT_CACHE_SIZE = 256;
 export class ServerComponentCache {
   private generation = "";
   private readonly entries = new Map<string, Promise<ReactNode>>();
-  constructor(private readonly maxEntries = SERVER_COMPONENT_CACHE_SIZE) {}
   private readonly ids = new WeakMap<object, number>();
   private nextId = 1;
   private inflight = 0;
   private settledAt = 0;
+  private readonly maxEntries: number;
+  private readonly onActivity: (() => void) | undefined;
 
   /** `onActivity` runs whenever a component's promise starts or settles (idle tracking). */
-  constructor(private readonly onActivity?: () => void) {}
+  constructor(options: { maxEntries?: number; onActivity?: () => void } = {}) {
+    this.maxEntries = options.maxEntries ?? SERVER_COMPONENT_CACHE_SIZE;
+    this.onActivity = options.onActivity;
+  }
 
   get size(): number {
     return this.entries.size;

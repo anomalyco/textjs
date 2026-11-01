@@ -462,7 +462,7 @@ export function TerminalApp(): ReactNode {
 /* ─────────────── 10 · Shipping ─────────────── */
 
 const BUILD_LOG = [
-  "▼ Text.js 0.4.0 (Turbolog)",
+  "▼ Text.js 1.0.0 (Turbolog)",
   "  Compiling app/ … 4 routes, 1 route handler",
   "  Bundling 1 client chunk (41.2 kB gzip)",
   "✓ Built in 1.8s",

@@ -10,8 +10,15 @@ import { fileURLToPath } from "node:url";
 const cli = import.meta.resolve("@textjs/next/cli");
 
 if (typeof process.versions.bun === "string" || !/\.tsx?$/.test(cli)) {
-  const { main } = await import(cli);
-  process.exitCode = await main(process.argv.slice(2));
+  const { main, parseArgs } = await import(cli);
+  const argv = process.argv.slice(2);
+  const code = await main(argv);
+  // `text build` is done once main() returns: don't wait on handles user modules left open (database clients, timers).
+  if (parseArgs(argv).command === "build") {
+    await new Promise((resolve) => process.stdout.write("", () => resolve()));
+    process.exit(code);
+  }
+  process.exitCode = code;
 } else {
   const source = fileURLToPath(new URL("./text.ts", import.meta.url));
   const r = spawnSync("bun", [source, ...process.argv.slice(2)], { stdio: "inherit" });

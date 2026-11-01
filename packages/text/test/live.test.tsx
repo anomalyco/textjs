@@ -142,7 +142,7 @@ describe("server components", () => {
   });
 
   test("keys by value at any depth (deep JSX, Map, Set, URL, class instances); cycles terminate; the cache is bounded", () => {
-    const cache = new ServerComponentCache(3);
+    const cache = new ServerComponentCache({ maxEntries: 3 });
     const deep = (label: string) => (
       <Box>
         <Box>

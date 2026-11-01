@@ -8,6 +8,7 @@ import { createConsoleRoot, type ConsoleRoot } from "@textjs/react";
 import { loadViewportChoice } from "@textjs/react/dom";
 import { CompanionApp } from "./App";
 import { siteStore, type CompanionTab } from "./store";
+import { exampleGrid } from "./tabs/ExampleTab";
 
 /** The Home hero mirrors the console on the page, so Home keeps (at most) this shape. */
 export const COMPANION_COLS = 100;
@@ -20,12 +21,19 @@ export const TERMINAL_ROWS = 30;
  * default) unless the visitor picked a size on a pad. Home caps the fit at
  * the hero mirror's shape; elsewhere it uses the whole console.
  */
-export function viewportLimitsFor(tab: CompanionTab): { maxCols: number; maxRows: number; fallbackCols: number; fallbackRows: number } {
+export function viewportLimitsFor(
+  tab: CompanionTab,
+  example: string | null = null,
+): { minCols: number; maxCols: number; minRows: number; maxRows: number; fallbackCols: number; fallbackRows: number } {
+  // A docs example gets exactly its preview's grid, so the page can mirror it cell for cell.
+  const grid = tab === "docs" && example !== null ? exampleGrid(example) : null;
+  if (grid) return { minCols: grid.cols, maxCols: grid.cols, minRows: grid.rows, maxRows: grid.rows, fallbackCols: grid.cols, fallbackRows: grid.rows };
   // terminal.shop's ssh layout is a fixed 80 × 30 grid.
-  if (tab === "terminal") return { maxCols: TERMINAL_COLS, maxRows: TERMINAL_ROWS, fallbackCols: TERMINAL_COLS, fallbackRows: TERMINAL_ROWS };
+  if (tab === "terminal")
+    return { minCols: TERMINAL_COLS, maxCols: TERMINAL_COLS, minRows: TERMINAL_ROWS, maxRows: TERMINAL_ROWS, fallbackCols: TERMINAL_COLS, fallbackRows: TERMINAL_ROWS };
   return tab === "home"
-    ? { maxCols: COMPANION_COLS, maxRows: COMPANION_ROWS, fallbackCols: COMPANION_COLS, fallbackRows: COMPANION_ROWS }
-    : { maxCols: 200, maxRows: 60, fallbackCols: 120, fallbackRows: 36 };
+    ? { minCols: 40, maxCols: COMPANION_COLS, minRows: 12, maxRows: COMPANION_ROWS, fallbackCols: COMPANION_COLS, fallbackRows: COMPANION_ROWS }
+    : { minCols: 40, maxCols: 200, minRows: 12, maxRows: 60, fallbackCols: 120, fallbackRows: 36 };
 }
 
 const EDITABLE = "input,textarea,select,[contenteditable=''],[contenteditable='true']";
@@ -104,7 +112,7 @@ export function bootCompanion(): Promise<Companion> {
     const engine = new GatedInputEngine(() => shouldRouteToConsole(document.activeElement, siteStore.getSnapshot().consoleInput));
     engine.attach();
     const choice = loadViewportChoice() ?? "fit";
-    const limits = viewportLimitsFor(siteStore.getSnapshot().tab);
+    const limits = viewportLimitsFor(siteStore.getSnapshot().tab, siteStore.getSnapshot().example);
     const root = await createConsoleRoot({
       ...(choice === "fit" ? { responsive: true } : { width: choice.cols, height: choice.rows }),
       viewport: limits,
@@ -116,15 +124,17 @@ export function bootCompanion(): Promise<Companion> {
 
     let theme = siteStore.getSnapshot().theme;
     let tab = siteStore.getSnapshot().tab;
+    let example = siteStore.getSnapshot().example;
     siteStore.subscribe(() => {
       const snap = siteStore.getSnapshot();
       if (snap.theme !== theme) {
         theme = snap.theme;
         root.setTheme(snap.theme);
       }
-      if (snap.tab !== tab) {
+      if (snap.tab !== tab || snap.example !== example) {
         tab = snap.tab;
-        root.renderer.viewport.configure(viewportLimitsFor(tab));
+        example = snap.example;
+        root.renderer.viewport.configure(viewportLimitsFor(tab, example));
       }
     });
 

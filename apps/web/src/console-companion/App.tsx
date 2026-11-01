@@ -6,6 +6,7 @@ import { useSite } from "./useSite";
 import { hintsFor, PRESETS, type CompanionTab } from "./store";
 import { HomeTab } from "./tabs/HomeTab";
 import { DocsTab } from "./tabs/DocsTab";
+import { exampleGrid, ExampleTab } from "./tabs/ExampleTab";
 import { LearnConsole } from "../learn/apps/LearnConsole";
 
 // Only /terminal needs the shop, so it loads on first visit.
@@ -44,15 +45,17 @@ export function CompanionApp(): ReactNode {
   const app = useApp();
   const focus = useFocusManager();
   const tab = site.tab;
+  const example = tab === "docs" && site.example !== null && exampleGrid(site.example) ? site.example : null;
   const wireframe = useRef(false);
 
   useInput(
     (e) => {
+      if (tab === "opencode") return;
     if (e.key === "f2") {
       e.stopPropagation();
       wireframe.current = !wireframe.current;
       app.renderer.setWireframe(wireframe.current);
-    } else if (e.key === "escape") {
+    } else if (e.key === "escape" && example === null) {
       e.stopPropagation();
       focus.blur();
     }
@@ -62,9 +65,11 @@ export function CompanionApp(): ReactNode {
   );
 
   // OpenCode is a full-screen TUI of its own, like the real thing.
-  if (tab === "opencode") return <OpenCodeLite active />;
+  if (tab === "opencode") return <OpenCodeLite />;
   // Each /learn page runs its chapter's app, with its own header and keys.
   if (tab === "learn") return <LearnConsole />;
+  // A docs example clicked on the page runs here instead of the Docs view.
+  if (example !== null) return <ExampleTab key={example} id={example} />;
   // terminal.shop's ssh storefront, 80 × 30, signed in through the site's proxy.
   if (tab === "terminal")
     return (
