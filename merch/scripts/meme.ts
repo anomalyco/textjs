@@ -87,7 +87,18 @@ let seed = 1;
  * ragged edge, noise-thresholded pits knocked out of the ink, then a hard alpha threshold so the result
  * is 1-bit. A few horizontal bands are shifted sideways, like a jittering scanline.
  */
-function distressed(body: string, w: number, h: number, capMm: number, pad = 2): string {
+interface Distress {
+  /** Edge noise frequency (per mm) and displacement (as a fraction of the cap height, capped at 1.4 mm). */
+  edgeFreq?: number;
+  edge?: number;
+  /** Pit noise frequency (per mm) and cut-off (higher cuts fewer pits). */
+  pitFreq?: number;
+  pitCut?: number;
+  /** Share of scanline bands knocked sideways. */
+  jitter?: number;
+}
+
+function distressed(body: string, w: number, h: number, capMm: number, pad = 2, o: Distress = {}): string {
   const s = seed++;
   const W2 = w + 2 * pad;
   const H2 = h + 2 * pad;
@@ -97,16 +108,16 @@ function distressed(body: string, w: number, h: number, capMm: number, pad = 2):
   let rnd = s * 9301;
   const next = (): number => ((rnd = (rnd * 9301 + 49297) % 233280) / 233280);
   for (let y = -pad, i = 0; y < h + pad; y += band, i++) {
-    const shift = next() < 0.14 ? (next() - 0.5) * capMm * 0.18 : 0;
+    const shift = next() < (o.jitter ?? 0.14) ? (next() - 0.5) * capMm * 0.18 : 0;
     defs.push(`<clipPath id="b${s}-${i}" clipPathUnits="userSpaceOnUse"><rect x="${fmt(-pad)}" y="${fmt(y)}" width="${fmt(W2)}" height="${fmt(band + 0.01)}"/></clipPath>`);
     bands.push(`<g clip-path="url(#b${s}-${i})"><g transform="translate(${fmt(shift)} 0)">${body}</g></g>`);
   }
   // Frequencies are per millimetre, so the texture is the same at any print size.
   const filter = `<filter id="r${s}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="${fmt(-pad)}" y="${fmt(-pad)}" width="${fmt(W2)}" height="${fmt(H2)}" color-interpolation-filters="sRGB">
-    <feTurbulence type="fractalNoise" baseFrequency="0.4" numOctaves="3" seed="${s}" result="n1"/>
-    <feDisplacementMap in="SourceGraphic" in2="n1" scale="${fmt(Math.min(1.4, capMm * 0.065))}" xChannelSelector="R" yChannelSelector="G" result="rough"/>
-    <feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="2" seed="${s + 40}" result="n2"/>
-    <feColorMatrix in="n2" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  9 0 0 0 -5.45" result="pits"/>
+    <feTurbulence type="fractalNoise" baseFrequency="${o.edgeFreq ?? 0.4}" numOctaves="3" seed="${s}" result="n1"/>
+    <feDisplacementMap in="SourceGraphic" in2="n1" scale="${fmt(Math.min(1.4, capMm * (o.edge ?? 0.065)))}" xChannelSelector="R" yChannelSelector="G" result="rough"/>
+    <feTurbulence type="fractalNoise" baseFrequency="${o.pitFreq ?? 1.6}" numOctaves="2" seed="${s + 40}" result="n2"/>
+    <feColorMatrix in="n2" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  9 0 0 0 -${o.pitCut ?? 5.45}" result="pits"/>
     <feComposite in="rough" in2="pits" operator="out" result="inked"/>
     <feComponentTransfer in="inked"><feFuncA type="discrete" tableValues="0 1"/></feComponentTransfer>
   </filter>`;
@@ -312,7 +323,7 @@ function readme(): string {
   return [
     "# PSA tee and sticker (design round)",
     "",
-    "Adam's riff on the 2004 anti-piracy ad (\"You wouldn't steal a car\"): YOU WOULDN'T RENDER IN THE CONSOLE. Contact sheet: [meme-options.png](meme-options.png). Not in the store until Adam picks.",
+    "Adam's riff on the 2004 anti-piracy ad (\"You wouldn't steal a car\"): YOU WOULDN'T RENDER IN THE CONSOLE. Contact sheet: [meme-options.png](meme-options.png). Adam picked tee A and sticker S1; both are in the store as the PSA Tee and PSA Sticker, re-set in the ad's layout ([tech-packs/psa.md](../tech-packs/psa.md)).",
     "",
     "## Legal",
     "",
@@ -363,6 +374,6 @@ if (import.meta.main) {
   await close();
 }
 
-export { TEES, STICKERS, psa, card, L_THREE, L_ADAM };
+export { TEES, STICKERS, psa, card, distressed, L_THREE, L_ADAM, BARLOW, capOf };
 void MARK_RATIO;
 void mark;

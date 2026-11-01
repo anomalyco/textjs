@@ -29,7 +29,7 @@ function Collection({ provider, bag }: { provider: CheckoutProvider | null; bag:
         <div>
           <h1>Merch</h1>
           <p>
-            Tees, hoodies, caps and stickers with the ▼ and console.log, made to order. The Keycap Set and Notebook come later.
+            Tees, hoodies, caps and stickers, made to order. The Keycap Set and Notebook come later.
             {provider ? null : (
               <>
                 {" "}

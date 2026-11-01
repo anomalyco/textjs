@@ -13,6 +13,7 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { embroider as stitched } from "./cap-edit";
 import { capMesh, CAP_FRONT_2, enlarged as enlargedCap } from "./capmesh";
 import type { Layer, Point, Quad } from "./composite";
 import { composite } from "./composite";
@@ -20,6 +21,9 @@ import { enlarge } from "./enlarge";
 import { fonts, MARK_RATIO } from "./lib";
 import {
   CAP_MARK,
+  LAPTOP_PPI,
+  studio,
+  vinyl,
   embroider,
   embroideryPrompt,
   ink,
@@ -41,6 +45,7 @@ import {
 } from "./options";
 import { optionBasePath } from "./options-blanks";
 import { basePath } from "./photos";
+import { psaBlock, psaCard } from "./psa";
 import { close, png, webp } from "./render";
 
 const ROOT = join(import.meta.dir, "..");
@@ -198,10 +203,17 @@ export const SHOTS: Shot[] = [
     },
   },
   // 006 console.log Cap
-  { name: "console-cap-1", render: async () => crop(basePath("cap-front-2"), 140, [capLettering()]) },
+  // The lettering is mapped onto the crown, stitched by an image edit and corrected back onto the exact type (scripts/cap-edit.ts).
+  {
+    name: "console-cap-1",
+    render: async () => crop(await stitched({ name: "front", base: basePath("cap-front-2"), layer: capLettering(), detail: "product" }), 140, []),
+  },
   {
     name: "console-cap-2",
-    render: async () => crop(await big(CAP_CLOSE, "cap-front-2"), 128, [capLettering(enlargedCap(CAP_FRONT_2, CAP_CLOSE.x, CAP_CLOSE.y, 2), 64, 10, 2.4, 7, 2.6, 1.8)]),
+    render: async () => {
+      const layer = capLettering(enlargedCap(CAP_FRONT_2, CAP_CLOSE.x, CAP_CLOSE.y, 2), 64, 10, 2.4, 7, 2.6, 1.8);
+      return crop(await stitched({ name: "close", base: await big(CAP_CLOSE, "cap-front-2"), layer, detail: "close-up" }), 128, []);
+    },
   },
   { name: "console-cap-3", render: async () => crop(basePath("cap-back"), 170, []) },
   // 007 ▼ Cap (the design-round edit, option B)
@@ -227,7 +239,30 @@ export const SHOTS: Shot[] = [
     { name: `${slug}-1`, render: async () => pngOf(optionPhoto("stickers", label)) },
     { name: `${slug}-2`, render: async () => pngOf(join(ROOT, "options", "stickers", `${label}-render.webp`)) },
   ]),
+  // PSA Tee: the ad's layout at 11 in on the chest (scripts/psa.ts), ▼ Text.js 3 in below the back collar.
+  { name: "psa-tee-1", render: async () => crop(basePath("tee-front"), 130, [ink(display(psaBlock(11)), on(TEE_FRONT, psaBlock(11), 3), { texture: 0.6 })]) },
+  { name: "psa-tee-2", render: async () => crop(basePath("tee-back"), 130, [ink(display(wordmarkArt(3, "#ffffff")), on(TEE_BACK, wordmarkArt(3, "#ffffff"), 2), { texture: 0.6 })]) },
+  {
+    name: "psa-tee-3",
+    render: async () => {
+      const g = scaleG(TEE_FRONT, TEE_CHEST.x, TEE_CHEST.y, 2);
+      return crop(await big(TEE_CHEST, "tee-front"), 40, [ink(display(psaBlock(11)), on(g, psaBlock(11), 3), { displace: 1.2, texture: 0.7 })]);
+    },
+  },
+  // PSA Sticker: 4 × 2.25 in, on a laptop lid and as a studio render.
+  {
+    name: "psa-sticker-1",
+    render: async () => {
+      const card = psaCard(4);
+      const [w, h] = sizeIn(card);
+      return crop(optionBasePath("sticker-laptop-close"), 200, [vinyl(card, rect(540, 780, w * LAPTOP_PPI, h * LAPTOP_PPI, -6), { shadow: { dx: 2, dy: 4, blur: 5, opacity: 0.5 } })]);
+    },
+  },
+  { name: "psa-sticker-2", render: async () => studio(psaCard(4), 760, -4) },
 ];
+
+/** White print artwork as it reads on black cotton. */
+const display = (svg: string): string => svg.replace(/#ffffff/g, WHITE);
 
 /** The console.log tee's back option (b), shown on the board only. */
 export const NAPE_SHOTS: Shot[] = [

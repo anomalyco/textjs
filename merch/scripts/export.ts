@@ -28,6 +28,9 @@ const FILES = [
   "sticker-console.svg",
   "sticker-keys.svg",
   "sticker-percent-c.svg",
+  "psa-tee-front.svg",
+  "psa-tee-back.svg",
+  "psa-sticker.svg",
 ];
 
 const browser = await open();
