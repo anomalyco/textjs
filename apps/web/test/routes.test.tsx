@@ -106,7 +106,7 @@ describe("page rendering", () => {
       expect(count(html)).toBe(1);
       expect(html).toContain('role="img" aria-label="Turbolog"');
     }
-    expect(pages[2]).toMatch(/<h1><svg class="turbolog-lockup st-lockup"[^]*?<\/svg> Status<\/h1>/);
+    expect(pages[2]).toMatch(/<svg class="turbolog-lockup st-lockup"[^]*?<\/svg><h1>Status<\/h1>/);
     expect(count(renderToStaticMarkup(<RouteView route={{ name: "docs", slug: "introduction" }} />))).toBe(0);
     expect(count(renderToStaticMarkup(<RouteView route={{ name: "blog-post", slug: "text-js-1-0" }} />))).toBe(0);
   });

@@ -371,10 +371,8 @@ export function StatusPage(): ReactNode {
   return (
     <div className="container st">
       <header className="rs-head">
-        <p className="eyebrow">Status</p>
-        <h1>
-          <TurbologLockup className="st-lockup" /> Status
-        </h1>
+        <TurbologLockup className="st-lockup" />
+        <h1>Status</h1>
       </header>
 
       <div className={`st-banner${down ? " st-banner-outage" : ""}`} role="status">
