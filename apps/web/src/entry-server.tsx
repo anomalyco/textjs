@@ -57,4 +57,5 @@ export async function render(pathname: string): Promise<string> {
 
 export { titleFor, matchRoute, renderRss };
 export { humansTxt, llmsTxt, statusApi } from "./static-files";
+export { renderHomeAnsi } from "./home-ansi";
 export { PREFIT_MIRRORS_SCRIPT, PREFIT_MIRRORS_WHILE_PARSING_SCRIPT } from "./site/DevToolsWindow";

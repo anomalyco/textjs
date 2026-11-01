@@ -17,6 +17,7 @@ interface ServerEntry {
   humansTxt(date: string): string;
   llmsTxt(): string;
   statusApi(): Record<string, string>;
+  renderHomeAnsi(): Promise<string>;
 }
 
 const server = (await import(pathToFileURL(join(ssrDir, "entry-server.js")).href)) as ServerEntry;
@@ -87,6 +88,8 @@ writeFileSync(join(distDir, "humans.txt"), server.humansTxt(new Date().toISOStri
 writeFileSync(join(distDir, "llms.txt"), server.llmsTxt());
 mkdirSync(join(distDir, "api", "v2"), { recursive: true });
 for (const [name, body] of Object.entries(server.statusApi())) writeFileSync(join(distDir, "api", "v2", name), body);
+// `curl textjs.org` (functions/index.ts).
+writeFileSync(join(distDir, "home.ansi"), await server.renderHomeAnsi());
 
 // Showcase was folded into the Playground.
 writeHtml(

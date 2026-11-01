@@ -7,6 +7,8 @@ import { SALES_HREF } from "../src/pages/Enterprise";
 import { linkedInAddUrl } from "../src/learn/certificate";
 import { consoleLogDown, mayForward } from "../src/console-health";
 import { Footer } from "../src/site/Chrome";
+import { onRequest, wantsAnsi } from "../functions/index";
+import { renderHomeAnsi } from "../src/home-ansi";
 import { renderToStaticMarkup } from "react-dom/server";
 import { HERO_FILES } from "../src/pages/home-files";
 import { HighlightedCode } from "../src/site/highlight";
@@ -241,5 +243,52 @@ describe("console.log status", () => {
   test("the footer shows operational in the prerender, with both labels sharing one cell", () => {
     const html = renderToStaticMarkup(<Footer />);
     expect(html).toContain('<a href="/status" class="footer-status"><span class="dot"></span><span class="footer-status-label"><span>All systems operational</span><span style="visibility:hidden">Major outage</span></span></a>');
+  });
+});
+
+describe("curl textjs.org", () => {
+  const req = (headers: Record<string, string>, method = "GET") => new Request("https://textjs.org/", { method, headers });
+
+  test("only terminal clients that don't ask for HTML get ANSI", () => {
+    for (const ua of ["curl/8.7.1", "Wget/1.21.4", "HTTPie/3.2.2", "xh/0.22.0"]) {
+      expect(wantsAnsi(req({ "User-Agent": ua, Accept: "*/*" }))).toBe(true);
+      expect(wantsAnsi(req({ "User-Agent": ua, Accept: "*/*" }, "HEAD"))).toBe(true);
+      expect(wantsAnsi(req({ "User-Agent": ua, Accept: "text/html" }))).toBe(false);
+      expect(wantsAnsi(req({ "User-Agent": ua, Accept: "*/*" }, "POST"))).toBe(false);
+    }
+    const chrome = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36";
+    expect(wantsAnsi(req({ "User-Agent": chrome, Accept: "text/html,application/xhtml+xml,*/*;q=0.8" }))).toBe(false);
+    expect(wantsAnsi(req({ "User-Agent": chrome, Accept: "*/*" }))).toBe(false);
+    expect(wantsAnsi(req({ "User-Agent": "Slackbot-LinkExpanding 1.0", Accept: "*/*" }))).toBe(false);
+    expect(wantsAnsi(req({ Accept: "*/*" }))).toBe(false);
+  });
+
+  test("the Function serves the frame, and falls through on anything else", async () => {
+    const next = async () => new Response("<!doctype html>", { headers: { "Content-Type": "text/html" } });
+    const env = (body: string | null, ok = true) => ({ ASSETS: { fetch: async () => (ok ? new Response(body) : new Response("nope", { status: 404 })) } });
+    const curl = { "User-Agent": "curl/8.7.1", Accept: "*/*" };
+    const res = await onRequest({ request: req(curl), env: env("FRAME"), next });
+    expect(await res.text()).toBe("FRAME");
+    expect(res.headers.get("Content-Type")).toBe("text/plain; charset=utf-8");
+    expect(res.headers.get("Vary")).toBe("User-Agent, Accept");
+    expect(await (await onRequest({ request: req(curl, "HEAD"), env: env("FRAME"), next })).text()).toBe("");
+    expect(await (await onRequest({ request: req({ "User-Agent": "curl/8.7.1", Accept: "text/html" }), env: env("FRAME"), next })).text()).toBe("<!doctype html>");
+    expect(await (await onRequest({ request: req(curl), env: env(null, false), next })).text()).toBe("<!doctype html>");
+    const throws = { ASSETS: { fetch: async (): Promise<Response> => { throw new Error("x"); } } };
+    expect(await (await onRequest({ request: req(curl), env: throws, next })).text()).toBe("<!doctype html>");
+  });
+
+  test("the frame is the 80×24 console Home view", async () => {
+    const ansi = await renderHomeAnsi();
+    const plain = ansi.replace(/\u001b\[[0-9;]*m/g, "");
+    const lines = plain.replace(/\n$/, "").split("\n");
+    expect(lines).toHaveLength(24);
+    for (const l of lines) expect([...l]).toHaveLength(80);
+    expect(plain).toContain("▼ Text.js");
+    expect(plain).toContain("React 19 in console.log");
+    expect(plain).toContain("Geist Dark");
+    expect(ansi).toContain("\u001b[0;38;2;");
+    expect(ansi).not.toContain("\u001b[H");
+    expect(ansi).not.toContain("\u25B2");
   });
 });
