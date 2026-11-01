@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-01
+
 ### Added
 
 - `@textjs/opencode`: the textjs.org/opencode bridge as its own package with no dependencies. Run `bunx @textjs/opencode proxy` (or `npx`) to start it without installing Vite, React and the MCP SDK. `text proxy` still works and runs the same bridge.
