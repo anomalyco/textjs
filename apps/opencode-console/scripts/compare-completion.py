@@ -1,9 +1,9 @@
 """Capture autocomplete in a private native TUI and in the same project's Text.js console framebuffer.
 Requires opencode V2, tmux, Bun, built packages and PLAYWRIGHT. Never submits a prompt.
 """
-import base64, json, os, secrets, shlex, socket, subprocess, tempfile, time, urllib.request
+import base64, gzip, json, os, secrets, shlex, socket, subprocess, tempfile, time, urllib.request
 from pathlib import Path
-from cell_diff import sgr_cells
+from cell_diff import mcp_cells, sgr_cells
 
 APP = Path(__file__).resolve().parents[1]
 OUT = APP / 'parity/round3'
@@ -42,13 +42,20 @@ with tempfile.TemporaryDirectory() as tmp:
         tmux('set-option','-t','native','status','off');wait('Ask anything')
         for name,typed,marker in [('slash','/model','Switch model'),('mention','@readm','README.md'),('shell','!pwd','Shell')]:
             tmux('send-keys','-t','native','-l',typed);wait(marker);time.sleep(.25)
-            data=tmux('capture-pane','-e','-N','-p','-t','native'); (OUT/(name+'.ansi')).write_text(data)
+            data=tmux('capture-pane','-e','-N','-p','-t','native'); (Path(tmp)/(name+'.ansi')).write_text(data)
             (Path(tmp)/(name+'.json')).write_text(json.dumps([list(c[:3])+[list(c[3])] for c in sgr_cells(data,100,32)]))
             tmux('send-keys','-t','native','Escape');time.sleep(.6);tmux('send-keys','-t','native','C-u');time.sleep(.25)
         capture_env={**env,'PLAYWRIGHT':os.environ['PLAYWRIGHT']}
         if 'PLAYWRIGHT_BROWSERS_PATH' in os.environ: capture_env['PLAYWRIGHT_BROWSERS_PATH']=os.environ['PLAYWRIGHT_BROWSERS_PATH']
         else: capture_env['PLAYWRIGHT_BROWSERS_PATH']=str(Path.home()/'.cache/ms-playwright')
         subprocess.run(['bun',APP/'scripts/completion-frame.ts',tmp,version],env=capture_env,cwd=APP,check=True,timeout=100)
+        counts = {}
+        for name in ('slash','mention','shell'):
+            capture = json.loads(gzip.decompress((OUT/(name+'.json.gz')).read_bytes()))
+            left, right = sgr_cells(capture['realSGR'],100,32), mcp_cells(capture['mcp'])
+            counts[name] = {k: sum(a[i]!=b[i] for a,b in zip(left,right) if i not in (1,3) or a[0]!=' ' or b[0]!=' ')
+                            for i,k in enumerate(('glyph','fg','bg','attrs'))}
+        (OUT/'measurements.json').write_text(json.dumps({'nativeVersion':version,'cols':100,'rows':32,'mismatches':counts},indent=2)+'\n')
     finally:
         tmux('kill-server',check=False);proc.terminate()
         try:proc.wait(5)

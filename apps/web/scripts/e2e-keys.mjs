@@ -59,6 +59,8 @@ check("picker pills are words only", (await page.locator(".pad-picker svg").coun
 const wordmark = () => page.evaluate(() => document.querySelector(".tx-pad-desk .pad-slot-banner svg")?.getAttribute("aria-label") ?? null);
 check("/playground opens on Dashboard", (await picked()) === "Dashboard", await picked());
 check("no on-page TUI mirror", (await page.locator("[data-textjs-mirror]").count()) === 0);
+const openCodeLoaded=()=>page.evaluate(()=>performance.getEntriesByType("resource").some(e=>/\/OpenCodeLite(?:-[\w-]+\.js|\.tsx)/.test(e.name)));
+check("OpenCode: its client chunk isn't fetched by the initial Playground",!await openCodeLoaded());
 const before0 = await last();
 await page.keyboard.press("ArrowUp");
 await settle();
@@ -83,6 +85,7 @@ await picker("OpenCode").click();
 await settle(800);
 check("OpenCode: picked at /opencode with the connection panel", path() === "/opencode" && (await picked()) === "OpenCode" && (await page.locator(".pad-connect").count()) === 1, page.url());
 check("OpenCode: its wordmark leads the message", (await wordmark()) === "OpenCode", await wordmark());
+check("OpenCode: selecting it loads the client",await openCodeLoaded());
 check("OpenCode: the console switches without a reload, keys still routed", (await last()).includes("Ask anything") && (await padState()) === "live", await last());
 await picker("Coffee").click();
 await settle(800);

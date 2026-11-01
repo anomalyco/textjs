@@ -62,7 +62,8 @@ try {
       await mock.waitForSubscriber();
       const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json());
       const target = targets.find((t: any) => t.type === "page" && t.url === page.url());
-      const dt = await browser.newPage({ viewport: { width: 790, height: 580 } });
+      // Allow room for the 100-column frame, the DevTools gutter and Linux font fallback.
+      const dt = await browser.newPage({ viewport: { width: 1024, height: 720 } });
       await dt.route(url=>["localhost","127.0.0.1","[::1]"].includes(url.hostname) && url.origin!==`http://127.0.0.1:${port}`,route=>route.abort());
       await dt.goto(`http://127.0.0.1:${port}/devtools/inspector.html?ws=127.0.0.1:${port}/devtools/page/${target.id}&panel=console`);
       await dt.locator("#tab-console").click();

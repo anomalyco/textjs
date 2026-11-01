@@ -10,7 +10,7 @@ const server = await preview({ root: web, preview: { port: 0, host: "127.0.0.1" 
 try {
   const port = server.httpServer.address().port;
   if ([4173, 4096, 49374].includes(port)) throw Error("Reserved port selected");
-  const env = { ...process.env, BASE: `http://127.0.0.1:${port}` };
+  const env = { ROUTES: "/opencode", FILMSTRIP: "0", ...process.env, BASE: `http://127.0.0.1:${port}` };
   async function run(command, args, cwd) {
     await new Promise((res, rej) => {
       const proc = spawn(command, args, { cwd, env, stdio: "inherit", timeout: 180000 });

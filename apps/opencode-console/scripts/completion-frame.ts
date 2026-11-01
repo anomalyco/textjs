@@ -1,6 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { resolve } from "node:path";
+import {gzipSync} from "node:zlib";
 const [tmp, version] = process.argv.slice(2),
   app = resolve(import.meta.dir, ".."),
   out = resolve(app, "parity/round3");
@@ -45,6 +46,7 @@ try {
     } else await call("type", { text: typed });
     const f = await call("wait_for", { text: marker, styles: true, trim: false });
     if (f.focus?.id !== "opencode-prompt") throw Error("Lost composer focus");
+    await Bun.write(resolve(out,`${name}.json.gz`),gzipSync(JSON.stringify({realSGR:await Bun.file(resolve(tmp,`${name}.ansi`)).text(),mcp:{cols:f.cols,rows:f.rows,text:f.text,styles:f.styles}})));
     const cells = await Bun.file(resolve(tmp, `${name}.json`)).json();
     await Bun.write(
       resolve(out, `${name}.txt`),
