@@ -1,4 +1,4 @@
-# 005 Keycap Set, ⌘ ⌥ J (later drop)
+# 013 Keycap Set, ⌘ ⌥ J (later drop)
 
 ⌘⌥J opens the Console in Chrome DevTools on macOS. Three keycaps, one per key.
 

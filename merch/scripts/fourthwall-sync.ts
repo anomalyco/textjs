@@ -4,7 +4,7 @@
  *
  *   FOURTHWALL_STOREFRONT_TOKEN=ptkn_… FOURTHWALL_SHOP=textjs-shop.fourthwall.com bun run sync
  *
- * Optional: FOURTHWALL_COLLECTION (default "all"), FOURTHWALL_ALIASES='{"frame-tee":"frame-tee-black"}'.
+ * Optional: FOURTHWALL_COLLECTION (default "all"), FOURTHWALL_ALIASES='{"logo-tee":"text-js-logo-tee"}'.
  */
 import { fourthwallVariants, type FourthwallProduct } from "../../apps/web/src/merch/fourthwall";
 

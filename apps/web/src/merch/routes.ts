@@ -14,7 +14,7 @@ export function merchTitle(slug: string): string {
   return p ? `${p.name} | Text.js Merch` : "Merch | Text.js";
 }
 
-export const MERCH_DESCRIPTION = "Text.js merch: a heavyweight tee with the first textjs.org console frame on the back, a hoodie, a cap, stickers, ⌘⌥J keycaps and a notebook.";
+export const MERCH_DESCRIPTION = "Text.js merch: tees, hoodies, caps and stickers with the ▼ and console.log, plus ⌘⌥J keycaps and a notebook.";
 
 /** Prerendered store pages. */
 export const MERCH_ROUTES: ReadonlyArray<{ path: string; title: string; description: string }> = [
