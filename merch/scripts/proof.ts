@@ -1,4 +1,4 @@
-/** Renders every artwork file onto one contact sheet (mockups/proof.png) for checking glyphs and layout. */
+/** Renders every artwork file onto one contact sheet (photos/proof.png) for checking glyphs and layout. */
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { close, png } from "./render";
@@ -13,5 +13,5 @@ const tiles = files
   })
   .join("");
 const html = `<!doctype html><style>body{margin:0;background:#222;font:12px ui-monospace;color:#999;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}figure{margin:0;padding:16px;display:flex;flex-direction:column;gap:8px}figure div{flex:1;display:grid;place-items:center;min-height:360px}figure svg{width:100%}</style>${tiles}`;
-writeFileSync(join(import.meta.dir, "..", "mockups", "proof.png"), await png(html, 1500, 1600, 1));
+writeFileSync(join(import.meta.dir, "..", "photos", "proof.png"), await png(html, 1500, 1600, 1));
 await close();

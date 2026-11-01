@@ -1,4 +1,4 @@
-/** Headless Chromium rendering for proofs and mockups (PNG via screenshot, WebP via canvas). */
+/** Headless Chromium rendering for proofs and product photos (PNG via screenshot, WebP via canvas). */
 import { chromium, type Browser } from "playwright-core";
 
 let browser: Browser | undefined;

@@ -5,7 +5,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { RouteView } from "../src/App";
 import { render, ROUTES } from "../src/entry-server";
 import { cart } from "../src/merch/cart";
-import { linkOut, MERCH, shopify } from "../src/merch/config";
+import { fourthwall, linkOut, MERCH, saleOf, shopify } from "../src/merch/config";
+import { fourthwallVariants, type FourthwallProduct } from "../src/merch/fourthwall";
 import { MerchPage } from "../src/merch/Merch";
 import { PRODUCTS, productPath } from "../src/merch/products";
 import { matchRoute, resetLocation, titleFor } from "../src/router";
@@ -44,9 +45,11 @@ describe("merch routes", () => {
       expect(html).toContain(`href="${productPath(p.slug)}"`);
       expect(html).toContain(p.name);
     }
-    expect(html.match(/Coming soon/g)?.length).toBe(PRODUCTS.length);
+    // The first drop reads Coming soon; the rest read Later.
+    expect(html.match(/merch-flag">Coming soon</g)?.length).toBe(3);
+    expect(html.match(/merch-flag">Later</g)?.length).toBe(3);
     // Every image reserves its box before it loads.
-    for (const tag of html.match(/<img [^>]*>/g) ?? []) if (tag.includes(".webp")) expect(tag).toMatch(/width="1200" height="1500"/);
+    for (const tag of html.match(/<img [^>]*>/g) ?? []) if (tag.includes(".webp")) expect(tag).toMatch(/width="1024" height="1280"/);
     expect(html).toContain('class="footer"');
     expect(html).not.toContain("▲");
   });
@@ -56,9 +59,13 @@ describe("merch routes", () => {
       const html = await render(productPath(p.slug));
       expect(html).toContain(`<h1>${p.name}</h1>`);
       expect(html).toContain('aria-roledescription="carousel"');
-      expect(html).toContain("Coming soon");
-      expect(html).toMatch(/<button[^>]*disabled[^>]*>Coming soon<\/button>/);
-      expect(html).toContain(`href="${MERCH.notify.href}"`);
+      if (saleOf(p.slug).drop === "launch") {
+        expect(html).toMatch(/<button[^>]*disabled[^>]*>Coming soon<\/button>/);
+        expect(html).toContain(`href="${MERCH.notify.href}"`);
+      } else {
+        expect(html).toMatch(/<button[^>]*disabled[^>]*>Later<\/button>/);
+        expect(html).toContain("Planned for a later drop.");
+      }
       for (const s of p.sizes) expect(html).toContain(`value="${s}"`);
       if (p.sizes.length === 0) expect(html).toContain("One size");
       expect(html).not.toContain("<form");
@@ -98,16 +105,26 @@ describe("merch catalog", () => {
 });
 
 describe("checkout providers", () => {
-  const variants = { "frame-tee": { M: "4400000000001", L: "4400000000002" }, cap: { "": "4400000000003" } };
+  const tee = { M: "11111111-1111-4111-8111-111111111111", L: "22222222-2222-4222-8222-222222222222" };
+  const fw = fourthwall({ shopDomain: "textjs-shop.fourthwall.com", variants: { "frame-tee": tee, cap: { "": "33333333-3333-4333-8333-333333333333" } } });
 
-  test("Shopify builds cart permalinks and refuses lines it can't sell", () => {
-    const p = shopify({ domain: "textjs.myshopify.com", variants });
-    expect(p.cart).toBe(true);
-    expect(p.sells({ slug: "frame-tee", size: "M" })).toBe(true);
-    expect(p.sells({ slug: "frame-tee", size: "XS" })).toBe(false);
-    expect(p.checkoutUrl([{ slug: "frame-tee", size: "M", quantity: 2 }, { slug: "cap", size: "", quantity: 1 }])).toBe("https://textjs.myshopify.com/cart/4400000000001:2,4400000000003:1");
-    expect(p.checkoutUrl([{ slug: "frame-tee", size: "XS", quantity: 1 }])).toBeNull();
-    expect(p.checkoutUrl([])).toBeNull();
+  test("Fourthwall builds direct checkout links and refuses lines it can't sell", () => {
+    expect(fw.cart).toBe(true);
+    expect(fw.sells({ slug: "frame-tee", size: "M" })).toBe(true);
+    expect(fw.sells({ slug: "frame-tee", size: "XS" })).toBe(false);
+    expect(fw.checkoutUrl([{ slug: "frame-tee", size: "M", quantity: 2 }, { slug: "cap", size: "", quantity: 1 }])).toBe(
+      `https://textjs-shop.fourthwall.com/cart/checkout?products=${tee.M}:2,33333333-3333-4333-8333-333333333333:1&currency=USD`,
+    );
+    expect(fw.checkoutUrl([{ slug: "frame-tee", size: "XS", quantity: 1 }])).toBeNull();
+    expect(fw.checkoutUrl([])).toBeNull();
+    // Only variant UUIDs: anything else could smuggle extra query parameters into the link.
+    const bad = fourthwall({ shopDomain: "x.fourthwall.com", variants: { cap: { "": "abc&coupon=FREE" } } });
+    expect(bad.sells({ slug: "cap", size: "" })).toBe(false);
+  });
+
+  test("Shopify cart permalinks stay available as a fallback", () => {
+    const p = shopify({ domain: "textjs.myshopify.com", variants: { "frame-tee": { M: "4400000000001" } } });
+    expect(p.checkoutUrl([{ slug: "frame-tee", size: "M", quantity: 2 }])).toBe("https://textjs.myshopify.com/cart/4400000000001:2");
   });
 
   test("link-out sends one product to its page", () => {
@@ -117,24 +134,43 @@ describe("checkout providers", () => {
     expect(p.checkoutUrl([{ slug: "hoodie", size: "M", quantity: 1 }])).toBeNull();
   });
 
-  test("the store ships closed", () => {
+  test("the store ships closed, with the tee, cap and stickers in the first drop", () => {
     expect(MERCH.provider).toBeNull();
     expect(MERCH.notify.href.startsWith("/")).toBe(true);
+    expect(PRODUCTS.filter((p) => saleOf(p.slug).drop === "launch").map((p) => p.slug)).toEqual(["frame-tee", "cap", "sticker-sheet"]);
+    expect(saleOf("frame-tee").preorder).toBe(true);
   });
 
-  test("a configured provider swaps Coming soon for Add to cart and a cart button", () => {
-    const provider = shopify({ domain: "textjs.myshopify.com", variants });
-    const index = renderToStaticMarkup(<MerchPage slug="" provider={provider} />);
+  test("a configured provider opens the first drop and leaves later items closed", () => {
+    const index = renderToStaticMarkup(<MerchPage slug="" provider={fw} />);
     expect(index).not.toContain("Coming soon");
+    expect(index).toContain('merch-flag">Pre-order<');
+    expect(index.match(/merch-flag">Later</g)?.length).toBe(3);
     expect(index).toContain("Cart, 0 items");
-    const tee = renderToStaticMarkup(<MerchPage slug="frame-tee" provider={provider} />);
-    expect(tee).toContain("Add to cart");
-    expect(tee).toContain("Checkout on Shopify.");
+    const teePage = renderToStaticMarkup(<MerchPage slug="frame-tee" provider={fw} />);
+    expect(teePage).toMatch(/<button[^>]*>Pre-order<\/button>/);
+    expect(teePage).toContain(`${saleOf("frame-tee").shipping} Checkout on Fourthwall.`);
     // Sizes without a variant are shown as sold out.
-    expect(tee).toMatch(/class="merch-size is-out"><input type="radio" disabled="" name="[^"]+" value="XS"\/>/);
-    expect(tee).toMatch(/class="merch-size"><input type="radio" name="[^"]+" value="M"\/>/);
-    const hoodie = renderToStaticMarkup(<MerchPage slug="hoodie" provider={provider} />);
-    expect(hoodie).toContain("Coming soon");
+    expect(teePage).toMatch(/class="merch-size is-out"><input type="radio" disabled="" name="[^"]+" value="XS"\/>/);
+    expect(teePage).toMatch(/class="merch-size"><input type="radio" name="[^"]+" value="M"\/>/);
+    expect(renderToStaticMarkup(<MerchPage slug="cap" provider={fw} />)).toMatch(/<button[^>]*>Add to cart<\/button>/);
+    const hoodie = renderToStaticMarkup(<MerchPage slug="hoodie" provider={fw} />);
+    expect(hoodie).toMatch(/<button[^>]*disabled[^>]*>Later<\/button>/);
+    expect(hoodie).not.toContain("is-out");
+  });
+
+  test("the Fourthwall sync maps catalog variants by slug and size", () => {
+    const v = (id: string, size: string | undefined, value: number) => ({ id, unitPrice: { value, currency: "USD" }, attributes: { description: `Black, ${size ?? "One size"}`, size: size ? { name: size } : undefined } });
+    const catalog: FourthwallProduct[] = [
+      { slug: "text-js-frame-tee", name: "Frame Tee", variants: [v("t-m", "M", 45), v("t-l", "L", 45)] },
+      { slug: "cap", name: "Cap", variants: [v("c", undefined, 30)] },
+    ];
+    const { variants, warnings } = fourthwallVariants(catalog, { "frame-tee": "text-js-frame-tee" });
+    expect(variants["frame-tee"]).toEqual({ M: "t-m", L: "t-l" });
+    expect(variants.cap).toEqual({ "": "c" });
+    expect(warnings).toContain("frame-tee: size XS not on Fourthwall");
+    expect(warnings.some((w) => w.startsWith("cap: Fourthwall price 30"))).toBe(true);
+    expect(warnings).toContain('hoodie: no Fourthwall product with slug "hoodie"');
   });
 
   test("the cart merges lines and drops them at zero", () => {

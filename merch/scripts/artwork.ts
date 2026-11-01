@@ -112,12 +112,13 @@ for (const [name, inches, title] of [
   write(name, svgDoc(w, w * MARK_RATIO, `  <g id="thread-black" fill="#111111"><path d="${mark(0, 0, w)}"/></g>`, title));
 }
 {
-  const capH = 0.25 * IN;
+  const capH = 0.34 * IN;
   const size = capH / MONO_CAP_HEIGHT;
   const label = "textjs.org";
-  // Bold: at this size Geist Mono Bold's stems are about 1.1 mm, the narrowest satin column that stitches cleanly.
+  // Fourthwall's embroidery minimums: lowercase 0.25 in tall and strokes 0.05 in thick. At a 0.34 in cap height
+  // Geist Mono's x-height is about 0.25 in and Bold's stems are about 1.5 mm.
   const width = measure(fonts.monoBold, label, size);
-  write("cap-back.svg", svgDoc(width, capH * 1.32, `  <g id="thread-black" fill="#111111"><path d="${text(fonts.monoBold, label, 0, capH, size)}"/></g>`, "Cap, back above the strap: textjs.org in Geist Mono Bold, 0.25 in cap height, tonal embroidery"));
+  write("cap-back.svg", svgDoc(width, capH * 1.32, `  <g id="thread-black" fill="#111111"><path d="${text(fonts.monoBold, label, 0, capH, size)}"/></g>`, "Cap, back above the strap: textjs.org in Geist Mono Bold, 0.34 in cap height (0.25 in lowercase), tonal embroidery"));
 }
 
 // ── 5. Printed neck label (tagless), shared by the tee and hoodie ──────────────
@@ -147,95 +148,105 @@ for (const [name, inches, title] of [
   write("neck-label.svg", svgDoc(W, H, `  <g id="ink-1-white" fill="#ededed"><path d="${d}"/></g>`, "Printed neck label, size M shown, 2 × 1.25 in, 1 ink"));
 }
 
-// ── 6. Sticker sheet: 4 × 6 in, kiss-cut, black matte vinyl ────────────────────
+// ── 6. Sticker sheet: Fourthwall "Kiss Cut Sticker Sheet with Custom Background", 5.83 × 8.27 in ──
+// The sticker stock is white and Fourthwall adds a 0.12 in white border around every sticker, so the
+// stickers are white shapes with black artwork on a black background: the border reads as part of the sticker.
 {
-  const W = 4 * IN;
-  const H = 6 * IN;
-  const print: string[] = [];
+  const W = 148.1;
+  const H = 210.1;
+  const BORDER = 3.05; // Fourthwall's white border (0.12 in), drawn here as the cut preview
   const white: string[] = [];
+  const black: string[] = [];
   const cuts: string[] = [];
-  const pad = 1.6; // cut line offset from the art
   const round = (x: number, y: number, w: number, h: number, r: number): string =>
     `M${fmt(x + r)} ${fmt(y)}H${fmt(x + w - r)}A${r} ${r} 0 0 1 ${fmt(x + w)} ${fmt(y + r)}V${fmt(y + h - r)}A${r} ${r} 0 0 1 ${fmt(x + w - r)} ${fmt(y + h)}H${fmt(x + r)}A${r} ${r} 0 0 1 ${fmt(x)} ${fmt(y + h - r)}V${fmt(y + r)}A${r} ${r} 0 0 1 ${fmt(x + r)} ${fmt(y)}Z`;
-
-  // a. The ▼, die-cut to shape (white vinyl look: printed white, cut 1.6 mm outside).
-  {
-    const w = 52;
-    const x = (W - w) / 2;
-    const y = 12;
-    white.push(mark(x, y, w));
-    // Cut line: the same triangle scaled about its incentre, so every edge sits `pad` outside the art.
+  const triangleOutset = (x: number, y: number, w: number, pad: number): string => {
+    // The same triangle scaled about its incentre, so every edge sits `pad` outside.
     const h = w * MARK_RATIO;
     const side = Math.hypot(w / 2, h);
     const r = (w * h) / (w + 2 * side);
-    const ix = x + w / 2;
-    const iy = y + r;
     const k = (r + pad) / r;
-    cuts.push(mark(ix - (w / 2) * k, iy - (iy - y) * k, w * k));
-  }
-  // b. Wordmark: ▼ Text.js in Geist SemiBold on a black rounded rectangle.
+    return mark(x + w / 2 - (w / 2) * k, y + r - r * k, w * k);
+  };
+
+  // a. The ▼, black, cut to shape (it gets Fourthwall's white border).
   {
-    const capH = 7;
+    const w = 64;
+    const x = (W - w) / 2;
+    const y = 16;
+    black.push(mark(x, y, w));
+    cuts.push(triangleOutset(x, y, w, BORDER));
+  }
+  // b. Wordmark: ▼ Text.js in Geist SemiBold, black on a white rounded rectangle.
+  {
+    const bw = 84;
+    const bh = 24;
+    const x = (W - bw) / 2;
+    const y = 88;
+    white.push(round(x, y, bw, bh, 5));
+    cuts.push(round(x - BORDER, y - BORDER, bw + 2 * BORDER, bh + 2 * BORDER, 5 + BORDER));
+    const capH = 9;
     const size = capH / 0.7;
     const tw = measure(fonts.sansSemiBold, "Text.js", size, -0.02 * size);
     const mw = capH * 1.15;
-    const gap = 2.4;
-    const bw = mw + gap + tw + 14;
-    const bh = 18;
-    const x = (W - bw) / 2;
-    const y = 72;
-    cuts.push(round(x, y, bw, bh, 4));
-    white.push(mark(x + 7, y + (bh - mw * MARK_RATIO) / 2, mw));
-    white.push(text(fonts.sansSemiBold, "Text.js", x + 7 + mw + gap, y + (bh + capH) / 2, size, -0.02 * size));
+    const gap = 3;
+    const left = x + (bw - (mw + gap + tw)) / 2;
+    black.push(mark(left, y + (bh - mw * MARK_RATIO) / 2, mw));
+    black.push(text(fonts.sansSemiBold, "Text.js", left + mw + gap, y + (bh + capH) / 2, size, -0.02 * size));
   }
-  // c. %c, the console's CSS format specifier.
+  // c. %c, the console's CSS format specifier, and the ▼ from the first frame's block-letter font.
   {
-    const s = 22;
-    const x = 16;
-    const y = 102;
-    cuts.push(round(x, y, s, s, 4));
-    const capH = 7.5;
+    const y = 126;
+    const s1 = 30;
+    const x1 = 22;
+    white.push(round(x1, y, s1, s1, 5));
+    cuts.push(round(x1 - BORDER, y - BORDER, s1 + 2 * BORDER, s1 + 2 * BORDER, 5 + BORDER));
+    const capH = 10;
     const size = capH / MONO_CAP_HEIGHT;
     const tw = measure(fonts.mono, "%c", size);
-    white.push(text(fonts.mono, "%c", x + (s - tw) / 2, y + (s + capH) / 2, size));
-  }
-  // d. The ▼ from the ASCII font in the first frame (rows 9–12, cells 30–36): 7, 5, 3 and 1 blocks.
-  {
-    const cw = 2.6;
+    black.push(text(fonts.mono, "%c", x1 + (s1 - tw) / 2, y + (s1 + capH) / 2, size));
+
+    const cw = 3.6;
     const ch = cw * 1.25;
-    const x0 = W - 16 - 7 * cw - 8;
-    const y = 102;
-    cuts.push(round(x0, y, 7 * cw + 8, 22, 4));
-    const left = x0 + 4;
-    const top = y + (22 - 4 * ch) / 2;
-    for (let r = 0; r < 4; r++) white.push(`M${fmt(left + r * cw)} ${fmt(top + r * ch)}h${fmt((7 - 2 * r) * cw)}v${fmt(ch)}h${fmt(-(7 - 2 * r) * cw)}Z`);
+    const bw = 7 * cw + 14;
+    const x2 = W - 22 - bw;
+    white.push(round(x2, y, bw, s1, 5));
+    cuts.push(round(x2 - BORDER, y - BORDER, bw + 2 * BORDER, s1 + 2 * BORDER, 5 + BORDER));
+    const left = x2 + 7;
+    const top = y + (s1 - 4 * ch) / 2;
+    for (let r = 0; r < 4; r++) black.push(`M${fmt(left + r * cw)} ${fmt(top + r * ch)}h${fmt((7 - 2 * r) * cw)}v${fmt(ch)}h${fmt(-(7 - 2 * r) * cw)}Z`);
   }
-  // e. ⌘ ⌥ J, the DevTools Console shortcut on macOS, as three keycaps.
+  // d. ⌘ ⌥ J, the DevTools Console shortcut on macOS, as three keycaps.
+  const strokes: string[] = [];
   {
-    const s = 17;
-    const gap = 4;
-    const total = 3 * s + 2 * gap;
+    const s1 = 26;
+    const gap = 15;
+    const total = 3 * s1 + 2 * gap;
     const x0 = (W - total) / 2;
-    const y = 132;
+    const y = 170;
     for (let i = 0; i < 3; i++) {
-      const x = x0 + i * (s + gap);
-      cuts.push(round(x, y, s, s, 3.2));
-      if (i === 2) {
-        const capH = 6;
-        const size = capH / MONO_CAP_HEIGHT;
-        const tw = measure(fonts.mono, "J", size);
-        white.push(text(fonts.mono, "J", x + (s - tw) / 2, y + (s + capH) / 2, size));
-      }
+      const x = x0 + i * (s1 + gap);
+      white.push(round(x, y, s1, s1, 4.5));
+      cuts.push(round(x - BORDER, y - BORDER, s1 + 2 * BORDER, s1 + 2 * BORDER, 4.5 + BORDER));
     }
-    print.push(`<path d="${command(x0 + s / 2, y + s / 2, 7.2)}" fill="none" stroke="#ededed" stroke-width="0.85" stroke-linejoin="round"/>`);
-    print.push(`<path d="${option(x0 + s + gap + s / 2, y + s / 2, 7.6)}" fill="none" stroke="#ededed" stroke-width="0.85" stroke-linecap="square"/>`);
+    strokes.push(`<path d="${command(x0 + s1 / 2, y + s1 / 2, 11)}" fill="none" stroke="#0a0a0a" stroke-width="1.2" stroke-linejoin="round"/>`);
+    strokes.push(`<path d="${option(x0 + s1 + gap + s1 / 2, y + s1 / 2, 11.5)}" fill="none" stroke="#0a0a0a" stroke-width="1.2" stroke-linecap="square"/>`);
+    const capH = 9;
+    const size = capH / MONO_CAP_HEIGHT;
+    const jx = x0 + 2 * (s1 + gap);
+    black.push(text(fonts.mono, "J", jx + (s1 - measure(fonts.mono, "J", size)) / 2, y + (s1 + capH) / 2, size));
   }
+  // Fourthwall adds the border itself (0.12 in outside each sticker's outline), so it is a preview group:
+  // leave it out of the uploaded PNG. The background is set as the sheet's custom background color.
+  const outline = [...white, black[0] as string].join("");
   const body = [
-    `  <rect id="sheet" width="${fmt(W)}" height="${fmt(H)}" rx="3" fill="#0a0a0a"/>`,
-    `  <g id="ink-1-white" fill="#ededed"><path d="${white.join("")}"/>${print.join("")}</g>`,
-    `  <g id="CutContour" fill="none" stroke="#ec008c" stroke-width="0.25">${cuts.map((d) => `<path d="${d}"/>`).join("")}</g>`,
+    `  <rect id="background" width="${fmt(W)}" height="${fmt(H)}" fill="#0a0a0a"/>`,
+    `  <g id="border-preview-added-by-fourthwall"><path d="${outline}" fill="#ffffff" stroke="#ffffff" stroke-width="${fmt(BORDER * 2)}" stroke-linejoin="round"/></g>`,
+    `  <g id="sticker-white" fill="#ffffff"><path d="${white.join("")}"/></g>`,
+    `  <g id="sticker-black" fill="#0a0a0a"><path d="${black.join("")}"/>${strokes.join("")}</g>`,
   ].join("\n");
-  write("sticker-sheet.svg", svgDoc(W, H, body, "Sticker sheet, 4 × 6 in, black matte vinyl, kiss-cut along CutContour (100% magenta, do not print)"));
+  void cuts;
+  write("sticker-sheet.svg", svgDoc(W, H, body, "Sticker sheet for Fourthwall's Kiss Cut Sticker Sheet with Custom Background, 5.83 × 8.27 in. Background #0a0a0a. The white border group previews the 0.12 in border Fourthwall adds; leave it out of the upload"));
 }
 
 // ── 7. Keycaps: ⌘ ⌥ J legends on Cherry-profile black PBT ──────────────────────

@@ -4,7 +4,7 @@ import { A } from "../router";
 import { CloseIcon } from "../site/icons";
 import { useScrollLock } from "../site/Sheet";
 import { cart, useCart } from "./cart";
-import { MERCH, type CartLine, type CheckoutProvider } from "./config";
+import { MERCH, saleOf, type CartLine, type CheckoutProvider } from "./config";
 import { formatPrice, getProduct, IMAGE_HEIGHT, IMAGE_WIDTH, PRODUCTS, productPath, type Product, type ProductImage } from "./products";
 
 export function MerchPage({ slug, provider = MERCH.provider }: { slug: string; provider?: CheckoutProvider | null }): ReactNode {
@@ -29,7 +29,7 @@ function Collection({ provider, bag }: { provider: CheckoutProvider | null; bag:
         <div>
           <h1>Merch</h1>
           <p>
-            Six pieces with the ▼ mark.
+            Six pieces with the ▼ mark. The Frame Tee, Cap and Sticker Sheet are in the first drop.
             {provider ? null : (
               <>
                 {" "}
@@ -43,7 +43,7 @@ function Collection({ provider, bag }: { provider: CheckoutProvider | null; bag:
       <ul className="merch-grid" aria-label="Products">
         {PRODUCTS.map((p, i) => (
           <li key={p.slug}>
-            <ProductCard product={p} soon={!provider} eager={i < 3} />
+            <ProductCard product={p} flag={flagFor(p, provider)} eager={i < 3} />
           </li>
         ))}
       </ul>
@@ -51,7 +51,15 @@ function Collection({ provider, bag }: { provider: CheckoutProvider | null; bag:
   );
 }
 
-function ProductCard({ product: p, soon, eager = false, compact = false }: { product: Product; soon: boolean; eager?: boolean; compact?: boolean }): ReactNode {
+/** The label on a product image, vercel.store style: Later, Coming soon or Pre-order. */
+function flagFor(p: Product, provider: CheckoutProvider | null): string | null {
+  const sale = saleOf(p.slug);
+  if (sale.drop === "later") return "Later";
+  if (!provider) return "Coming soon";
+  return sale.preorder ? "Pre-order" : null;
+}
+
+function ProductCard({ product: p, flag, eager = false, compact = false }: { product: Product; flag: string | null; eager?: boolean; compact?: boolean }): ReactNode {
   const [first, second] = p.images as [ProductImage, ProductImage | undefined];
   const sizes = compact ? "(min-width: 1000px) 25vw, 50vw" : "(min-width: 1000px) 33vw, 50vw";
   return (
@@ -59,7 +67,7 @@ function ProductCard({ product: p, soon, eager = false, compact = false }: { pro
       <div className="merch-card-media">
         <Img image={first} sizes={sizes} eager={eager} alt="" />
         {second ? <Img image={second} sizes={sizes} alt="" className="merch-card-alt" /> : null}
-        {soon ? <span className="merch-flag">Coming soon</span> : null}
+        {flag ? <span className="merch-flag">{flag}</span> : null}
       </div>
       <div className="merch-card-meta">
         <span className="merch-num">{p.number}</span>
@@ -75,7 +83,7 @@ function Img({ image, sizes, alt, eager = false, className }: { image: ProductIm
   return (
     <img
       src={image.large}
-      srcSet={`${image.small} 600w, ${image.large} 1200w`}
+      srcSet={`${image.small} 600w, ${image.large} ${IMAGE_WIDTH}w`}
       sizes={sizes}
       width={IMAGE_WIDTH}
       height={IMAGE_HEIGHT}
@@ -145,7 +153,7 @@ function ProductView({ product: p, provider, bag, onAdded }: { product: Product;
         <ul className="merch-grid merch-grid-compact">
           {more.map((o) => (
             <li key={o.slug}>
-              <ProductCard product={o} soon={!provider} compact />
+              <ProductCard product={o} flag={flagFor(o, provider)} compact />
             </li>
           ))}
         </ul>
@@ -244,7 +252,7 @@ function SizePicker({ product: p, provider, value, onChange }: { product: Produc
       <legend className="merch-label">Size</legend>
       <div className="merch-sizes">
         {p.sizes.map((s) => {
-          const out = provider !== null && !provider.sells({ slug: p.slug, size: s });
+          const out = provider !== null && saleOf(p.slug).drop === "launch" && !provider.sells({ slug: p.slug, size: s });
           return (
             <label key={s} className={`merch-size${out ? " is-out" : ""}`}>
               <input type="radio" name={name} value={s} checked={value === s} onChange={() => onChange(s)} disabled={out} />
@@ -262,19 +270,28 @@ function SizePicker({ product: p, provider, value, onChange }: { product: Produc
 function BuyBox({ product: p, provider, size, onAdded }: { product: Product; provider: CheckoutProvider | null; size: string | null; onAdded: () => void }): ReactNode {
   const [hint, setHint] = useState(false);
   useEffect(() => setHint(false), [size]);
-  const sold = provider !== null && (p.sizes.length ? p.sizes.some((s) => provider.sells({ slug: p.slug, size: s })) : provider.sells({ slug: p.slug, size: "" }));
+  const sale = saleOf(p.slug);
+  const sold = provider !== null && sale.drop === "launch" && (p.sizes.length ? p.sizes.some((s) => provider.sells({ slug: p.slug, size: s })) : provider.sells({ slug: p.slug, size: "" }));
   if (!provider || !sold) {
+    const later = sale.drop === "later";
     return (
       <div className="merch-buy">
         <button type="button" className="btn btn-secondary btn-lg merch-buy-btn" disabled aria-describedby="merch-status">
-          Coming soon
+          {later ? "Later" : "Coming soon"}
         </button>
         <p id="merch-status" className="merch-status">
-          Ordering isn’t open yet. <A href={MERCH.notify.href}>{MERCH.notify.label}</A> for the release.
+          {later ? (
+            "Planned for a later drop."
+          ) : (
+            <>
+              Ordering isn’t open yet. <A href={MERCH.notify.href}>{MERCH.notify.label}</A> for the release.
+            </>
+          )}
         </p>
       </div>
     );
   }
+  const label = sale.preorder ? "Pre-order" : provider.cart ? "Add to cart" : "Buy";
   const needsSize = p.sizes.length > 0 && size === null;
   const line = { slug: p.slug, size: p.sizes.length ? (size ?? "") : "", quantity: 1 };
   const status = hint ? (
@@ -283,7 +300,7 @@ function BuyBox({ product: p, provider, size, onAdded }: { product: Product; pro
     </p>
   ) : (
     <p id="merch-status" className="merch-status">
-      Checkout on {provider.name}.
+      {sale.shipping ? `${sale.shipping} ` : ""}Checkout on {provider.name}.
     </p>
   );
   if (provider.cart) {
@@ -299,7 +316,7 @@ function BuyBox({ product: p, provider, size, onAdded }: { product: Product; pro
             onAdded();
           }}
         >
-          Add to cart
+          {label}
         </button>
         {status}
       </div>
@@ -310,11 +327,11 @@ function BuyBox({ product: p, provider, size, onAdded }: { product: Product; pro
     <div className="merch-buy">
       {href ? (
         <a href={href} className="btn btn-primary btn-lg merch-buy-btn" aria-describedby="merch-status">
-          Buy
+          {label}
         </a>
       ) : (
         <button type="button" className="btn btn-primary btn-lg merch-buy-btn" aria-describedby="merch-status" onClick={() => setHint(true)}>
-          Buy
+          {label}
         </button>
       )}
       {status}

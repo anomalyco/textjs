@@ -1,32 +1,36 @@
-# 004 Sticker Sheet
+# 003 Sticker Sheet
 
-Seven kiss-cut stickers on one sheet.
+Seven kiss-cut stickers on one sheet, laid out for Fourthwall's sheet template.
 
-## Spec
+## Production
+
+Fourthwall on demand: Kiss Cut Sticker Sheet with Custom Background, $5.05 base, no minimum.
 
 | | |
 | --- | --- |
-| Artwork | `artwork/sticker-sheet.svg` |
-| Sheet | 101.6 × 152.4 mm (4 × 6 in), 3 mm corner radius, die-cut sheet edge |
-| Material | White matte vinyl with matte laminate, printed full bleed |
-| Print | Background `#0a0a0a` (rich black: C60 M40 Y40 K100), artwork `#ededed` (white vinyl left unprinted or printed white) |
-| Cut | Kiss-cut along the `CutContour` group (100% magenta, 0.25 pt, do not print) |
-| Vendor | Sticker Mule sticker sheets, or any kiss-cut sheet printer that accepts a CutContour layer |
+| Sheet | 148.1 × 210.1 mm (5.83 × 8.27 in) |
+| Stock | White sticker vinyl, glossy finish, for indoor use (Fourthwall lists MPI 3000 Gloss HOP in the EU and promotional monomeric PVC in the US) |
+| Border | Fourthwall adds a 0.12 in (3 mm) white border around every sticker |
+| Background | Custom color, `#0a0a0a` |
+| Upload | `artwork/png/sticker-sheet-stickers.png`, 1749 × 2481 px at 300 DPI, transparent everywhere outside the stickers |
+| Source | `artwork/sticker-sheet.svg` (the `border-preview` group shows Fourthwall's border; it is not uploaded) |
+
+Compared with the original 4 × 6 in matte design: the sheet is larger and glossy, and because the stock is white with a white border, the stickers are white shapes with black artwork on a black sheet. The ▼ is the exception: a black ▼ that gets the white border as its outline.
 
 ## Stickers
 
-| Sticker | Size | Cut |
+| Sticker | Size (before the border) | Shape |
 | --- | --- | --- |
-| ▼ | 52 mm wide | The triangle, offset 1.6 mm outside the art |
-| ▼ Text.js wordmark (Geist SemiBold) | 56.4 × 18 mm | Rounded rectangle, 4 mm radius |
-| `%c` (the console's CSS format specifier, Geist Mono) | 22 × 22 mm | Rounded square, 4 mm radius |
-| ▼ from the console's block-letter font (7, 5, 3 and 1 cells) | 26.2 × 22 mm | Rounded rectangle, 4 mm radius |
-| ⌘ | 17 × 17 mm | Rounded square, 3.2 mm radius |
-| ⌥ | 17 × 17 mm | Rounded square, 3.2 mm radius |
-| J | 17 × 17 mm | Rounded square, 3.2 mm radius |
+| ▼ | 64 × 56 mm | Cut to the triangle |
+| ▼ Text.js wordmark (Geist SemiBold) | 84 × 24 mm | Rounded rectangle, 5 mm radius |
+| `%c` (the console's CSS format specifier, Geist Mono) | 30 × 30 mm | Rounded square |
+| ▼ from the console's block-letter font (7, 5, 3 and 1 cells) | 39.2 × 30 mm | Rounded rectangle |
+| ⌘ | 26 × 26 mm | Rounded square |
+| ⌥ | 26 × 26 mm | Rounded square |
+| J | 26 × 26 mm | Rounded square |
 
-⌘ and ⌥ are drawn as 0.85 mm strokes because Geist has no glyphs for them; expand strokes to fills if the printer's RIP requires it.
+Gaps between stickers are at least 14 mm, so their borders stay more than 0.25 in apart, as Fourthwall asks. ⌘ and ⌥ are drawn as 1.2 mm strokes because Geist has no glyphs for them.
 
-## Mockups
+## Photos
 
-`mockups/stickers-1.webp` (sheet), `-2` (detail).
+`photos/final/stickers-1.webp` (sheet), `-2` (stickers on a laptop).

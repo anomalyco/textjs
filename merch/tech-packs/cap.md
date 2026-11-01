@@ -1,6 +1,10 @@
-# 003 Cap, Black
+# 002 Cap, Black
 
 An unstructured six-panel cap with the ▼ on the front and textjs.org above the strap, both tonal.
+
+## Production
+
+Fourthwall on demand: Yupoong Classic Dad Hat (6245CM), embroidered, Black, from $15.65 base, no minimum. Areas used: Front Large and Back. Fourthwall's embroidery limits are 15,000 stitches, six thread colors, lowercase letters at least 0.25 in tall and strokes at least 0.05 in thick; the back text below was sized to meet them.
 
 ## Blank
 
@@ -32,9 +36,9 @@ An unstructured six-panel cap with the ▼ on the front and textjs.org above the
 | | |
 | --- | --- |
 | Artwork | `artwork/cap-back.svg` (Geist Mono Bold, outlined) |
-| Size | 53.66 × 8.38 mm (2.11 in wide, 0.25 in cap height) |
+| Size | 72.98 × 11.4 mm (2.87 in wide, 0.34 in cap height, 0.26 in lowercase) |
 | Placement | Centered above the strap opening, baseline 0.375 in above the top of the opening |
-| Stitch | Satin columns; stems are about 1.1 mm at this size, the minimum for clean satin |
+| Stitch | Satin columns; stems are about 1.5 mm at this size |
 | Thread | Same black as the front |
 
 ## Care
@@ -43,4 +47,4 @@ Spot clean with cold water. Air dry.
 
 ## Mockups
 
-`mockups/cap-1.webp` (three-quarter front), `-2` (back).
+`photos/final/cap-1.webp` (three-quarter front), `-2` (back), `-3` (embroidery close-up). Fourthwall upload: `artwork/png/cap-front.png` and `cap-back.png`.

@@ -2,6 +2,12 @@
 
 The back print is the first frame textjs.org renders into the DevTools console: the home companion app at 104 × 32 cells, captured from the real `console.log` call by `scripts/frame.tsx`. The front print is that frame's first line.
 
+## Production
+
+Fourthwall bespoke request, sold as a pre-order drop (see `LAUNCH.md`). Screen printing on Fourthwall needs a minimum order: the Help Center says 75 units, the pricing sheet 48 to 50; confirm with the quote. The sourcing team quotes the blank, inks and labels, so everything below is the spec to send them.
+
+Fallback without a minimum: AS Colour 5082 Premium Oversized Faded Tee (7.1 oz, 100% cotton, garment dyed) printed on demand by DTG, front, back and Inside Label areas, from $24.17 base. What changes: the print is digital, the three grays are reproduced from the file instead of mixed to Pantone, dark-garment DTG whites are less opaque than discharge, and the shirt isn't US-made, so the label and the product page details change with it. Shaka Wear's Max Heavyweight Garment-Dyed Tee (7.5 oz, US cotton) is the heavier option but prints DTFx only, a film transfer that would sit stiff across a 12 in back print.
+
 ## Blank
 
 | | |
@@ -72,4 +78,6 @@ Machine wash cold, inside out. Tumble dry low or hang dry. Do not iron the print
 
 ## Mockups
 
-`mockups/frame-tee-1.webp` (front and back), `-2` (back), `-3` (front), `-4` (back print detail).
+`photos/final/frame-tee-1.webp` (front and back), `-2` (back), `-3` (front), `-4` (back print close-up), `-5` (neck label).
+
+For Fourthwall's designer: `artwork/png/frame-tee-back.png` (3600 × 2462 px), `frame-tee-front.png` and `neck-label.png`, all 300 DPI.

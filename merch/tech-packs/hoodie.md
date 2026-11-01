@@ -1,6 +1,10 @@
-# 002 Hoodie, Black
+# 004 Hoodie, Black (later drop)
 
 A heavyweight hoodie with the ▼ embroidered at the chest in black thread on black.
+
+## Production
+
+Not in the first drop. On Fourthwall the closest on-demand blank is the AS Colour 5161 Premium Relaxed Hoodie, embroidered (9.4 oz, 80% cotton and 20% recycled polyester fleece, lined hood with no drawcord, dropped shoulders, from $41.24 base, Center Chest area). It is lighter and softer than the HF09 and not garment dyed. For the HF09 itself, submit a bespoke request with this tech pack; that brings a minimum order and a pre-order drop like the tee.
 
 ## Blank
 
@@ -39,4 +43,4 @@ Machine wash cold, inside out. Tumble dry low or hang dry.
 
 ## Mockups
 
-`mockups/hoodie-1.webp` (front), `-2` (embroidery detail).
+`photos/final/hoodie-1.webp` (front), `-2` (flat), `-3` (embroidery close-up). Fourthwall upload: `artwork/png/hoodie-chest.png`.

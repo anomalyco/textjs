@@ -1,4 +1,4 @@
-# 005 Keycap Set, ⌘ ⌥ J
+# 005 Keycap Set, ⌘ ⌥ J (later drop)
 
 ⌘⌥J opens the Console in Chrome DevTools on macOS. Three keycaps, one per key.
 
@@ -22,6 +22,10 @@
 
 Legends are centered on the top surface, 0.8 mm toward the back, like standard Cherry legends. J keeps the manufacturer's homing bar.
 
+## Production
+
+Fourthwall's only keycap is the Infinikey Single Custom Keycap (Cherry profile, PBT, dye-sublimated), and it needs 2,000 orders, a $30 sample and 45 to 70 days, so the set doesn't fit Fourthwall's catalog. The practical route is to buy the sets from a small-batch maker below and list them on Fourthwall as a self-fulfilled product (no platform fee; Anomaly ships them) or, if Anomaly has Fourthwall Pro and 3PL access, send them to Fourthwall's warehouse ($1.35 per item fulfilled).
+
 ## Vendors
 
 - **Sample and small runs:** Cherry-profile PBT dye-sub with no minimum from Goblintechkeys or Diykeycap (7 to 10 business days at Diykeycap).
@@ -29,4 +33,4 @@ Legends are centered on the top surface, 0.8 mm toward the back, like standard C
 
 ## Mockups
 
-`mockups/keycaps-1.webp` (set), `-2` (J detail).
+`photos/final/keycaps-1.webp` (set), `-2` (on a keyboard).

@@ -1,6 +1,10 @@
-# 006 Notebook
+# 006 Notebook (later drop)
 
 An A5 hardcover notebook with the ▼ blind-debossed on the cover.
+
+## Production
+
+Fourthwall's notebook is the JournalBook Hardcover Bound Notebook: 5.5 × 8.5 in, UltraHyde cover, 80 lined pages, UV printed, $13.21 base. It can't blind deboss, so the ▼ would be printed, and the pages are lined. The spec below needs Leuchtturm1917's business service (blind deboss from 50 units), sold on Fourthwall as a self-fulfilled product or through its 3PL.
 
 ## Blank
 
@@ -25,4 +29,4 @@ An A5 hardcover notebook with the ▼ blind-debossed on the cover.
 
 ## Mockups
 
-`mockups/notebook-1.webp` (cover), `-2` (dot-grid spread).
+`photos/final/notebook-1.webp` (cover), `-2` (deboss close-up), `-3` (dot-grid spread).
