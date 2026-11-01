@@ -66,6 +66,7 @@ const work = join(OUT, "work", slug);
 const job = jobDir(slug);
 const captureDir = join(job, "capture");
 mkdirSync(publish, { recursive: true });
+mkdirSync(work, { recursive: true });
 mkdirSync(captureDir, { recursive: true });
 
 log(`▼ ${chapter.title} · narration (${providerName} ${JSON.stringify(tts.describe())})`);
@@ -156,6 +157,7 @@ try {
   if (opt.still?.length || opt.scene) vm(["pull", ROOT, ...vmName, `out/work/${slug}/`, join(work, "vm") + "/"]);
   else {
     vm(["pull", ROOT, ...vmName, `out/learn/${slug}/`, publish + "/"]);
+    mkdirSync(join(OUT, "review", slug), { recursive: true });
     vm(["pull", ROOT, ...vmName, `out/review/${slug}/`, join(OUT, "review", slug) + "/"]);
     log(`  → ${publish}`);
   }
