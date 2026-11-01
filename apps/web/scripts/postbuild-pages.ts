@@ -134,7 +134,8 @@ function withRouteHeadHints(html: string, routePath: string, markup: string): st
   }
   if (earlyLinks.length > 0) {
     if (css.length > 0) out = out.replace(/\s*<link rel="stylesheet"[^>]*>/g, "");
-    out = out.replace(/(<link rel="preload" href="\/fonts\/)/, `${earlyLinks.join("\n    ")}\n    $1`);
+    // Place stylesheets & priority image preloads right after inline @font-face (after font preloads, before module scripts).
+    out = out.replace("</style>", `</style>\n    ${earlyLinks.join("\n    ")}`);
   }
   const extraHead: string[] = [];
   const route = server.matchRoute(routePath);

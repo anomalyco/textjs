@@ -103,7 +103,7 @@ export interface ViewportControlProps {
   activeColor?: string;
 }
 
-const MONO = '"Geist Mono", ui-monospace, "SF Mono", Menlo, monospace';
+const MONO = '"Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menlo, monospace';
 
 /**
  * A one-line console size picker: "Fit console" (follow docked DevTools) or a
@@ -193,7 +193,7 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
       {/* Room for the longest label ("Fit console · 200×60") so the size arriving never shifts layout.
           While fitting, it is left-aligned so the measured size is appended without moving "Fit console";
           a fixed size gets a fresh node (a new node is not a layout shift) aligned next to the chevron. */}
-      <span key={responsive ? "fit" : "fixed"} aria-hidden="true" style={{ minWidth: "20ch", textAlign: responsive ? "left" : "right" }}>
+      <span key={responsive ? "fit" : "fixed"} aria-hidden="true" style={{ minWidth: 146, textAlign: responsive ? "left" : "right" }}>
         {label}
       </span>
       <svg aria-hidden="true" width="8" height="8" viewBox="0 0 8 8" style={{ opacity: 0.8 }}>
