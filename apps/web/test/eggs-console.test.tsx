@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { act } from "react";
 import { CompanionApp } from "../src/console-companion/App";
 import { siteStore } from "../src/console-companion/store";
+import { DashboardDemo } from "../src/demos/Dashboard";
 import { partsFromSteps, scriptFor } from "../src/demos/opencode/model";
 import { render } from "../src/entry-server";
 import { resetLocation } from "../src/router";
@@ -65,6 +66,37 @@ describe("OpenCode sandbox: center a div", () => {
     }
     expect(f).toContain("which centers its children on both axes");
     expect(f).toContain("bun run lint");
+    await h.unmount();
+  });
+});
+
+describe("Dashboard: dev1", () => {
+  test("the fifth region shows this renderer's own stats", async () => {
+    const h = await mount(<DashboardDemo />, { cols: 100, rows: 26 });
+    let f = h.frame();
+    expect(f).toContain("iad1  sfo1  fra1  hnd1  dev1");
+    expect(f).toContain("Requests / s");
+    for (let i = 0; i < 4; i++) await h.key("right");
+    f = h.frame();
+    expect(f).toContain("Frames / s");
+    expect(f).toContain("Frame time");
+    expect(f).toContain("%c spans");
+    expect(f).not.toContain("Requests / s");
+    // The next series tick re-renders with the stats of the frame just emitted.
+    const s = h.root.renderer.stats();
+    expect(s.frameCount).toBeGreaterThan(0);
+    await h.wait(950);
+    f = h.frame();
+    const values = f.split("\n").find((l) => l.includes("ms") && !l.includes("Frame time")) ?? "";
+    expect(values.split(/\s+/).filter(Boolean)).toEqual([s.fps.toFixed(1), `${s.totalMs.toFixed(3)}ms`, String(s.spanCount)]);
+    await h.key("right");
+    expect(h.frame()).toContain("Requests / s");
+    await h.unmount();
+  });
+
+  test("the region row fits the narrowest console (40 cols)", async () => {
+    const h = await mount(<DashboardDemo />, { cols: 40, rows: 26 });
+    expect(h.frame().split("\n")[0]).toBe("  iad1  sfo1  fra1  hnd1  dev1");
     await h.unmount();
   });
 });
