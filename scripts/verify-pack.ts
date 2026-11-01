@@ -30,10 +30,10 @@ function sh(cmd: string, args: string[], cwd: string, env?: Record<string, strin
 }
 
 /** Pack every package into `work/` and return `name → tarball path`. */
-function pack(work: string, build: boolean): Record<string, string> {
+export function packPackages(work: string, build: boolean, packages: ReadonlyArray<readonly [string, string]> = PACKAGES): Record<string, string> {
   if (build) sh("bun", ["run", "build:packages"], root);
   const out: Record<string, string> = {};
-  for (const [name, dir] of PACKAGES) {
+  for (const [name, dir] of packages) {
     const dest = join(work, name.replace("/", "__"));
     mkdirSync(dest, { recursive: true });
     sh("bun", ["pm", "pack", "--destination", dest, "--ignore-scripts", "--quiet"], join(root, dir));
@@ -226,7 +226,7 @@ async function runMcp(name: string, cmd: string[], app: string): Promise<Result>
 async function main(argv: string[]): Promise<number> {
   const work = mkdtempSync(join(tmpdir(), "textjs-verify-pack-"));
   console.log(`▼ verify-pack in ${work}`);
-  const tarballs = pack(work, !argv.includes("--skip-build"));
+  const tarballs = packPackages(work, !argv.includes("--skip-build"));
   const app = join(work, "app");
   scaffold(app, tarballs);
   console.log(sh("bun", ["install", "--no-save"], app).trim().split("\n").slice(-2).join("\n"));
