@@ -12,9 +12,13 @@ function load(file: string): opentype.Font {
 
 export const fonts = {
   mono: load("geist-mono/GeistMono-Regular.ttf"),
+  monoMedium: load("geist-mono/GeistMono-Medium.ttf"),
+  monoSemiBold: load("geist-mono/GeistMono-SemiBold.ttf"),
   monoBold: load("geist-mono/GeistMono-Bold.ttf"),
   sans: load("geist-sans/Geist-Regular.ttf"),
+  sansMedium: load("geist-sans/Geist-Medium.ttf"),
   sansSemiBold: load("geist-sans/Geist-SemiBold.ttf"),
+  sansBold: load("geist-sans/Geist-Bold.ttf"),
 };
 
 /** Geist Mono advance width in em. */

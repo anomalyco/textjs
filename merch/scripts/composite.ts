@@ -46,6 +46,17 @@ export interface Layer {
   src?: [Point, Point, Point];
   dst?: [Point, Point, Point];
   feather?: number;
+  /**
+   * The surface is a vertical cylinder (a bottle, a cap's crown): `cx` is its axis and `r` its radius in
+   * photo pixels. The quad is then given in unrolled coordinates, where x is arc length from the axis.
+   */
+  cylinder?: { cx: number; r: number; elev?: number };
+  /** A soft cast shadow under the layer (stickers): offset and blur in photo pixels. */
+  shadow?: { dx: number; dy: number; blur: number; opacity: number };
+  /** Lights the top-left edge and darkens the bottom-right edge of a print, for a thin raised material. */
+  edge?: number;
+  /** Embroidery thread color: the stitch photo supplies only the thread's light and texture. */
+  thread?: string;
 }
 
 export interface Job {
@@ -209,6 +220,20 @@ export async function composite(job: Job): Promise<Buffer> {
         tctx.drawImage(t, 0, 0, tw, th);
         tex = tctx.getImageData(0, 0, tw, th).data;
       }
+      // Stitch photo luminance statistics, for recoloring its thread.
+      let texMean = 0, texStd = 1;
+      if (tex) {
+        let sum = 0, sq = 0;
+        const n = tex.length / 4;
+        for (let k = 0; k < tex.length; k += 4) {
+          const l = (0.2126 * tex[k]! + 0.7152 * tex[k + 1]! + 0.0722 * tex[k + 2]!) / 255;
+          sum += l;
+          sq += l * l;
+        }
+        texMean = sum / n;
+        texStd = Math.sqrt(Math.max(1e-6, sq / n - texMean * texMean));
+      }
+      const thread = layer.thread ? [parseInt(layer.thread.slice(1, 3), 16), parseInt(layer.thread.slice(3, 5), 16), parseInt(layer.thread.slice(5, 7), 16)] : null;
       const fixed = layer.color ? [parseInt(layer.color.slice(1, 3), 16), parseInt(layer.color.slice(3, 5), 16), parseInt(layer.color.slice(5, 7), 16)] : null;
 
       const inv = invert(homography(q as number[][]));
@@ -219,9 +244,28 @@ export async function composite(job: Job): Promise<Buffer> {
         return (at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx) * (1 - fy) + (at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx) * fy;
       };
       const alphaAt = (u: number, v: number): number => sample(u, v, 3) / 255;
+      const cyl = layer.cylinder;
+      /** Photo position → art coordinates (through the cylinder, if any). */
+      const toUV = (px0: number, py0: number): [number, number] => {
+        let sx = px0, sy = py0;
+        if (cyl) {
+          // Unroll: arc length across, and undo the curve a horizontal line takes when seen from above (elev = sine of the view's elevation).
+          const t = Math.asin(Math.max(-0.999, Math.min(0.999, (px0 - cyl.cx) / cyl.r)));
+          sx = cyl.cx + cyl.r * t;
+          sy = py0 + cyl.r * (cyl.elev ?? 0) * (1 - Math.cos(t));
+        }
+        const w = inv[6]! * sx + inv[7]! * sy + inv[8]!;
+        return [(inv[0]! * sx + inv[1]! * sy + inv[2]!) / w, (inv[3]! * sx + inv[4]! * sy + inv[5]!) / w];
+      };
+      const alphaPx = (px0: number, py0: number): number => {
+        const [uu, vv] = toUV(px0, py0);
+        return alphaAt(uu, vv);
+      };
+      const sh = layer.shadow;
+      const RING = Array.from({ length: 12 }, (_, k) => [Math.cos((k * Math.PI) / 6), Math.sin((k * Math.PI) / 6)] as const);
 
       const xs = q.map((p) => p[0]!), ys = q.map((p) => p[1]!);
-      const pad = (layer.relief ?? 0) * 3 + 4;
+      const pad = (layer.relief ?? 0) * 3 + 4 + (sh ? Math.abs(sh.dx) + Math.abs(sh.dy) + sh.blur * 2 : 0) + (cyl ? cyl.r * (cyl.elev ?? 0) : 0);
       const minX = Math.max(0, Math.floor(Math.min(...xs) - pad)), maxX = Math.min(W - 1, Math.ceil(Math.max(...xs) + pad));
       const minY = Math.max(0, Math.floor(Math.min(...ys) - pad)), maxY = Math.min(H - 1, Math.ceil(Math.max(...ys) + pad));
       const disp = layer.displace ?? 0;
@@ -239,20 +283,31 @@ export async function composite(job: Job): Promise<Buffer> {
           const gx = (mid[Math.min(W * H - 1, i + 1)]! - mid[Math.max(0, i - 1)]!) * 0.5;
           const gy = (mid[Math.min(W * H - 1, i + W)]! - mid[Math.max(0, i - W)]!) * 0.5;
           const sx = x + 0.5 + gx * disp * 40, sy = y + 0.5 + gy * disp * 40;
-          const w = inv[6]! * sx + inv[7]! * sy + inv[8]!;
-          const u = (inv[0]! * sx + inv[1]! * sy + inv[2]!) / w;
-          const v = (inv[3]! * sx + inv[4]! * sy + inv[5]!) / w;
+          const [u, v] = toUV(sx, sy);
           const o = i * 4;
           const light = Math.min(1.6, Math.max(0.45, mid[i]! / Math.max(0.02, wide[i]!)));
           const grain = lum[i]! - fine[i]!; // weave and fibre detail
           if (layer.mode === "print" || layer.mode === "flat") {
             const a = alphaAt(u, v);
+            if (sh && a < 1) {
+              let sa = alphaPx(sx - sh.dx, sy - sh.dy) * 2;
+              for (const [cx0, cy0] of RING) sa += alphaPx(sx - sh.dx + cx0 * sh.blur, sy - sh.dy + cy0 * sh.blur) + alphaPx(sx - sh.dx + cx0 * sh.blur * 0.5, sy - sh.dy + cy0 * sh.blur * 0.5);
+              const k = 1 - sh.opacity * (sa / 26) * (1 - a);
+              for (let ch = 0; ch < 3; ch++) px[o + ch] = px[o + ch]! * k;
+            }
             if (a <= 0) continue;
             const s = layer.mode === "flat" ? 1 : 1 + (light - 1) * shade;
             const cover = Math.min(1, Math.max(0, a * opacity * (1 + grain * texture * 10)));
-            const sheen = (layer.gloss ?? 0) * Math.max(0, mid[i]! - 0.05) * 255;
+            let sheen = (layer.gloss ?? 0) * Math.max(0, mid[i]! - 0.05) * 255;
+            let edgeK = 1;
+            if (layer.edge) {
+              const lit = Math.max(0, a - alphaPx(sx - 1.3, sy - 1.3));
+              const dark = Math.max(0, a - alphaPx(sx + 1.3, sy + 1.3));
+              sheen += lit * layer.edge * 60;
+              edgeK = 1 - dark * layer.edge * 0.45;
+            }
             for (let ch = 0; ch < 3; ch++) {
-              const ink = (fixed ? fixed[ch]! : sample(u, v, ch) / Math.max(a, 0.001)) * s + grain * texture * 255 * 0.6 + sheen;
+              const ink = ((fixed ? fixed[ch]! : sample(u, v, ch) / Math.max(a, 0.001)) * s + grain * texture * 255 * 0.6 + sheen) * edgeK;
               px[o + ch] = px[o + ch]! * (1 - cover) + Math.min(255, Math.max(0, ink)) * cover;
             }
           } else if (layer.mode === "embroidery") {
@@ -269,9 +324,18 @@ export async function composite(job: Job): Promise<Buffer> {
             if (tex) {
               // Mirrored tiling, so the stitch photo repeats without visible seams.
               const fx = ((u * aw) % (2 * tw) + 2 * tw) % (2 * tw), fy = ((v * ah) % (2 * th) + 2 * th) % (2 * th);
-              const tx = Math.floor(fx < tw ? fx : 2 * tw - 1 - fx), ty = Math.floor(fy < th ? fy : 2 * th - 1 - fy);
+              const tx = Math.max(0, Math.min(tw - 1, Math.floor(fx < tw ? fx : 2 * tw - 1 - fx))), ty = Math.max(0, Math.min(th - 1, Math.floor(fy < th ? fy : 2 * th - 1 - fy)));
               const k = (ty * tw + tx) * 4;
               rgb = [tex[k]!, tex[k + 1]!, tex[k + 2]!];
+              if (thread) {
+                const l = (0.2126 * rgb[0]! + 0.7152 * rgb[1]! + 0.0722 * rgb[2]!) / 255;
+                // Satin columns are rounded: darker toward the edge of each stroke.
+                let inner = 0;
+                for (const [cx0, cy0] of RING) inner += alphaPx(sx + cx0 * 1.6, sy + cy0 * 1.6);
+                inner /= RING.length;
+                const f = Math.min(1.1, Math.max(0.45, 0.8 + 0.2 * ((l - texMean) / texStd))) * (0.68 + 0.32 * inner * inner);
+                rgb = [thread[0]! * f, thread[1]! * f, thread[2]! * f];
+              }
             }
             const edgeLight = Math.max(0, a - aUp) * 0.9 - Math.max(0, a - aDown) * 0.6;
             for (let ch = 0; ch < 3; ch++) {
