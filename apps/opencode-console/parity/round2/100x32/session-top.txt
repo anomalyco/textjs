@@ -1,0 +1,33 @@
+OpenCode TUI                                                                                         │ Text.js (text mcp)
+   Parity fixture                +                                                                   │    Parity fixture                +
+                                                                                                     │
+  ┃                                                                                                  │   ┃
+  ┃  Update the fixture limit and report the result.                                                 │   ┃  Update the fixture limit and report the result.
+  ┃                                                                                                  │   ┃
+                                                                                                     │
+     + Thought · 250ms                                                                               │      + Thought · 250ms
+                                                                                                     │
+     → Explored: 1 read                                                                              │      → Explored: 1 read
+                                                                                                     │
+  ┃                                                                                                  │   ┃
+  ┃  ← Edit src/limits.ts                                                                            │   ┃  ← Edit src/limits.ts
+  ┃                                                                                                  │   ┃
+  ┃    1 - export const limit = 5;                                                                   │   ┃    1 - export const limit = 5;
+  ┃    1 + export const limit = 10;                                                                  │   ┃    1 + export const limit = 10;
+  ┃                                                                                                  │   ┃
+                                                                                                     │
+  ┃                                                                                                  │   ┃
+  ┃  # Todos                                                                                         │   ┃  # Todos
+  ┃                                                                                                  │   ┃
+  ┃  [✓] Update the limit                                                                            │   ┃  [✓] Update the limit
+  ┃  [ ] Verify the change                                                                           │   ┃  [ ] Verify the change
+  ┃                                                                                                  │   ┃
+                                                                                                     │
+                                                                                  Jump to latest ↓   │                                                                                   Jump to latest ↓
+  ┃                                                                                                  │   ┃
+  ┃                                                                                                  │   ┃
+  ┃                                                                                                  │   ┃
+  ┃  Build · Big Pickle OpenCode                                                                     │   ┃  Build · Big Pickle OpenCode
+  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀   │   ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+  ~/project:master                                                      1.3K (1%)  ctrl+p commands   │   ~/project:master                                                      1.3K (1%)  ctrl+p commands
+                                                                                                     │

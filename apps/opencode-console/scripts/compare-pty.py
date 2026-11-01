@@ -96,7 +96,7 @@ def main():
                    XDG_DATA_HOME=tmp+'/data', XDG_CONFIG_HOME=tmp+'/config',
                    XDG_CACHE_HOME=tmp+'/cache', XDG_STATE_HOME=tmp+'/state',
                    TERM='tmux-256color', COLORTERM='truecolor', OPENCODE_DISABLE_AUTOUPDATE='1')
-        subprocess.run(['git', 'init', '-q', project], env=env, check=True)
+        subprocess.run(['git', 'init', '-q', '-b', 'master', project], env=env, check=True)
         sid, permission, question = cleanup.enter_context(fixture_server(env, project, opts.rich))
         subprocess.run(['bun', APP/'scripts/capture-mcp.ts', opts.out.resolve(), env['OPENCODE_SERVER_URL'], sid, permission, question],
                        cwd=ROOT, env=env, check=True, timeout=120)

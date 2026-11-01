@@ -1,0 +1,41 @@
+OpenCode TUI                                                                                                             │ Text.js (text mcp)
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                  Themes                                           esc                                   │                                   Themes                                           esc
+                                                                                                                         │
+                                  Search                                                                                 │                                   Search
+                                                                                                                         │
+                                  material                                                                               │                                   material
+                                  matrix                                                                                 │                                   matrix
+                                  mercury                                                                                │                                   mercury
+                                  monokai                                                                                │                                   monokai
+                                  nightowl                                                                               │                                   nightowl
+                       ┃          nord                                                                                   │                        ┃          nord
+                       ┃  Ask     one-dark                                                                               │                        ┃  Ask     one-dark
+                       ┃        ● opencode                                                                               │                        ┃        ● opencode
+                       ┃  Buil    orng                                                                                   │                        ┃  Buil    orng
+                       ╹▀▀▀▀▀▀    osaka-jade                                              ▀▀▀▀▀▀▀▀                       │                        ╹▀▀▀▀▀▀    osaka-jade                                              ▀▀▀▀▀▀▀▀
+                       ~/proje    palenight                                               commands                       │                        ~/proje    palenight                                               commands
+                                  rosepine                                                                               │                                   rosepine
+                                  solarized                                                                              │                                   solarized
+                                  synthwave84                                                                            │                                   synthwave84
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                         0.0.0-dev-233   │                                                                                                          0.0.0-dev-233
+                                                                                                                         │

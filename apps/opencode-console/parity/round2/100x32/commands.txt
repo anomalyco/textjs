@@ -1,0 +1,33 @@
+OpenCode TUI                                                                                         │ Text.js (text mcp)
+   Parity fixture                + New session                                                       │    Parity fixture                + New session
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                        Commands                                         esc                         │                         Commands                                         esc
+                                                                                                     │
+                        Search                                                                       │                         Search
+                                                                                                     │
+                        Suggested                                                                    │                         Suggested
+                        Switch session                              ctrl+x l                         │                         Switch session                              ctrl+x l
+                        Switch model                                ctrl+x m                         │                         Switch model                                ctrl+x m
+                        Connect an integration                                                       │                         Connect an integration
+             ┃          Open settings                                                                │              ┃          Open settings
+             ┃  Ask                                                                                  │              ┃  Ask
+             ┃          System                                                                       │              ┃          Session
+             ┃  Buil    Usage statistics                                                             │              ┃  Buil    Switch session                              ctrl+x l
+             ╹▀▀▀▀▀▀    Plugins                                                 ▀▀▀▀▀▀▀▀             │              ╹▀▀▀▀▀▀    New session                                 ctrl+x n    ▀▀▀▀▀▀▀▀
+             ~/proje    Open settings                                           commands             │              ~/proje    Clear session                                           commands
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                     0.0.0-dev-233   │                                                                                      0.0.0-dev-233
+                                                                                                     │

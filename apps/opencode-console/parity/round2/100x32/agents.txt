@@ -1,0 +1,33 @@
+OpenCode TUI                                                                                         │ Text.js (text mcp)
+   Parity fixture                + New session                                                       │    Parity fixture                + New session
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                        Select agent                                     esc                         │                         Select agent                                     esc
+                                                                                                     │
+                        Search                                                                       │                         Search
+                                                                                                     │
+                      ● build The default agent. Executes tools based on con                         │                       ● build The default agent. Executes tools based on con
+                        plan Read-only agent for exploring the codebase and                          │                         plan Read-only agent for exploring the codebase and
+                                                                                                     │
+                                                                                                     │
+             ┃                                                                                       │              ┃
+             ┃  Ask anything… "Fix broken tests"                                                     │              ┃  Ask anything… "Fix a TODO in the codebase"
+             ┃                                                                                       │              ┃
+             ┃  Build · Big Pickle OpenCode                                                          │              ┃  Build · Big Pickle OpenCode
+             ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀             │              ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+             ~/project:master                          shift+tab agents  ctrl+p commands             │              ~/project:master                          shift+tab agents  ctrl+p commands
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                     0.0.0-dev-233   │                                                                                      0.0.0-dev-233
+                                                                                                     │

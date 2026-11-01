@@ -1,0 +1,33 @@
+OpenCode TUI                                                                                         │ Text.js (text mcp)
+   Parity fixture                  Permission fixture            ? Question fixture              +   │    Parity fixture                ! Permission fixture            ? Question fixture              +
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+  ┃                                                                                                  │   ┃
+  ┃  Choose a branch                                                                                 │   ┃  Choose a branch
+  ┃                                                                                                  │   ┃
+  ┃  Branch                                                                                          │   ┃  Branch
+  ┃                                                                                                  │   ┃
+  ┃  1. main                                                                                         │   ┃  1. main
+  ┃  2. release                                                                                      │   ┃  2. release
+  ┃                                                                                                  │   ┃
+  ┃  ↑↓ select  enter submit  esc dismiss                                                            │   ┃  ↑↓ select  enter submit  esc dismiss
+  ┃                                                                                                  │   ┃
+                                                                                                     │

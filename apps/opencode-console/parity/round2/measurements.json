@@ -1,0 +1,1918 @@
+{
+  "stages": {
+    "requests": {
+      "100x32": {
+        "agents": {
+          "glyph": 738,
+          "fg": 741,
+          "bg": 3200,
+          "attrs": 144
+        },
+        "commands": {
+          "glyph": 703,
+          "fg": 704,
+          "bg": 3200,
+          "attrs": 67
+        },
+        "home": {
+          "glyph": 551,
+          "fg": 483,
+          "bg": 440,
+          "attrs": 29
+        },
+        "models": {
+          "glyph": 629,
+          "fg": 635,
+          "bg": 3200,
+          "attrs": 44
+        },
+        "permission": {
+          "glyph": 76,
+          "fg": 77,
+          "bg": 32,
+          "attrs": 36
+        },
+        "question": {
+          "glyph": 79,
+          "fg": 80,
+          "bg": 44,
+          "attrs": 33
+        },
+        "session": {
+          "glyph": 554,
+          "fg": 570,
+          "bg": 2037,
+          "attrs": 51
+        },
+        "sessions": {
+          "glyph": 625,
+          "fg": 619,
+          "bg": 3200,
+          "attrs": 84
+        }
+      },
+      "120x40": {
+        "agents": {
+          "glyph": 543,
+          "fg": 624,
+          "bg": 4800,
+          "attrs": 121
+        },
+        "commands": {
+          "glyph": 747,
+          "fg": 756,
+          "bg": 4800,
+          "attrs": 55
+        },
+        "home": {
+          "glyph": 193,
+          "fg": 305,
+          "bg": 296,
+          "attrs": 1
+        },
+        "models": {
+          "glyph": 634,
+          "fg": 638,
+          "bg": 4800,
+          "attrs": 54
+        },
+        "session": {
+          "glyph": 694,
+          "fg": 641,
+          "bg": 1666,
+          "attrs": 57
+        },
+        "sessions": {
+          "glyph": 565,
+          "fg": 566,
+          "bg": 4800,
+          "attrs": 60
+        }
+      },
+      "80x24": {
+        "agents": {
+          "glyph": 653,
+          "fg": 657,
+          "bg": 1920,
+          "attrs": 165
+        },
+        "commands": {
+          "glyph": 558,
+          "fg": 557,
+          "bg": 1920,
+          "attrs": 60
+        },
+        "home": {
+          "glyph": 513,
+          "fg": 445,
+          "bg": 440,
+          "attrs": 29
+        },
+        "models": {
+          "glyph": 581,
+          "fg": 586,
+          "bg": 1920,
+          "attrs": 62
+        },
+        "session": {
+          "glyph": 567,
+          "fg": 564,
+          "bg": 946,
+          "attrs": 38
+        },
+        "sessions": {
+          "glyph": 475,
+          "fg": 476,
+          "bg": 1920,
+          "attrs": 85
+        }
+      }
+    },
+    "transcript": {
+      "100x32": {
+        "agents": {
+          "glyph": 727,
+          "fg": 730,
+          "bg": 3200,
+          "attrs": 144
+        },
+        "commands": {
+          "glyph": 703,
+          "fg": 697,
+          "bg": 3200,
+          "attrs": 67
+        },
+        "home": {
+          "glyph": 540,
+          "fg": 468,
+          "bg": 218,
+          "attrs": 29
+        },
+        "models": {
+          "glyph": 629,
+          "fg": 627,
+          "bg": 3142,
+          "attrs": 44
+        },
+        "permission": {
+          "glyph": 62,
+          "fg": 63,
+          "bg": 32,
+          "attrs": 36
+        },
+        "question": {
+          "glyph": 65,
+          "fg": 64,
+          "bg": 32,
+          "attrs": 33
+        },
+        "session": {
+          "glyph": 613,
+          "fg": 591,
+          "bg": 895,
+          "attrs": 18
+        },
+        "sessions": {
+          "glyph": 625,
+          "fg": 619,
+          "bg": 3200,
+          "attrs": 84
+        }
+      },
+      "120x40": {
+        "agents": {
+          "glyph": 544,
+          "fg": 625,
+          "bg": 4800,
+          "attrs": 121
+        },
+        "commands": {
+          "glyph": 747,
+          "fg": 752,
+          "bg": 4800,
+          "attrs": 55
+        },
+        "home": {
+          "glyph": 230,
+          "fg": 213,
+          "bg": 0,
+          "attrs": 1
+        },
+        "models": {
+          "glyph": 634,
+          "fg": 632,
+          "bg": 4800,
+          "attrs": 54
+        },
+        "session": {
+          "glyph": 307,
+          "fg": 321,
+          "bg": 275,
+          "attrs": 2
+        },
+        "sessions": {
+          "glyph": 565,
+          "fg": 564,
+          "bg": 4800,
+          "attrs": 60
+        }
+      },
+      "80x24": {
+        "agents": {
+          "glyph": 653,
+          "fg": 611,
+          "bg": 1920,
+          "attrs": 165
+        },
+        "commands": {
+          "glyph": 558,
+          "fg": 554,
+          "bg": 1920,
+          "attrs": 60
+        },
+        "home": {
+          "glyph": 531,
+          "fg": 459,
+          "bg": 218,
+          "attrs": 29
+        },
+        "models": {
+          "glyph": 581,
+          "fg": 578,
+          "bg": 1920,
+          "attrs": 62
+        },
+        "session": {
+          "glyph": 457,
+          "fg": 435,
+          "bg": 567,
+          "attrs": 13
+        },
+        "sessions": {
+          "glyph": 475,
+          "fg": 476,
+          "bg": 1920,
+          "attrs": 85
+        }
+      }
+    },
+    "footer": {
+      "100x32": {
+        "agents": {
+          "glyph": 666,
+          "fg": 692,
+          "bg": 3200,
+          "attrs": 133
+        },
+        "commands": {
+          "glyph": 642,
+          "fg": 659,
+          "bg": 3200,
+          "attrs": 56
+        },
+        "home": {
+          "glyph": 451,
+          "fg": 380,
+          "bg": 186,
+          "attrs": 18
+        },
+        "models": {
+          "glyph": 568,
+          "fg": 589,
+          "bg": 3142,
+          "attrs": 33
+        },
+        "permission": {
+          "glyph": 0,
+          "fg": 10,
+          "bg": 12,
+          "attrs": 0
+        },
+        "question": {
+          "glyph": 0,
+          "fg": 18,
+          "bg": 12,
+          "attrs": 0
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 41,
+          "bg": 13,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 566,
+          "fg": 583,
+          "bg": 3200,
+          "attrs": 73
+        }
+      },
+      "120x40": {
+        "agents": {
+          "glyph": 442,
+          "fg": 567,
+          "bg": 4800,
+          "attrs": 121
+        },
+        "commands": {
+          "glyph": 683,
+          "fg": 695,
+          "bg": 4800,
+          "attrs": 55
+        },
+        "home": {
+          "glyph": 83,
+          "fg": 72,
+          "bg": 0,
+          "attrs": 1
+        },
+        "models": {
+          "glyph": 570,
+          "fg": 575,
+          "bg": 4800,
+          "attrs": 54
+        },
+        "permission": {
+          "glyph": 0,
+          "fg": 10,
+          "bg": 12,
+          "attrs": 0
+        },
+        "question": {
+          "glyph": 0,
+          "fg": 18,
+          "bg": 24,
+          "attrs": 0
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 28,
+          "bg": 13,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 463,
+          "fg": 507,
+          "bg": 4800,
+          "attrs": 60
+        }
+      },
+      "80x24": {
+        "agents": {
+          "glyph": 612,
+          "fg": 593,
+          "bg": 1920,
+          "attrs": 154
+        },
+        "commands": {
+          "glyph": 517,
+          "fg": 536,
+          "bg": 1920,
+          "attrs": 49
+        },
+        "home": {
+          "glyph": 462,
+          "fg": 391,
+          "bg": 186,
+          "attrs": 18
+        },
+        "models": {
+          "glyph": 540,
+          "fg": 560,
+          "bg": 1920,
+          "attrs": 51
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 22,
+          "bg": 13,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 452,
+          "fg": 477,
+          "bg": 1920,
+          "attrs": 74
+        }
+      }
+    },
+    "home": {
+      "100x32": {
+        "agents": {
+          "glyph": 381,
+          "fg": 564,
+          "bg": 3200,
+          "attrs": 124
+        },
+        "commands": {
+          "glyph": 557,
+          "fg": 602,
+          "bg": 3200,
+          "attrs": 56
+        },
+        "home": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "models": {
+          "glyph": 483,
+          "fg": 532,
+          "bg": 3142,
+          "attrs": 33
+        },
+        "permission": {
+          "glyph": 0,
+          "fg": 10,
+          "bg": 12,
+          "attrs": 0
+        },
+        "question": {
+          "glyph": 0,
+          "fg": 18,
+          "bg": 12,
+          "attrs": 0
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 345,
+          "fg": 495,
+          "bg": 3200,
+          "attrs": 57
+        }
+      },
+      "120x40": {
+        "agents": {
+          "glyph": 378,
+          "fg": 517,
+          "bg": 4800,
+          "attrs": 121
+        },
+        "commands": {
+          "glyph": 620,
+          "fg": 645,
+          "bg": 4800,
+          "attrs": 55
+        },
+        "home": {
+          "glyph": 37,
+          "fg": 20,
+          "bg": 0,
+          "attrs": 1
+        },
+        "models": {
+          "glyph": 507,
+          "fg": 525,
+          "bg": 4800,
+          "attrs": 54
+        },
+        "permission": {
+          "glyph": 0,
+          "fg": 10,
+          "bg": 12,
+          "attrs": 0
+        },
+        "question": {
+          "glyph": 0,
+          "fg": 18,
+          "bg": 24,
+          "attrs": 0
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 400,
+          "fg": 457,
+          "bg": 4800,
+          "attrs": 60
+        }
+      },
+      "80x24": {
+        "agents": {
+          "glyph": 338,
+          "fg": 476,
+          "bg": 1920,
+          "attrs": 145
+        },
+        "commands": {
+          "glyph": 432,
+          "fg": 479,
+          "bg": 1920,
+          "attrs": 49
+        },
+        "home": {
+          "glyph": 37,
+          "fg": 21,
+          "bg": 0,
+          "attrs": 1
+        },
+        "models": {
+          "glyph": 455,
+          "fg": 503,
+          "bg": 1920,
+          "attrs": 51
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 415,
+          "fg": 452,
+          "bg": 1920,
+          "attrs": 58
+        }
+      }
+    },
+    "dialogs": {
+      "100x32": {
+        "agents": {
+          "glyph": 133,
+          "fg": 23,
+          "bg": 0,
+          "attrs": 6
+        },
+        "commands": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "home": {
+          "glyph": 20,
+          "fg": 10,
+          "bg": 0,
+          "attrs": 1
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "permission": {
+          "glyph": 0,
+          "fg": 10,
+          "bg": 12,
+          "attrs": 0
+        },
+        "question": {
+          "glyph": 0,
+          "fg": 18,
+          "bg": 12,
+          "attrs": 0
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        }
+      },
+      "120x40": {
+        "agents": {
+          "glyph": 113,
+          "fg": 11,
+          "bg": 0,
+          "attrs": 6
+        },
+        "commands": {
+          "glyph": 16,
+          "fg": 16,
+          "bg": 0,
+          "attrs": 1
+        },
+        "home": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "permission": {
+          "glyph": 0,
+          "fg": 10,
+          "bg": 12,
+          "attrs": 0
+        },
+        "question": {
+          "glyph": 0,
+          "fg": 18,
+          "bg": 24,
+          "attrs": 0
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        }
+      },
+      "80x24": {
+        "agents": {
+          "glyph": 113,
+          "fg": 12,
+          "bg": 0,
+          "attrs": 6
+        },
+        "commands": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "home": {
+          "glyph": 20,
+          "fg": 10,
+          "bg": 0,
+          "attrs": 1
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 13,
+          "bg": 32,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        }
+      }
+    },
+    "pickers": {
+      "100x32": {
+        "agents": {
+          "glyph": 37,
+          "fg": 23,
+          "bg": 0,
+          "attrs": 1
+        },
+        "commands": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "help": {
+          "glyph": 37,
+          "fg": 23,
+          "bg": 0,
+          "attrs": 0
+        },
+        "home": {
+          "glyph": 37,
+          "fg": 21,
+          "bg": 0,
+          "attrs": 1
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "permission": {
+          "glyph": 0,
+          "fg": 10,
+          "bg": 12,
+          "attrs": 0
+        },
+        "question": {
+          "glyph": 0,
+          "fg": 18,
+          "bg": 12,
+          "attrs": 0
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 13,
+          "bg": 0,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "themes": {
+          "glyph": 84,
+          "fg": 38,
+          "bg": 116,
+          "attrs": 17
+        }
+      },
+      "120x40": {
+        "agents": {
+          "glyph": 37,
+          "fg": 22,
+          "bg": 0,
+          "attrs": 1
+        },
+        "commands": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "help": {
+          "glyph": 37,
+          "fg": 22,
+          "bg": 0,
+          "attrs": 0
+        },
+        "home": {
+          "glyph": 37,
+          "fg": 20,
+          "bg": 0,
+          "attrs": 1
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "permission": {
+          "glyph": 0,
+          "fg": 10,
+          "bg": 12,
+          "attrs": 0
+        },
+        "question": {
+          "glyph": 0,
+          "fg": 18,
+          "bg": 24,
+          "attrs": 0
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "themes": {
+          "glyph": 119,
+          "fg": 44,
+          "bg": 116,
+          "attrs": 17
+        }
+      },
+      "80x24": {
+        "agents": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "commands": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "help": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 0
+        },
+        "home": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "themes": {
+          "glyph": 48,
+          "fg": 29,
+          "bg": 116,
+          "attrs": 17
+        }
+      }
+    },
+    "final": {
+      "100x32": {
+        "agents": {
+          "glyph": 20,
+          "fg": 10,
+          "bg": 0,
+          "attrs": 1
+        },
+        "commands": {
+          "glyph": 57,
+          "fg": 22,
+          "bg": 0,
+          "attrs": 2
+        },
+        "help": {
+          "glyph": 20,
+          "fg": 10,
+          "bg": 0,
+          "attrs": 0
+        },
+        "home": {
+          "glyph": 20,
+          "fg": 10,
+          "bg": 0,
+          "attrs": 1
+        },
+        "home-draft": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 0
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "permission-always": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 11,
+          "attrs": 0
+        },
+        "permission": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 11,
+          "attrs": 0
+        },
+        "permission-full": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "question": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 24,
+          "attrs": 0
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 13,
+          "bg": 0,
+          "attrs": 0
+        },
+        "session-dracula": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "session-top": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "sidebar": {
+          "glyph": 0,
+          "fg": 14,
+          "bg": 100,
+          "attrs": 0
+        },
+        "themes": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        }
+      },
+      "120x40": {
+        "agents": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "commands": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "help": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "home": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "home-draft": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "permission-always": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "permission": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "permission-full": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "question": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 12,
+          "attrs": 0
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "session-dracula": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "session-top": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "sidebar": {
+          "glyph": 0,
+          "fg": 14,
+          "bg": 120,
+          "attrs": 0
+        },
+        "themes": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        }
+      },
+      "80x24": {
+        "agents": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "commands": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "help": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 0
+        },
+        "home": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "home-draft": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 0
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "session-dracula": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "session-top": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "sidebar": {
+          "glyph": 1,
+          "fg": 15,
+          "bg": 80,
+          "attrs": 0
+        },
+        "themes": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        }
+      }
+    },
+    "rich": {
+      "100x32": {
+        "agents": {
+          "glyph": 37,
+          "fg": 25,
+          "bg": 0,
+          "attrs": 1
+        },
+        "commands": {
+          "glyph": 57,
+          "fg": 22,
+          "bg": 0,
+          "attrs": 2
+        },
+        "help": {
+          "glyph": 41,
+          "fg": 28,
+          "bg": 4,
+          "attrs": 0
+        },
+        "home": {
+          "glyph": 37,
+          "fg": 21,
+          "bg": 0,
+          "attrs": 1
+        },
+        "home-draft": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 0
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "permission": {
+          "glyph": 0,
+          "fg": 10,
+          "bg": 12,
+          "attrs": 0
+        },
+        "question": {
+          "glyph": 0,
+          "fg": 18,
+          "bg": 23,
+          "attrs": 0
+        },
+        "session": {
+          "glyph": 821,
+          "fg": 808,
+          "bg": 372,
+          "attrs": 90
+        },
+        "session-dracula": {
+          "glyph": 821,
+          "fg": 833,
+          "bg": 372,
+          "attrs": 90
+        },
+        "session-top": {
+          "glyph": 322,
+          "fg": 323,
+          "bg": 861,
+          "attrs": 60
+        },
+        "sessions": {
+          "glyph": 14,
+          "fg": 4,
+          "bg": 0,
+          "attrs": 1
+        },
+        "themes": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        }
+      },
+      "120x40": {
+        "agents": {
+          "glyph": 20,
+          "fg": 11,
+          "bg": 0,
+          "attrs": 1
+        },
+        "commands": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "help": {
+          "glyph": 24,
+          "fg": 14,
+          "bg": 4,
+          "attrs": 0
+        },
+        "home": {
+          "glyph": 20,
+          "fg": 9,
+          "bg": 0,
+          "attrs": 1
+        },
+        "home-draft": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "permission": {
+          "glyph": 0,
+          "fg": 10,
+          "bg": 12,
+          "attrs": 0
+        },
+        "question": {
+          "glyph": 0,
+          "fg": 18,
+          "bg": 24,
+          "attrs": 0
+        },
+        "session": {
+          "glyph": 985,
+          "fg": 968,
+          "bg": 684,
+          "attrs": 102
+        },
+        "session-dracula": {
+          "glyph": 985,
+          "fg": 993,
+          "bg": 684,
+          "attrs": 102
+        },
+        "session-top": {
+          "glyph": 578,
+          "fg": 581,
+          "bg": 1380,
+          "attrs": 99
+        },
+        "sessions": {
+          "glyph": 14,
+          "fg": 3,
+          "bg": 0,
+          "attrs": 1
+        },
+        "themes": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        }
+      },
+      "80x24": {
+        "agents": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "commands": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "help": {
+          "glyph": 42,
+          "fg": 22,
+          "bg": 4,
+          "attrs": 0
+        },
+        "home": {
+          "glyph": 38,
+          "fg": 13,
+          "bg": 0,
+          "attrs": 1
+        },
+        "home-draft": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 0
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "session": {
+          "glyph": 472,
+          "fg": 499,
+          "bg": 146,
+          "attrs": 43
+        },
+        "session-dracula": {
+          "glyph": 472,
+          "fg": 491,
+          "bg": 146,
+          "attrs": 43
+        },
+        "session-top": {
+          "glyph": 110,
+          "fg": 109,
+          "bg": 380,
+          "attrs": 5
+        },
+        "sessions": {
+          "glyph": 14,
+          "fg": 4,
+          "bg": 0,
+          "attrs": 1
+        },
+        "themes": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        }
+      }
+    },
+    "rich-final": {
+      "100x32": {
+        "agents": {
+          "glyph": 20,
+          "fg": 12,
+          "bg": 0,
+          "attrs": 1
+        },
+        "commands": {
+          "glyph": 59,
+          "fg": 44,
+          "bg": 0,
+          "attrs": 12
+        },
+        "help": {
+          "glyph": 20,
+          "fg": 12,
+          "bg": 0,
+          "attrs": 0
+        },
+        "home": {
+          "glyph": 20,
+          "fg": 10,
+          "bg": 0,
+          "attrs": 1
+        },
+        "home-draft": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 0
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "permission-always": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 11,
+          "attrs": 0
+        },
+        "permission": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 12,
+          "attrs": 0
+        },
+        "permission-full": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "question": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 24,
+          "attrs": 0
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 13,
+          "bg": 0,
+          "attrs": 0
+        },
+        "session-dracula": {
+          "glyph": 0,
+          "fg": 68,
+          "bg": 0,
+          "attrs": 0
+        },
+        "session-top": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "sidebar": {
+          "glyph": 0,
+          "fg": 14,
+          "bg": 100,
+          "attrs": 0
+        },
+        "themes": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        }
+      },
+      "120x40": {
+        "agents": {
+          "glyph": 37,
+          "fg": 22,
+          "bg": 0,
+          "attrs": 1
+        },
+        "commands": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "help": {
+          "glyph": 37,
+          "fg": 22,
+          "bg": 0,
+          "attrs": 0
+        },
+        "home": {
+          "glyph": 37,
+          "fg": 20,
+          "bg": 0,
+          "attrs": 1
+        },
+        "home-draft": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "permission-always": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "permission": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "permission-full": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "question": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 11,
+          "attrs": 0
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "session-dracula": {
+          "glyph": 0,
+          "fg": 68,
+          "bg": 0,
+          "attrs": 0
+        },
+        "session-top": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        },
+        "sidebar": {
+          "glyph": 0,
+          "fg": 14,
+          "bg": 120,
+          "attrs": 0
+        },
+        "themes": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 1
+        }
+      },
+      "80x24": {
+        "agents": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "commands": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "help": {
+          "glyph": 38,
+          "fg": 18,
+          "bg": 0,
+          "attrs": 0
+        },
+        "home": {
+          "glyph": 38,
+          "fg": 13,
+          "bg": 0,
+          "attrs": 1
+        },
+        "home-draft": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 0
+        },
+        "models": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "session": {
+          "glyph": 0,
+          "fg": 13,
+          "bg": 0,
+          "attrs": 0
+        },
+        "session-dracula": {
+          "glyph": 0,
+          "fg": 33,
+          "bg": 0,
+          "attrs": 0
+        },
+        "session-top": {
+          "glyph": 0,
+          "fg": 0,
+          "bg": 0,
+          "attrs": 0
+        },
+        "sessions": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        },
+        "sidebar": {
+          "glyph": 0,
+          "fg": 14,
+          "bg": 80,
+          "attrs": 0
+        },
+        "themes": {
+          "glyph": 0,
+          "fg": 1,
+          "bg": 0,
+          "attrs": 1
+        }
+      }
+    }
+  },
+  "panels": {
+    "final/100x32/agents": {
+      "bounds": [
+        20,
+        8,
+        60,
+        9
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 1
+    },
+    "final/100x32/commands": {
+      "bounds": [
+        20,
+        8,
+        60,
+        17
+      ],
+      "glyph": 57,
+      "fg": 21,
+      "bg": 0,
+      "attrs": 2
+    },
+    "final/100x32/help": {
+      "bounds": [
+        20,
+        8,
+        60,
+        8
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "final/100x32/models": {
+      "bounds": [
+        20,
+        8,
+        60,
+        16
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 1
+    },
+    "final/100x32/permission-always": {
+      "bounds": [
+        2,
+        21,
+        96,
+        10
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "final/100x32/permission": {
+      "bounds": [
+        2,
+        23,
+        96,
+        8
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "final/100x32/permission-full": {
+      "bounds": [
+        2,
+        1,
+        96,
+        30
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "final/100x32/question": {
+      "bounds": [
+        2,
+        21,
+        96,
+        10
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "final/100x32/sessions": {
+      "bounds": [
+        6,
+        8,
+        88,
+        13
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 1
+    },
+    "final/100x32/themes": {
+      "bounds": [
+        20,
+        8,
+        60,
+        17
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 1
+    },
+    "final/120x40/agents": {
+      "bounds": [
+        30,
+        10,
+        60,
+        9
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 1
+    },
+    "final/120x40/commands": {
+      "bounds": [
+        30,
+        10,
+        60,
+        21
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 1
+    },
+    "final/120x40/help": {
+      "bounds": [
+        30,
+        10,
+        60,
+        8
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "final/120x40/models": {
+      "bounds": [
+        30,
+        10,
+        60,
+        16
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 1
+    },
+    "final/120x40/permission-always": {
+      "bounds": [
+        2,
+        29,
+        116,
+        10
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "final/120x40/permission": {
+      "bounds": [
+        2,
+        31,
+        116,
+        8
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "final/120x40/permission-full": {
+      "bounds": [
+        2,
+        1,
+        116,
+        38
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "final/120x40/question": {
+      "bounds": [
+        2,
+        29,
+        116,
+        10
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "final/120x40/sessions": {
+      "bounds": [
+        16,
+        10,
+        88,
+        13
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 1
+    },
+    "final/120x40/themes": {
+      "bounds": [
+        30,
+        10,
+        60,
+        21
+      ],
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 1
+    }
+  },
+  "replayedBefore": {
+    "100x32": {
+      "help": 612,
+      "themes": 412,
+      "permission": 321,
+      "question": 297,
+      "sidebar": 1137
+    },
+    "120x40": {
+      "help": 485,
+      "themes": 422,
+      "permission": 341,
+      "question": 328,
+      "sidebar": 1214
+    }
+  },
+  "regions": {
+    "100x32": {
+      "Tab strip": {
+        "before": 51,
+        "after": 0
+      },
+      "Transcript body": {
+        "before": 287,
+        "after": 0
+      },
+      "Composer and footer": {
+        "before": 281,
+        "after": 0
+      }
+    },
+    "120x40": {
+      "Tab strip": {
+        "before": 51,
+        "after": 0
+      },
+      "Transcript body": {
+        "before": 387,
+        "after": 0
+      },
+      "Composer and footer": {
+        "before": 321,
+        "after": 0
+      }
+    }
+  }
+}

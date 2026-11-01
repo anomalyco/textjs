@@ -1,0 +1,33 @@
+OpenCode TUI                                                                                         │ Text.js (text mcp)
+   Parity fixture                + New session                                                       │    Parity fixture                + New session
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                        Themes                                           esc                         │                         Themes                                           esc
+                                                                                                     │
+                        Search                                                                       │                         Search
+                                                                                                     │
+                        mercury                                                                      │                         mercury
+                        monokai                                                                      │                         monokai
+                        nightowl                                                                     │                         nightowl
+                        nord                                                                         │                         nord
+             ┃          one-dark                                                                     │              ┃          one-dark
+             ┃  Ask   ● opencode                                                                     │              ┃  Ask   ● opencode
+             ┃          orng                                                                         │              ┃          orng
+             ┃  Buil    osaka-jade                                                                   │              ┃  Buil    osaka-jade
+             ╹▀▀▀▀▀▀    palenight                                               ▀▀▀▀▀▀▀▀             │              ╹▀▀▀▀▀▀    palenight                                               ▀▀▀▀▀▀▀▀
+             ~/proje    rosepine                                                commands             │              ~/proje    rosepine                                                commands
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                     0.0.0-dev-233   │                                                                                      0.0.0-dev-233
+                                                                                                     │

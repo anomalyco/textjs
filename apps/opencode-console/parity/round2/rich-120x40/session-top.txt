@@ -1,0 +1,41 @@
+OpenCode TUI                                                                                                             │ Text.js (text mcp)
+   Parity fixture                +                                                                                       │    Parity fixture                +
+                                                                                                                         │
+  ┃                                                                                                                      │   ┃
+  ┃  Show the change and the verification results.                                                                       │   ┃  Show the change and the verification results.
+  ┃                                                                                                                      │   ┃
+                                                                                                                         │
+  ┃                                                                                                                      │   ┃
+  ┃  # Wrote src/limit.ts                                                                                                │   ┃  # Wrote src/limit.ts
+  ┃                                                                                                                      │   ┃
+  ┃   1 export const limit = 10;                                                                                         │   ┃   1 export const limit = 10;
+  ┃   2                                                                                                                  │   ┃   2
+  ┃                                                                                                                      │   ┃
+                                                                                                                         │
+  ┃                                                                                                                      │   ┃
+  ┃  $ bun test                                                                                                          │   ┃  $ bun test
+  ┃                                                                                                                      │   ┃
+  ┃  2 pass                                                                                                              │   ┃  2 pass
+  ┃  0 fail                                                                                                              │   ┃  0 fail
+  ┃                                                                                                                      │   ┃
+                                                                                                                         │
+     Release notes                                                                                                       │      Release notes
+                                                                                                                         │
+     The limit is now 10. Keep the same units.                                                                           │      The limit is now 10. Keep the same units.
+                                                                                                                         │
+     - Updated the default                                                                                               │      - Updated the default
+     - Verified the tests                                                                                                │      - Verified the tests
+                                                                                                                         │
+     export const limit = 10;                                                                                            │      export const limit = 10;
+     const label = "done";                                                                                               │      const label = "done";
+                                                                                                                         │
+     │ Keep the override.                                                                                                │      │ Keep the override.
+                                                                                                                         │
+                                                                                                      Jump to latest ↓   │                                                                                                       Jump to latest ↓
+  ┃                                                                                                                      │   ┃
+  ┃                                                                                                                      │   ┃
+  ┃                                                                                                                      │   ┃
+  ┃  Build · Big Pickle OpenCode                                                                                         │   ┃  Build · Big Pickle OpenCode
+  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀   │   ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+  ~/project:master                                                                          1.3K (1%)  ctrl+p commands   │   ~/project:master                                                                          1.3K (1%)  ctrl+p commands
+                                                                                                                         │

@@ -49,7 +49,7 @@ def main():
             project = Path(tmp)/'project'; project.mkdir()
             env = dict(HOME=tmp, PATH=os.environ['PATH'], SHELL='/bin/sh', LANG='en_US.UTF-8', XDG_CONFIG_HOME=tmp+'/config',
                        XDG_CACHE_HOME=tmp+'/cache', XDG_STATE_HOME=tmp+'/state', XDG_DATA_HOME=tmp+'/data', OPENCODE_DISABLE_AUTOUPDATE='1', FIXTURE_KEY='fixture')
-            subprocess.run(['git','init','-q',project],env=env,check=True)
+            subprocess.run(['git','init','-q','-b','master',project],env=env,check=True)
             (project/'opencode.json').write_text(json.dumps({'model':'deterministic/fixture', 'providers':{'deterministic':{
                 'name':'Fixture','env':['FIXTURE_KEY'], 'package':'@opencode/ai/providers/openai-compatible',
                 'settings':{'baseURL':f'http://127.0.0.1:{model.server_port}/v1'},'models':{'fixture':{'name':'Fixture'}}}}}))

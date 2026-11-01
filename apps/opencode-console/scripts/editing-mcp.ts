@@ -34,6 +34,11 @@ try {
   }
   await call("press", { keys: "left delete ctrl+c" });
   await call("wait_for", { href: "/", text: "Ask anything", gone: "🔍" });
+  await call("navigate",{path:"/session/ses_demo_cart"});await call("resize",{cols:140,rows:40});
+  await call("wait_for",{text:["Context","tokens"],idle:true});await call("resize",{cols:100,rows:32});
+  await call("wait_for",{gone:"Context",idle:true});await call("press",{keys:"ctrl+x b"});
+  const overlay=await call("wait_for",{text:"Context",idle:true});assert.equal(overlay.focus.id,"session-sidebar");
+  const closed=await call("press",{keys:"escape"});assert.equal(closed.focus.id,"opencode-prompt");
   console.log("MCP: word jumping, kill-to-end, CRLF paste, Shift+Enter, wide caret across 3 resizes, Delete and clear verified");
 } finally {
   await c.close();

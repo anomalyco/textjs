@@ -1,0 +1,33 @@
+OpenCode TUI                                                                                         │ Text.js (text mcp)
+   Parity fixture                ! Permission fixture            +                                   │    Parity fixture                ! Permission fixture            +
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+  ┃                                                                                                  │   ┃
+  ┃  △ Permission required                                                                           │   ┃  △ Permission required
+  ┃                                                                                                  │   ┃
+  ┃  This will always allow the following patterns for this project.                                 │   ┃  This will always allow the following patterns for this project.
+  ┃                                                                                                  │   ┃
+  ┃  - echo fixture                                                                                  │   ┃  - echo fixture
+  ┃                                                                                                  │   ┃
+  ┃                                                                                                  │   ┃
+  ┃   Allow once   Always allow   Reject             ctrl+f fullscreen  ⇆ select  enter confirm      │   ┃   Allow once   Always allow   Reject             ctrl+f fullscreen  ⇆ select  enter confirm
+  ┃                                                                                                  │   ┃
+                                                                                                     │

@@ -1,0 +1,41 @@
+OpenCode TUI                                                                                                             │ Text.js (text mcp)
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                  Commands                                         esc                                   │                                   Commands                                         esc
+                                                                                                                         │
+                                  Search                                                                                 │                                   Search
+                                                                                                                         │
+                                  Suggested                                                                              │                                   Suggested
+                                  Switch model                                ctrl+x m                                   │                                   Switch model                                ctrl+x m
+                                  Connect an integration                                                                 │                                   Connect an integration
+                                  Open settings                                                                          │                                   Open settings
+                                                                                                                         │
+                       ┃          Session                                                                                │                        ┃          Session
+                       ┃  Ask     Switch session                              ctrl+x l                                   │                        ┃  Ask     Switch session                              ctrl+x l
+                       ┃          New session                                 ctrl+x n                                   │                        ┃          New session                                 ctrl+x n
+                       ┃  Buil    Clear session                                                                          │                        ┃  Buil    Clear session
+                       ╹▀▀▀▀▀▀    Open session or project                       ctrl+o    ▀▀▀▀▀▀▀▀                       │                        ╹▀▀▀▀▀▀    Open session or project                       ctrl+o    ▀▀▀▀▀▀▀▀
+                       ~/proje    Close tab                                   ctrl+x w    commands                       │                        ~/proje    Close tab                                   ctrl+x w    commands
+                                  Reopen closed tab                       ctrl+shift+t                                   │                                   Reopen closed tab                       ctrl+shift+t
+                                  Open editor                                 ctrl+x e                                   │                                   Open editor                                 ctrl+x e
+                                  Manage workspaces                                                                      │                                   Manage workspaces
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                         0.0.0-dev-233   │                                                                                                          0.0.0-dev-233
+                                                                                                                         │

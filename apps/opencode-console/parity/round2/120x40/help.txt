@@ -1,0 +1,41 @@
+OpenCode TUI                                                                                                             │ Text.js (text mcp)
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                 Help                                         esc/enter                                  │                                  Help                                         esc/enter
+                                                                                                                         │
+                                 Press ctrl+p to see all available actions and commands                                  │                                  Press ctrl+p to see all available actions and commands
+                                 in any context.                                                                         │                                  in any context.
+                                                                                                                         │
+                                                                                  ok                                     │                                                                                   ok
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                       ┃                                                                                                 │                        ┃
+                       ┃  Ask anything… "Fix a TODO in the codebase"                                                     │                        ┃  Ask anything… "Fix a TODO in the codebase"
+                       ┃                                                                                                 │                        ┃
+                       ┃  Build · Big Pickle OpenCode                                                                    │                        ┃  Build · Big Pickle OpenCode
+                       ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀                       │                        ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+                       ~/project:master                          shift+tab agents  ctrl+p commands                       │                        ~/project:master                          shift+tab agents  ctrl+p commands
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                         0.0.0-dev-233   │                                                                                                          0.0.0-dev-233
+                                                                                                                         │

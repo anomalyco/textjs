@@ -16,7 +16,7 @@ dest=APP/'.text/round2/before'
 with tempfile.TemporaryDirectory(dir=APP/'.text') as tmp:
     home=Path(tmp);project=home/'project';project.mkdir()
     env=dict(HOME=tmp,PATH=os.environ['PATH'],SHELL='/bin/sh',LANG='en_US.UTF-8',XDG_CONFIG_HOME=tmp+'/config',XDG_CACHE_HOME=tmp+'/cache',XDG_STATE_HOME=tmp+'/state',XDG_DATA_HOME=tmp+'/data',OPENCODE_DISABLE_AUTOUPDATE='1')
-    subprocess.run(['git','init','-q',project],env=env,check=True)
+    subprocess.run(['git','init','-q','-b','master',project],env=env,check=True)
     archive=subprocess.run(['git','archive','fc23e30','apps/opencode-console'],cwd=ROOT,capture_output=True,check=True)
     subprocess.run(['tar','-x','-C',home],input=archive.stdout,check=True)
     (home/'packages').symlink_to(ROOT/'packages',target_is_directory=True)

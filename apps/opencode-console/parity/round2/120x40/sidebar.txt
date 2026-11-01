@@ -1,0 +1,41 @@
+OpenCode TUI                                                                                                             │ Text.js (text mcp)
+   Parity fixture                +                                                                                       │    Parity fixture                +
+                                                                                                                         │
+  ┃                                                                             Parity fixture                           │   ┃                                                                             Parity fixture
+  ┃  Update the fixture limit and report the result.                                                                     │   ┃  Update the fixture limit and report the result.
+  ┃                                                                             Context                                  │   ┃                                                                             Context
+                                                                                1,342 tokens                             │                                                                                 1,342 tokens
+     + Thought · 250ms                                                          1% used                                  │      + Thought · 250ms                                                          1% used
+                                                                                                                         │
+     → Explored: 1 read                                                         Todo                                     │      → Explored: 1 read                                                         Todo
+                                                                                [✓] Update the limit                     │                                                                                 [✓] Update the limit
+  ┃                                                                             [ ] Verify the change                    │   ┃                                                                             [ ] Verify the change
+  ┃  ← Edit src/limits.ts                                                                                                │   ┃  ← Edit src/limits.ts
+  ┃                                                                                                                      │   ┃
+  ┃    1 - export const limit = 5;                                                                                       │   ┃    1 - export const limit = 5;
+  ┃    1 + export const limit = 10;                                                                                      │   ┃    1 + export const limit = 10;
+  ┃                                                                                                                      │   ┃
+                                                                                                                         │
+  ┃                                                                                                                      │   ┃
+  ┃  # Todos                                                                                                             │   ┃  # Todos
+  ┃                                                                                                                      │   ┃
+  ┃  [✓] Update the limit                                                                                                │   ┃  [✓] Update the limit
+  ┃  [ ] Verify the change                                                                                               │   ┃  [ ] Verify the change
+  ┃                                                                                                                      │   ┃
+                                                                                                                         │
+     Updated src/limits.ts from 5 to 10.                                                                                 │      Updated src/limits.ts from 5 to 10.
+                                                                                                                         │
+     Ready for verification.                                                      ⬖ Getting started                ✕     │      Ready for verification.                                                      ⬖ Getting started                ✕
+                                                                                                                         │
+     Build · Big Pickle · 4.0s                                                      OpenCode includes free models so     │      Build · Big Pickle · 4.0s                                                      OpenCode includes free models so
+                                                                                    you can start immediately.           │                                                                                     you can start immediately.
+                                                                                                                         │
+                                                                                    Connect from 75+ providers to        │                                                                                     Connect from 75+ providers to
+                                                                                    use other models, including          │                                                                                     use other models, including
+  ┃                                                                                 Claude, GPT, Gemini etc              │   ┃                                                                                 Claude, GPT, Gemini etc
+  ┃                                                                                                                      │   ┃
+  ┃                                                                                 Connect provider        /connect     │   ┃                                                                                 Connect provider        /connect
+  ┃  Build · Big Pickle OpenCode                                                                                         │   ┃  Build · Big Pickle OpenCode
+  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀                                           │   ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+  ~/project:master                                                              ~/project:master                         │   ~/project:master                                                              ~/project:master
+                                                                                                                         │

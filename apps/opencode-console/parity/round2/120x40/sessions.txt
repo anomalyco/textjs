@@ -1,0 +1,41 @@
+OpenCode TUI                                                                                                             │ Text.js (text mcp)
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                    Sessions for project                                                         esc                     │                     Sessions for project                                                         esc
+                                                                                                                         │
+                    Search                                                                                               │                     Search
+                                                                                                                         │
+                    Today                                                                                                │                     Today
+                    Question fixture                                                                                     │                     Question fixture
+                    Permission fixture                                                                                   │                     Permission fixture
+                    Parity fixture                                                                                       │                     Parity fixture
+                    Capture seed                                                                                         │                     Capture seed
+                                                                                                                         │
+                    delete ctrl+d  rename ctrl+r                                 all projects ctrl+a                     │                     delete ctrl+d  rename ctrl+r                                 all projects ctrl+a
+                                                                                                                         │
+                       ┃  Build · Big Pickle OpenCode                                                                    │                        ┃  Build · Big Pickle OpenCode
+                       ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀                       │                        ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+                       ~/project:master                          shift+tab agents  ctrl+p commands                       │                        ~/project:master                          shift+tab agents  ctrl+p commands
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                                         │
+                                                                                                         0.0.0-dev-233   │                                                                                                          0.0.0-dev-233
+                                                                                                                         │

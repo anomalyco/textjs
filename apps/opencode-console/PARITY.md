@@ -1,67 +1,93 @@
-# OpenCode TUI parity ledger
+# OpenCode TUI parity · round 2
 
-Reference: `opencode` V2 (`packages/tui` at `69269e4e`); installed binary for PTY comparisons: `0.0.0-dev-233`. The binary and checkout are not assumed identical. A passing functional test does not imply a screen match.
+**Compare the frame, not the feature name.** The native side is `opencode 0.0.0-dev-233` running in tmux, informed by the read-only V2 source at `69269e4e`. The primary Text.js side is `text mcp` over the official stdio SDK with `read_frame(styles=true, trim=false)`. `text run` is an independent ANSI cross-check. Both clients use the same isolated HTTP service and transcript. This is the classic TUI, not the experimental new-designs mode.
 
-## Test isolation
+## Results by area
 
-Only use ephemeral mock listeners, `opencode --standalone` with a disposable HOME/XDG profile, or a private server on an explicitly selected port. **Do not** test using a discovered service, the port-4096 bridge or a real user's sessions. Loading a session in either client can mark it viewed. Website browser tests must block other loopback ports.
+Before → after means **individual cells with different glyphs**, not differing lines, and not a similarity percentage inflated by blank cells. The standard whole-screen before values come from [round 1](PARITY-ROUND1.md); missing baseline views are replayed from `fc23e30` in a temporary directory. Rich-text “before” is the first capture of a *second* fixture, after the standard fixture already matched. `—` means no baseline case. Exact crops for the three transcript components use one tab row, the scroll viewport, and the last seven composer/footer rows.
 
-**Status: functional parity improved; not visually interchangeable.** The default home, palette, model/agent/session pickers and transcript still differ on all three viewport sizes. Permission and form screens are missing, not a console limitation.
+<!-- round2:metrics -->
+| Area | 100×32 mismatched glyphs | 120×40 mismatched glyphs |
+| --- | ---: | ---: |
+| Main transcript (whole screen) | 619 → **0** | 759 → **0** |
+| Tab strip | 51 → **0** | 51 → **0** |
+| Transcript body | 287 → **0** | 387 → **0** |
+| Composer and footer | 281 → **0** | 321 → **0** |
+| Permission | 321 → **0** | 341 → **0** |
+| Always allow: saved patterns | — → **0** | — → **0** |
+| Fullscreen permission | — → **0** | — → **0** |
+| Question | 297 → **0** | 328 → **0** |
+| Home (random example) | 533 → **20** | 193 → **0** |
+| Home (identical typed draft) | — → **0** | — → **0** |
+| Commands | 703 → **57** | 747 → **0** |
+| Models | 629 → **0** | 634 → **0** |
+| Agents | 720 → **20** | 543 → **0** |
+| Sessions | 625 → **0** | 565 → **0** |
+| Help | 612 → **20** | 485 → **0** |
+| Themes | 412 → **0** | 422 → **0** |
+| Switched to Dracula | — → **0** | — → **0** |
+| Context sidebar | 1137 → **0** | 1214 → **0** |
+| Rich transcript: latest | 821 → **0** | 985 → **0** |
+| Rich transcript: top | 322 → **0** | 578 → **0** |
+<!-- /round2:metrics -->
 
-## What works and what doesn't
+Source data: [glyph, foreground, background and attribute counts per stage and per dialog](parity/round2/measurements.json). [100×32 pairs](parity/round2/100x32/) · [120×40 pairs](parity/round2/120x40/) · [rich transcript](parity/round2/rich-100x32/) · [real DevTools frontend](parity/round2/devtools/). Left is native; right is Text.js via MCP. Compressed `.json.gz` files contain the native SGR and the full MCP styled frame, not screenshots reconstructed from the expected text.
 
-The [per-command inventory](parity/KEYBINDINGS.md) includes all keybind IDs and native defaults in the pinned V2 CLI reference. “Implemented” there describes behavior, not screen identity.
+### Iterations
 
-| Surface | Implemented and exercised | Still different / open |
-| --- | --- | --- |
-| Hosting, navigation | Both hosts mount the same session routes, components and event reducer. Web uses memory history, its original scripted scenarios, direct V1/V2 or bridge; standalone retains its proxy. | Static simulation is intentionally not a model or a real shell. |
-| Home and prompt | Two-tone glyph logo, 75-cell prompt limit, Unicode placeholder, dynamic multiline input, model/agent metadata, active editor and hints. | Footer positions, branch/version/status data, tab strip, rotation/animation, exact padding and semantic colors. |
-| Editor | Enter, modified Enter/Ctrl+J, text paste, readline word editing, history at buffer boundaries with draft restoration, soft-wrapped vertical movement, Unicode clusters. | Selection, undo/redo, paste summaries, image attachment preview/entry, file/agent @-completion, stash, editor context, external editor, queue/steer management. History is memory-only. |
-| Commands | Ctrl+P, 2-second Ctrl+X leader, locally dispatched `/models`, `/variants`, `/agents`, `/sessions`, `/themes`, `/new`, `/clear`, `/help`, `/copy`, `/compact`, `/rename <title>`; registered V2 project commands use `/command`, not `/prompt`. | Inline autocomplete, suggested/category grouping, exact picker geometry and backdrop, which-key, customizable CLI settings/keymap. |
-| Sessions | Create/open/rename, relative timestamps, open-session tab cycling/numeric selection/close/reopen. No delete on close. | Recent projects, visible tab strip, multi-project/session pagination and deep history, pin/delete/fork/move/revert, inline rename form, unread tab navigation, child picker. |
-| Model / agent | Live catalog, Shift+Tab for all primary agents, variants and recent-model cycling; session selections are drafts until submit. | Favorites, account/provider/usage UI, persistence across restarts, model catalog per location, variant-specific details. |
-| Transcript | User text/files by name, assistant Markdown, reasoning title/duration, live deltas by kind/ordinal, turn footer, shell, error and compaction states. | Multi-message reasoning groups, precise turn boundaries with steering, verbosity presets, grouping across steps, full images, retry/compaction and token/cost presentation. |
-| Tool results | Read ranges + loaded paths, glob/grep counts, grouped exploration with individual toggle, write/code, edit/patch metadata with multi-file diffs, shell output, todos, recorded question answers, basic webfetch/search/skill/subagent labels. | Block and inline geometry, execute/subagent drill-down, live background shell output, diagnostics, tool images, interactive per-group disclosure, native syntax styles, side-by-side and full diff review. |
-| Session interaction | Scroll by page, line, half page, bounds/wheel; double-Escape interrupt; explicit `!` shell mode; browser clipboard copy. | Native project/context sidebar, timeline jump picker, background action, OS clipboard from a terminal, notification queue and matching toasts. |
-| Permissions / questions | Live **reference captures**, plus a check that capture leaves both requests pending. | No pending request UI, replies, persistent approval, cancel/rejection reason or fullscreen request view. Don't use this client alone for an approval-sensitive run. |
-| Settings / integrations | Basic theme selection and explicit Connect backend control. | Native theme suite and modes, settings, provider connect, MCP, plugins, worktrees, stats, goals, status, user actions/update, remote terminal panes. |
-| Frame contract | 15fps renderer unchanged; stable message/tool components and cached patch totals. Unit tests cover one log per changed frame and none while idle. | No claim of native-TUI-equivalent latency. Rendering is still subject to the DevTools frontend paint schedule. |
+1. `requests`: bind a permission/form to its owning session; replace the composer, retain the draft, expose child requests at the root, and use the native keys and copy. Check the real HTTP decision, not just dismissal. Preserve newer SSE asks/replies across in-flight GETs and resync after reconnection.
+2. `transcript`: port the raised `┃` block geometry, agent colors, contiguous exploration summary, disclosure style, single-number patch gutter, applied patch metadata, todos and turn footer. At 120×40 the content rows matched while the header and composer still differed. At 100×32 the missing status row shifted the *entire* sticky transcript by one row.
+3. `footer`: real tab widths, selected/new/attention indicators; directory and branch below the split prompt; last context window (including cache), percent and reported session cost. This eliminated the vertical scroll offset. Home and session use the same composer.
+4. `home`: native spacers, narrow-screen padding, 75-cell maximum width, footer version and the native pool of example prompts. Capture an identical **typed** draft as well as the randomly chosen placeholder.
+5. `dialogs` → `pickers` → `final`: quarter-height dialog placement, 60/88-cell panel widths, classic backdrop, search focus, grouping, constrained list height, gutter, current marker and footer keys. Corrected agent IDs vs display names, clipping, and centering the initially selected theme. Theme changes preview, cancel, commit and (in browser storage) survive reload. When a provider is connected, Ctrl+F toggles a model favorite locally. Closing a session tab is not deletion. Deletion in the session picker requires a second Ctrl+D.
+6. `rich` → `rich-final`: separately imported a write, shell output, heading, emphasis, list, TypeScript fence, blockquote and table. Removed the extra code frame, painted full-width table rules between **every** row, kept the trailing empty numbered write line, and showed “Jump to latest ↓” when scrolling away. The Markdown renderer retains parsed closed blocks during streaming and reuses the kit parser, tokenizer, grapheme measurement and scroll controls.
+7. `final` also checks the 42-cell context inspector: overlaid through 120 columns, docked above 120. A narrow overlay traps input, so hidden prompts cannot be submitted or approved. The tab strip stays outside its dimmed area.
 
-Native DevTools does not expose pointer hit-testing inside logged spans to the page, nor its actual console viewport or OS terminal/editor integration. These constraints do not prevent keyboard equivalents; other unchecked items are open work, not platform limitations.
+## What the numbers don't mean
 
-## Reproduce the comparison
+- Empty home screens independently draw one of three native example prompts. That text is visible **behind** shorter dialogs such as Help and Select agent. The table above keeps those mismatches. The separate `panels` measurements compare the visible dialog rectangle only. The steady block cursor in Text.js is a painted inverse cell; tmux's pane capture doesn't serialize the native terminal cursor into the SGR cells.
+- Native command categories are registered by plugins. Captures sometimes start the non-suggested section with VCS or System instead of Session. The client exposes its implemented actions, not arbitrary native plugins. Don't rearrange the command list per fixture just to score zero. Provider, session, cost and MCP data are likewise real catalog/state, not fixed menu strings.
+- The attention tab uses the native resting spatial glow; native animation phase, hover, tab marquee and pointer selection are not replicated frame-for-frame. Independently started `text run` sessions don't inherit another process's open tabs. Sidebar, form and permission **body** comparisons distinguish that surrounding chrome.
+- The client switches among the 33 bundled theme documents and their available light/dark variants. A transparent token reveals the existing Text.js host backdrop; browser JS cannot discover an arbitrary terminal's system palette. On a live switch to Dracula, the native binary retained old foreground colors on already-mounted list/table cells in the rich fixture; this client recolors them immediately. Neither client is a universal Tree-sitter equivalent: Text.js uses its language tokenizer, including on partial fences.
+- The static website sandbox retains its demo status, shortcut and picker labels; it never executes a real shell command. The live website and standalone client share the same session UI. DevTools console spans don't send clicks back to the page. Keyboard equivalents work; native OS editors, terminal panes, provider authentication, custom plugin UIs, full diff review, @-attachment autocomplete, prompt stashes/queues, deep history and every CLI setting are not complete. See the [key inventory](parity/KEYBINDINGS.md) for scope, not a declaration of 100% parity.
+
+## Real tool / browser checks
+
+`request-tools.py` starts an authenticated V2 server with disposable HOME/XDG directories, a git project and a deterministic **loopback-only** Chat Completions provider. The model prescribes `printf parity-ok` and a two-choice question. OpenCode itself validates and runs its built-in tools. MCP checks the actual shell command, expands/minimizes the permission, selects Allow once and submits “release.” The runner verifies **both tool states are completed** and the answer reached the tool result. No remote inference or stored credentials. Separate tests exercise queued requests, saved patterns, rejection reasons on the correct child route, validation/conditional fields, multiselect review, cancellation, races, and draft restoration.
+
+`verify-preview.mjs` runs the static preview on port 0, then `e2e-keys.mjs`, `e2e-examples.mjs` and `devtools-live.ts` **serially**. The last script connects the production `/opencode` page to a real ephemeral `text proxy` backed by a V2 mock, opens bundled Chrome DevTools in its own context and checks the replies through the bridge. Only that preview and bridge are allowed by the page's network route. Its SSE cadence sample is a measurement, not a guarantee for all transcripts or hardware.
+
+## MCP dogfood notes
+
+| Friction | Fixed or intentionally separate |
+| --- | --- |
+| The transcript arrived before the separate VCS GET. Waiting for “Ready” could save a frame missing only `:master`. Two reads can race a stream. | **Fixed:** `wait_for.text` also accepts an array of up to eight visible strings; all must match the same frame, together with the existing `href`, `gone`, `styles`, `idle` and `trim` options. Tested positive and negative conditions. The capture waits for transcript **and** branch. |
+| Reloading after every size correctly preserved dimensions, but also reset the app's in-memory tabs while the native process kept them. | **Driver fix:** reload at the start and resize in-place for the matching navigation trace. Don't persist test-only fake tabs. |
+| A choice-to-text form transition could show a textarea with no keyboard focus; validation said “Answer required” after typing a number. | **App fix:** explicit focus IDs and focus transfer after field/rejection stage changes, plus a full multi-field regression test. Picker and sidebar traces assert their focus owners. |
+| When the two programs chose different examples, an otherwise identical picker looked different in a whole-frame comparison. | **Measurement fix:** keep unmasked totals, add native dialog bounds and a same-input draft capture. |
+| A transparent theme doesn't produce the literal string `transparent` in a styled framebuffer. | **Harness fix:** check the composed host background and an agent foreground. Test all 33 selections and all 61 supported mode combinations via actual keyboard commands. |
+| Raw MCP cells can't measure compositor lag, actual glyph fallback, a terminal's hardware cursor, or mouse events inside a console log. | **Not an MCP emulation target:** use real DevTools and the ANSI PTY. [Earlier fixed MCP issues](PARITY-ROUND1.md#text-mcp-dogfood-log) include rectangular reads, clipped wide cells and size retention on reload. |
+
+## Verification
+
+Root, standalone and website typechecks passed. `bun test packages/`: **1,190 passed, 8 skipped, zero failures**. Standalone app: **29 passed**; website: **101 passed**. Both builds succeeded (including the site's browser bundle, SSR and prerender). Against one ephemeral preview, `e2e-keys.mjs` passed **22 checks** and `e2e-examples.mjs` passed **23 checks**, with no page errors. The real DevTools live-bridge check verified a rejection, a structured answer and the last streamed text. Its 101 simulated deltas produced **17 console frames**, with a **66 ms minimum / 67 ms median** gap in this run. These are app-side emit timings with DevTools attached, not latency-to-paint measurements.
+
+`editing-mcp.ts` also exercised Alt+B/Alt+F, kill-to-end, CRLF paste, Shift+Enter, a wide grapheme's caret coordinates after three resizes, Delete and clearing the draft. The route stayed on Home: none of the editing probes submitted a prompt.
+
+## Reproduce
 
 ```sh
 bun install && bun run build:packages
-PYTHONDONTWRITEBYTECODE=1 python3 apps/opencode-console/scripts/compare-pty.py
+export PYTHONDONTWRITEBYTECODE=1
+python3 apps/opencode-console/scripts/request-tools.py
+python3 apps/opencode-console/scripts/compare-pty.py --out apps/opencode-console/.text/round2/final
+python3 apps/opencode-console/scripts/compare-pty.py --rich --out apps/opencode-console/.text/round2/rich-final
+python3 apps/opencode-console/scripts/before.py
+bun apps/opencode-console/scripts/theme-matrix.ts
+bun apps/opencode-console/scripts/editing-mcp.ts
+bun run --cwd apps/web build
+PLAYWRIGHT=$PWD/bench/devtools/node_modules/playwright-core/index.mjs node apps/opencode-console/scripts/verify-preview.mjs
+python3 apps/opencode-console/scripts/round-metrics.py
 ```
 
-The driver creates a new authenticated loopback server, git project and disposable HOME/XDG profile. It imports [the same transcript](scripts/transcript.json) used by the native TUI, MCP client and `text run`; no model prompts. It opens real pending permission/form requests on separate fixture sessions and sends neither an answer. Its processes and profile are torn down in `finally` blocks.
-
-**20 cases**: home, commands, models, agents, sessions and transcript at 120×40, 100×32 and 80×24; pending permission and form at 100×32. Full results: `.text/captures/<cols>x<rows>/` in this app. `*-pair.txt` puts native TUI on the left and MCP on the right. `*-real.ansi` / `*-textjs.ansi` retain PTY colors; `*-mcp.json` retains absolute cell-coordinate style runs. `*-diff.json` counts glyph/foreground/background/attribute differences separately. Background counts include blank cells; foreground/attribute counts ignore cells blank in both. These are absolute mismatches, not percentages dominated by empty screen area. The native placeholder is randomized, and visiting a session leaves a tab in the native TUI; compare matching navigation histories.
-
-Checked-in examples: [100×32 side-by-side captures](parity/captures/100x32/), [DevTools captures](parity/captures/devtools/) and [measurements](parity/captures/measurements.json). These show **actual discrepancies**, not a target mockup. On the recorded run, MCP and `text run` agreed on every measured cell in all 20 cases. Comparing *native* vs MCP at 100×32 still found hundreds of differing glyphs. In particular, the backgrounds of all 3,200 palette cells differed. The transcript comparison identified incorrect exploration/think labels and step-vs-turn time; correcting those reduced its 100×32 glyph delta from 678 to 619 on the imported fixture.
-
-For Chrome, build and run the local static preview. Run `apps/web/scripts/e2e-keys.mjs` and `apps/web/scripts/capture-opencode.mjs` with `BASE` pointing at that preview and `PLAYWRIGHT` pointing at `playwright-core/index.mjs`. The capture uses the bundled **real DevTools frontend**, a fresh profile, and blocks app-page requests outside the preview origin. The site uses its own Text.js scenario rather than the private PTY transcript. Raw console.log arguments, decoded grids and screenshots are written to `.text/captures/console/`.
-
-## `text mcp` dogfood log
-
-`scripts/capture-mcp.ts` is a real stdio SDK client, not an in-process substitute. `scripts/compare-pty.py` provisions its authenticated throwaway target. Standalone `bun apps/opencode-console/scripts/capture-mcp.ts` runs the same interaction loop in demo mode.
-
-| Friction encountered | Resolution |
-| --- | --- |
-| `reload` after `resize 80×24` silently returned a 120×40 frame, making comparisons incorrect. | Fixed: an explicit runtime size survives reload. Config still reloads when no resize was requested. |
-| `read_frame` trimmed trailing cells/rows, so capture code had to guess padding for blank rows. Crops still reported full viewport dimensions. | Added `trim: false` plus effective clamped `region` bounds. Default human-readable output is unchanged. |
-| A crop ending halfway through a wide glyph could return two columns of text in a one-cell run. | Fixed text and styled extraction at the right edge; tested alongside the existing left-edge case. |
-| `busy (still animating; frame read after timeout)` on immediate reads suggested a timeout or an animation even when neither happened. | Report `busy` without guessing the cause. |
-| Picker and composer accepted keys but `inspect_tree` reported no focused component or cursor. | App used forced `focused`, deliberately outside the focus manager. Switched to stable ids and managed autofocus; MCP capture asserts the actual focus target. |
-| Private server worked under `text run` but MCP stdin isn't a TTY. | Both now honor a pinned loopback `OPENCODE_SERVER_URL` via the app's own in-process route. No variable means offline demo in both. |
-| Waiting for a picker title can match text on the underlying session or command list. Waiting for a streaming label then doing a second styled read can capture a later frame. | `wait_for` now accepts an exact `href` alongside text/absence constraints, and `styles`/`trim` on the actual matched frame. |
-| No direct `text mcp` connection was attached to the coding session. | Used the official stdio SDK client. No server-side change needed. |
-| MCP cells don't show browser font fallback, source-link intrusion, or compositor/scroll behavior. | Intentionally not “fixed” by inventing a pixel screenshot in MCP. Verify separately with the actual bundled DevTools frontend. |
-
-## Validation
-
-`bun run build:packages` and root/app typechecks passed. `bun test packages/`: **1,190 passed, 8 skipped, 0 failed**. Standalone: **22 passed**. Website: **94 passed**. `bun run --cwd apps/web build` passed (browser, SSR, prerender). Static-preview `e2e-keys.mjs`: **22 checks passed** with local-server blocking enabled; the additional keys cover leader+m, Shift+Tab, shell exit, `/help`, double-Escape and session switching without changing the site URL. The DevTools capture reran successfully against the preview.
-
-The branch is a functional baseline for further work, not a visual sign-off. The remaining layout/style and UX review requires the designated Opus UI agent; this session did not have a subagent tool.
+Do **not** point these tests at a managed service, `:4096` or `:49374`. Merely opening a session can mark it viewed. The harnesses bind fresh listeners, pin the target, and tear down their own processes and data. Stage captures live under `apps/opencode-console/.text/round2/`; checked-in evidence is under `apps/opencode-console/parity/round2/`.
