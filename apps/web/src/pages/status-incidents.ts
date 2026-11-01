@@ -174,7 +174,7 @@ export const INCIDENTS: readonly Incident[] = [
         body: "After a clear, DevTools inserts a “Console was cleared” row. It takes the throttler's immediate slot and pushes the next frame onto the 50ms timer. With frames 66ms apart, every later frame stays on that timer.",
       },
       { status: "monitoring", at: "2026-08-28T11:00:00Z", body: "A fix has been deployed. After any frame that clears, the renderer waits 110ms once, so later frames arrive more than 50ms after DevTools' previous refresh and take its immediate path." },
-      { status: "resolved", at: "2026-08-31T08:00:00Z", body: "Median display lag on textjs.org is 10.4ms. The fix ships in Text.js 1.0." },
+      { status: "resolved", at: "2026-08-31T08:00:00Z", body: "Median display lag in `bench/devtools` is 10.4ms. The fix ships in Text.js 1.0." },
     ],
     postmortem: "Discrete input still renders synchronously when the frame interval allows.",
     commits: [],
@@ -182,7 +182,7 @@ export const INCIDENTS: readonly Incident[] = [
   },
   {
     id: "spinner-braille",
-    name: "Spinner misaligns rows in the DevTools Console",
+    name: "Spinner misaligns rows in the DevTools console",
     impact: "minor",
     components: ["console.log"],
     updates: [
@@ -201,11 +201,11 @@ export const INCIDENTS: readonly Incident[] = [
   },
   {
     id: "blank-paints",
-    name: "Elevated blank paints in the DevTools Console",
+    name: "Elevated blank paints in the DevTools console",
     impact: "major",
     components: ["console.clear", "DevTools Throttler"],
     updates: [
-      { status: "investigating", at: "2026-05-05T14:20:00Z", body: "We are investigating reports of the DevTools Console flashing empty between frames under load." },
+      { status: "investigating", at: "2026-05-05T14:20:00Z", body: "We are investigating reports of the DevTools console flashing empty between frames under load." },
       {
         status: "identified",
         at: "2026-05-06T11:45:00Z",
@@ -218,7 +218,7 @@ export const INCIDENTS: readonly Incident[] = [
       },
       { status: "resolved", at: "2026-05-19T16:00:00Z", body: "The fix is released in Text.js 0.4.0. Blank paints are at 1.0%, all of them on the first frame." },
     ],
-    postmortem: "Since 0.1.0, Turbolog had sent one `console.clear()` and one `console.log()` per dirty frame. `bench/devtools`, which drives the real DevTools frontend in Chrome for Testing, was built to measure this incident and produced the numbers in the DevTools frontend table above.",
+    postmortem: "Since 0.1.0, Turbolog had sent one `console.clear()` and one `console.log()` per changed frame. `bench/devtools`, which drives the real DevTools frontend in Chrome for Testing, was built to measure this incident and produced the numbers in the DevTools frontend table above.",
     commits: ["f007ade"],
     links: [{ label: "Turbolog: eliminating the flash", href: "/blog/turbolog-eliminating-the-flash" }, { label: "Changelog: 0.4.0", href: "/changelog#v0-4-0" }],
   },

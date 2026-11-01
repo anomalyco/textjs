@@ -45,7 +45,7 @@ export function ErrorsIndexPage(): ReactNode {
       </div>
       <h1 className="docs-title">Error Codes</h1>
       <p className="docs-desc">
-        Every Text.js error and warning carries a stable <code>TX</code> code and a link to its page. Codes are never renumbered or reused.
+        Each <code>TX</code> code is stable and has a page with its cause and fix. Codes are never renumbered or reused.
       </p>
       <label className="tx-errors-search">
         <SearchIcon size={16} />
