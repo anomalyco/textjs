@@ -867,40 +867,72 @@
   display: flex;
 }
 
-/* ⌘P on a finished certificate prints the certificate alone: 60 columns at 12pt fit A4 and Letter. */
+/*
+ * ⌘P on /learn/certificate prints the certificate alone, finished or not: everything else is removed
+ * (header, sidebar, footer, pad, Console pill, buttons) and the box is centred on one page. 60 columns
+ * at 12pt fit A4 and Letter. The certificate is pinned to the page area, so the ancestors that remain
+ * are reset to plain blocks that can't become its containing block or add a second page.
+ */
 @media print {
   @page {
     margin: 0.5in;
   }
-  html:has(.learn-cert:not(.pending)),
-  html:has(.learn-cert:not(.pending)) body {
+  html:has(.learn-cert),
+  html:has(.learn-cert) body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
     background: #fff !important;
+    color: #000 !important;
   }
-  html:has(.learn-cert:not(.pending)) body *:not(:has(.learn-cert:not(.pending))):not(.learn-cert):not(.learn-cert *) {
+  html:has(.learn-cert) body *:not(:has(.learn-cert)):not(.learn-cert):not(.learn-cert *) {
     display: none !important;
   }
-  html:has(.learn-cert:not(.pending)) body *:has(.learn-cert:not(.pending)) {
+  html:has(.learn-cert) body *:has(.learn-cert) {
     display: block !important;
+    position: static !important;
     width: auto !important;
     max-width: none !important;
+    height: auto !important;
     min-height: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
     border: 0 !important;
+    overflow: visible !important;
+    background: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    contain: none !important;
+    container-type: normal !important;
+    will-change: auto !important;
+  }
+  html:has(.learn-cert) body::before,
+  html:has(.learn-cert) body::after,
+  html:has(.learn-cert) body *:has(.learn-cert)::before,
+  html:has(.learn-cert) body *:has(.learn-cert)::after {
+    content: none !important;
+    display: none !important;
+  }
+  html:has(.learn-cert) .learn-cert {
+    position: fixed !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
     background: none !important;
     box-shadow: none !important;
   }
-  .learn-cert:not(.pending) {
-    overflow: visible;
-    padding: 1.5in 0 0;
-    border: 0;
-    background: none;
-    text-align: center;
-  }
-  .learn-cert:not(.pending) pre {
+  html:has(.learn-cert) .learn-cert pre {
     font-family: var(--mono);
     font-size: 12pt;
     line-height: 1.25;
-    color: #000;
+    color: #000 !important;
   }
 }

@@ -124,6 +124,32 @@ check("size preset resizes the console frame", pinned.cols === 80 && pinned.rows
 await page.reload();
 await settle(1200);
 check("size choice persists across reloads", (await page.getByLabel("Console size").inputValue()) === "80x24" && grid(await last()).rows === 24, JSON.stringify(grid(await last())));
+// The choice belongs to the Playground: Home's console and its hero mirror keep Home's 100×26.
+const heroMirror = () =>
+  page.evaluate(() => {
+    const box = document.querySelector(".split-console .mirror-scale > div");
+    const live = box?.children[1]?.firstElementChild;
+    return box && live ? { placeholder: [box.children[0].offsetWidth, box.children[0].offsetHeight], live: [live.offsetWidth, live.offsetHeight] } : null;
+  });
+const homeDefaults = async (how) => {
+  const g = grid(await last());
+  check(`${how}: Home console keeps its 100×26 default`, g.cols === 100 && g.rows === 26, JSON.stringify(g));
+  const m = await heroMirror();
+  check(`${how}: the hero mirror is filled exactly`, m !== null && m.live[0] === m.placeholder[0] && m.live[1] === m.placeholder[1], JSON.stringify(m));
+};
+await page.locator(".header .wordmark").click();
+await settle(1000);
+check("logo navigates Home in the page", path() === "/");
+await homeDefaults("Playground → Home");
+await page.goto(`${base}/`);
+await settle(1200);
+await homeDefaults("Home loaded directly");
+await page.locator('.header a[href="/playground"]').first().click();
+await settle(1200);
+check("back on the Playground, its size is still picked", path() === "/playground" && (await page.getByLabel("Console size").inputValue()) === "80x24" && grid(await last()).rows === 24, JSON.stringify(grid(await last())));
+await page.goto(`${base}/playground`);
+await settle(1200);
+check("and after a reload", (await page.getByLabel("Console size").inputValue()) === "80x24" && grid(await last()).rows === 24, JSON.stringify(grid(await last())));
 await page.getByLabel("Console size").selectOption("fit");
 await settle(400);
 const fitted = grid(await last());

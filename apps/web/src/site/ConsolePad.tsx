@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { ConsoleRoot } from "@textjs/react";
 import { FocusPad } from "@textjs/react/dom";
-import { companionReady, getCompanion } from "../console-companion/boot";
+import { companionReady, getCompanion, PLAYGROUND_VIEWPORT_KEY } from "../console-companion/boot";
 import type { Hint } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
 
@@ -54,7 +54,7 @@ export function ConsolePad({ hints, action, top, banner, children }: ConsolePadP
         top={<div className="pad-slot pad-slot-top">{top}</div>}
         banner={<div className="pad-slot pad-slot-banner">{banner}</div>}
         className="pad"
-        sizeControl
+        sizeControl={{ storageKey: PLAYGROUND_VIEWPORT_KEY }}
       >
         <div className="pad-slot pad-slot-bottom">{children}</div>
       </FocusPad>
