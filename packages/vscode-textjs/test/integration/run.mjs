@@ -26,7 +26,7 @@ const work = mkdtempSync(join(tmpdir(), "textjs-vscode-it-"));
 
 function linkDeps(dir) {
   mkdirSync(join(dir, "node_modules/@textjs"), { recursive: true });
-  symlinkSync(join(repo, "packages/text"), join(dir, "node_modules/@textjs/next"));
+  symlinkSync(join(repo, "packages/app"), join(dir, "node_modules/@textjs/app"));
   for (const dep of ["react", "react-dom"]) symlinkSync(join(repo, "node_modules", dep), join(dir, "node_modules", dep));
 }
 
@@ -46,9 +46,9 @@ function outsideProject(name, marker) {
   const dir = join(work, name);
   mkdirSync(join(dir, "app"), { recursive: true });
   linkDeps(dir);
-  writeFileSync(join(dir, "package.json"), JSON.stringify({ name, type: "module", private: true, dependencies: { "@textjs/next": "*" } }));
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ name, type: "module", private: true, dependencies: { "@textjs/app": "*" } }));
   writeFileSync(join(dir, "text.config.mjs"), `import { writeFileSync } from "node:fs";\nwriteFileSync(${JSON.stringify(marker)}, "ran");\nexport default {};\n`);
-  writeFileSync(join(dir, "app/page.tsx"), 'import { Text } from "@textjs/next";\nexport default function Page() { return <Text>outside</Text>; }\n');
+  writeFileSync(join(dir, "app/page.tsx"), 'import { Text } from "@textjs/app";\nexport default function Page() { return <Text>outside</Text>; }\n');
   return dir;
 }
 

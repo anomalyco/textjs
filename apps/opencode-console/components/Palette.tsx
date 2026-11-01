@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Box, Input, Text, fuzzyFilter, useAppTheme, useFocus, useInput, useTheme, useViewport } from "@textjs/next";
-import { useRouter } from "@textjs/next/navigation";
+import { Box, Input, Text, fuzzyFilter, useAppTheme, useFocus, useInput, useTheme, useViewport } from "@textjs/app";
+import { useRouter } from "@textjs/app/navigation";
 import { DispatchAction, type Picker } from "../lib/commands";
 import { nativeTheme, nativeThemes, rememberTheme, themeNames, useTokens, type NativeTheme } from "../lib/native-theme";
 import { useStore, useStoreState } from "../lib/store";

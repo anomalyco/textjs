@@ -1,5 +1,5 @@
 import { useContext, useLayoutEffect, useMemo, type ReactNode } from "react";
-import { Box, createScope, ScopeContext, useRuntime, useViewport } from "@textjs/next";
+import { Box, createScope, ScopeContext, useRuntime, useViewport } from "@textjs/app";
 import { useTokens } from "../lib/native-theme";
 
 /** packages/tui/src/ui/dialog.tsx (legacy/classic surface). Same modal trap

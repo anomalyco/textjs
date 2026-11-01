@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
-import { useSearchParams } from "@textjs/next/navigation";
+import { useSearchParams } from "@textjs/app/navigation";
 import { ADDRESS_FORM, addressFromValues, addressValues, newAddressValues, validateAddress } from "../../lib/address";
 import { CONTENT, type Command } from "../../lib/frame";
 import { useShop, useShopState } from "../../lib/store";

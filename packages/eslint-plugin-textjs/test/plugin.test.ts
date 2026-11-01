@@ -48,7 +48,7 @@ describe("plugin", () => {
       overrideConfigFile: true,
       overrideConfig: [{ files: ["**/*.tsx", "**/*.ts"], languageOptions: { parser: tsParser } }, configs.recommended as never],
     });
-    const page = `import { Box, Text } from "@textjs/next";
+    const page = `import { Box, Text } from "@textjs/app";
 export const metadata = { title: { default: "Home", template: "%s" } };
 export default function Page() {
   return <Text>⠋ loading ▶\uFE0F <Box /></Text>;

@@ -107,7 +107,7 @@ const running = "~/acme-deploys — text run";
 const script: ChapterScript = {
   slug: chapter.slug,
   pronounce: {
-    "@textjs/next/terminal": "at textjs slash next slash terminal",
+    "@textjs/app/terminal": "at textjs slash app slash terminal",
     "useApp().exit()": "use App dot exit",
     "app.exit()": "app dot exit",
     "package.json": "package dot JSON",
@@ -216,7 +216,7 @@ const script: ChapterScript = {
       id: "quit",
       kind: "editor",
       narration:
-        "Terminal users expect Q to quit. {import}Import useApp from @textjs/next. " +
+        "Terminal users expect Q to quit. {import}Import useApp from @textjs/app. " +
         "{app}Call it in the root layout, {exit}and when the input is Q, call app.exit(). " +
         "{terminal}exit unmounts the app and restores the terminal. {browser}In the browser, it unmounts the console app.",
       tail: 1.8,
@@ -285,7 +285,7 @@ const script: ChapterScript = {
       id: "cli",
       kind: "editor",
       narration:
-        "For a single component, use renderToTerminal. {import}Import it from @textjs/next/terminal, along with the component. " +
+        "For a single component, use renderToTerminal. {import}Import it from @textjs/app/terminal, along with the component. " +
         "{render}Pass it an element, and it draws full-screen. " +
         "{wait}waitUntilExit resolves when the app exits, for example after useApp().exit().",
       tail: 2.0,

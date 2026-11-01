@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useSearchParams } from "@textjs/next/navigation";
+import { useSearchParams } from "@textjs/app/navigation";
 import { CONTENT, HEIGHT, WIDTH, type Command } from "../../lib/frame";
 import { defaultTheme, palette } from "../../lib/theme";
 import { centerLines, fit, place, span, width, type Line } from "../../lib/ui";

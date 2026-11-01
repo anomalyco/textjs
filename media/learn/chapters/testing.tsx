@@ -62,7 +62,7 @@ const snap = fileLines(
 const script: ChapterScript = {
   slug: chapter.slug,
   pronounce: {
-    "@textjs/react/testing": "at textjs slash react slash testing",
+    "@textjs/app/testing": "at textjs slash app slash testing",
     "globalThis.fetch": "global this dot fetch",
     "app.lastFrame()": "app dot last frame",
     lastFrame: "last frame",
@@ -84,8 +84,7 @@ const script: ChapterScript = {
       id: "how",
       kind: "pipeline",
       narration:
-        "You can't screenshot a console in CI, and you don't need to. " +
-        "{render}@textjs/react/testing renders your app offscreen and presses keys, {cells}into a grid of cells in memory. " +
+        "{render}@textjs/app/testing renders your app offscreen and presses keys, {cells}into a grid of cells in memory. " +
         "{read}Then you read the frame back as plain text: lastFrame returns all of it, lines returns it row by row, and cell gives you one cell's character and colors. " +
         "{runners}It runs in Bun, Vitest or Jest, with no browser involved.",
       tail: 1.4,
@@ -113,7 +112,7 @@ const script: ChapterScript = {
       kind: "editor",
       narration:
         "Tests sit next to the page they test. " +
-        "{imports}Import render and cleanup from @textjs/react/testing, along with the page. " +
+        "{imports}Import render and cleanup from @textjs/app/testing, along with the page. " +
         "{cleanup}afterEach cleanup unmounts whatever a test rendered. " +
         "{render}render mounts the page in a grid 80 cells wide and 12 rows tall. Without options, it's 80 by 24. " +
         "{wait}The page fetches its deployments, so wait for the first one to show up, " +

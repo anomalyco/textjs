@@ -4,7 +4,7 @@
  */
 
 import { fork, type ChildProcess } from "node:child_process";
-import { FrameDecoder, parseWireFrame, type FrameMeta, type InputMessage } from "@textjs/next/frame-protocol";
+import { FrameDecoder, parseWireFrame, type FrameMeta, type InputMessage } from "@textjs/app/frame-protocol";
 import type { StyledFrame } from "@textjs/core";
 import type { HostToRunner, RunnerTarget, RunnerToHost } from "./runner/messages";
 

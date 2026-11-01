@@ -1,8 +1,8 @@
-`@textjs/next/testing` (or `@textjs/react/testing`) renders your app offscreen, presses keys and returns the frame as text. Tests run without a browser or DevTools.
+`@textjs/app/testing` (or `@textjs/react/testing`) renders your app offscreen, presses keys and returns the frame as text. Tests run without a browser or DevTools.
 
 ```tsx@counter.test.tsx
 import { afterEach, expect, test } from "bun:test";
-import { cleanup, render } from "@textjs/next/testing";
+import { cleanup, render } from "@textjs/app/testing";
 import { Counter } from "./counter";
 
 afterEach(cleanup);

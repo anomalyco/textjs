@@ -1,5 +1,5 @@
-import { renderToTerminal } from "@textjs/next/terminal";
-import { Table } from "@textjs/next";
+import { renderToTerminal } from "@textjs/app/terminal";
+import { Table } from "@textjs/app";
 import { DEPLOYMENTS } from "./lib/deployments";
 
 const columns = [{ key: "commit", header: "Commit" }, { key: "project", header: "Project", width: 10 }];

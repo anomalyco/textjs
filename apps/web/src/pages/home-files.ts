@@ -11,7 +11,7 @@ export const HERO_FILES: ShowcaseFile[] = [
     language: "tsx",
     highlight: [6, 7, 8, 9],
     code: `import { useState } from "react";
-import { AsciiFont, Box, Text, useInput } from "@textjs/next";
+import { AsciiFont, Box, Text, useInput } from "@textjs/app";
 
 export default function Page() {
   const [count, setCount] = useState(0);
@@ -35,8 +35,8 @@ export default function Page() {
     language: "tsx",
     highlight: [10, 11],
     code: `import type { ReactNode } from "react";
-import { Box, Text } from "@textjs/next";
-import Link from "@textjs/next/link";
+import { Box, Text } from "@textjs/app";
+import Link from "@textjs/app/link";
 
 export default function RootLayout({ children }: { children?: ReactNode }) {
   return (
@@ -56,7 +56,7 @@ export default function RootLayout({ children }: { children?: ReactNode }) {
     name: "text.config.ts",
     language: "ts",
     highlight: [4, 5],
-    code: `import { defineConfig } from "@textjs/next";
+    code: `import { defineConfig } from "@textjs/app";
 
 export default defineConfig({
   title: "Acme",

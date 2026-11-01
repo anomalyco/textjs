@@ -1,7 +1,7 @@
 /**
  * Headless preview runner (a child process of the extension host).
  *
- * Loads the project's own Vite and `@textjs/next` from the workspace, imports
+ * Loads the project's own Vite and `@textjs/app` from the workspace, imports
  * route files through Vite's SSR module loader (TypeScript, JSX, aliases) and
  * renders the App Router — or a single component — into an offscreen console
  * root. Frames go back to the extension as protocol row deltas.
@@ -12,7 +12,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { extractStyledFrame, type CellBuffer } from "@textjs/core";
-import { FrameEncoder, type InputMessage } from "@textjs/next/frame-protocol";
+import { FrameEncoder, type InputMessage } from "@textjs/app/frame-protocol";
 import type { HostToRunner, RunnerTarget, RunnerToHost } from "./messages";
 
 type AnyModule = Record<string, any>;
@@ -50,7 +50,7 @@ export function resolveEsmPackage(name: string, fromDir: string): string | null 
 
 function findTextPackageDir(root: string): string | null {
   try {
-    return dirname(createRequire(join(root, "noop.js")).resolve("@textjs/next/package.json"));
+    return dirname(createRequire(join(root, "noop.js")).resolve("@textjs/app/package.json"));
   } catch {
     return null;
   }
@@ -58,8 +58,8 @@ function findTextPackageDir(root: string): string | null {
 
 const RUNTIME_ID = "virtual:textjs-preview/runtime";
 const ROUTES_ID = "virtual:textjs/routes";
-const RUNTIME_SOURCE = `export { AppRouter, createMemoryHistory } from "@textjs/next/router";
-export { createConsoleRoot, Box, Text } from "@textjs/next";
+const RUNTIME_SOURCE = `export { AppRouter, createMemoryHistory } from "@textjs/app/router";
+export { createConsoleRoot, Box, Text } from "@textjs/app";
 export { Component, createElement } from "react";
 `;
 
@@ -98,9 +98,9 @@ class Runner {
     this.rows = msg.rows;
     this.target = msg.target;
     const textDir = findTextPackageDir(this.root);
-    if (!textDir) throw new Error("Could not find @textjs/next in this project. Run your package manager's install first.");
+    if (!textDir) throw new Error("Could not find @textjs/app in this project. Run your package manager's install first.");
     const vitePath = resolveEsmPackage("vite", textDir) ?? resolveEsmPackage("vite", this.root);
-    if (!vitePath) throw new Error("Could not find Vite (a dependency of @textjs/next).");
+    if (!vitePath) throw new Error("Could not find Vite (a dependency of @textjs/app).");
     this.vite = (await import(pathToFileURL(vitePath).href)) as ViteLike;
     await this.createServer(null);
     const config = await this.loadConfig();
@@ -129,7 +129,7 @@ class Runner {
       if (!raw.startsWith("/") || raw.startsWith("//")) return original(input, init);
       const url = new URL(raw, origin);
       if (devUrl) return original(url, init);
-      const plugin = await this.server.ssrLoadModule("@textjs/next/vite");
+      const plugin = await this.server.ssrLoadModule("@textjs/app/vite");
       const routes = plugin.listApiRoutes(plugin.scanApp(this.root, this.appDir)) as Array<{ pattern: string; file: string }>;
       for (const r of routes) {
         const params = matchPattern(r.pattern, url.pathname);
@@ -170,7 +170,7 @@ class Runner {
           async load(id: string) {
             if (id === `\0${RUNTIME_ID}`) return RUNTIME_SOURCE;
             if (id === `\0${ROUTES_ID}`) {
-              const plugin = await self.server.ssrLoadModule("@textjs/next/vite");
+              const plugin = await self.server.ssrLoadModule("@textjs/app/vite");
               return plugin.generateRoutesModule(plugin.scanApp(self.root, self.appDir)) as string;
             }
             return null;

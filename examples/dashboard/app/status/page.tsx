@@ -1,6 +1,6 @@
 import { Suspense, useState, type ReactNode } from "react";
-import { Box, KeyHint, Spinner, Text, useInput, useTheme, type Metadata } from "@textjs/next";
-import { useRouter } from "@textjs/next/navigation";
+import { Box, KeyHint, Spinner, Text, useInput, useTheme, type Metadata } from "@textjs/app";
+import { useRouter } from "@textjs/app/navigation";
 import { hostMetrics, probeRegion, REGIONS } from "../../lib/status.server";
 
 /** Rendered on the server: the browser only receives console frames. */

@@ -1,4 +1,4 @@
-import { Text } from "@textjs/next";
+import { Text } from "@textjs/app";
 
 export type DeployStatus = "ready" | "building" | "error" | "queued";
 

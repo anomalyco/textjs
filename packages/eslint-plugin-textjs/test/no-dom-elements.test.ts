@@ -42,9 +42,9 @@ tester().run("no-dom-elements", rule, {
     {
       // Aliased imports are reused.
       filename: FILE,
-      code: `import { Text as T, Box } from "@textjs/next";\nexport const A = () => <Box><span>x</span><br /></Box>;`,
+      code: `import { Text as T, Box } from "@textjs/app";\nexport const A = () => <Box><span>x</span><br /></Box>;`,
       errors: [
-        { messageId: "domElement", suggestions: [{ messageId: "replace", output: `import { Text as T, Box } from "@textjs/next";\nexport const A = () => <Box><T>x</T><br /></Box>;` }] },
+        { messageId: "domElement", suggestions: [{ messageId: "replace", output: `import { Text as T, Box } from "@textjs/app";\nexport const A = () => <Box><T>x</T><br /></Box>;` }] },
         { messageId: "domElementNoReplacement", data: { tag: "br" } },
       ],
     },
@@ -57,13 +57,13 @@ tester().run("no-dom-elements", rule, {
     {
       // A local binding with the replacement's name: no suggestion.
       filename: FILE,
-      code: `import { Box } from "@textjs/next";\nconst Button = () => null;\nexport const A = () => <Box><button /></Box>;`,
+      code: `import { Box } from "@textjs/app";\nconst Button = () => null;\nexport const A = () => <Box><button /></Box>;`,
       errors: [{ messageId: "domElement", data: { tag: "button", component: "Button" }, suggestions: [] }],
     },
     {
       filename: FILE,
-      code: `import Link from "@textjs/next/link";\nimport { Box } from "@textjs/next";\nexport const A = () => <Box><a href="/x">x</a></Box>;`,
-      errors: [{ messageId: "domElement", suggestions: [{ messageId: "replace", output: `import Link from "@textjs/next/link";\nimport { Box } from "@textjs/next";\nexport const A = () => <Box><Link href="/x">x</Link></Box>;` }] }],
+      code: `import Link from "@textjs/app/link";\nimport { Box } from "@textjs/app";\nexport const A = () => <Box><a href="/x">x</a></Box>;`,
+      errors: [{ messageId: "domElement", suggestions: [{ messageId: "replace", output: `import Link from "@textjs/app/link";\nimport { Box } from "@textjs/app";\nexport const A = () => <Box><Link href="/x">x</Link></Box>;` }] }],
     },
     {
       // Custom elements throw TX003 too.

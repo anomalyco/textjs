@@ -49,7 +49,7 @@ describe("OpenCode sandbox: center a div", () => {
       "app/page.tsx\n  6:8  error  <div> is a DOM element; the console renderer only draws Text.js components (TX003). Use <Box> instead  textjs/no-dom-elements\n\n✖ 1 problem (1 error, 0 warnings)",
     );
     expect(fix?.diff?.before).toBe(wrap?.diff?.after);
-    expect(fix?.diff?.after).toContain('import { Box, Center, Text } from "@textjs/next";');
+    expect(fix?.diff?.after).toContain('import { Box, Center, Text } from "@textjs/app";');
     expect(fix?.diff?.after).toContain("<Center>\n        <Text bold>Sessions</Text>\n      </Center>");
     expect(fix?.diff?.after).not.toContain("div");
     expect(relint?.output).toBe("$ eslint .");

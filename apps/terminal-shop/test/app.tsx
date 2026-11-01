@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
-import { AppRouter, createMemoryHistory, type RouteManifest, type RouteModule, type RouteSegmentNode } from "@textjs/next/router";
-import { scanApp, toStaticManifest } from "@textjs/next/vite";
+import { AppRouter, createMemoryHistory, type RouteManifest, type RouteModule, type RouteSegmentNode } from "@textjs/app/router";
+import { scanApp, toStaticManifest } from "@textjs/app/vite";
 import type { KeyValueStorage } from "../lib/auth";
 import { resetShopStore, type ShopStore } from "../lib/store";
 import { createTestRoot, type TestRoot } from "./helpers";

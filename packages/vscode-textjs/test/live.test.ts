@@ -10,8 +10,8 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { ViteDevServer } from "vite";
 import { CellBuffer, extractStyledFrame, type StyledFrame } from "@textjs/core";
-import { FrameEncoder, frameToText } from "@textjs/next/frame-protocol";
-import { startDevServer } from "../../text/src/cli/dev";
+import { FrameEncoder, frameToText } from "@textjs/app/frame-protocol";
+import { startDevServer } from "../../app/src/cli/dev";
 import { DevServerMonitor } from "../src/dev-monitor";
 import { appUrl, connectFrameStream, discover, DiscoveryBackoff, loopbackOrigin, postInput, probe } from "../src/dev-server";
 import { HeadlessSession } from "../src/headless";
@@ -38,18 +38,18 @@ beforeAll(async () => {
   mkdirSync(join(dir, "app/api/hello"), { recursive: true });
   mkdirSync(join(dir, "components"), { recursive: true });
   mkdirSync(join(dir, "node_modules/@textjs"), { recursive: true });
-  symlinkSync(join(REPO, "packages/text"), join(dir, "node_modules/@textjs/next"));
+  symlinkSync(join(REPO, "packages/app"), join(dir, "node_modules/@textjs/app"));
   for (const dep of ["react", "react-dom"]) symlinkSync(join(REPO, "node_modules", dep), join(dir, "node_modules", dep));
-  writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "live-fixture", type: "module", private: true, dependencies: { "@textjs/next": "*" } }));
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "live-fixture", type: "module", private: true, dependencies: { "@textjs/app": "*" } }));
   writeFileSync(join(dir, "tsconfig.json"), JSON.stringify({ compilerOptions: { jsx: "react-jsx" } }));
-  writeFileSync(join(dir, "app/layout.tsx"), 'import { Box, Text } from "@textjs/next";\nexport default function Layout({ children }: { children?: any }) { return <Box className="flex-col"><Text>▼ Fixture</Text>{children}</Box>; }\n');
-  writeFileSync(join(dir, "app/page.tsx"), 'import { Text } from "@textjs/next";\nexport default function Page() { return <Text>home v1</Text>; }\n');
+  writeFileSync(join(dir, "app/layout.tsx"), 'import { Box, Text } from "@textjs/app";\nexport default function Layout({ children }: { children?: any }) { return <Box className="flex-col"><Text>▼ Fixture</Text>{children}</Box>; }\n');
+  writeFileSync(join(dir, "app/page.tsx"), 'import { Text } from "@textjs/app";\nexport default function Page() { return <Text>home v1</Text>; }\n');
   writeFileSync(
     join(dir, "app/counter/page.tsx"),
-    'import { useEffect, useState } from "react";\nimport { Text, useInput } from "@textjs/next";\nexport default function Counter() {\n  const [n, setN] = useState(0);\n  const [api, setApi] = useState("…");\n  useEffect(() => { fetch("/api/hello").then((r) => r.json()).then((j) => setApi(j.msg)); }, []);\n  useInput((e) => { if (e.key === "up") setN((c) => c + 1); });\n  return <Text>{`count=${n} api=${api}`}</Text>;\n}\n',
+    'import { useEffect, useState } from "react";\nimport { Text, useInput } from "@textjs/app";\nexport default function Counter() {\n  const [n, setN] = useState(0);\n  const [api, setApi] = useState("…");\n  useEffect(() => { fetch("/api/hello").then((r) => r.json()).then((j) => setApi(j.msg)); }, []);\n  useInput((e) => { if (e.key === "up") setN((c) => c + 1); });\n  return <Text>{`count=${n} api=${api}`}</Text>;\n}\n',
   );
   writeFileSync(join(dir, "app/api/hello/route.ts"), 'export function GET() { return Response.json({ msg: "hi" }); }\n');
-  writeFileSync(join(dir, "components/Badge.tsx"), 'import { Text } from "@textjs/next";\nexport function StatusBadge() { return <Text bold>● ready</Text>; }\n');
+  writeFileSync(join(dir, "components/Badge.tsx"), 'import { Text } from "@textjs/app";\nexport function StatusBadge() { return <Text bold>● ready</Text>; }\n');
   writeFileSync(join(dir, "components/Broken.tsx"), 'export default function Broken() { throw new Error("TX015: boom"); }\n');
 
   const out = join(dir, ".runner");
@@ -274,7 +274,7 @@ describe("headless runner", () => {
     s.resize(30, 3);
     await until(() => s.current()?.frame.width === 30);
 
-    writeFileSync(join(dir, "app/page.tsx"), 'import { Text } from "@textjs/next";\nexport default function Page() { return <Text>home v2</Text>; }\n');
+    writeFileSync(join(dir, "app/page.tsx"), 'import { Text } from "@textjs/app";\nexport default function Page() { return <Text>home v2</Text>; }\n');
     s.input({ type: "navigate", href: "/" });
     s.reload();
     await until(() => frames.at(-1)?.includes("home v2"));

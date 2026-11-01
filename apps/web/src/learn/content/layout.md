@@ -5,8 +5,8 @@ The console is a grid of cells. Text.js lays it out with Yoga, the same Flexbox 
 Most screens are a column: a one-row bar, then everything else. Give the bar a fixed height with `h-1` and let the content take the rest with `grow`.
 
 ```diff-tsx@app/page.tsx
--import { Box, Text, useInput } from "@textjs/next";
-+import { Box, Spacer, Text, useInput } from "@textjs/next";
+-import { Box, Text, useInput } from "@textjs/app";
++import { Box, Spacer, Text, useInput } from "@textjs/app";
  
  export default function Page() {
    return (

@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from "react";
-import { Box, Code, Diff, Spinner, Text, useTheme } from "@textjs/next";
+import { Box, Code, Diff, Spinner, Text, useTheme } from "@textjs/app";
 import { shortPath } from "../lib/format";
 import { capitalize, Dots } from "./Composer";
 import type { JsonRecord, ToolPart } from "../lib/types";

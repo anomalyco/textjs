@@ -9,7 +9,7 @@ import type { TuiFrame } from "../stage/types";
 
 const testing: typeof import("../../../packages/react/src/testing") = await import(join(REPO, "packages/react/src/testing.tsx"));
 const core: typeof import("../../../packages/core/src/index") = await import(join(REPO, "packages/core/src/index.ts"));
-/** Components for chapter scripts (what `@textjs/next` re-exports). */
+/** Components for chapter scripts (what `@textjs/app` re-exports). */
 export const ui: typeof import("../../../packages/react/src/index") = await import(join(REPO, "packages/react/src/index.ts"));
 
 export async function renderFrame(

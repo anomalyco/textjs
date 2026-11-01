@@ -146,7 +146,7 @@ export const DOCS: readonly DocPage[] = [
   {
     slug: "testing",
     title: "Testing",
-    description: "Render apps offscreen, press keys and assert on frames with @textjs/next/testing.",
+    description: "Render apps offscreen, press keys and assert on frames with @textjs/app/testing.",
     category: "Building Your Application",
     markdown: testing,
   },

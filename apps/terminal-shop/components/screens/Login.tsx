@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { CONTENT, HEIGHT, WIDTH } from "../../lib/frame";
 import { notEmpty } from "../../lib/form";
-import { usePathname } from "@textjs/next/navigation";
+import { usePathname } from "@textjs/app/navigation";
 import { PUBLIC_PATHS, useShop, useShopState } from "../../lib/store";
 import { defaultTheme } from "../../lib/theme";
 import { fit, place, span, wrap, type Line } from "../../lib/ui";

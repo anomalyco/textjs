@@ -3,7 +3,7 @@
     "prefix": ["txpage", "page"],
     "description": "▼ App Router page (app/**/page.tsx)",
     "body": [
-      "import { Box, Text, useTheme, type Metadata } from \"@textjs/next\";",
+      "import { Box, Text, useTheme, type Metadata } from \"@textjs/app\";",
       "",
       "export const metadata: Metadata = { title: \"${1:${TM_DIRECTORY/^.*[\\/\\\\]([^\\/\\\\]+)$/${1:/capitalize}/}}\" };",
       "",
@@ -25,7 +25,7 @@
     "prefix": ["txlayout", "layout"],
     "description": "▼ App Router layout (app/**/layout.tsx)",
     "body": [
-      "import { Box, Text, useTheme, type LayoutProps } from \"@textjs/next\";",
+      "import { Box, Text, useTheme, type LayoutProps } from \"@textjs/app\";",
       "",
       "export default function ${1:Root}Layout({ children }: LayoutProps) {",
       "  const theme = useTheme();",
@@ -47,7 +47,7 @@
     "prefix": "txloading",
     "description": "▼ loading.tsx with a <Spinner>",
     "body": [
-      "import { Box, Spinner } from \"@textjs/next\";",
+      "import { Box, Spinner } from \"@textjs/app\";",
       "",
       "export default function Loading() {",
       "  return (",
@@ -63,7 +63,7 @@
     "prefix": "txerror",
     "description": "▼ error.tsx boundary with retry",
     "body": [
-      "import { Box, Text, useInput, useTheme, type ErrorComponentProps } from \"@textjs/next\";",
+      "import { Box, Text, useInput, useTheme, type ErrorComponentProps } from \"@textjs/app\";",
       "",
       "export default function Error({ error, reset }: ErrorComponentProps) {",
       "  const theme = useTheme();",
@@ -85,7 +85,7 @@
     "prefix": ["txc", "txcomponent"],
     "description": "▼ Console component",
     "body": [
-      "import { Box, Text } from \"@textjs/next\";",
+      "import { Box, Text } from \"@textjs/app\";",
       "",
       "export function ${1:${TM_FILENAME_BASE/(.*)/${1:/pascalcase}/}}() {",
       "  return (",
@@ -152,7 +152,7 @@
   },
   "<Link>": {
     "prefix": "link",
-    "description": "▼ <Link> from @textjs/next/link",
+    "description": "▼ <Link> from @textjs/app/link",
     "body": ["<Link href=\"${1:/}\"${2: shortcut=\"${3:1}\"}>${4:Home}</Link>"]
   },
   "<Spinner>": {
@@ -187,7 +187,7 @@
   },
   "useRouter": {
     "prefix": "useRouter",
-    "description": "▼ App Router navigation (@textjs/next/navigation)",
+    "description": "▼ App Router navigation (@textjs/app/navigation)",
     "body": ["const router = useRouter();"]
   },
   "useInterval": {

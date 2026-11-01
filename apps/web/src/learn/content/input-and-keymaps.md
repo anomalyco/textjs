@@ -18,7 +18,7 @@ Once a screen has more than a couple of keys, describe them with `useKeymap`. Bi
 
 ```diff-tsx@app/deployments/page.tsx
 +import { useState } from "react";
-+import { Box, KeyHelp, Text, useKeymap } from "@textjs/next";
++import { Box, KeyHelp, Text, useKeymap } from "@textjs/app";
 +import { DEPLOYMENTS } from "../../lib/deployments";
 +
 +export default function DeploymentsPage() {

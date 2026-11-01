@@ -1,8 +1,8 @@
 import rule from "../src/rules/prefer-use-interval.ts";
 import { FILE, tester } from "./tester.ts";
 
-const IMPORTS = `import { useEffect, useState } from "react";\nimport { Text } from "@textjs/next";\n`;
-const WITH = `import { useEffect, useState } from "react";\nimport { Text, useInterval } from "@textjs/next";\n`;
+const IMPORTS = `import { useEffect, useState } from "react";\nimport { Text } from "@textjs/app";\n`;
+const WITH = `import { useEffect, useState } from "react";\nimport { Text, useInterval } from "@textjs/app";\n`;
 
 tester().run("prefer-use-interval", rule, {
   valid: [
@@ -54,7 +54,7 @@ tester().run("prefer-use-interval", rule, {
       // Arrow components.
       filename: FILE,
       code: `${IMPORTS}const Blink = () => { useEffect(() => { const id = setInterval(toggle, 500); return () => clearInterval(id); }, []); return null; };`,
-      errors: [{ messageId: "preferUseInterval", suggestions: [{ messageId: "rewrite", output: `import { useEffect, useState } from "react";\nimport { Text, useInterval } from "@textjs/next";\nconst Blink = () => { useInterval(toggle, 500); return null; };` }] }],
+      errors: [{ messageId: "preferUseInterval", suggestions: [{ messageId: "rewrite", output: `import { useEffect, useState } from "react";\nimport { Text, useInterval } from "@textjs/app";\nconst Blink = () => { useInterval(toggle, 500); return null; };` }] }],
     },
   ],
 });

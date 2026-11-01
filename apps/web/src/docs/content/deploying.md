@@ -98,7 +98,7 @@ compatibility_flags = ["nodejs_compat"]
 `text start` binds to `127.0.0.1` and, while bound to loopback, only answers `localhost`, `*.localhost` and IP-address hosts (DNS-rebinding protection). Other hosts get a `403` with `TX028`. Put the public settings in `text.config.ts`:
 
 ```ts@text.config.ts
-import { defineConfig } from "@textjs/next";
+import { defineConfig } from "@textjs/app";
 
 export default defineConfig({
   server: {

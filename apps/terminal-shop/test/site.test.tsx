@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { act } from "react";
-import { scanApp, toStaticManifest } from "@textjs/next/vite";
+import { scanApp, toStaticManifest } from "@textjs/app/vite";
 import { fileURLToPath } from "node:url";
-import type { RouteSegmentNode } from "@textjs/next/router";
+import type { RouteSegmentNode } from "@textjs/app/router";
 import { routes } from "../embed";
 import { mountShop, type Harness } from "./app";
 import type { MockSiteProxy } from "./mock-terminal";

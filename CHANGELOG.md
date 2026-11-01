@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- The framework and CLI package is now `@textjs/app`, renamed from `@textjs/next` so the name doesn't suggest an official Next.js integration. `@textjs/next` is deprecated in favour of `@textjs/app` and gets no new releases. To switch, run `bun remove @textjs/next && bun add @textjs/app` and replace `@textjs/next` with `@textjs/app` in imports, including subpaths such as `@textjs/app/link`. The CLI is still `text`, and create-text-app templates depend on `@textjs/app`.
 - The in-console `[▼]` pill and inspector are called the Dev Overlay, and the inspector's title reads `▼ Dev Overlay · Turbolog`. Text.js DevTools is the name of the Chrome extension only. `<TextDevOverlay>` and its props are unchanged.
 - Route handlers that export `dynamic = "error"` fail with `TX031`. Text.js treated it as `"force-static"` without checking whether the handler reads the request, which is what the value means in Next.js. Use `"force-static"`.
 
@@ -53,7 +54,7 @@ The first stable release. `▼ Text.js 1.0.0 (Turbolog)`.
 ### Changed
 
 - **Breaking:** the framework and CLI package is now `@textjs/next` (`textjs` is taken on npm). Update imports from `textjs` to `@textjs/next`.
-- The OpenCode bridge is `bunx @textjs/next proxy` and runs from any directory.
+- The OpenCode bridge is `bunx @textjs/app proxy` and runs from any directory.
 - The console fits the docked DevTools panel by default (bottom, left or right dock, page zoom, toolbar wrap). Undocked DevTools fall back to `120×36`. The pads gained a size control.
 
 ### Added

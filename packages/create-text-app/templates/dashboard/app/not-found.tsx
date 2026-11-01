@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Box, Text, useTheme } from "@textjs/next";
-import Link from "@textjs/next/link";
+import { Box, Text, useTheme } from "@textjs/app";
+import Link from "@textjs/app/link";
 
 export default function NotFound(): ReactNode {
   const theme = useTheme();

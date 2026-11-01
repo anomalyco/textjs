@@ -39,7 +39,7 @@ export function llmsTxt(): string {
 
 > Text.js is a React framework for apps that render in the DevTools console with console.log.
 
-Import components from \`@textjs/next\`. Lowercase DOM elements such as \`<div>\` throw TX003. Use \`<Box>\` and \`<Text>\` instead.
+Import components from \`@textjs/app\`. Lowercase DOM elements such as \`<div>\` throw TX003. Use \`<Box>\` and \`<Text>\` instead.
 
 ## Docs
 

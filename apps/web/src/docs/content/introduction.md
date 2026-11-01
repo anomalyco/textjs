@@ -2,7 +2,7 @@ Text.js is a React framework for apps that render in the DevTools console with `
 
 ```tsx#counter
 import { useState } from "react";
-import { Box, Text, useInput } from "@textjs/next";
+import { Box, Text, useInput } from "@textjs/app";
 
 export default function Page() {
   const [count, setCount] = useState(0);

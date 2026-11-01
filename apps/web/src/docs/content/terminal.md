@@ -18,7 +18,7 @@ Same-origin `fetch("/api/...")` calls run your `route.ts` handlers in-process, e
 For a single component, or your own CLI:
 
 ```tsx@cli.tsx
-import { renderToTerminal } from "@textjs/next/terminal";
+import { renderToTerminal } from "@textjs/app/terminal";
 import { App } from "./app";
 
 const app = await renderToTerminal(<App />);

@@ -24,8 +24,8 @@
       "name": "@textjs/opencode-console",
       "version": "0.1.0",
       "dependencies": {
+        "@textjs/app": "workspace:*",
         "@textjs/core": "workspace:*",
-        "@textjs/next": "workspace:*",
         "@textjs/opencode": "workspace:*",
         "@textjs/react": "workspace:*",
         "react": "^19.3.1",
@@ -39,8 +39,8 @@
       "name": "@textjs/terminal-shop",
       "version": "0.1.0",
       "dependencies": {
+        "@textjs/app": "workspace:*",
         "@textjs/core": "workspace:*",
-        "@textjs/next": "workspace:*",
         "@textjs/react": "workspace:*",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
@@ -50,9 +50,9 @@
       "name": "@textjs/web",
       "version": "0.1.0",
       "dependencies": {
+        "@textjs/app": "workspace:*",
         "@textjs/core": "workspace:*",
         "@textjs/font": "workspace:*",
-        "@textjs/next": "workspace:*",
         "@textjs/react": "workspace:*",
         "@textjs/terminal-shop": "workspace:*",
         "react": "^19.3.1",
@@ -68,7 +68,7 @@
       "name": "@textjs/example-dashboard",
       "version": "0.1.0",
       "dependencies": {
-        "@textjs/next": "workspace:*",
+        "@textjs/app": "workspace:*",
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
       },
@@ -78,16 +78,36 @@
         "typescript": "^5.8.3",
       },
     },
+    "packages/app": {
+      "name": "@textjs/app",
+      "version": "1.0.2",
+      "bin": {
+        "text": "bin/text.js",
+      },
+      "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.32.2",
+        "@textjs/core": "workspace:*",
+        "@textjs/opencode": "workspace:*",
+        "@textjs/react": "workspace:*",
+        "@vitejs/plugin-react": "^4.5.2",
+        "vite": "^6.3.5",
+        "zod": "^4",
+      },
+      "peerDependencies": {
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+      },
+    },
     "packages/core": {
       "name": "@textjs/core",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "dependencies": {
         "yoga-layout": "^3.2.1",
       },
     },
     "packages/create-text-app": {
       "name": "create-text-app",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "bin": {
         "create-text-app": "bin/create-text-app.js",
       },
@@ -106,7 +126,7 @@
     },
     "packages/eslint-plugin-textjs": {
       "name": "eslint-plugin-textjs",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "dependencies": {
         "@typescript-eslint/utils": "^8.72.1",
       },
@@ -121,12 +141,12 @@
     },
     "packages/font": {
       "name": "@textjs/font",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "devDependencies": {
         "@textjs/react": "workspace:*",
       },
       "peerDependencies": {
-        "@textjs/react": "^1.0.1",
+        "@textjs/react": "^1.0.2",
         "react": "^19.0.0",
       },
       "optionalPeers": [
@@ -136,14 +156,14 @@
     },
     "packages/opencode": {
       "name": "@textjs/opencode",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "bin": {
         "textjs-opencode": "bin/textjs-opencode.js",
       },
     },
     "packages/react": {
       "name": "@textjs/react",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "dependencies": {
         "@textjs/core": "workspace:*",
         "react-reconciler": "^0.34.0",
@@ -157,32 +177,12 @@
         "react-dom",
       ],
     },
-    "packages/text": {
-      "name": "@textjs/next",
-      "version": "1.0.1",
-      "bin": {
-        "text": "bin/text.js",
-      },
-      "dependencies": {
-        "@modelcontextprotocol/sdk": "^1.32.2",
-        "@textjs/core": "workspace:*",
-        "@textjs/opencode": "workspace:*",
-        "@textjs/react": "workspace:*",
-        "@vitejs/plugin-react": "^4.5.2",
-        "vite": "^6.3.5",
-        "zod": "^4",
-      },
-      "peerDependencies": {
-        "react": "^19.0.0",
-        "react-dom": "^19.0.0",
-      },
-    },
     "packages/vscode-textjs": {
       "name": "vscode-textjs",
       "version": "1.0.0",
       "devDependencies": {
+        "@textjs/app": "workspace:*",
         "@textjs/core": "workspace:*",
-        "@textjs/next": "workspace:*",
         "@textjs/react": "workspace:*",
         "@types/vscode": "~1.90.0",
         "@vscode/test-electron": "^3.1.0",
@@ -439,6 +439,8 @@
 
     "@sindresorhus/merge-streams": ["@sindresorhus/merge-streams@2.3.0", "", {}, "sha512-LtoMMhxAlorcGhmFYI+LhPgbPZCkgP6ra1YL604EeF6U98pLlQ3iWIGMdWSC+vWmPBWBNgmDBAhnAobLROJmwg=="],
 
+    "@textjs/app": ["@textjs/app@workspace:packages/app"],
+
     "@textjs/core": ["@textjs/core@workspace:packages/core"],
 
     "@textjs/devtools-extension": ["@textjs/devtools-extension@workspace:packages/devtools-extension"],
@@ -446,8 +448,6 @@
     "@textjs/example-dashboard": ["@textjs/example-dashboard@workspace:examples/dashboard"],
 
     "@textjs/font": ["@textjs/font@workspace:packages/font"],
-
-    "@textjs/next": ["@textjs/next@workspace:packages/text"],
 
     "@textjs/opencode": ["@textjs/opencode@workspace:packages/opencode"],
 

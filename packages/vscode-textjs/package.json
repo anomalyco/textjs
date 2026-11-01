@@ -147,7 +147,7 @@
   },
   "devDependencies": {
     "@textjs/core": "workspace:*",
-    "@textjs/next": "workspace:*",
+    "@textjs/app": "workspace:*",
     "@textjs/react": "workspace:*",
     "@types/vscode": "~1.90.0",
     "@vscode/test-electron": "^3.1.0",

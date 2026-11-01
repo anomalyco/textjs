@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Box, Text } from "@textjs/next";
+import { Box, Text } from "@textjs/app";
 import { HEIGHT, WIDTH } from "../lib/frame";
 import { palette } from "../lib/theme";
 import type { Line, Span } from "../lib/ui";

@@ -163,7 +163,7 @@ try {
 
   // 2. The app.
   const devPort = await freePort();
-  server = spawn("bun", [join(REPO, "packages/text/bin/text.ts"), "dev", "--port", String(devPort)], { cwd: join(REPO, "examples/dashboard"), stdio: "ignore" });
+  server = spawn("bun", [join(REPO, "packages/app/bin/text.ts"), "dev", "--port", String(devPort)], { cwd: join(REPO, "examples/dashboard"), stdio: "ignore" });
   const appUrl = `http://localhost:${devPort}/`;
   await poll("dev server", async () => (await fetch(appUrl)).ok, 30_000);
 

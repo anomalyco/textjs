@@ -1,4 +1,4 @@
-import { defineConfig } from "@textjs/next";
+import { defineConfig } from "@textjs/app";
 
 export default defineConfig({
   title: "acme-deploys",

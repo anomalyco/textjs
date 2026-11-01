@@ -88,10 +88,10 @@ async function startStarter(): Promise<AppServer> {
   const cta = Bun.spawnSync(["bun", join(REPO, "packages/create-text-app/dist/bin/create-text-app.js"), "acme-deploys", "--template", "starter"], { cwd: root, stdout: "pipe", stderr: "pipe" });
   if (cta.exitCode !== 0) throw new Error(`create-text-app failed: ${cta.stderr.toString()} (run \`bun run build:packages\` first)`);
   mkdirSync(join(dir, "node_modules/@textjs"), { recursive: true });
-  symlinkSync(join(REPO, "packages/text"), join(dir, "node_modules/@textjs/next"));
+  symlinkSync(join(REPO, "packages/app"), join(dir, "node_modules/@textjs/app"));
   for (const dep of ["react", "react-dom"]) symlinkSync(join(REPO, "node_modules", dep), join(dir, "node_modules", dep));
   const port = await freePort();
-  const proc = Bun.spawn(["bun", join(REPO, "packages/text/bin/text.js"), "dev", "--port", String(port), "--host", "127.0.0.1"], { cwd: dir, stdout: "ignore", stderr: "ignore" });
+  const proc = Bun.spawn(["bun", join(REPO, "packages/app/bin/text.js"), "dev", "--port", String(port), "--host", "127.0.0.1"], { cwd: dir, stdout: "ignore", stderr: "ignore" });
   const origin = `http://127.0.0.1:${port}`;
   await waitFor(`${origin}/`);
   return {

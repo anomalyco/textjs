@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Box, KeyHint, Text, useTheme, type Metadata } from "@textjs/next";
-import Link from "@textjs/next/link";
+import { Box, KeyHint, Text, useTheme, type Metadata } from "@textjs/app";
+import Link from "@textjs/app/link";
 
 export const metadata: Metadata = { title: { default: "{{name}}", template: "%s · {{name}}" } };
 

@@ -5,7 +5,7 @@ Middleware runs code before a request completes. It can redirect, rewrite, set h
 Create `middleware.ts` in the project root (or `src/`), next to `app/`. Export a `middleware` function (or a default export) and an optional `config`.
 
 ```ts@middleware.ts
-import { NextResponse, type NextRequest } from "@textjs/next/server";
+import { NextResponse, type NextRequest } from "@textjs/app/server";
 
 export function middleware(request: NextRequest) {
   if (!request.cookies.has("session")) {
@@ -102,7 +102,7 @@ Cookies set on a `next()` or `rewrite()` response are also visible to the route 
 The second argument has `waitUntil()`, which keeps serverless runtimes alive after the response is sent:
 
 ```ts@middleware.ts
-import type { NextFetchEvent, NextRequest } from "@textjs/next/server";
+import type { NextFetchEvent, NextRequest } from "@textjs/app/server";
 
 export function middleware(request: NextRequest, event: NextFetchEvent) {
   event.waitUntil(fetch("https://analytics.example.com", { method: "POST", body: request.url }));

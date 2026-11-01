@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Box, Input, Markdown, ScrollBox, Spinner, Text, useInput, useInterval, useTheme, type Metadata } from "@textjs/next";
-import { useParams, useRouter } from "@textjs/next/navigation";
+import { Box, Input, Markdown, ScrollBox, Spinner, Text, useInput, useInterval, useTheme, type Metadata } from "@textjs/app";
+import { useParams, useRouter } from "@textjs/app/navigation";
 import { messageText, opencode, type Message } from "../../../lib/opencode";
 
 export const metadata: Metadata = { title: "Session" };

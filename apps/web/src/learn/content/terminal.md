@@ -26,7 +26,7 @@ bun run tui -- --path /deployments # start on another route
 Terminal users expect `q`. `useApp().exit()` unmounts the app and restores the terminal; in the browser it unmounts the console app.
 
 ```diff-tsx@app/layout.tsx
-+import { useApp } from "@textjs/next";
++import { useApp } from "@textjs/app";
  
  export default function RootLayout({ children }: { children?: ReactNode }) {
 +  const app = useApp();
@@ -41,8 +41,8 @@ Terminal users expect `q`. `useApp().exit()` unmounts the app and restores the t
 For a single component, use `renderToTerminal`. It mounts one element without the App Router, and `fetch("/api/…")` only reaches your route handlers under `text run`, so pass the component its data:
 
 ```tsx@cli.tsx
-import { renderToTerminal } from "@textjs/next/terminal";
-import { Table } from "@textjs/next";
+import { renderToTerminal } from "@textjs/app/terminal";
+import { Table } from "@textjs/app";
 import { DEPLOYMENTS } from "./lib/deployments";
 
 const columns = [{ key: "commit", header: "Commit" }, { key: "project", header: "Project", width: 10 }];

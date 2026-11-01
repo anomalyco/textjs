@@ -32,7 +32,7 @@ tester().run("no-box-in-text", rule, {
     {
       // Nested <Text> and <Link> are checked too; aliases resolve.
       filename: FILE,
-      code: `import { Text as T, Box as B, Link } from "@textjs/next";\nexport const A = () => <T><T bold><B /></T><Link href="/">go <B /></Link></T>;`,
+      code: `import { Text as T, Box as B, Link } from "@textjs/app";\nexport const A = () => <T><T bold><B /></T><Link href="/">go <B /></Link></T>;`,
       errors: [
         { messageId: "boxInText", data: { child: "Box", parent: "Text" } },
         { messageId: "boxInText", data: { child: "Box", parent: "Link" } },

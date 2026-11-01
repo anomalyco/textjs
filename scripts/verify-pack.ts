@@ -1,6 +1,6 @@
 /**
  * Install the packed (publish-shaped) `@textjs/core`, `@textjs/react`,
- * `@textjs/opencode` and `@textjs/next` into a fresh starter app outside the
+ * `@textjs/opencode` and `@textjs/app` into a fresh starter app outside the
  * repo and smoke-test the `text` and `textjs-opencode` CLIs under Node and Bun.
  *
  *   bun scripts/verify-pack.ts [--keep] [--skip-build]
@@ -21,7 +21,7 @@ const PACKAGES = [
   ["@textjs/core", "packages/core"],
   ["@textjs/react", "packages/react"],
   ["@textjs/opencode", "packages/opencode"],
-  ["@textjs/next", "packages/text"],
+  ["@textjs/app", "packages/app"],
 ] as const;
 
 function sh(cmd: string, args: string[], cwd: string, env?: Record<string, string>): string {
@@ -50,8 +50,8 @@ export function packPackages(work: string, build: boolean, packages: ReadonlyArr
 }
 
 const SERVER_PAGE = `export const runtime = "server";
-import { Box, Text } from "@textjs/next";
-import { usePathname } from "@textjs/next/navigation";
+import { Box, Text } from "@textjs/app";
+import { usePathname } from "@textjs/app/navigation";
 
 async function Data(): Promise<React.ReactNode> {
   await new Promise((r) => setTimeout(r, 10));
@@ -69,8 +69,8 @@ export default function Page() {
 }
 `;
 
-const CLIENT_NAV_PAGE = `import { Text } from "@textjs/next";
-import { usePathname, useRouter } from "@textjs/next/navigation";
+const CLIENT_NAV_PAGE = `import { Text } from "@textjs/app";
+import { usePathname, useRouter } from "@textjs/app/navigation";
 
 export default function Page() {
   const pathname = usePathname();
@@ -81,7 +81,7 @@ export default function Page() {
 
 function scaffold(app: string, tarballs: Record<string, string>): void {
   cpSync(join(root, "packages/create-text-app/templates/starter"), app, { recursive: true });
-  const fill = (s: string): string => s.replaceAll("{{name}}", "pack-smoke").replaceAll("{{textjsVersion}}", `file:${tarballs["@textjs/next"]}`);
+  const fill = (s: string): string => s.replaceAll("{{name}}", "pack-smoke").replaceAll("{{textjsVersion}}", `file:${tarballs["@textjs/app"]}`);
   for (const f of ["package.json", "text.config.ts", "app/layout.tsx", "README.md"]) {
     const p = join(app, f);
     writeFileSync(p, fill(readFileSync(p, "utf8")));
@@ -98,7 +98,7 @@ function scaffold(app: string, tarballs: Record<string, string>): void {
 }
 
 type Runtime = "node" | "bun";
-const textCmd = (rt: Runtime, app: string): string[] => (rt === "node" ? ["node", join(app, "node_modules/@textjs/next/bin/text.js")] : ["bun", join(app, "node_modules/@textjs/next/bin/text.js")]);
+const textCmd = (rt: Runtime, app: string): string[] => (rt === "node" ? ["node", join(app, "node_modules/@textjs/app/bin/text.js")] : ["bun", join(app, "node_modules/@textjs/app/bin/text.js")]);
 
 interface Result {
   name: string;
@@ -191,9 +191,9 @@ async function runTerminal(name: string, cmd: string[], app: string): Promise<Re
 }
 
 async function runMcp(name: string, cmd: string[], app: string): Promise<Result> {
-  // The SDK is a dependency of the installed `@textjs/next`, not of the repo root.
-  const { Client } = (await import(Bun.resolveSync("@modelcontextprotocol/sdk/client/index.js", join(app, "node_modules/@textjs/next")))) as typeof import("@modelcontextprotocol/sdk/client/index.js");
-  const { StdioClientTransport } = (await import(Bun.resolveSync("@modelcontextprotocol/sdk/client/stdio.js", join(app, "node_modules/@textjs/next")))) as typeof import("@modelcontextprotocol/sdk/client/stdio.js");
+  // The SDK is a dependency of the installed `@textjs/app`, not of the repo root.
+  const { Client } = (await import(Bun.resolveSync("@modelcontextprotocol/sdk/client/index.js", join(app, "node_modules/@textjs/app")))) as typeof import("@modelcontextprotocol/sdk/client/index.js");
+  const { StdioClientTransport } = (await import(Bun.resolveSync("@modelcontextprotocol/sdk/client/stdio.js", join(app, "node_modules/@textjs/app")))) as typeof import("@modelcontextprotocol/sdk/client/stdio.js");
   const [bin, ...args] = cmd as [string, ...string[]];
   const transport = new StdioClientTransport({ command: bin, args: [...args, "mcp", app], cwd: app, stderr: "pipe" });
   let err = "";

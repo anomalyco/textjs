@@ -22,7 +22,7 @@ Export `runtime` from a page:
 ```tsx@app/status/page.tsx
 import { Suspense, type ReactNode } from "react";
 import os from "node:os";
-import { Box, Text } from "@textjs/next";
+import { Box, Text } from "@textjs/app";
 
 export const runtime = "server";
 
@@ -85,7 +85,7 @@ const router = useRouter();
 useInput((e) => e.input === "r" && router.refresh());
 ```
 
-Props passed to async components should be serializable: strings, numbers, plain objects, arrays, `Date`, `URL`, `Map`, `Set` and elements. Function props are not part of the key (pass data, not callbacks). Each session caches at most 256 promises. You can also wrap a component by hand with `serverComponent(fn)` from `@textjs/next/server-components`.
+Props passed to async components should be serializable: strings, numbers, plain objects, arrays, `Date`, `URL`, `Map`, `Set` and elements. Function props are not part of the key (pass data, not callbacks). Each session caches at most 256 promises. You can also wrap a component by hand with `serverComponent(fn)` from `@textjs/app/server-components`.
 
 Hooks (`useState`, `useInput`, …) don't work inside an `async function` component. Render a regular component around or below it for interaction.
 

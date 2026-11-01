@@ -1,6 +1,6 @@
 import { memo, useMemo, useRef, type ReactNode } from "react";
 import { stringWidth } from "@textjs/core";
-import { Box, Divider, Text, parseInline, parseMarkdown, useMeasure, useViewport, type MarkdownBlock } from "@textjs/next";
+import { Box, Divider, Text, parseInline, parseMarkdown, useMeasure, useViewport, type MarkdownBlock } from "@textjs/app";
 import { useTokens } from "../lib/native-theme";
 import { TranscriptCode } from "./TranscriptCode";
 

@@ -50,13 +50,13 @@ const script: ChapterScript = {
       id: "course",
       kind: "course",
       narration:
-        "Over ten chapters, {list}you'll build Acme Deploys: a deploy dashboard that renders entirely inside the DevTools console. " +
+        "Over ten chapters, {list}you'll build Acme Deploys: a deploy dashboard that renders in the DevTools console. " +
         "{pill}Each chapter ends with the app exactly as your code leaves it, running live in the console on the lesson page. " +
         "{focus}In this first one, you'll create the app, render your first page, and respond to a key.",
       props: {
         eyebrow: "The course",
         headline: "Build Acme Deploys",
-        body: "A deploy dashboard that renders entirely inside the DevTools console.",
+        body: "A deploy dashboard that renders in the DevTools console.",
         pill: "Every chapter runs live in DevTools",
         chapters: CHAPTERS.map((c, i) => ({ n: i + 1, title: c.title, minutes: c.minutes })),
         current: 1,
@@ -70,7 +70,7 @@ const script: ChapterScript = {
         "First, a quick look at how it works. {react}A Text.js app is a React app. " +
         "{layout}Your components lay out with Flexbox, into a grid of character cells. " +
         "{log}Each frame that changes becomes a single console.log call, made of %c-styled spans. " +
-        "{console}DevTools draws it in the console, {blank}and the page itself stays blank.",
+        "{console}DevTools draws it in the console, {blank}and the page only shows a focus pad.",
       tail: 1.4,
       props: {
         eyebrow: "How it works",
@@ -80,7 +80,7 @@ const script: ChapterScript = {
           { title: "console.log", sub: "One call per changed frame", at: "log", content: { type: "code", size: 16, lines: tokenize('console.log(\n  "%c▼ Acme Deploys",\n  "font-weight:700"\n)', "ts") } },
           { title: "DevTools", sub: "The console draws it", at: "console", content: { type: "console", frame: tinyCard, size: 16 } },
         ],
-        statement: { at: "blank", text: "The page itself stays blank" },
+        statement: { at: "blank", text: "The page only shows a focus pad" },
       },
     },
     {
@@ -145,7 +145,7 @@ const script: ChapterScript = {
       kind: "live",
       narration:
         "{open}Open localhost:3000. {keys}Then open the console with ⌘⌥J, or Ctrl+Shift+J on Windows and Linux. " +
-        "{blank}The page itself stays blank, apart from a hint. {app}Your app is in the console.",
+        "{blank}The page only shows a focus pad. {app}Your app is in the console.",
       tail: 2.4,
       live: {
         server: "starter",
@@ -174,7 +174,7 @@ const script: ChapterScript = {
       kind: "editor",
       narration:
         "Every route is a page.tsx file in the app folder. {replace}Replace the starter page with the dashboard's title card. " +
-        "{imports}Box and Text come from @textjs/next. " +
+        "{imports}Box and Text come from @textjs/app. " +
         "{box}Box is a layout container. Its class names are Flexbox utilities, measured in cells: a column with a rounded border, " +
         "{pad}and padding of two cells across and one down. " +
         "{text}Inside, a bold title, {muted}and a line in the theme's muted color. " +
@@ -299,7 +299,7 @@ const script: ChapterScript = {
       id: "quiz-1",
       kind: "quiz",
       move: "down",
-      narration: `Quick check. {q}${quiz[0]!.question} {+2.2} {answer}In the DevTools console, through console.log. {explain}Every changed frame is a single log of styled spans, and the page stays blank.`,
+      narration: `Quick check. {q}${quiz[0]!.question} {+2.2} {answer}In the DevTools console, through console.log. {explain}Every changed frame is a single log of styled spans.`,
       tail: 1.4,
       props: {
         eyebrow: "Quick check · 1 of 2",
@@ -313,7 +313,7 @@ const script: ChapterScript = {
     {
       id: "quiz-2",
       kind: "quiz",
-      narration: `{q}And what does an idle app log? {+2.2} {answer}Nothing. {+0.3} {explain}If no cell changed, nothing is allocated, and nothing is logged.`,
+      narration: `{q}And what does an idle app log? {+2.2} {answer}Nothing. {+0.3} {explain}If no cell changed, the renderer returns before it builds a string, so nothing is logged.`,
       tail: 1.6,
       props: {
         eyebrow: "Quick check · 2 of 2",

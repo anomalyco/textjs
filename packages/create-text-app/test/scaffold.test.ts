@@ -8,7 +8,7 @@ import { detectPackageManager, runCommand, scaffold, templateFiles, TEMPLATES, t
 
 const REPO = fileURLToPath(new URL("../../..", import.meta.url));
 const BIN = fileURLToPath(new URL("../bin/create-text-app.ts", import.meta.url));
-const TEXT_BIN = join(REPO, "packages/text/bin/text.ts");
+const TEXT_BIN = join(REPO, "packages/app/bin/text.ts");
 
 let tmp = "";
 beforeAll(() => {
@@ -24,12 +24,12 @@ const EXPECTED: Record<TemplateName, string[]> = {
   opencode: [".gitignore", "README.md", "app/layout.tsx", "app/page.tsx", "app/session/[id]/page.tsx", "lib/opencode.ts", "package.json", "text.config.ts", "tsconfig.json"],
 };
 
-/** Link the workspace `@textjs/next` + React into a scaffolded project (stands in for `bun install`). */
+/** Link the workspace `@textjs/app` + React into a scaffolded project (stands in for `bun install`). */
 function linkDeps(dir: string): void {
   const nm = join(dir, "node_modules");
   mkdirSync(join(nm, "@types"), { recursive: true });
   mkdirSync(join(nm, "@textjs"), { recursive: true });
-  symlinkSync(join(REPO, "packages/text"), join(nm, "@textjs/next"));
+  symlinkSync(join(REPO, "packages/app"), join(nm, "@textjs/app"));
   for (const dep of ["react", "react-dom", "typescript"]) symlinkSync(join(REPO, "node_modules", dep), join(nm, dep));
   for (const t of ["react", "node", "bun"]) if (existsSync(join(REPO, "node_modules/@types", t))) symlinkSync(join(REPO, "node_modules/@types", t), join(nm, "@types", t));
 }
@@ -76,7 +76,7 @@ describe("scaffold", () => {
       expect(result.name).toBe(`valid-${template}`);
       const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
       expect(pkg.name).toBe(`valid-${template}`);
-      expect(pkg.dependencies["@textjs/next"]).toBe(`^${VERSION}`);
+      expect(pkg.dependencies["@textjs/app"]).toBe(`^${VERSION}`);
       expect(pkg.scripts).toEqual({ dev: "text dev", build: "text build", start: "text start" });
       JSON.parse(readFileSync(join(dir, "tsconfig.json"), "utf8"));
       const tsx = new Bun.Transpiler({ loader: "tsx" });
@@ -130,7 +130,7 @@ describe("create-text-app CLI", () => {
     expect(code).toBe(0);
     expect(out).toContain("cd my-app");
     expect(existsSync(join(cwd, "my-app/app/page.tsx"))).toBe(true);
-    for (const doc of ["README.md", "packages/text/README.md", "apps/web/src/docs/content/installation.md"]) {
+    for (const doc of ["README.md", "packages/app/README.md", "apps/web/src/docs/content/installation.md"]) {
       const text = readFileSync(join(REPO, doc), "utf8");
       if (text.includes("create-text-app@latest\n")) expect(text).toContain("cd my-app");
     }

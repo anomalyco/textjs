@@ -151,7 +151,7 @@ export function scaffold(kind: ScaffoldKind, route: ParsedRoute, options: Scaffo
       const typeImports = ts ? [...(params ? ["type PageProps"] : []), "type Metadata"] : [];
       const sig = params ? (ts ? `{ params }: PageProps<${params}>` : "{ params }") : "";
       const paramLine = params ? `\n      <Text color={theme.subtle}>{JSON.stringify(params)}</Text>` : "";
-      body = `${reactImport}import { ${[...imports, ...typeImports].join(", ")} } from "@textjs/next";
+      body = `${reactImport}import { ${[...imports, ...typeImports].join(", ")} } from "@textjs/app";
 
 export const metadata${ts ? ": Metadata" : ""} = { title: ${JSON.stringify(title)} };
 
@@ -172,7 +172,7 @@ export default function ${name}(${sig})${R} {
     case "layout": {
       const name = `${base || "Root"}Layout`;
       const sig = ts ? `{ children }: LayoutProps${params ? `<${params}>` : ""}` : "{ children }";
-      body = `${reactImport}import { Box, Text, useTheme${ts ? ", type LayoutProps" : ""} } from "@textjs/next";
+      body = `${reactImport}import { Box, Text, useTheme${ts ? ", type LayoutProps" : ""} } from "@textjs/app";
 
 export default function ${name}(${sig})${R} {
   const theme = useTheme();
@@ -206,7 +206,7 @@ export async function POST(${req}${ctx})${ts ? ": Promise<Response>" : ""} {
       break;
     }
     case "loading":
-      body = `${reactImport}import { Box, Spinner } from "@textjs/next";
+      body = `${reactImport}import { Box, Spinner } from "@textjs/app";
 
 export default function Loading()${R} {
   return (
@@ -218,7 +218,7 @@ export default function Loading()${R} {
 `;
       break;
     case "error":
-      body = `${reactImport}import { Box, Text, useInput, useTheme${ts ? ", type ErrorComponentProps" : ""} } from "@textjs/next";
+      body = `${reactImport}import { Box, Text, useInput, useTheme${ts ? ", type ErrorComponentProps" : ""} } from "@textjs/app";
 
 export default function ${base || "App"}Error({ error, reset }${ts ? ": ErrorComponentProps" : ""})${R} {
   const theme = useTheme();
@@ -238,8 +238,8 @@ export default function ${base || "App"}Error({ error, reset }${ts ? ": ErrorCom
 `;
       break;
     case "not-found":
-      body = `${reactImport}import { Box, Text, useTheme } from "@textjs/next";
-import Link from "@textjs/next/link";
+      body = `${reactImport}import { Box, Text, useTheme } from "@textjs/app";
+import Link from "@textjs/app/link";
 
 export default function NotFound()${R} {
   const theme = useTheme();

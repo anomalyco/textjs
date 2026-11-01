@@ -30,7 +30,7 @@ export const PRONOUNCE: Record<string, string> = {
   "%c": "percent C",
   "⌘⌥J": "Command Option J",
   "Ctrl+Shift+J": "Control Shift J",
-  "@textjs/next": "at textjs slash next",
+  "@textjs/app": "at textjs slash app",
   "@textjs/react": "at textjs slash react",
   "create-text-app": "create text app",
   "localhost:3000": "localhost three thousand",
@@ -45,7 +45,7 @@ function withPronunciation(text: string, dict: Record<string, string>): string {
   const keys = Object.keys(dict).sort((a, b) => b.length - a.length);
   if (!keys.length) return text;
   const esc = (s: string): string => s.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
-  const re = new RegExp(`(\\[[^\\]]*\\]|\\{[^}]*\\})|(${keys.map(esc).join("|")})`, "g");
+  const re = new RegExp(`(\\[(?:[^\\][]|\\[[^\\]]*\\])*\\]|\\{[^}]*\\})|(${keys.map(esc).join("|")})`, "g");
   return text.replace(re, (m, keep: string | undefined, term: string | undefined) => (keep ? keep : `[${term}|${dict[term!]}]`));
 }
 
@@ -62,7 +62,7 @@ export function parseNarration(src: string, dict: Record<string, string> = PRONO
     else for (let i = 0; i < d.length; i++) map.push([start, start + s.length]);
     display += d;
   };
-  const re = /\{([\w.-]+)\}\s?|\[([^\]|]+)\|([^\]]+)\]/g;
+  const re = /\{([\w.-]+)\}\s?|\[((?:[^\][|]|\[[^\]]*\])+)\|([^\]]+)\]/g;
   let at = 0;
   for (const m of text.matchAll(re)) {
     push(text.slice(at, m.index), text.slice(at, m.index));

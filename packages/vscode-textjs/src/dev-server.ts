@@ -18,7 +18,7 @@ import {
   type DevStatus,
   type FrameMeta,
   type InputMessage,
-} from "@textjs/next/frame-protocol";
+} from "@textjs/app/frame-protocol";
 import type { StyledFrame } from "@textjs/core";
 import { SseParser, type SseEvent } from "./sse";
 

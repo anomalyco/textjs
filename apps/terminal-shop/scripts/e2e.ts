@@ -73,7 +73,7 @@ export function decodeFrame(format: string): string {
 
 async function startDevServer(api: MockTerminal): Promise<{ proc: ChildProcess; url: string }> {
   const port = 3900 + Math.floor(Math.random() * 90);
-  const proc = spawn("bun", [join(ROOT, "../../packages/text/bin/text.ts"), "dev", "--port", String(port)], {
+  const proc = spawn("bun", [join(ROOT, "../../packages/app/bin/text.ts"), "dev", "--port", String(port)], {
     cwd: ROOT,
     env: { ...process.env, TERMINAL_DEV_API_URL: api.url, TERMINAL_DEV_TOKEN: MOCK_TOKEN, TERMINAL_ENABLE_PRODUCTION: "" },
     stdio: ["ignore", "pipe", "pipe"],

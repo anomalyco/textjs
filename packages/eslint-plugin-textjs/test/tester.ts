@@ -16,7 +16,7 @@ export function tester(): RuleTester {
 }
 
 /** A console component file: imports from Text.js, so rules treat it as rendering into the console. */
-export const CONSOLE = `import { Box, Text, Link, useInput, useKeymap, useInterval, useAnimationFrame } from "@textjs/next";\n`;
+export const CONSOLE = `import { Box, Text, Link, useInput, useKeymap, useInterval, useAnimationFrame } from "@textjs/app";\n`;
 
 export const PAGE = "/repo/app/page.tsx";
 export const FILE = "/repo/components/Panel.tsx";

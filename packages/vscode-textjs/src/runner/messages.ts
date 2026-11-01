@@ -1,6 +1,6 @@
 /** IPC between the extension host and the headless preview runner. */
 
-import type { InputMessage, WireFrame } from "@textjs/next/frame-protocol";
+import type { InputMessage, WireFrame } from "@textjs/app/frame-protocol";
 
 export type RunnerTarget = { kind: "route"; path: string } | { kind: "component"; file: string };
 

@@ -1,0 +1,5 @@
+/**
+ * `@textjs/app/terminal` — render the same app in a real terminal.
+ */
+
+export * from "@textjs/react/terminal";

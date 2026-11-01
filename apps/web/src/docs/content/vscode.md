@@ -8,7 +8,7 @@ Install [Text.js](https://marketplace.visualstudio.com/items?itemName=textjs.vsc
 code --install-extension textjs.vscode-textjs
 ```
 
-It activates in any folder that contains a Text.js app: a `text.config.ts`, or a package that depends on `@textjs/next` and has an `app/` directory. Monorepos with several apps work too.
+It activates in any folder that contains a Text.js app: a `text.config.ts`, or a package that depends on `@textjs/app` and has an `app/` directory. Monorepos with several apps work too.
 
 ## Live Preview
 
@@ -39,7 +39,7 @@ Background tabs get no animation frames, so they normally hold their frames unti
 
 ### Headless mode
 
-The extension starts a small runner in your project. It loads route files through the project's own Vite and `@textjs/next`, so aliases, TypeScript and JSX behave the same as in `text dev`. It mounts the App Router at the route of the open file, with its layouts, using an in-memory history:
+The extension starts a small runner in your project. It loads route files through the project's own Vite and `@textjs/app`, so aliases, TypeScript and JSX behave the same as in `text dev`. It mounts the App Router at the route of the open file, with its layouts, using an in-memory history:
 
 | File | Preview |
 | :-- | :-- |
@@ -110,4 +110,4 @@ The preview and the dev server run your project's code (its Vite config, `text.c
 | `GET /__textjs/frames` | Server-sent events: one `frame` event per change, encoded as row deltas |
 | `POST /__textjs/input` | A key, paste, wheel or navigation for the tab. Requires JSON and the `x-textjs-mirror: 1` header, so other sites can't send keystrokes |
 
-Tabs send frames to the dev server over Vite's HMR socket, which requires a per-server token. The wire format is exported from `@textjs/next/frame-protocol` (`FrameEncoder`, `FrameDecoder`, `parseInputMessage`) if you want to build your own viewer. None of this exists in `text build` output.
+Tabs send frames to the dev server over Vite's HMR socket, which requires a per-server token. The wire format is exported from `@textjs/app/frame-protocol` (`FrameEncoder`, `FrameDecoder`, `parseInputMessage`) if you want to build your own viewer. None of this exists in `text build` output.

@@ -12,7 +12,7 @@
   "dependencies": {
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "@textjs/next": "workspace:*"
+    "@textjs/app": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

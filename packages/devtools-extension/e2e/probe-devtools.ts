@@ -20,7 +20,7 @@ const shots = process.argv.includes("--shots");
 const { dist } = await build({ zip: false, introspect: true });
 const port = 9300 + Math.floor(Math.random() * 500);
 const devPort = 4400 + Math.floor(Math.random() * 500);
-const server = spawn("bun", [join(REPO, "packages/text/bin/text.ts"), "dev", "--port", String(devPort)], { cwd: join(REPO, "examples/dashboard"), stdio: "ignore" });
+const server = spawn("bun", [join(REPO, "packages/app/bin/text.ts"), "dev", "--port", String(devPort)], { cwd: join(REPO, "examples/dashboard"), stdio: "ignore" });
 const profile = mkdtempSync(join(tmpdir(), "textjs-devtools-probe-"));
 // Dock DevTools at the bottom of a wide window so every panel tab fits without overflow.
 mkdirSync(join(profile, "Default"), { recursive: true });
