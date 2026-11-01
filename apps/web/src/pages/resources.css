@@ -193,6 +193,13 @@
   border-bottom: 1px solid var(--line);
 }
 
+.blog-brand {
+  display: block;
+  font-size: 18px;
+  margin-bottom: 20px;
+  color: var(--fg-strong);
+}
+
 .blog-post-head time {
   display: block;
   font-size: 14px;
@@ -547,6 +554,11 @@
 
 .st .rs-head {
   padding-bottom: 32px;
+}
+
+/* The lockup stands in for "Turbolog" in the heading, at the heading's cap height. */
+.st-lockup {
+  margin-right: 0.12em;
 }
 
 .st-banner {

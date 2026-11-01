@@ -1,6 +1,32 @@
-# Turbolog logo concepts
+# Turbolog logo
 
-Six candidate marks for Turbolog, the Text.js render engine. Each one has a mark and a "Turbolog" lockup. `concepts.png` compares them side by side.
+Turbolog, the Text.js render engine, uses concept E (Gate): the ▼ inside a diamond gate, with "TURBOLOG" in Geist SemiBold caps. `final.png` shows the finished lockup and `concepts.png` shows the six concepts it was picked from.
+
+![Turbolog lockup](./final.png)
+
+## Final lockup
+
+The files are in `final/`:
+
+- `turbolog-lockup-{color,mono}-on-{black,white}.svg`: the mark and wordmark
+- `turbolog-mark-{color,mono}-on-{black,white}.svg`: the mark alone
+- `paths.json`: the path data that `TurbologLockup` in `apps/web/src/site/brand-marks.tsx` is built from
+
+Construction:
+
+- **Mark:** on a 32-unit grid. The ring's hollow has a half-width of 11.5. The ▼ runs parallel to the ring's lower edges, 3 units clear of them, with its top edge on the diamond's equator, so it lands on a whole pixel at 16px.
+- **Wordmark:** "TURBOLOG" in Geist SemiBold caps, outlined. Tracking is +0.05em on top of Geist's kerning, with optical pair spacing (in 1/1000 em): TU −15, UR +5, RB +8, LO −30.
+- **Lockup:** the mark is 1.4× the cap height and centred on the caps. The gap to the wordmark is 0.28× the mark's height.
+- **Colour:** the ring carries the gradient, `#00d68f` → `#f5e14a` on black and `#00a36c` → `#c9a800` on white. The ▼ and the wordmark are one colour. The one-colour versions drop the gradient.
+
+On the site, the lockup is 1em tall, so its caps match Geist caps at the same font size. The ▼ and the wordmark use `currentColor`, and the gradient switches with `color-scheme` through `light-dark()`. It appears once on each of these pages:
+
+- the landing page's Turbolog section eyebrow (`apps/web/src/pages/home/Turbolog.tsx`)
+- the header of `/docs/turbolog-engine` (`brand: "turbolog"` in `apps/web/src/docs/registry.ts`)
+- the `/status` heading (`apps/web/src/pages/Status.tsx`)
+- the header of the Turbolog blog post (`brand: turbolog` in its frontmatter)
+
+## Concepts
 
 ![Turbolog logo concepts](./concepts.png)
 
@@ -12,8 +38,6 @@ Six candidate marks for Turbolog, the Text.js render engine. Each one has a mark
 | D | Percent | A % sign whose dots are the ▼ and a character cell, as in `%c`. |
 | E | Gate | The ▼ inside a diamond gate, for the row-hash check that stops unchanged frames. |
 | F | Cursor | T and L sharing a stem on a 4×4 cell grid, with a block cursor in the last cell. |
-
-## Files
 
 Each concept folder (`a-append/` to `f-cursor/`) contains:
 
@@ -31,15 +55,4 @@ cd merch && bun install
 bun brand/turbolog/build.ts
 ```
 
-`build.ts` writes the SVGs and renders `concepts.png` with headless Chromium. It reuses the outlined-Geist helpers in `merch/scripts/lib.ts`.
-
-## Where the chosen mark would go
-
-Nothing is wired into the site yet. Each of these is a small change:
-
-- **Landing page:** the Turbolog section eyebrow, `<p className="eyebrow">Turbolog</p>` in `apps/web/src/pages/home/Turbolog.tsx`. The sheet mocks this at 18px tall.
-- **Docs:** the header of the Turbolog engine page, `<h1 className="docs-title">` in `apps/web/src/pages/Docs.tsx` (only when the slug is `turbolog-engine`).
-- **Status page:** `<h1>Turbolog Status</h1>` in `apps/web/src/pages/Status.tsx`, and the mark next to "Turbolog encoder" in `apps/web/src/pages/status-components.ts`.
-- **Blog:** the header of `apps/web/src/blog/turbolog-eliminating-the-flash.md`, through `apps/web/src/pages/BlogPost.tsx`.
-
-The site draws its own marks as inline React SVG in `currentColor` (see `apps/web/src/site/brand-marks.tsx`), so the chosen `lockup.svg` would move there as a component.
+`build.ts` writes the concept and final SVGs, `final/paths.json`, `concepts.png` and `final.png`, using headless Chromium. It reuses the outlined-Geist helpers in `merch/scripts/lib.ts`. If the final geometry changes, copy the paths from `final/paths.json` into `TurbologLockup`.

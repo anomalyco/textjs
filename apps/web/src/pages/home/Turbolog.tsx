@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { A } from "../../router";
+import { TurbologLockup } from "../../site/brand-marks";
 import { ArrowRight } from "../../site/icons";
 import { useInView } from "../../site/useInView";
 import history from "../status-history.json";
@@ -262,7 +263,9 @@ export function TurbologSection(): ReactNode {
     <section className="section home-section" id="turbolog">
       <div className="container" ref={ref}>
         <div className="section-head">
-          <p className="eyebrow">Turbolog</p>
+          <p className="eyebrow tl-eyebrow">
+            <TurbologLockup />
+          </p>
           <h2>
             Every changed frame is one <code>console.log</code> call
           </h2>

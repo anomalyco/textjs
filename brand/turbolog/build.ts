@@ -326,6 +326,208 @@ ${rows.join("")}
 </body></html>`;
 
 writeFileSync(join(OUT, "concepts.png"), await png(html, W, H, 2));
-await close();
 console.log(`wrote ${CONCEPTS.length} concepts and concepts.png`);
+
+/* ───────────── Final: concept E with "TURBOLOG" ───────────── */
+
+/**
+ * The mark on a 32-unit grid. The ring is the diamond with a hollow of half-width 11.5; the ▼ runs
+ * parallel to the ring's lower edges, 3 units clear of them, with its top edge on the diamond's
+ * equator (y = 16, a whole pixel at 16px).
+ */
+const HOLLOW = 11.5;
+const CLEAR = 3;
+const APEX = 16 + HOLLOW - CLEAR * Math.SQRT2;
+const HALF = APEX - 16;
+const RING = `M16 0L32 16L16 32L0 16ZM16 ${16 - HOLLOW}L${16 - HOLLOW} 16L16 ${16 + HOLLOW}L${16 + HOLLOW} 16Z`;
+const ARROW = `M${fmt(16 - HALF)} 16H${fmt(16 + HALF)}L16 ${fmt(APEX)}Z`;
+
+/** Gradients: the dark one is the concept's; the light one is darker so it holds contrast on white. */
+const DARK: [string, string] = [G1, G2];
+const LIGHT: [string, string] = ["#00a36c", "#c9a800"];
+
+/** Lockup geometry, in units where the mark is 100 tall. */
+const MARK = 100;
+const CAP = MARK / 1.4;
+const WORD_FONT = fonts.sansSemiBold;
+const WORD_SIZE = CAP / capOf(WORD_FONT);
+const WORD_X = MARK * 1.28;
+const BASELINE = MARK / 2 + CAP / 2;
+/** Caps get +0.05em tracking, then per-pair optical spacing on top of Geist's kerning (1/1000 em). */
+const TRACKING = 0.05;
+const PAIRS: Record<string, number> = { TU: -15, UR: 5, RB: 8, LO: -30 };
+
+function wordmark(str: string): { d: string; width: number } {
+  let d = "";
+  let x = WORD_X;
+  const glyphs = [...str].map((ch) => WORD_FONT.charToGlyph(ch));
+  glyphs.forEach((g, i) => {
+    d += g
+      .getPath(x, BASELINE, WORD_SIZE)
+      .commands.map((c) =>
+        c.type === "M" || c.type === "L" ? `${c.type}${fmt(c.x)} ${fmt(c.y)}` : c.type === "Q" ? `Q${fmt(c.x1)} ${fmt(c.y1)} ${fmt(c.x)} ${fmt(c.y)}` : c.type === "C" ? `C${fmt(c.x1)} ${fmt(c.y1)} ${fmt(c.x2)} ${fmt(c.y2)} ${fmt(c.x)} ${fmt(c.y)}` : "Z",
+      )
+      .join("");
+    const next = glyphs[i + 1];
+    if (!next) {
+      x += ((g.getBoundingBox().x2 ?? 0) / WORD_FONT.unitsPerEm) * WORD_SIZE;
+      return;
+    }
+    const kern = WORD_FONT.getKerningValue(g, next) + (PAIRS[str[i]! + str[i + 1]!] ?? 0);
+    x += (((g.advanceWidth ?? 0) + kern) / WORD_FONT.unitsPerEm) * WORD_SIZE + TRACKING * WORD_SIZE;
+  });
+  // opentype.js leaves Geist's contours open; close each one explicitly.
+  return { d: `${d.replace(/(?<!^)M/g, "ZM")}Z`.replace(/ZZ/g, "Z"), width: x };
+}
+
+const WORD = wordmark("TURBOLOG");
+const LOCKUP_W = Math.ceil(WORD.width * 100) / 100;
+
+type Look = { fg: string; gradient: [string, string] | null; id: string };
+
+/** The gradient runs corner to corner of the 32-unit mark; in the lockup it is used inside the scaled group. */
+function finalDefs({ gradient, id }: Look): string {
+  if (!gradient) return "";
+  return `<defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="32" y2="32"><stop stop-color="${gradient[0]}"/><stop offset="1" stop-color="${gradient[1]}"/></linearGradient></defs>`;
+}
+
+function finalMark(look: Look, size?: number): string {
+  const ring = look.gradient ? `url(#${look.id})` : look.fg;
+  const dims = size ? ` width="${size}" height="${size}"` : "";
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"${dims} fill="none" role="img" aria-label="Turbolog">${finalDefs(look)}<path d="${RING}" fill-rule="evenodd" fill="${ring}"/><path d="${ARROW}" fill="${look.fg}"/></svg>`;
+}
+
+function finalLockup(look: Look, height?: number): string {
+  const s = MARK / 32;
+  const ring = look.gradient ? `url(#${look.id})` : look.fg;
+  const dims = height ? ` width="${fmt((LOCKUP_W / MARK) * height)}" height="${height}"` : "";
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${fmt(LOCKUP_W)} ${MARK}"${dims} fill="none" role="img" aria-label="Turbolog">${finalDefs(look)}<g transform="scale(${fmt(s)})"><path d="${RING}" fill-rule="evenodd" fill="${ring}"/><path d="${ARROW}" fill="${look.fg}"/></g><path d="${WORD.d}" fill="${look.fg}"/></svg>`;
+}
+
+const LOOKS: Record<string, Look> = {
+  "color-on-black": { fg: "#fff", gradient: DARK, id: "turbolog-dark" },
+  "color-on-white": { fg: "#000", gradient: LIGHT, id: "turbolog-light" },
+  "mono-on-black": { fg: "#fff", gradient: null, id: "" },
+  "mono-on-white": { fg: "#000", gradient: null, id: "" },
+};
+
+mkdirSync(join(OUT, "final"), { recursive: true });
+for (const [name, look] of Object.entries(LOOKS)) {
+  write(`final/turbolog-lockup-${name}.svg`, finalLockup(look));
+  write(`final/turbolog-mark-${name}.svg`, finalMark(look));
+}
+
+/** Path data for `TurbologLockup` in apps/web/src/site/brand-marks.tsx. */
+writeFileSync(
+  join(OUT, "final", "paths.json"),
+  `${JSON.stringify({ viewBox: `0 0 ${fmt(LOCKUP_W)} ${MARK}`, markScale: MARK / 32, ring: RING, arrow: ARROW, word: WORD.d, baseline: fmt(BASELINE), dark: DARK, light: LIGHT }, null, 2)}\n`,
+);
+
+/* ───────────── Final sheet ───────────── */
+
+let sheetId = 0;
+const look = (name: keyof typeof LOOKS): Look => ({ ...LOOKS[name]!, id: `${LOOKS[name]!.id}-${sheetId++}` });
+
+async function finalRaster(name: string, px: number, bg: string): Promise<string> {
+  const html = `<html><body style="margin:0;background:${bg}">${finalMark(look(name), px)}</body></html>`;
+  return dataUri("image/png", await png(html, px, px, 1));
+}
+
+const rasters: Record<string, string> = {};
+for (const name of Object.keys(LOOKS)) {
+  const bg = name.endsWith("black") ? "#000" : "#fff";
+  for (const px of [16, 32]) rasters[`${name}-${px}`] = await finalRaster(name, px, bg);
+}
+
+/** Construction: cap height and baseline rules, the mark's centre line and the mark-to-word gap. */
+function construction(): string {
+  const h = 200;
+  const k = h / MARK;
+  const w = LOCKUP_W * k;
+  const y = (v: number): string => fmt(v * k);
+  const capTop = BASELINE - CAP;
+  return `<svg width="${fmt(w + 232)}" height="${h + 40}" viewBox="-1 -20 ${fmt(w + 232)} ${h + 40}">
+    <g stroke="#f5e14a" stroke-opacity=".55" stroke-width="1" stroke-dasharray="4 4">
+      <line x1="-1" x2="${fmt(w + 16)}" y1="${y(capTop)}" y2="${y(capTop)}"/>
+      <line x1="-1" x2="${fmt(w + 16)}" y1="${y(BASELINE)}" y2="${y(BASELINE)}"/>
+    </g>
+    <g stroke="#00d68f" stroke-opacity=".7" stroke-width="1">
+      <line x1="-1" x2="${fmt(w + 16)}" y1="${y(MARK / 2)}" y2="${y(MARK / 2)}"/>
+      <line x1="${y(MARK)}" x2="${y(MARK)}" y1="-20" y2="${h + 20}"/>
+      <line x1="${y(WORD_X)}" x2="${y(WORD_X)}" y1="-20" y2="${h + 20}"/>
+    </g>
+    <g transform="scale(${fmt(k)})" opacity=".9">${finalLockup(look("mono-on-black")).replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "")}</g>
+    <g font-family="Geist Mono" font-size="12" fill="#a1a1a1">
+      <text x="${fmt(w + 24)}" y="${fmt(Number(y(capTop)) + 4)}">cap height · mark is 1.4×</text>
+      <text x="${fmt(w + 24)}" y="${fmt(Number(y(BASELINE)) + 4)}">baseline</text>
+      <text x="${fmt(w + 24)}" y="${fmt(Number(y(MARK / 2)) + 4)}">mark centre = cap centre</text>
+      <text x="${fmt(Number(y(MARK)) + 4)}" y="${h + 14}">gap 0.28×</text>
+    </g>
+  </svg>`;
+}
+
+const FINAL_W = 1880;
+const FINAL_H = 1370;
+const finalHtml = `<!doctype html><html><head><style>
+@font-face { font-family: Geist; src: url(${font("geist-latin.woff2")}) format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "Geist Mono"; src: url(${font("geist-mono-latin.woff2")}) format("woff2"); font-weight: 100 900; }
+* { box-sizing: border-box; }
+body { margin: 0; width: ${FINAL_W}px; height: ${FINAL_H}px; background: #0a0a0a; color: #ededed; font-family: Geist, sans-serif; padding: 40px 48px; }
+header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,.1); margin-bottom: 28px; }
+h1 { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.03em; }
+header p { margin: 6px 0 0; color: #a1a1a1; font-size: 14px; }
+.legend { display: grid; gap: 6px; font-size: 13px; color: #a1a1a1; text-align: right; }
+.legend i { display: inline-block; width: 28px; height: 10px; border-radius: 2px; vertical-align: middle; margin-right: 8px; }
+.label { font-family: "Geist Mono"; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #707070; margin: 0 0 10px; }
+.tile { border-radius: 12px; border: 1px solid rgba(255,255,255,.1); display: grid; place-items: center; }
+.black { background: #000; }
+.white { background: #fff; border-color: #fff; }
+.top { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.top .tile { height: 300px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 28px; }
+.grid4 .tile { height: 150px; gap: 14px; }
+.row2 { margin-top: 28px; }
+.build { height: 290px; background: #000; }
+.small { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.small .tile { height: 150px; grid-auto-flow: column; gap: 28px; }
+.small img { image-rendering: pixelated; }
+.small .zoom { outline: 1px dashed rgba(128,128,128,.35); outline-offset: 4px; }
+.sizes { display: flex; align-items: center; gap: 28px; }
+</style></head><body>
+<header>
+  <div><h1>Turbolog</h1><p>Concept E, Gate. Wordmark: Geist SemiBold caps, outlined, +0.05em tracking with optical pair spacing.</p></div>
+  <div class="legend">
+    <span><i style="background:linear-gradient(90deg,${DARK[0]},${DARK[1]})"></i>On black ${DARK[0]} → ${DARK[1]}</span>
+    <span><i style="background:linear-gradient(90deg,${LIGHT[0]},${LIGHT[1]})"></i>On white ${LIGHT[0]} → ${LIGHT[1]}</span>
+  </div>
+</header>
+<p class="label">Colour</p>
+<div class="top">
+  <div class="tile black">${finalLockup(look("color-on-black"), 96)}</div>
+  <div class="tile white">${finalLockup(look("color-on-white"), 96)}</div>
+</div>
+<div class="grid4">
+  <div><p class="label">One colour on black</p><div class="tile black">${finalLockup(look("mono-on-black"), 48)}</div></div>
+  <div><p class="label">One colour on white</p><div class="tile white">${finalLockup(look("mono-on-white"), 48)}</div></div>
+  <div><p class="label">Lockup at 24 · 16px</p><div class="tile black" style="grid-auto-flow:row">${finalLockup(look("color-on-black"), 24)}${finalLockup(look("color-on-black"), 16)}</div></div>
+  <div><p class="label">Mark</p><div class="tile black" style="grid-auto-flow:column">${finalMark(look("color-on-black"), 96)}${finalMark(look("mono-on-black"), 48)}</div></div>
+</div>
+<div class="row2">
+  <div><p class="label">Construction</p><div class="tile build">${construction()}</div></div>
+</div>
+<div class="row2">
+  <div><p class="label">Mark at 16px · 32px · 16px at 4× (colour and one colour, on black and on white)</p>
+    <div class="small">
+      ${Object.keys(LOOKS)
+        .map((name) => `<div class="tile ${name.endsWith("black") ? "black" : "white"}"><img src="${rasters[`${name}-16`]}" width="16" height="16"><img src="${rasters[`${name}-32`]}" width="32" height="32"><img class="zoom" src="${rasters[`${name}-16`]}" width="64" height="64"></div>`)
+        .join("")}
+    </div>
+  </div>
+</div>
+</body></html>`;
+
+writeFileSync(join(OUT, "final.png"), await png(finalHtml, FINAL_W, FINAL_H, 2));
+console.log("wrote final/ and final.png");
+
+await close();
 process.exit(0);
