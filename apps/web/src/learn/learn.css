@@ -580,6 +580,10 @@
   color: var(--subtle);
 }
 
+.learn-reset a {
+  margin-left: 20px;
+}
+
 /* Responsive */
 
 @media (max-width: 960px) {
@@ -628,4 +632,42 @@
 /* Docs hide their breadcrumbs on small screens (they have a crumb bar); chapters keep theirs. */
 .learn-main .breadcrumbs {
   display: flex;
+}
+
+/* ⌘P on a finished certificate prints the certificate alone: 60 columns at 12pt fit A4 and Letter. */
+@media print {
+  @page {
+    margin: 0.5in;
+  }
+  html:has(.learn-cert:not(.pending)),
+  html:has(.learn-cert:not(.pending)) body {
+    background: #fff !important;
+  }
+  html:has(.learn-cert:not(.pending)) body *:not(:has(.learn-cert:not(.pending))):not(.learn-cert):not(.learn-cert *) {
+    display: none !important;
+  }
+  html:has(.learn-cert:not(.pending)) body *:has(.learn-cert:not(.pending)) {
+    display: block !important;
+    width: auto !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
+  .learn-cert:not(.pending) {
+    overflow: visible;
+    padding: 1.5in 0 0;
+    border: 0;
+    background: none;
+    text-align: center;
+  }
+  .learn-cert:not(.pending) pre {
+    font-family: var(--mono);
+    font-size: 12pt;
+    line-height: 1.25;
+    color: #000;
+  }
 }

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { matchRoute } from "../src/router";
 import { RouteView } from "../src/App";
 import { SALES_HREF } from "../src/pages/Enterprise";
+import { linkedInAddUrl } from "../src/learn/certificate";
 import { renderToStaticMarkup } from "react-dom/server";
 import { HERO_FILES } from "../src/pages/home-files";
 import { HighlightedCode } from "../src/site/highlight";
@@ -154,5 +155,19 @@ describe("enterprise", () => {
     const len = Number(/\/Length (\d+)/.exec(pdf)?.[1]);
     const start = pdf.indexOf("stream\n") + 7;
     expect(pdf.slice(start + len, start + len + 9)).toBe("endstream");
+  });
+});
+
+describe("learn certificate", () => {
+  test("Add to LinkedIn prefills the certification form", () => {
+    expect(linkedInAddUrl(null)).toBeNull();
+    expect(linkedInAddUrl("2026-11-01T02:00:00.000Z")).toBe(
+      "https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=Learn%20Text.js&organizationName=Text.js&issueYear=2026&issueMonth=11&certUrl=https%3A%2F%2Ftextjs.org%2Flearn%2Fcertificate",
+    );
+  });
+
+  test("the link holds its place, hidden, until the course is complete", () => {
+    const html = renderToStaticMarkup(<RouteView route={{ name: "learn", slug: "certificate" }} />);
+    expect(html).toContain('<a class="text-link" target="_blank" rel="noreferrer" style="visibility:hidden">Add to LinkedIn</a>');
   });
 });
