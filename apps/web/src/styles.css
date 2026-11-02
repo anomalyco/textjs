@@ -1396,17 +1396,45 @@ kbd {
   background: var(--bg);
 }
 
+/* One row when everything fits; otherwise copyright and status share the top row and the links get their own. */
 .footer-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "copy nav status";
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
+  gap: 24px 40px;
+}
+
+.tx-copyright {
+  grid-area: copy;
+}
+
+.footer nav {
+  grid-area: nav;
+  justify-content: center;
+}
+
+.footer-status {
+  grid-area: status;
+}
+
+@media (max-width: 1180px) {
+  .footer-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "copy status"
+      "nav nav";
+    row-gap: 16px;
+  }
+  .footer nav {
+    justify-content: flex-start;
+  }
 }
 
 .tx-copyright {
   position: relative;
   display: inline-flex;
+  justify-self: start;
   align-items: center;
   min-height: 64px;
 }
@@ -2757,9 +2785,12 @@ html[data-browser="safari"] .pad-stage {
     padding: 32px 0 calc(32px + env(safe-area-inset-bottom));
   }
   .footer-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "nav"
+      "status";
+    row-gap: 12px;
   }
   .footer nav a {
     display: inline-block;
