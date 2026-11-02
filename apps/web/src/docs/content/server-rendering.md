@@ -7,7 +7,7 @@ Every page renders in one of two places:
 | | Client (default) | Server (`runtime = "server"`) |
 | --- | --- | --- |
 | React tree runs in | The browser tab | `text dev` / `text start` / the `bun` adapter (Bun or Node) |
-| Browser downloads | The full app: React, Yoga WASM, your routes | The frame player, about 19 kB gzip |
+| Browser downloads | The full app: React, Yoga WASM, your routes | The frame player, about 21 kB gzip |
 | Data access | `fetch()` to route handlers | Directly: databases, files, `node:*`, secrets |
 | Async components | Use `use()` or effects | `async function` components are supported |
 | Keystroke latency | Same task, synchronous | One round trip to the server |
@@ -57,7 +57,7 @@ Use the **server** runtime for:
 
 - Dashboards and admin views that read databases, files, queues or private APIs. Credentials stay on the server.
 - Routes with heavy dependencies (SDKs, parsers, syntax tables) that you don't want in the browser bundle.
-- Pages that should load fast on slow networks. The browser downloads the 19 kB (gzip) player instead of the full app.
+- Pages that should load fast on slow networks. The browser downloads the 21 kB (gzip) player instead of the full app.
 
 You can mix runtimes in one app. Navigating between them loads the target URL as a new document. The browser bundle replaces each server page with a stub, so server modules and anything they import never ship to the client.
 
@@ -120,7 +120,7 @@ export default defineConfig({
 During load, only the shell clears the console. The hydrating renderer starts in append mode (`initialClear: false`), so nothing flashes, and the shell only paints on the path it was rendered for. Dynamic routes (`[id]`, `force-dynamic`) render no shell.
 
 ```
- ✓ Prerendering console shells (5/5) · 1 server-rendered, frame player 50.4 kB (19.2 kB gzip)
+ ✓ Prerendering console shells (5/5) · 1 server-rendered, frame player 56.5 kB (21.3 kB gzip)
 ```
 
 Turn it off with `ppr: false` in `text.config.ts`. Prerendering runs your components at build time, so keep top-level module code free of browser-only globals. A route that throws, calls `redirect()` / `notFound()` or navigates while prerendering gets no shell (an error screen is never baked into HTML), and the build tells you why.

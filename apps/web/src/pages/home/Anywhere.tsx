@@ -94,7 +94,6 @@ export function AnywhereSection(): ReactNode {
     <section className="section home-section">
       <div className="container">
         <div className="section-head">
-          <p className="eyebrow">Targets</p>
           <h2>Also runs in terminals and agents</h2>
         </div>
         <div className="aw-grid">

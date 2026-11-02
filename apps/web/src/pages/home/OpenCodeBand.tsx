@@ -67,7 +67,7 @@ export function OpenCodeBand(): ReactNode {
     <section className="section home-section oc-band">
       <div className="container">
         <div className="oc-head">
-          <div className="oc-lockup">
+          <div className="section-mark">
             <OpenCodeWordmark />
           </div>
           <h2>Code with OpenCode in DevTools</h2>

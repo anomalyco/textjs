@@ -26,5 +26,5 @@ Keys: `1`–`5` navigate · `Tab` focus · `Enter` open · `Esc` back · `F2` / 
 
 ## Server rendering
 
-`/status` opts into server rendering with `export const runtime = "server"`. Its React tree renders in `text dev` / `text start`, with async components reading the host through `node:os` (`lib/status.server.ts`); the browser loads only the ~19 kB (gzip) frame player, which logs the streamed frames and sends keys back. Every static route also gets a prerendered console shell in its HTML (Partial Prerendering), so the console paints before any JavaScript loads.
+`/status` opts into server rendering with `export const runtime = "server"`. Its React tree renders in `text dev` / `text start`, with async components reading the host through `node:os` (`lib/status.server.ts`); the browser loads only the ~21 kB (gzip) frame player, which logs the streamed frames and sends keys back. Every static route also gets a prerendered console shell in its HTML (Partial Prerendering), so the console paints before any JavaScript loads.
 
