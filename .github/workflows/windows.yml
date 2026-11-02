@@ -113,11 +113,11 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
-      - name: dev.test.ts x3
+      - name: packages/app/test with close logging
         env:
           TEXTJS_DEBUG_CLOSE: "1"
         run: |
-          for n in 1 2 3; do echo "=== run $n"; bun test packages/app/test/dev.test.ts 2>&1 | grep -E "close|pass|fail|\(fail\)|timed out|ERROR" || true; done
+          bun test packages/app/test 2>&1 | grep -E "^\[close|^##\[group\]|\(fail\)|timed out|ERROR|hook" || true
 
   # What users get from npm today, so it runs by hand (after a release). Pull requests
   # cover this checkout's packages in the packages job (verify-pack, template builds).
