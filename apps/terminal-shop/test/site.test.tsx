@@ -69,8 +69,9 @@ describe("site mode, signed out", () => {
     await h.until("~ featured ~");
     await h.press("down", "down", "+");
     await h.until("sign in to add coffee to your cart");
-    expect(h.screen()).toContain("this is the real shop. orders are charged.");
     expect(h.screen()).toContain("enter sign in   esc back");
+    // Signing in charges nothing; checkout asks for a letter before real money moves.
+    expect(h.screen()).not.toContain("charged");
     expect(h.api.requests.some((r) => r.path.startsWith("/cart"))).toBe(false);
     await h.press("esc");
     await h.until("~ featured ~");
@@ -120,8 +121,8 @@ describe("site mode, signed out", () => {
     await shop.t.waitFor(() => shop.store.s.phase === "ready" && shop.history.getLocation().pathname === "/shop", "shop");
     await shop.press("down", "down", "+");
     await shop.until("esc back");
-    expect(shop.screen()).toContain("charged.");
     expect(shop.screen()).toContain("enter sign in");
+    expect(shop.screen()).toContain("terminal");
   });
 
   test("without a configured OAuth client, sign in says so and browsing still works", async () => {

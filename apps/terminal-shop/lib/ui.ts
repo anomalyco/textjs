@@ -125,18 +125,20 @@ export function wrap(text: string, maxWidth: number): string[] {
   return out;
 }
 
-/** `wrap`, then narrowed to the tightest width that keeps the same line count (CSS `text-wrap: balance`). */
+/**
+ * `wrap` with even lines (CSS `text-wrap: balance`): the same line count, at the width whose
+ * shortest line is longest, so no word is left alone on the last line.
+ */
 export function balance(text: string, maxWidth: number): string[] {
-  const out = wrap(text, maxWidth);
-  if (out.length < 2) return out;
-  let lo = 1;
-  let hi = maxWidth;
-  while (lo < hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    if (wrap(text, mid).length <= out.length) hi = mid;
-    else lo = mid + 1;
+  let best = wrap(text, maxWidth);
+  if (best.length < 2) return best;
+  const shortest = (ls: string[]): number => Math.min(...ls.map((l) => stringWidth(l)));
+  for (let w = maxWidth - 1; w >= 1; w--) {
+    const next = wrap(text, w);
+    if (next.length > best.length) break;
+    if (shortest(next) >= shortest(best)) best = next;
   }
-  return wrap(text, hi);
+  return best;
 }
 
 export interface Block {

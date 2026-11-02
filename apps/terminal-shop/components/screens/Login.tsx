@@ -4,7 +4,7 @@ import { usePathname } from "@textjs/app/navigation";
 import { useShop, useShopState } from "../../lib/store";
 import { defaultTheme } from "../../lib/theme";
 import { keyHints, logoScreen } from "../../lib/frame";
-import { balance, fit, type Line } from "../../lib/ui";
+import { balance, fit, width, type Line } from "../../lib/ui";
 import { useBlink, useBusy, useKeys, useLayout } from "../chrome";
 import { Screen } from "../Screen";
 import { useForm } from "../useForm";
@@ -14,7 +14,13 @@ const TOKEN_FORM = [[{ key: "token", title: "personal access token", validate: n
 
 /** Centered copy wraps at this width even on wide consoles. */
 const TEXT_WIDTH = 48;
-const REAL_SHOP = "this is the real shop. orders are charged.";
+const REAL_SHOP = "orders here are charged and shipped.";
+const sandbox = (label: string): string => `${label} · test cards, nothing ships`;
+
+/** Where "sign in with the browser" goes: Terminal's auth server next to its API. */
+function authHost(api: string | undefined, host: string): string {
+  return api && /^https:\/\/api\./.test(api) ? new URL(api).host.replace(/^api\./, "auth.") : `auth.${host}`;
+}
 
 /**
  * Sign in. The SSH shop identifies you by your ssh key; in the browser you bring a
@@ -72,15 +78,15 @@ function SiteLoginScreen({ prompt, onDismiss }: { prompt?: string; onDismiss?: (
   const M = Math.min(W, TEXT_WIDTH);
   const say = (v: string, style = t.base): Line[] => balance(v, M).map((l) => [style(l)]);
   const env = proxy?.environments[proxy.defaultEnv];
-  const authHost = (env?.api ?? "https://api.terminal.shop").replace(/^https:\/\/api\./, "auth.");
   const lines = logoScreen(
     [
       [
         ...say(prompt ?? "sign in to your terminal account", t.accent),
         ...(error ? say(error, t.error) : !configured ? say("sign in isn't set up here", t.error) : []),
-        ...(configured && env ? say(proxy?.defaultEnv === "prod" ? REAL_SHOP : `${env.label}: test cards, nothing ships`) : []),
+        // Production says nothing here: signing in charges nothing, and checkout asks before money moves.
+        ...(configured && env && proxy?.defaultEnv !== "prod" ? say(sandbox(env.label)) : []),
       ],
-      busy ? say(`opening ${authHost}...`) : keyHints([configured && ["enter", "sign in"], !!onDismiss && ["esc", "back"]], t, M),
+      busy ? say(`opening ${authHost(env?.api, "terminal.shop")}...`) : keyHints([configured && ["enter", "sign in"], !!onDismiss && ["esc", "back"]], t, M),
     ],
     L,
     cursor,
@@ -160,27 +166,31 @@ function TokenLoginScreen(): ReactNode {
   const envInfo = proxy?.environments[env];
   const label = envInfo?.label ?? (env === "dev" ? "dev sandbox" : "production");
   const errorLines = error ? say(error, t.error) : null;
-  // Fields and list rows keep their left edge: the block is centered, not each row.
-  const FW = Math.min(M, 36);
+  const command = say(`ssh ${host} -t tokens`, t.accent);
+  // The field lines up under the command: same left edge, same width.
+  const FW = Math.max(...command.map(width));
   let blocks: Array<Line[] | null | false>;
   if (view === "confirm-prod") {
-    blocks = [[[t.error("switch to production?", { bold: true })]], say("orders there are charged and shipped."), [[t.base("are you sure? "), t.accent("(y/n)")]]];
+    blocks = [[[t.error("switch to production?", { bold: true })], ...say("orders are charged and shipped.")], keyHints([["y", "switch"], ["n", "cancel"]], t, M)];
   } else if (view === "token") {
     blocks = [
-      [...say("create a token with"), ...say(`ssh ${host} -t tokens`, t.accent)],
+      [...say("create a token with"), ...command],
       form.lines(FW, 1).map((l) => fit(l, FW)),
       errorLines,
       busy ? say("signing in...") : keyHints([["enter", "sign in"], ["esc", "back"]], t, M),
     ];
   } else {
-    const LW = Math.min(W, 42);
+    const options = M < 30 ? ["paste a token", "use a browser"] : ["paste an access token", "sign in with the browser"];
+    const rowWidth = 5 + Math.max(...options.map((o) => width(o)));
+    // `enter` sits 3 columns after the longest option, or moves to the key hints when that doesn't fit.
+    const rowHint = rowWidth + 3 + 5 <= M;
     blocks = [
-      [
-        ...listItem(LW < 40 ? "paste a token" : "paste an access token", selected === 0, t, LW),
-        ...listItem(LW < 30 ? "use a browser" : "sign in with the browser", selected === 1, t, LW),
-      ].map((l) => fit(l, LW)),
-      [...say(`${label} · ${envInfo?.api.replace(/^https?:\/\//, "") ?? host}`), ...(env === "dev" ? say("test cards, nothing ships") : say(REAL_SHOP, t.error)), ...(errorLines ?? [])],
-      busy ? say("opening sign in...") : keyHints([["↑/↓", "choose"], ["e", M < 36 ? "environment" : env === "dev" ? "switch to production" : "switch to dev sandbox"]], t, M),
+      options.flatMap((o, i) => listItem(o, selected === i, t, rowHint ? rowWidth + 3 + 5 + 6 : 0)).map((l) => fit(l, rowHint ? rowWidth + 8 : rowWidth)),
+      env === "dev" ? say(sandbox(label)) : say(REAL_SHOP, t.error),
+      errorLines,
+      busy
+        ? say(`opening ${authHost(envInfo?.api, host)}...`)
+        : keyHints([["↑/↓", "choose"], !rowHint && ["enter", "select"], ["e", M < 36 ? "environment" : env === "dev" ? "switch to production" : "switch to dev sandbox"]], t, M),
     ];
   }
   return <Screen lines={logoScreen(blocks, L, cursor)} />;

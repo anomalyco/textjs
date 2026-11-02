@@ -95,7 +95,8 @@ await press("ArrowDown", "ArrowDown");
 await press("+");
 const prompt = await until("sign in to add coffee to your cart");
 check("adding to the cart asks you to sign in", prompt !== null, await last());
-check("sign in screen names the environment and how to back out", /this is the real shop\. orders are charged\.|test cards, nothing ships/.test(await last()) && (await last()).includes("enter sign in   esc back"), await last());
+// Production adds no warning here (checkout asks before money moves); the sandbox says so.
+check("sign in screen says how to sign in and back out", (await last()).includes("enter sign in   esc back") && !/orders here are charged/.test(await last()), await last());
 
 const signedInNav = page.waitForURL((u) => u.pathname === "/coffee" && authorizeUrls.length > 0, { timeout: 10000 }).catch(() => null);
 await press("Enter");

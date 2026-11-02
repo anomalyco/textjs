@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createClient, TerminalError } from "../lib/api";
 import { beginOAuth, completeOAuth, normalizeToken, pkce, tokenEnvMismatch } from "../lib/auth";
-import { footerLines, headerLines, keyHints } from "../lib/frame";
+import { footerLines, headerLines, keyHints, layoutFor, logo, logoScreen } from "../lib/frame";
 import { formKey, initForm, notEmpty } from "../lib/form";
 import { formatUSD, shopPrice } from "../lib/format";
 import { encodeQr, renderQr } from "../lib/qr";
@@ -148,6 +148,18 @@ describe("layout", () => {
   test("balanced wrapping keeps the line count and evens the lines", () => {
     expect(balance("sign in to add coffee to your cart", 30)).toEqual(["sign in to add", "coffee to your cart"]);
     expect(balance("one line", 30)).toEqual(["one line"]);
+    // Greedy wrapping strands "cart"; balanced, every line has company.
+    expect(balance("sign in to add coffee to your cart", 18)).toEqual(["sign in to", "add coffee", "to your cart"]);
+  });
+
+  test("logo screens keep the logo where the splash puts it", () => {
+    for (const [cols, rows] of [[100, 32], [50, 16], [20, 10]] as const) {
+      const L = layoutFor(cols, rows);
+      const splash = place([logo(true)], cols, rows).map(lineText);
+      const screen = logoScreen([[[{ text: "sign in" }]], [[{ text: "esc back" }]]], L, true).map(lineText);
+      const y = splash.findIndex((l) => l.includes("terminal"));
+      expect(screen[y]).toBe(splash[y]);
+    }
   });
 
   test("key hints wrap between pairs", () => {

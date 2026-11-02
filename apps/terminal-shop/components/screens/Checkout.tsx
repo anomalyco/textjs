@@ -738,7 +738,7 @@ export function EmailGateScreen(): ReactNode {
   const host = env === "dev" ? "dev.terminal.shop" : "terminal.shop";
   const lines = logoScreen(
     [
-      [[t.bold("one quick thing")], ...balance("link an email to get order updates", M).map((l) => [t.base(l)])],
+      [[t.bold("one quick thing")], ...balance("checkout needs an email on your account", M).map((l) => [t.base(l)])],
       balance(`ssh ${host} -t link-email`, M).map((l) => [t.accent(l)]),
       keyHints([["r", "reload"], ["esc", "back"]], t, M),
     ],

@@ -5,7 +5,7 @@
 
 import { pad2, dollars } from "./format";
 import { makeTheme, palette, type Theme } from "./theme";
-import { centerLines, clip, concat, fit, place, span, width, wordWrap, type Line } from "./ui";
+import { centerLines, clip, concat, fit, span, width, wordWrap, type Line } from "./ui";
 import type { Cart, Region } from "./types";
 
 /** `size`: which of the SSH shop's layouts the console gets. */
@@ -145,23 +145,55 @@ export function keyHints(keys: Array<[key: string, label: string] | null | false
 }
 
 /**
- * A full-screen centered column under the logo (sign in, the email gate): every line
- * centered, a blank line between blocks. On short consoles the spacing goes first, then the logo.
+ * A full-screen centered column under the logo (sign in, the email gate). The logo sits
+ * exactly where the splash puts it and the blocks hang below it, a blank line apart.
+ * When that doesn't fit, the spacing goes first, then the logo moves up, then it goes.
  */
 export function logoScreen(blocks: Array<Line[] | null | false>, L: Layout, cursor: boolean): Line[] {
+  const vw = L.viewportWidth;
+  const vh = L.viewportHeight;
   const parts = blocks.filter((b): b is Line[] => !!b && b.length > 0);
-  const stack = (head: Line[] | null, afterLogo: number, gap: number): Line[] => {
-    const out: Line[] = head ? [...head, ...Array.from({ length: afterLogo }, (): Line => [])] : [];
+  const below = (afterLogo: number, gap: number): Line[] => {
+    const out: Line[] = Array.from({ length: afterLogo }, (): Line => []);
     parts.forEach((b, i) => {
       if (i > 0) for (let g = 0; g < gap; g++) out.push([]);
       out.push(...b);
     });
     return out;
   };
-  const head = [logo(cursor)];
-  const tries = [stack(head, 2, 1), stack(head, 1, 1), stack(null, 0, 1), stack(head, 1, 0), stack(head, 0, 0), stack(null, 0, 0)];
-  const ls = tries.find((l) => l.length <= L.viewportHeight) ?? (tries.at(-1) as Line[]);
-  return place(centerLines(ls, Math.min(L.viewportWidth, Math.max(0, ...ls.map(width)))), L.viewportWidth, L.viewportHeight);
+  // `place` (the splash): the logo's row and column, rounded down.
+  const pin = Math.floor((vh - 1) / 2);
+  const center = (l: Line): Line => fit(concat(" ".repeat(Math.max(0, Math.floor((vw - width(l)) / 2))), l), vw);
+  const spacings: Array<[number, number]> = [[2, 1], [1, 1], [1, 0]];
+  let top = -1;
+  let body: Line[] = [];
+  for (const [a, g] of spacings) {
+    body = below(a, g);
+    if (body.length <= vh - pin - 1) {
+      top = pin;
+      break;
+    }
+  }
+  if (top < 0) {
+    for (const [a, g] of [...spacings.slice(1), [0, 0] as [number, number]]) {
+      body = below(a, g);
+      if (body.length + 1 <= vh) {
+        top = vh - 1 - body.length;
+        break;
+      }
+    }
+  }
+  const out: Line[] = [];
+  if (top >= 0) {
+    for (let i = 0; i < top; i++) out.push([]);
+    out.push(center(logo(cursor)));
+  } else {
+    body = below(0, 0);
+    for (let i = 0; i < Math.floor(Math.max(0, vh - body.length) / 2); i++) out.push([]);
+  }
+  for (const l of body) out.push(center(l));
+  while (out.length < vh) out.push([]);
+  return out.slice(0, vh);
 }
 
 /** `HeaderView`: logo and tabs (large), `m ☰`, logo and cart (medium), `t` and cart (small). */
