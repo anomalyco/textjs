@@ -77,7 +77,7 @@ When JavaScript boots, the client renderer or the frame player streams the real 
  ✓ Prerendering console shells (5/5) · 1 server-rendered, frame player 56.5 kB (21.3 kB gzip)
 ```
 
-The shell is rendered at the configured `viewport` size, `100 × 32` by default, because the build can't know the visitor's console size. With `viewport.responsive` on, the first live frame resizes to the docked console. Dynamic routes render no shell, and `ppr: false` in `text.config.ts` turns prerendering off.
+The shell is rendered at the configured `viewport` size, `120 × 36` by default, because the build can't know the visitor's console size. With `viewport.responsive` on, the first live frame resizes to the docked console. Dynamic routes render no shell, and `ppr: false` in `text.config.ts` turns prerendering off.
 
 ## Choosing a runtime
 
