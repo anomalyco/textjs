@@ -338,7 +338,7 @@ describe("api proxy", () => {
     for (const path of ["/api/terminal/prod/api/token", "/api/terminal/prod/api/app"]) {
       expect((await handleTerminal(req(path, { ...write("POST", { name: "x", redirectURI: "https://evil.example" }), cookie }), config)).status).toBe(404);
     }
-    for (const path of ["/api/terminal/prod/api/hook/stripe", "/api/terminal/prod/api/doc", "/api/terminal/prod/api/../admin", "/api/terminal/prod/api//product", "/api/terminal/prod/nope"]) {
+    for (const path of ["/api/terminal/prod/api/hook/stripe", "/api/terminal/prod/api/doc", "/api/terminal/prod/api/../admin", "/api/terminal/prod/api//product", "/api/terminal/prod/nope", "/api/terminal/prod/api/product/%2e%2e%2ftoken", "/api/terminal/prod/api/product%2F..%2Ftoken", "/api/terminal/prod/api/%74oken", "/api/terminal/prod/api/product/a%00", "/api/terminal/prod/api/product/..%5capp", "/api/terminal/prod/api/token%23"]) {
       expect([400, 404]).toContain((await handleTerminal(req(path, { cookie }), config)).status);
     }
     expect(api.requests).toEqual([]);
@@ -362,6 +362,19 @@ describe("api proxy", () => {
     expect(app.status).toBe(200);
     // Still CSRF-guarded: no Origin or client header, no token.
     expect((await handleTerminal(req("/api/terminal/prod/api/token", { method: "POST", cookie }), allow)).status).toBe(403);
+  });
+
+  test("query strings and encoded paths never reach Terminal", async () => {
+    const urls: string[] = [];
+    const spy = async (input: string): Promise<Response> => {
+      urls.push(input);
+      return Response.json({ data: [] });
+    };
+    const res = await handleTerminal(req("/api/terminal/prod/api/product?redirect=https://evil.example&path=/token"), config, { fetch: spy, cache: null });
+    expect(res.status).toBe(200);
+    expect(urls).toHaveLength(1);
+    expect(new URL(urls[0]!).search).toBe("");
+    expect(new URL(urls[0]!).pathname).toBe("/product");
   });
 
   test("signed out: public products only", async () => {
