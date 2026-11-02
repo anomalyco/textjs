@@ -1,3 +1,10 @@
+# Blacksmith runners (https://docs.blacksmith.sh), which pick up every job but the canary.
+self-hosted-runner:
+  labels:
+    - blacksmith-2vcpu-ubuntu-2404
+    - blacksmith-4vcpu-ubuntu-2404
+    - blacksmith-8vcpu-ubuntu-2404
+
 # actionlint 1.7.12 (the latest release) predates `concurrency.queue`, which GitHub
 # Actions supports since May 2026:
 # https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency

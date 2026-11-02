@@ -1,11 +1,18 @@
 # ▼ Typecheck and unit tests for pull requests to dev and production, and pushes to dev.
 # Read-only and secret-free, so it runs the same on pull requests from forks.
+#
+# Typecheck, the package tests and the app tests run as parallel jobs, and each
+# test job spreads its files over every core with `bun test --parallel`. The
+# `Typecheck and test` job reports one status for all three.
 
 name: CI
 
 on:
   pull_request:
     branches: [dev, production]
+    # ready_for_review: runs for the draft promotion PR, opened by GITHUB_TOKEN, wait for a maintainer's
+    # approval; marking it Ready for review starts them too.
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [dev]
   workflow_dispatch:
@@ -22,37 +29,88 @@ defaults:
     shell: bash
 
 jobs:
-  test:
-    name: Typecheck and test
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+  typecheck:
+    name: Typecheck
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.4.4
-
-      - name: Install
-        run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup
 
       - name: Typecheck
         run: |
           bun run typecheck
           bun run --cwd apps/web typecheck
 
+  packages:
+    name: Test packages
+    # The longest file (packages/app/test/mcp.test.ts) sets the floor, so more than 8 cores barely helps.
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+
+      # Per-file durations from the last run let --parallel start the slowest files first.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/timings
+          key: test-timings-packages-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: test-timings-packages-
+
       - name: Test packages
-        run: bun test packages/
+        run: |
+          mkdir -p "$RUNNER_TEMP/timings"
+          echo "$(nproc) CPUs"
+          bun test packages/ --parallel --timings="$RUNNER_TEMP/timings/packages.json" --update-timings
+          echo "Slowest files (ms):"
+          jq -r '.files | to_entries | sort_by(-.value) | .[:6][] | "  \(.value)  \(.key)"' "$RUNNER_TEMP/timings/packages.json"
+
+  apps:
+    name: Test apps
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
 
       # og.test.ts renders an Open Graph image per route in headless Chromium.
-      - name: Install Chromium
-        working-directory: apps/web
-        run: bunx playwright-core install --with-deps --only-shell chromium
+      - uses: ./.github/actions/chromium
+        with:
+          dir: apps/web
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/timings
+          key: test-timings-apps-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: test-timings-apps-
 
       - name: Test apps
         run: |
-          bun test apps/opencode-console/
-          bun run --cwd apps/web test
-          bun run --cwd apps/terminal-shop test
+          mkdir -p "$RUNNER_TEMP/timings"
+          for app in opencode-console web terminal-shop; do
+            bun run --cwd "apps/$app" test --timings="$RUNNER_TEMP/timings/$app.json" --update-timings
+          done
+
+  test:
+    name: Typecheck and test
+    needs: [typecheck, packages, apps]
+    if: always()
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 2
+    steps:
+      - name: Check results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "typecheck, packages, apps: $RESULTS"
+          for result in $RESULTS; do [ "$result" = success ] || exit 1; done

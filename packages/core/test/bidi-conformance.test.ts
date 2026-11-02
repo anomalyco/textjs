@@ -38,6 +38,8 @@ function run(types: Uint8Array, cps: number[] | null, dir: ParagraphDirection): 
 
 const fmtLevels = (ls: number[]): string => ls.map((l) => (l < 0 ? "x" : String(l))).join(" ");
 
+// Each test checks hundreds of thousands of cases: half a second on a laptop, but past the
+// default 5 s on a CI runner busy with other test files.
 describe(`UAX #9 conformance (Unicode ${BIDI_UNICODE_VERSION})`, () => {
   test("BidiTest.txt (all cases)", () => {
     const classIndex = new Map(BIDI_CLASS_NAMES.map((n, i) => [n, i]));
@@ -77,7 +79,7 @@ describe(`UAX #9 conformance (Unicode ${BIDI_UNICODE_VERSION})`, () => {
     expect(cases).toBe(770_241);
     expect(failures.slice(0, 20)).toEqual([]);
     expect(failures.length).toBe(0);
-  });
+  }, 30_000);
 
   test("BidiCharacterTest.txt (all cases, including paired brackets)", () => {
     let cases = 0;
@@ -102,5 +104,5 @@ describe(`UAX #9 conformance (Unicode ${BIDI_UNICODE_VERSION})`, () => {
     expect(cases).toBe(91_707);
     expect(failures.slice(0, 20)).toEqual([]);
     expect(failures.length).toBe(0);
-  });
+  }, 30_000);
 });

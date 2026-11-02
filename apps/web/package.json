@@ -12,7 +12,7 @@
     "og:preview": "bun scripts/og/preview.ts",
     "og:share": "bun scripts/og/share.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc -p test/fixtures/acme-deploys",
-    "test": "bun test",
+    "test": "bun test --parallel",
     "check:links": "bun scripts/check-links.ts",
     "preview:functions": "bunx wrangler pages dev dist --port 8788 --compatibility-date 2026-10-01",
     "deploy": "bunx wrangler pages deploy dist --project-name textjs"
