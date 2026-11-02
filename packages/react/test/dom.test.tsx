@@ -16,9 +16,60 @@ import {
   TextCanvas,
   ViewportControl,
 } from "../src/dom/index";
-import { FocusPadMessage, focusPadConsole, type FocusPadConsole, type FocusPadMessageProps, type FocusPadState } from "../src/dom/FocusPad";
+import { activateFocusPad, FocusPadMessage, focusPadConsole, type FocusPadConsole, type FocusPadMessageProps, type FocusPadPress, type FocusPadState } from "../src/dom/FocusPad";
+import type { ConsoleRoot } from "../src/root";
 import { Box, Text } from "../src/index";
 import { createTestRoot } from "./helpers";
+
+describe("FocusPad activation", () => {
+  const press = (over: Partial<FocusPadPress> & { interactive?: boolean } = {}) => {
+    const e = {
+      button: 0,
+      ctrlKey: false,
+      target: { closest: (sel: string) => (over.interactive && sel.includes("button") ? {} : null) } as unknown as EventTarget,
+      prevented: false,
+      preventDefault() {
+        e.prevented = true;
+      },
+      ...over,
+    };
+    return e;
+  };
+  const sink = () => {
+    const root = { focused: 0, input: { focus: () => void root.focused++ } };
+    return root;
+  };
+  const opts = (root: ReturnType<typeof sink>, extra: { mac?: boolean; coarsePointer?: boolean } = {}) => ({ root: root as unknown as ConsoleRoot, mac: false, coarsePointer: false, ...extra });
+
+  test("a primary press prevents mousedown's default (which would blur the sink) and focuses the input sink", () => {
+    const root = sink();
+    const e = press();
+    expect(activateFocusPad(e, opts(root))).toBe(true);
+    expect(e.prevented).toBe(true);
+    expect(root.focused).toBe(1);
+  });
+
+  test("the pad's own controls, other buttons, ⌃-click on macOS and touch screens keep their defaults", () => {
+    for (const [e, extra] of [
+      [press({ interactive: true }), {}],
+      [press({ button: 1 }), {}],
+      [press({ button: 2 }), {}],
+      [press({ ctrlKey: true }), { mac: true }],
+      [press(), { coarsePointer: true }],
+    ] as const) {
+      const root = sink();
+      expect(activateFocusPad(e, opts(root, extra))).toBe(false);
+      expect(e.prevented).toBe(false);
+      expect(root.focused).toBe(0);
+    }
+  });
+
+  test("without a root or onActivate there is nothing to focus, so the default stays", () => {
+    const e = press();
+    expect(activateFocusPad(e, { root: null, mac: false, coarsePointer: false })).toBe(false);
+    expect(e.prevented).toBe(false);
+  });
+});
 
 describe("DOM companion", () => {
   test("ConsoleMirror renders a styled frame with optional DevTools chrome", () => {
