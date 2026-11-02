@@ -6,6 +6,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { txError } from "@textjs/core";
 import type { Rewrite } from "../config";
+import { encodePathText, encodePathSegment } from "../path-text";
 import type { RouteParams } from "../routing";
 
 export const HTTP_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const;
@@ -36,9 +37,6 @@ export function normalizeRequestTarget(raw: string | undefined): string {
   return target.replace(/^[/\\]+/, "/");
 }
 
-/** Characters the WHATWG URL parser percent-encodes in a path (plus `%` itself). */
-const PATH_ESCAPE = /[\u0020"#%<>?^`{}]|[^\u0000-\u007f]+/gu;
-
 /**
  * The canonical spelling of a request pathname, used for the middleware match
  * and for every route, handler and file lookup, so a path can't be written in
@@ -60,7 +58,7 @@ export function canonicalPathname(pathname: string): string | null {
     for (const segment of decoded.split("/")) {
       if (segment === "" || segment === ".") continue;
       if (segment === "..") out.pop();
-      else out.push(segment.replace(PATH_ESCAPE, encodeURIComponent));
+      else out.push(encodePathSegment(segment));
     }
     return `/${out.join("/")}`;
   } catch {
@@ -403,7 +401,7 @@ export function compileRewrite(rewrite: Rewrite): CompiledRewrite {
   for (const part of rewrite.source.split("/").filter(Boolean)) {
     const m = /^:([A-Za-z_][\w]*)([*+?])?$/.exec(part);
     if (!m) {
-      re += `/${escapeRe(part)}`;
+      re += `/${escapeRe(encodePathText(part))}`;
       continue;
     }
     names.push(m[1] as string);

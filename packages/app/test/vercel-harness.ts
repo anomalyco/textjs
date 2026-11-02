@@ -38,6 +38,7 @@ interface Route {
   has?: Condition[];
   missing?: Condition[];
   handle?: string;
+  caseSensitive?: boolean;
   transforms?: Array<{ type: string; op: string; target: { key: string }; args?: string }>;
 }
 
@@ -182,7 +183,8 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
           }
           continue;
         }
-        const m = new RegExp(route.src ?? "^$").exec(pathname);
+        // Vercel matches `src` case-insensitively unless the route says `caseSensitive: true`.
+        const m = new RegExp(route.src ?? "^$", route.caseSensitive ? "" : "i").exec(pathname);
         if (!m) continue;
         if (route.has && !route.has.every((c) => holds(c, headers, query))) continue;
         if (route.missing && route.missing.some((c) => holds(c, headers, query))) continue;

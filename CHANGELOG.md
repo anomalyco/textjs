@@ -11,6 +11,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `@textjs/core`: `bindTextSink(element, onText)` reads text committed by an IME or a dead key from a hidden textarea or input, once per commit and never mid-composition. `engine.bindTextSink(element)` connects a textarea you render yourself to an `InputEngine`. Both return a function that removes the listeners.
 - `@textjs/app`: `POST /__textjs/input` accepts `{ type: "text", text }` for IME and dead-key text. `InputMessage` and `parseInputMessage` in `@textjs/app/frame-protocol` include it.
 
+### Changed
+
+- `@textjs/app`: middleware and route handlers get the canonical path. `/docs/` and `/docs//intro` arrive as `/docs` and `/docs/intro`, so middleware that redirects to add a trailing slash now redirects forever. Remove that redirect. A dynamic segment can't contain an encoded slash: `/files/a%2Fb` returns `400`.
+- `@textjs/app`: with middleware, `--adapter cloudflare` sends every request to the worker, including hashed assets, and with a `basePath` it also sends requests outside the base path. Each one counts toward your Workers request quota. On the Workers Free plan, set the Pages project to fail closed (Settings → Runtime → Fail open / closed), or Pages serves your files without middleware once the daily quota runs out.
+
 ### Fixed
 
 - Chinese, Japanese and Korean IMEs and dead keys work in textjs.org's inline consoles. The consoles cleared the textarea mid-composition, so the app got the raw letters or the wrong character.
@@ -22,7 +27,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Security
 
-- `@textjs/app` 1.1.0 and earlier: a request could skip `middleware.ts` by spelling a protected path differently, such as `/ad%6din`, `/api//admin` or `/admin%2Fx`. Middleware matched the path as sent, while route handlers, pages and static files were looked up after decoding it, and handler lookups decoded it twice. This affected `text dev`, `text start` and the bun, vercel and cloudflare adapters. Every host now decodes the pathname once, resolves `.` and `..` segments, removes repeated and trailing slashes, and uses that one path for the matcher, `request.nextUrl` and every lookup. Paths with an encoded slash or backslash, or invalid percent-encoding, get a `400`. `text start` and the bun adapter serve static files only under their exact name, so `/ADMIN/report.txt` no longer reaches `public/admin/report.txt` on macOS and Windows. Static exports don't run middleware and aren't affected.
+- `@textjs/app` 1.1.0 and earlier let a request skip `middleware.ts` by writing a protected path another way, such as `/ad%6din`, `/api//admin` or `/admin%2Fx`. Middleware matched the path as sent, while pages, route handlers and static files were looked up after decoding it (twice for route handlers). This affected `text dev`, `text start` and `--adapter bun`, `vercel` and `cloudflare` builds. Static builds can't use middleware and aren't affected. Upgrade to 1.2.0, then rebuild and redeploy: `.vercel/output` for Vercel, `dist/` for Cloudflare Pages and `dist/server.js` for Bun.
+- Every host now works out one canonical pathname per request and uses it for the matcher, `request.nextUrl` and every lookup. It decodes percent-escapes and re-encodes the path the way `new URL()` writes it, resolves `.` and `..` segments, and removes repeated and trailing slashes. Paths with `%2F`, `%5C` or invalid percent-encoding get a `400`. `text dev`, `text start` and the Bun adapter serve static files only under their exact name, so on macOS and Windows `/ADMIN/report.txt` no longer serves `public/admin/report.txt`.
+- Matchers, rewrite sources, route segments and `basePath` are compared in the same encoded form, so `matcher: "/café/:path*"` guards `/caf%C3%A9`. A matcher with a trailing slash, such as `/admin/`, matches `/admin`, and a `host` condition ignores a trailing dot in the host name.
+- A live session for a `runtime = "server"` route doesn't render a page that middleware rewrote to another path, such as a rewrite from `/restricted` to `/login`.
+- `--adapter vercel`: the route handler function gets its path in a request header that only the generated routes set, so `/api/x/%252e%252e/admin` no longer reaches `/api/admin`, and no spelling of `/_textjs/server` reaches the function. Generated routes match case-sensitively, so `/LEGACY/x` no longer hits a rewrite for `/legacy/:path*` that middleware never checked.
+- `--adapter cloudflare`: static files are looked up with the encoded path, so `/x/%252e%252e/admin/report.txt` no longer serves `/admin/report.txt`. With a `basePath`, files outside it are no longer served without the worker.
+- `text dev` doesn't serve `public/` files under `/public/…` or `/@fs/…`, server-only sources such as `middleware.ts` in another case or under an encoded `/@fs/` path, or route handlers outside `basePath`.
 
 ## [1.1.0] - 2026-11-02
 

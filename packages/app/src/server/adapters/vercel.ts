@@ -88,6 +88,7 @@ export interface VercelRoute {
   headers?: Record<string, string>;
   continue?: boolean;
   override?: boolean;
+  caseSensitive?: boolean;
   check?: boolean;
   status?: number;
   middlewarePath?: string;
@@ -106,12 +107,14 @@ export interface VercelConfig {
 
 export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule | null): VercelConfig {
   const base = ctx.basePath;
+  // The handler function is internal. A `status` route doesn't stop Vercel from
+  // running a function at that path, so what keeps it internal is the header:
+  // only the handler routes below set it, after the first route drops any the client sent.
+  const internal: VercelRoute = { src: `^\\/${escapeRegex(VERCEL_FUNCTION.split("/")[0] as string)}(?:\\/.*)?$`, status: 404 };
   const routes: VercelRoute[] = [
-    // The handler function is internal: only the handler routes below may reach it, with a path they set.
-    // Only the handler routes below may set the routed-path header: drop any the client sent.
     { src: "^.*$", transforms: [{ type: "request.headers", op: "delete", target: { key: ROUTED_HEADER } }], continue: true },
-    { src: `^\\/${escapeRegex(VERCEL_FUNCTION.split("/")[0] as string)}(?:\\/.*)?$`, status: 404 },
-    { src: `^${escapeRegex(base)}\\/assets\\/(.*)$`, headers: { "cache-control": "public, max-age=31536000, immutable" }, continue: true },
+    internal,
+    { src: `^${escapeRegex(base)}\\/assets\\/(.*)$`, headers: { "cache-control": "public, max-age=31536000, immutable" }, continue: true, caseSensitive: true },
   ];
   if (middleware) {
     // One route, so middleware runs once per request. It covers every path a
@@ -125,17 +128,20 @@ export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule |
       middlewareRawSrc: matchers ? matchers.map((m) => m.source) : ["/:path*"],
       continue: true,
       override: true,
+      caseSensitive: true,
     });
   }
   for (const r of ctx.rewrites) {
     const { src, dest } = rewriteRoute(r, base);
-    routes.push(/^[a-z]+:\/\//i.test(dest) ? { src, dest } : { src, dest, continue: true });
+    routes.push(/^[a-z]+:\/\//i.test(dest) ? { src, dest, caseSensitive: true } : { src, dest, continue: true, caseSensitive: true });
   }
+  // Again after middleware and rewrites, which may have rewritten a spelling like `/_%74extjs/server` onto it.
+  routes.push(internal);
   const routed = [{ type: "request.headers" as const, op: "set" as const, target: { key: ROUTED_HEADER }, args: "$1" }];
-  for (const a of ctx.api) routes.push({ src: patternRegex(a.pattern, base), dest: `/${VERCEL_FUNCTION}`, transforms: routed });
+  for (const a of ctx.api) routes.push({ src: patternRegex(a.pattern, base), dest: `/${VERCEL_FUNCTION}`, transforms: routed, caseSensitive: true });
   routes.push({ handle: "filesystem" });
   // Extensionless paths are console pages: serve the SPA document.
-  routes.push({ src: `^${escapeRegex(base)}(?:\\/(?:[^/]+\\/)*[^/.]*)?$`, dest: `${base}/index.html` });
+  routes.push({ src: `^${escapeRegex(base)}(?:\\/(?:[^/]+\\/)*[^/.]*)?$`, dest: `${base}/index.html`, caseSensitive: true });
   return { version: 3, routes, framework: { version: VERSION } };
 }
 
@@ -143,7 +149,7 @@ export async function adaptVercel(ctx: AdapterContext, middleware: MiddlewareMod
   assertNoServerRoutes(ctx, "vercel");
   const out = join(ctx.root, ".vercel", "output");
   if (existsSync(out)) rmSync(out, { recursive: true, force: true });
-  copyStatic(ctx.outDir, join(out, "static", ...ctx.basePath.split("/").filter(Boolean)));
+  copyStatic(ctx.outDir, join(out, "static", ...ctx.basePath.split("/").filter(Boolean).map(decodeURIComponent)));
 
   if (ctx.api.length > 0) {
     const dir = join(out, "functions", `${VERCEL_FUNCTION}.func`);

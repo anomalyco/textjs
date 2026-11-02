@@ -14,11 +14,13 @@ import type { ViteDevServer } from "vite";
 import { buildApp } from "../src/cli/build";
 import { startDevServer } from "../src/cli/dev";
 import { startProductionServer } from "../src/cli/start";
+import { normalizeBasePath } from "../src/config";
+import { patternRegex } from "../src/server/adapters/shared";
 import { NON_CANONICAL_PATH, vercelConfig } from "../src/server/adapters/vercel";
 import { __configureCache } from "../src/server/cache";
-import { canonicalPathname } from "../src/server/http";
+import { canonicalPathname, compileRewrite } from "../src/server/http";
 import { NextResponse, type NextRequest } from "../src/server/middleware";
-import { authorizeWithMiddleware, runMiddleware } from "../src/server/middleware-runtime";
+import { authorizeWithMiddleware, compileMatcher, compileMatcherSource, matchesMiddleware, runMiddleware } from "../src/server/middleware-runtime";
 import { staticFile } from "../src/server/static-file";
 import { adapt, waitForLine } from "./adapter-helpers";
 import { bypassApp, createFixture, openLiveStream, rawRequest, until } from "./server-fixture";
@@ -81,6 +83,16 @@ const PAGES = (base: string): Variant[] => [
   // URL-based asset backends (Cloudflare's ASSETS) must not decode the path again.
   { path: `${base}/x/%252e%252e/admin/report.txt`, protected: false },
   { path: `${base}/public/%252e%252e/admin/report.txt`, protected: false },
+  // Matcher literals with characters the canonical path percent-encodes (`/café/:path*`).
+  { path: `${base}/caf%C3%A9/report.txt`, protected: true },
+  { path: `${base}/caf%c3%a9/report.txt`, protected: true },
+  { path: `${base}/api/caf%C3%A9`, protected: true },
+  { path: `${base}/api/caf%c3%a9/`, protected: true },
+  { path: `${base}/cafe%CC%81/report.txt`, protected: false },
+  // Vercel matches route `src` case-insensitively unless told otherwise; the rewrite target is guarded only via /legacy.
+  { path: `${base}/legacy/secret`, protected: true },
+  { path: `${base}/LEGACY/secret`, protected: false },
+  { path: `${base}/Legacy/secret`, protected: false },
 ];
 
 function baseVariants(): Variant[] {
@@ -293,7 +305,39 @@ describe("live sessions and middleware rewrites", () => {
   });
 });
 
+describe("matcher host conditions", () => {
+  test("a trailing dot in the host doesn't change the match", () => {
+    const has = compileMatcher([{ source: "/x", has: [{ type: "host", value: "example\\.com" }] }]);
+    const missing = compileMatcher([{ source: "/x", missing: [{ type: "host", value: "public\\.example\\.com" }] }]);
+    expect(matchesMiddleware(has, "/x", new Request("http://example.com./x"))).toBe(true);
+    expect(matchesMiddleware(missing, "/x", new Request("http://public.example.com./x"))).toBe(false);
+    expect(matchesMiddleware(missing, "/x", new Request("http://other.example.com/x"))).toBe(true);
+  });
+});
+
+describe("matcher literals are compared in canonical form", () => {
+  test("non-ASCII and percent-encoded characters", () => {
+    const re = (src: string) => new RegExp(compileMatcherSource(src));
+    expect(re("/café/:path*").test("/caf%C3%A9/x")).toBe(true);
+    expect(re("/caf%C3%A9").test("/caf%C3%A9")).toBe(true);
+    expect(re("/a b/{x}").test("/a%20b/%7Bx%7D")).toBe(true);
+    expect(re("/😀/x").test("/%F0%9F%98%80/x")).toBe(true);
+    expect(compileRewrite({ source: "/café/:p", destination: "/x/:p" }).match("/caf%C3%A9/1")).toEqual({ p: "1" });
+    expect(new RegExp(patternRegex("/api/café/[id]")).test("/api/caf%C3%A9/1")).toBe(true);
+    expect(normalizeBasePath("/café")).toBe("/caf%C3%A9");
+  });
+});
+
 describe("vercel config", () => {
+  test("generated routes are case-sensitive, except the internal 404", () => {
+    const ctx = { basePath: "", rewrites: [{ source: "/legacy/:p*", destination: "/api/:p*" }], api: [{ pattern: "/api/x", file: "x" }] } as never;
+    const routes = vercelConfig(ctx, { middleware: () => undefined, config: { matcher: "/legacy/:p*" } }).routes;
+    const internal = routes.filter((r) => r.src?.includes("_textjs"));
+    expect(internal.length).toBeGreaterThanOrEqual(2);
+    for (const r of internal) expect(r.caseSensitive).toBeUndefined();
+    for (const r of routes.filter((r) => r.src && !r.src.includes("_textjs") && r.src !== "^.*$")) expect({ src: r.src, cs: r.caseSensitive }).toEqual({ src: r.src, cs: true });
+  });
+
   test("handler routes carry the path in a header, never a query capture", () => {
     const ctx = { basePath: "", rewrites: [], api: [{ pattern: "/api/[...rest]", file: "x" }] } as never;
     const route = vercelConfig(ctx, null).routes.find((r) => r.dest?.startsWith("/_textjs/"));
@@ -392,7 +436,17 @@ for (const basePath of ["", "/console"]) {
         const harness = await startVercelHarness(result.output);
         try {
           const out = await probe(`vercel ${basePath}`, harness.url, list());
-          expect(failures(out)).toEqual([]);
+          // The handler function is internal however its path is spelled, and a client can't choose its routed path.
+          const internal = ["/_textjs/server", "/_%74extjs/server", "//_textjs/server", "/_TEXTJS/server", "/_textjs/server/", "/./_textjs/server", "/x/../_textjs/server", "/api/public"];
+          const fn: Row[] = [];
+          for (const target of internal) {
+            for (const header of ["x-textjs-path", "X-TextJS-Path"]) {
+              const res = await rawRequest(harness.url, `${basePath}${target}`, { headers: { [header]: `${basePath}/api/admin` } });
+              fn.push({ host: `vercel ${basePath} (function)`, path: `${basePath}${target} [${header}]`, status: res.status, ok: !res.body.includes("admin-only") });
+            }
+          }
+          rows.push(...fn);
+          expect(failures([...out, ...fn])).toEqual([]);
           await controlChecks(harness.url, basePath);
         } finally {
           await harness.close();
@@ -458,3 +512,61 @@ for (const basePath of ["", "/console"]) {
     }
   });
 }
+
+describe("text dev: source and public files", () => {
+  let dir = "";
+  beforeAll(() => {
+    // A root with a space and a non-ASCII character: `/@fs/` URLs percent-encode it.
+    dir = createFixture(
+      {
+        ...bypassApp("", false),
+        "text.config.ts": `import { defineConfig } from "@textjs/app";
+export default defineConfig({ title: "Dev Files", rewrites: [{ source: "/bad", destination: "/api/admin%" }, { source: "/dbl/:p*", destination: "/api//admin/:p*" }] });
+`,
+      },
+      "textjs bypass é-",
+    );
+  });
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  test("guarded public files and server-only sources never reach the browser", async () => {
+    const server: ViteDevServer = await startDevServer({ root: dir, port: 42000 + Math.floor(Math.random() * 2000), log: false });
+    try {
+      const origin = new URL(server.resolvedUrls?.local[0] ?? "").origin;
+      const fs = encodeURI(dir);
+      const list: Variant[] = [
+        { path: "/public/admin/report.txt", protected: false },
+        { path: "/public/admin/report.txt?raw", protected: false },
+        { path: `/@fs${fs}/public/admin/report.txt?raw`, protected: false },
+        { path: `/@fs${fs}/middleware.ts?raw`, protected: false },
+        { path: `/@fs${fs}/app/api/admin/route.ts?raw`, protected: false },
+        { path: "/middleware.ts?raw", protected: false },
+        { path: "/MIDDLEWARE.TS?raw", protected: false },
+        { path: "/Middleware.ts", protected: false },
+        { path: "/app/api/admin/ROUTE.TS?raw", protected: false },
+        { path: "/app/api/admin/Route.ts?import", protected: false },
+        { path: "/APP/api/admin/route.ts?raw", protected: false },
+        { path: "/admin/report.txt", protected: true },
+      ];
+      const out: Row[] = [];
+      for (const v of list) {
+        const res = await rawRequest(origin, v.path);
+        const leaked = res.body.includes("admin-only") || res.body.includes("export function middleware");
+        out.push({ host: "text dev (files)", path: v.path, status: res.status, ok: v.protected ? res.status === 401 && !leaked : !leaked });
+      }
+      rows.push(...out);
+      expect(failures(out)).toEqual([]);
+      // Rewrite targets are canonicalized as on text start: an invalid one is a 400, and `//` collapses before the handler lookup.
+      expect((await rawRequest(origin, "/bad")).status).toBe(400);
+      const dbl = await rawRequest(origin, "/dbl/x");
+      expect(dbl.status).toBe(200);
+      expect(dbl.body).toContain("admin-only");
+      // The real files still work.
+      const asset = await fetch(`${origin}/admin/report.txt`, { headers: { cookie: "auth=1" } });
+      expect(await asset.text()).toContain("admin-only report");
+    } finally {
+      await server.waitForRequestsIdle();
+      await server.close();
+    }
+  }, 60_000);
+});

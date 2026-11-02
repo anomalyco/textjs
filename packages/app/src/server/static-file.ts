@@ -27,14 +27,3 @@ export function staticFile(root: string, pathname: string, options: { index?: bo
   }
 }
 
-/** `true` when `pathname` reaches a file under `root` only because the file system ignores case. */
-export function isMiscasedFile(root: string, pathname: string): boolean {
-  const path = normalize(join(root, pathname));
-  if (path !== root && !path.startsWith(root + sep)) return false;
-  try {
-    if (!statSync(path).isFile()) return false;
-  } catch {
-    return false;
-  }
-  return staticFile(root, pathname) === null;
-}

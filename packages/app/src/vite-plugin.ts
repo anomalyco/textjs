@@ -18,7 +18,7 @@ import { createLiveDevHandler, textjsLivePlugin } from "./server/live-dev";
 import { withServerStubs } from "./server/live-routes";
 import { runRouteHandlerWithCache } from "./server/cache-route";
 import { createDevMiddleware, isServerOnlySource } from "./server/middleware-node";
-import { isMiscasedFile } from "./server/static-file";
+import { encodePathSegment } from "./path-text";
 import { generateRoutesModule, isRouteFile, matchApiRoute, scanApp, toApiManifest, toPosix, toStaticManifest, type AppScan } from "./server/scan";
 import { flattenRoutes, type RouteManifest, type RouteSegmentNode } from "./routing";
 
@@ -326,6 +326,42 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
       const rewrites = await resolveRewrites(options.rewrites);
       // Registered before user middleware and API routes so neither bypasses the host check.
       const serverOnly = options.cacheHandler ? [resolve(root, options.cacheHandler)] : [];
+      const realRoot = realpathSync.native(root);
+      const realPath = (file: string): string => {
+        try {
+          return realpathSync.native(file);
+        } catch {
+          return file;
+        }
+      };
+      const within = (dir: string, file: string): boolean => file === dir || file.startsWith(dir + sep);
+      const miscased = (spelled: string, onDisk: string): boolean => spelled !== onDisk && spelled.toLowerCase() === onDisk.toLowerCase();
+      /**
+       * Files Vite would hand out that the browser must not get, from a canonical request target:
+       * server-only sources (in any spelling), `public/` files under any URL but their own
+       * (`/public/x`, `/@fs/…/public/x` skip middleware), and files spelled in another case.
+       */
+      const isHiddenFromBrowser = (target: string): boolean => {
+        // Decoded once, before basePath and `/@fs/` are stripped (an encoded root, `My%20App`, must still match).
+        let pathname = decodeURIComponent(target.split("?")[0] ?? "/");
+        const base = decodeURIComponent(basePath);
+        if (base && (pathname === base || pathname.startsWith(`${base}/`))) pathname = pathname.slice(base.length) || "/";
+        // `/@fs/C:/app/x.ts` on Windows: drop the slash before the drive letter.
+        const requested = pathname.startsWith("/@fs/") ? resolve(pathname.slice(4).replace(/^\/([A-Za-z]:)/, "$1")) : join(root, pathname);
+        const file = realPath(requested);
+        const publicDir = server.config.publicDir ? realPath(server.config.publicDir) : "";
+        if (publicDir && publicDir !== realRoot && within(publicDir, file)) return true;
+        if (!within(realRoot, file)) return false;
+        // On disk under another case (macOS, Windows): middleware matched a different path.
+        const spelled = within(root, requested) ? relative(root, requested) : relative(realRoot, requested);
+        if (miscased(spelled, relative(realRoot, file))) return true;
+        if (publicDir) {
+          const asset = join(server.config.publicDir, pathname);
+          if (within(server.config.publicDir, asset) && miscased(relative(server.config.publicDir, asset), relative(publicDir, realPath(asset)))) return true;
+        }
+        const rel = relative(realRoot, file).split(sep).map(encodePathSegment).join("/");
+        return isServerOnlySource(`/${rel}`, root, appDirName, serverOnly);
+      };
       server.middlewares.use((req, res, next) => {
         if (!isAllowedDevHost(server, req.headers.host)) {
           res.statusCode = 403;
@@ -343,19 +379,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
           return;
         }
         req.url = canonical;
-        let pathname = req.url.split("?")[0] ?? "/";
-        if (basePath && (pathname === basePath || pathname.startsWith(`${basePath}/`))) pathname = pathname.slice(basePath.length) || "/";
-        if (pathname.startsWith("/@fs/")) pathname = `/${relative(root, pathname.slice(4)).split(sep).join("/")}`;
-        if (isServerOnlySource(pathname, root, appDirName, serverOnly)) {
-          res.statusCode = 404;
-          res.setHeader("Content-Type", "text/plain; charset=utf-8");
-          res.end("404 | This page could not be found.");
-          return;
-        }
-        // A public file under another spelling on a case-insensitive disk: middleware never saw its real path.
-        const requested = decodeURIComponent(req.url.split("?")[0] ?? "/");
-        const publicPath = basePath && requested.startsWith(`${basePath}/`) ? requested.slice(basePath.length) : requested;
-        if (server.config.publicDir && isMiscasedFile(server.config.publicDir, publicPath)) {
+        if (isHiddenFromBrowser(canonical)) {
           res.statusCode = 404;
           res.setHeader("Content-Type", "text/plain; charset=utf-8");
           res.end("404 | This page could not be found.");
@@ -392,8 +416,15 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
               log?.info(` ${req.method} ${url} → ${rewritten} ${res.statusCode} in ${Math.round(performance.now() - started)}ms`);
               return;
             }
-            url = rewritten;
-            req.url = basePath + rewritten;
+            const target = canonicalRequestTarget(rewritten);
+            if (target === null) {
+              res.statusCode = 400;
+              res.setHeader("Content-Type", "text/plain; charset=utf-8");
+              res.end("400 | Bad Request");
+              return;
+            }
+            url = target;
+            req.url = basePath + target;
           }
           const pathname = url.split("?")[0] ?? "/";
           if (await live.handle(req, res, url)) return;

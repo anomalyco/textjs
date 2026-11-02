@@ -3,7 +3,7 @@
  * `bun dist/server.js` (static files, middleware, route handlers, SPA document).
  */
 
-import { join, sep } from "node:path";
+import { join } from "node:path";
 import { bundleServerEntry, frameworkFile } from "./bundle";
 import { serverEntry, type AdapterContext, type AdapterResult } from "./shared";
 
@@ -11,7 +11,7 @@ export const BUN_SERVER_FILE = "server.js";
 
 const BODY = `
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { staticFile } from ${JSON.stringify(frameworkFile("server/static-file.ts"))};
 import { loadLiveProduction } from ${JSON.stringify(frameworkFile("server/live-prod.ts"))};
 import { runNodeStyle } from ${JSON.stringify(frameworkFile("server/live-web.ts"))};

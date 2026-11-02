@@ -123,10 +123,10 @@ describe("security contract (SCOPED_APP)", () => {
       const harness = await startVercelHarness(result.output);
       try {
         await exerciseScopedApp(harness.url, { cache: true, privateDowngrade: false });
-        // Direct and spoofed requests to the function: 404 / 400, never the protected handler.
+        // Direct requests to the function: 404 / 400. A client-sent routed path is ignored everywhere.
         for (const target of ["/_textjs/server", "/_textjs/server/x", "/api/public", "/api/public?x=1"]) {
           const res = await rawRequest(harness.url, target, { headers: { "x-textjs-path": "/api/admin/secret" } });
-          expect({ target, ok: res.status === 404 || res.status === 400 }).toEqual({ target, ok: true });
+          if (target.startsWith("/_textjs")) expect({ target, ok: res.status === 404 || res.status === 400 }).toEqual({ target, ok: true });
           expect(res.body).not.toContain("admin-only");
         }
         expect(harness.middlewareCalls.filter((p) => p.startsWith("/api/admin")).length).toBeGreaterThan(0);

@@ -112,15 +112,16 @@ export function isServerOnlySource(pathname: string, root: string, appDir = "app
   } catch {
     return false;
   }
-  const rel = decoded.replace(/^[/\\]+/, "").replace(/\\/g, "/");
+  // In any case: macOS and Windows serve `/MIDDLEWARE.TS` from `middleware.ts`.
+  const rel = decoded.replace(/^[/\\]+/, "").replace(/\\/g, "/").toLowerCase();
   const name = rel.split("/").pop() ?? "";
   if (/^\.env(?:\..*)?$/.test(name)) return true;
-  if ((MIDDLEWARE_FILES as readonly string[]).includes(rel) || /^text\.config\.[cm]?[jt]s$/.test(rel)) return true;
+  if (MIDDLEWARE_FILES.some((f) => f.toLowerCase() === rel) || /^text\.config\.[cm]?[jt]s$/.test(rel)) return true;
   if (/\.server\.[cm]?[jt]sx?$/.test(name)) return true;
-  if (rel.startsWith(`${appDir.replace(/^\.?\//, "")}/`) && /^route\.[cm]?[jt]sx?$/.test(name)) return true;
+  if (rel.startsWith(`${appDir.replace(/^\.?\//, "").toLowerCase()}/`) && /^route\.[cm]?[jt]sx?$/.test(name)) return true;
   return extra.some((file) => {
     const r = relative(root, file).split(sep).join("/");
-    return r === rel && SOURCE_EXT.test(r);
+    return r.toLowerCase() === rel && SOURCE_EXT.test(r);
   });
 }
 

@@ -492,14 +492,17 @@ export function middleware(request: NextRequest) {
   if (request.cookies.get("auth")?.value === "1") return NextResponse.next();
   return new Response("denied " + pathname, { status: 401 });
 }
-export const config = { matcher: ["/admin/:path*", "/api/admin/:path*", "/ops/:path*", "/restricted/"] };
+export const config = { matcher: ["/admin/:path*", "/api/admin/:path*", "/ops/:path*", "/restricted/", "/café/:path*", "/api/café/:path*", "/legacy/:path*"] };
 `;
 
 /** Middleware-bypass fixture (`middleware-bypass.test.ts`): guarded pages, handlers and a public file, optionally server-rendered routes. */
 export const bypassApp = (basePath: string, server: boolean): Record<string, string> => ({
   "text.config.ts": `import { defineConfig } from "@textjs/app";
-export default defineConfig({ title: "Bypass Fixture"${basePath ? `, basePath: ${JSON.stringify(basePath)}` : ""} });
+export default defineConfig({ title: "Bypass Fixture"${basePath ? `, basePath: ${JSON.stringify(basePath)}` : ""}, rewrites: [{ source: "/legacy/:path*", destination: "/api/admin/:path*" }] });
 `,
+  "app/api/café/route.ts": `export function GET() { return Response.json({ secret: "admin-only café" }); }
+`,
+  "public/café/report.txt": "admin-only café report\n",
   "app/page.tsx": `import { Text } from "@textjs/app";
 export default function Page() { return <Text>home</Text>; }
 `,

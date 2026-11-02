@@ -19,6 +19,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 }
 ```
 
+`params` values are decoded. A path with an encoded slash or backslash (`%2F`, `%5C`) gets a `400`, so pass IDs that can contain `/` in a query parameter or encode them as base64url.
+
 ## Streaming
 
 Return a `ReadableStream` for server-sent events:

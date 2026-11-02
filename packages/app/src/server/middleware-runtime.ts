@@ -4,6 +4,7 @@
  * `text dev`, `text start` and every deploy adapter.
  */
 
+import { encodePathText } from "../path-text";
 import { badRequest, canonicalPathname, hasGeneratedCacheControl, PRIVATE_CACHE_CONTROL, requestOrigin, type OriginOptions } from "./http";
 import {
   isMiddlewareControl,
@@ -148,8 +149,10 @@ export function compileMatcherSource(input: string, keys: Array<string | null> =
       i = j;
       continue;
     }
-    re += escapeRe(ch);
-    i++;
+    // Literal text, compared with the canonical (percent-encoded) path: one code point at a time.
+    const literal = String.fromCodePoint(source.codePointAt(i) as number);
+    re += escapeRe(encodePathText(literal));
+    i += literal.length;
   }
   return `^${re}(?:\\/)?$`;
 }
@@ -168,7 +171,7 @@ function conditionHolds(cond: MatcherCondition, request: Request, url: URL, cook
   if (cond.type === "header") actual = request.headers.get(cond.key);
   else if (cond.type === "cookie") actual = cookies.get(cond.key);
   else if (cond.type === "query") actual = url.searchParams.get(cond.key);
-  else actual = url.hostname;
+  else actual = url.hostname.replace(/\.$/, "");
   if (actual === null || actual === undefined) return false;
   if (cond.value === undefined) return true;
   return new RegExp(`^(?:${cond.value})$`).test(actual);
