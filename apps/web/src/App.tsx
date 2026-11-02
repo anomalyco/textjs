@@ -3,6 +3,7 @@ import { getLoadedRoutes, isRouteLoaded, preloadRoute } from "./route-loader";
 import { A, matchRoute, titleFor, useLocation, type LocationState, type Route } from "./router";
 import { ConsolePill, Footer, Header } from "./site/Chrome";
 import { SearchModal } from "./site/SearchModal";
+import { recoverFromChunkFailure, report } from "./telemetry/capture";
 import { safeDecode } from "./url";
 
 export function NotFoundPage(): ReactNode {
@@ -16,6 +17,20 @@ export function NotFoundPage(): ReactNode {
       </A>
     </div>
   );
+}
+
+/** Test-only (`scripts/e2e-reports.mjs`): throws after hydration on any host but textjs.org. */
+export const THROW_TEST_PATH = "/__textjs/throw";
+
+function isThrowTest(): boolean {
+  return typeof window !== "undefined" && location.pathname === THROW_TEST_PATH && !/(^|\.)textjs\.org$/.test(location.hostname);
+}
+
+function ThrowTest(): ReactNode {
+  const [thrown, setThrown] = useState(false);
+  useEffect(() => setThrown(true), []);
+  if (thrown) throw new Error("Text.js test route threw on purpose");
+  return <NotFoundPage />;
 }
 
 export function RouteView({ route }: { route: Route }): ReactNode {
@@ -50,7 +65,7 @@ export function RouteView({ route }: { route: Route }): ReactNode {
     case "merch":
       return r.MerchPage ? <r.MerchPage slug={route.slug} /> : null;
     case "not-found":
-      return <NotFoundPage />;
+      return isThrowTest() ? <ThrowTest /> : <NotFoundPage />;
   }
 }
 
@@ -71,9 +86,13 @@ export function App(): ReactNode {
   useEffect(() => {
     if (readyNow) return;
     let alive = true;
-    void preloadRoute(targetRoute.name).then(() => {
-      if (alive) setDisplayed(location);
-    });
+    preloadRoute(targetRoute.name).then(
+      () => {
+        if (alive) setDisplayed(location);
+      },
+      // Only the page the visitor is still waiting for may reload; an abandoned navigation just reports.
+      (error: unknown) => (alive ? recoverFromChunkFailure(error) : report(error, "rejection")),
+    );
     return () => {
       alive = false;
     };

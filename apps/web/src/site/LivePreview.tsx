@@ -11,6 +11,7 @@ import { CopyButton } from "./CodeBlock";
 import { DevToolsWindow } from "./DevToolsWindow";
 import { HighlightedCode } from "./highlight";
 import { useCompanionFrame } from "./useCompanion";
+import { prefetchFailed } from "../telemetry/capture";
 import { useInView } from "./useInView";
 
 /** Same rule as `.desktop-only`: phones and tablets have no DevTools console to run in. */
@@ -55,7 +56,7 @@ export function useConsoleAvailable(): boolean {
 
 /** Make an example the console companion's app and send keystrokes to it. */
 export function runInConsole(id: string): void {
-  void preloadCompanionTab("example");
+  preloadCompanionTab("example").catch(prefetchFailed);
   siteStore.activateExample(id);
   activateCompanion();
 }
@@ -74,7 +75,7 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
 
   useEffect(() => {
     if ((!inView && !active) || meta === undefined) return;
-    void preloadCompanionTab("example");
+    preloadCompanionTab("example").catch(prefetchFailed);
     if (previews) return;
     let alive = true;
     void loadPreviews().then((p) => {

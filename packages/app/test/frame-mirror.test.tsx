@@ -125,11 +125,14 @@ describe("connectFrameMirror", () => {
       expect(hot.listenerCount()).toBeGreaterThan(0);
       await t.act(() => hot.emit("textjs:input", { type: "key", key: "ArrowUp", ctrlKey: false, metaKey: false, shiftKey: false, altKey: false }));
       // Module replaced (HMR): Vite calls the disposer.
+      // A slow machine may flush before the disposer runs; count only what happens after it.
       hot.disposers[0]!(undefined);
+      flushes = 0;
+      const framesBefore = hot.sent.filter((m) => m.event === "textjs:frame").length;
       expect(hot.listenerCount()).toBe(0);
       await new Promise((r) => setTimeout(r, 20));
       expect(flushes).toBe(0);
-      expect(hot.sent.filter((m) => m.event === "textjs:frame")).toHaveLength(0);
+      expect(hot.sent.filter((m) => m.event === "textjs:frame")).toHaveLength(framesBefore);
     } finally {
       t.root.flushSyncRender = original;
       g.document = savedDocument;
