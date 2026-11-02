@@ -85,12 +85,9 @@ jobs:
           - name: templates, npm
             only: template:starter,template:dashboard,template:opencode
             pm: npm
-          - name: example, bun
+          - name: example
             only: example:dashboard
-            pm: bun
-          - name: example, npm
-            only: example:dashboard
-            pm: npm
+            pm: bun,npm
           - name: apps
             only: app:opencode-console,app:opencode-console-offline,app:terminal-shop
             pm: bun
