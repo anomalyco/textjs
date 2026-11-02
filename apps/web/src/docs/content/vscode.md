@@ -108,6 +108,6 @@ The preview and the dev server run your project's code (its Vite config, `text.c
 | :-- | :-- |
 | `GET /__textjs/status` | Project root, connected tabs, grid size and current route |
 | `GET /__textjs/frames` | Server-sent events: one `frame` event per change, encoded as row deltas |
-| `POST /__textjs/input` | A key, paste, wheel or navigation for the tab. Requires JSON and the `x-textjs-mirror: 1` header, so other sites can't send keystrokes |
+| `POST /__textjs/input` | A key, paste, IME text (`text`), wheel or navigation for the tab. Requires JSON and the `x-textjs-mirror: 1` header, so other sites can't send keystrokes |
 
 Tabs send frames to the dev server over Vite's HMR socket, which requires a per-server token. The wire format is exported from `@textjs/app/frame-protocol` (`FrameEncoder`, `FrameDecoder`, `parseInputMessage`) if you want to build your own viewer. None of this exists in `text build` output.

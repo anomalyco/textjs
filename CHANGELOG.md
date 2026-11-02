@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `@textjs/core`: `bindTextSink(element, onText)` reads text committed by an IME or a dead key from a hidden textarea, once per commit and never mid-composition. `engine.bindTextSink(element)` connects a textarea you render yourself to an `InputEngine`.
+- `@textjs/app`: `POST /__textjs/input` accepts `{ type: "text", text }` for IME and dead-key text.
+
+### Fixed
+
+- Chinese, Japanese and Korean IMEs work in textjs.org's inline consoles. They used to clear the textarea mid-composition, which sent the wrong character or the raw letters to the app.
+- The VS Code preview delivers IME and dead-key text instead of dropping it, and leaves the IME's own keystrokes alone. Against a `text dev` server from `@textjs/app` 1.1.0 or earlier, it sends the text as keys or a paste.
+- `InputEngine.handleTextInput` respects `shouldCapture`, so text from the sink is ignored while capture is off.
+
 ## [1.1.0] - 2026-11-02
 
 ### Added

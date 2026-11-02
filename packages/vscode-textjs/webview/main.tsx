@@ -378,6 +378,7 @@ function Stage({ state, frame }: { state: PreviewState; frame: StyledFrame | nul
             aria-label="Keyboard input for the app"
             autoCapitalize="off"
             autoComplete="off"
+            autoCorrect="off"
             spellCheck={false}
             onFocus={() => sendFocus(true)}
             onBlur={() => sendFocus(false)}

@@ -257,6 +257,7 @@ describe("InputEngine capture gate", () => {
       expect(e.prevented).toBe(false);
     }
     engine.handlePaste("hello");
+    engine.handleTextInput("你");
     expect(engine.enabled).toBe(false);
     expect(events.length).toBe(0);
     enabled = true;

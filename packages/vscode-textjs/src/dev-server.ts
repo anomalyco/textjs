@@ -187,8 +187,13 @@ export async function discover(roots: readonly string[], options: DiscoverOption
 }
 
 export async function postInput(baseUrl: string, msg: InputMessage, source?: string): Promise<boolean> {
+  return (await postInputStatus(baseUrl, msg, source)) === 204;
+}
+
+/** `POST` one input message and return the HTTP status (`0` when the request never completed). */
+function postInputStatus(baseUrl: string, msg: InputMessage, source?: string): Promise<number> {
   const origin = loopbackOrigin(baseUrl);
-  if (!origin) return false;
+  if (!origin) return Promise.resolve(0);
   const body = JSON.stringify(source ? { ...msg, source } : msg);
   return new Promise((resolve) => {
     try {
@@ -197,16 +202,52 @@ export async function postInput(baseUrl: string, msg: InputMessage, source?: str
         { method: "POST", agent: false, timeout: 2000, headers: { "content-type": "application/json", [MIRROR_HEADER]: "1", "content-length": Buffer.byteLength(body) } },
         (res) => {
           res.resume();
-          resolve(res.statusCode === 204);
+          resolve(res.statusCode ?? 0);
         },
       );
       req.on("timeout", () => req.destroy());
-      req.on("error", () => resolve(false));
+      req.on("error", () => resolve(0));
       req.end(body);
     } catch {
-      resolve(false);
+      resolve(0);
     }
   });
+}
+
+const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/**
+ * A `text` message rewritten for `text dev` servers that predate it (`@textjs/app` 1.1.0 and
+ * earlier): one key per character when each is a single code point, otherwise a paste.
+ */
+export function legacyTextMessages(text: string): InputMessage[] {
+  const parts = Array.from(graphemes.segment(text), (s) => s.segment);
+  if (text.includes("\n") || text.length > 16 || !parts.every((g) => [...g].length === 1)) return [{ type: "paste", text }];
+  return parts.map((key) => ({ type: "key", key, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false }));
+}
+
+/**
+ * Sends live input, falling back to {@link legacyTextMessages} for servers that answer a
+ * `text` message with 400. The fallback is remembered per server session.
+ */
+export class LiveInputSender {
+  private readonly legacy = new Set<string>();
+
+  async send(baseUrl: string, msg: InputMessage, source?: string, session: string = baseUrl): Promise<boolean> {
+    if (msg.type === "text" && this.legacy.has(session)) return this.sendAll(baseUrl, legacyTextMessages(msg.text), source);
+    const status = await postInputStatus(baseUrl, msg, source);
+    if (status === 400 && msg.type === "text") {
+      this.legacy.add(session);
+      return this.sendAll(baseUrl, legacyTextMessages(msg.text), source);
+    }
+    return status === 204;
+  }
+
+  private async sendAll(baseUrl: string, msgs: InputMessage[], source?: string): Promise<boolean> {
+    let ok = true;
+    for (const m of msgs) ok = (await postInput(baseUrl, m, source)) && ok;
+    return ok;
+  }
 }
 
 export interface LiveFrame {

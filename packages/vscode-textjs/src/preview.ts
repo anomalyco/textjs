@@ -8,7 +8,7 @@ import * as vscode from "vscode";
 import { basename, join, relative } from "node:path";
 import { FrameEncoder, frameToText, type InputMessage } from "@textjs/app/frame-protocol";
 import type { StyledFrame } from "@textjs/core";
-import { postInput } from "./dev-server";
+import { LiveInputSender } from "./dev-server";
 import type { DevServerMonitor } from "./dev-monitor";
 import { HeadlessSession, type HeadlessError } from "./headless";
 import type { PreviewTarget } from "./project";
@@ -38,6 +38,7 @@ export class PreviewController implements vscode.Disposable {
   private loading = false;
   private mode: PreviewMode = "idle";
   private encoder = new FrameEncoder();
+  private readonly liveInput = new LiveInputSender();
   private viewport: { cols: number; rows: number } | null = null;
   private ready = false;
   private webviewFocused = false;
@@ -421,8 +422,9 @@ export class PreviewController implements vscode.Disposable {
   // -------------------------------------------------------------------------
 
   private async sendLiveInput(msg: InputMessage): Promise<void> {
-    const url = this.deps.monitor.snapshot().url;
-    if (url) await postInput(url, msg, this.deps.monitor.activeSource ?? undefined);
+    const { url, status } = this.deps.monitor.snapshot();
+    // A restarted or upgraded server is a new session: it gets to accept `text` again.
+    if (url) await this.liveInput.send(url, msg, this.deps.monitor.activeSource ?? undefined, `${url} ${status?.version ?? ""} ${status?.root ?? ""}`);
   }
 
   private onMessage(m: WebviewToHost): void {

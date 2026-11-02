@@ -198,6 +198,8 @@ export function normalizeKeyEvent(e: KeyboardEventLike): KeyInputEvent | null {
  */
 export function bindTextSink(sink: HTMLTextAreaElement | HTMLInputElement, onText: (text: string) => void): () => void {
   let composing = false;
+  // Anything typed before the binding (while an engine boots) would prepend to the next commit.
+  sink.value = "";
   const take = (): void => {
     const value = sink.value;
     if (value === "") return;
@@ -337,7 +339,7 @@ export class InputEngine {
 
   /** Text committed by the sink (IME, dead keys, autocorrect). */
   handleTextInput(text: string): void {
-    if (text.length === 0) return;
+    if (text.length === 0 || !this.enabled) return;
     if (text.includes("\n") || text.length > 16) {
       this.emit("paste", { type: "paste", text });
       return;
