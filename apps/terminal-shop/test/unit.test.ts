@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createClient, TerminalError } from "../lib/api";
 import { beginOAuth, completeOAuth, normalizeToken, pkce, tokenEnvMismatch } from "../lib/auth";
-import { footerLines, headerLines } from "../lib/frame";
+import { footerLines, headerLines, keyHints } from "../lib/frame";
 import { formKey, initForm, notEmpty } from "../lib/form";
 import { formatUSD, shopPrice } from "../lib/format";
 import { encodeQr, renderQr } from "../lib/qr";
 import { ShopStore } from "../lib/store";
 import { defaultTheme } from "../lib/theme";
-import { lineText, place, wordWrap } from "../lib/ui";
+import { balance, lineText, place, wordWrap } from "../lib/ui";
 import { createTerminalProxy } from "../server/terminal-proxy";
 import { memoryStorage } from "./app";
 import { MOCK_TOKEN, startMockProxy, startMockTerminal, type MockProxy, type MockTerminal } from "./mock-terminal";
@@ -143,6 +143,17 @@ describe("layout", () => {
     expect(formatUSD(805)).toBe("$8.05");
     expect(shopPrice(2200)).toBe("$22");
     expect(wordWrap("a  b   c", 3)).toEqual(["a b", "c"]);
+  });
+
+  test("balanced wrapping keeps the line count and evens the lines", () => {
+    expect(balance("sign in to add coffee to your cart", 30)).toEqual(["sign in to add", "coffee to your cart"]);
+    expect(balance("one line", 30)).toEqual(["one line"]);
+  });
+
+  test("key hints wrap between pairs", () => {
+    const hints = keyHints([["enter", "sign in"], false, ["esc", "back"]], defaultTheme, 18);
+    expect(hints.map(lineText)).toEqual(["enter sign in", "esc back"]);
+    expect(keyHints([["enter", "sign in"], ["esc", "back"]], defaultTheme, 40).map(lineText)).toEqual(["enter sign in   esc back"]);
   });
 
   test("lipgloss Place rounds the gap down", () => {

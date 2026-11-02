@@ -26,7 +26,7 @@ export const SIGNIN_ERRORS = {
   cancelled: "sign in was cancelled",
   expired: "that sign in expired, try again",
   state_mismatch: "sign in state didn't match, try again",
-  unconfigured: "sign in isn't set up on this deployment yet",
+  unconfigured: "sign in isn't set up here",
   unauthorized_client: "terminal doesn't accept sign in from this site yet (its oauth app isn't registered for this address)",
   exchange_failed: "terminal couldn't finish signing you in, try again",
   unreachable: "couldn't reach terminal's sign in server, try again",

@@ -511,7 +511,7 @@ describe("account", () => {
 describe("sign in", () => {
   test("paste a token", async () => {
     h = await mountShop({ signedIn: false });
-    await h.until("paste a personal access token");
+    await h.until("paste an access token");
     await h.press("enter");
     await h.until("ssh dev.terminal.shop -t tokens");
     await h.t.type("trm_test_0123456789abcdef0123");
@@ -524,7 +524,7 @@ describe("sign in", () => {
 
   test("a production token is refused in the sandbox", async () => {
     h = await mountShop({ signedIn: false });
-    await h.until("paste a personal access token");
+    await h.until("paste an access token");
     await h.press("enter");
     await h.t.type("trm_live_0123456789abcdef0123");
     await h.press("enter");

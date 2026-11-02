@@ -125,6 +125,20 @@ export function wrap(text: string, maxWidth: number): string[] {
   return out;
 }
 
+/** `wrap`, then narrowed to the tightest width that keeps the same line count (CSS `text-wrap: balance`). */
+export function balance(text: string, maxWidth: number): string[] {
+  const out = wrap(text, maxWidth);
+  if (out.length < 2) return out;
+  let lo = 1;
+  let hi = maxWidth;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (wrap(text, mid).length <= out.length) hi = mid;
+    else lo = mid + 1;
+  }
+  return wrap(text, hi);
+}
+
 export interface Block {
   lines: Line[];
   width: number;

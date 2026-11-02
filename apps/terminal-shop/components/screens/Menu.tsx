@@ -1,11 +1,10 @@
 import type { ReactNode } from "react";
 import { useSearchParams } from "@textjs/app/navigation";
-import { CONTENT, type Command } from "../../lib/frame";
+import { CONTENT, logo, type Command } from "../../lib/frame";
 import { defaultTheme, palette } from "../../lib/theme";
 import { centerLines, fit, place, span, width, type Line } from "../../lib/ui";
 import { useBlink, useHeaderMode, useKeys, useLayout, useNav } from "../chrome";
 import { Screen } from "../Screen";
-import { logo } from "../Shell";
 
 /** The footer commands each page had when `m` was pressed (`state.footer.commands`). */
 const PAGE_COMMANDS: Record<string, Command[]> = {

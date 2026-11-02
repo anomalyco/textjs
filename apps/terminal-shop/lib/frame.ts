@@ -5,7 +5,7 @@
 
 import { pad2, dollars } from "./format";
 import { makeTheme, palette, type Theme } from "./theme";
-import { centerLines, clip, concat, fit, span, width, wordWrap, type Line } from "./ui";
+import { centerLines, clip, concat, fit, place, span, width, wordWrap, type Line } from "./ui";
 import type { Cart, Region } from "./types";
 
 /** `size`: which of the SSH shop's layouts the console gets. */
@@ -119,6 +119,49 @@ function lipglossWidth(l: Line): number {
   let extra = 0;
   for (const s of l) for (const ch of s.text) if (ch === "☰") extra++;
   return width(l) + extra;
+}
+
+/** The splash logo: "terminal" and the blinking brand cursor. */
+export function logo(cursor: boolean): Line {
+  return [span("terminal", { fg: palette.accent, bold: true }), span(" ", cursor ? { bg: palette.brand } : {})];
+}
+
+/** Key hints in the footer's style (`enter sign in   esc back`), wrapped between pairs to fit `w`. */
+export function keyHints(keys: Array<[key: string, label: string] | null | false>, t: Theme, w: number): Line[] {
+  const out: Line[] = [];
+  let cur: Line = [];
+  for (const k of keys) {
+    if (!k) continue;
+    const hint: Line = [t.bold(k[0]), t.base(` ${k[1]}`)];
+    if (cur.length && width(cur) + 3 + width(hint) > w) {
+      out.push(cur);
+      cur = [];
+    }
+    if (cur.length) cur.push(t.base("   "));
+    cur.push(...hint);
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
+/**
+ * A full-screen centered column under the logo (sign in, the email gate): every line
+ * centered, a blank line between blocks. On short consoles the spacing goes first, then the logo.
+ */
+export function logoScreen(blocks: Array<Line[] | null | false>, L: Layout, cursor: boolean): Line[] {
+  const parts = blocks.filter((b): b is Line[] => !!b && b.length > 0);
+  const stack = (head: Line[] | null, afterLogo: number, gap: number): Line[] => {
+    const out: Line[] = head ? [...head, ...Array.from({ length: afterLogo }, (): Line => [])] : [];
+    parts.forEach((b, i) => {
+      if (i > 0) for (let g = 0; g < gap; g++) out.push([]);
+      out.push(...b);
+    });
+    return out;
+  };
+  const head = [logo(cursor)];
+  const tries = [stack(head, 2, 1), stack(head, 1, 1), stack(null, 0, 1), stack(head, 1, 0), stack(head, 0, 0), stack(null, 0, 0)];
+  const ls = tries.find((l) => l.length <= L.viewportHeight) ?? (tries.at(-1) as Line[]);
+  return place(centerLines(ls, Math.min(L.viewportWidth, Math.max(0, ...ls.map(width)))), L.viewportWidth, L.viewportHeight);
 }
 
 /** `HeaderView`: logo and tabs (large), `m ☰`, logo and cart (medium), `t` and cart (small). */

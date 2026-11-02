@@ -3,7 +3,8 @@ import { notEmpty } from "../../lib/form";
 import { usePathname } from "@textjs/app/navigation";
 import { useShop, useShopState } from "../../lib/store";
 import { defaultTheme } from "../../lib/theme";
-import { fit, place, span, wrap, type Line } from "../../lib/ui";
+import { keyHints, logoScreen } from "../../lib/frame";
+import { balance, fit, type Line } from "../../lib/ui";
 import { useBlink, useBusy, useKeys, useLayout } from "../chrome";
 import { Screen } from "../Screen";
 import { useForm } from "../useForm";
@@ -11,10 +12,14 @@ import { listItem } from "./Cart";
 
 const TOKEN_FORM = [[{ key: "token", title: "personal access token", validate: notEmpty("token") }]];
 
+/** Centered copy wraps at this width even on wide consoles. */
+const TEXT_WIDTH = 48;
+const REAL_SHOP = "this is the real shop. orders are charged.";
+
 /**
  * Sign in. The SSH shop identifies you by your ssh key; in the browser you bring a
  * personal access token (`ssh terminal.shop -t tokens`) or sign in through Terminal's
- * OAuth 2.0 server. Styled after the shop's `EmailGateView`.
+ * OAuth 2.0 server. A centered column under the logo, like the splash.
  */
 export function LoginScreen({ prompt, onDismiss }: { prompt?: string; onDismiss?: () => void } = {}): ReactNode {
   const site = useShopState((s) => s.proxy?.mode === "site");
@@ -64,25 +69,23 @@ function SiteLoginScreen({ prompt, onDismiss }: { prompt?: string; onDismiss?: (
   });
 
   const t = defaultTheme;
+  const M = Math.min(W, TEXT_WIDTH);
+  const say = (v: string, style = t.base): Line[] => balance(v, M).map((l) => [style(l)]);
   const env = proxy?.environments[proxy.defaultEnv];
   const authHost = (env?.api ?? "https://api.terminal.shop").replace(/^https:\/\/api\./, "auth.");
-  const text = (v: string): Line[] => wrap(v, W - 2).map((l) => [t.base(l)]);
-  const lines: Line[] = [[span("terminal", { fg: "#FFFFFF", bold: true }), span(" ", cursor ? { bg: "#FF5C00" } : {})], [], [t.bold("sign in")], []];
-  if (prompt) lines.push(...wrap(prompt, W - 2).map((l) => [t.accent(l)]), []);
-  lines.push(...text("sign in to your terminal account to order, see your cart and manage your account. no api key needed."), []);
-  if (configured) {
-    lines.push(...listItem(W < 50 ? "sign in with terminal" : "sign in with terminal (oauth 2.0)", true, t, W - 4));
-    lines.push(...text(`opens ${authHost}: password, email code, github or twitch.`));
-  } else {
-    lines.push(...wrap("sign in isn't set up on this deployment yet.", W - 2).map((l) => [t.error(l)]), ...text("you can still browse the shop."));
-  }
-  lines.push([]);
-  if (env && proxy?.defaultEnv === "prod") lines.push(...text("this is the real terminal.shop: orders are charged and shipped."));
-  else if (env) lines.push([t.base("environment: "), t.accent(env.label)], ...text("stripe test cards, nothing ships"));
-  const keys = [configured ? "enter sign in" : null, onDismiss ? "esc back to the shop" : null, "ctrl+c quit"].filter(Boolean).join(" · ");
-  lines.push([], ...(busy ? text("opening sign in...") : text(keys)));
-  if (error) lines.push([], ...wrap(error, W - 2).map((l) => [t.error(l)]));
-  return <Screen lines={place(lines.map((l) => fit(l, W)), L.viewportWidth, L.viewportHeight)} />;
+  const lines = logoScreen(
+    [
+      [
+        ...say(prompt ?? "sign in to your terminal account", t.accent),
+        ...(error ? say(error, t.error) : !configured ? say("sign in isn't set up here", t.error) : []),
+        ...(configured && env ? say(proxy?.defaultEnv === "prod" ? REAL_SHOP : `${env.label}: test cards, nothing ships`) : []),
+      ],
+      busy ? say(`opening ${authHost}...`) : keyHints([configured && ["enter", "sign in"], !!onDismiss && ["esc", "back"]], t, M),
+    ],
+    L,
+    cursor,
+  );
+  return <Screen lines={lines} />;
 }
 
 function TokenLoginScreen(): ReactNode {
@@ -93,7 +96,6 @@ function TokenLoginScreen(): ReactNode {
   const cursor = useBlink();
   const L = useLayout();
   const W = L.widthContent;
-  const text = (v: string): Line[] => wrap(v, W - 2).map((l) => [defaultTheme.base(l)]);
   const [selected, setSelected] = useState(0);
   const [view, setView] = useState<"choose" | "token" | "confirm-prod">("choose");
   const [busy, run] = useBusy();
@@ -152,31 +154,34 @@ function TokenLoginScreen(): ReactNode {
   });
 
   const t = defaultTheme;
+  const M = Math.min(W, TEXT_WIDTH);
+  const say = (v: string, style = t.base): Line[] => balance(v, M).map((l) => [style(l)]);
   const host = env === "dev" ? "dev.terminal.shop" : "terminal.shop";
   const envInfo = proxy?.environments[env];
-  const lines: Line[] = [[span("terminal", { fg: "#FFFFFF", bold: true }), span(" ", cursor ? { bg: "#FF5C00" } : {})], [], [t.bold("sign in")], []];
+  const label = envInfo?.label ?? (env === "dev" ? "dev sandbox" : "production");
+  const errorLines = error ? say(error, t.error) : null;
+  // Fields and list rows keep their left edge: the block is centered, not each row.
+  const FW = Math.min(M, 36);
+  let blocks: Array<Line[] | null | false>;
   if (view === "confirm-prod") {
-    lines.push(
-      [t.error("switch to production?", { bold: true })],
-      [],
-      ...text("orders placed in production are real: your card is charged and coffee ships. the dev sandbox uses stripe test cards instead."),
-      [],
-      [t.base("are you sure? "), t.accent("(y/n)")],
-    );
+    blocks = [[[t.error("switch to production?", { bold: true })]], say("orders there are charged and shipped."), [[t.base("are you sure? "), t.accent("(y/n)")]]];
   } else if (view === "token") {
-    lines.push(...text("paste a personal access token. create one with"), [t.accent(`  ssh ${host} -t tokens`)], []);
-    lines.push(...form.lines(W, 1));
-    lines.push([], ...text(busy ? "signing in..." : "enter to continue · esc to go back · ctrl+c to quit"));
+    blocks = [
+      [...say("create a token with"), ...say(`ssh ${host} -t tokens`, t.accent)],
+      form.lines(FW, 1).map((l) => fit(l, FW)),
+      errorLines,
+      busy ? say("signing in...") : keyHints([["enter", "sign in"], ["esc", "back"]], t, M),
+    ];
   } else {
-    lines.push(...text("the ssh shop knows you by your ssh key. here, bring a personal access token or sign in with the browser."), []);
-    lines.push(...listItem(W < 50 ? "paste a token" : "paste a personal access token", selected === 0, t, W - 4));
-    lines.push(...listItem(W < 50 ? "sign in with the browser" : "sign in with the browser (oauth 2.0)", selected === 1, t, W - 4));
-    lines.push([]);
-    lines.push([t.base("environment: "), t.accent(envInfo?.label ?? (env === "dev" ? "dev sandbox" : "production")), t.base(` · ${envInfo?.api.replace(/^https:\/\//, "") ?? host}`)]);
-    if (env === "dev") lines.push(...text("stripe test cards, nothing is charged or shipped"));
-    else lines.push([t.error("real orders, real charges")]);
-    lines.push([], ...text(busy ? "opening sign in..." : "enter to continue · e environment · ctrl+c to quit"));
+    const LW = Math.min(W, 42);
+    blocks = [
+      [
+        ...listItem(LW < 40 ? "paste a token" : "paste an access token", selected === 0, t, LW),
+        ...listItem(LW < 30 ? "use a browser" : "sign in with the browser", selected === 1, t, LW),
+      ].map((l) => fit(l, LW)),
+      [...say(`${label} · ${envInfo?.api.replace(/^https?:\/\//, "") ?? host}`), ...(env === "dev" ? say("test cards, nothing ships") : say(REAL_SHOP, t.error)), ...(errorLines ?? [])],
+      busy ? say("opening sign in...") : keyHints([["↑/↓", "choose"], ["e", M < 36 ? "environment" : env === "dev" ? "switch to production" : "switch to dev sandbox"]], t, M),
+    ];
   }
-  if (error) lines.push([], ...wrap(error, W - 2).map((l) => [t.error(l)]));
-  return <Screen lines={place(lines.map((l) => fit(l, W)), L.viewportWidth, L.viewportHeight)} />;
+  return <Screen lines={logoScreen(blocks, L, cursor)} />;
 }

@@ -2,14 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "@textjs/app/navigation";
 import { isSafeExternalUrl } from "../../lib/entry";
 import { ADDRESS_FORM, addressFromValues, newAddressValues, validateAddress } from "../../lib/address";
-import { CONTENT, LARGE_LAYOUT, SMALL, type Layout } from "../../lib/frame";
+import { CONTENT, keyHints, LARGE_LAYOUT, logoScreen, SMALL, type Layout } from "../../lib/frame";
 import { addressLine, dollars, formatExpiration, formatLast4, formatUSD } from "../../lib/format";
 import { encodeQr, renderQr } from "../../lib/qr";
 import { useShop, useShopState, uuid, type ShopStore } from "../../lib/store";
 import { defaultTheme, palette, type Theme } from "../../lib/theme";
 import type { Address } from "../../lib/types";
-import { centerLines, concat, fit, indent, place, span, viewport, width, wrap, type Line } from "../../lib/ui";
-import { Page, useBusy, useHeaderMode, useKeys, useLayout, useNav, useRealMoneyConfirm } from "../chrome";
+import { balance, centerLines, concat, indent, place, span, viewport, width, wrap, type Line } from "../../lib/ui";
+import { Page, useBlink, useBusy, useHeaderMode, useKeys, useLayout, useNav, useRealMoneyConfirm } from "../chrome";
 import { Screen } from "../Screen";
 import { useForm } from "../useForm";
 import { listBox, listItem } from "./Cart";
@@ -733,20 +733,17 @@ export function EmailGateScreen(): ReactNode {
   });
   const t = defaultTheme;
   const L = useLayout();
-  const W = L.widthContent;
-  const text = (v: string): Line[] => wrap(v, W).map((l) => [t.base(l)]);
+  const cursor = useBlink();
+  const M = Math.min(L.widthContent, 48);
   const host = env === "dev" ? "dev.terminal.shop" : "terminal.shop";
-  const ls: Line[] = [
-    [t.bold("one quick thing")],
-    [],
-    ...text("we don't have an email for your account, so we can't send you order or subscription updates. link one to your account first:"),
-    [],
-    [t.accent(`  ssh ${host} -t link-email`)],
-    [],
-    ...text("or sign in with the browser (an email account) instead."),
-    [],
-    ...text("r to reload after linking · esc to go back · ctrl+c to quit"),
-  ];
-  const body = ls.map((l) => fit(l, W));
-  return <Screen lines={place(body, L.viewportWidth, L.viewportHeight)} />;
+  const lines = logoScreen(
+    [
+      [[t.bold("one quick thing")], ...balance("link an email to get order updates", M).map((l) => [t.base(l)])],
+      balance(`ssh ${host} -t link-email`, M).map((l) => [t.accent(l)]),
+      keyHints([["r", "reload"], ["esc", "back"]], t, M),
+    ],
+    L,
+    cursor,
+  );
+  return <Screen lines={lines} />;
 }

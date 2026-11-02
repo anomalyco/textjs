@@ -95,7 +95,7 @@ await press("ArrowDown", "ArrowDown");
 await press("+");
 const prompt = await until("sign in to add coffee to your cart");
 check("adding to the cart asks you to sign in", prompt !== null, await last());
-check("sign in screen offers Terminal OAuth, no API key", (await last()).includes("sign in with terminal (oauth 2.0)") && (await last()).includes("no api key needed"), await last());
+check("sign in screen names the environment and how to back out", /this is the real shop\. orders are charged\.|test cards, nothing ships/.test(await last()) && (await last()).includes("enter sign in   esc back"), await last());
 
 const signedInNav = page.waitForURL((u) => u.pathname === "/coffee" && authorizeUrls.length > 0, { timeout: 10000 }).catch(() => null);
 await press("Enter");

@@ -498,7 +498,7 @@ export class ShopStore {
   async beginOAuth(origin: string, returnTo = this.state.initialPath): Promise<string> {
     const session = this.state.proxy?.session;
     if (this.siteMode && session) {
-      if (!session.configured) throw new Error("sign in isn't set up on this deployment yet");
+      if (!session.configured) throw new Error("sign in isn't set up here");
       return `${this.proxyUrl(session.signInUrl)}?${new URLSearchParams({ return: safeEntryPath(returnTo) })}`;
     }
     return beginOAuth(this.state.env, origin, returnTo);

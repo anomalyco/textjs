@@ -22,8 +22,9 @@ export function listItem(text: Line[] | string, focused: boolean, t: Theme, tota
   else if (focused) head = [t.accent(" ☉   "), ...tint(first, palette.accent)];
   else head = [t.base("     "), ...tint(first, palette.body)];
   for (let i = 1; i < ls.length; i++) ls[i] = tint(ls[i] as Line, palette.body);
-  const hint = focused ? "enter" : "";
   const padding = radio ? 6 : 2;
+  // The `enter` hint goes when the row is too narrow to hold it.
+  const hint = focused && width(head) + padding + 5 <= totalWidth ? "enter" : "";
   const space = Math.max(0, totalWidth - width(hint) - width(head) - padding);
   ls[0] = concat(head, t.base(" ".repeat(space)), hint ? t.accent(hint) : []);
   return ls;

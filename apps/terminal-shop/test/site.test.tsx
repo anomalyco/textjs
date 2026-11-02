@@ -69,9 +69,8 @@ describe("site mode, signed out", () => {
     await h.until("~ featured ~");
     await h.press("down", "down", "+");
     await h.until("sign in to add coffee to your cart");
-    expect(h.screen()).toContain("sign in with terminal (oauth 2.0)");
-    expect(h.screen()).toContain("no api key needed");
-    expect(h.screen()).toContain("orders are charged and shipped");
+    expect(h.screen()).toContain("this is the real shop. orders are charged.");
+    expect(h.screen()).toContain("enter sign in   esc back");
     expect(h.api.requests.some((r) => r.path.startsWith("/cart"))).toBe(false);
     await h.press("esc");
     await h.until("~ featured ~");
@@ -94,7 +93,7 @@ describe("site mode, signed out", () => {
     expect(h.api.requests.every((r) => r.path === "/product" && !r.authorized)).toBe(true);
     await h.press("up", "up", "up", "enter");
     await h.until("sign in to see your profile");
-    expect(h.screen()).toContain("sign in with terminal (oauth 2.0)");
+    expect(h.screen()).toContain("enter sign in   esc back");
   });
 
   test("sign in leaves for the proxy's OAuth start with the page to come back to", async () => {
@@ -116,11 +115,21 @@ describe("site mode, signed out", () => {
     expect(new URL(assigned[1]!).searchParams.get("return")).toBe("/account?page=subscriptions");
   });
 
+  test("the sign in screen fits the smallest console", async () => {
+    const shop = (h = await mountShop({ site: {}, signedIn: false, size: { cols: 20, rows: 10 } }));
+    await shop.t.waitFor(() => shop.store.s.phase === "ready" && shop.history.getLocation().pathname === "/shop", "shop");
+    await shop.press("down", "down", "+");
+    await shop.until("esc back");
+    expect(shop.screen()).toContain("charged.");
+    expect(shop.screen()).toContain("enter sign in");
+  });
+
   test("without a configured OAuth client, sign in says so and browsing still works", async () => {
     h = await mountShop({ site: { configured: false }, signedIn: false, store: { assign: (u) => assigned.push(u) } });
     await h.until("~ featured ~");
     await h.press("c", "enter");
-    await h.until("sign in isn't set up on this deployment yet");
+    await h.until("sign in isn't set up here");
+    expect(h.screen()).not.toContain("enter sign in");
     const before = assigned.length;
     await h.press("enter");
     expect(assigned.length).toBe(before);

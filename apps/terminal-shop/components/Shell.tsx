@@ -2,15 +2,12 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "@textjs/app/navigation";
 import { useKeys } from "../lib/keys";
 import { PUBLIC_PATHS, useShop, useShopState } from "../lib/store";
-import { defaultTheme, palette } from "../lib/theme";
-import { centerLines, place, span, type Line } from "../lib/ui";
+import { logo } from "../lib/frame";
+import { defaultTheme } from "../lib/theme";
+import { centerLines, place, type Line } from "../lib/ui";
 import { HeaderModeContext, useBlink, useLayout, type HeaderMode } from "./chrome";
 import { LoginScreen } from "./screens/Login";
 import { Screen } from "./Screen";
-
-export function logo(cursor: boolean): Line {
-  return [span("terminal", { fg: palette.accent, bold: true }), span(" ", cursor ? { bg: palette.brand } : {})];
-}
 
 function Splash(): ReactNode {
   const cursor = useBlink();
@@ -22,8 +19,6 @@ function Splash(): ReactNode {
     : [logo(cursor)];
   return <Screen lines={place(content, L.viewportWidth, L.viewportHeight)} />;
 }
-
-
 
 /** What `ssh` prints after the session ends. */
 function Quit(): ReactNode {
