@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ThemeName } from "@textjs/react";
 import { LIVE_PATH } from "../live-protocol";
+import { canonicalPathname } from "./http";
 import { LiveServer, type LiveServerOptions } from "./live";
 import type { MiddlewareModule } from "./middleware";
 import { createLiveAuthorizer } from "./middleware-runtime";
@@ -42,16 +43,6 @@ function wantsHtml(req: IncomingMessage, pathname: string): boolean {
   if (last.includes(".")) return false;
   const accept = req.headers.accept;
   return accept === undefined || accept.includes("text/html") || accept.includes("*/*");
-}
-
-function normalize(pathname: string): string {
-  let p = pathname;
-  try {
-    p = decodeURIComponent(p);
-  } catch {
-    // keep raw
-  }
-  return p.length > 1 && p.endsWith("/") ? p.slice(0, -1) : p;
 }
 
 /** Load `.text/live-manifest.json` (and the live bundle when routes render on the server). */
@@ -107,10 +98,11 @@ export async function loadLiveProduction(outDir: string, options: LiveProduction
         return true;
       }
       if (!wantsHtml(req, pathname)) return false;
-      const path = normalize(pathname);
-      const page = html.get(path);
+      const route = canonicalPathname(pathname);
+      if (route === null) return false;
+      const page = html.get(decodeURIComponent(route));
       if (page) return send(req, res, page);
-      if (server && liveHtml && runtimeOf(path) === "server") return send(req, res, liveHtml);
+      if (server && liveHtml && runtimeOf(route) === "server") return send(req, res, liveHtml);
       return false;
     },
     close() {

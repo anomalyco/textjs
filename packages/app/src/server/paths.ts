@@ -15,6 +15,3 @@ export function resolveRoot(path: string): string {
     return absolute;
   }
 }
-
-/** Windows and macOS file systems match names case-insensitively by default. */
-export const CASE_INSENSITIVE_FS = process.platform === "win32" || process.platform === "darwin";

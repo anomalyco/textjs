@@ -4,12 +4,12 @@
 
 import { existsSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { join, relative, sep } from "node:path";
 import { LIVE_PATH } from "../live-protocol";
-import { isLoopbackUrl, proxyFetch, requestOrigin, requestUrl, sendWebResponse, setMiddlewareState, toWebRequest } from "./http";
+import { badRequest, canonicalPathname, canonicalRequestTarget, isLoopbackUrl, proxyFetch, requestOrigin, requestUrl, sendWebResponse, setMiddlewareState, toWebRequest } from "./http";
 import type { MiddlewareModule } from "./middleware";
 import { matchesMiddleware, MIDDLEWARE_FILES, middlewareMatchers, runMiddleware } from "./middleware-runtime";
-import { CASE_INSENSITIVE_FS, resolveRoot } from "./paths";
+import { resolveRoot } from "./paths";
 
 /** `toWebRequest()` returns this request (once) instead of re-reading the Node stream. */
 export const WEB_REQUEST = Symbol.for("textjs.webRequest");
@@ -50,7 +50,13 @@ export function nodeHeaders(req: IncomingMessage): Headers {
  * or `null` once middleware has sent the response itself.
  */
 export async function runNodeMiddleware(mod: MiddlewareModule, req: IncomingMessage, res: ServerResponse, options: NodeMiddlewareOptions): Promise<string | null> {
-  const url = requestUrl(req.url, options.origin);
+  const canonical = canonicalRequestTarget(req.url);
+  if (canonical === null) {
+    await sendWebResponse(res, badRequest(), req.method);
+    return null;
+  }
+  req.url = canonical;
+  const url = requestUrl(canonical, options.origin);
   const pathname = stripBase(url.pathname, options.basePath);
   // Match on the URL and headers first: unmatched requests keep their Node body stream untouched.
   const probe = new Request(url, { method: "GET", headers: nodeHeaders(req) });
@@ -83,9 +89,14 @@ export async function runNodeMiddleware(mod: MiddlewareModule, req: IncomingMess
     await sendWebResponse(res, response, request.method);
     return null;
   }
-  (req as unknown as Record<symbol, Request>)[WEB_REQUEST] = outcome.request;
   const target = outcome.rewrite ?? url;
-  return `${stripBase(target.pathname, options.basePath) ?? target.pathname}${target.search}`;
+  const routed = canonicalPathname(target.pathname);
+  if (routed === null) {
+    await sendWebResponse(res, badRequest(), request.method);
+    return null;
+  }
+  (req as unknown as Record<symbol, Request>)[WEB_REQUEST] = outcome.request;
+  return `${stripBase(routed, options.basePath) ?? routed}${target.search}`;
 }
 
 const SOURCE_EXT = /\.(?:[cm]?[jt]sx?)$/;
@@ -93,42 +104,26 @@ const SOURCE_EXT = /\.(?:[cm]?[jt]sx?)$/;
 /**
  * Server-only sources `text dev` must never hand to the browser as modules:
  * `middleware.ts`, `text.config.*`, the cache handler, route handlers,
- * `*.server.*` modules and `.env` files. `pathname` is the request path without
- * basePath, `/@fs/<absolute path>` included. A path that doesn't decode counts.
- *
- * The file is matched both as the URL spells it and as the file system does,
- * and reserved names in any case, so `/Middleware.ts`, `/.ENV`, an 8.3 short
- * name or a symlink can't reach a server-only file under another name.
+ * `*.server.*` modules and `.env` files.
  */
 export function isServerOnlySource(pathname: string, root: string, appDir = "app", extra: readonly string[] = []): boolean {
   let decoded: string;
   try {
     decoded = decodeURIComponent(pathname);
   } catch {
-    return true;
+    return false;
   }
-  const fold = (p: string): string => (CASE_INSENSITIVE_FS ? p.toLowerCase() : p);
-  const base = resolveRoot(root);
-  const projectPath = (file: string): string => {
-    const rel = relative(base, file);
-    return (rel.startsWith("..") || isAbsolute(rel) ? file : rel).split(sep).join("/");
-  };
-  // `/@fs/C:/app/x.ts` on Windows: drop the slash before the drive letter.
-  const file = decoded.startsWith("/@fs/") ? resolve(decoded.slice(4).replace(/^\/([A-Za-z]:)/, "$1")) : join(base, decoded);
-  const candidates = new Set([projectPath(file), projectPath(resolveRoot(file))]);
-  const app = appDir.replace(/^\.?\//, "").replace(/\/+$/, "").toLowerCase();
-  const extras = extra.filter((f) => SOURCE_EXT.test(f)).map((f) => fold(projectPath(resolveRoot(resolve(base, f)))));
-  for (const spelled of candidates) {
-    if (extras.includes(fold(spelled))) return true;
-    // The reserved names match in any case: harmless on case-sensitive disks, required on the others.
-    const rel = spelled.toLowerCase();
-    const name = rel.split("/").pop() ?? "";
-    if (/^\.env(?:\..*)?$/.test(name)) return true;
-    if ((MIDDLEWARE_FILES as readonly string[]).includes(rel) || /^text\.config\.[cm]?[jt]s$/.test(rel)) return true;
-    if (/\.server\.[cm]?[jt]sx?$/.test(name)) return true;
-    if (rel.startsWith(`${app}/`) && /^route\.[cm]?[jt]sx?$/.test(name)) return true;
-  }
-  return false;
+  // In any case: macOS and Windows serve `/MIDDLEWARE.TS` from `middleware.ts`.
+  const rel = decoded.replace(/^[/\\]+/, "").replace(/\\/g, "/").toLowerCase();
+  const name = rel.split("/").pop() ?? "";
+  if (/^\.env(?:\..*)?$/.test(name)) return true;
+  if (MIDDLEWARE_FILES.some((f) => f.toLowerCase() === rel) || /^text\.config\.[cm]?[jt]s$/.test(rel)) return true;
+  if (/\.server\.[cm]?[jt]sx?$/.test(name)) return true;
+  if (rel.startsWith(`${appDir.replace(/^\.?\//, "").toLowerCase()}/`) && /^route\.[cm]?[jt]sx?$/.test(name)) return true;
+  return extra.some((file) => {
+    const r = relative(root, file).split(sep).join("/");
+    return r.toLowerCase() === rel && SOURCE_EXT.test(r);
+  });
 }
 
 /**
@@ -140,8 +135,6 @@ export function isDevInternalRequest(rawUrl: string, root: string): boolean {
   const pathname = rawUrl.split("?")[0] ?? "/";
   if (pathname === LIVE_PATH) return false;
   if (pathname.startsWith("/@") || pathname.startsWith("/node_modules/") || pathname.startsWith("/__")) return true;
-  // A server-only file is never a module request, whatever its spelling: middleware decides.
-  if (isServerOnlySource(pathname, root)) return false;
   // Source files Vite serves as modules (`/app/page.tsx?t=…`); `public/` files still run middleware, as in production.
   try {
     const base = resolveRoot(root);

@@ -10,8 +10,9 @@ import { serverEntry, type AdapterContext, type AdapterResult } from "./shared";
 export const BUN_SERVER_FILE = "server.js";
 
 const BODY = `
-import { existsSync, statSync } from "node:fs";
-import { join, normalize, sep } from "node:path";
+import { existsSync } from "node:fs";
+import { join, sep } from "node:path";
+import { staticFile } from ${JSON.stringify(frameworkFile("server/static-file.ts"))};
 import { loadLiveProduction } from ${JSON.stringify(frameworkFile("server/live-prod.ts"))};
 import { runNodeStyle } from ${JSON.stringify(frameworkFile("server/live-web.ts"))};
 
@@ -42,16 +43,10 @@ export const handler = createRequestHandler({
   ...options,
   live: live ? (request, url, context) => runNodeStyle(request, url, (req, res) => live.handle(req, res, url), context.clientAddress) : undefined,
   assets(pathname) {
-    let path = normalize(join(dir, pathname));
-    if ((path !== dir && !path.startsWith(dir + sep)) || path === self) return null;
-    try {
-      // Directories serve their index.html (prerendered console shells).
-      if (statSync(path).isDirectory()) path = join(path, "index.html");
-      if (!statSync(path).isFile()) return null;
-    } catch {
-      return null;
-    }
-    const res = fileResponse(path, pathname.startsWith("/assets/"));
+    // Directories serve their index.html (prerendered console shells).
+    const path = staticFile(dir, decodeURIComponent(pathname), { index: true });
+    if (!path || path === self) return null;
+    const res = fileResponse(path, path.startsWith(join(dir, "assets") + sep));
     if (path.endsWith(".html")) res.headers.set("content-type", "text/html; charset=utf-8");
     return res;
   },
