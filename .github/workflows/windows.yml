@@ -1,7 +1,7 @@
 # ▼ Windows: the packages' build, typecheck and tests; what a new user runs from
 # a terminal (create-text-app with bunx and npx, text build, text dev, the
-# OpenCode bridge); and textjs.org in headful Chrome and Edge with DevTools
-# docked, driven by real OS keystrokes (US, German and Japanese IME).
+# OpenCode bridge); and this checkout's build of textjs.org in headful Chrome and
+# Edge with DevTools docked, driven by real OS keystrokes (US, German and Japanese IME).
 #
 # Runs on changes that can break Windows, and by hand from the Actions tab.
 # Screenshots and raw key logs are uploaded as the `windows-browser-*` artifacts.
@@ -13,6 +13,7 @@ on:
     branches: [dev, production]
     paths:
       - "packages/**"
+      - "apps/web/**"
       - "scripts/windows/**"
       - "package.json"
       - "bun.lock"
@@ -21,6 +22,7 @@ on:
     branches: [dev]
     paths:
       - "packages/**"
+      - "apps/web/**"
       - "scripts/windows/**"
       - "package.json"
       - "bun.lock"
@@ -30,9 +32,6 @@ on:
       version:
         description: create-text-app and @textjs/opencode version to smoke test from npm
         default: latest
-      origin:
-        description: Site to check in Chrome and Edge
-        default: https://textjs.org
 
 permissions:
   contents: read
@@ -100,15 +99,6 @@ jobs:
           VERSION: ${{ inputs.version || 'latest' }}
         run: node scripts/windows/cli-smoke.mjs --version "$VERSION" --json "$RUNNER_TEMP/cli.json"
 
-      - name: Probe opencode discovery (temporary)
-        continue-on-error: true
-        run: |
-          npm install -g opencode-ai >/dev/null 2>&1 || true
-          where opencode || true
-          node -e "require('child_process').execFile('opencode',['--version'],{windowsHide:true},(e,o)=>console.log('node execFile:',e?e.code+' '+e.message:o.trim()))"
-          bun -e "require('child_process').execFile('opencode',['--version'],{windowsHide:true},(e,o)=>console.log('bun execFile:',e?e.code+' '+e.message:o.trim()))"
-          ls "$USERPROFILE/.bun/bin" 2>/dev/null || true
-
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
@@ -153,19 +143,21 @@ jobs:
         with:
           bun-version: 1.4.4
 
-      # This checkout's FocusPad and input engine, served by text dev.
-      - name: Start text dev (examples/dashboard)
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      # The pull request's own site, so a check never depends on what's live on textjs.org.
+      - name: Build and serve the site
         run: |
-          bun install --frozen-lockfile
-          cd examples/dashboard
-          nohup bun ../../packages/app/bin/text.ts dev --port 3000 > "$RUNNER_TEMP/dev.log" 2>&1 &
-          for i in $(seq 60); do curl -sf http://localhost:3000/ > /dev/null && break; sleep 1; done
-          curl -sf http://localhost:3000/ > /dev/null || { cat "$RUNNER_TEMP/dev.log"; exit 1; }
+          bun run build:packages
+          bun run --cwd apps/web build
+          cd apps/web
+          nohup bunx vite preview --port 4173 --strictPort > "$RUNNER_TEMP/preview.log" 2>&1 &
+          for i in $(seq 60); do curl -sf http://localhost:4173/playground > /dev/null && break; sleep 1; done
+          curl -sf http://localhost:4173/playground > /dev/null || { cat "$RUNNER_TEMP/preview.log"; exit 1; }
 
       - name: Check ${{ matrix.browser }}
-        env:
-          ORIGIN: ${{ inputs.origin || 'https://textjs.org' }}
-        run: node scripts/windows/browser-check.mjs --browser ${{ matrix.browser }} --origin "$ORIGIN" --local http://localhost:3000/ --out "$RUNNER_TEMP/browser"
+        run: node scripts/windows/browser-check.mjs --browser ${{ matrix.browser }} --origin http://localhost:4173 --out "$RUNNER_TEMP/browser"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
