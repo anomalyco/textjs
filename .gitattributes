@@ -1,0 +1,2 @@
+# Windows checkouts keep LF: fonts, fixtures and snapshots are compared byte for byte.
+* text=auto eol=lf
