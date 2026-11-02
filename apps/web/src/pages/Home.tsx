@@ -8,12 +8,12 @@ import { DevtoolsShortcut, SafariConsoleNote } from "../site/Chrome";
 import { CopyCommand } from "../site/CodeBlock";
 import { DevToolsWindow } from "../site/DevToolsWindow";
 import { HighlightedCode } from "../site/highlight";
-import { ArrowRight } from "../site/icons";
 import { siteStore } from "../console-companion/store";
 import { HERO_FILES } from "./home-files";
 import { Crosses } from "./home/Crosses";
 import { AnywhereSection } from "./home/Anywhere";
 import { KitSection } from "./home/Kit";
+import { OpenCodeBand } from "./home/OpenCodeBand";
 import { ServerSection } from "./home/Server";
 import { LearnSection, ToolingSection } from "./home/Tooling";
 import { TurbologSection } from "./home/Turbolog";
@@ -130,22 +130,6 @@ function Features(): ReactNode {
   );
 }
 
-function OpenCodeSpotlight(): ReactNode {
-  return (
-    <section className="section">
-      <div className="container spotlight">
-        <div>
-          <h2>OpenCode in console.log</h2>
-          <p className="muted">Connect your local OpenCode server, or try the sandbox with a scripted agent.</p>
-        </div>
-        <A href="/opencode" className="btn btn-secondary">
-          Explore OpenCode <ArrowRight size={14} />
-        </A>
-      </div>
-    </section>
-  );
-}
-
 export function HomePage(): ReactNode {
   return (
     <>
@@ -155,7 +139,7 @@ export function HomePage(): ReactNode {
       <TurbologSection />
       <ServerSection />
       <AnywhereSection />
-      <OpenCodeSpotlight />
+      <OpenCodeBand />
       <ToolingSection />
       <LearnSection />
     </>

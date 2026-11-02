@@ -77,8 +77,7 @@ describe("page rendering", () => {
     expect(html).toContain(">viewport:3</span>");
     expect(html).toContain("This page is running in your console.");
     for (const card of ["React 19", "App Router", "Responsive grid", "Keyboard input"]) expect(html).toContain(card);
-    expect(html).toContain("OpenCode in console.log");
-    expect(html).toContain("Explore OpenCode");
+    for (const s of ["Code with OpenCode in DevTools", "rebuilt with Text.js to run in your browser console", "Try the sandbox", "Connect your server", "bunx @textjs/opencode@latest proxy", "Your models and sessions", 'aria-label="OpenCode"']) expect(html).toContain(s);
     for (const section of ["Every changed frame is one <code>console.log</code> call", "Appended frames", "Tables, charts, forms and shortcuts", "Render routes on the server", "Also runs in terminals and agents", "Editor, lint and test tooling", "Build a deploy dashboard in your console"]) expect(html).toContain(section);
     // Headings are statements, not slogans: no trailing periods.
     for (const h of html.matchAll(/<h[23][^>]*>(.*?)<\/h[23]>/g)) expect(h[1]).not.toMatch(/\.$/);

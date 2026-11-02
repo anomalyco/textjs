@@ -1949,3 +1949,172 @@
     animation: none;
   }
 }
+
+/* ───────────────────────── OpenCode ───────────────────────── */
+
+.oc-head {
+  max-width: 720px;
+  margin: 0 auto 64px;
+  text-align: center;
+}
+
+/* The wordmark is 21px tall in the Playground; here it leads the section, so it's larger but stays smaller than the heading's caps line. */
+.oc-lockup {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 28px;
+  color: var(--fg-strong);
+}
+
+.oc-lockup svg {
+  width: auto;
+  height: 30px;
+}
+
+.oc-lede {
+  margin: 0 0 32px;
+  font-size: 18px;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.oc-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* Belt and braces: nothing in the band (the glow, the phone crop) may widen the page. */
+.oc-band {
+  overflow-x: clip;
+}
+
+/* As wide as the hero's split, so the band doesn't outweigh the hero. */
+.oc-stage {
+  position: relative;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+/* Stays within the stage's width, so it can never cause horizontal scroll. */
+.oc-glow {
+  position: absolute;
+  inset: -64px 0 30%;
+  background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(241, 236, 236, 0.06), transparent 70%);
+  pointer-events: none;
+}
+
+/* The mirror's natural width is 100 cols of 14px Menlo plus the log row's 20px padding and 2px
+   border (862px). At 760px it scales to about 12.3px type; narrower containers scale it further,
+   until the phone crop below takes over. */
+.oc-window {
+  width: 100%;
+  max-width: 760px;
+}
+
+/* Three facts across the container, under the narrower window. The middle one is wider so its command fits on one line. */
+.oc-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr);
+  margin-top: 72px;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.oc-fact {
+  padding: 28px;
+}
+
+@media (max-width: 1100px) {
+  .oc-fact {
+    padding: 24px;
+  }
+}
+
+.oc-fact + .oc-fact {
+  border-left: 1px solid var(--line);
+}
+
+.oc-fact h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg-strong);
+}
+
+.oc-fact p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.oc-fact code {
+  font-size: 0.82em;
+  color: var(--fg);
+}
+
+/* A command wraps as a unit, never inside a token. */
+.oc-fact .oc-cmd {
+  white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+  .oc-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .oc-fact + .oc-fact {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
+/* Below the width where the scaled window would drop under phone type size, it keeps a legible size
+   (14px at 0.8 zoom), starts at the text edge and runs off the right of the screen to the viewport
+   edge. The crop fades out to the right and at the bottom. */
+@media (max-width: 740px) {
+  .oc-glow {
+    display: none;
+  }
+  .oc-stage {
+    max-width: none;
+  }
+  .oc-crop {
+    height: 420px;
+    margin-right: calc(-1 * var(--gutter));
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to right, #000 72%, transparent), linear-gradient(to bottom, #000 76%, transparent);
+    mask-image: linear-gradient(to right, #000 72%, transparent), linear-gradient(to bottom, #000 76%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-composite: intersect;
+  }
+  .oc-window {
+    width: 862px;
+    max-width: none;
+    zoom: 0.8;
+  }
+}
+
+@media (max-width: 640px) {
+  .oc-head {
+    margin-bottom: 40px;
+  }
+  .oc-lockup svg {
+    height: 24px;
+  }
+  .oc-facts {
+    margin-top: 40px;
+  }
+  .oc-fact {
+    padding: 24px 20px;
+  }
+}
+
+/* Too narrow for the command on one line: let it break at its spaces. */
+@media (max-width: 360px) {
+  .oc-fact .oc-cmd {
+    white-space: normal;
+  }
+}
