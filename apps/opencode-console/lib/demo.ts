@@ -537,6 +537,14 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
 
   return {
     kind: "demo",
+    pairing: {
+      async origins() {
+        return ["https://sandbox.example.invalid"];
+      },
+      async issue() {
+        return { code: "sandbox-only", expires_in: 300 };
+      },
+    },
     management,
     async children(id) {
       return db.sessions.filter((s) => s.parentID === id).map((s) => ({ ...s }));

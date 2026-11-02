@@ -194,6 +194,7 @@ export interface OpenCodeClient {
   readonly label: string;
   info(): Promise<ServerInfo>;
   keySettings?(): Promise<KeySettings>;
+  pairing?: { origins: () => Promise<string[]>; issue: () => Promise<{ code: string; expires_in: number }> };
   shells?(id: string, dir?: string): Promise<{ id: string; command: string; status: string }[]>;
   shellOutput?(id: string, dir?: string): Promise<string>;
   killShell?(id: string, dir?: string): Promise<void>;

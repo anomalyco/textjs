@@ -7,7 +7,7 @@ import { useStore, useStoreState } from "../lib/store";
 import { useActiveSessionId } from "./Shell";
 import { PickerPanel } from "./PickerPanel";
 import { exportMarkdown } from "../lib/transcript";
-import { binding, defaults, NativeActions } from "../lib/bindings";
+import { binding, defaults, NativeActions, useCommandKeys } from "../lib/bindings";
 
 export type PaletteKind = Picker | InfoPicker;
 interface Props {
@@ -361,7 +361,7 @@ function Content({ kind, onKind, onClose }: Props) {
         current: v === (model?.variant ?? "default"),
       }));
     const settings: Option[] = [
-      {value:"clear-local-history",label:"Clear local prompt history",group:"Input"},
+      { value: "clear-local-history", label: "Clear local prompt history", group: "Input" },
       { value: "action:hostInfo", label: "Native terminal controls", group: "System" },
       { value: "tabs-mode", label: ui.noTabs ? "Show session tabs" : "Hide session tabs", group: "Session" },
       { value: "action:keys", label: "Keybinds", group: "Input" },
@@ -528,7 +528,11 @@ function Content({ kind, onKind, onClose }: Props) {
   const choose = (o: Option | undefined) => {
     if (!o || waiting) return;
     const v = o.value;
-    if(v==="clear-local-history"){store.clearHistory();onClose();return;}
+    if (v === "clear-local-history") {
+      store.clearHistory();
+      onClose();
+      return;
+    }
     if (v === "mdThinking") {
       withThinking(!thinking);
       return;
@@ -710,55 +714,11 @@ function Content({ kind, onKind, onClose }: Props) {
         setRenaming("");
       } else if (k === "escape") {
         onClose();
-      } else if (k === "up" || k === "down" || (e.ctrl && ["n", "p"].includes(k)))
-        highlight((selected + (["up", "p"].includes(k) ? -1 : 1) + filtered.length) % Math.max(1, filtered.length));
-      else if (k === "pageup" || k === "pagedown")
-        highlight(Math.max(0, Math.min(filtered.length - 1, selected + (k === "pageup" ? -limit : limit))));
-      else if (k === "home" || k === "end") highlight(k === "home" ? 0 : Math.max(0, filtered.length - 1));
-      else if (e.ctrl && k === "a" && kind === "models") onKind("integrations");
-      else if (e.ctrl && k === "u" && kind === "models") onKind("usage");
-      else if (e.ctrl && k === "d" && kind === "stashes" && item && !e.repeat) store.dropStash(Number(item.value.slice(6)));
-      else if (e.ctrl && ["d", "u"].includes(k) && kind === "queued" && active && item && !e.repeat && !waiting) {
-        const id = item.value.slice(6);
-        setWaiting(true);
-        void store.api
-          ?.cancelQueued?.(active, id)
-          .then(
-            () => {
-              setQueue((prev) => prev.filter((q) => q.id !== id));
-              if (k === "u") {
-                store.restore(active, item.label);
-                onClose();
-              }
-            },
-            (e) => setNotice(String(e)),
-          )
-          .finally(() => setWaiting(false));
-      } else if (e.ctrl && k === "f" && kind === "sessions" && item) store.togglePin(item.value.slice(8));
-      else if (e.ctrl && k === "f" && kind === "models" && connected && item) {
-        store.toggleFavorite(item.value);
-        highlight(null);
       } else if (e.ctrl && k === "a" && kind === "sessions") {
         showAll(!allProjects);
         highlight(0);
-      } else if (e.ctrl && ["r", "d"].includes(k) && kind === "sessions" && item) {
-        const id = item.value.slice(8);
-        if (k === "r") {
-          setRenaming(id);
-          setTitleDraft(item.label);
-        } else if (!e.repeat && deleting === id && store.api?.removeSession) {
-          setDeleting("");
-          void store.api.removeSession(id).then(
-            async () => {
-              store.tabs.forget(id);
-              await store.refreshSessions();
-              if (active === id) goSession(undefined);
-            },
-            (e) => setNotice(String(e)),
-          );
-        } else if (!e.repeat) setDeleting(id);
       } else return;
-      if (k !== "d") setDeleting("");
+      setDeleting("");
       e.stopPropagation();
     },
     { priority: 30 },
@@ -773,6 +733,81 @@ function Content({ kind, onKind, onClose }: Props) {
       (e) => setNotice(String(e)),
     );
   };
+  const nav = (i: number) => {
+    highlight(i);
+    setDeleting("");
+  };
+  const cancelQueued = (undo: boolean) => {
+    if (!active || !item || waiting || !store.api?.cancelQueued) return;
+    const id = item.value.slice(6);
+    setWaiting(true);
+    void store.api
+      .cancelQueued(active, id)
+      .then(
+        () => {
+          setQueue((prev) => prev.filter((q) => q.id !== id));
+          if (undo) {
+            store.restore(active, item.label);
+            onClose();
+          }
+        },
+        (e) => setNotice(String(e)),
+      )
+      .finally(() => setWaiting(false));
+  };
+  const sid = kind === "sessions" && item ? item.value.slice(8) : undefined;
+  useCommandKeys(
+    renaming
+      ? { "dialog.prompt.submit": () => edit(titleDraft) }
+      : {
+          "dialog.select.prev": () => nav((selected - 1 + filtered.length) % Math.max(1, filtered.length)),
+          "dialog.select.next": () => nav((selected + 1) % Math.max(1, filtered.length)),
+          "dialog.select.page_up": () => nav(Math.max(0, selected - limit)),
+          "dialog.select.page_down": () => nav(Math.min(filtered.length - 1, selected + limit)),
+          "dialog.select.home": () => nav(0),
+          "dialog.select.end": () => nav(Math.max(0, filtered.length - 1)),
+          "dialog.select.submit": () => choose(item),
+          "model.dialog.provider": kind === "models" ? () => onKind("integrations") : undefined,
+          "model.dialog.usage": kind === "models" ? () => onKind("usage") : undefined,
+          "model.dialog.favorite":
+            kind === "models" && connected && item
+              ? () => {
+                  store.toggleFavorite(item.value);
+                  highlight(null);
+                }
+              : undefined,
+          "session.pin.toggle": sid ? () => store.togglePin(sid) : undefined,
+          "session.rename": sid
+            ? () => {
+                setRenaming(sid);
+                setTitleDraft(item!.label);
+                setDeleting("");
+              }
+            : undefined,
+          "session.delete": sid
+            ? () => {
+                if (deleting !== sid) {
+                  setDeleting(sid);
+                  return;
+                }
+                setDeleting("");
+                void store.api?.removeSession?.(sid).then(
+                  async () => {
+                    store.tabs.forget(sid);
+                    await store.refreshSessions();
+                    if (active === sid) goSession(undefined);
+                  },
+                  (e) => setNotice(String(e)),
+                );
+              }
+            : undefined,
+          "queued_prompt.undo": kind === "queued" ? () => cancelQueued(true) : undefined,
+          "queued_prompt.delete": kind === "queued" ? () => cancelQueued(false) : undefined,
+          "stash.delete": kind === "stashes" && item ? () => store.dropStash(Number(item.value.slice(6))) : undefined,
+        },
+    30,
+  );
+  const keyHint = (id: string) => binding(id, keys).split(",")[0];
   const title =
     kind === "timeline" && message
       ? "Message Actions"
@@ -792,7 +827,6 @@ function Content({ kind, onKind, onClose }: Props) {
       autoFocus
       placeholder="Search"
       placeholderColor={t.muted}
-      onSubmit={renaming ? edit : () => choose(item)}
     />
   );
   const foot = kind === "models" || kind === "sessions";
@@ -856,17 +890,18 @@ function Content({ kind, onKind, onClose }: Props) {
           {kind === "models" ? (
             <Text>
               {connected ? "Connect an integration" : "View all integrations"}
-              <Text color={t.muted}> ctrl+a</Text>
+              <Text color={t.muted}> {keyHint("model.dialog.provider")}</Text>
               {connected && (
                 <>
-                  {"  "}Favorite<Text color={t.muted}> ctrl+f</Text>
+                  {"  "}Favorite<Text color={t.muted}> {keyHint("model.dialog.favorite")}</Text>
                 </>
               )}
             </Text>
           ) : (
             <>
               <Text>
-                delete<Text color={t.muted}>{" ctrl+d  "}</Text>rename<Text color={t.muted}> ctrl+r</Text>
+                delete<Text color={t.muted}>{` ${keyHint("session.delete")}  `}</Text>rename
+                <Text color={t.muted}> {keyHint("session.rename")}</Text>
               </Text>
               <Text>
                 {allProjects ? "current directory" : "all projects"}

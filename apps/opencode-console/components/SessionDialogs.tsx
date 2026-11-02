@@ -6,6 +6,7 @@ import { SessionTasks } from "./SessionTasks";
 import { History } from "./History";
 import { Images } from "./Images";
 import { DiffReview } from "./DiffReview";
+import { Pair } from "./Pair";
 import { useStoreState } from "../lib/store";
 
 /** Loaded on the first dialog, not when the website mounts its console. */
@@ -28,6 +29,8 @@ export default function SessionDialogs({
 }) {
   const dir = useStoreState((s) => (id && s.sessions.find((p) => p.id === id)?.directory) || s.connection.directory);
   switch (kind) {
+    case "pair":
+      return <Pair close={close} />;
     case "help":
       return <HelpDialog onClose={close} />;
     case "diff":

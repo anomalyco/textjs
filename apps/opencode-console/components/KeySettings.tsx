@@ -32,7 +32,20 @@ export function KeySettingsDialog({ ids, close }: { ids: string[]; close: () => 
           "leader",
           ...ids,
           ...Object.keys(defaults).filter((k) =>
-            ["input.", "which-key.", "diff.", "dialog.select.", "prompt.autocomplete."].some((prefix) => k.startsWith(prefix)),
+            [
+              "input.",
+              "which-key.",
+              "diff.",
+              "dialog.",
+              "model.dialog.",
+              "composer.",
+              "queued_prompt.",
+              "stash.delete",
+              "session.rename",
+              "session.delete",
+              "session.pin.toggle",
+              "prompt.autocomplete.",
+            ].some((prefix) => k.startsWith(prefix)),
           ),
         ]),
       ].map((id) => ({ id, label: id, detail: defaults[id]?.[1], hint: binding(id, cfg) || "none" }))}

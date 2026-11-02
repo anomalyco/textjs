@@ -176,6 +176,7 @@ export class OpenCodeStore {
     this.saveChoices();
   }
   private prefs = "";
+  private historyKey?: string;
   private saveChoices() {
     try {
       if (this.prefs)
@@ -202,7 +203,12 @@ export class OpenCodeStore {
     }
   }
   private catalogSeq = 0;
-  clearHistory(){this.promptHistory.entries=[];if(this.client?.kind==="demo")this.promptHistory.save("opencode:sandbox-history:"+this.state.connection.directory);this.set({history:[]});this.notify("Local prompt history cleared");}
+  clearHistory() {
+    this.promptHistory.entries = [];
+    if (this.historyKey) this.promptHistory.save(this.historyKey);
+    this.set({ history: [] });
+    this.notify("Local prompt history cleared");
+  }
   composer: ((action: "queue" | "stash" | "submit") => void) | null = null;
   stash(text: string, marks: readonly Attachment[]) {
     this.set((s) => ({ stashes: [{ text, marks }, ...s.stashes].slice(0, 8) }));
@@ -300,6 +306,8 @@ export class OpenCodeStore {
   async connect(endpoint?: string | null, persist = false): Promise<ConnectionState> {
     const seq = ++this.connectSeq;
     this.recentModels = [];
+    this.prefs = "";
+    this.historyKey = undefined;
     this.promptHistory.entries = [];
     this.catalogSeq++;
     this.requestReads.clear();
@@ -364,7 +372,8 @@ export class OpenCodeStore {
       parents: {},
     });
     if (client.kind === "demo") {
-      this.promptHistory.load("opencode:sandbox-history:" + info.directory);
+      this.historyKey = "opencode:sandbox-history:" + info.directory;
+      this.promptHistory.load(this.historyKey);
       this.set({ history: this.promptHistory.entries.map((e) => e.text) });
     }
     let disconnected = false;
@@ -837,7 +846,7 @@ export class OpenCodeStore {
     const queued = options.delivery === "queue" && !!this.state.busy[target];
     if (queued) this.notify("Prompt queued");
     this.promptHistory.append({ text, marks: options.attachments ?? [] });
-    if (client.kind === "demo") this.promptHistory.save("opencode:sandbox-history:" + this.state.connection.directory);
+    if (this.historyKey) this.promptHistory.save(this.historyKey);
     this.set((s) => ({
       messages: queued ? s.messages : { ...s.messages, [target]: [...(s.messages[target] ?? []), pending] },
       history: this.promptHistory.entries.map((e) => e.text),

@@ -607,6 +607,24 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
   };
   return {
     kind: "v2",
+    pairing: {
+      async origins() {
+        const info = await t.json<{ urls: string[] }>("GET", "/api/info");
+        return [
+          ...new Set(
+            info.urls.flatMap((s) => {
+              try {
+                const u = new URL(s);
+                return !u.username && !u.password && ["http:", "https:"].includes(u.protocol) ? [u.origin] : [];
+              } catch {
+                return [];
+              }
+            }),
+          ),
+        ];
+      },
+      issue: () => t.json("POST", "/api/pair"),
+    },
     management: management(t),
     workspace: workspaceApi(t),
     terminals: {

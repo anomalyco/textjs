@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Box, Input, Text, fuzzyFilter, useViewport } from "@textjs/app";
 import { useCommandKeys } from "../lib/bindings";
 import { useTokens } from "../lib/native-theme";
@@ -160,6 +160,8 @@ export function PromptDialog({
 }
 function PromptBody({ title, initial, secret, submit, close, note }: Parameters<typeof PromptDialog>[0]) {
   const t = useTokens();
+  const value = useRef(initial ?? "");
+  useCommandKeys({ "dialog.prompt.submit": () => submit(value.current) }, 30);
   useInput(
     (e) => {
       if (e.key === "escape") {
@@ -172,7 +174,15 @@ function PromptBody({ title, initial, secret, submit, close, note }: Parameters<
   return (
     <Box paddingX={3} paddingBottom={1} flexDirection="column" gap={1}>
       <Text bold>{title}</Text>
-      <Input id="opencode-dialog-field" defaultValue={initial} mask={secret ? "•" : undefined} onSubmit={submit} autoFocus />
+      <Input
+        id="opencode-dialog-field"
+        defaultValue={initial}
+        mask={secret ? "•" : undefined}
+        onChange={(v) => {
+          value.current = v;
+        }}
+        autoFocus
+      />
       {note && <Text color={t.muted}>{note}</Text>}
     </Box>
   );

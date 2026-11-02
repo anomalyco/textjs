@@ -9,14 +9,18 @@ import { PromptHistory } from "../lib/history";
 import { expandedDraft } from "../lib/mentions";
 import { markdownTranscript } from "../lib/transcript";
 import { wrapRows } from "../lib/review";
+import { OpenCodeStore } from "../lib/store";
 let t: TestRoot;
 afterEach(async () => {
   await t?.unmount();
 });
-async function mount(custom = false) {
+async function mount(custom: boolean | Record<string, string | false> = false) {
   const api = createDemoClient({ tick: 1 });
   if (custom)
-    api.keySettings = async () => ({ keybinds: { leader: "ctrl+space", "model.list": "<leader>z", "help.show": "f1" }, timeout: 500 });
+    api.keySettings = async () => ({
+      keybinds: typeof custom === "object" ? custom : { leader: "ctrl+space", "model.list": "<leader>z", "help.show": "f1" },
+      timeout: 500,
+    });
   t = await createTestRoot({ width: 140, height: 40 });
   await t.render(<EmbeddedOpenCode client={api} />);
   await t.waitFor(() => t.frame().includes("Claude Opus"));
@@ -93,6 +97,18 @@ test("diff scopes, reviewed files, individual patches and shortcuts", async () =
   await t.press("Escape");
   await t.press("q");
   expect(t.frame()).toContain("Ask anything");
+});
+
+test("model picker follows replacement navigation and submit bindings", async () => {
+  await mount({ "dialog.select.next": "f7", "dialog.select.submit": "f8" });
+  await slash("models");
+  await t.type("GPT-6.1");
+  await t.press("F7");
+  await t.press("Enter");
+  expect(t.frame()).toContain("Switch model");
+  await t.press("F8");
+  expect(t.frame()).not.toContain("Switch model");
+  expect(t.frame()).toContain("GPT-6.1 Terra Fast");
 });
 test("MCP retry and disconnect, plugin error and explicit package update", async () => {
   await mount();
@@ -322,7 +338,7 @@ test("CLI-only dialogs preserve the composer and do not perform service operatio
     ["editor", "$VISUAL"],
     ["restart", "opencode service restart"],
     ["update", "native TUI"],
-    ["web", "Pairing links"],
+    ["web", "Sandbox preview"],
     ["debug", "Session ID"],
     ["highlights", "What's new"],
   ]) {
@@ -433,4 +449,66 @@ test("MCP registration leaves the server disabled; cancelling removal leaves it 
   await t.press("Enter");
   await t.press("Enter");
   expect((await api.management!.mcps()).some((m) => m.name === "docs-test")).toBe(true);
+});
+
+test("pairing only issues after confirmation and no frame contains even the fixture code", async () => {
+  const api = await mount();
+  let calls = 0,
+    copied = "";
+  api.pairing!.issue = async () => {
+    calls++;
+    return { code: "not-a-redeemable-test-code", expires_in: 300 };
+  };
+  const old = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: {
+      writeText: async (v: string) => {
+        copied = v;
+      },
+    },
+  });
+  try {
+    await slash("pair");
+    await t.press("Enter");
+    expect(calls).toBe(0);
+    await t.press("ArrowDown");
+    await t.press("Enter");
+    expect(calls).toBe(1);
+    expect(copied).toBe("https://sandbox.example.invalid/auth/connect/not-a-redeemable-test-code");
+    expect(JSON.stringify(t.console.logs)).not.toContain("not-a-redeemable-test-code");
+  } finally {
+    if (old) Object.defineProperty(navigator, "clipboard", old);
+    else Reflect.deleteProperty(navigator, "clipboard");
+  }
+});
+
+test("live recall stays in memory while pinned sessions and model preferences survive reconnect", async () => {
+  const values = new Map<string, string>();
+  const old = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: { getItem: (k: string) => values.get(k) ?? null, setItem: (k: string, v: string) => values.set(k, v) },
+  });
+  const api = { ...createDemoClient(), kind: "v2" as const };
+  api.prompt = async () => {};
+  const store = new OpenCodeStore({ client: api });
+  try {
+    await store.connect();
+    store.togglePin("ses_demo_cart");
+    store.toggleFavorite("model:openai/test");
+    await store.setModel({ id: "test", providerID: "openai" });
+    await store.send("ses_demo_cart", "private fixture prompt");
+    await store.connect();
+    const s = store.getSnapshot();
+    expect(s.history).toEqual([]);
+    expect(s.pins).toEqual(["ses_demo_cart"]);
+    expect(s.favorites).toEqual(["model:openai/test"]);
+    expect(store.recent()[0]?.id).toBe("test");
+    expect([...values.values()].join("")).not.toContain("private fixture prompt");
+  } finally {
+    store.dispose();
+    if (old) Object.defineProperty(globalThis, "localStorage", old);
+    else Reflect.deleteProperty(globalThis, "localStorage");
+  }
 });
