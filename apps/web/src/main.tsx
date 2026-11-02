@@ -7,8 +7,11 @@ import { Root } from "./Root";
 import { preloadRoute } from "./route-loader";
 import { getLocation, matchRoute, normalizePath, registerHrefPrefetcher } from "./router";
 import "./styles.css";
+import "./looks/looks.css";
+import { applyLookFavicon } from "./looks";
 
 installCapture();
+applyLookFavicon();
 
 /** Whether the prerendered markup (`data-route`) was rendered for the route we're on now. */
 function prerenderedFor(container: HTMLElement): boolean {

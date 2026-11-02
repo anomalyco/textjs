@@ -1,7 +1,14 @@
 import { useState, type ReactNode } from "react";
-import { AsciiFont, Box, Text, themes, useInput, useTheme } from "@textjs/react";
+import { AsciiFont, Box, Text, themes, useInput, useTheme, type AsciiFontRenderer } from "@textjs/react";
+import { currentLook } from "../../looks";
 import { siteStore } from "../store";
 import { useSite } from "../useSite";
+
+/** The active look's banner (brand exploration), or the block font's `▼ TEXT.JS`. */
+function bannerFont(): AsciiFontRenderer | "block" {
+  const banner = currentLook()?.banner;
+  return banner && banner.length > 0 ? { render: () => banner } : "block";
+}
 
 export function HomeTab(): ReactNode {
   const theme = useTheme();
@@ -20,7 +27,7 @@ export function HomeTab(): ReactNode {
 
   return (
     <Box className="flex-col grow items-center justify-center gap-1">
-      <AsciiFont text="▼ TEXT.JS" color={theme.fg} />
+      <AsciiFont text="▼ TEXT.JS" font={bannerFont()} color={theme.fg} />
       <Text color="muted">React 19 in console.log</Text>
       <Box className="flex-col items-center shrink-0" marginTop={2}>
         <AsciiFont text={String(count)} font="compact" color={count < 0 ? theme.danger : count > 0 ? theme.success : theme.fg} />

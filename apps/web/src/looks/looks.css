@@ -1,0 +1,21 @@
+/* Brand exploration: each look's stylesheet is scoped under html[data-look="aN"]. */
+@import "./a1/look.css";
+@import "./a2/look.css";
+@import "./a3/look.css";
+
+/* Header mark: the default ▼ and every look's mark are rendered; the active look picks one. */
+.logo-mark {
+  display: inline-flex;
+  align-items: center;
+}
+
+.logo-mark > [data-mark] {
+  display: none;
+}
+
+html:not([data-look]) .logo-mark > [data-mark="default"],
+html[data-look="a1"] .logo-mark > [data-mark="a1"],
+html[data-look="a2"] .logo-mark > [data-mark="a2"],
+html[data-look="a3"] .logo-mark > [data-mark="a3"] {
+  display: block;
+}

@@ -44,6 +44,13 @@
         // Console shortcuts differ by platform (⌘⌥J, Ctrl+Shift+J) and browser (⌘⌥K in Firefox, ⌘⌥C in Safari).
         // Every variant is prerendered and CSS picks one. Same checks as detectConsoleBrowser() in @textjs/core.
         var root = document.documentElement;
+        // Brand exploration: ?look=a1|a2|a3 picks a look and remembers it, ?look= resets.
+        try {
+          var look = new URLSearchParams(location.search).get("look");
+          if (look !== null) localStorage.setItem("textjs-look", look);
+          look = localStorage.getItem("textjs-look");
+          if (look) root.dataset.look = look;
+        } catch (e) {}
         if (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) root.dataset.os = "mac";
         if (!window.CSS || !CSS.supports) return;
         if (!CSS.supports("-moz-appearance", "none")) {

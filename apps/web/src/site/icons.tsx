@@ -1,4 +1,5 @@
 import type { ReactNode, SVGProps } from "react";
+import { LOOKS } from "../looks";
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
@@ -13,9 +14,16 @@ function svg(size: number, props: SVGProps<SVGSVGElement>, children: ReactNode):
 /** The ▼ brand mark. Points down, into the DevTools console drawer. */
 export function Logo({ size = 18, ...props }: IconProps): ReactNode {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...props}>
-      <path d="M2 4h20L12 21.5z" fill="currentColor" />
-    </svg>
+    <span className="logo-mark">
+      <svg data-mark="default" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...props}>
+        <path d="M2 4h20L12 21.5z" fill="currentColor" />
+      </svg>
+      {Object.values(LOOKS).map(({ id, Mark }) => (
+        <span key={id} data-mark={id}>
+          <Mark size={size} />
+        </span>
+      ))}
+    </span>
   );
 }
 
