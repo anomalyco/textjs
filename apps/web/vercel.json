@@ -24,7 +24,14 @@
     { "source": "/docs/app/api-reference/config/eslint", "destination": "/docs/eslint", "permanent": true },
     { "source": "/docs/app/:path*", "destination": "/docs", "permanent": false },
     { "source": "/learn/dashboard-app", "destination": "/learn", "permanent": false },
-    { "source": "/learn/dashboard-app/:path*", "destination": "/learn", "permanent": false }
+    { "source": "/learn/dashboard-app/:path*", "destination": "/learn", "permanent": false },
+    { "source": "/terminal", "destination": "/coffee", "permanent": true },
+    { "source": "/merch", "destination": "/store", "permanent": true },
+    { "source": "/merch/frame-tee", "destination": "/store", "permanent": true },
+    { "source": "/merch/hoodie", "destination": "/store", "permanent": true },
+    { "source": "/merch/cap", "destination": "/store", "permanent": true },
+    { "source": "/merch/sticker-sheet", "destination": "/store", "permanent": true },
+    { "source": "/merch/:path*", "destination": "/store/:path*", "permanent": true }
   ],
   "rewrites": [{ "source": "/((?!assets/|fonts/|og/|favicon\\.svg|og\\.png|og\\.svg|robots\\.txt|sitemap\\.xml|blog/rss\\.xml|humans\\.txt|llms\\.txt|home\\.ansi|api/v2/|enterprise/sample-invoice\\.pdf).*)", "destination": "/index.html" }],
   "headers": [
