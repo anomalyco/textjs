@@ -733,14 +733,23 @@ describe("dev proxy (/__opencode)", () => {
       expect(recovered.status).toBe(200);
 
       const bridge = createBridgeHandler({
+        pairingCode: "K7F2QM",
         discover: async () => ({ url: current.url, source: "service", authorization: authOf(current.secret) }),
       });
+      const paired = await bridge(
+        new Request("http://127.0.0.1:4096/__bridge/pair", {
+          method: "POST",
+          headers: { host: "127.0.0.1:4096", origin: "http://localhost:3000", "content-type": "application/json", "x-opencode-client": "1" },
+          body: JSON.stringify({ code: "K7F2QM" }),
+        }),
+      );
+      const { token } = (await paired.json()) as { token: string };
       // Prime cache with stale password first:
       current = { url: nextMock.url, secret: "stale-pass" };
       await bridge.target(true);
       current = { url: nextMock.url, secret: secret2 };
       const bridgeRecovered = await bridge(
-        new Request("http://127.0.0.1:4096/api/info", { headers: { host: "127.0.0.1:4096", origin: "http://localhost:3000" } }),
+        new Request("http://127.0.0.1:4096/api/info", { headers: { host: "127.0.0.1:4096", origin: "http://localhost:3000", "x-textjs-bridge-token": token } }),
       );
       expect(bridgeRecovered.status).toBe(200);
     } finally {
