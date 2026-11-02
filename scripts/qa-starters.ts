@@ -427,8 +427,14 @@ async function browserPass(browser: Browser, server: Server, scenario: Scenario,
     }
   };
   const engage = async (): Promise<void> => {
-    // Server-rendered pages (`runtime = "server"`) have no FocusPad; their placeholder is the cue to go on.
-    await page.waitForSelector('[data-textjs-focus-pad], [data-textjs-runtime="server"]', { timeout: 15_000 }).catch(() => undefined);
+    // Client pages render a FocusPad. Server-rendered pages (`runtime = "server"`) have none; the
+    // live player marks <html data-textjs-live="live"> once /__textjs/live says hello. The static
+    // placeholder and the shell's first frame show up even when that connection is broken.
+    const ready = await page
+      .waitForSelector('[data-textjs-focus-pad], [data-textjs-live="live"]', { timeout: 15_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!ready) issues.push(`${at()} showed neither a FocusPad nor a live server session within 15 s`);
     // page.$ doesn't wait: a locator would wait its full 30 s timeout on a page without a pad.
     const pad = await page.$("[data-textjs-focus-pad]");
     const box = pad ? await pad.boundingBox() : null;
@@ -826,8 +832,9 @@ const TARGETS: Target[] = [
         { goto: "/deployments/nope-not-found", expect: /404|not be found|could not/i },
         { goto: "/settings" },
         { goto: "/logs", expect: "Runtime Logs" },
-        { goto: "/status", expect: "Status" },
-        { goto: "/status?ref=qa", expect: "Status" },
+        // CPUs comes from the async server component, which only a live session resolves.
+        { goto: "/status", expect: "CPUs" },
+        { goto: "/status?ref=qa", expect: "CPUs" },
         { goto: "/?ref=qa", expect: "Edge Console" },
         { press: "1" },
         { wait: 800 },
