@@ -33,7 +33,7 @@ try {
     return r.structuredContent as any;
   };
   await call("navigate", { path: "/" });
-  await call("wait_for", { text: [version, "Build ·"] });
+  await call("wait_for", { text: [version, process.env.CAPTURE_MODEL_ROW ?? "Build ·"] });
   const page = await browser.newPage({ viewport: { width: 1640, height: 555 }, deviceScaleFactor: 1, serviceWorkers: "block" });
   await page.route("**/*", (r: any) => r.abort());
   for (const [name, typed, marker] of [

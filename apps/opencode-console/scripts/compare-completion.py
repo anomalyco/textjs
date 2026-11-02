@@ -46,6 +46,7 @@ with tempfile.TemporaryDirectory() as tmp:
         else: raise RuntimeError('Disposable server not ready')
         tmux('new-session','-d','-s','native','-x','100','-y','32','-c',str(project),'exec '+shlex.join(['opencode','--server',url]))
         tmux('set-option','-t','native','status','off');wait('Ask anything');wait('Build ·')
+        model_row=next(line.split('┃',1)[-1].strip() for line in tmux('capture-pane','-p','-t','native').splitlines() if 'Build ·' in line)
         cases=[('slash','/model','Switch model'),('mention','@readm','README.md'),('shell','!pwd','Shell')]
         if ROUND=='round4':cases += [('reference','@docs/','product-docs'),('leader','','Ask anything'),('diff','/diff','Run bun test.'),('integrations','/connect','Connect an integration')]
         for name,typed,marker in cases:
@@ -60,7 +61,7 @@ with tempfile.TemporaryDirectory() as tmp:
             data=tmux('capture-pane','-e','-N','-p','-t','native'); (Path(tmp)/(name+'.ansi')).write_text(data)
             (Path(tmp)/(name+'.json')).write_text(json.dumps([list(c[:3])+[list(c[3])] for c in sgr_cells(data,100,32)]))
             tmux('send-keys','-t','native','Escape');time.sleep(.6);tmux('send-keys','-t','native','C-u');time.sleep(.25)
-        capture_env={**env,'PLAYWRIGHT':os.environ['PLAYWRIGHT'],'PARITY_ROUND':ROUND}
+        capture_env={**env,'PLAYWRIGHT':os.environ['PLAYWRIGHT'],'PARITY_ROUND':ROUND,'CAPTURE_MODEL_ROW':model_row}
         if 'PLAYWRIGHT_BROWSERS_PATH' in os.environ: capture_env['PLAYWRIGHT_BROWSERS_PATH']=os.environ['PLAYWRIGHT_BROWSERS_PATH']
         else: capture_env['PLAYWRIGHT_BROWSERS_PATH']=str(Path.home()/'.cache/ms-playwright')
         subprocess.run(['bun',APP/'scripts/completion-frame.ts',tmp,version],env=capture_env,cwd=APP,check=True,timeout=100)
@@ -71,6 +72,8 @@ with tempfile.TemporaryDirectory() as tmp:
             counts[name] = {k: sum(a[i]!=b[i] for a,b in zip(left,right) if i not in (1,3) or a[0]!=' ' or b[0]!=' ')
                             for i,k in enumerate(('glyph','fg','bg','attrs'))}
         (OUT/'measurements.json').write_text(json.dumps({'nativeVersion':version,'cols':100,'rows':32,'mismatches':counts},indent=2)+'\n')
+        if ROUND=='round4' and any(any(counts[name].values()) for name in ('slash','mention','shell')):
+            raise RuntimeError('Composer fixture differs from native: '+json.dumps(counts))
     finally:
         tmux('kill-server',check=False);proc.terminate()
         try:proc.wait(5)
