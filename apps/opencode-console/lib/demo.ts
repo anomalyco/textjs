@@ -689,7 +689,8 @@ export function createDemoClient(options: DemoOptions = {}): OpenCodeClient {
           },
         ];
       const messages = sid ? list(sid) : [...db.messages.values()].flat();
-      return messages.flatMap((m) =>
+      const cutoff = sid ? messages.map((m) => m.type).lastIndexOf("user") : -1;
+      return messages.slice(cutoff+1).flatMap((m) =>
         m.type !== "assistant"
           ? []
           : m.content.flatMap((p) => {

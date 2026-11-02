@@ -512,3 +512,14 @@ test("live recall stays in memory while pinned sessions and model preferences su
     else Reflect.deleteProperty(globalThis, "localStorage");
   }
 });
+
+test("last-turn review excludes edits from previous user turns", async () => {
+  const api = createDemoClient();
+  expect((await api.diff!("ses_demo_cart", undefined, "turn")).map((p) => p.file)).toEqual(["src/components/cart-badge.tsx"]);
+  try {
+    await api.prompt("ses_demo_cart", "Explain the changes");
+    expect(await api.diff!("ses_demo_cart", undefined, "turn")).toEqual([]);
+  } finally {
+    await api.interrupt("ses_demo_cart");
+  }
+});
