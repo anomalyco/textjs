@@ -60,6 +60,7 @@ jobs:
               - examples/**
               - apps/opencode-console/**
               - apps/terminal-shop/**
+              - apps/web/package.json
               - bench/devtools/package.json
               - bench/devtools/bun.lock
               - scripts/**
