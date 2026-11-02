@@ -57,7 +57,7 @@ Same-origin `fetch("/api/...")` calls run your `route.ts` handlers in-process, a
 | Text.js: Start Dev Server | Runs your `dev` script (or `text dev`) in a terminal |
 | Text.js: Stop Dev Server | Stops a dev server started from VS Code |
 | Text.js: Open Preview | Opens the Live Preview for the active file |
-| Text.js: Open in Browser Console | Opens the current route on the dev server. Then press `⌘⌥J` (`Ctrl+Shift+J` on Windows and Linux) |
+| Text.js: Open in Browser Console | Opens the current route on the dev server. Then [open the browser console](/docs/installation#open-the-console) |
 | Text.js: New Page | `app/<route>/page.tsx` with metadata and typed `params` |
 | Text.js: New Layout | `app/<route>/layout.tsx` |
 | Text.js: New Route Handler | `app/<route>/route.ts` with `GET` and `POST` |

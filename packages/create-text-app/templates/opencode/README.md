@@ -8,7 +8,7 @@ bun install
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and press **⌘⌥J** (or **Ctrl+Shift+J**).
+Open [http://localhost:3000](http://localhost:3000) and [open the browser console](https://textjs.org/docs/installation#open-the-console).
 
 The browser calls `/opencode/*`, which `text dev` and `text start` proxy to `OPENCODE_URL` (default `http://localhost:4096`). See `text.config.ts`.
 

@@ -155,7 +155,7 @@ describe("DOM companion", () => {
     expect(open("firefox-other")).toContain("The app renders in DevTools.");
     const safari = open("safari");
     expect(safari).toContain('aria-label="Press ⌘ ⌥ C"');
-    expect(safari).toContain("In Safari Settings → Advanced, turn on “Show features for web developers”.");
+    expect(safari).toContain("First turn on “Show features for web developers” in Safari Settings → Advanced.");
     expect(safari).not.toContain("The app renders in DevTools.");
     expect(safari).toContain("Then click here and press ↓.");
     expect(renderToStaticMarkup(<FocusPadMessage state="click" hints={[]} doThis="type" devtools="firefox-mac" />)).toContain("<kbd>⌘⌥K</kbd> opens the console.");
@@ -170,7 +170,16 @@ describe("DOM companion", () => {
       ["tx-br-safari", "⌘ ⌥ C"],
     ]) expect(all).toContain(`<div class="tx-pad-keys ${cls}" aria-label="Press ${label}">`);
     expect(all).toContain('<span class="tx-pad-line tx-not-safari">The app renders in DevTools.</span>');
-    expect(all).toContain('<span class="tx-pad-line tx-br-safari">In Safari Settings');
+    expect(all).toContain('<span class="tx-pad-line tx-br-safari">First turn on');
+    // The click state's shortcut, too.
+    const click = renderToStaticMarkup(<FocusPadMessage state="click" hints={[]} doThis="type" devtools={null} />);
+    for (const [cls, keys] of [
+      ["tx-br-chromium tx-os-mac", "⌘⌥J"],
+      ["tx-br-chromium tx-os-other", "CtrlShiftJ"],
+      ["tx-br-firefox tx-os-mac", "⌘⌥K"],
+      ["tx-br-firefox tx-os-other", "CtrlShiftK"],
+      ["tx-br-safari", "⌘⌥C"],
+    ]) expect(click).toContain(`<kbd class="${cls}">${keys}</kbd>`);
     // FocusPad itself prerenders every variant.
     expect(renderToStaticMarkup(<FocusPad root={null} />).match(/class="tx-pad-keys /g)?.length).toBe(5);
   });

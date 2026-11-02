@@ -64,7 +64,7 @@ cd bench/devtools && bunx playwright-core install chromium
 | `bun run dev:terminal` | terminal.shop client | [localhost:3002](http://localhost:3002) |
 | `bun run dev:dashboard` | `examples/dashboard` | [localhost:3000](http://localhost:3000) |
 
-Open the page and press **⌘⌥J** (**Ctrl+Shift+J** on Windows and Linux) to see the app. The OpenCode client connects to a local OpenCode server and falls back to a demo without one; see [`apps/opencode-console/README.md`](apps/opencode-console/README.md). The terminal.shop client needs a dev sandbox token for signed-in flows; see [`apps/terminal-shop/README.md`](apps/terminal-shop/README.md).
+Open the page and [open the browser console](https://textjs.org/docs/installation#open-the-console) to see the app. The OpenCode client connects to a local OpenCode server and falls back to a demo without one; see [`apps/opencode-console/README.md`](apps/opencode-console/README.md). The terminal.shop client needs a dev sandbox token for signed-in flows; see [`apps/terminal-shop/README.md`](apps/terminal-shop/README.md).
 
 ## Pull requests
 

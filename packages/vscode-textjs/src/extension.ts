@@ -354,8 +354,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Textjs
         route = target?.kind === "route" ? target.path : "/";
       }
       await vscode.env.openExternal(vscode.Uri.parse(appUrl(url, monitor.snapshot().status?.basePath, route)));
-      const keys = process.platform === "darwin" ? "⌘⌥J" : "Ctrl+Shift+J";
-      vscode.window.setStatusBarMessage(`$(triangle-down) Opened ${route}. Press ${keys} in the browser to open the console.`, 6000);
+      vscode.window.setStatusBarMessage(`$(triangle-down) Opened ${route}. Open the browser console to see it.`, 6000);
     }),
     vscode.commands.registerCommand("textjs.newPage", (uri?: vscode.Uri, route?: string) => scaffoldCommand("page", uri instanceof vscode.Uri ? uri : undefined, route)),
     vscode.commands.registerCommand("textjs.newLayout", (uri?: vscode.Uri, route?: string) => scaffoldCommand("layout", uri instanceof vscode.Uri ? uri : undefined, route)),

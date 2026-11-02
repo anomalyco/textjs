@@ -127,7 +127,7 @@ export function successMessage(opts: { dir: string; displayDir: string; template
     "",
   ];
   if (displayDir !== ".") lines.push(`  ${cyan("cd")} ${displayDir}`);
-  lines.push(`  ${cyan(`${pm} install`)}`, `  ${cyan(runCommand(pm, "dev"))}`, "", `Then open the page and press ${bold("⌘⌥J")} (${bold("Ctrl+Shift+J")} on Windows and Linux). Your app renders in the DevTools console.`, "");
+  lines.push(`  ${cyan(`${pm} install`)}`, `  ${cyan(runCommand(pm, "dev"))}`, "", `Then open the page and open the browser console: ${bold("https://textjs.org/docs/installation#open-the-console")}. Your app renders there.`, "");
   return lines.join("\n");
 }
 

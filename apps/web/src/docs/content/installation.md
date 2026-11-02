@@ -1,7 +1,7 @@
 ## Requirements
 
 - [Bun](https://bun.sh) 1.2+ or Node.js 22+
-- A desktop browser: Chrome, Edge, Firefox or Safari
+- Chrome, Edge, Firefox or Safari on desktop
 
 ## Create an app
 
@@ -25,9 +25,9 @@ Visit `http://localhost:3000` and open the console.
 | :-- | :-- | :-- |
 | Chrome, Edge, Arc, Brave | `⌘` `⌥` `J` | `Ctrl` `Shift` `J` |
 | Firefox | `⌘` `⌥` `K` | `Ctrl` `Shift` `K` |
-| Safari | `⌘` `⌥` `C` | |
+| Safari | `⌘` `⌥` `C` | macOS only |
 
-Safari shows the console once **Show features for web developers** is on in Settings → Advanced.
+In Safari, first turn on **Show features for web developers** in Settings → Advanced.
 
 Click the page to focus it, then type. Docking DevTools to the bottom gives the widest grid.
 

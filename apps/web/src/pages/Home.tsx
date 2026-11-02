@@ -4,7 +4,7 @@ import { activateCompanion, COMPANION_COLS, COMPANION_ROWS, subscribeCompanionFr
 import { isHomeExampleFrame } from "../docs/preview-meta";
 import { useSite } from "../console-companion/useSite";
 import { A } from "../router";
-import { DevtoolsShortcut } from "../site/Chrome";
+import { DevtoolsShortcut, SafariConsoleNote } from "../site/Chrome";
 import { CopyCommand } from "../site/CodeBlock";
 import { DevToolsWindow } from "../site/DevToolsWindow";
 import { HighlightedCode } from "../site/highlight";
@@ -74,7 +74,8 @@ function Hero(): ReactNode {
               <CopyCommand command="bunx create-text-app" />
             </div>
             <p className="hero-whisper desktop-only">
-              This page is running in your console. Open it with <kbd><DevtoolsShortcut /></kbd>, click the preview below and press <kbd>↑</kbd> <kbd>↓</kbd>.
+              This page is running in your console. Open it with <kbd><DevtoolsShortcut /></kbd>
+              <SafariConsoleNote />, click the preview below and press <kbd>↑</kbd> <kbd>↓</kbd>.
             </p>
           </div>
           <div className="split">

@@ -88,6 +88,5 @@ export function formatBytes(n: number): string {
 }
 
 export function devtoolsHint(): string {
-  const keys = process.platform === "darwin" ? "⌘⌥J" : "Ctrl+Shift+J";
-  return info(`Open DevTools Console (${keys}) to view your app`);
+  return info("Open the browser console to view your app: https://textjs.org/docs/installation#open-the-console");
 }

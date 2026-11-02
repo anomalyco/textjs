@@ -27,6 +27,20 @@ export function DevtoolsShortcut(): ReactNode {
   );
 }
 
+/**
+ * Safari's console shortcut only works once its developer features are on. Shown after an inline
+ * `<DevtoolsShortcut />` in Safari only (`html[data-browser=safari]`).
+ */
+export function SafariConsoleNote(): ReactNode {
+  return (
+    <span className="br-safari">
+      {" ("}
+      <A href="/docs/installation#open-the-console">turn on developer features</A>
+      {" first)"}
+    </span>
+  );
+}
+
 const NAV = [
   { href: "/docs", label: "Docs" },
   { href: "/learn", label: "Learn" },

@@ -300,7 +300,6 @@ export interface FocusPadMessageProps {
  * - `live`: the app's keys, lit as they arrive, with the last key echoed below.
  */
 export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, last = null, animate = false }: FocusPadMessageProps): ReactNode {
-  const shortcut = SHORTCUT_KEYS[devtools ?? "chromium-other"];
   const step = state === "open" ? 1 : state === "click" ? 2 : 3;
   const enter = animate ? "tx-pad-in" : undefined;
   const cls = (name: string): string => (enter ? `${name} ${enter}` : name);
@@ -341,7 +340,7 @@ export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, la
             ) : null}
             {devtools === null || devtools === "safari" ? (
               <span key="safari" className={devtools ? "tx-pad-line" : "tx-pad-line tx-br-safari"}>
-                In Safari Settings → Advanced, turn on “Show features for web developers”.
+                First turn on “Show features for web developers” in Safari Settings → Advanced.
               </span>
             ) : null}{" "}
             <span className="tx-pad-line">{`Then click here and ${doThis}.`}</span>
@@ -362,7 +361,12 @@ export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, la
           <p key="click-sub" className={cls("tx-pad-sub")}>
             <span className="tx-pad-line">The app reads keys from this page.</span>{" "}
             <span className="tx-pad-line">
-              <kbd>{shortcut.join("")}</kbd> opens the console.
+              {(devtools ? [devtools] : CONSOLES).map((c) => (
+                <kbd key={c} className={devtools ? undefined : variantClass(c)}>
+                  {SHORTCUT_KEYS[c].join("")}
+                </kbd>
+              ))}{" "}
+              opens the console.
             </span>
           </p>
         </>

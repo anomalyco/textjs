@@ -7,7 +7,7 @@ bun install
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and press **⌘⌥J** (or **Ctrl+Shift+J**).
+Open [http://localhost:3000](http://localhost:3000) and [open the browser console](https://textjs.org/docs/installation#open-the-console).
 
 - `app/page.tsx`: live CPU / memory sparklines and deployments
 - `app/deployments/[id]/page.tsx`: dynamic route with `notFound()`

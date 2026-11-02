@@ -2,7 +2,7 @@
 
 # ▼ Text.js
 
-Text.js is a React framework for apps that render in the Chrome DevTools console.
+Text.js is a React framework for apps that render in the browser console.
 
 [Docs](https://textjs.org/docs) · [Learn](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
@@ -17,7 +17,7 @@ bunx create-text-app@latest
 cd my-app && bun install && bun dev
 ```
 
-Open [localhost:3000](http://localhost:3000) and press **⌘⌥J** (**Ctrl+Shift+J** on Windows and Linux). Text.js needs Bun 1.2+ or Node.js 22+ and a Chromium browser.
+Open [localhost:3000](http://localhost:3000) and [open the browser console](https://textjs.org/docs/installation#open-the-console). Text.js needs Bun 1.2+ or Node.js 22+ and Chrome, Edge, Firefox or Safari on desktop.
 
 ## Example
 

@@ -9,7 +9,7 @@ bun run --cwd examples/dashboard build   # text build
 bun run --cwd examples/dashboard start   # text start
 ```
 
-Open the page, press **⌘⌥J** (or **Ctrl+Shift+J**), and click back into the page to capture the keyboard.
+Open the page, [open the browser console](https://textjs.org/docs/installation#open-the-console), and click back into the page to capture the keyboard.
 
 | Route                | File                               |
 | -------------------- | ---------------------------------- |

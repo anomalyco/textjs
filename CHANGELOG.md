@@ -8,8 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Text.js renders in the Firefox and Safari consoles. `CssConsoleDriver` detects the browser with CSS feature checks and, where `%c` spans stay inline, writes 14px line heights without margins, turns off soft wrapping and uses a `line-height: 100vh` curtain. Responsive sizing leaves room for Firefox's source link column and fits Safari's 15px rows. Pass `browser: "chromium" | "firefox" | "safari"` to `createConsoleRoot`, `ConsoleRenderer` or `CssConsoleDriver` to choose one. Prerendered shells carry the CSS for both kinds of console.
-- `<FocusPad>` shows the console shortcut for the visitor's browser: ⌘⌥K or Ctrl+Shift+K in Firefox, and ⌘⌥C in Safari, with a note to turn on "Show features for web developers". Prerendered pads render every variant for `html[data-browser]` and `html[data-os]` to pick from.
+- Text.js renders in the Firefox and Safari consoles. `CssConsoleDriver` detects the browser with CSS feature checks. Where `%c` spans stay inline, it writes 14px line heights without margins, turns off soft wrapping and uses a `line-height: 100vh` curtain.
+- Responsive sizing leaves room for Firefox's source link column and fits Safari's taller rows.
+- Pass `browser: "chromium" | "firefox" | "safari"` to `createConsoleRoot`, `ConsoleRenderer` or `CssConsoleDriver` to choose a console.
+- Prerendered shells carry the CSS for both kinds of console.
+- `<FocusPad>` shows the console shortcut for the visitor's browser: ⌘⌥K or Ctrl+Shift+K in Firefox, and ⌘⌥C in Safari with a note to turn on "Show features for web developers".
+- A prerendered `<FocusPad>` renders every browser's shortcut. Set `data-browser` (`firefox` or `safari`) and `data-os` (`mac`) on `<html>` before first paint to show only the visitor's; without them it shows Chrome's Windows and Linux shortcut until it hydrates.
 
 ### Fixed
 
