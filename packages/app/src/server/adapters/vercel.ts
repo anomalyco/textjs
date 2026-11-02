@@ -19,9 +19,24 @@ import { assertNoServerRoutes, copyStatic, escapeRegex, matcherRegex, patternReg
 
 export const VERCEL_FUNCTION = "_textjs/server";
 export const VERCEL_MIDDLEWARE = "_middleware";
-/** Query parameter carrying the routed path into the function. */
-export const PATH_PARAM = "__textjs_path";
+/**
+ * Request header carrying the routed path into the function. Each handler
+ * route sets it from its own capture (overwriting any client value), as sent:
+ * Vercel decodes captures substituted into a `dest` query, which would make
+ * the function decode the path a second time.
+ */
+export const ROUTED_HEADER = "x-textjs-path";
 export const VERCEL_NODE_RUNTIME = "nodejs22.x";
+
+/**
+ * Paths that may not be in canonical form, as sent on the wire: escapes,
+ * characters a URL parser would encode or reject, `//`, `.` and `..`
+ * segments, a trailing slash. Vercel's router may match these differently
+ * from the matchers, so they always reach the edge middleware, which
+ * rewrites them to the canonical path (even when the app has no
+ * `middleware.ts`).
+ */
+export const NON_CANONICAL_PATH = String.raw`^.*(?:[\x00-\x20"#%<>?\\^\`{}\x7f]|[^\x00-\x7f]|\/\/|\/\.\.?(?:\/|$)).*$|^.+\/$`;
 
 /** A routed path the function accepts: one leading slash, no backslashes or control characters. */
 export const ROUTED_PATH = /^\/(?![/\\])[^\\\u0000-\u001f\u007f]*$/;
@@ -30,22 +45,22 @@ const FUNCTION_BODY = `
 import { normalizeRequestTarget, requestOrigin, sendWebResponse, toWebRequest } from ${JSON.stringify(frameworkFile("server/http.ts"))};
 
 // Middleware already ran in Vercel's router. The function is only reachable
-// through the handler routes in config.json, which reject client-supplied
-// ${PATH_PARAM} parameters and direct requests to /_textjs/*.
+// through the handler routes in config.json, which set ${ROUTED_HEADER}
+// (direct requests to /_textjs/* get a 404).
 const handler = createRequestHandler({ ...options, skipMiddleware: true });
 const REQUEST_CONTEXT = Symbol.for("@vercel/request-context");
 const ROUTED_PATH = ${ROUTED_PATH.toString()};
 
 export default async function textjs(req, res) {
   const url = new URL(normalizeRequestTarget(req.url), "http://vercel.internal");
-  const routed = url.searchParams.getAll(${JSON.stringify(PATH_PARAM)});
-  if (routed.length !== 1 || !ROUTED_PATH.test(routed[0])) {
+  const routed = req.headers[${JSON.stringify(ROUTED_HEADER)}];
+  if (typeof routed !== "string" || !ROUTED_PATH.test(routed)) {
     res.statusCode = 400;
     res.end();
     return;
   }
-  url.searchParams.delete(${JSON.stringify(PATH_PARAM)});
-  req.url = routed[0] + url.search;
+  delete req.headers[${JSON.stringify(ROUTED_HEADER)}];
+  req.url = routed + url.search;
   const request = toWebRequest(req, requestOrigin(req, { trustProxy: true, protocol: "https" }), res);
   const vercel = globalThis[REQUEST_CONTEXT]?.get?.();
   try {
@@ -62,8 +77,18 @@ export default async function textjs(req, res) {
 const MIDDLEWARE_BODY = `
 import { runMiddleware, toMiddlewareResponse } from ${JSON.stringify(frameworkFile("server/middleware-runtime.ts"))};
 
+// Without middleware.ts this only canonicalizes paths (no matcher matches).
+const mod = options.middleware ?? { middleware() {}, config: { matcher: [] } };
+
 export default async function textjsMiddleware(request, context) {
-  const outcome = await runMiddleware(middleware, request, { basePath: options.basePath, waitUntil: (p) => context?.waitUntil?.(p) });
+  const outcome = await runMiddleware(mod, request, { basePath: options.basePath, waitUntil: (p) => context?.waitUntil?.(p) });
+  if (outcome.type === "next") {
+    // Route exactly the canonical path middleware saw (/ad%6din → /admin). The request URL here may
+    // already be normalized while Vercel still routes the raw path (/x/../admin), so always rewrite.
+    if (!outcome.rewrite) outcome.rewrite = new URL(outcome.request.url);
+    // Only the handler routes set the routed-path header, whether the client or middleware.ts sent one.
+    outcome.request.headers.delete(${JSON.stringify(ROUTED_HEADER)});
+  }
   return toMiddlewareResponse(outcome, request);
 }
 `;
@@ -74,6 +99,7 @@ export interface VercelRoute {
   headers?: Record<string, string>;
   continue?: boolean;
   override?: boolean;
+  caseSensitive?: boolean;
   check?: boolean;
   status?: number;
   middlewarePath?: string;
@@ -81,6 +107,7 @@ export interface VercelRoute {
   has?: unknown[];
   missing?: unknown[];
   handle?: "filesystem" | "rewrite" | "miss" | "hit" | "error" | "resource";
+  transforms?: Array<{ type: "request.headers"; op: "set" | "delete"; target: { key: string }; args?: string }>;
 }
 
 export interface VercelConfig {
@@ -91,35 +118,42 @@ export interface VercelConfig {
 
 export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule | null): VercelConfig {
   const base = ctx.basePath;
+  // The handler function is internal. A `status` route doesn't stop Vercel from
+  // running a function at that path, so what keeps it internal is the header:
+  // only the handler routes below set it, after the first route drops any the client sent.
+  // `dest` points at a path with no function: a bare `status` route would still run server.func.
+  const internal: VercelRoute = { src: `^\\/${escapeRegex(VERCEL_FUNCTION.split("/")[0] as string)}(?:\\/.*)?$`, dest: "/_textjs/404", status: 404 };
+  const dropRouted: VercelRoute = { src: "^.*$", transforms: [{ type: "request.headers", op: "delete", target: { key: ROUTED_HEADER } }], continue: true };
   const routes: VercelRoute[] = [
-    // The handler function is internal: only the handler routes below may reach it, with a path they set.
-    { src: `^\\/${escapeRegex(VERCEL_FUNCTION.split("/")[0] as string)}(?:\\/.*)?$`, status: 404 },
-    { src: "^.*$", has: [{ type: "query", key: PATH_PARAM }], status: 400 },
-    { src: `^${escapeRegex(base)}\\/assets\\/(.*)$`, headers: { "cache-control": "public, max-age=31536000, immutable" }, continue: true },
+    dropRouted,
+    internal,
+    { src: `^${escapeRegex(base)}\\/assets\\/(.*)$`, headers: { "cache-control": "public, max-age=31536000, immutable" }, continue: true, caseSensitive: true },
   ];
-  if (middleware) {
-    const matchers = middlewareMatchers(middleware);
-    const list = matchers ?? [{ source: "/:path*", regex: "", has: undefined, missing: undefined }];
-    for (const m of list) {
-      routes.push({
-        src: matchers ? matcherRegex(m.source, base) : `^${escapeRegex(base)}(?:\\/.*)?$`,
-        middlewarePath: VERCEL_MIDDLEWARE,
-        middlewareRawSrc: [m.source],
-        continue: true,
-        override: true,
-        ...(m.has ? { has: m.has } : {}),
-        ...(m.missing ? { missing: m.missing } : {}),
-      });
-    }
-  }
+  // One route, so middleware runs once per request. It covers every path a
+  // matcher names and every non-canonical spelling; the middleware checks
+  // the canonical path against the matchers (with `has` / `missing`) itself.
+  const matchers = middleware ? middlewareMatchers(middleware) : [];
+  const src = matchers ? [...matchers.map((m) => matcherRegex(m.source, base)), NON_CANONICAL_PATH].map((re) => `(?:${re})`).join("|") : ".*";
+  routes.push({
+    src: `^(?:${src})$`,
+    middlewarePath: VERCEL_MIDDLEWARE,
+    ...(middleware ? { middlewareRawSrc: matchers ? matchers.map((m) => m.source) : ["/:path*"] } : {}),
+    continue: true,
+    override: true,
+    caseSensitive: true,
+  });
   for (const r of ctx.rewrites) {
     const { src, dest } = rewriteRoute(r, base);
-    routes.push(/^[a-z]+:\/\//i.test(dest) ? { src, dest } : { src, dest, continue: true });
+    routes.push(/^[a-z]+:\/\//i.test(dest) ? { src, dest, caseSensitive: true } : { src, dest, continue: true, caseSensitive: true });
   }
-  for (const a of ctx.api) routes.push({ src: patternRegex(a.pattern, base), dest: `/${VERCEL_FUNCTION}?${PATH_PARAM}=$1` });
+  // Again after middleware and rewrites, which may have rewritten a spelling like `/_%74extjs/server` onto it,
+  // and whatever order Vercel applies header transforms and middleware in.
+  routes.push(internal, dropRouted);
+  const routed = [{ type: "request.headers" as const, op: "set" as const, target: { key: ROUTED_HEADER }, args: "$1" }];
+  for (const a of ctx.api) routes.push({ src: patternRegex(a.pattern, base), dest: `/${VERCEL_FUNCTION}`, transforms: routed, caseSensitive: true });
   routes.push({ handle: "filesystem" });
   // Extensionless paths are console pages: serve the SPA document.
-  routes.push({ src: `^${escapeRegex(base)}(?:\\/(?:[^/]+\\/)*[^/.]*)?$`, dest: `${base}/index.html` });
+  routes.push({ src: `^${escapeRegex(base)}(?:\\/(?:[^/]+\\/)*[^/.]*)?$`, dest: `${base}/index.html`, caseSensitive: true });
   return { version: 3, routes, framework: { version: VERSION } };
 }
 
@@ -127,7 +161,7 @@ export async function adaptVercel(ctx: AdapterContext, middleware: MiddlewareMod
   assertNoServerRoutes(ctx, "vercel");
   const out = join(ctx.root, ".vercel", "output");
   if (existsSync(out)) rmSync(out, { recursive: true, force: true });
-  copyStatic(ctx.outDir, join(out, "static", ...ctx.basePath.split("/").filter(Boolean)));
+  copyStatic(ctx.outDir, join(out, "static", ...ctx.basePath.split("/").filter(Boolean).map(decodeURIComponent)));
 
   if (ctx.api.length > 0) {
     const dir = join(out, "functions", `${VERCEL_FUNCTION}.func`);
@@ -138,12 +172,11 @@ export async function adaptVercel(ctx: AdapterContext, middleware: MiddlewareMod
       `${JSON.stringify({ runtime: VERCEL_NODE_RUNTIME, handler: "index.mjs", launcherType: "Nodejs", shouldAddHelpers: false, supportsResponseStreaming: true }, null, 2)}\n`,
     );
   }
-  if (middleware && ctx.middlewareFile) {
-    const dir = join(out, "functions", `${VERCEL_MIDDLEWARE}.func`);
-    mkdirSync(dir, { recursive: true });
-    await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: MIDDLEWARE_BODY, handlers: false, runtime: false }), outFile: join(dir, "index.js"), target: "edge" });
-    writeFileSync(join(dir, ".vc-config.json"), `${JSON.stringify({ runtime: "edge", entrypoint: "index.js" }, null, 2)}\n`);
-  }
+  // Edge middleware runs even without middleware.ts: it canonicalizes paths before Vercel routes them.
+  const mwDir = join(out, "functions", `${VERCEL_MIDDLEWARE}.func`);
+  mkdirSync(mwDir, { recursive: true });
+  await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: MIDDLEWARE_BODY, handlers: false, runtime: false }), outFile: join(mwDir, "index.js"), target: "edge" });
+  writeFileSync(join(mwDir, ".vc-config.json"), `${JSON.stringify({ runtime: "edge", entrypoint: "index.js" }, null, 2)}\n`);
   writeFileSync(join(out, "config.json"), `${JSON.stringify(vercelConfig(ctx, middleware), null, 2)}\n`);
   return { adapter: "vercel", output: out, notes: ["Deploy: vercel deploy --prebuilt (or push: Vercel runs `text build` and picks up .vercel/output)"] };
 }

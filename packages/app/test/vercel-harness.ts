@@ -2,7 +2,7 @@
  * A minimal local emulation of Vercel's Build Output API v3 router, enough to
  * exercise `.vercel/output` from `text build --adapter vercel` without a
  * deploy: `config.json` routes (`src`, `dest`, `headers`, `continue`,
- * `middlewarePath`, `has` / `missing`, `status`, `handle: "filesystem"`,
+ * `middlewarePath`, `has` / `missing`, `status`, `transforms`, `handle: "filesystem"`,
  * external `dest` proxying), static files, Node.js functions
  * (`launcherType: "Nodejs"`) and Edge middleware speaking `x-middleware-*`.
  * Functions are part of the filesystem: a request for a function's path
@@ -10,13 +10,17 @@
  *
  * Functions see the *original* request URL with `dest` query parameters
  * merged in (the stricter of Vercel's behaviors for the Text.js adapter).
+ * As on Vercel (checked on a deployment, Nov 2026), `src` matches the path as
+ * sent, `$n` in a `dest` query is the decoded capture, re-encoded, and
+ * `transforms` request headers get the capture as sent.
  */
 
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { extname, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { staticFile as exactFile } from "../src/server/static-file";
 
 interface Condition {
   type: "header" | "cookie" | "query" | "host";
@@ -34,6 +38,8 @@ interface Route {
   has?: Condition[];
   missing?: Condition[];
   handle?: string;
+  caseSensitive?: boolean;
+  transforms?: Array<{ type: string; op: string; target: { key: string }; args?: string }>;
 }
 
 function cookieValue(header: string | null, name: string): string | undefined {
@@ -54,12 +60,15 @@ function holds(c: Condition, headers: Headers, query: URLSearchParams): boolean 
   return c.value === undefined || new RegExp(`^(?:${c.value})$`).test(actual);
 }
 
-/** The raw request target as a URL on the router's own origin (never another host). */
-function routerUrl(raw: string | undefined): URL {
-  const target = raw ?? "/";
-  if (target.startsWith("/")) return new URL(`http://vercel.local${target}`);
-  const u = new URL(target);
-  return new URL(`http://vercel.local${u.pathname}${u.search}`);
+/** The raw request target's path, as sent (route `src` sees it before any URL parser re-encodes it), and its query. */
+function routerTarget(raw: string | undefined): { pathname: string; search: string } {
+  let target = raw ?? "/";
+  if (!target.startsWith("/")) {
+    const u = new URL(target);
+    target = `${u.pathname}${u.search}`;
+  }
+  const q = target.indexOf("?");
+  return q < 0 ? { pathname: target, search: "" } : { pathname: target.slice(0, q), search: target.slice(q) };
 }
 
 type NodeHandler = (req: IncomingMessage, res: ServerResponse) => unknown;
@@ -81,6 +90,8 @@ export interface VercelHarness {
   url: string;
   /** Edge middleware invocations (for assertions). */
   middlewareCalls: string[];
+  /** Node.js function invocations, by routed path. */
+  functionCalls: string[];
   close(): Promise<void>;
 }
 
@@ -91,6 +102,7 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
   const servers: Server[] = [];
   const edge = new Map<string, EdgeHandler>();
   const middlewareCalls: string[] = [];
+  const functionCalls: string[] = [];
 
   async function loadFunction(name: string): Promise<void> {
     const dir = join(outputDir, "functions", `${name}.func`);
@@ -111,17 +123,21 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
     if (dest && existsSync(join(outputDir, "functions", `${dest.slice(1)}.func`)) && !functionUrls.has(dest)) await loadFunction(dest.slice(1));
   }
 
+  // Vercel's file system is case-sensitive.
   const staticFile = (pathname: string): string | null => {
-    for (const candidate of [pathname, join(pathname, "index.html")]) {
-      const p = join(outputDir, "static", decodeURIComponent(candidate));
-      if (p.startsWith(join(outputDir, "static")) && existsSync(p) && statSync(p).isFile()) return p;
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(pathname);
+    } catch {
+      return null;
     }
-    return null;
+    return exactFile(join(outputDir, "static"), decoded, { index: true });
   };
 
   const router = createServer((req, res) => {
     void (async () => {
-      const original = routerUrl(req.url);
+      // Node hands over the request line as latin1: recover the UTF-8 bytes the client sent.
+      const original = routerTarget(Buffer.from(req.url ?? "/", "latin1").toString("utf8"));
       let pathname = original.pathname;
       const query = new URLSearchParams(original.search);
       const headers = new Headers();
@@ -153,7 +169,8 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
       const resolve = async (): Promise<void> => {
         const fn = functionUrls.get(pathname);
         if (fn) {
-          const target = new URL(`${fn}${original.pathname}`);
+          functionCalls.push(pathname);
+          const target = new URL(`${fn}${new URL(original.pathname, "http://x").pathname}`);
           target.search = query.toString();
           const forwarded = new Headers(headers);
           forwarded.set("x-forwarded-host", req.headers.host ?? "vercel.local");
@@ -174,11 +191,24 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
           }
           continue;
         }
-        const m = new RegExp(route.src ?? "^$").exec(pathname);
+        // Vercel matches `src` case-insensitively unless the route says `caseSensitive: true`.
+        const m = new RegExp(route.src ?? "^$", route.caseSensitive ? "" : "i").exec(pathname);
         if (!m) continue;
         if (route.has && !route.has.every((c) => holds(c, headers, query))) continue;
         if (route.missing && route.missing.some((c) => holds(c, headers, query))) continue;
-        if (route.status !== undefined && !route.dest) return send(new Response(null, { status: route.status }));
+        // As on Vercel, `status` without `dest` only sets the status: the path still resolves (a function runs).
+        if (route.status !== undefined && route.dest) middlewareStatus = route.status;
+        if (route.status !== undefined && !route.dest) {
+          middlewareStatus = route.status;
+          if (!route.continue) return resolve();
+          continue;
+        }
+        // Request-header transforms get the capture as sent.
+        for (const t of route.transforms ?? []) {
+          if (t.type !== "request.headers") continue;
+          if (t.op === "set") headers.set(t.target.key, (t.args ?? "").replace(/\$(\d+)/g, (_, i: string) => m[Number(i)] ?? ""));
+          else if (t.op === "delete") headers.delete(t.target.key);
+        }
         if (route.headers) for (const [k, v] of Object.entries(route.headers)) out.set(k, v);
         if (route.middlewarePath) {
           const fn = edge.get(route.middlewarePath) as EdgeHandler;
@@ -207,7 +237,19 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
           continue;
         }
         if (route.dest) {
-          const dest = route.dest.replace(/\$(\d+)/g, (_, i: string) => m[Number(i)] ?? "");
+          // Vercel substitutes captures decoded, and encodes them when they land in the query.
+          const [destPath = "", destQuery] = route.dest.split("?");
+          const capture = (i: string, encode: boolean): string => {
+            const raw = m[Number(i)] ?? "";
+            let v = raw;
+            try {
+              v = decodeURIComponent(raw);
+            } catch {
+              // keep raw
+            }
+            return encode ? encodeURIComponent(v) : raw;
+          };
+          const dest = destPath.replace(/\$(\d+)/g, (_, i: string) => capture(i, false)) + (destQuery === undefined ? "" : `?${destQuery.replace(/\$(\d+)/g, (_, i: string) => capture(i, true))}`);
           if (/^[a-z]+:\/\//i.test(dest)) {
             const upstream = new URL(dest);
             query.forEach((v, k) => {
@@ -236,6 +278,7 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
   return {
     url,
     middlewareCalls,
+    functionCalls,
     close: async () => {
       for (const s of servers) {
         s.closeAllConnections();

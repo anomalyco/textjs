@@ -22,7 +22,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { isAppPath, LIVE_PATH, LIVE_PROTOCOL_VERSION, LIVE_SESSION_HEADER, LiveFrameEncoder, MAX_COLS, MAX_ROWS, parseLiveInput, sseEvent, type LiveInput, type LiveServerMessage } from "../live-protocol";
 import type { LiveApp, LiveAppOptions, RouteRuntime } from "./live-app";
-import { readRequestBody } from "./http";
+import { canonicalPathname, readRequestBody } from "./http";
 
 export type LiveAppInit = Omit<LiveAppOptions, "routes" | "theme" | "defaultTitle">;
 
@@ -124,7 +124,10 @@ function intParam(v: string | null, lo: number, hi: number, fallback: number): n
 
 function safePath(p: string | null): string {
   if (p === null || !p.startsWith("/") || p.startsWith("//") || p.length > 2048 || /[\u0000-\u001f\\]/.test(p)) return "/";
-  return p;
+  // The same canonical pathname middleware authorizes and the router renders.
+  const q = p.search(/[?#]/);
+  const pathname = canonicalPathname(q < 0 ? p : p.slice(0, q));
+  return pathname === null ? "/" : q < 0 ? pathname : pathname + p.slice(q);
 }
 
 function pathOf(href: string): string {

@@ -7,9 +7,8 @@
  * `AsyncLocalStorage`).
  */
 
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { matcherCouldMatch, middlewareMatchers } from "../middleware-runtime";
 import type { MiddlewareModule } from "../middleware";
 import { bundleServerEntry } from "./bundle";
 import { assertNoServerRoutes, removeServerBundle, serverEntry, type AdapterContext, type AdapterResult } from "./shared";
@@ -17,9 +16,21 @@ import { assertNoServerRoutes, removeServerBundle, serverEntry, type AdapterCont
 export const CLOUDFLARE_COMPAT = { date: "2025-01-01", flags: ["nodejs_compat"] } as const;
 
 const BODY = `
+const fetchAsset = (env, url, request) => env.ASSETS.fetch(new Request(url, { method: request.method, headers: request.headers }));
+
+// \`pathname\` is canonical and percent-encoded: \`new URL()\` keeps it as is (decoding it again would undo the middleware match).
 async function asset(env, url, request) {
-  const res = await env.ASSETS.fetch(new Request(url, { method: request.method, headers: request.headers }));
+  let res = await fetchAsset(env, url, request);
   if (res.status === 404) return null;
+  // Pages redirects a directory (\`/docs\`) to its slash form (\`/docs/\`), which canonicalizes back to \`/docs\`: serve the index here instead of looping.
+  const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+  if (location) {
+    const to = new URL(location, url);
+    if (to.origin === new URL(url).origin && to.pathname === new URL(url).pathname + "/") {
+      res = await fetchAsset(env, to, request);
+      if (res.status === 404) return null;
+    }
+  }
   if (!new URL(url).pathname.startsWith("/assets/") || !res.ok) return res;
   // basePath apps serve hashed assets through the worker (they live at dist/assets, not dist/<base>/assets).
   const out = new Response(res.body, res);
@@ -56,34 +67,15 @@ export interface CloudflareRoutes {
   exclude: string[];
 }
 
-function listAssets(outDir: string): string[] {
-  const dir = join(outDir, "assets");
-  if (!existsSync(dir)) return [];
-  const out: string[] = [];
-  const walk = (d: string, rel: string): void => {
-    for (const name of readdirSync(d)) {
-      const p = join(d, name);
-      if (statSync(p).isDirectory()) walk(p, `${rel}/${name}`);
-      else out.push(`${rel}/${name}`);
-    }
-  };
-  walk(dir, "/assets");
-  return out;
-}
-
 /**
- * `_routes.json`: invoke the worker for everything except hashed assets.
- * Pages serves excluded paths straight from `dist/`, so the exclusion only
- * applies without a basePath (files live at `dist/assets`, not
- * `dist/<base>/assets`), and only when no middleware matcher could cover an
- * asset (`has` / `missing` are request-time and ignored here).
+ * `_routes.json`: invoke the worker for every request, so middleware sees
+ * every path and requests outside `basePath` get the worker's 404 instead of
+ * a file from `dist/`. Hashed assets skip the worker only when the app has no
+ * middleware and no basePath: Pages serves excluded paths straight from
+ * `dist/`, under spellings (`/assets/../admin/x`) a matcher never sees.
  */
 export function cloudflareRoutes(ctx: AdapterContext, middleware: MiddlewareModule | null): CloudflareRoutes {
-  const base = ctx.basePath;
-  const matchers = middleware ? middlewareMatchers(middleware) : null;
-  const assets = listAssets(ctx.outDir);
-  const assetsRun = middleware ? [...assets, "/assets/__probe.js"].some((p) => matcherCouldMatch(matchers, p)) : false;
-  return { version: 1, include: [`${base}/*`], exclude: assetsRun || base ? [] : ["/assets/*"] };
+  return { version: 1, include: ["/*"], exclude: middleware || ctx.basePath ? [] : ["/assets/*"] };
 }
 
 export async function adaptCloudflare(ctx: AdapterContext, middleware: MiddlewareModule | null): Promise<AdapterResult> {

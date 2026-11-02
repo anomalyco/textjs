@@ -483,3 +483,68 @@ export async function exerciseEdgeApp(base: string, options: ExerciseOptions): P
 
   await exerciseHostileTargets(base);
 }
+
+const BYPASS_MIDDLEWARE = `import { NextResponse, type NextRequest } from "@textjs/app/server";
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  // A locale prefix: /en/x serves /x.
+  if (pathname.startsWith("/en/")) return NextResponse.rewrite(new URL(pathname.slice(3) + request.nextUrl.search, request.url));
+  // Deny by rewrite: the visitor gets the login page at the restricted URL.
+  if (pathname === "/restricted") return NextResponse.rewrite(new URL("/login", request.url));
+  if (request.cookies.get("auth")?.value === "1") {
+    // User code forwarding a routed-path header must not steer the Vercel handler function.
+    if (request.headers.get("x-spoof")) {
+      const headers = new Headers(request.headers);
+      headers.set("x-textjs-path", "/api/admin");
+      return NextResponse.next({ request: { headers } });
+    }
+    return NextResponse.next();
+  }
+  return new Response("denied " + pathname, { status: 401 });
+}
+export const config = { matcher: ["/admin/:path*", "/api/admin/:path*", "/ops/:path*", "/restricted/", "/café/:path*", "/api/café/:path*", "/legacy/:path*", "/api/{x}/:path*", "/en/:path*"] };
+`;
+
+/** Middleware-bypass fixture (`middleware-bypass.test.ts`): guarded pages, handlers and a public file, optionally server-rendered routes. */
+export const bypassApp = (basePath: string, server: boolean): Record<string, string> => ({
+  "text.config.ts": `import { defineConfig } from "@textjs/app";
+export default defineConfig({ title: "Bypass Fixture"${basePath ? `, basePath: ${JSON.stringify(basePath)}` : ""}, rewrites: [{ source: "/legacy/:path*", destination: "/api/admin/:path*" }] });
+`,
+  "app/api/café/route.ts": `export function GET() { return Response.json({ secret: "admin-only café" }); }
+`,
+  "public/café/report.txt": "admin-only café report\n",
+  "app/api/{x}/route.ts": `export function GET() { return Response.json({ secret: "admin-only {x}" }); }
+`,
+  "app/page.tsx": `import { Text } from "@textjs/app";
+export default function Page() { return <Text>home</Text>; }
+`,
+  "app/admin/page.tsx": `import { Text } from "@textjs/app";
+export default function Admin() { return <Text>admin page</Text>; }
+`,
+  "app/api/admin/route.ts": `export function GET() { return Response.json({ secret: "admin-only" }); }
+`,
+  "app/api/admin/[id]/route.ts": `export function GET() { return Response.json({ secret: "admin-only" }); }
+`,
+  "public/admin/report.txt": "admin-only report\n",
+  "app/api/[...rest]/route.ts": `export function GET(_req: Request, { params }: { params: { rest: string[] } }) { return Response.json({ rest: params.rest }); }
+`,
+  "app/api/public/route.ts": `export function GET(req: Request) { return Response.json({ url: req.url }); }
+`,
+  ...(server
+    ? {
+        "app/ops/page.tsx": `import { Text } from "@textjs/app";
+export const runtime = "server";
+export default function Ops() { return <Text>ops secret</Text>; }
+`,
+        "app/restricted/page.tsx": `import { Text } from "@textjs/app";
+export const runtime = "server";
+export default function Restricted() { return <Text>restricted secret</Text>; }
+`,
+        "app/login/page.tsx": `import { Text } from "@textjs/app";
+export const runtime = "server";
+export default function Login() { return <Text>login page</Text>; }
+`,
+      }
+    : {}),
+  "middleware.ts": BYPASS_MIDDLEWARE,
+});

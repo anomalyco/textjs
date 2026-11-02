@@ -313,6 +313,11 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
     },
     {
       "depth": 2,
+      "text": "Upgrading",
+      "id": "upgrading"
+    },
+    {
+      "depth": 2,
       "text": "Server-rendered routes",
       "id": "server-rendered-routes"
     },

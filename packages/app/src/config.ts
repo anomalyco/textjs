@@ -5,6 +5,7 @@
  * structurally and never imported at runtime.
  */
 
+import { encodePathText } from "./path-text";
 import type { ThemeName } from "@textjs/react";
 
 export interface ViewportConfig {
@@ -151,5 +152,6 @@ export function toClientConfig(config: TextConfig): ClientConfig {
 export function normalizeBasePath(basePath: string | undefined): string {
   if (!basePath || basePath === "/") return "";
   const withSlash = basePath.startsWith("/") ? basePath : `/${basePath}`;
-  return withSlash.replace(/\/+$/, "");
+  // Compared with canonical request paths, which are percent-encoded.
+  return encodePathText(withSlash.replace(/\/+$/, ""));
 }
