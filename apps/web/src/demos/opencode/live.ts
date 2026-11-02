@@ -51,7 +51,7 @@ export async function pairBridge(apiBase: string, code: string, timeoutMs = 10_0
     return body.token;
   }
   if (res.status === 429) throw new Error("Too many wrong codes. Restart the bridge for a new code.");
-  if (res.status === 403) throw new Error("Wrong code. Check the bridge's terminal.");
+  if (res.status === 403) throw new Error("Wrong code. Try again.");
   throw new Error(`The bridge returned HTTP ${res.status}.`);
 }
 

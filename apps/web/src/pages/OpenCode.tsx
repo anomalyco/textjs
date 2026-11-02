@@ -23,18 +23,6 @@ async function connectTo(target: string, quiet: boolean): Promise<void> {
   }
 }
 
-async function pairWith(target: string, code: string): Promise<void> {
-  siteStore.set({ opencode: { mode: "connecting", url: target } });
-  try {
-    await pairBridge(target, code);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    siteStore.set({ opencode: message.startsWith("Wrong code") ? { mode: "pair", url: target, message } : { mode: "error", url: target, message } });
-    return;
-  }
-  await connectTo(target, false);
-}
-
 let autoTried = false;
 let probing = false;
 
@@ -60,6 +48,7 @@ export function ConnectPanel(): ReactNode {
   // The default first (as prerendered), then the remembered server once mounted.
   const [url, setUrl] = useState(() => (conn.mode === "sandbox" ? DEFAULT_SERVER_URL : conn.url));
   const [code, setCode] = useState("");
+  const [pairing, setPairing] = useState(false);
   const codeInput = useRef<HTMLInputElement>(null);
   const lastMode = useRef(conn.mode);
   // After Connect (not a quiet reconnect on load), move straight to the code field.
@@ -84,6 +73,26 @@ export function ConnectPanel(): ReactNode {
       setChecking(false);
     });
   }, []);
+
+  const pair = async (target: string): Promise<void> => {
+    setPairing(true);
+    try {
+      await pairBridge(target, code);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setPairing(false);
+      if (!message.startsWith("Wrong code")) {
+        siteStore.set({ opencode: { mode: "error", url: target, message } });
+        return;
+      }
+      siteStore.set({ opencode: { mode: "pair", url: target, message } });
+      codeInput.current?.select();
+      return;
+    }
+    setPairing(false);
+    setCode("");
+    await connectTo(target, false);
+  };
 
   const status: PanelStatus = site.opencodeExited ? "exited" : !hydrated ? "pending" : checking && conn.mode === "sandbox" ? "checking" : conn.mode;
   const host = (u: string): string => u.replace(/^https?:\/\//, "");
@@ -113,13 +122,14 @@ export function ConnectPanel(): ReactNode {
       <>
         <span className="dot dot-amber" />
         <span className="status-text" title={conn.message}>
-          {conn.message ?? "Enter the pairing code shown in your terminal."}
+          {conn.message ?? "Enter the code from your terminal."}
         </span>
         <button
           type="button"
           className="text-link status-action"
           onClick={() => {
             setCode("");
+            rememberServer(null);
             siteStore.set({ opencode: { mode: "sandbox" } });
           }}
         >
@@ -170,7 +180,7 @@ export function ConnectPanel(): ReactNode {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (code.trim()) void pairWith(conn.url, code);
+                if (code.trim() && !pairing) void pair(conn.url);
               }}
               className="connect-form"
             >
@@ -186,8 +196,8 @@ export function ConnectPanel(): ReactNode {
                 maxLength={16}
                 aria-label="Pairing code"
               />
-              <button type="submit" className="btn btn-secondary btn-sm" disabled={!code.trim()}>
-                Pair
+              <button type="submit" className="btn btn-secondary btn-sm" disabled={!code.trim() || pairing}>
+                {pairing ? "Pairing…" : "Pair"}
               </button>
             </form>
           ) : (
