@@ -404,6 +404,21 @@ describe("matcher literals are compared in canonical form", () => {
     expect(normalizeBasePath("/%61pp")).toBe("/app");
   });
 
+  test("matchers and rewrites agree on encoded literals", () => {
+    const literals = ["/ops%2A", "/a%2Bb", "/a%28b%29", "/a%24", "/a%7Cb", "/a%5B1%5D", "/a%2Eb", "/a%3F", "/caf%c3%a9", "/%61dmin", "/ops%40corp", "/a%25b", "/a%5Eb"];
+    for (const literal of literals) {
+      const path = canonicalPathname(literal) as string;
+      const matcher = new RegExp(compileMatcherSource(literal));
+      const rewrite = compileRewrite({ source: literal, destination: "/x" });
+      expect({ literal, path, matcher: matcher.test(path), rewrite: rewrite.match(path) !== null }).toEqual({ literal, path, matcher: true, rewrite: true });
+      // A near miss matches neither.
+      for (const other of [`${path}x`, path.slice(0, -1), "/opsss", "/ops"]) {
+        if (other === path) continue;
+        expect({ literal, other, matcher: matcher.test(other), rewrite: rewrite.match(other) !== null }).toEqual({ literal, other, matcher: false, rewrite: false });
+      }
+    }
+  });
+
   test("route segments are encoded from their decoded directory names", () => {
     expect(new RegExp(patternRegex("/api/100%")).test("/api/100%25")).toBe(true);
     expect(new RegExp(patternRegex("/api/a b")).test("/api/a%20b")).toBe(true);
@@ -663,6 +678,11 @@ export default defineConfig({ title: "Dev Files", rewrites: [{ source: "/bad", d
         { path: "/middleware", protected: false },
         { path: "/middleware?raw", protected: false },
         { path: `/@fs${fs}/app/api/admin/route?raw`, protected: false },
+        // Through a middleware rewrite (`/en/x` → `/x`).
+        { path: "/en/public/admin/report.txt", protected: false },
+        { path: "/en/middleware.ts?raw", protected: false },
+        { path: "/en/app/api/admin/route.ts?raw", protected: false },
+        { path: "/en/text.config.ts?raw", protected: false },
         // Through a config rewrite.
         { path: "/v1/middleware.ts?raw", protected: false },
         { path: "/v1/app/api/admin/route?raw", protected: false },

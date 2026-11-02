@@ -401,6 +401,13 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
       });
       // `middleware.ts` runs before user middleware, route handlers and pages.
       server.middlewares.use(createDevMiddleware(server, { root, basePath, log }));
+      // `NextResponse.rewrite()` may have pointed the request at a file Vite would serve: guard it like the original.
+      server.middlewares.use((req, res, next) => {
+        if (!isHiddenFromBrowser(req.url ?? "/")) return next();
+        res.statusCode = 404;
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.end("404 | This page could not be found.");
+      });
       // Editor previews (VS Code): `/__textjs/frames`, `/__textjs/input`, `/__textjs/status`.
       const frames = attachFrameStream(server, root, { basePath });
       server.httpServer?.once("close", () => frames.close());

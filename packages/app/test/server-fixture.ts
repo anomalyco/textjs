@@ -487,6 +487,8 @@ export async function exerciseEdgeApp(base: string, options: ExerciseOptions): P
 const BYPASS_MIDDLEWARE = `import { NextResponse, type NextRequest } from "@textjs/app/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // A locale prefix: /en/x serves /x.
+  if (pathname.startsWith("/en/")) return NextResponse.rewrite(new URL(pathname.slice(3) + request.nextUrl.search, request.url));
   // Deny by rewrite: the visitor gets the login page at the restricted URL.
   if (pathname === "/restricted") return NextResponse.rewrite(new URL("/login", request.url));
   if (request.cookies.get("auth")?.value === "1") {
@@ -500,7 +502,7 @@ export function middleware(request: NextRequest) {
   }
   return new Response("denied " + pathname, { status: 401 });
 }
-export const config = { matcher: ["/admin/:path*", "/api/admin/:path*", "/ops/:path*", "/restricted/", "/café/:path*", "/api/café/:path*", "/legacy/:path*", "/api/{x}/:path*"] };
+export const config = { matcher: ["/admin/:path*", "/api/admin/:path*", "/ops/:path*", "/restricted/", "/café/:path*", "/api/café/:path*", "/legacy/:path*", "/api/{x}/:path*", "/en/:path*"] };
 `;
 
 /** Middleware-bypass fixture (`middleware-bypass.test.ts`): guarded pages, handlers and a public file, optionally server-rendered routes. */

@@ -391,7 +391,7 @@ export interface CompiledRewrite {
 }
 
 function escapeRe(s: string): string {
-  return s.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** Compile `/docs/:slug`, `/blog/:path*`, `/a/:rest+` source patterns. */
