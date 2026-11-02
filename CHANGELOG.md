@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - Chinese, Japanese and Korean IMEs and dead keys work in textjs.org's inline consoles. The consoles cleared the textarea mid-composition, so the app got the raw letters or the wrong character.
-- `<FocusPad>` keeps keyboard focus on the app after a click. It used to drop focus right away, so Chinese, Japanese and Korean IMEs and dead keys couldn't compose text.
+- `<FocusPad>` keeps keyboard focus on the app after a click. It used to drop focus right away, so Chinese, Japanese and Korean IMEs couldn't compose text.
 - The VS Code preview delivers IME and dead-key text, which it used to drop, and no longer forwards dead keys or IME composition keystrokes to the app. With a `text dev` server from `@textjs/app` 1.1.0 or earlier, it sends the text as key presses or a paste.
 - `@textjs/core`: `InputEngine.handleTextInput` ignores text while `shouldCapture` returns `false`, as key and paste input already did.
 - `text dev` pre-bundles `@textjs/app/live-stub` and `@textjs/app/live-player`. An app with a `runtime = "server"` page found them only after the first page load, so Vite bundled them again mid-load, which caused 404s for stale chunks and an "Invalid hook call" from two copies of React.
