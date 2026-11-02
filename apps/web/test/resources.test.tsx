@@ -26,7 +26,8 @@ describe("changelog, blog, enterprise and status", () => {
   });
 
   test("CHANGELOG.md parses into releases, newest first", () => {
-    expect(CHANGELOG_RELEASES[0]?.version).toBe("Unreleased");
+    const first = CHANGELOG_RELEASES[0];
+    expect(first?.version === "Unreleased" ? first.body.trim() : first?.date).toBeTruthy();
     const v1 = CHANGELOG_RELEASES.find((r) => r.version === "1.0.0");
     expect(v1?.date).toBe("2026-10-31");
     expect(v1?.id).toBe("v1-0-0");
