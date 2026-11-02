@@ -6,8 +6,9 @@
  * `.tsx` / `.jsx` file under the project root (dependencies are untouched).
  */
 
-import { readFileSync, realpathSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
+import { resolveRoot } from "./paths";
 
 /** Bun appends `/jsx-runtime` or `/jsx-dev-runtime` (see the package `exports`). */
 export const SERVER_JSX_IMPORT_SOURCE = "@textjs/app/server";
@@ -25,13 +26,6 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function realpath(p: string): string {
-  try {
-    return realpathSync(p);
-  } catch {
-    return p;
-  }
-}
 
 /** The source as Bun should compile it: JSX through the server runtime, line numbers unchanged. */
 export function withServerJsxPragma(source: string): string {
@@ -46,11 +40,12 @@ export function withServerJsxPragma(source: string): string {
 export function installServerJsxRuntime(root: string): boolean {
   const bun = (globalThis as { Bun?: BunRuntime }).Bun;
   if (!bun?.plugin) return false;
-  const dirs = [...new Set([resolve(root), realpath(resolve(root))])].map((d) => (d.endsWith(sep) ? d : d + sep)).filter((d) => !installed.has(d));
+  const dirs = [...new Set([resolve(root), resolveRoot(root)])].map((d) => (d.endsWith(sep) ? d : d + sep)).filter((d) => !installed.has(d));
   if (dirs.length === 0) return true;
   for (const d of dirs) installed.add(d);
   const nm = escapeRegExp(`${sep}node_modules${sep}`);
-  const filter = new RegExp(`^(?:${dirs.map(escapeRegExp).join("|")})(?!.*${nm}).*\\.[jt]sx$`);
+  // Windows paths compare case-insensitively (`c:\app` and `C:\App` are one directory).
+  const filter = new RegExp(`^(?:${dirs.map(escapeRegExp).join("|")})(?!.*${nm}).*\\.[jt]sx$`, process.platform === "win32" ? "i" : "");
   bun.plugin({
     name: `textjs-server-jsx:${dirs[0]}`,
     target: "bun",

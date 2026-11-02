@@ -13,6 +13,7 @@ import { buildServerRuntime, resolveAdapter, runBuildAdapter, serverFiles } from
 import type { AdapterResult } from "../server/adapters/shared";
 import { loadTextConfig } from "./config";
 import { brand, color, fail, formatBytes, LEGEND, ok, routeTable, SERVER_LEGEND, summarize, type SummaryRoute } from "./ui";
+import { resolveRoot } from "../server/paths";
 
 export interface BuildOptions {
   root: string;
@@ -66,7 +67,8 @@ function jsFiles(dir: string): string[] {
   return out;
 }
 
-export async function buildApp(opts: BuildOptions): Promise<BuildResult> {
+export async function buildApp(options: BuildOptions): Promise<BuildResult> {
+  const opts = { ...options, root: resolveRoot(options.root) };
   const log = opts.log ?? true;
   const lines: string[] = [];
   const print = (s = ""): void => {

@@ -15,6 +15,7 @@ import { runNodeMiddleware } from "../server/middleware-node";
 import { META_DIR } from "./build";
 import { loadTextConfig } from "./config";
 import { banner, color, fail, ok } from "./ui";
+import { resolveRoot } from "../server/paths";
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -45,7 +46,8 @@ export interface StartedServer {
   close(): Promise<void>;
 }
 
-export async function startProductionServer(opts: StartOptions): Promise<StartedServer> {
+export async function startProductionServer(options: StartOptions): Promise<StartedServer> {
+  const opts = { ...options, root: resolveRoot(options.root) };
   const started = performance.now();
   const log = opts.log ?? true;
   const { config } = await loadTextConfig(opts.root, "serve", "production");

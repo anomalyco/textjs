@@ -20,6 +20,7 @@ import { installServerJsxRuntime } from "../server/bun-jsx";
 import { prepareServerManifest } from "../server/live-app";
 import { ServerComponentCache, ServerComponentsProvider } from "../server/server-components";
 import { loadTextConfig } from "./config";
+import { resolveRoot } from "../server/paths";
 
 export interface RunOptions {
   root: string;
@@ -90,7 +91,8 @@ export function createLocalFetch(scan: AppScan, base: typeof fetch = fetch, orig
 }
 
 /** Render the app in the terminal. Resolves once it is mounted. */
-export async function runInTerminal(opts: RunOptions): Promise<TerminalRoot> {
+export async function runInTerminal(options: RunOptions): Promise<TerminalRoot> {
+  const opts = { ...options, root: resolveRoot(options.root) };
   const scan = scanApp(opts.root);
   if (!existsSync(scan.appDir)) throw txError("TX018", opts.root);
   let theme = opts.theme;
