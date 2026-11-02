@@ -193,8 +193,8 @@ export function normalizeKeyEvent(e: KeyboardEventLike): KeyInputEvent | null {
 /**
  * Read committed text from a hidden input sink: IME commits, dead keys and autocorrect.
  * Text being composed stays in the sink untouched so the IME keeps working, and is
- * delivered once on `compositionend` (Chromium fires the last `input` before it,
- * Firefox after it). Returns a function that removes the listeners.
+ * delivered once on `compositionend`, whether the browser fires the last `input`
+ * before or after it. Returns a function that removes the listeners.
  */
 export function bindTextSink(sink: HTMLTextAreaElement | HTMLInputElement, onText: (text: string) => void): () => void {
   let composing = false;
@@ -359,7 +359,7 @@ export class InputEngine {
 
   /**
    * Deliver committed text from a host-owned sink (IME, dead keys) to this engine, for
-   * consoles that keep their own textarea instead of calling `attach()`. Returns a cleanup.
+   * consoles that keep their own textarea instead of calling `attach()`. Returns a function that removes the listeners.
    */
   bindTextSink(sink: HTMLTextAreaElement | HTMLInputElement): () => void {
     return bindTextSink(sink, (text) => this.handleTextInput(text));

@@ -8,14 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- `@textjs/core`: `bindTextSink(element, onText)` reads text committed by an IME or a dead key from a hidden textarea, once per commit and never mid-composition. `engine.bindTextSink(element)` connects a textarea you render yourself to an `InputEngine`.
-- `@textjs/app`: `POST /__textjs/input` accepts `{ type: "text", text }` for IME and dead-key text.
+- `@textjs/core`: `bindTextSink(element, onText)` reads text committed by an IME or a dead key from a hidden textarea or input, once per commit and never mid-composition. `engine.bindTextSink(element)` connects a textarea you render yourself to an `InputEngine`. Both return a function that removes the listeners.
+- `@textjs/app`: `POST /__textjs/input` accepts `{ type: "text", text }` for IME and dead-key text. `InputMessage` and `parseInputMessage` in `@textjs/app/frame-protocol` include it.
 
 ### Fixed
 
-- Chinese, Japanese and Korean IMEs work in textjs.org's inline consoles. They used to clear the textarea mid-composition, which sent the wrong character or the raw letters to the app.
-- The VS Code preview delivers IME and dead-key text instead of dropping it, and leaves the IME's own keystrokes alone. Against a `text dev` server from `@textjs/app` 1.1.0 or earlier, it sends the text as keys or a paste.
-- `InputEngine.handleTextInput` respects `shouldCapture`, so text from the sink is ignored while capture is off.
+- Chinese, Japanese and Korean IMEs and dead keys work in textjs.org's inline consoles. The consoles cleared the textarea mid-composition, so the app got the raw letters or the wrong character.
+- The VS Code preview delivers IME and dead-key text, which it used to drop, and no longer forwards dead keys or IME composition keystrokes to the app. With a `text dev` server from `@textjs/app` 1.1.0 or earlier, it sends the text as key presses or a paste.
+- `@textjs/core`: `InputEngine.handleTextInput` ignores text while `shouldCapture` returns `false`, as key and paste input already did.
 
 ## [1.1.0] - 2026-11-02
 

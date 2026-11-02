@@ -218,7 +218,7 @@ const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 /**
  * A `text` message rewritten for `text dev` servers that predate it (`@textjs/app` 1.1.0 and
- * earlier): one key per character when each is a single code point, otherwise a paste.
+ * earlier): one key per character when each is a single code point, otherwise a paste (also for newlines or more than 16 characters).
  */
 export function legacyTextMessages(text: string): InputMessage[] {
   const parts = Array.from(graphemes.segment(text), (s) => s.segment);
