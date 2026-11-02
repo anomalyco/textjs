@@ -208,6 +208,33 @@ function isHtmlRequest(url: string, accept: string | undefined): boolean {
   return accept === undefined || accept.includes("text/html") || accept.includes("*/*");
 }
 
+/** How long `server.close()` waits for a dependency optimization in progress. */
+const DEPS_SETTLE_MS = 10_000;
+
+/**
+ * Closing Vite while its dependency optimizer is re-running hangs forever:
+ * module loads for optimized deps wait on the run's promise, the close cancels
+ * the run without resolving it, and the plugin container's close waits on those
+ * loads (Vite 6.4). It happens when `text dev` stops in the first seconds after
+ * a page load, when Vite discovers the app's dependencies. So `close()` first
+ * waits, bounded, for every discovered dependency to finish optimizing.
+ */
+function settleDepsBeforeClose(server: ViteDevServer): void {
+  const close = server.close.bind(server);
+  server.close = async () => {
+    const pending = Object.values(server.environments).flatMap((env) => {
+      const discovered = (env as { depsOptimizer?: { metadata?: { discovered?: Record<string, { processing?: Promise<void> }> } } }).depsOptimizer?.metadata?.discovered ?? {};
+      return Object.values(discovered).flatMap((dep) => (dep.processing ? [dep.processing] : []));
+    });
+    if (pending.length > 0) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      await Promise.race([Promise.allSettled(pending), new Promise<void>((r) => (timer = setTimeout(r, DEPS_SETTLE_MS)))]);
+      clearTimeout(timer);
+    }
+    return close();
+  };
+}
+
 /** Text.js Vite plugin (includes `@vitejs/plugin-react` for Fast Refresh). */
 export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] {
   const appDirName = options.appDir ?? "app";
@@ -304,6 +331,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
     },
 
     async configureServer(server: ViteDevServer) {
+      settleDepsBeforeClose(server);
       const appDir = join(root, appDirName);
       server.watcher.add(appDir);
       const onStructure = (file: string): void => {
