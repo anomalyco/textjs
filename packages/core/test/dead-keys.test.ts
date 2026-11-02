@@ -147,6 +147,12 @@ describe("Windows dead keys (US-International)", () => {
     expect(r.prevented).toEqual([" "]);
   });
 
+  test("recorded: Windows keeps its dead key across the blur, and the app gets that key once", () => {
+    const r = replay([kd("Dead", 222), { t: "blur" }, kd("'", 32)]);
+    expect(r.keys).toEqual([{ key: "'", input: "'" }]);
+    expect(r.prevented).toEqual(["'"]);
+  });
+
   test("the window losing focus after a dead key clears it too", () => {
     const r = replay([kd("Dead", 222), { t: "window-blur" }, kd(" ", 32)]);
     expect(r.keys).toEqual([{ key: "space", input: " " }]);
