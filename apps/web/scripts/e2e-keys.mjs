@@ -167,6 +167,7 @@ await settle(1200);
 await page.mouse.click(640, 400);
 await settle();
 const ob = await last();
+check("OpenCode: dialog code stays deferred on Home",!await page.evaluate(()=>performance.getEntriesByType("resource").some(e=>/\/SessionDialogs[-.]/.test(e.name))));
 await press(["Control+x"]);check("OpenCode: the pending leader lists available continuations",(await last()).includes("Leader · ctrl+x"));await press(["Escape","/diff","Enter","d"]);check("OpenCode: diff source selection stays in the console",(await last()).includes("Diff source") && path()==="/opencode");await press(["Escape","q"]);
 await press(["/mdl"]);
 check("OpenCode: slash completion shows the native description without a palette shortcut",(await last()).includes("/models") && (await last()).includes("Switch model") && !(await last()).includes("ctrl+x m"),await last());
