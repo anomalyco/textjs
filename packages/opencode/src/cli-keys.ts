@@ -24,6 +24,11 @@ export async function readCliKeys(
           continue;
         }
         const items = Array.isArray(value) ? value : [value];
+        // A release-only override must not accidentally re-enable a destructive native press binding.
+        if (items.every((v) => v?.event === "release")) {
+          keybinds[id] = false;
+          continue;
+        }
         const keys = items
           .flatMap((v) =>
             typeof v === "string" ? [v] : typeof v?.key === "string" && (!v.event || v.event === "press") ? [v.key] : [],

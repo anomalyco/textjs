@@ -20,8 +20,13 @@ test("bridge projects only key settings from its own CLI file and inline overrid
         leader: { timeout: 800 },
       }),
     );
-    expect(await readCliKeys(dir, JSON.stringify({ keybinds: { "help.show": false } }))).toEqual({
-      keybinds: { leader: "ctrl+space", "model.list": "<leader>z,f6", "help.show": false },
+    expect(
+      await readCliKeys(
+        dir,
+        JSON.stringify({ keybinds: { "help.show": false, "session.delete": { key: "ctrl+d", event: "release" } } }),
+      ),
+    ).toEqual({
+      keybinds: { leader: "ctrl+space", "model.list": "<leader>z,f6", "help.show": false, "session.delete": false },
       timeout: 800,
     });
   } finally {
