@@ -27,7 +27,7 @@ const vscode: VsCodeApi =
 const post = (msg: WebviewToHost): void => vscode.postMessage(msg);
 
 const LINE = 14;
-const MIRROR_FONT = 'ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace';
+const MIRROR_FONT = 'ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", Consolas, monospace';
 
 const INITIAL: PreviewState = {
   mode: "idle",

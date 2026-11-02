@@ -242,7 +242,7 @@ describe("CssConsoleDriver", () => {
     b.drawText(4, 0, "ef", 0, 0, ATTR_DIM);
     d.render(b);
     const [a1, a2, a3] = con.last.args;
-    expect(a1).toStartWith('font-family:"SF Mono",Menlo,Consolas,monospace;');
+    expect(a1).toStartWith('font-family:"SF Mono",Menlo,"Cascadia Mono",Consolas,monospace;');
     expect(a1).toContain("font-size:13px;line-height:17px;margin-top:-1px;margin-bottom:-1px;");
     expect(a1).not.toMatch(/(^|;)(font|margin|padding|text-decoration):/);
     expect(a1).not.toContain("font-variant-ligatures");

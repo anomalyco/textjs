@@ -766,8 +766,8 @@ export class CssConsoleDriver {
         const target = Math.ceil(span.cells * this.cellAdvance * LAYOUT_UNIT);
         const advance = measure(unescapeConsoleText(span.text), bold, italic);
         const natural = Number.isFinite(advance) ? Math.ceil(advance * LAYOUT_UNIT) : target;
-        // Pull in by at most half a cell: a much wider fallback font (Courier New next to
-        // Consolas on Windows) would otherwise drag the following spans over these glyphs.
+        // Pull in by at most half a cell: a proportional fallback font (Times New Roman next to
+        // Cascadia Mono on Windows) would otherwise drag the following spans over these glyphs.
         const delta = Math.max(target - natural, -Math.floor((this.cellAdvance * LAYOUT_UNIT) / 2));
         fit = delta > 0 ? `padding-right:${delta / LAYOUT_UNIT}px;` : delta < 0 ? `margin-right:${delta / LAYOUT_UNIT}px;` : "";
         this.fitCache.set(key, fit);
