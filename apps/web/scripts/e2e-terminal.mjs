@@ -162,9 +162,9 @@ for (const [size, needle, label] of [
 }
 await page.evaluate(() => localStorage.setItem("textjs:viewport", "fit"));
 
-// Only the callback and the API live under /terminal; the old page path is a plain 404.
-const statuses = await page.evaluate(async () => Object.fromEntries(await Promise.all(["/terminal", "/coffee"].map(async (p) => [p, (await fetch(p, { redirect: "manual" })).status]))));
-check("/terminal is a 404, /coffee a 200", statuses["/terminal"] === 404 && statuses["/coffee"] === 200, JSON.stringify(statuses));
+// Only the callback and the API live under /terminal; the old page path redirects to /coffee (public/_redirects).
+const statuses = await page.evaluate(async () => Object.fromEntries(await Promise.all(["/terminal", "/coffee"].map(async (p) => [p, await fetch(p).then((r) => `${r.status} ${new URL(r.url).pathname}`)]))));
+check("/terminal redirects to /coffee, a 200", statuses["/terminal"] === "200 /coffee" && statuses["/coffee"] === "200 /coffee", JSON.stringify(statuses));
 
 check("no page errors", errors.length === 0, errors.join("\n"));
 await browser.close();

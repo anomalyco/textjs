@@ -109,11 +109,15 @@ await page.goto(`${base}/playground/snake`);
 await settle(1000);
 check("/playground/snake deep link picks Snake", (await picked()) === "Snake" && (await last()).includes("score"), await picked());
 // The site hasn't launched, so paths that never shipped are plain 404s: no redirects.
-for (const gone of ["/playground/counter", "/playground/form", "/playground/dashboard", "/showcase", "/terminal"]) {
+for (const gone of ["/playground/counter", "/playground/form", "/playground/dashboard", "/showcase"]) {
   await page.goto(`${base}${gone}`);
   await settle(600);
   check(`${gone} is a 404`, path() === gone && (await page.locator(".notfound").count()) === 1 && (await page.locator(".pad-picker").count()) === 0, page.url());
 }
+// The renamed /terminal page: Pages redirects it to /coffee (public/_redirects); vite preview has no redirects.
+await page.goto(`${base}/terminal`);
+await settle(600);
+check("/terminal goes to /coffee (or is a 404 without _redirects)", path() === "/coffee" || (path() === "/terminal" && (await page.locator(".notfound").count()) === 1), page.url());
 await page.goto(`${base}/playground`);
 await settle(1000);
 

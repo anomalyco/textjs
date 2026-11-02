@@ -247,13 +247,16 @@ if (!only || only.test("/coffee")) {
   await settle(1000);
   const mockPort = process.env.MOCK_PORT ?? "8790";
   const back = page.waitForURL((u) => u.pathname === "/coffee" && u.port === new URL(base).port, { timeout: 15000 });
+  // The redirects (login → auth → callback → /coffee) happen inside one navigation.
   let left = false;
-  page.once("framenavigated", (f) => {
-    if (f === page.mainFrame() && new URL(f.url()).port === mockPort) left = true;
-  });
+  const onRequest = (r) => {
+    if (r.isNavigationRequest() && new URL(r.url()).port === mockPort) left = true;
+  };
+  page.on("request", onRequest);
   await page.evaluate(() => location.assign("/api/terminal/login?return=/shop"));
   await back.catch(() => undefined);
   await settle(1500);
+  page.off("request", onRequest);
   check("coffee: sign in leaves for the auth server and comes back", left && new URL(page.url()).pathname === "/coffee", page.url());
   const st = await page.evaluate(() => fetch("/api/terminal/_status").then((r) => r.json()));
   check("coffee: signed in", st?.session?.signedIn === true, JSON.stringify(st));
