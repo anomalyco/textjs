@@ -24,6 +24,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `text build` prints the error when prerendering console shells or building server-rendered routes fails. Before, it exited with code 1 after Vite's "Build failed" line, without the reason.
 - `text dev` on Windows re-renders server-rendered routes when you edit a file, and reloads the browser when a page changes its `runtime` export.
 - `text dev` on Windows no longer runs `middleware.ts` for source files Vite serves as modules, such as `/app/page.tsx`, so an auth redirect no longer breaks the dev client.
+- `text run` and `text mcp` work when the project path contains a Windows 8.3 short name, such as `C:\Users\RUNNER~1`. They showed "Application error" because the CLI and the app loaded `@textjs/app` twice.
+- A `dist/` built on Windows serves its prerendered pages on Linux and macOS. The live route manifest stored its paths with backslashes.
+- `text build` works when the `vite` option in `text.config.ts` sets `build.rollupOptions.input`. The input replaced the entries of the API, server-rendered route and adapter bundles, and the build failed.
+
+### Security
+
+- `text dev` returns 404 for server-only files whatever their spelling, such as `/Middleware.ts` and `/.ENV` on case-insensitive disks and `/@fs/C:/…` paths on Windows. Before, Vite could serve their source.
 
 ## [1.1.0] - 2026-11-02
 
