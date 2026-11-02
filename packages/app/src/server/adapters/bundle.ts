@@ -7,7 +7,8 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { builtinModules } from "node:module";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build, mergeConfig, type InlineConfig, type Plugin } from "vite";
+import { build, type InlineConfig, type Plugin } from "vite";
+import { withFrameworkEntry } from "../vite-entry";
 import type { TextConfig } from "../../config";
 import { toPosix } from "../scan";
 
@@ -79,7 +80,6 @@ export async function bundleServerEntry(opts: BundleOptions): Promise<void> {
       ...(worker ? { resolve: { conditions: ["workerd", "worker", "edge-light", "import", "module", "default"], externalConditions: ["workerd", "worker"] } } : {}),
     },
     build: {
-      ssr: true,
       outDir: dirname(opts.outFile),
       emptyOutDir: false,
       copyPublicDir: false,
@@ -87,12 +87,11 @@ export async function bundleServerEntry(opts: BundleOptions): Promise<void> {
       minify: false,
       reportCompressedSize: false,
       rollupOptions: {
-        input: ENTRY,
         external: worker ? [/^node:/] : undefined,
         output: { entryFileNames: basename(opts.outFile), format: "es", inlineDynamicImports: true },
       },
     },
     plugins: [entryPlugin, builtins],
   };
-  await build(opts.config.vite ? mergeConfig(inline, opts.config.vite) : inline);
+  await build(withFrameworkEntry(inline, opts.config.vite, { input: ENTRY, ssr: true }));
 }

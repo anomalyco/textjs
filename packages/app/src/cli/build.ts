@@ -8,6 +8,7 @@ import { listApiRoutes, listPages, scanApp } from "../server/scan";
 import { buildLiveRoutes } from "../server/live-build";
 import { listServerPages } from "../server/live-routes";
 import { textjsVitePlugin, VIRTUAL_API } from "../vite-plugin";
+import { withFrameworkEntry } from "../server/vite-entry";
 import { buildServerRuntime, resolveAdapter, runBuildAdapter, serverFiles } from "../server/adapters/build-step";
 import type { AdapterResult } from "../server/adapters/shared";
 import { loadTextConfig } from "./config";
@@ -119,17 +120,16 @@ export async function buildApp(opts: BuildOptions): Promise<BuildResult> {
       logLevel: "warn",
       clearScreen: false,
       build: {
-        ssr: true,
         outDir: join(outDir, META_DIR, "server"),
         emptyOutDir: true,
         target: "node18",
-        rollupOptions: { input: VIRTUAL_API, output: { entryFileNames: "api.mjs", format: "es" } },
+        rollupOptions: { output: { entryFileNames: "api.mjs", format: "es" } },
       },
       // Bundle the framework into api.mjs so `text start` runs on plain Node.
       ssr: { noExternal: ["@textjs/app", /^@textjs\//] },
       plugins: [textjsVitePlugin({ ...config, root: opts.root })],
     };
-    await build(config.vite ? mergeConfig(serverBuild, config.vite) : serverBuild);
+    await build(withFrameworkEntry(serverBuild, config.vite, { input: VIRTUAL_API, ssr: true }));
   }
 
   const compiledMs = performance.now() - started;
