@@ -19,8 +19,13 @@ import { assertNoServerRoutes, copyStatic, escapeRegex, matcherRegex, patternReg
 
 export const VERCEL_FUNCTION = "_textjs/server";
 export const VERCEL_MIDDLEWARE = "_middleware";
-/** Query parameter carrying the routed path into the function. */
-export const PATH_PARAM = "__textjs_path";
+/**
+ * Request header carrying the routed path into the function. Each handler
+ * route sets it from its own capture (overwriting any client value), as sent:
+ * Vercel decodes captures substituted into a `dest` query, which would make
+ * the function decode the path a second time.
+ */
+export const ROUTED_HEADER = "x-textjs-path";
 export const VERCEL_NODE_RUNTIME = "nodejs22.x";
 
 /**
@@ -37,22 +42,22 @@ const FUNCTION_BODY = `
 import { normalizeRequestTarget, requestOrigin, sendWebResponse, toWebRequest } from ${JSON.stringify(frameworkFile("server/http.ts"))};
 
 // Middleware already ran in Vercel's router. The function is only reachable
-// through the handler routes in config.json, which reject client-supplied
-// ${PATH_PARAM} parameters and direct requests to /_textjs/*.
+// through the handler routes in config.json, which set ${ROUTED_HEADER}
+// (direct requests to /_textjs/* get a 404).
 const handler = createRequestHandler({ ...options, skipMiddleware: true });
 const REQUEST_CONTEXT = Symbol.for("@vercel/request-context");
 const ROUTED_PATH = ${ROUTED_PATH.toString()};
 
 export default async function textjs(req, res) {
   const url = new URL(normalizeRequestTarget(req.url), "http://vercel.internal");
-  const routed = url.searchParams.getAll(${JSON.stringify(PATH_PARAM)});
-  if (routed.length !== 1 || !ROUTED_PATH.test(routed[0])) {
+  const routed = req.headers[${JSON.stringify(ROUTED_HEADER)}];
+  if (typeof routed !== "string" || !ROUTED_PATH.test(routed)) {
     res.statusCode = 400;
     res.end();
     return;
   }
-  url.searchParams.delete(${JSON.stringify(PATH_PARAM)});
-  req.url = routed[0] + url.search;
+  delete req.headers[${JSON.stringify(ROUTED_HEADER)}];
+  req.url = routed + url.search;
   const request = toWebRequest(req, requestOrigin(req, { trustProxy: true, protocol: "https" }), res);
   const vercel = globalThis[REQUEST_CONTEXT]?.get?.();
   try {
@@ -90,6 +95,7 @@ export interface VercelRoute {
   has?: unknown[];
   missing?: unknown[];
   handle?: "filesystem" | "rewrite" | "miss" | "hit" | "error" | "resource";
+  transforms?: Array<{ type: "request.headers"; op: "set" | "delete"; target: { key: string }; args?: string }>;
 }
 
 export interface VercelConfig {
@@ -102,8 +108,9 @@ export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule |
   const base = ctx.basePath;
   const routes: VercelRoute[] = [
     // The handler function is internal: only the handler routes below may reach it, with a path they set.
+    // Only the handler routes below may set the routed-path header: drop any the client sent.
+    { src: "^.*$", transforms: [{ type: "request.headers", op: "delete", target: { key: ROUTED_HEADER } }], continue: true },
     { src: `^\\/${escapeRegex(VERCEL_FUNCTION.split("/")[0] as string)}(?:\\/.*)?$`, status: 404 },
-    { src: "^.*$", has: [{ type: "query", key: PATH_PARAM }], status: 400 },
     { src: `^${escapeRegex(base)}\\/assets\\/(.*)$`, headers: { "cache-control": "public, max-age=31536000, immutable" }, continue: true },
   ];
   if (middleware) {
@@ -124,7 +131,8 @@ export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule |
     const { src, dest } = rewriteRoute(r, base);
     routes.push(/^[a-z]+:\/\//i.test(dest) ? { src, dest } : { src, dest, continue: true });
   }
-  for (const a of ctx.api) routes.push({ src: patternRegex(a.pattern, base), dest: `/${VERCEL_FUNCTION}?${PATH_PARAM}=$1` });
+  const routed = [{ type: "request.headers" as const, op: "set" as const, target: { key: ROUTED_HEADER }, args: "$1" }];
+  for (const a of ctx.api) routes.push({ src: patternRegex(a.pattern, base), dest: `/${VERCEL_FUNCTION}`, transforms: routed });
   routes.push({ handle: "filesystem" });
   // Extensionless paths are console pages: serve the SPA document.
   routes.push({ src: `^${escapeRegex(base)}(?:\\/(?:[^/]+\\/)*[^/.]*)?$`, dest: `${base}/index.html` });

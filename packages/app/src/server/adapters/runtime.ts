@@ -32,7 +32,11 @@ export interface RequestHandlerOptions {
   basePath?: string;
   rewrites?: Rewrite[];
   cacheStore?: CacheStore;
-  /** Serve a static file for `pathname` (without basePath), or `null`. */
+  /**
+   * Serve a static file for `pathname`, or `null`. `pathname` is canonical and
+   * still percent-encoded, without basePath: URL-based backends use it as is,
+   * file-system backends decode it once.
+   */
   assets?: (pathname: string, request: Request, context: RequestContext) => Promise<Response | null> | Response | null;
   /** The SPA document (`index.html`) for page routes. */
   document?: (request: Request, context: RequestContext) => Promise<Response | null> | Response | null;
@@ -128,7 +132,7 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
     if (method !== "GET" && method !== "HEAD") return finish(new Response(null, { status: 405, headers: { allow: "GET, HEAD" } }));
     const hidden = decoded.split(/[/\\]/).some((p) => p.startsWith(".") && p.length > 1);
     if (!hidden && options.assets) {
-      const asset = await options.assets(decoded, request, context);
+      const asset = await options.assets(pathname, request, context);
       if (asset) return finish(asset);
     }
     const last = decoded.split("/").pop() ?? "";

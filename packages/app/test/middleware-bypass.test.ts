@@ -14,50 +14,15 @@ import type { ViteDevServer } from "vite";
 import { buildApp } from "../src/cli/build";
 import { startDevServer } from "../src/cli/dev";
 import { startProductionServer } from "../src/cli/start";
-import { NON_CANONICAL_PATH } from "../src/server/adapters/vercel";
+import { NON_CANONICAL_PATH, vercelConfig } from "../src/server/adapters/vercel";
 import { __configureCache } from "../src/server/cache";
 import { canonicalPathname } from "../src/server/http";
+import { NextResponse, type NextRequest } from "../src/server/middleware";
+import { authorizeWithMiddleware, runMiddleware } from "../src/server/middleware-runtime";
 import { staticFile } from "../src/server/static-file";
 import { adapt, waitForLine } from "./adapter-helpers";
-import { createFixture, openLiveStream, rawRequest, until } from "./server-fixture";
+import { bypassApp, createFixture, openLiveStream, rawRequest, until } from "./server-fixture";
 import { startVercelHarness } from "./vercel-harness";
-
-const MIDDLEWARE = `import { NextResponse, type NextRequest } from "@textjs/app/server";
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  if (request.cookies.get("auth")?.value === "1") return NextResponse.next();
-  return new Response("denied " + pathname, { status: 401 });
-}
-export const config = { matcher: ["/admin/:path*", "/api/admin/:path*", "/ops/:path*"] };
-`;
-
-const pages = (basePath: string, server: boolean): Record<string, string> => ({
-  "text.config.ts": `import { defineConfig } from "@textjs/app";
-export default defineConfig({ title: "Bypass Fixture"${basePath ? `, basePath: ${JSON.stringify(basePath)}` : ""} });
-`,
-  "app/page.tsx": `import { Text } from "@textjs/app";
-export default function Page() { return <Text>home</Text>; }
-`,
-  "app/admin/page.tsx": `import { Text } from "@textjs/app";
-export default function Admin() { return <Text>admin page</Text>; }
-`,
-  "app/api/admin/route.ts": `export function GET() { return Response.json({ secret: "admin-only" }); }
-`,
-  "app/api/admin/[id]/route.ts": `export function GET() { return Response.json({ secret: "admin-only" }); }
-`,
-  "public/admin/report.txt": "admin-only report\n",
-  "app/api/public/route.ts": `export function GET(req: Request) { return Response.json({ url: req.url }); }
-`,
-  ...(server
-    ? {
-        "app/ops/page.tsx": `import { Text } from "@textjs/app";
-export const runtime = "server";
-export default function Ops() { return <Text>ops secret</Text>; }
-`,
-      }
-    : {}),
-  "middleware.ts": MIDDLEWARE,
-});
 
 /** `protected`: the path names a page or handler the middleware guards (it must answer 401, or 400 for an invalid path). */
 interface Variant {
@@ -91,7 +56,17 @@ function variants(prefix: string): Variant[] {
     `${p}/admin/%E0%A4%A`,
   ];
   // Different paths: they must never reach the guarded handler (no double decoding, case-sensitive routes).
-  const other = [`${p}/ADMIN`, `${p}/Admin`, `${p}/ad%256din`, `${p}/%2561dmin`, `${p}/admin.`];
+  const other = [
+    `${p}/ADMIN`,
+    `${p}/Admin`,
+    `${p}/ad%256din`,
+    `${p}/%2561dmin`,
+    `${p}/admin.`,
+    // A `&` or a twice-encoded `..` must not turn into another path on the way to the handler (Vercel's query captures).
+    `${p}/admin&download`,
+    `${p}/x/%252e%252e/admin`,
+    `${p}/%252e%252e/admin`,
+  ];
   return [...guarded.map((path) => ({ path, protected: true })), ...other.map((path) => ({ path, protected: false }))];
 }
 
@@ -103,6 +78,9 @@ const PAGES = (base: string): Variant[] => [
   { path: `${base}/ad%6din/report%2etxt`, protected: true },
   { path: `${base}/ADMIN/report.txt`, protected: false },
   { path: `${base}/admin/REPORT.txt`, protected: false },
+  // URL-based asset backends (Cloudflare's ASSETS) must not decode the path again.
+  { path: `${base}/x/%252e%252e/admin/report.txt`, protected: false },
+  { path: `${base}/public/%252e%252e/admin/report.txt`, protected: false },
 ];
 
 function baseVariants(): Variant[] {
@@ -116,6 +94,10 @@ function baseVariants(): Variant[] {
     { path: "/console/x/%2e%2e/api/admin", protected: true },
     { path: "/console%2fapi/admin", protected: true },
     { path: "/CONSOLE/api/admin", protected: false },
+    // Outside basePath: no app routes, no files (text dev used to dispatch handlers here; Pages used to serve dist/ directly).
+    { path: "/api/admin", protected: false },
+    { path: "/api/admin/x", protected: false },
+    { path: "/admin/report.txt", protected: false },
   ];
 }
 
@@ -153,6 +135,12 @@ async function controlChecks(base: string, basePath: string): Promise<void> {
   expect(pub.status).toBe(200);
   const seen = new URL(/"url":"([^"]+)"/.exec(pub.body)?.[1] ?? "http://x/").pathname;
   expect([`${basePath}/api/public`, "/api/public"]).toContain(seen);
+  // Prerendered pages live at dist/<page>/index.html: served once, never a redirect to the slash form.
+  for (const path of ["/admin", "/admin/"]) {
+    const page = await fetch(`${base}${basePath}${path}`, { headers: { cookie: "auth=1", accept: "text/html" }, redirect: "manual" });
+    expect({ path, status: page.status }).toEqual({ path, status: 200 });
+    expect(await page.text()).toContain("<html");
+  }
   // Middleware sees the canonical pathname too.
   const denied = await rawRequest(base, `${basePath}/api/x/../ad%6din//y/`);
   expect(denied.status).toBe(401);
@@ -176,21 +164,51 @@ async function exerciseLive(host: string, base: string): Promise<void> {
       s.close();
     }
   }
+  // Deny by rewrite: a session asked to render /restricted must not render it.
+  for (const path of ["/restricted", "/restricte%64", "/restricted/", "/x/../restricted"]) {
+    const s = await openLiveStream(base, `path=${encodeURIComponent(path)}&cols=40&rows=4`);
+    try {
+      await until(() => s.messages.some((m) => m.t === "load" || m.t === "f"), 10_000);
+      await new Promise((r) => setTimeout(r, 150));
+      const leaked = frames(s).includes("restricted secret");
+      rows.push({ host: `${host} (live rewrite)`, path, status: leaked ? 200 : 0, ok: !leaked });
+    } finally {
+      s.close();
+    }
+  }
   expect(failures(http)).toEqual([]);
-  expect(failures(rows.filter((r) => r.host === `${host} (live session)`))).toEqual([]);
+  expect(failures(rows.filter((r) => r.host === `${host} (live session)` || r.host === `${host} (live rewrite)`))).toEqual([]);
 }
 
-/** Pages-like `env.ASSETS` (case-sensitive, like Pages). */
-function workerEnv(dist: string) {
+/**
+ * Pages-like `env.ASSETS`: case-sensitive, `dir/index.html` served at `dir/`
+ * with `dir` and `dir/index.html` redirecting there (Pages' default HTML handling).
+ */
+function pagesAssets(dist: string) {
   return {
-    ASSETS: {
-      fetch: async (req: Request) => {
-        const p = decodeURIComponent(new URL(req.url).pathname);
-        const file = p === "/" ? join(dist, "index.html") : p.endsWith("/") ? null : staticFile(dist, p);
-        if (file) return new Response(readFileSync(file));
-        return new Response(readFileSync(join(dist, "404.html")), { status: 404 });
-      },
+    fetch: async (req: Request) => {
+      const url = new URL(req.url);
+      const p = decodeURIComponent(url.pathname);
+      const redirect = (to: string) => new Response(null, { status: 308, headers: { location: to } });
+      if (p.endsWith("/index.html")) return redirect(p.slice(0, -"index.html".length));
+      const index = staticFile(dist, join(p, "index.html"));
+      if (index && !p.endsWith("/")) return redirect(`${url.pathname}/`);
+      const file = p.endsWith("/") ? index : staticFile(dist, p);
+      if (file) return new Response(readFileSync(file));
+      return new Response(readFileSync(join(dist, "404.html")), { status: 404 });
     },
+  };
+}
+
+/** Pages in front of the worker: `_routes.json` decides which requests the worker sees; the rest are static. */
+function pagesFront(dist: string, worker: { fetch(r: Request, env: unknown, ctx: unknown): Promise<Response> }) {
+  const routes = JSON.parse(readFileSync(join(dist, "_routes.json"), "utf8")) as { include: string[]; exclude: string[] };
+  const hit = (rule: string, p: string) => (rule.endsWith("/*") ? p.startsWith(rule.slice(0, -1)) || p === rule.slice(0, -2) : p === rule);
+  const env = { ASSETS: pagesAssets(dist) };
+  return (req: Request): Promise<Response> => {
+    const p = new URL(req.url).pathname;
+    const viaWorker = routes.include.some((r) => hit(r, p)) && !routes.exclude.some((r) => hit(r, p));
+    return viaWorker ? worker.fetch(req, env, { waitUntil: () => undefined }) : env.ASSETS.fetch(req);
   };
 }
 
@@ -233,7 +251,56 @@ describe("canonicalPathname", () => {
   });
 });
 
+describe("matchers with a trailing slash", () => {
+  const deny = { middleware: () => new Response("no", { status: 401 }) };
+  test("`/admin/` matches the canonical `/admin`, and `/` the root", async () => {
+    for (const [matcher, path] of [["/admin/", "/admin"], ["/admin/", "/admin/"], ["/admin//", "/admin"], ["/", "/"], ["/", ""]] as const) {
+      const out = await runMiddleware({ ...deny, config: { matcher } }, new Request(`http://x.dev${path}`));
+      expect({ matcher, path, type: out.type }).toEqual({ matcher, path, type: "response" });
+    }
+    const other = await runMiddleware({ ...deny, config: { matcher: "/admin/" } }, new Request("http://x.dev/admin/x"));
+    expect(other.type).toBe("next");
+  });
+
+  test("the generated Vercel route matches them under basePath", () => {
+    const src = (matcher: string, basePath: string) => {
+      const ctx = { basePath, rewrites: [], api: [] } as never;
+      const route = vercelConfig(ctx, { middleware: () => undefined, config: { matcher } }).routes.find((r) => r.middlewarePath);
+      return new RegExp(route?.src ?? "^$");
+    };
+    expect(src("/admin/", "").test("/admin")).toBe(true);
+    expect(src("/admin/", "/console").test("/console/admin")).toBe(true);
+    expect(src("/", "/console").test("/console")).toBe(true);
+    expect(src("/", "/console").test("/console/")).toBe(true);
+    expect(src("/", "/console").test("/console/x")).toBe(false);
+    expect(src("/", "").test("/")).toBe(true);
+  });
+});
+
+describe("live sessions and middleware rewrites", () => {
+  test("a rewrite to another path denies the session; a rewrite onto the same canonical path allows it", async () => {
+    const mod = {
+      middleware: (req: NextRequest) => {
+        if (req.nextUrl.pathname === "/restricted") return NextResponse.rewrite(new URL("/login", req.url));
+        if (req.nextUrl.pathname === "/same") return NextResponse.rewrite(new URL("/s%61me/", req.url));
+      },
+    };
+    const init = { origin: "http://x.dev", headers: new Headers() };
+    expect(await authorizeWithMiddleware(mod, "/restricted", init)).toBe(false);
+    expect(await authorizeWithMiddleware(mod, "/restricte%64/", init)).toBe(false);
+    expect(await authorizeWithMiddleware(mod, "/same", init)).toBe(true);
+    expect(await authorizeWithMiddleware(mod, "/other", init)).toBe(true);
+  });
+});
+
 describe("vercel config", () => {
+  test("handler routes carry the path in a header, never a query capture", () => {
+    const ctx = { basePath: "", rewrites: [], api: [{ pattern: "/api/[...rest]", file: "x" }] } as never;
+    const route = vercelConfig(ctx, null).routes.find((r) => r.dest?.startsWith("/_textjs/"));
+    expect(route?.dest).toBe("/_textjs/server");
+    expect(route?.transforms).toEqual([{ type: "request.headers", op: "set", target: { key: "x-textjs-path" }, args: "$1" }]);
+  });
+
   test("one middleware route covers the matchers and every non-canonical path", () => {
     const re = new RegExp(NON_CANONICAL_PATH);
     for (const p of ["/ad%6din", "//admin", "/admin//x", "/./admin", "/x/../admin", "/admin/", "/a\\b"]) expect({ p, hit: re.test(p) }).toEqual({ p, hit: true });
@@ -254,8 +321,8 @@ for (const basePath of ["", "/console"]) {
     const list = (): Variant[] => [...PAGES(basePath), ...API(basePath), ...(basePath ? baseVariants() : [])];
     beforeAll(() => {
       __configureCache({ reset: true });
-      dir = createFixture(pages(basePath, false), "textjs-bypass-");
-      live = basePath ? "" : createFixture(pages("", true), "textjs-bypass-live-");
+      dir = createFixture(bypassApp(basePath, false), "textjs-bypass-");
+      live = basePath ? "" : createFixture(bypassApp("", true), "textjs-bypass-live-");
     });
     afterAll(() => {
       rmSync(dir, { recursive: true, force: true });
@@ -341,8 +408,7 @@ for (const basePath of ["", "/console"]) {
         const dist = join(dir, "dist");
         const mod = (await import(`${join(dist, "_worker.js")}?t=${Date.now()}`)) as { default: { fetch(r: Request, env: unknown, ctx: unknown): Promise<Response> } };
         __configureCache({ reset: true });
-        const env = workerEnv(dist);
-        const local = Bun.serve({ port: 0, fetch: (req) => mod.default.fetch(req, env, { waitUntil: () => undefined }) });
+        const local = Bun.serve({ port: 0, fetch: pagesFront(dist, mod.default) });
         try {
           const origin = `http://127.0.0.1:${local.port}`;
           const out = await probe(`cloudflare ${basePath}`, origin, list());

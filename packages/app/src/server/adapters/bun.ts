@@ -3,7 +3,7 @@
  * `bun dist/server.js` (static files, middleware, route handlers, SPA document).
  */
 
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { bundleServerEntry, frameworkFile } from "./bundle";
 import { serverEntry, type AdapterContext, type AdapterResult } from "./shared";
 
@@ -44,9 +44,9 @@ export const handler = createRequestHandler({
   live: live ? (request, url, context) => runNodeStyle(request, url, (req, res) => live.handle(req, res, url), context.clientAddress) : undefined,
   assets(pathname) {
     // Directories serve their index.html (prerendered console shells).
-    const path = staticFile(dir, pathname, { index: true });
+    const path = staticFile(dir, decodeURIComponent(pathname), { index: true });
     if (!path || path === self) return null;
-    const res = fileResponse(path, pathname.startsWith("/assets/"));
+    const res = fileResponse(path, path.startsWith(join(dir, "assets") + sep));
     if (path.endsWith(".html")) res.headers.set("content-type", "text/html; charset=utf-8");
     return res;
   },

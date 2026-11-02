@@ -2,7 +2,7 @@
  * A minimal local emulation of Vercel's Build Output API v3 router, enough to
  * exercise `.vercel/output` from `text build --adapter vercel` without a
  * deploy: `config.json` routes (`src`, `dest`, `headers`, `continue`,
- * `middlewarePath`, `has` / `missing`, `status`, `handle: "filesystem"`,
+ * `middlewarePath`, `has` / `missing`, `status`, `transforms`, `handle: "filesystem"`,
  * external `dest` proxying), static files, Node.js functions
  * (`launcherType: "Nodejs"`) and Edge middleware speaking `x-middleware-*`.
  * Functions are part of the filesystem: a request for a function's path
@@ -10,6 +10,9 @@
  *
  * Functions see the *original* request URL with `dest` query parameters
  * merged in (the stricter of Vercel's behaviors for the Text.js adapter).
+ * As on Vercel (checked on a deployment, Nov 2026), `src` matches the path as
+ * sent, `$n` in a `dest` query is the decoded capture, re-encoded, and
+ * `transforms` request headers get the capture as sent.
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -35,6 +38,7 @@ interface Route {
   has?: Condition[];
   missing?: Condition[];
   handle?: string;
+  transforms?: Array<{ type: string; op: string; target: { key: string }; args?: string }>;
 }
 
 function cookieValue(header: string | null, name: string): string | undefined {
@@ -182,7 +186,18 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
         if (!m) continue;
         if (route.has && !route.has.every((c) => holds(c, headers, query))) continue;
         if (route.missing && route.missing.some((c) => holds(c, headers, query))) continue;
-        if (route.status !== undefined && !route.dest) return send(new Response(null, { status: route.status }));
+        // As on Vercel, `status` without `dest` only sets the status: the path still resolves (a function runs).
+        if (route.status !== undefined && !route.dest) {
+          middlewareStatus = route.status;
+          if (!route.continue) return resolve();
+          continue;
+        }
+        // Request-header transforms get the capture as sent.
+        for (const t of route.transforms ?? []) {
+          if (t.type !== "request.headers") continue;
+          if (t.op === "set") headers.set(t.target.key, (t.args ?? "").replace(/\$(\d+)/g, (_, i: string) => m[Number(i)] ?? ""));
+          else if (t.op === "delete") headers.delete(t.target.key);
+        }
         if (route.headers) for (const [k, v] of Object.entries(route.headers)) out.set(k, v);
         if (route.middlewarePath) {
           const fn = edge.get(route.middlewarePath) as EdgeHandler;
@@ -211,7 +226,19 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
           continue;
         }
         if (route.dest) {
-          const dest = route.dest.replace(/\$(\d+)/g, (_, i: string) => m[Number(i)] ?? "");
+          // Vercel substitutes captures decoded, and encodes them when they land in the query.
+          const [destPath = "", destQuery] = route.dest.split("?");
+          const capture = (i: string, encode: boolean): string => {
+            const raw = m[Number(i)] ?? "";
+            let v = raw;
+            try {
+              v = decodeURIComponent(raw);
+            } catch {
+              // keep raw
+            }
+            return encode ? encodeURIComponent(v) : raw;
+          };
+          const dest = destPath.replace(/\$(\d+)/g, (_, i: string) => capture(i, false)) + (destQuery === undefined ? "" : `?${destQuery.replace(/\$(\d+)/g, (_, i: string) => capture(i, true))}`);
           if (/^[a-z]+:\/\//i.test(dest)) {
             const upstream = new URL(dest);
             query.forEach((v, k) => {

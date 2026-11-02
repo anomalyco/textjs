@@ -59,7 +59,9 @@ Or push to a Git repository connected to Vercel: the build runs `text build`, de
 | `functions/_middleware.func` | `middleware.ts` as Edge Routing Middleware |
 | `config.json` | Asset headers, middleware matchers, rewrites, handler routes and the console document |
 
-The edge middleware speaks the `x-middleware-next` / `x-middleware-rewrite` protocol, so header overrides and rewrites happen in Vercel's router before the function or CDN is reached. Matchers become one route `src` pattern, so requests no matcher covers never invoke the middleware. Paths that aren't in canonical form (percent-encoded characters, `//`, `.` or `..` segments, a trailing slash) always invoke it: it matches the canonical path, checks `has` / `missing`, and rewrites the request to that path so Vercel routes it the same way. The handler function is internal: requests for `/_textjs/*` return `404`, and requests carrying the internal `__textjs_path` parameter return `400`, so it is only reachable through the routes the adapter writes.
+The edge middleware speaks the `x-middleware-next` / `x-middleware-rewrite` protocol, so header overrides and rewrites happen in Vercel's router before the function or CDN is reached. All matchers share one route `src` pattern. Requests no matcher covers skip the middleware unless their path isn't in canonical form (percent-escapes, `//`, `.` or `..` segments, a trailing slash). The middleware then matches the canonical path, checks `has` / `missing`, and rewrites the request to that path so Vercel routes it the same way.
+
+The handler function is internal. Each handler route passes the matched path to it in the `x-textjs-path` request header, which the first route removes from every incoming request. Requests for `/_textjs/*` return `404`.
 
 ## Cloudflare Pages
 
@@ -74,7 +76,7 @@ The output uses Pages advanced mode:
 | File | Purpose |
 | :-- | :-- |
 | `_worker.js` | Middleware, rewrites, route handlers and the console document |
-| `_routes.json` | Keeps `/assets/*` on Pages' static CDN (unless your matcher covers it, or the app has a `basePath`) |
+| `_routes.json` | Sends every request to the worker. Without middleware or a `basePath`, `/assets/*` stays on Pages' static CDN |
 | `_headers` | Immutable caching for `/assets/*` (appended to yours) |
 | `404.html` | Makes Pages answer missing files with `404` instead of the app (kept if you have one) |
 
@@ -82,12 +84,18 @@ The output uses Pages advanced mode:
 
 Enable the `nodejs_compat` compatibility flag in the Pages project (Settings → Runtime) or in `wrangler.toml`; the data cache uses `AsyncLocalStorage`. Static files are served through the `ASSETS` binding, and background revalidation uses `ctx.waitUntil()`.
 
+With middleware, every request runs the worker, including hashed assets, so that middleware sees every path a file can be reached by. Each request counts toward your Workers request quota. On the Workers Free plan, Pages serves static files without the worker once the daily quota runs out, which skips middleware. If middleware guards anything in `dist/`, set Settings → Runtime → Fail open / closed to **Fail closed**.
+
 ```toml@wrangler.toml
 name = "my-console"
 pages_build_output_dir = "dist"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 ```
+
+## Upgrading
+
+Security fixes in `@textjs/app` reach a deployment only after you rebuild and redeploy it: `.vercel/output` for Vercel, `dist/` (with `_worker.js` and `_routes.json`) for Cloudflare Pages, and `dist/server.js` for the Bun adapter. `text start` picks up the new version when it restarts.
 
 ## Server-rendered routes
 

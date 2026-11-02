@@ -380,7 +380,9 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
         const origin = requestOrigin(req);
         let url = req.url ?? "/";
         if (basePath) {
+          // Outside basePath there are no app routes (and middleware didn't run): leave it to Vite.
           if (url === basePath || url.startsWith(`${basePath}/`) || url.startsWith(`${basePath}?`)) url = url.slice(basePath.length) || "/";
+          else return next();
         }
         try {
           const rewritten = rewrites.length > 0 ? applyRewrites(rewrites, url) : null;

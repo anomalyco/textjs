@@ -95,8 +95,10 @@ export function matcherKeys(source: string): Array<string | null> {
  * `/a/:rest+`, `/:locale?/x`, `/user/:id(\\d+)` and raw groups such as
  * `/((?!api|assets|favicon.ico).*)`. A trailing slash is optional.
  */
-export function compileMatcherSource(source: string, keys: Array<string | null> = []): string {
-  if (!source.startsWith("/")) throw new SyntaxError(`Middleware matcher must start with "/": ${JSON.stringify(source)}`);
+export function compileMatcherSource(input: string, keys: Array<string | null> = []): string {
+  if (!input.startsWith("/")) throw new SyntaxError(`Middleware matcher must start with "/": ${JSON.stringify(input)}`);
+  // Requests arrive without a trailing slash (see `canonicalPathname`), so `/admin/` matches like `/admin`; `/` matches the root.
+  const source = input.replace(/\/+$/, "");
   let re = "";
   let i = 0;
   while (i < source.length) {
@@ -149,7 +151,6 @@ export function compileMatcherSource(source: string, keys: Array<string | null> 
     re += escapeRe(ch);
     i++;
   }
-  if (re.endsWith("\\/")) re = re.slice(0, -2);
   return `^${re}(?:\\/)?$`;
 }
 
@@ -477,9 +478,12 @@ export async function authorizeWithMiddleware(mod: MiddlewareModule, href: strin
   headers.set("accept", "text/html,application/xhtml+xml,*/*;q=0.8");
   headers.set("sec-fetch-dest", "document");
   headers.set("sec-fetch-mode", "navigate");
+  // A rewrite is allowed only onto the path the session renders (the canonical `href`).
+  const rendered = canonicalPathname(url.pathname);
+  if (rendered === null) return false;
   const outcome = await runMiddleware(mod, new Request(url, { method: "GET", headers }), { basePath });
   if (outcome.type === "response") return false;
-  if (outcome.rewrite) return outcome.rewrite.origin === url.origin && outcome.rewrite.pathname === new URL(outcome.request.url).pathname;
+  if (outcome.rewrite) return outcome.rewrite.origin === url.origin && canonicalPathname(outcome.rewrite.pathname) === rendered;
   return outcome.status === undefined || outcome.status < 400;
 }
 

@@ -124,8 +124,8 @@ describe("security contract (SCOPED_APP)", () => {
       try {
         await exerciseScopedApp(harness.url, { cache: true, privateDowngrade: false });
         // Direct and spoofed requests to the function: 404 / 400, never the protected handler.
-        for (const target of ["/_textjs/server?__textjs_path=/api/admin/secret", "/_textjs/server", "/api/public?__textjs_path=/api/admin/secret", "/?__textjs_path=//evil.example/x"]) {
-          const res = await rawRequest(harness.url, target);
+        for (const target of ["/_textjs/server", "/_textjs/server/x", "/api/public", "/api/public?x=1"]) {
+          const res = await rawRequest(harness.url, target, { headers: { "x-textjs-path": "/api/admin/secret" } });
           expect({ target, ok: res.status === 404 || res.status === 400 }).toEqual({ target, ok: true });
           expect(res.body).not.toContain("admin-only");
         }
