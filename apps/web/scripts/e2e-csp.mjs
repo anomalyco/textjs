@@ -272,6 +272,18 @@ if (!only || only.test("/coffee")) {
   check("coffee: the sign-in round trip reports nothing", found.length === 0, found.join("\n"));
 }
 
+// ── Crash reports: the idle-loaded reporter and its POST to /api/errors ────────
+if (!only || only.test("/__textjs/throw")) {
+  const posted = page.waitForResponse((r) => new URL(r.url()).pathname === "/api/errors" && r.request().method() === "POST", { timeout: 15_000 }).catch(() => null);
+  await page.goto(`${base}/__textjs/throw`, { waitUntil: "load" });
+  const res = await posted;
+  const reporter = await page.evaluate(() => performance.getEntriesByType("resource").some((e) => /\/assets\/reporter-[^/]+\.js$/.test(e.name)));
+  check("reports: the reporter chunk loads under script-src", reporter);
+  check("reports: the test route's report reaches /api/errors", res?.status() === 204, String(res?.status()));
+  const found = await violations();
+  check("reports: sending a report reports nothing", found.length === 0, found.join("\n"));
+}
+
 check("no CSP, Permissions-Policy or COOP console messages", warnings.length === 0, [...new Set(warnings)].slice(0, 20).join("\n"));
 check("no page errors", errors.length === 0, [...new Set(errors)].slice(0, 20).join("\n"));
 

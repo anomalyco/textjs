@@ -1,10 +1,22 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { reportsDevMiddleware } from "./server/reports-dev";
 import { terminalDevMiddleware } from "./server/terminal-dev";
 import { VIEWPORT_SOURCE } from "./src/console-companion/viewport-console";
+
+/** The release crash reports carry: `TEXTJS_RELEASE`, else the commit, else the package version. */
+function release(): string {
+  if (process.env.TEXTJS_RELEASE) return process.env.TEXTJS_RELEASE;
+  try {
+    return execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    return (JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string }).version;
+  }
+}
 
 /**
  * `vite dev` / `vite preview` run the same handler as the Pages Functions in `functions/`
@@ -16,6 +28,15 @@ function terminalFunctions(): Plugin {
     name: "textjs-terminal-functions",
     configureServer: (server) => void server.middlewares.use(middleware),
     configurePreviewServer: (server) => void server.middlewares.use(middleware),
+  };
+}
+
+/** `POST /api/errors` in `vite dev` / `vite preview`: the Pages Function's handler, logging to the terminal. */
+function reportFunction(): Plugin {
+  return {
+    name: "textjs-report-function",
+    configureServer: (server) => void server.middlewares.use(reportsDevMiddleware()),
+    configurePreviewServer: (server) => void server.middlewares.use(reportsDevMiddleware()),
   };
 }
 
@@ -77,7 +98,8 @@ function prerenderedPages(): Plugin {
 }
 
 export default defineConfig(({ isSsrBuild }) => ({
-  plugins: [react(), viewportScript(), terminalFunctions(), prerenderedPages()],
+  plugins: [react(), viewportScript(), terminalFunctions(), reportFunction(), prerenderedPages()],
+  define: { __TEXTJS_RELEASE__: JSON.stringify(release()) },
   build: {
     target: "es2022",
     outDir: "dist",

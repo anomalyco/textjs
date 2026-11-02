@@ -128,14 +128,15 @@ describe("/coffee (terminal.shop)", () => {
     }
   });
 
-  test("only / and the Terminal endpoints run as Pages Functions", () => {
+  test("only /, crash reports and the Terminal endpoints run as Pages Functions", () => {
     const routes = JSON.parse(readFileSync(join(ROOT, "public/_routes.json"), "utf8")) as { version: number; include: string[]; exclude: string[] };
     expect(routes.version).toBe(1);
     // `/` is exact (no `/*`): it serves `curl textjs.org` and passes every other request through.
-    expect(routes.include.sort()).toEqual(["/", "/api/terminal", "/api/terminal/*", "/terminal/callback"]);
+    expect(routes.include.sort()).toEqual(["/", "/api/errors", "/api/terminal", "/api/terminal/*", "/terminal/callback"]);
     expect(existsSync(join(ROOT, "functions/index.ts"))).toBe(true);
     expect(existsSync(join(ROOT, "functions/api/terminal/[[path]].ts"))).toBe(true);
     expect(existsSync(join(ROOT, "functions/terminal/callback.ts"))).toBe(true);
+    expect(existsSync(join(ROOT, "functions/api/errors.ts"))).toBe(true);
   });
 });
 

@@ -11,6 +11,7 @@ import { ArrowRight } from "../../site/icons";
 import { runInConsole, useConsoleAvailable } from "../../site/LivePreview";
 import { useCompanionFrame } from "../../site/useCompanion";
 import { useInView } from "../../site/useInView";
+import { prefetchFailed } from "../../telemetry/capture";
 import { Crosses } from "./Crosses";
 
 const { cols: COLS, rows: ROWS } = HOME_EXAMPLE_GRID;
@@ -63,7 +64,7 @@ function Preview({ id, enabled, active, available }: { id: string; enabled: bool
   const [kit, setKit] = useState<KitModule | null>(kitCache);
   useEffect(() => {
     if (!enabled && !active) return;
-    void preloadCompanionTab("example");
+    preloadCompanionTab("example").catch(prefetchFailed);
     if (kit) return;
     let alive = true;
     void loadKit().then((m) => {

@@ -29,6 +29,7 @@ import {
   type Companion,
   type FrameListener,
 } from "./bridge";
+import { consoleRootErrors, report } from "../telemetry/capture";
 import { siteStore, type CompanionTab } from "./store";
 import { isCompanionTabLoaded, preloadCompanionTab } from "./tabs-loader";
 import { viewportConsole } from "./viewport-console";
@@ -99,6 +100,7 @@ export function bootCompanion(): Promise<Companion> {
         theme: initialSnap.theme,
         tabFocus: false,
         identifierPrefix: "txc",
+        ...consoleRootErrors,
       }),
       preloadCompanionTab(initialSnap.tab),
       initialSnap.example !== null ? preloadCompanionTab("example") : Promise.resolve(),
@@ -140,12 +142,15 @@ export function bootCompanion(): Promise<Companion> {
           void Promise.all([
             needsTab ? preloadCompanionTab(nextTab) : Promise.resolve(),
             needsEx ? preloadCompanionTab("example") : Promise.resolve(),
-          ]).then(() => {
-            const cur = siteStore.getSnapshot();
-            if (cur.tab === nextTab && cur.example === nextExample) {
-              followViewportScope(root, from, nextTab, nextExample);
-            }
-          });
+          ]).then(
+            () => {
+              const cur = siteStore.getSnapshot();
+              if (cur.tab === nextTab && cur.example === nextExample) {
+                followViewportScope(root, from, nextTab, nextExample);
+              }
+            },
+            (error: unknown) => report(error, "console"),
+          );
         } else {
           followViewportScope(root, from, nextTab, nextExample);
         }
