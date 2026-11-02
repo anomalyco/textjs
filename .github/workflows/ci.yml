@@ -17,6 +17,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   test:
     name: Typecheck and test
@@ -41,6 +45,11 @@ jobs:
 
       - name: Test packages
         run: bun test packages/
+
+      # og.test.ts renders an Open Graph image per route in headless Chromium.
+      - name: Install Chromium
+        working-directory: apps/web
+        run: bunx playwright-core install --with-deps --only-shell chromium
 
       - name: Test apps
         run: |

@@ -21,6 +21,10 @@ concurrency:
   group: qa-starters-${{ github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   qa:
     name: Templates, examples and apps
