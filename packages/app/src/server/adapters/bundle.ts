@@ -7,7 +7,8 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { builtinModules } from "node:module";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build, mergeConfig, type InlineConfig, type Plugin } from "vite";
+import { build, type InlineConfig, type Plugin } from "vite";
+import { withFrameworkEntry } from "../vite-entry";
 import type { TextConfig } from "../../config";
 import { toPosix } from "../scan";
 
@@ -48,7 +49,7 @@ export async function bundleServerEntry(opts: BundleOptions): Promise<void> {
     name: "textjs:server-entry",
     enforce: "pre",
     resolveId(id) {
-      return id.endsWith(ENTRY) ? `\0${ENTRY}` : null;
+      return id === ENTRY ? `\0${ENTRY}` : null;
     },
     load(id) {
       return id === `\0${ENTRY}` ? opts.code : null;
@@ -79,7 +80,6 @@ export async function bundleServerEntry(opts: BundleOptions): Promise<void> {
       ...(worker ? { resolve: { conditions: ["workerd", "worker", "edge-light", "import", "module", "default"], externalConditions: ["workerd", "worker"] } } : {}),
     },
     build: {
-      ssr: ENTRY,
       outDir: dirname(opts.outFile),
       emptyOutDir: false,
       copyPublicDir: false,
@@ -93,5 +93,5 @@ export async function bundleServerEntry(opts: BundleOptions): Promise<void> {
     },
     plugins: [entryPlugin, builtins],
   };
-  await build(opts.config.vite ? mergeConfig(inline, opts.config.vite) : inline);
+  await build(withFrameworkEntry(inline, opts.config.vite, { input: ENTRY, ssr: true }));
 }

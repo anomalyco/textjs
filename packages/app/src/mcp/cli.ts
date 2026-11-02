@@ -4,11 +4,11 @@
  * `process.stdout.write` calls are captured into the `logs` tool instead.
  */
 
-import { resolve } from "node:path";
 import type { Writable } from "node:stream";
 import { txMessage } from "@textjs/core";
 import type { ThemeName } from "@textjs/react";
 import { captureConsole, LogBuffer, type LogEntry } from "./logs";
+import { resolveRoot } from "../server/paths";
 
 export interface McpCliArgs {
   dir: string;
@@ -130,7 +130,7 @@ export async function runMcpCli(argv: readonly string[]): Promise<number> {
   process.on("uncaughtException", onException);
 
   const [{ StdioServerTransport }, { createTextMcpServer }] = await Promise.all([import("@modelcontextprotocol/sdk/server/stdio.js"), import("./server")]);
-  const root = resolve(args.dir);
+  const root = resolveRoot(args.dir);
   const { server, controller } = createTextMcpServer({
     root,
     path: args.path,

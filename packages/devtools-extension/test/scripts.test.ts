@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { findChromiumInCache, playwrightCache, resolveChromium } from "../scripts/chromium";
 import { resolveServed } from "../scripts/harness";
 
@@ -49,8 +49,8 @@ describe("chromium resolution", () => {
 describe("harness server", () => {
   test("serves only files inside harness/dist", () => {
     const root = "/srv/dist";
-    expect(resolveServed("/", root)).toBe("/srv/dist/index.html");
-    expect(resolveServed("/harness.js", root)).toBe("/srv/dist/harness.js");
+    expect(resolveServed("/", root)).toBe(resolve(root, "index.html"));
+    expect(resolveServed("/harness.js", root)).toBe(resolve(root, "harness.js"));
     expect(resolveServed("/../../etc/passwd", root)).toBeNull();
     expect(resolveServed("/%2e%2e/%2e%2e/etc/passwd", root)).toBeNull();
     expect(resolveServed("/..%2fsecret", root)).toBeNull();

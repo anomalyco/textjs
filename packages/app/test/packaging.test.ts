@@ -16,7 +16,8 @@ afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 describe("published module graph", () => {
   test("the bin loads the CLI through the package's own exports", () => {
     const bin = readFileSync(resolve(import.meta.dir, "../bin/text.js"), "utf8");
-    expect(bin).toContain('import.meta.resolve("@textjs/app/cli")');
+    // Resolved from the bin's canonical path (Windows 8.3 names, symlinks), still through the exports map.
+    expect(bin).toContain('createRequire(self).resolve("@textjs/app/cli")');
     expect(readFileSync(resolve(import.meta.dir, "../bin/text.ts"), "utf8")).toContain('from "@textjs/app/cli"');
     const pkg = JSON.parse(readFileSync(resolve(import.meta.dir, "../package.json"), "utf8")) as {
       exports: Record<string, string>;

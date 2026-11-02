@@ -44,7 +44,8 @@ export function packPackages(work: string, build: boolean, packages: ReadonlyArr
     writeFileSync(manifest, `${JSON.stringify(preparePackedManifest(JSON.parse(readFileSync(manifest, "utf8")) as Record<string, unknown>), null, 2)}\n`);
     rmSync(join(dest, tgz));
     sh("tar", ["czf", "final.tgz", "package"], dest);
-    out[name] = join(dest, "final.tgz");
+    // Forward slashes: these paths go into `file:` specifiers in package.json.
+    out[name] = join(dest, "final.tgz").replaceAll("\\", "/");
   }
   return out;
 }
@@ -182,7 +183,8 @@ async function runTerminal(name: string, cmd: string[], app: string): Promise<Re
   const plain = (): string => stripVTControlCharacters(out);
   for (let i = 0; i < 100 && !plain().includes("count") && child.exitCode === null; i++) await Bun.sleep(100);
   try {
-    process.kill(-(child.pid as number), "SIGTERM");
+    if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+    else process.kill(-(child.pid as number), "SIGTERM");
   } catch {
     // already gone
   }
@@ -225,6 +227,7 @@ async function runMcp(name: string, cmd: string[], app: string): Promise<Result>
 }
 
 async function main(argv: string[]): Promise<number> {
+  // Not realpath'd: GitHub's Windows TEMP is an 8.3 short path (C:\Users\RUNNER~1\…), which the CLI must handle.
   const work = mkdtempSync(join(tmpdir(), "textjs-verify-pack-"));
   console.log(`▼ verify-pack in ${work}`);
   const tarballs = packPackages(work, !argv.includes("--skip-build"));

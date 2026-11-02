@@ -1,9 +1,9 @@
 // Command modules (Vite, the dev server, the MCP server) load lazily: `text mcp`
 // must own stdout before any third-party module runs.
 import { spawn } from "node:child_process";
-import { resolve } from "node:path";
 import { txError, txMessage, VERSION } from "@textjs/core";
 import { brand, color, fail } from "./ui";
+import { resolveRoot } from "../server/paths";
 
 export interface ParsedArgs {
   command: string;
@@ -128,7 +128,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.log(HELP);
     return args.command === "" && !args.help ? 1 : 0;
   }
-  const root = resolve(args.dir);
+  const root = resolveRoot(args.dir);
   try {
     switch (args.command) {
       case "dev": {
@@ -179,6 +179,7 @@ export async function main(argv: readonly string[]): Promise<number> {
         return 1;
     }
   } catch (error) {
+    // buildApp prints its own failures.
     if (args.command !== "build") console.error(fail(error instanceof Error ? error.message : String(error)));
     return 1;
   }

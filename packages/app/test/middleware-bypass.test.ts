@@ -8,7 +8,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { readFileSync, realpathSync, rmSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import type { ViteDevServer } from "vite";
 import { buildApp } from "../src/cli/build";
@@ -21,6 +21,8 @@ import { __configureCache } from "../src/server/cache";
 import { canonicalPathname, compileRewrite } from "../src/server/http";
 import { NextResponse, type NextRequest } from "../src/server/middleware";
 import { authorizeWithMiddleware, compileMatcher, compileMatcherSource, matchesMiddleware, runMiddleware } from "../src/server/middleware-runtime";
+import { resolveRoot } from "../src/server/paths";
+import { toPosix } from "../src/server/scan";
 import { staticFile } from "../src/server/static-file";
 import { adapt, waitForLine } from "./adapter-helpers";
 import { bypassApp, createFixture, openLiveStream, rawRequest, until } from "./server-fixture";
@@ -652,7 +654,8 @@ export default defineConfig({ title: "Dev Files", rewrites: [{ source: "/bad", d
     const server: ViteDevServer = await startDevServer({ root: dir, port: 42000 + Math.floor(Math.random() * 2000), log: false });
     try {
       const origin = new URL(server.resolvedUrls?.local[0] ?? "").origin;
-      const fs = encodeURI(dir);
+      // Vite's /@fs/ prefix: /@fs/Users/… on POSIX, /@fs/C:/Users/… on Windows.
+      const fs = encodeURI(dir.startsWith("/") ? dir : `/${toPosix(dir)}`);
       const list: Variant[] = [
         { path: "/public/admin/report.txt", protected: false },
         { path: "/public/admin/report.txt?raw", protected: false },
@@ -716,7 +719,7 @@ describe("text dev: modules Vite resolves itself", () => {
   let dir = "";
   beforeAll(() => {
     // The real path: Vite only resolves modules inside the root as it sees it (macOS tmp dirs are behind a /var symlink).
-    dir = realpathSync(createFixture(bypassApp("", false), "textjs-bypass-dev-"));
+    dir = resolveRoot(createFixture(bypassApp("", false), "textjs-bypass-dev-"));
   });
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 

@@ -9,6 +9,7 @@ import { LIVE_PATH } from "../live-protocol";
 import { badRequest, canonicalPathname, canonicalRequestTarget, isLoopbackUrl, proxyFetch, requestOrigin, requestUrl, sendWebResponse, setMiddlewareState, toWebRequest } from "./http";
 import type { MiddlewareModule } from "./middleware";
 import { matchesMiddleware, MIDDLEWARE_FILES, middlewareMatchers, runMiddleware } from "./middleware-runtime";
+import { resolveRoot } from "./paths";
 
 /** `toWebRequest()` returns this request (once) instead of re-reading the Node stream. */
 export const WEB_REQUEST = Symbol.for("textjs.webRequest");
@@ -136,8 +137,9 @@ export function isDevInternalRequest(rawUrl: string, root: string): boolean {
   if (pathname.startsWith("/@") || pathname.startsWith("/node_modules/") || pathname.startsWith("/__")) return true;
   // Source files Vite serves as modules (`/app/page.tsx?t=…`); `public/` files still run middleware, as in production.
   try {
-    const file = join(root, decodeURIComponent(pathname));
-    return file.startsWith(root + sep) && statSync(file).isFile();
+    const base = resolveRoot(root);
+    const file = join(base, decodeURIComponent(pathname));
+    return file.startsWith(base + sep) && statSync(file).isFile();
   } catch {
     return false;
   }

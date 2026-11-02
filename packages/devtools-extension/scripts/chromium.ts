@@ -13,7 +13,7 @@
 
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, posix, win32 } from "node:path";
 import { chromium } from "playwright-core";
 
 const CANDIDATES: Record<string, string[]> = {
@@ -29,6 +29,7 @@ const CANDIDATES: Record<string, string[]> = {
 
 export function playwrightCache(env: NodeJS.ProcessEnv = process.env, platform = process.platform, home = homedir()): string {
   if (env.PLAYWRIGHT_BROWSERS_PATH && env.PLAYWRIGHT_BROWSERS_PATH !== "0") return env.PLAYWRIGHT_BROWSERS_PATH;
+  const { join } = platform === "win32" ? win32 : posix;
   if (platform === "darwin") return join(home, "Library/Caches/ms-playwright");
   if (platform === "win32") return join(env.LOCALAPPDATA ?? join(home, "AppData/Local"), "ms-playwright");
   return join(env.XDG_CACHE_HOME ?? join(home, ".cache"), "ms-playwright");
