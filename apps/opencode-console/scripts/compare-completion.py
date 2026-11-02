@@ -22,7 +22,9 @@ with tempfile.TemporaryDirectory() as tmp:
     subprocess.run(['git','init','-q',project],env=env,check=True)
     if ROUND=='round4':
         def git(*args):subprocess.run(['git','-C',project,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid',*args],env=env,check=True,stdout=subprocess.DEVNULL)
-        git('add','README.md');git('commit','-qm','Fixture');git('branch','-M','main');git('checkout','-qb','review');(project/'README.md').write_text('Project fixture\nRun bun test.\n')
+        (Path(tmp)/'product-docs').mkdir()
+        (project/'opencode.json').write_text(json.dumps({'references':{'docs':{'path':'../product-docs'},'internal':{'path':'../product-docs','hidden':True}}}))
+        git('add','README.md','opencode.json');git('commit','-qm','Fixture');git('branch','-M','main');git('checkout','-qb','review');(project/'README.md').write_text('Project fixture\nRun bun test.\n')
     proc = subprocess.Popen(['opencode','serve','--hostname','127.0.0.1','--port',str(port)],env=env,cwd=project,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     sock = 'textjs-menus-'+secrets.token_hex(6)
     def tmux(*args,check=True):
@@ -45,7 +47,7 @@ with tempfile.TemporaryDirectory() as tmp:
         tmux('new-session','-d','-s','native','-x','100','-y','32','-c',str(project),'exec '+shlex.join(['opencode','--server',url]))
         tmux('set-option','-t','native','status','off');wait('Ask anything');wait('Build ·')
         cases=[('slash','/model','Switch model'),('mention','@readm','README.md'),('shell','!pwd','Shell')]
-        if ROUND=='round4':cases += [('leader','','Ask anything'),('diff','/diff','Run bun test.'),('integrations','/connect','Connect an integration')]
+        if ROUND=='round4':cases += [('reference','@docs/','product-docs'),('leader','','Ask anything'),('diff','/diff','Run bun test.'),('integrations','/connect','Connect an integration')]
         for name,typed,marker in cases:
             if name=='leader':
                 tmux('send-keys','-t','native','-l','Review the changes');wait('Review the changes');tmux('send-keys','-t','native','C-x');marker='Review the changes'

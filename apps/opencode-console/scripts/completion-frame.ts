@@ -42,6 +42,7 @@ try {
     ["shell", "!pwd", "Shell"],
     ...(process.env.PARITY_ROUND === "round4"
       ? [
+          ["reference", "@docs/", "product-docs"],
           ["leader", "", "Leader ·"],
           ["diff", "/diff", "Run bun test."],
           ["integrations", "/connect", "Connect an integration"],
@@ -130,6 +131,12 @@ try {
     throw Error("Expected empty disposable capture project");
   if (process.env.PARITY_ROUND === "round4") {
     const loc = await api.workspace!.location(resolve(tmp, "project"));
+    const refs = await api.references!(loc.directory);
+    if (
+      !refs.some((r) => r.name === "docs" && new URL(r.file.uri).pathname === resolve(tmp, "product-docs")) ||
+      refs.some((r) => r.name === "internal")
+    )
+      throw Error("Reference alias visibility or target mismatch");
     if (!(await api.workspace!.projects()).some((p) => p.id === loc.project.id))
       throw Error("Capture project missing from project catalog");
     await api.workspace!.list(loc.project.id);

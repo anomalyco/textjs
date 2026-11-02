@@ -1,20 +1,27 @@
 /** Run against the built website with BASE=http://127.0.0.1:<private-preview-port>.
  * Full Chromium with its bundled DevTools frontend, the real CSRF/auth proxy,
  * and a mock V2 service that cannot run a command or contact a model. */
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { createServer } from "node:net";
 import { resolve } from "node:path";
 import { startProxy } from "@textjs/opencode";
 import { startMockOpenCode } from "../test/mock-opencode";
 
 const base = new URL(process.env.BASE!);
-if (base.hostname !== "127.0.0.1" || !base.port || ["4096", "49374", "4173"].includes(base.port)) throw Error("Private preview required");
-const out = resolve(import.meta.dir, "../.text/round2/devtools");
+if (base.hostname !== "127.0.0.1" || !base.port || ["4096", "49374", "4173"].includes(base.port))
+  throw Error("Private preview required");
+const out = resolve(import.meta.dir, process.env.PARITY_ROUND === "4" ? "../.text/round4/devtools" : "../.text/round2/devtools");
 await mkdir(out, { recursive: true });
 const { chromium } = await import(process.env.PLAYWRIGHT!);
 const password = crypto.randomUUID(),
   mock = startMockOpenCode({ password });
+const config = await mkdtemp(resolve(tmpdir(), "textjs-private-keys-"));
 try {
+  process.env.XDG_CONFIG_HOME = config;
+  delete process.env.OPENCODE_CLI_CONFIG_CONTENT;
+  await mkdir(resolve(config, "opencode"));
+  await writeFile(resolve(config, "opencode/cli.json"), JSON.stringify({ keybinds: { "help.show": "f9" } }));
   const bridge = await startProxy({
     port: 0,
     log: false,
@@ -26,12 +33,12 @@ try {
     }),
   });
   try {
-    if([mock.url,bridge.url].some(u=>["4096","49374"].includes(new URL(u).port)))throw Error("Reserved port selected");
+    if ([mock.url, bridge.url].some((u) => ["4096", "49374"].includes(new URL(u).port))) throw Error("Reserved port selected");
     const socket = createServer();
     await new Promise<void>((res) => socket.listen(0, "127.0.0.1", res));
     const port = (socket.address() as { port: number }).port;
     await new Promise<void>((res) => socket.close(() => res()));
-    if([4096,49374].includes(port))throw Error("Reserved debugger port selected");
+    if ([4096, 49374].includes(port)) throw Error("Reserved debugger port selected");
     const browser = await chromium.launch({
       executablePath: chromium.executablePath(),
       headless: false,
@@ -64,7 +71,10 @@ try {
       const target = targets.find((t: any) => t.type === "page" && t.url === page.url());
       // Allow room for the 100-column frame, the DevTools gutter and Linux font fallback.
       const dt = await browser.newPage({ viewport: { width: 1024, height: 720 } });
-      await dt.route(url=>["localhost","127.0.0.1","[::1]"].includes(url.hostname) && url.origin!==`http://127.0.0.1:${port}`,route=>route.abort());
+      await dt.route(
+        (url) => ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) && url.origin !== `http://127.0.0.1:${port}`,
+        (route) => route.abort(),
+      );
       await dt.goto(`http://127.0.0.1:${port}/devtools/inspector.html?ws=127.0.0.1:${port}/devtools/page/${target.id}&panel=console`);
       await dt.locator("#tab-console").click();
       const cast = dt.locator('button[aria-label="Toggle screencast"].toggled');
@@ -78,12 +88,24 @@ try {
         await dt.locator("#console-messages").screenshot({ path: resolve(out, `${name}.png`) });
       };
       await snap("home", "Ask anything");
-      await page.keyboard.press("Control+x");await snap("which-key","Leader · ctrl+x");await page.keyboard.press("Escape");
-      await page.keyboard.type("/diff");await page.keyboard.press("Enter");await snap("diff","export const attempts = 3");await page.keyboard.press("q");
-      await page.keyboard.type("/model");await snap("slash","/models");
-      await page.keyboard.press("Escape");await page.keyboard.press("Control+u");
-      await page.keyboard.type("@src");await snap("mention","cart badge.ts");
-      await page.keyboard.press("Escape");await page.keyboard.press("Control+u");
+      await page.keyboard.press("F9");
+      await snap("bridge-keybind", "see all available");
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("Control+x");
+      await snap("which-key", "Leader · ctrl+x");
+      await page.keyboard.press("Escape");
+      await page.keyboard.type("/diff");
+      await page.keyboard.press("Enter");
+      await snap("diff", "export const attempts = 3");
+      await page.keyboard.press("q");
+      await page.keyboard.type("/model");
+      await snap("slash", "/models");
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("Control+u");
+      await page.keyboard.type("@src");
+      await snap("mention", "cart badge.ts");
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("Control+u");
       await page.keyboard.press("Control+x");
       await page.keyboard.press("l");
       await snap("sessions", "Sessions for");
@@ -137,16 +159,14 @@ try {
       }
       ev("session.text.ended", { ordinal: 0, text });
       ev("session.step.ended", { finish: "stop" });
-      mock.messages
-        .get(sessionID)
-        ?.push({
-          id: messageID,
-          type: "assistant",
-          agent: "build",
-          model,
-          time: { created: started, completed: Date.now() },
-          content: [{ type: "text", text }],
-        });
+      mock.messages.get(sessionID)?.push({
+        id: messageID,
+        type: "assistant",
+        agent: "build",
+        model,
+        time: { created: started, completed: Date.now() },
+        content: [{ type: "text", text }],
+      });
       ev("session.execution.succeeded", {});
       await snap("stream", "done.");
       const times: number[] = await page.evaluate(() => (window as any).__parity.times),
@@ -180,4 +200,5 @@ try {
   }
 } finally {
   mock.stop();
+  await rm(config, { recursive: true });
 }
