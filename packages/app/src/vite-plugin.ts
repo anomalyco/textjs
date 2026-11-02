@@ -385,12 +385,15 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
         const publicDir = server.config.publicDir ? resolveRoot(server.config.publicDir) : "";
         if (publicDir && publicDir !== realRoot && within(publicDir, file)) return true;
         if (!within(realRoot, file)) return false;
-        // On disk under another case (macOS, Windows): middleware matched a different path.
-        const spelled = within(root, requested) ? relative(root, requested) : relative(realRoot, requested);
+        // On disk under another case (macOS, Windows): middleware matched a different path. Vite keeps root and
+        // publicDir with forward slashes; `within` and `join` use the platform separator, so compare native paths.
+        const nativeRoot = resolve(root);
+        const spelled = within(nativeRoot, requested) ? relative(nativeRoot, requested) : relative(realRoot, requested);
         if (miscased(spelled, relative(realRoot, file))) return true;
         if (publicDir) {
-          const asset = join(server.config.publicDir, pathname);
-          if (within(server.config.publicDir, asset) && miscased(relative(server.config.publicDir, asset), relative(publicDir, resolveRoot(asset)))) return true;
+          const nativePublic = resolve(server.config.publicDir);
+          const asset = join(nativePublic, pathname);
+          if (within(nativePublic, asset) && miscased(relative(nativePublic, asset), relative(publicDir, resolveRoot(asset)))) return true;
         }
         return isServerOnlyFile(file);
       };
