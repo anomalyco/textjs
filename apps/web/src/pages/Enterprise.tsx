@@ -90,7 +90,7 @@ const FAQ: ReadonlyArray<{ q: string; a: ReactNode }> = [
   },
   {
     q: "Which browsers are supported?",
-    a: "Chromium-based browsers with DevTools: Chrome, Edge, Arc and Brave. Turbolog is tuned against the Chromium DevTools frontend and its 50ms viewport throttler.",
+    a: "Text.js runs in desktop Chrome, Edge, Arc, Brave, Firefox and Safari. Turbolog is tuned against the Chromium DevTools frontend and its 50ms viewport throttler, and adjusts its CSS for the Firefox and Safari consoles.",
   },
   {
     q: "Do our users need DevTools open?",

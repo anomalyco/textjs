@@ -278,7 +278,7 @@ export function createLiveHtml(o: LiveHtmlOptions): string {
       #__textjs .mark { font-size: 28px; margin: 0 0 8px; }
       #__textjs .title { font-size: 18px; font-weight: 600; margin: 0; }
       #__textjs .hint { color: #a1a1a1; margin: 8px 0 0; }
-      #__textjs kbd { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12px; border: 1px solid #333; border-radius: 4px; padding: 1px 5px; color: #ededed; }
+      #__textjs .hint a { color: #ededed; text-underline-offset: 3px; }
       #__textjs .status { color: #666; font-size: 12px; margin: 16px 0 0; font-family: "SF Mono", Menlo, Consolas, monospace; }
     </style>
   </head>
@@ -286,7 +286,7 @@ export function createLiveHtml(o: LiveHtmlOptions): string {
     <div id="__textjs" data-textjs-runtime="server">
       <p class="mark">${BRAND_MARK}</p>
       <p class="title">${escapeHtml(o.title)}</p>
-      <p class="hint">Open the console: <kbd>⌥⌘J</kbd> on macOS, <kbd>Ctrl+Shift+J</kbd> elsewhere. Then click here and type.</p>
+      <p class="hint"><a href="https://textjs.org/docs/installation#open-the-console">Open the browser console</a>, then click here and type.</p>
       <p class="status">Rendered on the server · <span data-textjs-status>connecting</span></p>
     </div>
     <noscript>${BRAND_MARK} Text.js apps render into console.log, which requires JavaScript.</noscript>

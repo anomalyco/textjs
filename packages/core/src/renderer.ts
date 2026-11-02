@@ -6,6 +6,7 @@
 import { parseColor, type ColorInput } from "./color";
 import { CellBuffer } from "./cell-buffer";
 import { CssConsoleDriver, type ClearMode, type ConsoleTarget, type DriverRenderOptions } from "./drivers/css-console-driver";
+import type { ConsoleBrowser } from "./drivers/console-browser";
 import type { ConsoleTypographyOptions, StyleResolveOptions } from "./drivers/style";
 import { InputEngine, type FocusChangeEvent } from "./input";
 import { paintScene, type PaintOptions, type SceneNode } from "./scene";
@@ -57,6 +58,8 @@ export interface ConsoleRendererOptions {
   previousFrameAt?: number;
   typography?: Partial<ConsoleTypographyOptions>;
   style?: Partial<StyleResolveOptions>;
+  /** The console frames are written for and fitted to (default: detected; see `ConsoleBrowser`). */
+  browser?: ConsoleBrowser;
   scheduler?: RendererScheduler;
   /**
    * Minimum milliseconds between emitted frames. DevTools repaints new console
@@ -197,7 +200,7 @@ export class ConsoleRenderer {
   constructor(options: ConsoleRendererOptions = {}) {
     this.options = options;
     this.root = options.root ?? null;
-    this.viewport = options.viewport instanceof ViewportController ? options.viewport : new ViewportController(options.viewport ?? {});
+    this.viewport = options.viewport instanceof ViewportController ? options.viewport : new ViewportController({ ...options.viewport, browser: options.viewport?.browser ?? options.browser });
     this.buffer = new CellBuffer(this.viewport.cols, this.viewport.rows);
     this.driver = new CssConsoleDriver({
       console: options.console,
@@ -207,6 +210,7 @@ export class ConsoleRenderer {
       curtain: options.curtain,
       typography: options.typography,
       style: options.style,
+      browser: options.browser,
     });
     this.scheduler = options.scheduler ?? createDefaultScheduler();
     this.frameInterval = Math.max(0, options.minFrameInterval ?? (options.scheduler ? 0 : DEFAULT_FRAME_INTERVAL_MS));

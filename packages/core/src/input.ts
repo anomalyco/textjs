@@ -143,9 +143,9 @@ const isApplePlatform: boolean =
 export function isPassthroughShortcut(e: KeyboardEventLike): boolean {
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (k === "F12" || k === "F5") return true;
-  // ⌘⌥J / ⌘⌥I / ⌘⌥C (macOS) and Ctrl+Shift+J/I/C (Windows/Linux): DevTools.
+  // ⌘⌥J / ⌘⌥I / ⌘⌥C (macOS) and Ctrl+Shift+J/I/C (Windows/Linux): DevTools. ⌘⌥K / Ctrl+Shift+K: Firefox's console.
   if ((e.metaKey && e.altKey) || (e.ctrlKey && e.shiftKey)) {
-    if (k === "j" || k === "i" || k === "c") return true;
+    if (k === "j" || k === "i" || k === "c" || k === "k") return true;
   }
   if (e.altKey) return false;
   // Reload, hard reload, address bar, new tab, close tab, new window, quit:

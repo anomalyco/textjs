@@ -53,7 +53,7 @@ The image cache (`photos/cache/`) is local and ignored. On a fresh checkout `bun
 
 Image models garble letters and logos, so no mark in the photos comes from the model:
 
-1. `scripts/photos.ts` and `scripts/options-blanks.ts` ask `gpt-image-2.5-sunburst` for blank products (fixed prompts, one shared studio style) and cache each result by a hash of its request.
+1. `scripts/photos.ts` and `scripts/options-blanks.ts` ask the image model in `IMAGE_MODEL` for blank products (fixed prompts, one shared studio style) and cache each result by a hash of its request.
 2. `scripts/collection.ts` warps the real SVG artwork onto each blank at the size and position from the tech pack, then shades it with the photo's own light and fabric texture (`scripts/composite.ts`).
 3. Close-ups are enlargements of the same blanks (`scripts/enlarge.ts`): a crop is scaled up and re-rendered by the model with the composition kept, so placements measured on the blank carry over.
 4. Embroidered ▼ marks start as a flat stand-in of the exact ▼. The model turns it into stitches in an edit that keeps the rest of the photo, and an affine fit moves the result back onto the exact geometry.

@@ -7,9 +7,20 @@
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { basename, join } from "node:path";
 
-export const MODEL = "gpt-image-2.5-sunburst";
+/** The image model, from `IMAGE_MODEL` or `~/.config/textjs/openai.env`. It's part of every cache key. */
+export const MODEL = process.env.IMAGE_MODEL ?? envFile().IMAGE_MODEL ?? "";
+
+function envFile(): Record<string, string> {
+  try {
+    const text = readFileSync(join(homedir(), ".config", "textjs", "openai.env"), "utf8");
+    return Object.fromEntries(text.split("\n").flatMap((l) => (/^([A-Z_]+)=(.*)$/.exec(l.trim()) ? [[RegExp.$1, RegExp.$2.replace(/^["']|["']$/g, "")]] : [])));
+  } catch {
+    return {};
+  }
+}
 export const CACHE = join(import.meta.dir, "..", "photos", "cache");
 mkdirSync(CACHE, { recursive: true });
 
@@ -43,7 +54,7 @@ export async function generate(r: Request, label: string): Promise<string> {
   if (existsSync(out)) return out;
   const base = process.env.OPENAI_BASE_URL;
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!base || !apiKey) throw new Error("OPENAI_BASE_URL / OPENAI_API_KEY are not set (source ~/.config/textjs/openai.env)");
+  if (!base || !apiKey || !MODEL) throw new Error("OPENAI_BASE_URL, OPENAI_API_KEY and IMAGE_MODEL must be set (source ~/.config/textjs/openai.env)");
   const headers = { Authorization: `Bearer ${apiKey}` };
   let res: Response;
   const started = Date.now();

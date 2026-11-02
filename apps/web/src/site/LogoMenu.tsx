@@ -14,7 +14,14 @@ interface Item {
 const ITEMS: readonly Item[] = [
   { label: "Copy Logo as SVG", copy: async () => LOGO_SVG },
   { label: "Copy Wordmark as SVG", copy: async () => WORDMARK_SVG },
-  { label: "Copy Logo as console.log", copy: async () => (await import("./logo-console")).LOGO_CONSOLE_LOG },
+  {
+    label: "Copy Logo as console.log",
+    copy: async () => {
+      const [logo, { detectConsoleBrowser }] = await Promise.all([import("./logo-console"), import("@textjs/core")]);
+      const browser = detectConsoleBrowser();
+      return browser === "firefox" || browser === "safari" ? logo.LOGO_CONSOLE_LOG_INLINE : logo.LOGO_CONSOLE_LOG;
+    },
+  },
 ];
 
 const MENU_WIDTH = 232;

@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { A } from "../router";
-import { DevtoolsShortcut, Footer } from "../site/Chrome";
+import { DevtoolsShortcut, Footer, SafariConsoleNote } from "../site/Chrome";
 import { ArrowRight } from "../site/icons";
 import { certificateLines, formatCertificateDate, linkedInAddUrl, NAME_PLACEHOLDER } from "../learn/certificate";
 import { ChapterBody, chapterHeadings } from "../learn/ChapterBody";
@@ -71,7 +71,7 @@ function Overview(): ReactNode {
             </A>
           )}
         </div>
-        <p className="learn-meta">{`${CHAPTERS.length} chapters · about ${ABOUT_MINUTES} minutes · Chrome, Edge, Arc or Brave`}</p>
+        <p className="learn-meta">{`${CHAPTERS.length} chapters · about ${ABOUT_MINUTES} minutes · Chrome, Edge, Firefox or Safari`}</p>
         <ProgressMeter progress={progress} />
       </header>
 
@@ -105,7 +105,8 @@ function Overview(): ReactNode {
       <section className="learn-section">
         <h2>The course runs in your console</h2>
         <p className="learn-section-lede">
-          Open DevTools with <kbd><DevtoolsShortcut /></kbd>, click below and pick a chapter with the arrow keys.
+          Open the console with <kbd><DevtoolsShortcut /></kbd>
+          <SafariConsoleNote />, click below and pick a chapter with the arrow keys.
         </p>
         <LearnPad title="learn" hints={OVERVIEW_HINTS.hints} action={OVERVIEW_HINTS.action} />
       </section>
@@ -171,6 +172,7 @@ function ChapterPage({ chapter }: { chapter: Chapter }): ReactNode {
               <kbd>
                 <DevtoolsShortcut />
               </kbd>
+              <SafariConsoleNote />
               {", then "}
               <a href="#try-it">try it</a>.
             </span>

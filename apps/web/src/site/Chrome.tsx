@@ -4,29 +4,40 @@ import { activateCompanion } from "../console-companion/bridge";
 import { isPadRoute, siteStore } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
 import { A, useLocation } from "../router";
-import { ChevronRight, CloseIcon, Logo, MenuIcon, SearchIcon } from "./icons";
+import { ArrowUpRight, ChevronRight, CloseIcon, GitHubIcon, Logo, MenuIcon, SearchIcon } from "./icons";
+import { REPO_URL } from "./links";
 import { LogoMenu, useLogoMenu } from "./LogoMenu";
 import { openSearch, preloadSearchDialog } from "./SearchModal";
 import { Sheet, useCloseOnMedia } from "./Sheet";
 
-export function isMac(): boolean {
-  return typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
-}
-
-export function devtoolsShortcut(): string {
-  return isMac() ? "⌘⌥J" : "Ctrl+Shift+J";
-}
-
 /**
- * The DevTools shortcut for this platform. Both variants are rendered and CSS shows one
- * (`html[data-os]`, set before first paint), so prerendered HTML hydrates without a text swap.
+ * The console shortcut for this browser and platform. Every variant is rendered and CSS shows one
+ * (`html[data-os]` and `html[data-browser]`, set before first paint), so prerendered HTML hydrates
+ * without a text swap.
  */
 export function DevtoolsShortcut(): ReactNode {
   return (
     <>
-      <span className="os-mac">⌘⌥J</span>
-      <span className="os-other">Ctrl+Shift+J</span>
+      <span className="br-chromium os-mac">⌘⌥J</span>
+      <span className="br-chromium os-other">Ctrl+Shift+J</span>
+      <span className="br-firefox os-mac">⌘⌥K</span>
+      <span className="br-firefox os-other">Ctrl+Shift+K</span>
+      <span className="br-safari">⌘⌥C</span>
     </>
+  );
+}
+
+/**
+ * Safari's console shortcut only works once its developer features are on. Shown after an inline
+ * `<DevtoolsShortcut />` in Safari only (`html[data-browser=safari]`).
+ */
+export function SafariConsoleNote(): ReactNode {
+  return (
+    <span className="br-safari">
+      {" ("}
+      <A href="/docs/installation#open-the-console">turn on developer features</A>
+      {" first)"}
+    </span>
   );
 }
 
@@ -95,6 +106,9 @@ export function Header(): ReactNode {
           >
             <SearchIcon size={18} />
           </button>
+          <A href={REPO_URL} className="icon-btn github-btn" aria-label="Text.js on GitHub">
+            <GitHubIcon size={18} />
+          </A>
           <button
             type="button"
             className="icon-btn menu-btn"
@@ -123,6 +137,10 @@ export function Header(): ReactNode {
               <ChevronRight />
             </A>
           ))}
+          <A href={REPO_URL}>
+            GitHub
+            <ArrowUpRight />
+          </A>
         </nav>
       </Sheet>
     </header>
@@ -165,6 +183,7 @@ export function Footer(): ReactNode {
           <A href="/enterprise">Enterprise</A>
           <A href="/store">Store</A>
           <A href="/status">Status</A>
+          <A href={REPO_URL}>GitHub</A>
         </nav>
         <FooterStatus />
       </div>

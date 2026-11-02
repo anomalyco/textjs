@@ -39,9 +39,14 @@
   box-sizing: border-box;
 }
 
-/* Platform-specific labels: both are rendered, `html[data-os]` (set before first paint) picks one. */
+/* Platform- and browser-specific labels: all are rendered, `html[data-os]` and `html[data-browser]`
+   (set before first paint) pick one. No `data-browser` means Chromium. */
 html:not([data-os="mac"]) .os-mac,
-html[data-os="mac"] .os-other {
+html[data-os="mac"] .os-other,
+html[data-browser="firefox"] .br-chromium,
+html[data-browser="safari"] .br-chromium,
+html:not([data-browser="firefox"]) .br-firefox,
+html:not([data-browser="safari"]) .br-safari {
   display: none !important;
 }
 
@@ -331,14 +336,22 @@ kbd {
   height: 100%;
 }
 
+/* A fixed width (the Geist wordmark's), so the nav beside it never moves when the font swaps in. */
 .wordmark {
   display: inline-flex;
+  flex: none;
   align-items: center;
+  width: 84px;
   gap: 10px;
+  white-space: nowrap;
   font-weight: 700;
   font-size: 18px;
   letter-spacing: -0.04em;
   color: var(--fg-strong);
+}
+
+.wordmark svg {
+  flex: none;
 }
 
 .logo-menu {
@@ -448,6 +461,11 @@ kbd {
   display: none;
 }
 
+/* Puts the mark, not its hit area, on the container's right edge. */
+.github-btn {
+  margin-right: -9px;
+}
+
 @media (max-width: 1100px) {
   .live-pill .live-detail {
     display: none;
@@ -460,7 +478,8 @@ kbd {
 @media (max-width: 900px) {
   .nav,
   .search-btn,
-  .live-pill {
+  .live-pill,
+  .github-btn {
     display: none;
   }
   .menu-btn,
@@ -1796,6 +1815,25 @@ kbd {
   color: var(--muted);
 }
 
+.docs-edit {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 8px;
+  margin-top: 64px;
+  font-size: 13px;
+  color: var(--subtle);
+  transition: color 0.15s ease;
+}
+
+.docs-edit:hover {
+  color: var(--fg);
+}
+
+.docs-edit + .docs-nav {
+  margin-top: 24px;
+}
+
 .docs-nav {
   margin-top: 64px;
   display: grid;
@@ -1962,6 +2000,9 @@ kbd {
   .prose h3 {
     margin-top: 32px;
     font-size: 18px;
+  }
+  .docs-edit {
+    margin-top: 48px;
   }
   .docs-nav {
     margin-top: 48px;
@@ -2571,6 +2612,27 @@ kbd {
   }
   .pad-stage .tx-pad-sub {
     min-height: 72px;
+  }
+}
+
+/* Safari's line below the hero (turn on the developer features, then click) is one line longer at every
+   width, and FocusPad reserves it in every state; the frame grows by the same 24px. */
+html[data-browser="safari"] .pad-stage {
+  --pad-frame: 320px;
+}
+
+@media (max-width: 640px) {
+  html[data-browser="safari"] .pad-stage {
+    --pad-frame: 300px;
+  }
+}
+
+@media (max-width: 359px) {
+  html[data-browser="safari"] .pad-stage {
+    --pad-frame: 320px;
+  }
+  html[data-browser="safari"] .pad-stage .tx-pad-sub {
+    min-height: 96px;
   }
 }
 

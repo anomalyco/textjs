@@ -1026,6 +1026,11 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
     },
     {
       "depth": 2,
+      "text": "Firefox and Safari",
+      "id": "firefox-and-safari"
+    },
+    {
+      "depth": 2,
       "text": "Benchmarks",
       "id": "benchmarks"
     }

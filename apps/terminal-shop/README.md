@@ -9,7 +9,7 @@ bun run --cwd apps/terminal-shop typecheck
 bun run --cwd apps/terminal-shop e2e -- --mock   # headless Chromium, full checkout, mock API
 ```
 
-Open the page, press **⌘⌥J** (**Ctrl+Shift+J** on Windows and Linux), then click back into the page so it gets the keyboard.
+Open the page, [open the browser console](https://textjs.org/docs/installation#open-the-console), then click back into the page so it gets the keyboard.
 
 ## Signing in
 

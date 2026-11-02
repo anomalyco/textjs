@@ -2,22 +2,22 @@
 
 # ▼ Text.js
 
-Build full-stack React apps that render inside `console.log`.
+Text.js is a React framework for apps that render in the browser console.
 
-[Docs](https://textjs.org/docs) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
+[Docs](https://textjs.org/docs) · [Learn](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
-<img src="apps/web/public/og.png" alt="▼ Text.js, the Console Framework for the Web" width="720" />
+<img src="brand/share/2-console-frame.png" alt="A Text.js app rendered in the Chrome DevTools console" width="720" />
 
 </div>
 
-## Quickstart
+## Quick start
 
 ```bash
 bunx create-text-app@latest
 cd my-app && bun install && bun dev
 ```
 
-Open [localhost:3000](http://localhost:3000) and press **⌘⌥J** (**Ctrl+Shift+J** on Windows and Linux).
+Open [localhost:3000](http://localhost:3000) and [open the browser console](https://textjs.org/docs/installation#open-the-console). Text.js needs Bun 1.2+ or Node.js 22+ and Chrome, Edge, Firefox or Safari on desktop.
 
 ## Example
 
@@ -43,44 +43,40 @@ export default function Page() {
 }
 ```
 
-Each frame is laid out with Yoga, run-length encoded into `%c` spans, and written in one `console.log`. Idle frames log nothing. See [`ARCHITECTURE.md`](ARCHITECTURE.md).
+Each frame is laid out with Yoga, run-length encoded into `%c` spans and written in one `console.log`. A frame with no changed cells logs nothing. [`ARCHITECTURE.md`](ARCHITECTURE.md) covers the rendering pipeline.
 
 ## Packages
 
-| Package | Description |
-| --- | --- |
-| [`@textjs/app`](packages/app) | App Router, CLI and route handlers |
-| [`@textjs/react`](packages/react) | Reconciler, components and hooks |
-| [`@textjs/core`](packages/core) | Cell buffer, layout and the `%c` driver |
-| [`@textjs/font`](packages/font) | FIGlet font parser and renderer |
-| [`create-text-app`](packages/create-text-app) | Project generator |
-| [`eslint-plugin-textjs`](packages/eslint-plugin-textjs) | ESLint rules for Text.js apps |
-| [`@textjs/opencode`](packages/opencode) | Local bridge for textjs.org/opencode |
+| Package | Version | Description |
+| --- | --- | --- |
+| [`@textjs/app`](packages/app) | [![npm](https://img.shields.io/npm/v/@textjs/app)](https://www.npmjs.com/package/@textjs/app) | App Router, the `text` CLI and route handlers |
+| [`@textjs/react`](packages/react) | [![npm](https://img.shields.io/npm/v/@textjs/react)](https://www.npmjs.com/package/@textjs/react) | Reconciler, components and hooks |
+| [`@textjs/core`](packages/core) | [![npm](https://img.shields.io/npm/v/@textjs/core)](https://www.npmjs.com/package/@textjs/core) | Cell buffer, layout and the `%c` console driver |
+| [`@textjs/font`](packages/font) | [![npm](https://img.shields.io/npm/v/@textjs/font)](https://www.npmjs.com/package/@textjs/font) | FIGlet font parser and renderer |
+| [`@textjs/opencode`](packages/opencode) | [![npm](https://img.shields.io/npm/v/@textjs/opencode)](https://www.npmjs.com/package/@textjs/opencode) | Local bridge between textjs.org/opencode and an OpenCode server |
+| [`create-text-app`](packages/create-text-app) | [![npm](https://img.shields.io/npm/v/create-text-app)](https://www.npmjs.com/package/create-text-app) | Project generator |
+| [`eslint-plugin-textjs`](packages/eslint-plugin-textjs) | [![npm](https://img.shields.io/npm/v/eslint-plugin-textjs)](https://www.npmjs.com/package/eslint-plugin-textjs) | ESLint rules for Text.js apps |
 
-## OpenCode
+The editor and browser extensions live here too:
 
-A connected [OpenCode](https://opencode.ai) client in your console:
-
-```bash
-opencode service status     # If stopped: opencode service start
-bun run dev:opencode        # From the repo root; no bridge needed
-```
-
-Then open [localhost:3001](http://localhost:3001) and press **⌘⌥J** (**Ctrl+Shift+J** on Windows and Linux). Without a server it falls back to a demo.
-
-For the website’s `/opencode` page, run `bunx @textjs/opencode proxy` from any directory instead. Leave it running, enter `http://127.0.0.1:4096` in the server URL field, click **Connect**, and allow local network access if Chrome asks. The bridge handles CORS and server auth. See [Connecting](apps/opencode-console/README.md#connecting) for foreground servers and port conflicts.
+- [`packages/vscode-textjs`](packages/vscode-textjs): the [VS Code extension](https://textjs.org/docs/vscode), with a live preview, App Router scaffolding and error code links
+- [`packages/devtools-extension`](packages/devtools-extension): the [Chrome DevTools extension](https://textjs.org/docs/devtools-extension), with a component tree, frame inspector and timeline
 
 ## Development
 
 ```bash
 bun install
-bun test packages/ apps/opencode-console/ apps/web/
+bun test packages/
 bun run typecheck
-bun run build
+bun run --cwd apps/web dev
 ```
 
-`bun scripts/qa-starters.ts` scaffolds every create-text-app template from packed tarballs, installs it with bun and npm, and runs `text dev`, `build`, `start` and `run` against headless Chromium and a pty, along with `examples/` and the OpenCode and terminal apps. It fails on any console error or warning. It needs `bun install --cwd bench/devtools` once for Playwright; CI runs it in `.github/workflows/qa-starters.yml`.
+The site runs at [localhost:3000](http://localhost:3000). [CONTRIBUTING.md](CONTRIBUTING.md) covers the other apps, the end-to-end scripts and the release process.
+
+## Contributing
+
+Bug reports and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first, and report security issues as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT
+[MIT](LICENSE). Bundled third-party files keep their own licenses: the FIGlet fonts in [`packages/font`](packages/font/NOTICE) (BSD 3-Clause) and the fonts under `apps/web` and `merch/fonts` (SIL Open Font License 1.1).

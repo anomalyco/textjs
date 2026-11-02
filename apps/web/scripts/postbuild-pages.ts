@@ -135,8 +135,13 @@ function withRouteHeadHints(html: string, routePath: string, markup: string): st
   }
   if (earlyLinks.length > 0) {
     if (css.length > 0) out = out.replace(/\s*<link rel="stylesheet"[^>]*>/g, "");
-    // Place stylesheets & priority image preloads right after inline @font-face (after font preloads, before module scripts).
-    out = out.replace("</style>", `</style>\n    ${earlyLinks.join("\n    ")}`);
+    // Place stylesheets & priority image preloads after the inline @font-face and the inline head script (before
+    // module scripts). A classic script after a stylesheet waits for it, and the head script must run at once.
+    const styleEnd = out.indexOf("</style>");
+    const scriptEnd = out.indexOf("</script>", styleEnd);
+    if (styleEnd < 0 || scriptEnd < 0) throw new Error("index.html is missing the inline head <style> and <script>");
+    const at = scriptEnd + "</script>".length;
+    out = `${out.slice(0, at)}\n    ${earlyLinks.join("\n    ")}${out.slice(at)}`;
   }
   const extraHead: string[] = [];
   const route = server.matchRoute(routePath);

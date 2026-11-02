@@ -11,7 +11,7 @@ import { extname, isAbsolute, join } from "node:path";
 import type { Browser, Page } from "playwright-core";
 import { OG_HEIGHT, OG_WIDTH, type OgCard } from "../../src/og";
 import { optimizePng } from "./png";
-import { CHROMIUM_ARGS, cardHtml, documentHtml, drawn, OG_FONTS, OG_ORIGIN } from "./template";
+import { CHROMIUM_ARGS, cardHtml, documentHtml, drawn, LOCKUP_SVG, OG_FONTS, OG_ORIGIN } from "./template";
 
 export interface OgImage {
   /** Site path of the image, with a content version (`/og/docs-routing.png?v=…`). */
@@ -36,10 +36,11 @@ const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
 const sha = (data: string | Buffer): string => createHash("sha256").update(data).digest("hex");
 
-/** Hash of the renderer itself: these scripts and every font file. */
+/** Hash of the renderer itself: these scripts, every font file, the lockup (it lives in the site's logo menu) and the card size. */
 function rendererHash(): string {
   const parts = ["template.ts", "render.ts", "png.ts"].map((f) => readFileSync(join(import.meta.dirname, f)));
   for (const file of Object.values(OG_FONTS)) parts.push(readFileSync(join(WEB_DIR, file)));
+  parts.push(Buffer.from(`${OG_WIDTH}x${OG_HEIGHT}\n${LOCKUP_SVG}`));
   return sha(Buffer.concat(parts));
 }
 

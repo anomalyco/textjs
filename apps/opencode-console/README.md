@@ -9,7 +9,7 @@ bun run --cwd apps/opencode-console test
 bun run --cwd apps/opencode-console build
 ```
 
-Open the page, press **⌘⌥J** (or **Ctrl+Shift+J**), then click back into the page so it captures the keyboard.
+Open the page, [open the browser console](https://textjs.org/docs/installation#open-the-console), then click back into the page so it captures the keyboard.
 
 ## Connecting
 

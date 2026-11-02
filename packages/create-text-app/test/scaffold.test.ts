@@ -62,7 +62,8 @@ describe("helpers", () => {
     expect(msg).toContain("cd my-app");
     expect(msg).toContain("bun install");
     expect(msg).toContain("bun dev");
-    expect(msg).toContain("⌘⌥J");
+    expect(msg).toContain("open the browser console");
+    expect(msg).toContain("textjs.org/docs/installation#open-the-console");
   });
 });
 
@@ -118,7 +119,7 @@ describe("create-text-app CLI", () => {
     expect(out).toContain("cd cli-app");
     expect(out).toContain("bun install");
     expect(out).toContain("bun dev");
-    expect(out).toContain("⌘⌥J");
+    expect(out).toContain("open the browser console");
     expect(existsSync(join(tmp, "cli-app/app/deployments/[id]/page.tsx"))).toBe(true);
   });
 

@@ -18,7 +18,7 @@ Only the latest minor of a major is patched: when `1.5.0` ships, fixes land in `
 
 - Security vulnerabilities in Text.js packages
 - Crashes, data loss and build failures without a workaround
-- Compatibility with new Chromium releases that break console rendering
+- Compatibility with new Chrome, Edge, Firefox and Safari releases that break console rendering
 - Compatibility with supported runtimes and deploy targets
 
 New features, performance work and refactors land on the active line only.
@@ -39,6 +39,7 @@ Not covered: APIs marked experimental or `unstable_` (they may change in a minor
 | Runtime | Supported |
 | :-- | :-- |
 | Chrome / Edge DevTools | Current and previous two stable releases |
+| Firefox and Safari consoles | Current stable release |
 | Node.js | Active and maintenance LTS releases (`text start`, Vercel functions) |
 | Bun | Latest 1.x |
 | Cloudflare Workers | `compatibility_date` 2025-01-01 or later, `nodejs_compat` |
@@ -47,6 +48,6 @@ Dropping a runtime version that has reached its own end of life is not a breakin
 
 ## Security
 
-Report vulnerabilities privately through the repository's GitHub security advisories rather than public issues. Fixes are released for every supported line at the same time, and the advisory is published once patched versions are on npm.
+Report vulnerabilities privately to [security@textjs.org](mailto:security@textjs.org) or through [GitHub security advisories](https://github.com/anomalyco/textjs/security/advisories/new). Fixes are released for every supported line at the same time, and the advisory is published once patched versions are on npm.
 
 See [Release Channels](/docs/release-channels) for how versions and dist-tags are produced.

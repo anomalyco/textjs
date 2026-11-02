@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Text.js renders in the Firefox and Safari consoles. `CssConsoleDriver` detects the browser with CSS feature checks. Where `%c` spans stay inline, it writes 14px line heights without margins, turns off soft wrapping and uses a `line-height: 100vh` curtain.
+- Responsive sizing leaves room for Firefox's source link column. Safari puts Menlo first in the font stack: its pages can't use a user-installed SF Mono, which Web Inspector may draw with.
+- Pass `browser: "chromium" | "firefox" | "safari"` to `createConsoleRoot`, `ConsoleRenderer` or `CssConsoleDriver` to choose a console.
+- Prerendered shells carry the CSS for both kinds of console.
+- `<FocusPad>` shows the console shortcut for the visitor's browser: ⌘⌥K or Ctrl+Shift+K in Firefox, and ⌘⌥C in Safari with a note to turn on "Show features for web developers".
+- A prerendered `<FocusPad>` renders every browser's shortcut. Set `data-browser` (`firefox` or `safari`) and `data-os` (`mac`) on `<html>` before first paint to show only the visitor's; without them it shows Chrome's Windows and Linux shortcut until it hydrates.
+
+### Fixed
+
+- ⌘⌥K and Ctrl+Shift+K (Firefox's console shortcut) pass through to the browser instead of reaching the app.
+- Responsive sizing learns browser toolbars under 60px tall (Safari's and Firefox's) while DevTools is closed, so a console docked at the bottom gets every row it fits. `<FocusPad>` uses the learned height to tell whether DevTools is docked.
+- `<FocusPad>` writes Windows and Linux shortcuts in its click state as `Ctrl+Shift+J`.
+
 ### Security
 
 - `@textjs/opencode`: the bridge prints a pairing code when it starts, and textjs.org/opencode asks for it on the first connect. Until a page sends the code, the bridge answers `428` and forwards nothing to OpenCode, so no page, including one on an allowed origin, can drive your agent without it. Each code is good for one bridge run, the token it returns works only from the origin that paired, and ten wrong codes lock pairing until the bridge restarts.

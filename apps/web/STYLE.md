@@ -1,6 +1,6 @@
 # Copy style for textjs.org
 
-General rules (banned patterns, register, humour) live in the `writing-copy` skill (`~/.config/opencode/skills/writing-copy/SKILL.md`). This file covers what is specific to Text.js.
+General rules (register, banned patterns, humour) are summarized in [`CONTRIBUTING.md`](../../CONTRIBUTING.md#writing-docs-and-copy). This file covers what is specific to Text.js.
 
 1. **Sources of truth.** Check every claim against the code, `ARCHITECTURE.md`, `CHANGELOG.md` and `src/pages/status-history.json`. When copy and code disagree, fix the copy.
 2. **Numbers.** Performance figures come from the latest run in `status-history.json` (today: 0.163ms full repaint, 0.011ms one-row edit, 0.000ms idle, 149 `%c` spans for 3,200 cells, Apple M5 Pro · Bun 1.4.4, mean of 1,000 frames). Import them in TSX instead of retyping them. DevTools figures (70.6% → 1.0% blank paints, 10.4ms lag) come from the same file. Frames are at least 66ms apart; there is no 16.6ms budget.

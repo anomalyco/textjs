@@ -46,6 +46,10 @@ console.log("%c▼ Text.js%c ready", "color:#ededed;font-weight:700", "color:#45
 - Spans use longhand CSS only. DevTools copies every expanded property onto every line.
 - Spans are tuned so backgrounds tile without gaps.
 
+## Firefox and Safari
+
+Chromium lays out each line of a `%c` span as an inline block. Firefox and Safari keep spans inline, so they ignore vertical margins and wrap long rows. `CssConsoleDriver` detects the browser with CSS feature checks and, for those two consoles, sets a 14px line height with no margins, turns off wrapping with `text-wrap-mode: nowrap` and pushes earlier frames out of view with a `line-height: 100vh` curtain. Fitting the console leaves room for Firefox's source link column. Safari puts Menlo first in the font stack, because its pages can't use a user-installed SF Mono that Web Inspector may draw with. Pass `browser` to `createConsoleRoot` to pick a console yourself.
+
 ## Benchmarks
 
 `packages/core/test/perf.test.ts` on a dense `100×32` dashboard, mean of 1,000 frames (Apple M5 Pro, Bun 1.4.4):

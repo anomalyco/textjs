@@ -22,6 +22,7 @@ import {
 } from "./style";
 import { hasRtl, isRtlCodePoint, LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../bidi";
 import { LruCache } from "../text-measure";
+import { consoleProfile, inlineTypographyCss, type ConsoleBrowser } from "./console-browser";
 
 /** Minimal console surface used by the driver; inject a fake for tests and benchmarks. */
 export interface ConsoleTarget {
@@ -76,7 +77,8 @@ export interface CssConsoleDriverOptions {
   maxFrames?: number;
   /**
    * In `"append"` mode, push earlier frames above the top of the console with
-   * a tall top margin on the first span, so a frame shorter than the console
+   * a 100vh top margin on a leading span (a 100vh line in Firefox and Safari,
+   * which ignore vertical margins on inline spans), so a frame shorter than the console
    * never shows the tail of the previous one. Defaults to `true` when writing
    * to the global console and `false` for an injected target.
    */
@@ -95,6 +97,13 @@ export interface CssConsoleDriverOptions {
    * canvas measurer in browsers; `false` (and non-browser runtimes) disable fitting.
    */
   measureText?: TextAdvanceMeasurer | false;
+  /**
+   * The console the frames are written for (default: detected from the page,
+   * `"chromium"` outside a browser). Firefox and Safari keep `%c` spans inline,
+   * so they get 14px line heights without margins, no soft wrapping and a
+   * line-height curtain (see `ConsoleBrowser`).
+   */
+  browser?: ConsoleBrowser;
 }
 
 /** Advance width in CSS px of `text` rendered with the console font. */
@@ -196,7 +205,6 @@ function unescapeConsoleText(escaped: string): string {
   return escaped.includes("%%") ? escaped.replaceAll("%%", "%") : escaped;
 }
 
-const CURTAIN_CSS = "margin-top:100vh;";
 const IDLE_COMPACT_FRAMES = 100;
 const IDLE_COMPACT_MS = 1000;
 
@@ -299,15 +307,16 @@ export class CssConsoleDriver {
 
   constructor(options: CssConsoleDriverOptions = {}) {
     this.target = options.console ?? null;
-    this.typography = Object.freeze({ ...DEFAULT_TYPOGRAPHY, ...options.typography });
+    const profile = consoleProfile(options.browser);
+    this.typography = Object.freeze({ ...DEFAULT_TYPOGRAPHY, ...profile.typography, ...options.typography });
     this.styleOptions = Object.freeze({ ...DEFAULT_STYLE_RESOLVE, ...options.style });
     const clear = options.clear ?? "append";
     this.clearMode = clear === true ? "frame" : clear === false ? "never" : clear;
     this.maxFrames = Math.max(1, options.maxFrames ?? 300);
     this.curtainOption = options.curtain;
     this.coalesce = options.coalesceWhitespace ?? true;
-    this.baseCss = typographyCss(this.typography);
-    this.curtainCss = CURTAIN_CSS;
+    this.baseCss = profile.inline ? inlineTypographyCss(this.typography, profile.typography.fontFamily) : typographyCss(this.typography);
+    this.curtainCss = profile.curtainCss;
     if (options.initialClear === false) this.appended = 1;
     this.measureOption = options.measureText;
   }

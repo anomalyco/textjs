@@ -305,6 +305,8 @@ export async function createLiveApp(options: LiveAppOptions): Promise<LiveApp> {
 export interface ShellCall {
   method: "clear" | "log";
   args: string[];
+  /** The CSS arguments for Firefox's and Safari's inline consoles, when they differ (the format string never does). */
+  inlineArgs?: string[];
 }
 
 export interface PrerenderShellOptions {
@@ -360,13 +362,21 @@ export async function prerenderShell(options: PrerenderShellOptions): Promise<Sh
       throw new Error(`rendering ${options.path} threw: ${first instanceof Error ? first.message : String(first)}`, { cause: first });
     }
     if (history.location.href !== parseHref(options.path).href) throw new Error(`rendering ${options.path} navigated to ${history.location.href}`);
-    const calls: ShellCall[] = [];
-    const capture: ConsoleTarget = {
-      clear: () => void calls.push({ method: "clear", args: [] }),
-      log: (...args: unknown[]) => void calls.push({ method: "log", args: args.map(String) }),
+    const capture = (browser: "chromium" | "firefox"): ShellCall[] => {
+      const calls: ShellCall[] = [];
+      const target: ConsoleTarget = {
+        clear: () => void calls.push({ method: "clear", args: [] }),
+        log: (...args: unknown[]) => void calls.push({ method: "log", args: args.map(String) }),
+      };
+      new CssConsoleDriver({ console: target, curtain: true, browser }).render(root.renderer.buffer);
+      return calls;
     };
-    new CssConsoleDriver({ console: capture, curtain: true }).render(root.renderer.buffer);
-    return calls;
+    // The shell runs before any module, so it carries the CSS for both kinds of console.
+    const inline = capture("firefox");
+    return capture("chromium").map((call, i) => {
+      const css = inline[i]?.args.slice(1);
+      return call.method === "log" && css !== undefined && css.join("\0") !== call.args.slice(1).join("\0") ? { ...call, inlineArgs: css } : call;
+    });
   } finally {
     root.unmount();
     g.fetch = realFetch;

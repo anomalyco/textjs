@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
-import { estimateDockedConsoleSize, extractStyledFrame, type KeyInputEvent, type StyledFrame } from "@textjs/core";
+import { CHROME_STORAGE_KEY, detectConsoleBrowser, estimateDockedConsoleSize, extractStyledFrame, type ConsoleBrowser, type KeyInputEvent, type StyledFrame } from "@textjs/core";
 import type { ConsoleRoot } from "../root";
 import { ConsoleMirror } from "./ConsoleMirror";
 import { ViewportControl, type ViewportControlProps } from "./ViewportControl";
@@ -149,7 +149,9 @@ const CSS = `
 .tx-pad-size:has(select:focus-visible){outline:2px solid var(--tx-focus);outline-offset:4px;border-radius:4px}
 @media (min-width:901px){.tx-pad[data-size-corner] .tx-pad-desk{padding-bottom:32px}}
 @media (max-width:900px){.tx-pad-size{position:static}}
+html[data-browser=safari] .tx-pad .tx-pad-sub,.tx-pad[data-console=safari] .tx-pad-sub{min-height:48px}
 @media (max-width:640px){
+html[data-browser=safari] .tx-pad .tx-pad-sub,.tx-pad[data-console=safari] .tx-pad-sub{min-height:72px}
 .tx-pad{--tx-pad-gap:24px;--tx-pad-headline:28px;--tx-pad-headline-lh:36px;--tx-pad-hero:64px}
 .tx-pad-hints{column-gap:24px}
 .tx-pad-click{width:48px;height:48px}
@@ -164,7 +166,7 @@ const CSS = `
 @keyframes tx-pad-ring{0%{opacity:.6}100%{opacity:0}}
 @keyframes tx-pad-pop{0%{opacity:0;transform:translateY(4px)}12%{opacity:1;transform:none}70%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.tx-pad *{animation:none!important;transition:none!important}.tx-pad-ring,.tx-pad-dot::after,.tx-pad-click::after{display:none}}
-html:not([data-os=mac]) .tx-pad .tx-os-mac,html[data-os=mac] .tx-pad .tx-os-other{display:none!important}
+html:not([data-os=mac]) .tx-pad .tx-os-mac,html[data-os=mac] .tx-pad .tx-os-other,html:not([data-browser=firefox]) .tx-pad .tx-br-firefox,html:not([data-browser=safari]) .tx-pad .tx-br-safari,html[data-browser=firefox] .tx-pad .tx-br-chromium,html[data-browser=safari] .tx-pad .tx-br-chromium,html[data-browser=safari] .tx-pad .tx-not-safari{display:none!important}
 `;
 
 const INTERACTIVE = "a,button,input,textarea,select,label,summary,[contenteditable],[data-focus-pad-ignore]";
@@ -173,21 +175,56 @@ function isMac(): boolean {
   return typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 }
 
-/** The DevTools console shortcut for this platform, as keycaps. */
-export function devtoolsShortcutKeys(): string[] {
-  return isMac() ? ["⌘", "⌥", "J"] : ["Ctrl", "Shift", "J"];
+/**
+ * The console the pad gives directions for: the browser (see `ConsoleBrowser`) and, where the
+ * shortcut differs, the platform. Safari only runs on macOS.
+ */
+export type FocusPadConsole = "chromium-mac" | "chromium-other" | "firefox-mac" | "firefox-other" | "safari";
+
+const CONSOLES: readonly FocusPadConsole[] = ["chromium-mac", "chromium-other", "firefox-mac", "firefox-other", "safari"];
+
+/** Chrome and Edge open the console with ⌘⌥J, Firefox with ⌘⌥K, Safari with ⌘⌥C. */
+const SHORTCUT_KEYS: Record<FocusPadConsole, string[]> = {
+  "chromium-mac": ["⌘", "⌥", "J"],
+  "chromium-other": ["Ctrl", "Shift", "J"],
+  "firefox-mac": ["⌘", "⌥", "K"],
+  "firefox-other": ["Ctrl", "Shift", "K"],
+  safari: ["⌘", "⌥", "C"],
+};
+
+/** The console for a browser and platform (exported for tests). */
+export function focusPadConsole(browser: ConsoleBrowser | null, mac: boolean): FocusPadConsole {
+  if (browser === "safari") return "safari";
+  return `${browser === "firefox" ? "firefox" : "chromium"}-${mac ? "mac" : "other"}`;
 }
 
-type Platform = "mac" | "other";
-const SHORTCUT_KEYS: Record<Platform, string[]> = { mac: ["⌘", "⌥", "J"], other: ["Ctrl", "Shift", "J"] };
+function currentConsole(): FocusPadConsole {
+  return focusPadConsole(detectConsoleBrowser(), isMac());
+}
+
+/** The DevTools console shortcut for this browser and platform, as keycaps. */
+export function devtoolsShortcutKeys(): string[] {
+  return SHORTCUT_KEYS[currentConsole()];
+}
+
+/**
+ * Classes that let a host page pick a prerendered variant before hydration with `html[data-os=mac]`
+ * and `html[data-browser=firefox|safari]` (no attribute: Chromium on Windows or Linux).
+ */
+function variantClass(c: FocusPadConsole): string {
+  if (c === "safari") return "tx-br-safari";
+  const [browser, os] = c.split("-");
+  return `tx-br-${browser} tx-os-${os}`;
+}
+
 const noSubscribe = (): (() => void) => () => undefined;
 
 /**
- * `null` while server rendering and hydrating: both shortcuts are then rendered and CSS
- * (`html[data-os=mac]`) shows one, so prerendered pages hydrate without swapping text.
+ * `null` while server rendering and hydrating: every variant is then rendered and CSS
+ * (`html[data-os]`, `html[data-browser]`) shows one, so prerendered pages hydrate without swapping text.
  */
-function usePlatform(): Platform | null {
-  return useSyncExternalStore(noSubscribe, () => (isMac() ? "mac" : "other"), () => null);
+function useConsole(): FocusPadConsole | null {
+  return useSyncExternalStore(noSubscribe, currentConsole, () => null);
 }
 
 const KEY_LABEL: Record<string, string> = { up: "↑", down: "↓", left: "←", right: "→", return: "Enter", escape: "Esc", space: "Space", tab: "Tab", backspace: "⌫", delete: "Del", pageup: "PgUp", pagedown: "PgDn" };
@@ -208,9 +245,19 @@ function keycapMatches(cap: string, pressed: string): boolean {
     .some((k) => parts.includes(k));
 }
 
+/** The browser chrome height the viewport learned while DevTools was closed (see `ViewportController`). */
+function storedChromeHeight(): number | undefined {
+  try {
+    const v = Number(localStorage.getItem(CHROME_STORAGE_KEY) ?? Number.NaN);
+    return Number.isFinite(v) && v >= 0 ? v : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function devtoolsDocked(): boolean {
   if (typeof window === "undefined") return false;
-  return estimateDockedConsoleSize(window, 7, 14).dock !== "undocked";
+  return estimateDockedConsoleSize(window, 7, 14, { browserChromeHeight: storedChromeHeight() }).dock !== "undocked";
 }
 
 const ARROWS: Record<string, string> = {
@@ -248,8 +295,8 @@ export interface FocusPadMessageProps {
   hints: readonly FocusPadHint[];
   /** What to do once focused, e.g. `"press ← →"`. */
   doThis: string;
-  /** `null` while prerendering: both shortcuts are rendered and CSS shows one. */
-  platform: Platform | null;
+  /** `null` while prerendering: every console's directions are rendered and CSS shows one. */
+  devtools: FocusPadConsole | null;
   /** The key that just reached the app, lit on its keycap and echoed below. */
   lit?: string | null;
   last?: { label: string; n: number } | null;
@@ -264,8 +311,7 @@ export interface FocusPadMessageProps {
  * - `click`: a click target.
  * - `live`: the app's keys, lit as they arrive, with the last key echoed below.
  */
-export function FocusPadMessage({ state, hints, doThis, platform, lit = null, last = null, animate = false }: FocusPadMessageProps): ReactNode {
-  const shortcut = SHORTCUT_KEYS[platform ?? "other"];
+export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, last = null, animate = false }: FocusPadMessageProps): ReactNode {
   const step = state === "open" ? 1 : state === "click" ? 2 : 3;
   const enter = animate ? "tx-pad-in" : undefined;
   const cls = (name: string): string => (enter ? `${name} ${enter}` : name);
@@ -288,9 +334,9 @@ export function FocusPadMessage({ state, hints, doThis, platform, lit = null, la
             Open the console
           </h2>
           <div key="open-hero" className={cls("tx-pad-hero")}>
-            {(platform ? [platform] : (["mac", "other"] as const)).map((p) => (
-              <div key={p} className={platform ? "tx-pad-keys" : `tx-pad-keys tx-os-${p}`} aria-label={`Press ${SHORTCUT_KEYS[p].join(" ")}`}>
-                {SHORTCUT_KEYS[p].map((k) => (
+            {(devtools ? [devtools] : CONSOLES).map((c) => (
+              <div key={c} className={devtools ? "tx-pad-keys" : `tx-pad-keys ${variantClass(c)}`} aria-label={`Press ${SHORTCUT_KEYS[c].join(" ")}`}>
+                {SHORTCUT_KEYS[c].map((k) => (
                   <Keycap key={k} k={k} size="lg" />
                 ))}
               </div>
@@ -298,7 +344,18 @@ export function FocusPadMessage({ state, hints, doThis, platform, lit = null, la
           </div>
           {/* Keyed by the action: switching demos replaces the line rather than reflowing it (no layout shift). */}
           <p key={`open-${doThis}`} className={cls("tx-pad-sub")}>
-            <span className="tx-pad-line">The app renders in DevTools.</span> <span className="tx-pad-line">{`Then click here and ${doThis}.`}</span>
+            {/* Safari hides Web Inspector until its developer features are turned on. */}
+            {devtools !== "safari" ? (
+              <span key="devtools" className={devtools ? "tx-pad-line" : "tx-pad-line tx-not-safari"}>
+                The app renders in DevTools.
+              </span>
+            ) : null}
+            {devtools === null || devtools === "safari" ? (
+              <span key="safari" className={devtools ? "tx-pad-line" : "tx-pad-line tx-br-safari"}>
+                First turn on “Show features for web developers” in Safari Settings → Advanced.
+              </span>
+            ) : null}{" "}
+            <span className="tx-pad-line">{`Then click here and ${doThis}.`}</span>
           </p>
         </>
       ) : state === "click" ? (
@@ -316,7 +373,12 @@ export function FocusPadMessage({ state, hints, doThis, platform, lit = null, la
           <p key="click-sub" className={cls("tx-pad-sub")}>
             <span className="tx-pad-line">The app reads keys from this page.</span>{" "}
             <span className="tx-pad-line">
-              <kbd>{shortcut.join("")}</kbd> opens the console.
+              {(devtools ? [devtools] : CONSOLES).map((c) => (
+                <kbd key={c} className={devtools ? undefined : variantClass(c)}>
+                  {SHORTCUT_KEYS[c].join(c.endsWith("-other") ? "+" : "")}
+                </kbd>
+              ))}{" "}
+              opens the console.
             </span>
           </p>
         </>
@@ -457,7 +519,7 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
 
   const first = hints[0];
   const doThis = action ?? (first ? `press ${first.keys}` : "type");
-  const platform = usePlatform();
+  const devtools = useConsole();
   const live = state === "live";
 
   return (
@@ -465,6 +527,8 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
       className={`tx-pad${className ? ` ${className}` : ""}`}
       data-textjs-focus-pad=""
       data-state={state}
+      // Safari's open-state line wraps to two lines (three when narrow); every state reserves them.
+      data-console={devtools === "safari" ? "safari" : undefined}
       // The size control sits in the corner on wide screens; without content below, the message keeps clear of it.
       data-size-corner={sizeControl && children == null ? "" : undefined}
       onMouseDown={activate}
@@ -512,7 +576,7 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
 
       <div className="tx-pad-desk">
         {banner ? <div className="tx-pad-banner">{banner}</div> : null}
-        <FocusPadMessage state={state} hints={hints} doThis={doThis} platform={platform} lit={live ? lit : null} last={live ? last : null} animate={changed.current} />
+        <FocusPadMessage state={state} hints={hints} doThis={doThis} devtools={devtools} lit={live ? lit : null} last={live ? last : null} animate={changed.current} />
       </div>
 
       <div className="tx-pad-touch">
