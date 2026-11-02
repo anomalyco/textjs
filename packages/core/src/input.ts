@@ -181,6 +181,8 @@ function isTextField(t: EventTarget | null | undefined): boolean {
  * key, so the text arrives once through the sink. macOS and Linux compose dead keys, which
  * `isComposing` already covers.
  */
+const NAMED_KEY = /^[A-Z][A-Za-z0-9]+$/;
+
 export class DeadKeyTracker {
   private pending = false;
 
@@ -190,13 +192,16 @@ export class DeadKeyTracker {
       this.pending = true;
       return true;
     }
+    // Shift and AltGr on their way to the completing character neither claim nor clear.
+    if (MODIFIER_KEYS.has(e.key)) return false;
     if (!this.pending) return false;
     this.pending = false;
-    // Arrows, Esc and shortcuts after a dead key are ordinary keys. AltGr (Ctrl+Alt) characters still combine.
-    return isTextField(e.target) && isSingleGrapheme(e.key) && !e.metaKey && !(e.ctrlKey && !e.altKey);
+    // Arrows, Esc and shortcuts (Ctrl, Alt or Meta alone) after a dead key are ordinary keys; named keys are
+    // ASCII identifiers. Anything else is text, including Firefox's two-character "'t". AltGr (Ctrl+Alt) still combines.
+    return isTextField(e.target) && e.key.length > 0 && !NAMED_KEY.test(e.key) && !e.metaKey && e.ctrlKey === e.altKey;
   }
 
-  /** Text reached the field, so nothing is pending (a dead key pressed twice inserts text by itself). */
+  /** Text reached the field or the field lost focus, so nothing is pending (a dead key pressed twice inserts text by itself). */
   reset(): void {
     this.pending = false;
   }
@@ -228,9 +233,10 @@ export function normalizeKeyEvent(e: KeyboardEventLike): KeyInputEvent | null {
  * Read committed text from a hidden input sink: IME commits, dead keys and autocorrect.
  * Text being composed stays in the sink untouched so the IME keeps working, and is
  * delivered once on `compositionend`, whether the browser fires the last `input`
- * before or after it. Returns a function that removes the listeners.
+ * before or after it. `onBlur` runs when the sink loses focus. Returns a function that
+ * removes the listeners.
  */
-export function bindTextSink(sink: HTMLTextAreaElement | HTMLInputElement, onText: (text: string) => void): () => void {
+export function bindTextSink(sink: HTMLTextAreaElement | HTMLInputElement, onText: (text: string) => void, onBlur?: () => void): () => void {
   let composing = false;
   // Anything typed before the binding (while an engine boots) would prepend to the next commit.
   sink.value = "";
@@ -251,13 +257,16 @@ export function bindTextSink(sink: HTMLTextAreaElement | HTMLInputElement, onTex
     composing = false;
     take();
   };
+  const onFocusOut = (): void => onBlur?.();
   sink.addEventListener("compositionstart", onStart);
   sink.addEventListener("input", onInput);
   sink.addEventListener("compositionend", onEnd);
+  sink.addEventListener("blur", onFocusOut);
   return () => {
     sink.removeEventListener("compositionstart", onStart);
     sink.removeEventListener("input", onInput);
     sink.removeEventListener("compositionend", onEnd);
+    sink.removeEventListener("blur", onFocusOut);
   };
 }
 
@@ -382,7 +391,7 @@ export class InputEngine {
     }
     this.emit("key", {
       type: "key",
-      key: isSingleGrapheme(text) ? text.toLowerCase() : text,
+      key: text === " " ? "space" : isSingleGrapheme(text) ? text.toLowerCase() : text,
       input: text,
       code: "",
       repeat: false,
@@ -398,7 +407,7 @@ export class InputEngine {
    * consoles that keep their own textarea instead of calling `attach()`. Returns a function that removes the listeners.
    */
   bindTextSink(sink: HTMLTextAreaElement | HTMLInputElement): () => void {
-    return bindTextSink(sink, (text) => this.handleTextInput(text));
+    return bindTextSink(sink, (text) => this.handleTextInput(text), () => this.deadKeys.reset());
   }
 
   handlePaste(text: string, files?: readonly File[]): void {
@@ -421,6 +430,7 @@ export class InputEngine {
   }
 
   setFocused(focused: boolean): void {
+    if (!focused) this.deadKeys.reset();
     if (focused === this.isFocused) return;
     this.isFocused = focused;
     this.emit("focus", { type: "focus", focused });

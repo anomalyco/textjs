@@ -390,6 +390,7 @@ async function keys(layouts) {
       await press("dead key warm-up", "quote,space", 600);
       for (const [name, seq, text] of [
         ["' t", "quote,t", "'t"],
+        ["' Shift+T", "quote,shift+t", "'T"],
         ["' e", "quote,e", "é"],
         ["' a", "quote,a", "á"],
         ["' Space", "quote,space", "'"],
@@ -408,6 +409,16 @@ async function keys(layouts) {
       // A dead key followed by a non-character key passes that key to the app and inserts nothing.
       const arrow = rows.find((r) => r.seq === "quote,down");
       check("keys intl ' ↓ reaches the app", arrow.events.some((e) => e.t === "keydown" && e.key === "ArrowDown" && e.prevented) && inserted(arrow) === "", dead["' ↓"]);
+      // A dead key, then focus leaves the sink and comes back: Space is the space key again, not text.
+      os("keys", "quote");
+      await sleep(200);
+      await page.eval("document.activeElement && document.activeElement.blur()");
+      os("click", Math.round(dx + pad.x), Math.round(dy + pad.y));
+      await sleep(500);
+      const space = await press("Space after ' and a blur", "space", 600);
+      rows.push(space);
+      dead["' blur Space"] = { inserted: inserted(space), events: describeRow(space) };
+      check("keys intl ' blur Space is the space key", space.events.some((e) => e.t === "keydown" && e.key === " " && e.prevented) && inserted(space) === "", dead["' blur Space"]);
       results.keys.deadKeys = dead;
       console.log(`dead keys with the sink focused: ${JSON.stringify(dead)}`);
       // With <body> focused (no text field), the browser reports the composed key itself and the app takes it as a key.

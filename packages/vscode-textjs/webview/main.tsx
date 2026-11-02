@@ -385,7 +385,10 @@ function Stage({ state, frame }: { state: PreviewState; frame: StyledFrame | nul
             autoCorrect="off"
             spellCheck={false}
             onFocus={() => sendFocus(true)}
-            onBlur={() => sendFocus(false)}
+            onBlur={() => {
+              deadKeys.reset();
+              sendFocus(false);
+            }}
             onKeyDown={onKeyDown}
             onPaste={(e) => {
               e.preventDefault();
