@@ -8,9 +8,14 @@
  * daemon additionally requires Basic auth. The bridge adds both, while
  * rejecting every other origin. The daemon password is read into memory only:
  * it is never logged, never returned to the browser and never written to disk.
+ *
+ * An allowed origin alone can't drive the agent. The bridge prints a pairing code
+ * at startup; a page must send it to `/__bridge/pair` once to get a token for this
+ * bridge run, bound to that page's origin, and send the token on every request.
  */
 
 import { execFile } from "node:child_process";
+import { randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { existsSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -23,13 +28,21 @@ import { txError } from "./errors";
 export const DEFAULT_PROXY_PORT = 4096;
 export const BRIDGE_HEADER = "x-textjs-bridge";
 export const CLIENT_HEADER = "x-opencode-client";
+export const TOKEN_HEADER = "x-textjs-bridge-token";
+export const PAIR_PATH = "/__bridge/pair";
 export const MAX_BODY_BYTES = 4 * 1024 * 1024;
+/** Wrong codes before pairing locks until the bridge restarts. */
+export const MAX_PAIR_ATTEMPTS = 10;
+const MAX_PAIR_BODY_BYTES = 1024;
+const MAX_TOKENS = 64;
+/** No 0/O, 1/I/L or U: easy to read off a terminal and type. 30^6 ≈ 7×10^8 codes. */
+const PAIR_ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
+const PAIR_LENGTH = 6;
 
+/** Preview deployments aren't trusted by default: pass `--allow-origin` for one. */
 export const DEFAULT_ALLOWED_ORIGINS: readonly string[] = [
   "https://textjs.org",
   "https://www.textjs.org",
-  "https://textjs-avg.pages.dev",
-  "https://*.textjs-avg.pages.dev",
   "http://localhost:*",
   "http://127.0.0.1:*",
   "http://[::1]:*",
@@ -59,7 +72,33 @@ export interface BridgeOptions {
   discover?: () => Promise<BridgeTarget | null>;
   /** Re-run discovery after this long (default 30s). */
   cacheMs?: number;
+  /** Fixed pairing code (tests). Random per bridge run by default. */
+  pairingCode?: string;
+  /** Called when a page pairs, and when wrong codes lock pairing. */
+  onPairing?: (event: "paired" | "locked", origin: string) => void;
   log?: boolean;
+}
+
+/** A random pairing code such as `K7F2QM`, shown as `K7F-2QM`. */
+export function createPairingCode(): string {
+  let code = "";
+  for (let i = 0; i < PAIR_LENGTH; i++) code += PAIR_ALPHABET[randomInt(PAIR_ALPHABET.length)];
+  return code;
+}
+
+/** `k7f-2qm` → `K7F2QM`: case, spaces and dashes don't matter. */
+export function normalizePairingCode(input: string): string {
+  return input.toUpperCase().replace(/[^0-9A-Z]/g, "");
+}
+
+export function formatPairingCode(code: string): string {
+  return code.length === 6 ? `${code.slice(0, 3)}-${code.slice(3)}` : code;
+}
+
+function sameSecret(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
 }
 
 /** Strip the port from a `Host` header: `localhost:4096` → `localhost`, `[::1]:4096` → `[::1]`. */
@@ -89,9 +128,14 @@ function matchOrigin(origin: string, pattern: string): boolean {
   return o.port === (port ?? "");
 }
 
-/** Whether a browser `Origin` may use the bridge. */
+/** Whether a browser `Origin` may use the bridge. Only a serialized origin (no path, userinfo or trailing slash) matches. */
 export function isAllowedOrigin(origin: string, extra: readonly string[] = []): boolean {
   if (origin === "null") return false;
+  try {
+    if (new URL(origin).origin !== origin) return false;
+  } catch {
+    return false;
+  }
   for (const p of DEFAULT_ALLOWED_ORIGINS) if (matchOrigin(origin, p)) return true;
   for (const p of extra) if (matchOrigin(origin, p)) return true;
   return false;
@@ -103,7 +147,7 @@ export function corsHeaders(origin: string): Record<string, string> {
     "access-control-allow-origin": origin,
     "access-control-allow-private-network": "true",
     "access-control-allow-methods": "GET, HEAD, POST, PATCH, PUT, DELETE, OPTIONS",
-    "access-control-allow-headers": `Content-Type, Accept, Last-Event-ID, x-opencode-directory, ${CLIENT_HEADER}`,
+    "access-control-allow-headers": `Content-Type, Accept, Last-Event-ID, x-opencode-directory, ${CLIENT_HEADER}, ${TOKEN_HEADER}`,
     "access-control-expose-headers": BRIDGE_HEADER,
     "access-control-max-age": "86400",
     vary: "Origin",
@@ -235,6 +279,8 @@ export interface BridgeHandler {
   (request: Request): Promise<Response>;
   /** The current (cached) target, discovering it if needed. */
   target(force?: boolean): Promise<BridgeTarget | null>;
+  /** This run's pairing code, unformatted. */
+  pairingCode: string;
 }
 
 /** The bridge as a Web `Request → Response` handler. */
@@ -242,7 +288,49 @@ export function createBridgeHandler(options: BridgeOptions = {}): BridgeHandler 
   const discover = options.discover ?? (() => discoverOpencode(options.target));
   const cacheMs = options.cacheMs ?? 30_000;
   const extra = options.allowOrigins ?? [];
+  const pairingCode = normalizePairingCode(options.pairingCode ?? createPairingCode());
+  if (pairingCode.length < PAIR_LENGTH) throw new Error("Pairing codes need at least 6 letters or digits");
+  /** Token → the origin that paired it (`""` for a client without one). */
+  const tokens = new Map<string, string>();
+  let failedPairings = 0;
   let cached: { target: BridgeTarget | null; at: number } | null = null;
+
+  const paired = (request: Request, origin: string | null): boolean => {
+    const token = request.headers.get(TOKEN_HEADER);
+    if (!token) return false;
+    const owner = tokens.get(token);
+    return owner !== undefined && owner === (origin ?? "");
+  };
+
+  const pair = async (request: Request, origin: string | null, cors: Record<string, string>): Promise<Response> => {
+    if (request.method.toUpperCase() !== "POST") return json(405, { error: "Method Not Allowed" }, cors);
+    if (request.headers.get(CLIENT_HEADER) !== "1") return json(403, { error: `Missing ${CLIENT_HEADER} header` }, cors);
+    if (failedPairings >= MAX_PAIR_ATTEMPTS) return json(429, { error: "Too many wrong codes. Restart the bridge to get a new one.", locked: true }, cors);
+    const raw = await readBody(request, MAX_PAIR_BODY_BYTES);
+    if (raw === null) return json(413, { error: "Payload Too Large" }, cors);
+    let code = "";
+    try {
+      const body = JSON.parse(new TextDecoder().decode(raw)) as { code?: unknown };
+      if (typeof body?.code === "string") code = normalizePairingCode(body.code);
+    } catch {
+      /* Treated as a wrong code. */
+    }
+    // Checked again after the await, with no await before the count changes, so parallel guesses can't overshoot.
+    if (failedPairings >= MAX_PAIR_ATTEMPTS) return json(429, { error: "Too many wrong codes. Restart the bridge to get a new one.", locked: true }, cors);
+    if (!sameSecret(code, pairingCode)) {
+      failedPairings++;
+      if (failedPairings >= MAX_PAIR_ATTEMPTS) {
+        options.onPairing?.("locked", origin ?? "");
+        return json(429, { error: "Too many wrong codes. Restart the bridge to get a new one.", locked: true }, cors);
+      }
+      return json(403, { error: "Wrong code", attemptsLeft: MAX_PAIR_ATTEMPTS - failedPairings }, cors);
+    }
+    const token = randomBytes(32).toString("base64url");
+    if (tokens.size >= MAX_TOKENS) tokens.delete(tokens.keys().next().value as string);
+    tokens.set(token, origin ?? "");
+    options.onPairing?.("paired", origin ?? "");
+    return json(200, { token }, cors);
+  };
 
   const target = async (force = false): Promise<BridgeTarget | null> => {
     if (!force && cached && Date.now() - cached.at < cacheMs) return cached.target;
@@ -259,7 +347,12 @@ export function createBridgeHandler(options: BridgeOptions = {}): BridgeHandler 
     const cors: Record<string, string> = { [BRIDGE_HEADER]: "1", ...(origin !== null ? corsHeaders(origin) : {}) };
     const method = request.method.toUpperCase();
     if (method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
-    if(url.pathname==="/__textjs/keys")return method==="GET"?json(200,await readCliKeys(),{...cors,"cache-control":"no-store"}):json(405,{},cors);
+    if (url.pathname === PAIR_PATH) return pair(request, origin, cors);
+    const authorized = paired(request, origin);
+    // Unpaired callers learn only that this is a bridge, and never start discovery or reach OpenCode.
+    if (url.pathname === "/__bridge" && !authorized) return json(200, { bridge: "textjs", paired: false, locked: failedPairings >= MAX_PAIR_ATTEMPTS }, cors);
+    if (!authorized) return json(428, { error: "Pairing required. Enter the code shown by the bridge.", pairing: true }, cors);
+    if (url.pathname === "/__textjs/keys") return method === "GET" ? json(200, await readCliKeys(), { ...cors, "cache-control": "no-store" }) : json(405, {}, cors);
     if (url.pathname === "/__bridge") {
       const wasCached = cached !== null && Date.now() - cached.at < cacheMs;
       let t = await target();
@@ -268,7 +361,7 @@ export function createBridgeHandler(options: BridgeOptions = {}): BridgeHandler 
         t = await target(true);
         code = t ? await probeOpenCode(t) : 0;
       }
-      return json(200, { bridge: "textjs", target: t?.url ?? null, connected: code >= 200 && code < 300 }, cors);
+      return json(200, { bridge: "textjs", paired: true, target: t?.url ?? null, connected: code >= 200 && code < 300 }, cors);
     }
     if (!SAFE_METHODS.has(method) && request.headers.get(CLIENT_HEADER) !== "1") return json(403, { error: `Missing ${CLIENT_HEADER} header` }, cors);
 
@@ -349,6 +442,7 @@ export function createBridgeHandler(options: BridgeOptions = {}): BridgeHandler 
     return new Response(method === "HEAD" ? null : upstream.body, { status: upstream.status, statusText: upstream.statusText, headers: out });
   }) as BridgeHandler;
   handler.target = target;
+  handler.pairingCode = pairingCode;
   return handler;
 }
 
@@ -412,12 +506,23 @@ export interface StartedBridge {
   server: Server;
   url: string;
   target: BridgeTarget | null;
+  /** This run's pairing code, unformatted. */
+  pairingCode: string;
   close(): Promise<void>;
 }
 
 /** Start the bridge on `127.0.0.1:<port>`. */
 export async function startProxy(options: BridgeOptions = {}): Promise<StartedBridge> {
-  const handler = createBridgeHandler(options);
+  const log = options.log !== false;
+  const handler = createBridgeHandler({
+    ...options,
+    onPairing: (event, origin) => {
+      options.onPairing?.(event, origin);
+      if (!log) return;
+      if (event === "paired") console.log(`   ${color.green("✓")} Paired with ${origin || "a local client"}`);
+      else console.log(`   ${color.red("⨯")} Too many wrong codes${origin ? ` from ${origin}` : ""}. Pairing is locked until you restart the bridge.`);
+    },
+  });
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? DEFAULT_PROXY_PORT;
   const target = await handler.target();
@@ -461,14 +566,17 @@ export async function startProxy(options: BridgeOptions = {}): Promise<StartedBr
   }
   const addr = server.address() as AddressInfo;
   const url = `http://${host === "::1" ? "[::1]" : host}:${addr.port}`;
-  if (options.log !== false) {
+  if (log) {
     const dest = target ? `${target.url}${target.source === "service" ? color.dim(" (opencode service)") : ""}` : color.yellow("no OpenCode server yet. Start opencode.");
-    console.log(`\n   ${color.bold("▼ Text.js OpenCode Bridge")}\n\n   ${url} ${color.dim("→")} ${dest}\n   ${color.dim("Open https://textjs.org/opencode to connect.")}\n`);
+    console.log(
+      `\n   ${color.bold("▼ Text.js OpenCode Bridge")}\n\n   ${url} ${color.dim("→")} ${dest}\n\n   Pairing code: ${color.bold(formatPairingCode(handler.pairingCode))}\n   ${color.dim("Open https://textjs.org/opencode, connect and enter the code.")}\n`,
+    );
   }
   return {
     server,
     url,
     target,
+    pairingCode: handler.pairingCode,
     close: () =>
       new Promise<void>((resolve) => {
         server.closeAllConnections?.();

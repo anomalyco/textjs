@@ -6,7 +6,7 @@ A local bridge that lets [textjs.org/opencode](https://textjs.org/opencode) talk
 bunx @textjs/opencode proxy    # or: npx @textjs/opencode proxy
 ```
 
-Leave it running, open [textjs.org/opencode](https://textjs.org/opencode), enter `http://127.0.0.1:4096` and press **Connect**. Allow local network access if Chrome asks. Stop the bridge with Ctrl+C.
+Leave it running, open [textjs.org/opencode](https://textjs.org/opencode), enter `http://127.0.0.1:4096` and press **Connect**. Allow local network access if Chrome asks, then enter the pairing code the bridge printed. Stop the bridge with Ctrl+C.
 
 Browsers block a public page from reading `http://127.0.0.1` unless the server answers CORS and Private Network Access preflights, and the OpenCode service also requires a password. The bridge adds the headers and the password, and forwards each request to OpenCode.
 
@@ -33,9 +33,11 @@ For a password-protected foreground server, export `OPENCODE_PASSWORD` in the br
 ## Security
 
 - **Loopback only.** The bridge listens on `127.0.0.1` and answers only requests whose `Host` is `localhost`, `127.0.0.1` or `[::1]`, which blocks DNS rebinding.
-- **Origin allowlist.** Browser requests must come from `https://textjs.org`, `https://www.textjs.org`, Text.js preview deployments or `http://localhost`, `127.0.0.1` and `[::1]` on any port. Other origins get a `403`. Add your own with `--allow-origin`.
+- **Origin allowlist.** Browser requests must come from `https://textjs.org`, `https://www.textjs.org` or `http://localhost`, `127.0.0.1` and `[::1]` on any port. Other origins get a `403`. Add your own with `--allow-origin`, for example a preview deployment.
+- **Pairing code.** The bridge prints a code when it starts. A page sends it once to `POST /__bridge/pair` and gets a token for this bridge run, tied to that page's origin. Every other request needs the token in `x-textjs-bridge-token`, or it gets a `428` and never reaches OpenCode. Ten wrong codes lock pairing until the bridge restarts. An allowed origin, or a script injected into one, can't use the bridge until you type the code.
 - **The password stays on your machine.** The bridge keeps it in memory and adds it to requests it forwards to OpenCode. It isn't logged, written to disk or sent to the browser.
 - **Writes need a custom header.** Requests other than `GET`, `HEAD` and `OPTIONS` must send `x-opencode-client: 1`, a header HTML forms can't set. Request bodies are capped at 4 MB.
+- **Only a few headers cross.** The bridge forwards `Accept`, `Content-Type`, `Last-Event-ID` and `x-opencode-directory` to OpenCode, and returns `Content-Type`, `Location` and `x-request-id`. Cookies, `Authorization` and the pairing token from the browser are dropped.
 - **Passwords apply to loopback targets only.** `OPENCODE_PASSWORD` is never sent to a non-loopback `--target`, and `--target` rejects URLs that contain credentials, a path, a query or a hash ([TX021](https://textjs.org/errors/TX021)).
 
 ## Text.js projects
