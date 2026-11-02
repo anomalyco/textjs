@@ -202,6 +202,7 @@ export class OpenCodeStore {
     }
   }
   private catalogSeq = 0;
+  clearHistory(){this.promptHistory.entries=[];if(this.client?.kind==="demo")this.promptHistory.save("opencode:sandbox-history:"+this.state.connection.directory);this.set({history:[]});this.notify("Local prompt history cleared");}
   composer: ((action: "queue" | "stash" | "submit") => void) | null = null;
   stash(text: string, marks: readonly Attachment[]) {
     this.set((s) => ({ stashes: [{ text, marks }, ...s.stashes].slice(0, 8) }));

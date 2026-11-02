@@ -361,6 +361,7 @@ function Content({ kind, onKind, onClose }: Props) {
         current: v === (model?.variant ?? "default"),
       }));
     const settings: Option[] = [
+      {value:"clear-local-history",label:"Clear local prompt history",group:"Input"},
       { value: "action:hostInfo", label: "Native terminal controls", group: "System" },
       { value: "tabs-mode", label: ui.noTabs ? "Show session tabs" : "Hide session tabs", group: "Session" },
       { value: "action:keys", label: "Keybinds", group: "Input" },
@@ -527,6 +528,7 @@ function Content({ kind, onKind, onClose }: Props) {
   const choose = (o: Option | undefined) => {
     if (!o || waiting) return;
     const v = o.value;
+    if(v==="clear-local-history"){store.clearHistory();onClose();return;}
     if (v === "mdThinking") {
       withThinking(!thinking);
       return;
@@ -748,7 +750,7 @@ function Content({ kind, onKind, onClose }: Props) {
           setDeleting("");
           void store.api.removeSession(id).then(
             async () => {
-              store.tabs.close(id);
+              store.tabs.forget(id);
               await store.refreshSessions();
               if (active === id) goSession(undefined);
             },

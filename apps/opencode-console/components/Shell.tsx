@@ -19,17 +19,11 @@ import { useStore, useStoreState, type ConnectionState } from "../lib/store";
 import type { SessionMessage, ToolPart } from "../lib/types";
 import { patchFiles } from "../lib/tool-data";
 import { DispatchAction, type Action } from "../lib/commands";
-import { HelpDialog, Palette, type PaletteKind } from "./Palette";
+import type { PaletteKind } from "./Palette";
+import { DeferredDialog } from "./DeferredDialog";
 import { ContextSidebar } from "./ContextSidebar";
 import { Review } from "./Review";
-import { DiffReview } from "./DiffReview";
 import { Shortcuts } from "./KeyGuide";
-import { KeySettingsDialog } from "./KeySettings";
-import { History } from "./History";
-import { Connections } from "./Connections";
-import { Workspaces } from "./Workspaces";
-import { SessionTasks } from "./SessionTasks";
-import { Images } from "./Images";
 import { exportMarkdown } from "../lib/transcript";
 import { TerminalPane, type TerminalRequest } from "./TerminalPane";
 import { NativeActions, type Commands } from "../lib/bindings";
@@ -295,6 +289,17 @@ function SessionShell({ children }: { children?: ReactNode }) {
     "usage.show": () => dispatch("usage"),
   };
   useKeymap({ tab: () => store.cycleAgent(active) }, { priority: 20, isActive: v1 });
+  const dialog = (kind: PaletteKind | "help") => (
+    <DeferredDialog
+      kind={kind}
+      id={active}
+      ids={Object.keys(commands)}
+      focused={diffFocused}
+      focus={focusDiff}
+      onKind={setPalette}
+      close={() => (kind === "help" ? setHelp(false) : setPalette(null))}
+    />
+  );
   return (
     <DispatchAction value={dispatch}>
       <NativeActions value={commands}>
@@ -311,7 +316,7 @@ function SessionShell({ children }: { children?: ReactNode }) {
               {children}
             </Box>
             {palette === "diff" ? (
-              <DiffReview id={active ?? undefined} focused={diffFocused} focus={focusDiff} close={() => setPalette(null)} />
+              dialog("diff")
             ) : termOpen ? (
               <TerminalPane request={term!} close={() => setTerm(null)} focus={(focused) => setTerm((v) => v && { ...v, focused })} />
             ) : (
@@ -319,28 +324,9 @@ function SessionShell({ children }: { children?: ReactNode }) {
             )}
           </Box>
           <Shortcuts commands={commands} />
-          {palette === "images" ? (
-            <Images close={() => setPalette(null)} />
-          ) : (palette === "shells" || palette === "children") && active ? (
-            <SessionTasks id={active} shell={palette === "shells"} close={() => setPalette(null)} />
-          ) : palette === "workspaces" ? (
-            <Workspaces id={active} close={() => setPalette(null)} />
-          ) : palette === "integrations" || palette === "plugins" || palette === "mcps" ? (
-            <Connections
-              key={palette}
-              kind={palette}
-              dir={(active && store.session(active)?.directory) || store.getSnapshot().connection.directory}
-              close={() => setPalette(null)}
-            />
-          ) : palette === "history" ? (
-            <History id={active ?? undefined} close={() => setPalette(null)} />
-          ) : palette === "keys" ? (
-            <KeySettingsDialog ids={Object.keys(commands)} close={() => setPalette(null)} />
-          ) : (
-            palette && palette !== "diff" && <Palette kind={palette} onKind={setPalette} onClose={() => setPalette(null)} />
-          )}
+          {palette && palette !== "diff" && dialog(palette)}
           {answer && <Review answer={answer.text} onClose={() => store.dismissAnswer()} />}
-          {help && <HelpDialog onClose={() => setHelp(false)} />}
+          {help && dialog("help")}
         </Box>
       </NativeActions>
     </DispatchAction>

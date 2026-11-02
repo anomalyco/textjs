@@ -5,6 +5,7 @@ import { useCommandKeys } from "../lib/bindings";
 import { slashCommands, type SlashCommand } from "../lib/commands";
 import { lineRange, type trigger } from "../lib/mentions";
 import { useTokens } from "../lib/native-theme";
+import { loadDialogs } from "./DeferredDialog";
 import { useStore, useStoreState } from "../lib/store";
 import type { FileOption } from "../lib/types";
 
@@ -44,6 +45,9 @@ export function Autocomplete({
     [failed, fail] = useState(false);
   const range = lineRange(token.query),
     slash = token.mode === "slash";
+  useEffect(() => {
+    if (slash) void loadDialogs().catch(() => {});
+  }, [slash]);
   useEffect(() => {
     if (slash || !api?.findFiles || refs.some((r) => r.name === range.base.split("/")[0])) return;
     let active = true;

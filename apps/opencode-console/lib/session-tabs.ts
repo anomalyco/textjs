@@ -52,6 +52,13 @@ export class SessionTabs {
     }
     return undefined;
   }
+  forget(id: string) {
+    const here = this.history[this.cursor];
+    this.open = this.open.filter((s) => s !== id);
+    this.closed = this.closed.filter((s) => s.id !== id);
+    this.history = this.history.filter((s) => s !== id);
+    this.cursor = here === id ? this.history.length - 1 : this.history.lastIndexOf(here ?? "");
+  }
 
   clear() {
     this.open = [];
