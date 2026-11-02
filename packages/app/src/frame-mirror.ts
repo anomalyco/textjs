@@ -30,6 +30,9 @@ export function applyInputMessage(root: ConsoleRoot, msg: InputMessage, history?
     case "paste":
       root.input.handlePaste(msg.text);
       break;
+    case "text":
+      root.input.handleTextInput(msg.text);
+      break;
     case "wheel":
       root.input.handleWheel({ ...msg, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false });
       break;

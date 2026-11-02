@@ -168,6 +168,9 @@ describe("frame protocol", () => {
     expect(parseInputMessage({ type: "key", key: "" })).toBeNull();
     expect(parseInputMessage({ type: "key", key: "x".repeat(64) })).toBeNull();
     expect(parseInputMessage({ type: "paste", text: "hi" })).toEqual({ type: "paste", text: "hi" });
+    expect(parseInputMessage({ type: "text", text: "你好", extra: 1 })).toEqual({ type: "text", text: "你好" });
+    expect(parseInputMessage({ type: "text", text: "" })).toBeNull();
+    expect(parseInputMessage({ type: "text", text: 1 })).toBeNull();
     expect(parseInputMessage({ type: "wheel", deltaY: 1e9, deltaX: "x", deltaMode: 7 })).toEqual({ type: "wheel", deltaX: 0, deltaY: 10_000, deltaMode: 0 });
     expect(parseInputMessage({ type: "navigate", href: "/logs?x=1" })).toEqual({ type: "navigate", href: "/logs?x=1" });
     expect(parseInputMessage({ type: "navigate", href: "https://evil.example" })).toBeNull();
