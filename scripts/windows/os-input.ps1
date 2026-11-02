@@ -111,11 +111,12 @@ switch ($Action) {
   }
   "current-layout" { Write-Output ([OsInput]::Layout()) }
   "focus" {
-    $p = Get-Process -Id ([int]$A1)
-    $h = $p.MainWindowHandle
-    if ($h -eq [IntPtr]::Zero) { $h = (Get-Process -Name $p.ProcessName | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero } | Select-Object -First 1).MainWindowHandle }
-    [void][OsInput]::ShowWindow($h, 3)
-    [void][OsInput]::SetForegroundWindow($h)
+    $name = (Get-Process -Id ([int]$A1)).ProcessName
+    $w = Get-Process -Name $name | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero } | Select-Object -First 1
+    if ($null -eq $w) { Write-Output "no window"; break }
+    [void][OsInput]::ShowWindow($w.MainWindowHandle, 3)
+    [void][OsInput]::SetForegroundWindow($w.MainWindowHandle)
+    Write-Output "$($w.MainWindowTitle)"
   }
   "screenshot" {
     Add-Type -AssemblyName System.Drawing, System.Windows.Forms

@@ -101,13 +101,14 @@ jobs:
           if-no-files-found: ignore
 
   browser:
-    name: Browser (${{ matrix.browser }})
-    runs-on: blacksmith-4vcpu-windows-2025
+    name: Browser (${{ matrix.browser }}, ${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         browser: [chrome, edge]
+        runner: [blacksmith-4vcpu-windows-2025, windows-2025]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -122,6 +123,8 @@ jobs:
         continue-on-error: true
         run: |
           Add-Type -AssemblyName System.Windows.Forms
+          "Session $((Get-Process -Id $PID).SessionId), interactive $([Environment]::UserInteractive), user $env:USERNAME"
+          query user 2>&1
           "Screen: $([System.Windows.Forms.Screen]::PrimaryScreen.Bounds)"
           try { Set-DisplayResolution -Width 1920 -Height 1080 -Force -ErrorAction Stop } catch { "Set-DisplayResolution: $_" }
           "Screen: $([System.Windows.Forms.Screen]::PrimaryScreen.Bounds)"
@@ -139,6 +142,6 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: windows-browser-${{ matrix.browser }}
+          name: windows-browser-${{ matrix.browser }}-${{ matrix.runner }}
           path: ${{ runner.temp }}/browser
           if-no-files-found: ignore

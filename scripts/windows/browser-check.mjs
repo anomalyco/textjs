@@ -246,7 +246,7 @@ async function visit(path, shoot = true) {
   lastFrame = "";
   await page.send("Page.navigate", { url: `${ORIGIN}${path}` });
   await sleep(9000);
-  os("focus", proc.pid);
+  console.log(`focus: ${os("focus", proc.pid)}`);
   await sleep(800);
   if (!shoot) return;
   const name = path.slice(1);
