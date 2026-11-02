@@ -7,7 +7,7 @@ import { formatUSD, shopPrice } from "../lib/format";
 import { encodeQr, renderQr } from "../lib/qr";
 import { ShopStore } from "../lib/store";
 import { defaultTheme } from "../lib/theme";
-import { balance, lineText, place, wordWrap } from "../lib/ui";
+import { balance, lineText, place, wordWrap, wrap } from "../lib/ui";
 import { createTerminalProxy } from "../server/terminal-proxy";
 import { memoryStorage } from "./app";
 import { MOCK_TOKEN, startMockProxy, startMockTerminal, type MockProxy, type MockTerminal } from "./mock-terminal";
@@ -160,6 +160,20 @@ describe("layout", () => {
       const y = splash.findIndex((l) => l.includes("terminal"));
       expect(screen[y]).toBe(splash[y]);
     }
+  });
+
+  test("wrap always makes progress: tiny widths, wide glyphs", () => {
+    expect(wrap("abc", 0)).toEqual(["a", "b", "c"]);
+    expect(wrap("abc", -1)).toEqual(["a", "b", "c"]);
+    // A width-2 glyph wider than the line gets a line of its own.
+    expect(wrap("☕☕☕", 1)).toEqual(["☕", "☕", "☕"]);
+    expect(wrap("☕☕☕", 2)).toEqual(["☕", "☕", "☕"]);
+    expect(wrap("☕☕☕", 3)).toEqual(["☕", "☕", "☕"]);
+    expect(wrap("👩‍💻 ok", 1)).toEqual(["👩‍💻", "o", "k"]);
+    expect(wrap("サインイン失敗", 1)).toHaveLength(7);
+    expect(wrap("サインイン失敗", 5)).toEqual(["サイ", "ンイ", "ン失", "敗"]);
+    expect(balance("サインイン失敗", 3)).toHaveLength(7);
+    expect(balance("☕ ☕ ☕", 1)).toEqual(["☕", "☕", "☕"]);
   });
 
   test("key hints wrap between pairs", () => {

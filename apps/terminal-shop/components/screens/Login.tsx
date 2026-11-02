@@ -140,8 +140,11 @@ function TokenLoginScreen(): ReactNode {
         return true;
       case "e":
         if (env === "prod") store.switchEnv("dev");
-        else if (store.canUse("prod")) setView("confirm-prod");
-        else store.switchEnv("prod");
+        else if (store.canUse("prod")) {
+          // The confirm view shows no error, so a leftover one would swallow the first esc.
+          store.setError(null);
+          setView("confirm-prod");
+        } else store.switchEnv("prod");
         return true;
       case "enter":
         store.setError(null);

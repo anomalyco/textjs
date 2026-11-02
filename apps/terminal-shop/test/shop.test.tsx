@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { act } from "react";
 import { mountShop, type Harness } from "./app";
 
 let h: Harness | null = null;
@@ -520,6 +521,19 @@ describe("sign in", () => {
     await h.press("enter");
     await h.until("~ featured ~");
     expect(JSON.parse(h.storage.data.get("terminal-shop:auth:dev")!)).toEqual({ kind: "token", access: "trm_test_0123456789abcdef0123" });
+  });
+
+  test("e clears a leftover error, so one esc leaves the production confirm", async () => {
+    h = await mountShop({ signedIn: false, env: { TERMINAL_ENABLE_PRODUCTION: "1" } });
+    await h.until("paste an access token");
+    await act(async () => h!.store.setError("something went wrong"));
+    await h.until("something went wrong");
+    await h.press("e");
+    await h.until("switch to production?");
+    expect(h.store.s.error).toBe(null);
+    await h.press("esc");
+    await h.until("paste an access token");
+    expect(h.store.s.env).toBe("dev");
   });
 
   test("a production token is refused in the sandbox", async () => {

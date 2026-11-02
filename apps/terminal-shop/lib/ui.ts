@@ -104,8 +104,20 @@ export function wordWrap(text: string, maxWidth: number): string[] {
   return out;
 }
 
-/** lipgloss `Width(n)` wrapping: per paragraph word wrap, hard-breaking words longer than `n`. */
+const graphemes = new Intl.Segmenter();
+
+function firstGrapheme(text: string): string {
+  for (const { segment } of graphemes.segment(text)) return segment;
+  return text;
+}
+
+/**
+ * lipgloss `Width(n)` wrapping: per paragraph word wrap, hard-breaking words longer than `n`.
+ * Widths under 1 wrap at 1, and a glyph wider than the line (an emoji at width 1) gets a line
+ * of its own, so every pass makes progress.
+ */
 export function wrap(text: string, maxWidth: number): string[] {
+  maxWidth = Math.max(1, Math.floor(maxWidth) || 1);
   const out: string[] = [];
   for (const para of text.split("\n")) {
     if (!para.trim()) {
@@ -115,11 +127,11 @@ export function wrap(text: string, maxWidth: number): string[] {
     for (const l of wordWrap(para, maxWidth)) {
       let rest = l;
       while (stringWidth(rest) > maxWidth) {
-        const head = clip([span(rest)], maxWidth)[0]?.text ?? "";
+        const head = clip([span(rest)], maxWidth)[0]?.text || firstGrapheme(rest);
         out.push(head);
         rest = rest.slice(head.length);
       }
-      out.push(rest);
+      if (rest) out.push(rest);
     }
   }
   return out;
@@ -133,10 +145,13 @@ export function balance(text: string, maxWidth: number): string[] {
   let best = wrap(text, maxWidth);
   if (best.length < 2) return best;
   const shortest = (ls: string[]): number => Math.min(...ls.map((l) => stringWidth(l)));
-  for (let w = maxWidth - 1; w >= 1; w--) {
+  const widest = (ls: string[]): number => Math.max(...ls.map((l) => stringWidth(l)));
+  // Every width from `widest(next)` up to `w` wraps the same way, so skip below it.
+  for (let w = widest(best) - 1; w >= 2; ) {
     const next = wrap(text, w);
     if (next.length > best.length) break;
     if (shortest(next) >= shortest(best)) best = next;
+    w = widest(next) - 1;
   }
   return best;
 }

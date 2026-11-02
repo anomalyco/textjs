@@ -55,7 +55,10 @@ export function layoutFor(cols: number, rows: number): Layout {
     heightContainer = Math.min(vh, 30);
   }
   const footer = size === SMALL ? 3 : 5;
-  return { size, viewportWidth: vw, viewportHeight: vh, widthContainer, heightContainer, widthContent: widthContainer - 2, heightContent: heightContainer - 3 - footer - 1 - 2 };
+  // Never negative: pages still lay out (behind the resize view) in a 1-column console.
+  const widthContent = Math.max(0, widthContainer - 2);
+  const heightContent = Math.max(0, heightContainer - 3 - footer - 1 - 2);
+  return { size, viewportWidth: vw, viewportHeight: vh, widthContainer, heightContainer, widthContent, heightContent };
 }
 
 /** The "large" layout in an 80 × 30 console. */
@@ -175,7 +178,8 @@ export function logoScreen(blocks: Array<Line[] | null | false>, L: Layout, curs
     }
   }
   if (top < 0) {
-    for (const [a, g] of [...spacings.slice(1), [0, 0] as [number, number]]) {
+    // Unpinned, the spacing stays at its tightest so it doesn't come back as the logo moves.
+    for (const [a, g] of [[1, 0], [0, 0]] as Array<[number, number]>) {
       body = below(a, g);
       if (body.length + 1 <= vh) {
         top = vh - 1 - body.length;

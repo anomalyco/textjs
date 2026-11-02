@@ -102,7 +102,10 @@ export interface StoreOptions {
   initialPath?: string;
   /** An error to show on the sign in screen right away (e.g. a failed OAuth callback). */
   initialError?: string | null;
-  /** Ask once more (y/n) before placing a production order. */
+  /**
+   * Ask once more (a one-time letter) before a production order or subscription.
+   * Defaults to on behind a site proxy (textjs.org), whose sign in screen doesn't warn.
+   */
   confirmRealOrders?: boolean;
   /** Leave the page for sign in (defaults to `window.location.assign`). */
   assign?: (url: string) => void;
@@ -134,7 +137,7 @@ export class ShopStore {
   private readonly splashMs: number;
   private readonly bases: string[];
   readonly pollMs: number;
-  readonly confirmRealOrders: boolean;
+  private readonly confirmRealOrdersOption: boolean | undefined;
   private readonly initialPathOption: string | undefined;
   private readonly initialError: string | null;
   private readonly assign: (url: string) => void;
@@ -152,7 +155,7 @@ export class ShopStore {
     this.splashMs = options.splashMs ?? 2000;
     this.bases = options.bases ?? BASES;
     this.pollMs = options.pollMs ?? 1000;
-    this.confirmRealOrders = options.confirmRealOrders ?? false;
+    this.confirmRealOrdersOption = options.confirmRealOrders;
     this.initialPathOption = options.initialPath;
     this.initialError = options.initialError ?? null;
     this.assign = options.assign ?? ((url) => window.location.assign(url));
@@ -218,6 +221,10 @@ export class ShopStore {
   }
 
   /** Site mode: the proxy keeps the OAuth session, the page never sees a token. */
+  get confirmRealOrders(): boolean {
+    return this.confirmRealOrdersOption ?? this.siteMode;
+  }
+
   get siteMode(): boolean {
     return this.state.proxy?.mode === "site";
   }

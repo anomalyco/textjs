@@ -125,6 +125,33 @@ describe("site mode, signed out", () => {
     expect(shop.screen()).toContain("terminal");
   });
 
+  test("1 to 3 columns: every screen still renders (the resize view)", async () => {
+    const errors: unknown[] = [];
+    const consoleError = console.error;
+    console.error = (...args: unknown[]) => void errors.push(args);
+    try {
+      for (const cols of [1, 2, 3]) {
+        const shop = (h = await mountShop({ site: {}, signedIn: false, size: { cols, rows: 12 }, store: { initialError: "サインインがキャンセルされました" } }));
+        await shop.t.waitFor(() => shop.store.s.phase === "ready" && shop.history.getLocation().pathname === "/shop", "shop");
+        await shop.press("esc", "down", "down", "+");
+        await shop.t.waitFor(() => shop.store.s.signInPrompt !== null, "sign in");
+        await shop.press("esc", "c", "a");
+        expect(shop.screen().trim()).not.toBe("");
+        await shop.stop();
+        h = null;
+      }
+    } finally {
+      console.error = consoleError;
+    }
+    expect(errors).toEqual([]);
+  });
+
+  test("a CJK error wraps on the sign in screen", async () => {
+    const shop = (h = await mountShop({ site: {}, signedIn: false, size: { cols: 20, rows: 12 }, store: { initialError: "サインインがキャンセルされました" } }));
+    await shop.until("サインインが");
+    expect(shop.screen()).toContain("enter sign in");
+  });
+
   test("without a configured OAuth client, sign in says so and browsing still works", async () => {
     h = await mountShop({ site: { configured: false }, signedIn: false, store: { assign: (u) => assigned.push(u) } });
     await h.until("~ featured ~");
@@ -165,6 +192,21 @@ describe("site mode, signed out", () => {
 });
 
 describe("site mode, signed in", () => {
+  test("real orders ask for the letter by default behind the site proxy", async () => {
+    h = await mountShop({ site: {}, signedIn: true });
+    await h.until("~ featured ~");
+    expect(h.store.confirmRealOrders).toBe(true);
+    await h.stop();
+    h = await mountShop({ site: {}, signedIn: true, store: { confirmRealOrders: false } });
+    await h.until("~ featured ~");
+    expect(h.store.confirmRealOrders).toBe(false);
+    await h.stop();
+    // The local dev proxy (not a site) keeps the plain flow unless asked.
+    h = await mountShop();
+    await h.until("~ featured ~");
+    expect(h.store.confirmRealOrders).toBe(false);
+  });
+
   /** Walk a seeded cart to the confirm screen. */
   async function toConfirm(x: Harness): Promise<void> {
     await x.until("~ featured ~");
