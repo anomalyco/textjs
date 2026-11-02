@@ -427,8 +427,11 @@ async function browserPass(browser: Browser, server: Server, scenario: Scenario,
     }
   };
   const engage = async (): Promise<void> => {
-    await page.waitForSelector("[data-textjs-focus-pad]", { timeout: 15_000 }).catch(() => undefined);
-    const box = await page.locator("[data-textjs-focus-pad]").boundingBox().catch(() => null);
+    // Server-rendered pages (`runtime = "server"`) have no FocusPad; their placeholder is the cue to go on.
+    await page.waitForSelector('[data-textjs-focus-pad], [data-textjs-runtime="server"]', { timeout: 15_000 }).catch(() => undefined);
+    // page.$ doesn't wait: a locator would wait its full 30 s timeout on a page without a pad.
+    const pad = await page.$("[data-textjs-focus-pad]");
+    const box = pad ? await pad.boundingBox() : null;
     if (box) await page.mouse.click(box.x + box.width / 2, box.y + 40);
     else await page.mouse.click(200, 200);
     await page.waitForTimeout(SETTLE);
