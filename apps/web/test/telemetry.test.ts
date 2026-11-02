@@ -98,15 +98,27 @@ describe("PII stripping", () => {
     expect(scrub("Text.js error TX004: <Box> cannot be nested inside <Text>. https://textjs.org/errors/TX004")).toBe("Text.js error TX004: <Box> cannot be nested inside <Text>. https://textjs.org/errors/TX004");
   });
 
+  /**
+   * The fastest of five runs, in ms. Backtracking is slow on every run; a GC pause or a busy
+   * machine (test files run in parallel) only slows some, and a single run would flake.
+   */
+  const fastest = (fn: () => void): number => {
+    let best = Infinity;
+    for (let i = 0; i < 5; i++) {
+      const t = performance.now();
+      fn();
+      best = Math.min(best, performance.now() - t);
+    }
+    return best;
+  };
+
   test("scrub stays linear on adversarial input (8 KB in under 5 ms)", () => {
     const N = 8 * 1024;
     const inputs = ["/", "/a", "a/b?", "a", "a-", "a.", "a@", "a.a@", "1 ", "1.", "a:", "ab:", "?a", "a://", "x/", "@/", "%"].map((u) => u.repeat(Math.ceil(N / u.length)).slice(0, N));
     inputs.push(`${"a".repeat(N - 1)}1`, `https://x/${"/".repeat(N)}`, `${"a".repeat(60)}@${"b.".repeat(N / 2)}`);
     scrub("warm up");
     for (const input of inputs) {
-      const t = performance.now();
-      scrub(input);
-      const ms = performance.now() - t;
+      const ms = fastest(() => scrub(input));
       if (ms >= 5) throw new Error(`scrub took ${ms.toFixed(1)} ms on ${JSON.stringify(input.slice(0, 12))}…`);
     }
   });
@@ -117,10 +129,10 @@ describe("PII stripping", () => {
       const stack = Array.from({ length: 10 }, () => unit.repeat(400).slice(0, 400));
       const body = JSON.stringify({ ...report(), message, stack });
       expect(body.length).toBeLessThanOrEqual(MAX_BODY_BYTES);
-      const t = performance.now();
-      const r = validateReport(JSON.parse(body));
-      if (r) fingerprint(r);
-      const ms = performance.now() - t;
+      const ms = fastest(() => {
+        const r = validateReport(JSON.parse(body));
+        if (r) fingerprint(r);
+      });
       if (ms >= 5) throw new Error(`validateReport took ${ms.toFixed(1)} ms for ${JSON.stringify(unit)}`);
     }
   });
