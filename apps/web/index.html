@@ -45,8 +45,9 @@
         // Every variant is prerendered and CSS picks one. Same checks as detectConsoleBrowser() in @textjs/core.
         var root = document.documentElement;
         if (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) root.dataset.os = "mac";
-        if (!window.CSS || !CSS.supports || window.chrome || navigator.userAgentData) return;
+        if (!window.CSS || !CSS.supports) return;
         if (!CSS.supports("-moz-appearance", "none")) {
+          if (window.chrome || navigator.userAgentData) return;
           if (CSS.supports("-webkit-hyphens", "auto") || CSS.supports("-webkit-backdrop-filter", "none")) root.dataset.browser = "safari";
           return;
         }
