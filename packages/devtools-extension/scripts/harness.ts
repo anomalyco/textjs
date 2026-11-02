@@ -39,8 +39,9 @@ export function resolveServed(pathname: string, root = OUT): string | null {
     return null;
   }
   if (rel.includes("\0")) return null;
-  const file = resolve(root, `.${rel === "/" ? "/index.html" : rel}`);
-  return file.startsWith(root + sep) ? file : null;
+  const base = resolve(root);
+  const file = resolve(base, `.${rel === "/" ? "/index.html" : rel}`);
+  return file.startsWith(base + sep) ? file : null;
 }
 
 async function main(): Promise<void> {
