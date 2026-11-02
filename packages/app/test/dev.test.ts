@@ -31,11 +31,12 @@ beforeAll(async () => {
   base = (server.resolvedUrls?.local[0] ?? "").replace(/\/$/, "");
 }, 30_000);
 
+// Closing Vite's file watcher can take several seconds on Windows.
 afterAll(async () => {
   await server?.close();
   upstream?.stop(true);
   rmSync(dir, { recursive: true, force: true });
-});
+}, 30_000);
 
 describe("text dev", () => {
   test("serves the virtual index.html with the React Refresh preamble and Vite client", async () => {
