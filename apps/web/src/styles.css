@@ -2741,6 +2741,16 @@ html[data-browser="safari"] .pad-stage {
   .text-input {
     font-size: 16px;
   }
+  /* Hidden on touch devices, so it keeps the size of the command beside it. */
+  .pad-connect .text-input {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 420px) {
+  .pad-connect .text-input {
+    font-size: 12px;
+  }
 }
 
 @media (max-width: 640px) {

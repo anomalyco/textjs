@@ -6,8 +6,8 @@ export const BRIDGE_TOKEN_HEADER = "x-textjs-bridge-token";
 /** Followed on the page by the copyable {@link BRIDGE_COMMAND}. */
 export const OUTDATED_BRIDGE = "This bridge is out of date. Stop it and run:";
 /** The same words as the bridge's own replies (`@textjs/opencode`). */
-export const PAIRING_PROMPT = "Enter the pairing code from your terminal.";
-export const PAIRING_LOCKED = "Too many wrong codes. Restart the bridge for a new code.";
+export const PAIRING_PROMPT = "Enter the code from your terminal.";
+export const PAIRING_LOCKED = "Too many wrong codes. Restart the bridge.";
 const REMEMBER_KEY = "textjs:opencode-server";
 const TOKEN_KEY = "textjs:opencode-bridge-token:";
 const loopback = () => typeof location !== "undefined" && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);

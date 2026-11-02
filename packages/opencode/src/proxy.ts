@@ -37,8 +37,8 @@ export const PAIR_PATH = "/__bridge/pair";
 export const MAX_BODY_BYTES = 4 * 1024 * 1024;
 /** Wrong codes before pairing locks until the bridge restarts. */
 export const MAX_PAIR_ATTEMPTS = 10;
-export const PAIRING_PROMPT = "Enter the pairing code from your terminal.";
-export const PAIRING_LOCKED = "Too many wrong codes. Restart the bridge for a new code.";
+export const PAIRING_PROMPT = "Enter the code from your terminal.";
+export const PAIRING_LOCKED = "Too many wrong codes. Restart the bridge.";
 const MAX_PAIR_BODY_BYTES = 1024;
 const MAX_TOKENS = 64;
 /** No 0/O, 1/I/L or U: easy to read off a terminal and type. 30^6 ≈ 7×10^8 codes. */

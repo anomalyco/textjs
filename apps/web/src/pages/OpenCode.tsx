@@ -55,6 +55,8 @@ export function ConnectPanel(): ReactNode {
   const [pairing, setPairing] = useState(false);
   // A full code submits itself, so Enter right after must not send it twice.
   const inFlight = useRef(false);
+  // A wrong code doesn't submit itself again (IME commits, a repeated paste); Enter still can.
+  const lastWrongCode = useRef("");
   const codeInput = useRef<HTMLInputElement>(null);
   const urlInput = useRef<HTMLInputElement>(null);
   const focusUrl = useRef(false);
@@ -106,6 +108,7 @@ export function ConnectPanel(): ReactNode {
       await connectTo(target, false, token);
     } catch (err) {
       if (err instanceof WrongCode) {
+        lastWrongCode.current = value.replace(/[^0-9a-z]/gi, "").toUpperCase();
         siteStore.set({ opencode: { mode: "pair", url: target, message: err.message, wrong: true } });
         codeInput.current?.select();
       } else {
@@ -202,7 +205,9 @@ export function ConnectPanel(): ReactNode {
                   const value = e.target.value;
                   setCode(value);
                   // A full code (typed or pasted) submits itself; the bridge ignores case, dashes and spaces.
-                  if (value.replace(/[^0-9a-z]/gi, "").length === PAIRING_CODE_LENGTH) void pair(conn.url, value);
+                  const normalized = value.replace(/[^0-9a-z]/gi, "").toUpperCase();
+                  if ((e.nativeEvent as InputEvent).isComposing || normalized.length !== PAIRING_CODE_LENGTH || normalized === lastWrongCode.current) return;
+                  void pair(conn.url, value);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Escape") {
