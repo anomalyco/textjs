@@ -22,6 +22,7 @@ export type Plugin = {
   state: { status: string; error?: string };
 };
 export type Mcp = { name: string; integrationID?: string; status: { status: string; error?: string } };
+export type McpDefinition = { type: "local"; command: string[] } | { type: "remote"; url: string };
 export interface Management {
   providers(dir?: string): Promise<Integration[]>;
   connect(id: string, m: Method, dir?: string, answer?: FormAnswer, key?: string): Promise<Attempt | undefined>;
@@ -38,6 +39,8 @@ export interface Management {
   updatePlugin(target: string, dir?: string): Promise<void>;
   mcps(dir?: string): Promise<Mcp[]>;
   toggleMcp(name: string, connect: boolean, dir?: string): Promise<void>;
+  addMcp(name: string, config: McpDefinition, dir?: string): Promise<void>;
+  removeMcp(name: string, dir?: string): Promise<void>;
 }
 export function management(t: Transport): Management {
   const loc = (dir?: string) => (dir ? `?${new URLSearchParams({ "location[directory]": dir })}` : ""),
@@ -86,6 +89,12 @@ export function management(t: Transport): Management {
     },
     async toggleMcp(name, connect, dir) {
       await t.json("POST", `/api/experimental/mcp/${enc(name)}/${connect ? "connect" : "disconnect"}${loc(dir)}`);
+    },
+    async addMcp(name, config, dir) {
+      await t.json("PUT", `/api/experimental/mcp/${enc(name)}${loc(dir)}`, { config: { ...config, disabled: true } });
+    },
+    async removeMcp(name, dir) {
+      await t.json("DELETE", `/api/experimental/mcp/${enc(name)}${loc(dir)}`);
     },
   };
 }
@@ -213,6 +222,14 @@ export function sandboxManagement(): Management {
     async toggleMcp(name, on) {
       const m = mcps.find((m) => m.name === name);
       if (m) m.status = { status: on ? "connected" : "disabled" };
+    },
+    async addMcp(name) {
+      if (mcps.some((p) => p.name === name)) throw Error("Name already in use");
+      mcps.push({ name, status: { status: "disabled" } });
+    },
+    async removeMcp(name) {
+      const i = mcps.findIndex((m) => m.name === name);
+      if (i >= 0) mcps.splice(i, 1);
     },
   };
 }

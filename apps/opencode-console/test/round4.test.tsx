@@ -410,3 +410,27 @@ test("a docked review gives the draft its keys back without losing reviewed file
   await t.press("q");
   expect(t.frame()).toContain("draft remains");
 });
+
+test("MCP registration leaves the server disabled; cancelling removal leaves it listed", async () => {
+  const api = await mount();
+  await slash("mcps");
+  await t.type("Add MCP server");
+  await t.press("Enter");
+  await t.type("docs-test");
+  await t.press("Enter");
+  await t.press("Enter");
+  await t.type("https://docs.example.invalid/mcp");
+  await t.press("Enter");
+  expect(t.frame()).toContain("Register disabled server");
+  expect((await api.management!.mcps()).some((m) => m.name === "docs-test")).toBe(false);
+  await t.press("ArrowDown");
+  await t.press("Enter");
+  await t.waitFor(() => t.frame().includes("docs-test"));
+  expect((await api.management!.mcps()).find((m) => m.name === "docs-test")?.status.status).toBe("disabled");
+  await t.type("Remove MCP server");
+  await t.press("Enter");
+  await t.type("docs-test");
+  await t.press("Enter");
+  await t.press("Enter");
+  expect((await api.management!.mcps()).some((m) => m.name === "docs-test")).toBe(true);
+});

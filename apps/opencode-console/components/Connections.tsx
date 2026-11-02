@@ -5,6 +5,7 @@ import type { Integration, Method, Attempt, Management, Mcp, Plugin } from "../l
 import type { FormAnswer, FormValue } from "../lib/types";
 import { formValidateValue, formLabel } from "../lib/form";
 import { Choices, PromptDialog } from "./Choices";
+import { McpSetup } from "./McpSetup";
 const popular = ["opencode-go", "opencode", "openai", "github-copilot", "anthropic", "google"];
 const order = (id: string) => (popular.includes(id) ? popular.indexOf(id) : 99);
 
@@ -17,6 +18,7 @@ export function Connections({ kind, dir, close }: { kind: "integrations" | "mcps
     [mcps, setMcps] = useState<Mcp[]>([]),
     [plugins, setPlugins] = useState<Plugin[]>([]);
   const [provider, select] = useState(""),
+    [setup, setSetup] = useState(""),
     [update, confirm] = useState(""),
     [notice, note] = useState(""),
     [revision, refresh] = useState(0),
@@ -123,6 +125,21 @@ export function Connections({ kind, dir, close }: { kind: "integrations" | "mcps
       />
     );
   if (kind === "mcps") {
+    if (api && setup)
+      return (
+        <McpSetup
+          api={api}
+          dir={dir}
+          remove={setup === "remove"}
+          names={mcps.map((m) => m.name)}
+          close={() => setSetup("")}
+          done={() => {
+            setSetup("");
+            refresh((v) => v + 1);
+            store.managementChanged();
+          }}
+        />
+      );
     const toggle = (id: string) => {
       const m = mcps.find((m) => m.name === id);
       if (!m || !api || m.status.status === "pending") return;
@@ -135,9 +152,21 @@ export function Connections({ kind, dir, close }: { kind: "integrations" | "mcps
     return (
       <Choices
         title="MCP servers"
-        items={mcps.map((m) => ({ id: m.name, label: m.name, hint: m.status.status }))}
+        items={[
+          ...mcps.map((m) => ({ id: m.name, label: m.name, hint: m.status.status })),
+          ...(api
+            ? [
+                { id: "\0add", label: "Add MCP server" },
+                { id: "\0remove", label: "Remove MCP server" },
+              ]
+            : []),
+        ]}
         close={close}
         choose={(id) => {
+          if (id.startsWith("\0")) {
+            setSetup(id.slice(1));
+            return;
+          }
           const m = mcps.find((m) => m.name === id);
           if (m?.integrationID && m.status.status === "needs_auth") select(m.integrationID);
           else note(m?.status.error ?? m?.status.status ?? "");
