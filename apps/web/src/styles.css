@@ -448,6 +448,11 @@ kbd {
   display: none;
 }
 
+/* Puts the mark, not its hit area, on the container's right edge. */
+.github-btn {
+  margin-right: -9px;
+}
+
 @media (max-width: 1100px) {
   .live-pill .live-detail {
     display: none;
@@ -460,7 +465,8 @@ kbd {
 @media (max-width: 900px) {
   .nav,
   .search-btn,
-  .live-pill {
+  .live-pill,
+  .github-btn {
     display: none;
   }
   .menu-btn,
@@ -1796,6 +1802,25 @@ kbd {
   color: var(--muted);
 }
 
+.docs-edit {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 8px;
+  margin-top: 64px;
+  font-size: 13px;
+  color: var(--subtle);
+  transition: color 0.15s ease;
+}
+
+.docs-edit:hover {
+  color: var(--fg);
+}
+
+.docs-edit + .docs-nav {
+  margin-top: 24px;
+}
+
 .docs-nav {
   margin-top: 64px;
   display: grid;
@@ -1962,6 +1987,9 @@ kbd {
   .prose h3 {
     margin-top: 32px;
     font-size: 18px;
+  }
+  .docs-edit {
+    margin-top: 48px;
   }
   .docs-nav {
     margin-top: 48px;

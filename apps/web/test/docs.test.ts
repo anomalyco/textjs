@@ -8,6 +8,9 @@ import { PREVIEWS } from "../src/docs/previews";
 import { PRODUCTS } from "../src/merch/products";
 import { PRODUCTS_META } from "../src/merch/meta";
 import { parseFence } from "../src/site/Markdown";
+import { REPO_URL, docEditUrl } from "../src/site/links";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const REQUIRED = [
   "introduction",
@@ -26,6 +29,28 @@ const REQUIRED = [
 ];
 
 describe("documentation registry", () => {
+  test("every page's edit link points at its Markdown file", () => {
+    const appRoot = join(import.meta.dir, "..");
+    for (const d of DOCS) {
+      const url = docEditUrl(d.slug);
+      expect(url.startsWith(`${REPO_URL}/edit/dev/apps/web/`)).toBe(true);
+      const file = url.slice(`${REPO_URL}/edit/dev/apps/web/`.length);
+      expect(existsSync(join(appRoot, file))).toBe(true);
+      expect(readFileSync(join(appRoot, file), "utf8")).toBe(d.markdown);
+    }
+  });
+
+  test("Markdown links to GitHub use the site's repo URL", () => {
+    const dirs = ["src/docs/content", "src/blog"].map((d) => join(import.meta.dir, "..", d));
+    for (const dir of dirs) {
+      for (const f of readdirSync(dir).filter((n) => n.endsWith(".md"))) {
+        for (const m of readFileSync(join(dir, f), "utf8").matchAll(/https:\/\/github\.com\/[^\s)]*textjs[^\s)]*/g)) {
+          expect(m[0].startsWith(`${REPO_URL}/`) || m[0] === REPO_URL).toBe(true);
+        }
+      }
+    }
+  });
+
   test("contains every required page exactly once", () => {
     const slugs = DOCS.map((d) => d.slug);
     expect(new Set(slugs).size).toBe(slugs.length);

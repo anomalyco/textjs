@@ -3,7 +3,8 @@ import { DOC_CATEGORIES, DOCS, docPath, getDoc, headingsOf, neighbors } from "..
 import { A, useLocation } from "../router";
 import { TurbologLockup } from "../site/brand-marks";
 import { Footer } from "../site/Chrome";
-import { ChevronDown, CloseIcon, MenuIcon } from "../site/icons";
+import { ChevronDown, CloseIcon, GitHubIcon, MenuIcon } from "../site/icons";
+import { docEditUrl } from "../site/links";
 import { MarkdownDoc } from "../site/Markdown";
 import { Sheet, useCloseOnMedia } from "../site/Sheet";
 
@@ -107,6 +108,10 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
               <p className="docs-desc">{doc.description}</p>
             </Fragment>
             <MarkdownDoc key={doc.slug} source={doc.markdown} />
+            <A href={docEditUrl(doc.slug)} className="docs-edit">
+              <GitHubIcon size={14} />
+              Edit this page on GitHub
+            </A>
             <nav className="docs-nav" aria-label="Pagination">
               {prev ? (
                 <A href={docPath(prev.slug)}>
