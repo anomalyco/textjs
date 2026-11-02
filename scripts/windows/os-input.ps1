@@ -5,7 +5,7 @@
 #   os-input.ps1 move <x> <y>
 #   os-input.ps1 click <x> <y>
 #   os-input.ps1 keys "up,down,enter,esc,backspace,tab,text:abc,altgr+q,shift+2,vk:0x16"
-#   os-input.ps1 layout <KLID or HKL hex>   e.g. 00000407 (German), 04110411 (Japanese)
+#   os-input.ps1 layout <KLID or HKL hex>   e.g. 00000407 (German), 00020409 (US-International), 04110411 (Japanese)
 #   os-input.ps1 screenshot <out.png>
 #   os-input.ps1 focus <pid>
 param([Parameter(Position = 0)][string]$Action, [Parameter(Position = 1)][string]$A1, [Parameter(Position = 2)][string]$A2)
@@ -99,7 +99,7 @@ switch ($Action) {
   }
   "layout" {
     $fg = [OsInput]::GetForegroundWindow()
-    if ($A1.Length -eq 8 -and $A1.StartsWith("0000")) {
+    if ($A1.Length -eq 8 -and $A1.StartsWith("000")) {
       $hkl = [OsInput]::LoadKeyboardLayout($A1, 1)
     } else {
       $hkl = [IntPtr][Convert]::ToInt64($A1, 16)

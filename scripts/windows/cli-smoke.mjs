@@ -27,6 +27,11 @@ const opt = (name) => {
 const TEMPLATES = (opt("only") ?? "starter,dashboard,opencode").split(",");
 const PMS = (opt("pm") ?? "bun,npm").split(",");
 const VERSION = opt("version") ?? "latest";
+// Commands run through the shell: accept only a semver version or an npm dist-tag.
+if (!/^(?:\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?|[a-z][a-z0-9-]{0,31})$/.test(VERSION)) {
+  console.error(`--version must be a version (1.2.3) or a dist-tag (latest), got ${JSON.stringify(VERSION)}`);
+  process.exit(2);
+}
 const JSON_OUT = opt("json");
 const WIN = process.platform === "win32";
 

@@ -1,9 +1,9 @@
-# ▼ Windows: the packages' build, typecheck and tests; what a new user runs from
-# a terminal (create-text-app with bunx and npx, text build, text dev, the
-# OpenCode bridge); and this checkout's build of textjs.org in headful Chrome and
-# Edge with DevTools docked, driven by real OS keystrokes (US, German and Japanese IME).
+# ▼ Windows: the packages' build, typecheck and tests; this checkout's build of
+# textjs.org in headful Chrome and Edge with DevTools docked, driven by real OS
+# keystrokes (US, German and Japanese IME); and, by hand, what a new user runs
+# from npm (create-text-app with bunx and npx, text build, text dev, the bridge).
 #
-# Runs on changes that can break Windows, and by hand from the Actions tab.
+# The Packages and Browser jobs run only when something they cover changed.
 # Screenshots and raw key logs are uploaded as the `windows-browser-*` artifacts.
 
 name: Windows
@@ -11,26 +11,13 @@ name: Windows
 on:
   pull_request:
     branches: [dev, production]
-    paths:
-      - "packages/**"
-      - "apps/web/**"
-      - "scripts/windows/**"
-      - "package.json"
-      - "bun.lock"
-      - ".github/workflows/windows.yml"
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [dev]
-    paths:
-      - "packages/**"
-      - "apps/web/**"
-      - "scripts/windows/**"
-      - "package.json"
-      - "bun.lock"
-      - ".github/workflows/windows.yml"
   workflow_dispatch:
     inputs:
       version:
-        description: create-text-app and @textjs/opencode version to smoke test from npm
+        description: create-text-app and @textjs/opencode version (or dist-tag) to smoke test from npm
         default: latest
 
 permissions:
@@ -45,21 +32,61 @@ defaults:
     shell: bash
 
 jobs:
-  packages:
-    name: Packages (build, typecheck, test)
-    runs-on: blacksmith-4vcpu-windows-2025
-    timeout-minutes: 30
+  changes:
+    name: Changes
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # list a pull request's files
+    outputs:
+      packages: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.packages == 'true' }}
+      browser: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.browser == 'true' }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # Pushes are compared with the previous commit on the branch, which needs the repository.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'push'
         with:
           persist-credentials: false
 
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        if: github.event_name != 'workflow_dispatch'
         with:
-          bun-version: 1.4.4
+          filters: |
+            packages:
+              - packages/**
+              - examples/dashboard/**
+              - scripts/**
+              - package.json
+              - bun.lock
+              - tsconfig.base.json
+              - .gitattributes
+              - .github/actions/setup/**
+              - .github/workflows/windows.yml
+            browser:
+              - apps/web/**
+              - apps/terminal-shop/**
+              - apps/opencode-console/**
+              - packages/**
+              - scripts/windows/**
+              - package.json
+              - bun.lock
+              - .github/actions/setup/**
+              - .github/workflows/windows.yml
 
-      - name: Install
-        run: bun install --frozen-lockfile
+  packages:
+    name: Packages (build, typecheck, test)
+    needs: changes
+    if: needs.changes.outputs.packages == 'true'
+    runs-on: blacksmith-4vcpu-windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
 
       - name: Build
         run: bun run build:packages
@@ -82,15 +109,16 @@ jobs:
     runs-on: blacksmith-4vcpu-windows-2025
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      # Only Bun itself: the smoke test installs from npm into a temp directory.
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.4
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 
@@ -108,6 +136,8 @@ jobs:
 
   browser:
     name: Browser (${{ matrix.browser }})
+    needs: changes
+    if: needs.changes.outputs.browser == 'true'
     # GitHub-hosted: Blacksmith's Windows runner runs jobs in session 0 with no desktop,
     # so it can't show a browser window, take screenshots or receive SendInput.
     runs-on: windows-2025
@@ -117,11 +147,11 @@ jobs:
       matrix:
         browser: [chrome, edge]
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 
@@ -130,30 +160,27 @@ jobs:
         continue-on-error: true
         run: |
           Add-Type -AssemblyName System.Windows.Forms
-          "Screen: $([System.Windows.Forms.Screen]::PrimaryScreen.Bounds)"
           try { Set-DisplayResolution -Width 1920 -Height 1080 -Force -ErrorAction Stop } catch { "Set-DisplayResolution: $_" }
           "Screen: $([System.Windows.Forms.Screen]::PrimaryScreen.Bounds)"
           # German comes from LoadKeyboardLayout. The Japanese IME needs the language in the user's list.
           $list = Get-WinUserLanguageList
           $list.Add("ja-JP")
           Set-WinUserLanguageList $list -Force
-          Get-WinUserLanguageList | Format-List LanguageTag, InputMethodTips
 
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.4.4
-
-      - name: Install
-        run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup
 
       # The pull request's own site, so a check never depends on what's live on textjs.org.
+      # The terminal.shop API points at a closed port, so /coffee shows the recorded catalogue.
       - name: Build and serve the site
+        env:
+          TERMINAL_API_URL: http://127.0.0.1:9
+          TERMINAL_AUTH_URL: http://127.0.0.1:9
         run: |
           bun run build:packages
           bun run --cwd apps/web build
           cd apps/web
           nohup bunx vite preview --port 4173 --strictPort > "$RUNNER_TEMP/preview.log" 2>&1 &
-          for i in $(seq 60); do curl -sf http://localhost:4173/playground > /dev/null && break; sleep 1; done
+          for _ in $(seq 60); do curl -sf http://localhost:4173/playground > /dev/null && break; sleep 1; done
           curl -sf http://localhost:4173/playground > /dev/null || { cat "$RUNNER_TEMP/preview.log"; exit 1; }
 
       - name: Check ${{ matrix.browser }}

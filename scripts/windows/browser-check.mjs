@@ -25,7 +25,7 @@ const opt = (name, fallback) => {
 const BROWSER = opt("browser", "chrome");
 const OUT = resolve(opt("out", "windows-artifacts"));
 const ORIGIN = opt("origin", "http://localhost:4173");
-const LAYOUTS = opt("layouts", "us,de,ja").split(",");
+const LAYOUTS = opt("layouts", "us,de,intl,ja").split(",");
 const PORT = 9333;
 const PS = join(import.meta.dirname, "os-input.ps1");
 mkdirSync(OUT, { recursive: true });
@@ -249,12 +249,28 @@ async function main() {
   await keys(LAYOUTS);
 }
 
+/** Wait (up to 30s) for the app's first frame, then until frames stop for 1s (at most 3s more: demos animate). */
+async function waitForFrame() {
+  const deadline = Date.now() + 30_000;
+  while (frames === 0 && Date.now() < deadline) await sleep(100);
+  const settleBy = Date.now() + 3000;
+  let seen = frames;
+  let quietSince = Date.now();
+  while (Date.now() < settleBy && Date.now() - quietSince < 1000) {
+    await sleep(100);
+    if (frames !== seen) {
+      seen = frames;
+      quietSince = Date.now();
+    }
+  }
+}
+
 let consoleOpened = false;
 async function visit(path, shoot = true) {
   frames = 0;
   lastFrame = "";
   await page.send("Page.navigate", { url: `${ORIGIN}${path}` });
-  await sleep(9000);
+  await waitForFrame();
   console.log(`focus: ${os("focus", proc.pid)}`);
   await sleep(800);
   if (!consoleOpened) {
@@ -361,6 +377,23 @@ async function keys(layouts) {
       results.keys.deLayout = hkl;
       for (const r of rows) check(`keys de ${r.label} → ${r.expect}`, Boolean(r.hit), r.hit ?? r.events.filter((e) => e.t === "keydown").map((e) => e.key).join(" "));
       os("layout", "00000409");
+    } else if (layout === "intl") {
+      // US-International: ' is a dead key, so ' then e commits é.
+      os("layout", "00020409");
+      const seen = (r) => r.events.some((e) => (e.t === "input" || e.t === "compositionend") && e.data === "é");
+      const focused = await press("dead key ' e (sink focused)", "quote,e", 600);
+      rows.push(focused);
+      check("keys intl dead key commits é", seen(focused), focused.events.map((e) => `${e.t}:${e.key ?? ""}${e.data ? `(${e.data})` : ""}@${e.target}`).join(" "));
+      // Informational: the same keys with focus on <body>, as before the FocusPad fix.
+      await page.eval("document.activeElement && document.activeElement.blur()");
+      const unfocused = await press("dead key ' e (body focused)", "quote,e", 600);
+      rows.push(unfocused);
+      results.keys.deadKeyWithoutSink = { committed: seen(unfocused), keydown: unfocused.events.filter((e) => e.t === "keydown").map((e) => e.key) };
+      console.log(`dead key with <body> focused: ${JSON.stringify(results.keys.deadKeyWithoutSink)}`);
+      os("layout", "00000409");
+      // Put focus back where a click leaves it.
+      os("click", Math.round(dx + pad.x), Math.round(dy + pad.y));
+      await sleep(500);
     } else if (layout === "ja") {
       const hkl = os("layout", "04110411");
       results.keys.jaLayout = hkl;
@@ -381,8 +414,8 @@ async function keys(layouts) {
       rows.push(await press("commit", "enter", 800));
       os("screenshot", join(OUT, `${BROWSER}-keys-ja.png`));
       const all = rows.flatMap((x) => x.events);
-      const ended = all.filter((e) => e.t === "compositionend").map((e) => e.data);
-      check("keys ja IME composes", all.some((e) => e.t === "compositionstart"), ended.join(" ") || all.map((e) => `${e.t}:${e.key ?? e.data}`).slice(0, 20).join(" "));
+      const committed = all.filter((e) => e.t === "compositionend" && typeof e.data === "string" && e.data.length > 0).map((e) => e.data);
+      check("keys ja IME commits text", committed.length > 0, committed.join(" ") || all.map((e) => `${e.t}:${e.key ?? e.data}`).slice(0, 20).join(" "));
       os("layout", "00000409");
     }
     results.keys[layout] = rows.map(({ label, seq, redrew, events, expect }) => ({ label, seq, redrew, expect, events }));
