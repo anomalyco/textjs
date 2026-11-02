@@ -386,16 +386,18 @@ async function keys(layouts) {
       const inserted = (r) => r.events.filter((e) => e.t === "input" && e.target === "TEXTAREA").map((e) => e.data ?? "").join("");
       const describeRow = (r) => r.events.filter((e) => e.t !== "keyup").map((e) => `${e.t}:${e.key ?? e.inputType ?? ""}${e.keyCode ? `/${e.keyCode}` : ""}${e.data ? `(${e.data})` : ""}${e.prevented ? "!" : ""}@${e.target}`);
       const dead = {};
+      // The first dead key after switching layouts doesn't combine (' t inserts only t), in any focus, so warm up first.
+      await press("dead key warm-up", "quote,space", 600);
       for (const [name, seq, text] of [
         ["' t", "quote,t", "'t"],
         ["' e", "quote,e", "é"],
         ["' a", "quote,a", "á"],
         ["' Space", "quote,space", "'"],
-        ["' '", "quote,quote", null],
+        ["' '", "quote,quote", "''"],
         ["' ↓", "quote,down", null],
         ["' Esc", "quote,esc", null],
         ["e after ' Esc", "e", null],
-        ["' e again", "quote,e", null],
+        ["' e again", "quote,e", "é"],
       ]) {
         const r = await press(`dead key ${name} (sink focused)`, seq, 600);
         rows.push(r);
