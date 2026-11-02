@@ -10,7 +10,7 @@
  */
 
 import { spawn, spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { stripVTControlCharacters } from "node:util";
@@ -227,7 +227,8 @@ async function runMcp(name: string, cmd: string[], app: string): Promise<Result>
 }
 
 async function main(argv: string[]): Promise<number> {
-  const work = mkdtempSync(join(tmpdir(), "textjs-verify-pack-"));
+  // realpath: GitHub's Windows TEMP is an 8.3 short path (C:\Users\RUNNER~1\…).
+  const work = mkdtempSync(join(realpathSync.native(tmpdir()), "textjs-verify-pack-"));
   console.log(`▼ verify-pack in ${work}`);
   const tarballs = packPackages(work, !argv.includes("--skip-build"));
   const app = join(work, "app");
