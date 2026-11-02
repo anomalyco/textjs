@@ -1,3 +1,883 @@
-/* a3 */
+/* A3 "Paper": a warm, editorial page. Code, DevTools and live demos stay dark: the console is an object on paper. */
+
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/looks/instrument-serif-400.woff2) format("woff2");
+}
+
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/looks/instrument-serif-400-italic.woff2) format("woff2");
+}
+
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(/fonts/looks/instrument-sans-vf.woff2) format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url(/fonts/looks/jetbrains-mono-vf.woff2) format("woff2");
+}
+
+/* ───────────────────────── Tokens ───────────────────────── */
+
 html[data-look="a3"] {
+  --paper: #f4f1ea;
+  --ink: #181715;
+  --vermilion: #ff4a1c;
+  /* Vermilion for text and focus on paper (4.8:1). */
+  --vermilion-ink: #c8340c;
+  /* Tints follow the surface: ink on paper, white inside the dark objects. */
+  --tint: 28 24 18;
+
+  --bg: #f4f1ea;
+  --bg-1: #efebe2;
+  --bg-2: #e8e3d8;
+  --bg-3: #e1dbce;
+  --line: rgb(var(--tint) / 0.1);
+  --line-2: rgb(var(--tint) / 0.16);
+  --line-3: rgb(var(--tint) / 0.3);
+  --line-frame: rgb(var(--tint) / 0.12);
+  --line-cross: transparent;
+  --fg: #23211d;
+  --fg-strong: #14130f;
+  --muted: #57524a;
+  --subtle: #6b655b;
+  --faint: #968f82;
+  --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --sans: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  --display-weight: 400;
+  --display-tracking: -0.015em;
+  --section-heading-size: clamp(44px, 5.6vw, 76px);
+  --object-shadow: 0 1px 1px rgb(40 30 10 / 0.06), 0 12px 24px -12px rgb(40 30 10 / 0.22), 0 40px 80px -40px rgb(40 30 10 / 0.38);
+  color-scheme: light;
+  background: var(--paper) !important;
+}
+
+html[data-look="a3"] body {
+  background: var(--paper) !important;
+  color: var(--fg) !important;
+  font-size: 15.5px;
+  /* JetBrains Mono's code ligatures (=> as an arrow, === as bars) don't belong in a framework's docs. */
+  font-variant-ligatures: no-contextual;
+}
+
+/* The dark objects: code, DevTools, live demos. Everything inside them keeps the original dark palette. */
+html[data-look="a3"] :is(.split, .codeblock, .preview, .kit-live, .sv-code, .aw-pane, .oc-window, .pad-stage .pad, .dark-object) {
+  --tint: 255 255 255;
+  --bg: #0e0d0b;
+  --bg-1: #141311;
+  --bg-2: #1b1a17;
+  --bg-3: #24231f;
+  --fg: #ecebe6;
+  --fg-strong: #ffffff;
+  --muted: #a3a19a;
+  --subtle: #78766f;
+  --faint: #4d4c47;
+  color-scheme: dark;
+  color: var(--fg);
+}
+
+html[data-look="a3"] ::selection {
+  background: #ffcdbd;
+  color: #14130f;
+}
+
+html[data-look="a3"] :focus-visible {
+  outline-color: var(--vermilion-ink);
+}
+
+/* ───────────────────────── Vercel tells, removed ───────────────────────── */
+
+html[data-look="a3"] :is(.grid-bg, .cross, .oc-glow),
+html[data-look="a3"] .hero::before,
+html[data-look="a3"] .tl-pipe::before {
+  display: none;
+}
+
+/* Frames lose their hairline boxes; content sits on the page under one ink rule. */
+html[data-look="a3"] .frame {
+  border: 0;
+  background: none !important;
+}
+
+/* ───────────────────────── Buttons, kbd ───────────────────────── */
+
+html[data-look="a3"] .btn {
+  border-radius: 10px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+
+html[data-look="a3"] .btn-primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+html[data-look="a3"] .btn-primary:hover {
+  background: #33302a;
+}
+
+html[data-look="a3"] .btn-secondary {
+  background: transparent;
+  border-color: rgb(var(--tint) / 0.22);
+}
+
+html[data-look="a3"] .btn-secondary:hover {
+  background: rgb(var(--tint) / 0.04);
+  border-color: rgb(var(--tint) / 0.4);
+}
+
+html[data-look="a3"] .btn-sm {
+  border-radius: 7px;
+}
+
+html[data-look="a3"] kbd {
+  background: rgb(255 255 255 / 0.5);
+  border-color: var(--line-2);
+  border-bottom-width: 2px;
+  color: var(--muted);
+  font-family: var(--sans);
+}
+
+html[data-look="a3"] :is(.split, .codeblock, .preview, .kit-live, .sv-code, .aw-pane, .pad-stage .pad) kbd {
+  background: var(--bg-2);
+}
+
+html[data-look="a3"] .pill {
+  background: rgb(255 255 255 / 0.5);
+}
+
+/* ───────────────────────── Header ───────────────────────── */
+
+html[data-look="a3"] .header {
+  background: rgb(244 241 234 / 0.84);
+  border-bottom-color: var(--line);
+}
+
+html[data-look="a3"] .wordmark {
+  width: auto;
+  gap: 9px;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 25px;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+html[data-look="a3"] .wordmark .logo-mark {
+  margin-top: -1px;
+}
+
+html[data-look="a3"] .nav {
+  margin-left: 12px;
+}
+
+html[data-look="a3"] .nav a {
+  color: var(--muted);
+  font-size: 14.5px;
+}
+
+html[data-look="a3"] .nav a:hover,
+html[data-look="a3"] .nav a[aria-current="page"] {
+  color: var(--fg-strong);
+}
+
+html[data-look="a3"] .search-btn {
+  background: rgb(255 255 255 / 0.45);
+  border-color: var(--line-2);
+  color: var(--subtle);
+}
+
+html[data-look="a3"] .search-btn:hover {
+  background: rgb(255 255 255 / 0.7);
+  color: var(--muted);
+}
+
+html[data-look="a3"] .icon-btn:hover {
+  background: rgb(var(--tint) / 0.05);
+}
+
+html[data-look="a3"] .logo-menu {
+  background: #faf8f3;
+  box-shadow: 0 12px 32px -8px rgb(40 30 10 / 0.25);
+}
+
+html[data-look="a3"] .logo-menu button:hover,
+html[data-look="a3"] .logo-menu button:focus-visible {
+  background: var(--bg-2);
+}
+
+/* ───────────────────────── Sheets, search ───────────────────────── */
+
+html[data-look="a3"] .sheet-scrim,
+html[data-look="a3"] .kbar-overlay {
+  background: rgb(36 30 20 / 0.28);
+}
+
+html[data-look="a3"] :is(.sheet-top, .sheet-left) .sheet-panel {
+  box-shadow: 0 30px 60px -30px rgb(40 30 10 / 0.35);
+}
+
+html[data-look="a3"] .mobile-search {
+  background: rgb(255 255 255 / 0.45);
+}
+
+html[data-look="a3"] .kbar {
+  background: #faf8f3;
+  box-shadow: 0 40px 100px -30px rgb(40 30 10 / 0.45);
+}
+
+html[data-look="a3"] .kbar-item[aria-selected="true"] {
+  background: var(--bg-2);
+}
+
+/* ───────────────────────── Hero ───────────────────────── */
+
+html[data-look="a3"] .hero-wrap {
+  padding-top: 48px;
+}
+
+html[data-look="a3"] .hero-body {
+  padding: 104px 48px 88px;
+  gap: 30px;
+}
+
+html[data-look="a3"] .hero h1 {
+  max-width: 1000px;
+  font-family: var(--serif);
+  font-size: clamp(56px, 9.6vw, 128px);
+  line-height: 0.92;
+  letter-spacing: -0.025em;
+}
+
+html[data-look="a3"] .hero .lede {
+  font-size: clamp(17px, 2vw, 21px);
+  color: var(--muted);
+}
+
+html[data-look="a3"] .hero .lede code {
+  color: var(--fg-strong);
+  font-size: 0.86em;
+}
+
+html[data-look="a3"] .copy-cmd {
+  border-radius: 10px;
+  background: transparent;
+  border-color: rgb(var(--tint) / 0.22);
+  color: var(--muted);
+}
+
+html[data-look="a3"] .copy-cmd:hover {
+  background: rgb(var(--tint) / 0.04);
+  border-color: rgb(var(--tint) / 0.4);
+}
+
+html[data-look="a3"] .hero-whisper {
+  color: var(--subtle);
+}
+
+html[data-look="a3"] .hero-whisper kbd {
+  color: var(--fg);
+  background: rgb(255 255 255 / 0.6);
+}
+
+/* The code and the console: one dark object placed on the page. */
+html[data-look="a3"] .split {
+  border-top: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg);
+  box-shadow: var(--object-shadow);
+}
+
+html[data-look="a3"] .split-console {
+  background: var(--bg);
+}
+
+html[data-look="a3"] .file-tabs button[aria-selected="true"]::after {
+  background: var(--vermilion);
+}
+
+html[data-look="a3"] .code .line.hl {
+  background: rgb(255 255 255 / 0.045);
+  box-shadow: inset 2px 0 0 var(--vermilion);
+}
+
+/* ───────────────────────── DevTools ───────────────────────── */
+
+html[data-look="a3"] .devtools {
+  border-color: rgb(0 0 0 / 0.5);
+}
+
+html[data-look="a3"] :is(.preview-stage, .kit-stage) .devtools,
+html[data-look="a3"] .oc-window {
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.6), 0 30px 60px -24px rgb(0 0 0 / 0.7);
+}
+
+/* ───────────────────────── Sections ───────────────────────── */
+
+html[data-look="a3"] .home-section {
+  --accent: var(--vermilion);
+  --accent-soft: rgb(255 74 28 / 0.14);
+}
+
+html[data-look="a3"] .section h2 {
+  font-family: var(--serif);
+  line-height: 0.98;
+}
+
+html[data-look="a3"] .section h2 code {
+  font-size: 0.72em;
+  letter-spacing: -0.05em;
+  font-weight: 350;
+}
+
+html[data-look="a3"] .section {
+  padding: 120px 0;
+}
+
+html[data-look="a3"] .section-head > h2 + p,
+html[data-look="a3"] .oc-lede {
+  color: var(--muted);
+}
+
+html[data-look="a3"] .feature {
+  padding-top: 18px;
+  border-top: 1px solid var(--fg-strong);
+}
+
+html[data-look="a3"] .feature h3 {
+  font-weight: 600;
+}
+
+html[data-look="a3"] .text-link {
+  color: var(--fg-strong);
+}
+
+html[data-look="a3"] .text-link:hover {
+  text-decoration-color: var(--vermilion);
+}
+
+/* Turbolog */
+
+html[data-look="a3"] .tl-frame {
+  border-top: 1px solid var(--fg-strong);
+}
+
+/* No box around the pipeline: its first and last nodes meet the rule's ends, in line with the heading. */
+html[data-look="a3"] .tl-pipe {
+  --pad-x: 0px;
+}
+
+html[data-look="a3"] .tl-stages-wrap {
+  margin: 0 -22px;
+}
+
+html[data-look="a3"] .tl-legend {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+html[data-look="a3"] .tl-throttle {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+html[data-look="a3"] .tl-metric:first-child {
+  padding-left: 0;
+}
+
+html[data-look="a3"] .tl-node {
+  background: #faf8f3;
+  border-color: var(--line-2);
+}
+
+html[data-look="a3"] .tl-progress {
+  background: linear-gradient(90deg, rgb(255 74 28 / 0.15), var(--accent));
+}
+
+html[data-look="a3"] .tl-progress.idle {
+  background: linear-gradient(90deg, rgb(var(--tint) / 0.05), rgb(var(--tint) / 0.4));
+}
+
+html[data-look="a3"] .tl-packet i::after {
+  background: var(--accent);
+  box-shadow: 0 0 8px 1px rgb(255 74 28 / 0.5);
+}
+
+html[data-look="a3"] .tl-packet.idle i {
+  background: linear-gradient(90deg, transparent, rgb(var(--tint) / 0.5));
+}
+
+html[data-look="a3"] .tl-legend .dot {
+  box-shadow: none;
+}
+
+html[data-look="a3"] .tl-legend .dot.dirty {
+  background: var(--accent);
+}
+
+html[data-look="a3"] .tl-g-yoga span {
+  background: rgb(var(--tint) / 0.04);
+}
+
+html[data-look="a3"] .tl-g-cells {
+  background-image: radial-gradient(circle, rgb(var(--tint) / 0.28) 1.1px, transparent 1.3px);
+}
+
+html[data-look="a3"] .tl-g-rle span {
+  background: rgb(var(--tint) / 0.14);
+}
+
+html[data-look="a3"] .tl-g-rle div:nth-child(2) span:first-child,
+html[data-look="a3"] .tl-g-rle div:nth-child(3) span:last-child {
+  background: rgb(var(--tint) / 0.32);
+}
+
+html[data-look="a3"] .tl-g-console .f span {
+  background: rgb(var(--tint) / 0.4);
+}
+
+html[data-look="a3"] .tl-g-skip {
+  background: #faf8f3;
+}
+
+html[data-look="a3"] .tl-bar {
+  background: #faf8f3;
+}
+
+html[data-look="a3"] .tl-bar .blank {
+  background: repeating-linear-gradient(135deg, rgb(var(--tint) / 0.14) 0 1px, transparent 1px 6px);
+}
+
+html[data-look="a3"] .tl-bar .paint {
+  background: var(--ink);
+}
+
+html[data-look="a3"] .tl-lane.clear .paint {
+  background: rgb(var(--tint) / 0.45);
+}
+
+html[data-look="a3"] .tl-playhead i {
+  background: linear-gradient(var(--accent), rgb(255 74 28 / 0.2));
+}
+
+html[data-look="a3"] .tl-playhead i::before {
+  box-shadow: none;
+}
+
+html[data-look="a3"] .tl-metric strong {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 48px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+html[data-look="a3"] .tl-metric small {
+  font-family: var(--sans);
+}
+
+@media (max-width: 1080px) {
+  html[data-look="a3"] .tl-stages-wrap {
+    margin: 0 -14px;
+  }
+  html[data-look="a3"] .tl-metric:nth-child(3) {
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 860px) {
+  html[data-look="a3"] .tl-stages-wrap {
+    margin: 0;
+  }
+  html[data-look="a3"] .tl-progress {
+    background: linear-gradient(rgb(255 74 28 / 0.15), var(--accent));
+  }
+  html[data-look="a3"] .tl-progress.idle {
+    background: linear-gradient(rgb(var(--tint) / 0.05), rgb(var(--tint) / 0.4));
+  }
+  html[data-look="a3"] .tl-packet.idle i {
+    background: linear-gradient(transparent, rgb(var(--tint) / 0.5));
+  }
+}
+
+@media (max-width: 560px) {
+  html[data-look="a3"] .tl-metric strong {
+    font-size: 36px;
+  }
+}
+
+/* Components */
+
+html[data-look="a3"] .kit-frame {
+  gap: 0;
+  border-top: 1px solid var(--fg-strong);
+  padding-top: 32px;
+}
+
+html[data-look="a3"] .kit-live {
+  border: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg);
+  box-shadow: var(--object-shadow);
+}
+
+html[data-look="a3"] .kit-tabs {
+  background: var(--bg-1);
+}
+
+html[data-look="a3"] .kit-index {
+  padding-left: 16px;
+}
+
+html[data-look="a3"] .kit-group {
+  padding: 16px 0 16px 24px;
+}
+
+html[data-look="a3"] .kit-group + .kit-group {
+  border-top-color: var(--line-2);
+}
+
+/* Server */
+
+html[data-look="a3"] .sv-frame {
+  border-top: 1px solid var(--fg-strong);
+  padding-top: 32px;
+}
+
+html[data-look="a3"] .sv-code {
+  border: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--object-shadow);
+}
+
+html[data-look="a3"] .sv-side {
+  padding-left: 16px;
+}
+
+html[data-look="a3"] .sv-flow {
+  background: none;
+  border-bottom-color: var(--line-2);
+}
+
+html[data-look="a3"] .sv-node {
+  background: #faf8f3;
+}
+
+html[data-look="a3"] .sv-list li + li {
+  border-top-color: var(--line-2);
+}
+
+html[data-look="a3"] .sv-list a:hover,
+html[data-look="a3"] .aw-cell:hover,
+html[data-look="a3"] .tool-cell:hover,
+html[data-look="a3"] .home-learn-list a:hover {
+  background: rgb(var(--tint) / 0.03);
+}
+
+/* Run anywhere */
+
+html[data-look="a3"] .aw-grid {
+  border: 0;
+  border-top: 1px solid var(--fg-strong);
+}
+
+html[data-look="a3"] .aw-cell + .aw-cell {
+  border-left-color: var(--line-2);
+}
+
+/* Columns sit flush with the rule's ends, in line with the heading. */
+html[data-look="a3"] .aw-cell:first-child :is(.aw-pane, .aw-copy) {
+  margin-left: 0;
+  padding-left: 0;
+}
+
+html[data-look="a3"] .aw-cell:last-child :is(.aw-pane, .aw-copy) {
+  margin-right: 0;
+  padding-right: 0;
+}
+
+@media (max-width: 960px) {
+  html[data-look="a3"] .aw-pane {
+    margin-left: 0;
+    margin-right: 0;
+  }
+  html[data-look="a3"] .aw-copy {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  html[data-look="a3"] .aw-cell + .aw-cell {
+    border-top-color: var(--line-2);
+  }
+}
+
+html[data-look="a3"] .aw-pane {
+  border-color: rgb(0 0 0 / 0.5);
+  box-shadow: 0 20px 40px -24px rgb(40 30 10 / 0.45);
+}
+
+/* Tooling */
+
+html[data-look="a3"] .tool-grid {
+  border-left: 0;
+  border-top: 1px solid var(--fg-strong);
+}
+
+html[data-look="a3"] .tool-cell {
+  border-right-color: var(--line-2);
+  border-bottom-color: var(--line-2);
+}
+
+html[data-look="a3"] .tool-cell:nth-child(4n + 1) {
+  padding-left: 0;
+}
+
+html[data-look="a3"] .tool-cell:nth-child(4n) {
+  padding-right: 0;
+  border-right: 0;
+}
+
+@media (max-width: 960px) {
+  html[data-look="a3"] .tool-cell:nth-child(n) {
+    padding-left: 26px;
+    padding-right: 26px;
+    border-right: 1px solid var(--line-2);
+  }
+  html[data-look="a3"] .tool-cell:nth-child(2n + 1) {
+    padding-left: 0;
+  }
+  html[data-look="a3"] .tool-cell:nth-child(2n) {
+    padding-right: 0;
+    border-right: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  html[data-look="a3"] .tool-cell:nth-child(n) {
+    padding-left: 0;
+    padding-right: 0;
+    border-right: 0;
+  }
+}
+
+/* Learn */
+
+html[data-look="a3"] .home-learn {
+  border-top: 1px solid var(--fg-strong);
+}
+
+html[data-look="a3"] .home-learn-copy {
+  padding-left: 0;
+  border-right-color: var(--line-2);
+}
+
+/* OpenCode */
+
+html[data-look="a3"] .oc-facts {
+  border-top: 1px solid var(--fg-strong);
+}
+
+html[data-look="a3"] .oc-fact:first-of-type {
+  padding-left: 0;
+}
+
+html[data-look="a3"] .oc-fact:last-of-type {
+  padding-right: 0;
+}
+
+html[data-look="a3"] .oc-fact + .oc-fact {
+  border-left-color: var(--line-2);
+}
+
+@media (max-width: 860px) {
+  html[data-look="a3"] .oc-fact {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  html[data-look="a3"] .oc-fact + .oc-fact {
+    border-top-color: var(--line-2);
+  }
+}
+
+/* ───────────────────────── Footer, console pill ───────────────────────── */
+
+html[data-look="a3"] .footer {
+  border-top-color: var(--line-2);
+}
+
+html[data-look="a3"] .tx-copyright > img {
+  opacity: 0.14;
+}
+
+html[data-look="a3"] .tx-copyright p {
+  color: var(--subtle);
+}
+
+html[data-look="a3"] .tx-copyright a {
+  text-decoration-color: var(--line-3);
+}
+
+html[data-look="a3"] .console-pill {
+  background: rgb(250 248 243 / 0.9);
+  box-shadow: 0 10px 30px -12px rgb(40 30 10 / 0.35);
+}
+
+/* ───────────────────────── Docs ───────────────────────── */
+
+html[data-look="a3"] .docs-sidebar a[aria-current="page"],
+html[data-look="a3"] .docs-drawer a[aria-current="page"] {
+  background: var(--bg-2);
+}
+
+/* Every page title and display heading is set in Instrument Serif. */
+html[data-look="a3"] :is(.learn-hero h1, .rs-head h1, .blog-post-head h1, .ent-hero h1, .ent-section h2, .ent-cta h2, .merch-head h1, .merch-title h1) {
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1;
+}
+
+html[data-look="a3"] :is(.learn-hero h1, .rs-head h1, .blog-post-head h1) {
+  font-size: clamp(44px, 6.4vw, 68px);
+}
+
+html[data-look="a3"] .ent-hero h1 {
+  font-size: clamp(52px, 8.4vw, 96px);
+  line-height: 0.95;
+}
+
+html[data-look="a3"] .tx-errors .docs-desc code {
+  background: rgb(var(--tint) / 0.05);
+}
+
+html[data-look="a3"] .tx-errors-search {
+  background: rgb(255 255 255 / 0.45);
+}
+
+html[data-look="a3"] .docs-title {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 56px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+html[data-look="a3"] .prose h2,
+html[data-look="a3"] .tx-error-section h2 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 34px;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+html[data-look="a3"] .prose :not(pre) > code {
+  background: rgb(var(--tint) / 0.05);
+  border-color: var(--line);
+}
+
+html[data-look="a3"] .prose a {
+  text-decoration-color: rgb(var(--tint) / 0.3);
+}
+
+html[data-look="a3"] .prose a:hover {
+  text-decoration-color: var(--vermilion);
+}
+
+html[data-look="a3"] .callout {
+  background: rgb(255 255 255 / 0.4);
+}
+
+html[data-look="a3"] .docs-mobile-bar {
+  background: rgb(244 241 234 / 0.9) !important;
+}
+
+html[data-look="a3"] .text-input:focus {
+  box-shadow: 0 0 0 3px rgb(var(--tint) / 0.06);
+}
+
+@media (max-width: 820px) {
+  /* Every page title and display heading is set in Instrument Serif. */
+html[data-look="a3"] :is(.learn-hero h1, .rs-head h1, .blog-post-head h1, .ent-hero h1, .ent-section h2, .ent-cta h2, .merch-head h1, .merch-title h1) {
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1;
+}
+
+html[data-look="a3"] :is(.learn-hero h1, .rs-head h1, .blog-post-head h1) {
+  font-size: clamp(44px, 6.4vw, 68px);
+}
+
+html[data-look="a3"] .ent-hero h1 {
+  font-size: clamp(52px, 8.4vw, 96px);
+  line-height: 0.95;
+}
+
+html[data-look="a3"] .tx-errors .docs-desc code {
+  background: rgb(var(--tint) / 0.05);
+}
+
+html[data-look="a3"] .tx-errors-search {
+  background: rgb(255 255 255 / 0.45);
+}
+
+html[data-look="a3"] .docs-title {
+    font-size: 44px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Every page title and display heading is set in Instrument Serif. */
+html[data-look="a3"] :is(.learn-hero h1, .rs-head h1, .blog-post-head h1, .ent-hero h1, .ent-section h2, .ent-cta h2, .merch-head h1, .merch-title h1) {
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1;
+}
+
+html[data-look="a3"] :is(.learn-hero h1, .rs-head h1, .blog-post-head h1) {
+  font-size: clamp(44px, 6.4vw, 68px);
+}
+
+html[data-look="a3"] .ent-hero h1 {
+  font-size: clamp(52px, 8.4vw, 96px);
+  line-height: 0.95;
+}
+
+html[data-look="a3"] .tx-errors .docs-desc code {
+  background: rgb(var(--tint) / 0.05);
+}
+
+html[data-look="a3"] .tx-errors-search {
+  background: rgb(255 255 255 / 0.45);
+}
+
+html[data-look="a3"] .docs-title {
+    font-size: 40px;
+  }
+  html[data-look="a3"] .prose h2 {
+    font-size: 30px;
+  }
+  html[data-look="a3"] .hero-body {
+    padding: 56px 8px 48px;
+  }
 }
