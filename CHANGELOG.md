@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- textjs.org/coffee: the terminal.shop demo follows the console size like the SSH app, with its small, medium and large layouts and "your terminal is too small" under 20 × 10. The account adds payment methods, a profile with an editable name and weekly schedule changes for subscriptions. Signed out, the cart and the account's faq, about and debug info open without signing in.
+
 ## [1.0.3] - 2026-11-01
 
 ### Performance
