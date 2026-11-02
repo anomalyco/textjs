@@ -1,0 +1,169 @@
+# ▼ Deploys textjs.org to Cloudflare Pages (project `textjs`).
+#
+# - Push to `production`: the production deployment. Pages' production branch is
+#   `main`, so it deploys with `--branch main` and serves https://textjs.org.
+# - Push to `dev`: a preview at https://dev.textjs-avg.pages.dev.
+# - Pull requests never deploy; CI covers them without secrets.
+#
+# Each run builds the packages and the site (Open Graph images render in headless
+# Chromium, cached in apps/web/.cache/og between runs), runs the web unit tests,
+# then uploads apps/web/dist with the Functions in apps/web/functions.
+#
+# Secrets: CLOUDFLARE_API_TOKEN (Account → Cloudflare Pages → Edit) and
+# CLOUDFLARE_ACCOUNT_ID. Optional: CLOUDFLARE_WORKERS_TOKEN deploys the curl
+# Worker in apps/web/workers/curl-http when a production push changes it.
+
+name: Deploy
+
+on:
+  push:
+    branches: [dev, production]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy per branch. A newer dev push replaces a running preview deploy;
+# production deploys queue so every merge finishes in order.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/production' }}
+
+env:
+  WRANGLER_VERSION: 4.156.0
+  WRANGLER_SEND_METRICS: "false"
+
+jobs:
+  site:
+    name: textjs.org
+    if: >-
+      github.repository == 'anomalyco/textjs' &&
+      (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: ${{ github.ref == 'refs/heads/production' && 'production' || 'dev' }}
+      url: ${{ steps.deploy.outputs.url }}
+    outputs:
+      worker: ${{ steps.worker.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Build packages
+        run: bun run build:packages
+
+      - name: Install Chromium for Open Graph images
+        working-directory: apps/web
+        run: bunx playwright-core install --with-deps --only-shell chromium
+
+      # Images are keyed by a hash of their inputs, so any earlier run's cache is safe to reuse.
+      - name: Restore Open Graph image cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: apps/web/.cache/og
+          key: og-${{ github.sha }}
+          restore-keys: og-
+
+      # Without Chromium the build falls back to /og.png for every uncached card. Fail instead.
+      - name: Build site
+        working-directory: apps/web
+        run: |
+          bun run build 2>&1 | tee "$RUNNER_TEMP/build.log"
+          if grep -q "Chromium is unavailable" "$RUNNER_TEMP/build.log"; then
+            echo "::error::Open Graph images need Chromium, which failed to launch."
+            exit 1
+          fi
+
+      - name: Test site
+        run: bun run --cwd apps/web test
+
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        working-directory: apps/web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PAGES_BRANCH: ${{ github.ref == 'refs/heads/production' && 'main' || 'dev' }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.json
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Set the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets to deploy."
+            exit 1
+          fi
+          message=$(git log -1 --format=%s | cut -c1-200)
+          bunx "wrangler@$WRANGLER_VERSION" pages deploy dist \
+            --project-name textjs \
+            --branch "$PAGES_BRANCH" \
+            --commit-hash "$GITHUB_SHA" \
+            --commit-message "$message" \
+            --commit-dirty=false
+          details=$(jq -c 'select(.type == "pages-deploy-detailed")' "$WRANGLER_OUTPUT_FILE_PATH")
+          deployment=$(jq -r '.url' <<< "$details")
+          alias=$(jq -r '.alias // empty' <<< "$details")
+          if [ "$PAGES_BRANCH" = main ]; then url=https://textjs.org; else url=${alias:-$deployment}; fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          {
+            echo "### ▼ textjs.org deployed"
+            echo
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| URL | $url |"
+            echo "| Deployment | $deployment |"
+            echo "| Pages branch | \`$PAGES_BRANCH\` |"
+            echo "| Commit | \`$GITHUB_SHA\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check for curl Worker changes
+        id: worker
+        if: github.ref == 'refs/heads/production'
+        env:
+          HAS_WORKERS_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_TOKEN != '' }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          changed=true
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ] \
+            && git fetch --quiet --depth=1 origin "$BEFORE" \
+            && git diff --quiet "$BEFORE" "$GITHUB_SHA" -- apps/web/workers/curl-http; then
+            changed=false
+          fi
+          if [ "$changed" = true ] && [ "$HAS_WORKERS_TOKEN" != true ]; then
+            echo "::notice::apps/web/workers/curl-http changed, but CLOUDFLARE_WORKERS_TOKEN isn't set. Skipping the curl Worker deploy."
+            changed=false
+          fi
+          echo "deploy=$changed" >> "$GITHUB_OUTPUT"
+
+  curl-worker:
+    name: curl Worker
+    needs: site
+    if: needs.site.outputs.worker == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: http://textjs.org/
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
+      - name: Deploy textjs-curl-http
+        working-directory: apps/web/workers/curl-http
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          bunx "wrangler@$WRANGLER_VERSION" deploy --message "$(git log -1 --format=%s | cut -c1-200)"
+          echo "### ▼ curl Worker deployed to http://textjs.org/" >> "$GITHUB_STEP_SUMMARY"
