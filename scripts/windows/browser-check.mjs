@@ -409,7 +409,8 @@ async function keys(layouts) {
       // A dead key followed by a non-character key passes that key to the app and inserts nothing.
       const arrow = rows.find((r) => r.seq === "quote,down");
       check("keys intl ' ↓ reaches the app", arrow.events.some((e) => e.t === "keydown" && e.key === "ArrowDown" && e.prevented) && inserted(arrow) === "", dead["' ↓"]);
-      // A dead key, then focus leaves the sink and comes back: Space is the space key again, not text.
+      // A dead key, then focus leaves the sink and comes back: the tracker has reset, so the next keydown goes to
+      // the app as a key. Windows keeps its own dead-key state across the blur, so Space arrives as the key "'".
       os("keys", "quote");
       await sleep(200);
       await page.eval("document.activeElement && document.activeElement.blur()");
@@ -418,7 +419,7 @@ async function keys(layouts) {
       const space = await press("Space after ' and a blur", "space", 600);
       rows.push(space);
       dead["' blur Space"] = { inserted: inserted(space), events: describeRow(space) };
-      check("keys intl ' blur Space is the space key", space.events.some((e) => e.t === "keydown" && e.key === " " && e.prevented) && inserted(space) === "", dead["' blur Space"]);
+      check("keys intl ' blur: the next key reaches the app as a key", space.events.some((e) => e.t === "keydown" && e.keyCode === 32 && e.prevented) && inserted(space) === "", dead["' blur Space"]);
       results.keys.deadKeys = dead;
       console.log(`dead keys with the sink focused: ${JSON.stringify(dead)}`);
       // With <body> focused (no text field), the browser reports the composed key itself and the app takes it as a key.
