@@ -143,7 +143,8 @@ if (!opt.vm) {
 }
 
 // On an exe.dev VM (exe-video skill): sync media/learn plus this job, produce there, pull the results, pause the VM.
-const VM = [process.execPath, join(homedir(), ".config/opencode/skills/exe-video/scripts/video-vm.ts")];
+// VIDEO_VM points at the skill's video-vm.ts.
+const VM = [process.execPath, process.env.VIDEO_VM ?? join(homedir(), ".config/opencode/skills/exe-video/scripts/video-vm.ts")];
 const vmName = opt["vm-name"] ? ["--name", opt["vm-name"]] : [];
 const vm = (args: string[]): void => {
   const p = Bun.spawnSync([...VM, ...args], { stdout: "inherit", stderr: "inherit" });

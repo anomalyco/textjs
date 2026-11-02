@@ -13,7 +13,7 @@ bun media/learn/render.ts getting-started --vm  # → media/learn/out/learn/gett
 1. **On the Mac** (`render.ts`): narration (ElevenLabs; the key never leaves the Mac), the timeline, and filming the
    live scenes in real Chrome + real DevTools (Mac fonts). Both are cached, so this is quick after the first run.
    It then writes a self-contained job bundle to `out/job/<slug>/`: timeline, footage, the narration clips used, Geist.
-2. **On an exe.dev VM** (`produce.ts`, via the `exe-video` skill's `video-vm`): `--vm` syncs `media/learn` plus the
+2. **On an exe.dev VM** (`produce.ts`, via the `exe-video` skill's `video-vm`; set `VIDEO_VM` to its `video-vm.ts`): `--vm` syncs `media/learn` plus the
    job bundle (`--include out/job/<slug>`), renders frames, mixes and encodes, writes poster, 720p and review sheets,
    runs `check-holds.ts`, pulls `out/learn/<slug>/` and `out/review/<slug>/` back, and pauses the VM. The VM is
    `video-<worktree>` unless `--vm-name video-…` picks another (one per chapter to render chapters in parallel).
