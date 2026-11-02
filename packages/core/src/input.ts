@@ -80,6 +80,7 @@ export interface KeyboardEventLike {
   repeat?: boolean;
   isComposing?: boolean;
   keyCode?: number;
+  target?: EventTarget | null;
   preventDefault(): void;
 }
 
@@ -168,6 +169,44 @@ function isSingleGrapheme(s: string): boolean {
   return false;
 }
 
+function isTextField(t: EventTarget | null | undefined): boolean {
+  const tag = (t as { tagName?: unknown } | null | undefined)?.tagName;
+  return tag === "TEXTAREA" || tag === "INPUT";
+}
+
+/**
+ * Dead keys on Windows send no composition events: a `Dead` keydown, then an ordinary keydown
+ * for the next character, which the browser combines into the focused text field (`'` then `e`
+ * inserts `é`, `'` then `t` inserts `'t`). That keydown must keep its default and not count as a
+ * key, so the text arrives once through the sink. macOS and Linux compose dead keys, which
+ * `isComposing` already covers.
+ */
+const NAMED_KEY = /^[A-Z][A-Za-z0-9]+$/;
+
+export class DeadKeyTracker {
+  private pending = false;
+
+  /** `true` when the text field owns this keydown: a dead key, or the character that completes one. */
+  owns(e: KeyboardEventLike): boolean {
+    if (e.key === "Dead") {
+      this.pending = true;
+      return true;
+    }
+    // Shift and AltGr on their way to the completing character neither claim nor clear.
+    if (MODIFIER_KEYS.has(e.key)) return false;
+    if (!this.pending) return false;
+    this.pending = false;
+    // Arrows, Esc and shortcuts (Ctrl, Alt or Meta alone) after a dead key are ordinary keys; named keys are
+    // ASCII identifiers. Anything else is text, including Firefox's two-character "'t". AltGr (Ctrl+Alt) still combines.
+    return isTextField(e.target) && e.key.length > 0 && !NAMED_KEY.test(e.key) && !e.metaKey && e.ctrlKey === e.altKey;
+  }
+
+  /** Text reached the field or the field lost focus, so nothing is pending (a dead key pressed twice inserts text by itself). */
+  reset(): void {
+    this.pending = false;
+  }
+}
+
 /** Normalize a keyboard event. Returns `null` for modifier-only and IME-composition keys. */
 export function normalizeKeyEvent(e: KeyboardEventLike): KeyInputEvent | null {
   if (MODIFIER_KEYS.has(e.key) || e.key === "Dead" || e.key === "Process" || e.key === "Unidentified") return null;
@@ -194,9 +233,10 @@ export function normalizeKeyEvent(e: KeyboardEventLike): KeyInputEvent | null {
  * Read committed text from a hidden input sink: IME commits, dead keys and autocorrect.
  * Text being composed stays in the sink untouched so the IME keeps working, and is
  * delivered once on `compositionend`, whether the browser fires the last `input`
- * before or after it. Returns a function that removes the listeners.
+ * before or after it. `onBlur` runs when the sink loses focus. Returns a function that
+ * removes the listeners.
  */
-export function bindTextSink(sink: HTMLTextAreaElement | HTMLInputElement, onText: (text: string) => void): () => void {
+export function bindTextSink(sink: HTMLTextAreaElement | HTMLInputElement, onText: (text: string) => void, onBlur?: () => void): () => void {
   let composing = false;
   // Anything typed before the binding (while an engine boots) would prepend to the next commit.
   sink.value = "";
@@ -217,13 +257,16 @@ export function bindTextSink(sink: HTMLTextAreaElement | HTMLInputElement, onTex
     composing = false;
     take();
   };
+  const onFocusOut = (): void => onBlur?.();
   sink.addEventListener("compositionstart", onStart);
   sink.addEventListener("input", onInput);
   sink.addEventListener("compositionend", onEnd);
+  sink.addEventListener("blur", onFocusOut);
   return () => {
     sink.removeEventListener("compositionstart", onStart);
     sink.removeEventListener("input", onInput);
     sink.removeEventListener("compositionend", onEnd);
+    sink.removeEventListener("blur", onFocusOut);
   };
 }
 
@@ -267,6 +310,7 @@ export class InputEngine {
   private sink: HTMLTextAreaElement | null = null;
   private cleanup: Array<() => void> = [];
   private isFocused = true;
+  private readonly deadKeys = new DeadKeyTracker();
 
   constructor(options: InputEngineOptions = {}) {
     this.doc = options.document !== undefined ? options.document : typeof document !== "undefined" ? document : null;
@@ -314,7 +358,7 @@ export class InputEngine {
    * default prevented). Browser and DevTools shortcuts always pass through.
    */
   handleKeyDown(e: KeyboardEventLike): boolean {
-    if (!this.enabled || isPassthroughShortcut(e)) return false;
+    if (!this.enabled || isPassthroughShortcut(e) || this.deadKeys.owns(e)) return false;
     const event = normalizeKeyEvent(e);
     if (event === null) return false;
     let prevent = false;
@@ -339,6 +383,7 @@ export class InputEngine {
 
   /** Text committed by the sink (IME, dead keys, autocorrect). */
   handleTextInput(text: string): void {
+    this.deadKeys.reset();
     if (text.length === 0 || !this.enabled) return;
     if (text.includes("\n") || text.length > 16) {
       this.emit("paste", { type: "paste", text });
@@ -346,7 +391,7 @@ export class InputEngine {
     }
     this.emit("key", {
       type: "key",
-      key: isSingleGrapheme(text) ? text.toLowerCase() : text,
+      key: text === " " ? "space" : isSingleGrapheme(text) ? text.toLowerCase() : text,
       input: text,
       code: "",
       repeat: false,
@@ -362,7 +407,7 @@ export class InputEngine {
    * consoles that keep their own textarea instead of calling `attach()`. Returns a function that removes the listeners.
    */
   bindTextSink(sink: HTMLTextAreaElement | HTMLInputElement): () => void {
-    return bindTextSink(sink, (text) => this.handleTextInput(text));
+    return bindTextSink(sink, (text) => this.handleTextInput(text), () => this.deadKeys.reset());
   }
 
   handlePaste(text: string, files?: readonly File[]): void {
@@ -385,6 +430,7 @@ export class InputEngine {
   }
 
   setFocused(focused: boolean): void {
+    if (!focused) this.deadKeys.reset();
     if (focused === this.isFocused) return;
     this.isFocused = focused;
     this.emit("focus", { type: "focus", focused });

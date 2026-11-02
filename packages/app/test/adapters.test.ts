@@ -134,7 +134,8 @@ describe("deploy adapters (middleware + route handlers + cache)", () => {
       const worker = readFileSync(join(dist, "_worker.js"), "utf8");
       expect(worker).toContain("export {");
       expect(worker).not.toMatch(/from ["'](?!node:)[^"'./][^"']*["']/);
-      expect(JSON.parse(readFileSync(join(dist, "_routes.json"), "utf8"))).toEqual({ version: 1, include: ["/*"], exclude: ["/assets/*"] });
+      // The app has middleware: every request reaches the worker.
+      expect(JSON.parse(readFileSync(join(dist, "_routes.json"), "utf8"))).toEqual({ version: 1, include: ["/*"], exclude: [] });
       expect(readFileSync(join(dist, "_headers"), "utf8")).toContain("/assets/*\n  Cache-Control: public, max-age=31536000, immutable");
       expect(existsSync(join(dist, ".text/server"))).toBe(false);
 

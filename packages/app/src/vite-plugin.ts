@@ -6,18 +6,20 @@
 
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { isIP } from "node:net";
-import { dirname, extname, join, relative, resolve, sep } from "node:path";
+import { dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import type { Plugin, ProxyOptions, ViteDevServer } from "vite";
 import { BRAND_MARK, ENGINE_NAME, txMessage, VERSION } from "@textjs/core";
 import { normalizeBasePath, toClientConfig, type Rewrite, type TextConfig } from "./config";
-import { applyRewrites, compileRewrite, normalizeRequestTarget, proxyRequest, requestOrigin, runRouteHandler, sendWebResponse, toWebRequest, type CompiledRewrite, type RouteHandlerModule } from "./server/http";
+import { applyRewrites, canonicalRequestTarget, compileRewrite, proxyRequest, requestOrigin, runRouteHandler, sendWebResponse, toWebRequest, type CompiledRewrite, type RouteHandlerModule } from "./server/http";
 import { attachFrameStream } from "./server/frames";
 import { createLiveDevHandler, textjsLivePlugin } from "./server/live-dev";
 import { withServerStubs } from "./server/live-routes";
 import { runRouteHandlerWithCache } from "./server/cache-route";
 import { createDevMiddleware, isServerOnlySource } from "./server/middleware-node";
+import { resolveRoot } from "./server/paths";
+import { encodePathSegment } from "./path-text";
 import { generateRoutesModule, isRouteFile, matchApiRoute, scanApp, toApiManifest, toPosix, toStaticManifest, type AppScan } from "./server/scan";
 import { flattenRoutes, type RouteManifest, type RouteSegmentNode } from "./routing";
 
@@ -208,11 +210,49 @@ function isHtmlRequest(url: string, accept: string | undefined): boolean {
   return accept === undefined || accept.includes("text/html") || accept.includes("*/*");
 }
 
+/** How long `server.close()` waits for a dependency optimization in progress. */
+const DEPS_SETTLE_MS = 10_000;
+
+/**
+ * Closing Vite while its dependency optimizer is re-running hangs forever:
+ * module loads for optimized deps wait on the run's promise, the close cancels
+ * the run without resolving it, and the plugin container's close waits on those
+ * loads (vitejs/vite#22934, fixed in Vite 8.3.1; drop this on upgrading). It
+ * happens when `text dev` stops in the first seconds after a page load, while
+ * Vite discovers the app's dependencies. So `close()` first waits, bounded, for
+ * every discovered dependency to finish optimizing.
+ */
+function settleDepsBeforeClose(server: ViteDevServer): void {
+  const close = server.close.bind(server);
+  server.close = async () => {
+    const pending = Object.values(server.environments).flatMap((env) => {
+      const discovered = (env as { depsOptimizer?: { metadata?: { discovered?: Record<string, { processing?: Promise<void> }> } } }).depsOptimizer?.metadata?.discovered ?? {};
+      return Object.values(discovered).flatMap((dep) => (dep.processing ? [dep.processing] : []));
+    });
+    if (pending.length > 0) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      await Promise.race([Promise.allSettled(pending), new Promise<void>((r) => (timer = setTimeout(r, DEPS_SETTLE_MS)))]);
+      clearTimeout(timer);
+    }
+    return close();
+  };
+}
+
 /** Text.js Vite plugin (includes `@vitejs/plugin-react` for Fast Refresh). */
 export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] {
   const appDirName = options.appDir ?? "app";
   const basePath = normalizeBasePath(options.basePath);
   let root = resolve(options.root ?? process.cwd());
+  let serving = false;
+  const within = (dir: string, file: string): boolean => file === dir || file.startsWith(dir + sep);
+  /** A server-only source by its file path (any spelling: the real path decides). */
+  const isServerOnlyFile = (file: string): boolean => {
+    const realRoot = resolveRoot(root);
+    const real = resolveRoot(file);
+    if (!within(realRoot, real)) return false;
+    const rel = relative(realRoot, real).split(sep).map(encodePathSegment).join("/");
+    return isServerOnlySource(`/${rel}`, root, appDirName, options.cacheHandler ? [resolve(root, options.cacheHandler)] : []);
+  };
   let scan: AppScan = scanApp(root, appDirName);
   let apiManifest: RouteManifest = toApiManifest(scan);
   let routesSignature = "";
@@ -276,6 +316,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
 
     configResolved(config) {
       root = config.root;
+      serving = config.command === "serve";
       rescan();
     },
 
@@ -283,17 +324,18 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
       rescan();
     },
 
-    resolveId(rawId) {
-      // `build.ssr` entries arrive resolved against the root.
-      const v = rawId.indexOf("virtual:textjs/");
-      const id = v > 0 && !rawId.startsWith("\0") ? rawId.slice(v) : rawId;
+    resolveId(id) {
       if (id === VIRTUAL_ROUTES || id === VIRTUAL_CONFIG || id === VIRTUAL_API) return RESOLVED(id);
       if (id === VIRTUAL_ENTRY || id === ENTRY_URL || id === `${basePath}${ENTRY_URL}`) return RESOLVED(VIRTUAL_ENTRY);
       if (!userHtml() && toPosix(id) === toPosix(htmlPath())) return id;
       return null;
     },
 
-    load(id) {
+    load(id, loadOptions) {
+      // Vite resolves module requests itself (`/text.config?import`, `/app/api/x/route?raw`): guard the resolved file, not only the URL.
+      if (serving && !loadOptions?.ssr && !id.startsWith("\0") && isAbsolute(id.split("?")[0] ?? "") && isServerOnlyFile(id.split("?")[0] as string)) {
+        throw new Error(`${BRAND_MARK} ${toPosix(relative(root, id.split("?")[0] as string))} is server-only and can't be loaded in the browser.`);
+      }
       if (id === RESOLVED(VIRTUAL_ROUTES)) return generateRoutesModule(withServerStubs(scan), { hmr: true });
       if (id === RESOLVED(VIRTUAL_CONFIG)) return `export default ${JSON.stringify(toClientConfig(options))};`;
       if (id === RESOLVED(VIRTUAL_ENTRY)) return createEntryModule();
@@ -307,6 +349,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
     },
 
     async configureServer(server: ViteDevServer) {
+      settleDepsBeforeClose(server);
       const appDir = join(root, appDirName);
       server.watcher.add(appDir);
       const onStructure = (file: string): void => {
@@ -324,7 +367,36 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
 
       const rewrites = await resolveRewrites(options.rewrites);
       // Registered before user middleware and API routes so neither bypasses the host check.
-      const serverOnly = options.cacheHandler ? [resolve(root, options.cacheHandler)] : [];
+      const realRoot = resolveRoot(root);
+      const miscased = (spelled: string, onDisk: string): boolean => spelled !== onDisk && spelled.toLowerCase() === onDisk.toLowerCase();
+      /**
+       * Files Vite would hand out that the browser must not get, from a canonical request target:
+       * server-only sources (in any spelling), `public/` files under any URL but their own
+       * (`/public/x`, `/@fs/…/public/x` skip middleware), and files spelled in another case.
+       */
+      const isHiddenFromBrowser = (target: string): boolean => {
+        // Decoded once, before basePath and `/@fs/` are stripped (an encoded root, `My%20App`, must still match).
+        let pathname = decodeURIComponent(target.split("?")[0] ?? "/");
+        const base = decodeURIComponent(basePath);
+        if (base && (pathname === base || pathname.startsWith(`${base}/`))) pathname = pathname.slice(base.length) || "/";
+        // `/@fs/C:/app/x.ts` on Windows: drop the slash before the drive letter.
+        const requested = pathname.startsWith("/@fs/") ? resolve(pathname.slice(4).replace(/^\/([A-Za-z]:)/, "$1")) : join(root, pathname);
+        const file = resolveRoot(requested);
+        const publicDir = server.config.publicDir ? resolveRoot(server.config.publicDir) : "";
+        if (publicDir && publicDir !== realRoot && within(publicDir, file)) return true;
+        if (!within(realRoot, file)) return false;
+        // On disk under another case (macOS, Windows): middleware matched a different path. Vite keeps root and
+        // publicDir with forward slashes; `within` and `join` use the platform separator, so compare native paths.
+        const nativeRoot = resolve(root);
+        const spelled = within(nativeRoot, requested) ? relative(nativeRoot, requested) : relative(realRoot, requested);
+        if (miscased(spelled, relative(realRoot, file))) return true;
+        if (publicDir) {
+          const nativePublic = resolve(server.config.publicDir);
+          const asset = join(nativePublic, pathname);
+          if (within(nativePublic, asset) && miscased(relative(nativePublic, asset), relative(publicDir, resolveRoot(asset)))) return true;
+        }
+        return isServerOnlyFile(file);
+      };
       server.middlewares.use((req, res, next) => {
         if (!isAllowedDevHost(server, req.headers.host)) {
           res.statusCode = 403;
@@ -332,12 +404,17 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
           res.end(`${BRAND_MARK} ${txMessage("TX028", JSON.stringify((req.headers.host ?? "").replace(/:\d+$/, "")), "vite.server.allowedHosts")}`);
           return;
         }
-        // `//evil.com/x` must not become `request.url` → http://evil.com/x.
-        req.url = normalizeRequestTarget(req.url);
-        let pathname = req.url.split("?")[0] ?? "/";
-        if (basePath && (pathname === basePath || pathname.startsWith(`${basePath}/`))) pathname = pathname.slice(basePath.length) || "/";
-        if (pathname.startsWith("/@fs/")) pathname = `/${relative(root, pathname.slice(4)).split(sep).join("/")}`;
-        if (isServerOnlySource(pathname, root, appDirName, serverOnly)) {
+        // One canonical pathname for middleware, handlers and files: `//evil.com/x` must not become `request.url` → http://evil.com/x,
+        // and `/ad%6din//x/` is `/admin/x` everywhere.
+        const canonical = canonicalRequestTarget(req.url);
+        if (canonical === null) {
+          res.statusCode = 400;
+          res.setHeader("Content-Type", "text/plain; charset=utf-8");
+          res.end("400 | Bad Request");
+          return;
+        }
+        req.url = canonical;
+        if (isHiddenFromBrowser(canonical)) {
           res.statusCode = 404;
           res.setHeader("Content-Type", "text/plain; charset=utf-8");
           res.end("404 | This page could not be found.");
@@ -347,6 +424,13 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
       });
       // `middleware.ts` runs before user middleware, route handlers and pages.
       server.middlewares.use(createDevMiddleware(server, { root, basePath, log }));
+      // `NextResponse.rewrite()` may have pointed the request at a file Vite would serve: guard it like the original.
+      server.middlewares.use((req, res, next) => {
+        if (!isHiddenFromBrowser(req.url ?? "/")) return next();
+        res.statusCode = 404;
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.end("404 | This page could not be found.");
+      });
       // Editor previews (VS Code): `/__textjs/frames`, `/__textjs/input`, `/__textjs/status`.
       const frames = attachFrameStream(server, root, { basePath });
       server.httpServer?.once("close", () => frames.close());
@@ -362,7 +446,9 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
         const origin = requestOrigin(req);
         let url = req.url ?? "/";
         if (basePath) {
+          // Outside basePath there are no app routes (and middleware didn't run): leave it to Vite.
           if (url === basePath || url.startsWith(`${basePath}/`) || url.startsWith(`${basePath}?`)) url = url.slice(basePath.length) || "/";
+          else return next();
         }
         try {
           const rewritten = rewrites.length > 0 ? applyRewrites(rewrites, url) : null;
@@ -372,8 +458,22 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
               log?.info(` ${req.method} ${url} → ${rewritten} ${res.statusCode} in ${Math.round(performance.now() - started)}ms`);
               return;
             }
-            url = rewritten;
-            req.url = basePath + rewritten;
+            const target = canonicalRequestTarget(rewritten);
+            if (target === null) {
+              res.statusCode = 400;
+              res.setHeader("Content-Type", "text/plain; charset=utf-8");
+              res.end("400 | Bad Request");
+              return;
+            }
+            url = target;
+            req.url = basePath + target;
+            // The rewritten URL may name a file Vite would serve: guard it like the original.
+            if (isHiddenFromBrowser(req.url)) {
+              res.statusCode = 404;
+              res.setHeader("Content-Type", "text/plain; charset=utf-8");
+              res.end("404 | This page could not be found.");
+              return;
+            }
           }
           const pathname = url.split("?")[0] ?? "/";
           if (await live.handle(req, res, url)) return;

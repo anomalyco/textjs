@@ -69,7 +69,7 @@ describe("app/ scanner", () => {
     const api = toApiManifest(scan);
     const m = matchApiRoute(api, "/api/deployments/dpl_9");
     expect(m?.params).toEqual({ id: "dpl_9" });
-    expect(m?.file.endsWith("app/api/deployments/[id]/route.ts")).toBe(true);
+    expect(m?.file.replaceAll("\\", "/").endsWith("app/api/deployments/[id]/route.ts")).toBe(true);
     expect(matchApiRoute(api, "/api/nope")).toBeNull();
   });
 

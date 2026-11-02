@@ -9,7 +9,7 @@
  */
 
 import { AsyncLocalStorage } from "node:async_hooks";
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createElement } from "react";
@@ -31,6 +31,7 @@ import { clampRegion, frameContains, frameText, styledRows, type Region, type St
 import { FiberProbe, inspect, type Bounds, type InspectOptions, type InspectResult, type SceneGrid } from "./inspect";
 import { parseKeyInput, textToKeyEvents } from "./keys";
 import { LogBuffer, txCodeOf } from "./logs";
+import { resolveRoot } from "../server/paths";
 
 export interface SessionOptions {
   /** Project root (the directory containing `app/`). */
@@ -185,7 +186,7 @@ export class HeadlessSession {
 
   private constructor(options: SessionOptions) {
     this.options = options;
-    this.rootDir = resolve(options.root);
+    this.rootDir = resolveRoot(options.root);
     this.logs = options.logs ?? new LogBuffer();
     this.history = createMemoryHistory(options.path ?? "/");
     this.quietMs = options.quietMs ?? 50;
@@ -655,13 +656,6 @@ function findCursor(root: ConsoleRoot, b: Bounds): { x: number; y: number } | nu
   return hit;
 }
 
-function realpath(p: string): string {
-  try {
-    return realpathSync(p);
-  } catch {
-    return p;
-  }
-}
 
 /**
  * Delete every cached module under `root` (except dependencies and Text.js
@@ -671,8 +665,8 @@ function realpath(p: string): string {
 export function purgeModuleCache(root: string): number {
   const cache = (typeof require !== "undefined" ? require.cache : undefined) as Record<string, unknown> | undefined;
   if (!cache) return 0;
-  const roots = [resolve(root), realpath(resolve(root))].map((r) => (r.endsWith(sep) ? r : r + sep));
-  const pkg = [PACKAGE_DIR, realpath(PACKAGE_DIR)].map((r) => r + sep);
+  const roots = [resolve(root), resolveRoot(root)].map((r) => (r.endsWith(sep) ? r : r + sep));
+  const pkg = [PACKAGE_DIR, resolveRoot(PACKAGE_DIR)].map((r) => r + sep);
   let n = 0;
   for (const key of Object.keys(cache)) {
     const file = key.startsWith("file://") ? fileURLToPath(key) : key;

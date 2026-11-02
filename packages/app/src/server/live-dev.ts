@@ -29,7 +29,7 @@ import {
   VIRTUAL_LIVE,
   VIRTUAL_PLAYER,
 } from "./live-routes";
-import { scanApp } from "./scan";
+import { scanApp, toPosix } from "./scan";
 import type { MiddlewareModule } from "./middleware";
 import { findMiddlewareFile } from "./middleware-node";
 import { createLiveAuthorizer } from "./middleware-runtime";
@@ -132,7 +132,7 @@ export function textjsLivePlugin(options: { appDir?: string; root?: string } = {
       root = config.root;
     },
     resolveId(id, importer, opts) {
-      if (id === VIRTUAL_LIVE || id.endsWith(`/${VIRTUAL_LIVE}`)) return RESOLVED_LIVE;
+      if (id === VIRTUAL_LIVE) return RESOLVED_LIVE;
       if (id === VIRTUAL_PLAYER || id === PLAYER_URL || id.endsWith(PLAYER_URL)) return RESOLVED_PLAYER;
       if (id.endsWith(SERVER_STUB_QUERY)) return `${STUB_PREFIX}${id.slice(0, -SERVER_STUB_QUERY.length)}`;
       if (id.endsWith(SERVER_ONLY_QUERY)) return `${SERVER_ONLY_PREFIX}${id.slice(0, -SERVER_ONLY_QUERY.length)}`;
@@ -299,10 +299,13 @@ export function createLiveDevHandler(vite: ViteDevServer, o: LiveDevOptions): Li
   };
 
   let timer: ReturnType<typeof setTimeout> | null = null;
-  const rootPrefix = o.root.endsWith(sep) ? o.root : o.root + sep;
-  const appPrefix = appDir.endsWith(sep) ? appDir : appDir + sep;
-  const onChange = (file: string, kind: "change" | "add" | "unlink"): void => {
-    if (!file.startsWith(rootPrefix) || file.includes(`${sep}node_modules${sep}`)) return;
+  // Vite's root and module graph use `/`; the watcher reports native paths (`\` on Windows).
+  const withSlash = (p: string): string => (p.endsWith("/") ? p : `${p}/`);
+  const rootPrefix = withSlash(toPosix(o.root));
+  const appPrefix = withSlash(toPosix(appDir));
+  const onChange = (native: string, kind: "change" | "add" | "unlink"): void => {
+    const file = toPosix(native);
+    if (!file.startsWith(rootPrefix) || file.includes("/node_modules/")) return;
     changed.add(file);
     if (kind !== "change" && file.startsWith(appPrefix)) structureChanged = true;
     if (timer !== null) clearTimeout(timer);

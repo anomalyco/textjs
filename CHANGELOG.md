@@ -6,19 +6,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-02
+
 ### Added
 
 - `@textjs/core`: `bindTextSink(element, onText)` reads text committed by an IME or a dead key from a hidden textarea or input, once per commit and never mid-composition. `engine.bindTextSink(element)` connects a textarea you render yourself to an `InputEngine`. Both return a function that removes the listeners.
 - `@textjs/app`: `POST /__textjs/input` accepts `{ type: "text", text }` for IME and dead-key text. `InputMessage` and `parseInputMessage` in `@textjs/app/frame-protocol` include it.
 
+### Changed
+
+- `@textjs/app`: middleware and route handlers get the canonical path. `/docs/` and `/docs//intro` arrive as `/docs` and `/docs/intro`, so middleware that redirects to add a trailing slash now redirects forever. Remove that redirect. A dynamic segment can't contain an encoded slash: `/files/a%2Fb` returns `400`.
+- `@textjs/app`: with middleware, `--adapter cloudflare` sends every request to the worker, including hashed assets, and with a `basePath` it also sends requests outside the base path. Each request that runs the worker is one Functions invocation and counts toward your Workers request quota. On the Workers Free plan, set the Pages project to fail closed (Settings → Runtime → Fail open / closed), or Pages serves your files without middleware once the daily quota runs out.
+
 ### Fixed
 
 - Chinese, Japanese and Korean IMEs and dead keys work in textjs.org's inline consoles. The consoles cleared the textarea mid-composition, so the app got the raw letters or the wrong character.
+- `<FocusPad>` keeps keyboard focus on the app after a click. It used to drop focus right away, so Chinese, Japanese and Korean IMEs couldn't compose text.
+- Dead keys that don't compose (Windows, and Linux without an IME) reach the app with the hidden textarea focused. On US-International, `'` then `e` gives `é` and `'` then `t` gives `'t`. `InputEngine` blocked the keydown that completes a dead key, so the browser inserted nothing. `DeadKeyTracker` in `@textjs/core` lets that keydown through, and the VS Code preview uses it too.
 - The VS Code preview delivers IME and dead-key text, which it used to drop, and no longer forwards dead keys or IME composition keystrokes to the app. With a `text dev` server from `@textjs/app` 1.1.0 or earlier, it sends the text as key presses or a paste.
 - `@textjs/core`: `InputEngine.handleTextInput` ignores text while `shouldCapture` returns `false`, as key and paste input already did.
 - `text dev` pre-bundles `@textjs/app/live-stub` and `@textjs/app/live-player`. An app with a `runtime = "server"` page found them only after the first page load, so Vite bundled them again mid-load, which caused 404s for stale chunks and an "Invalid hook call" from two copies of React.
 - Charts and spinners fit the frame on Windows. Consolas has no ▁▂▃▅▆▇ blocks, quadrants, braille, ▶ or ✓, so Windows drew them in fallback fonts up to 1.8 cells wide and chart rows ran past the frame's right edge. The console font stack is now `"SF Mono",Menlo,"Cascadia Mono",Consolas,monospace`, and Windows 11 draws the whole frame in Cascadia Mono. `<ConsoleMirror>`, the VS Code preview and the DevTools extension's frame view also put Cascadia Mono before Consolas.
 - `@textjs/opencode`: under Node on Windows, the bridge finds an OpenCode installed with `npm i -g opencode-ai`. Node can't start npm's `opencode.cmd` shim by name, so the bridge behaved as if OpenCode wasn't installed. It now searches `PATH` with each `PATHEXT` extension and runs `.cmd` shims through `cmd.exe`. Under Bun (`bunx`) it already worked.
+- `text build` works on Windows. It failed for every template, with `Could not resolve entry module "virtual:textjs/api"` or with no error message.
+- `text build` prints the error when prerendering console shells or building server-rendered routes fails. Before, it exited with code 1 after Vite's "Build failed" line, without the reason.
+- `text dev` on Windows re-renders server-rendered routes when you edit a file, and reloads the browser when a page changes its `runtime` export.
+- `text dev` on Windows no longer runs `middleware.ts` for source files Vite serves as modules, such as `/app/page.tsx`, so an auth redirect no longer breaks the dev client.
+- `text run` and `text mcp` work when the project path contains a Windows 8.3 short name, such as `C:\Users\RUNNER~1`. They showed "Application error" because the CLI and the app loaded `@textjs/app` twice.
+- A `dist/` built on Windows serves its prerendered pages on Linux and macOS. The live route manifest stored its paths with backslashes.
+- `text build` works when the `vite` option in `text.config.ts` sets `build.rollupOptions.input`. The input replaced the entries of the API, server-rendered route and adapter bundles, and the build failed.
+- `text dev` exits when you stop it in the first seconds after a page load, and `server.close()` resolves. Closing Vite while it optimized newly discovered dependencies never finished (vitejs/vite#22934).
+
+### Security
+
+- `@textjs/app` 1.1.0 and earlier let a request skip `middleware.ts` by writing a protected path another way, such as `/ad%6din`, `/api//admin` or `/admin%2Fx`. Middleware matched the path as sent, while pages, route handlers and static files were looked up after decoding it (twice for route handlers). This affected `text dev`, `text start` and `--adapter bun`, `vercel` and `cloudflare` builds. Static builds can't use middleware and aren't affected. Upgrade to 1.2.0, then rebuild and redeploy: `.vercel/output` for Vercel, `dist/` for Cloudflare Pages, and the whole `dist/` for Bun (restart the server). Delete old deployments that are still reachable at their own URLs, or protect them.
+- Every host now works out one canonical pathname per request and uses it for the matcher, `request.nextUrl` and every lookup. It decodes percent-escapes and re-encodes the path the way `new URL()` writes it, resolves `.` and `..` segments, and removes repeated and trailing slashes. Paths with `%2F`, `%5C` or invalid percent-encoding get a `400`. `text dev`, `text start` and the Bun adapter serve static files only under their exact name, so on macOS and Windows `/ADMIN/report.txt` no longer serves `public/admin/report.txt`.
+- Matchers, rewrite sources, route segments and `basePath` are compared in the same encoded form as request paths, so `matcher: "/café/:path*"` and `"/caf%c3%a9/:path*"` guard `/caf%C3%A9`, and `"/ops%40corp/:path*"` guards `/ops@corp`. Middleware without a matcher doesn't run outside `basePath`. A matcher with a trailing slash, such as `/admin/`, matches `/admin`, and a `host` condition ignores a trailing dot in the host name.
+- A live session for a `runtime = "server"` route doesn't render a page that middleware rewrote to another path or query, such as a rewrite from `/restricted` to `/login`, or answered with an error status such as `NextResponse.next({ status: 403 })`.
+- `--adapter vercel`: the route handler function gets its path in a request header that only the generated routes set, so `/api/x/%252e%252e/admin` no longer reaches `/api/admin`, and no spelling of `/_textjs/*` runs the function. Generated routes match case-sensitively, so `/LEGACY/x` no longer hits a rewrite for `/legacy/:path*` that middleware never checked. Every path that may not be canonical, including raw characters such as `{`, goes through the edge middleware, which now ships with every Vercel build and rewrites the request to its canonical path.
+- `--adapter cloudflare`: static files are looked up with the encoded path, so `/x/%252e%252e/admin/report.txt` no longer serves `/admin/report.txt`. With a `basePath`, files outside it are no longer served without the worker.
+- `text dev` doesn't serve `public/` files under `/public/…` or `/@fs/…`, server-only sources such as `middleware.ts` and `text.config.ts` in another case, under an encoded `/@fs/` path, as extensionless module requests (`/text.config?import`) or through a config rewrite, or route handlers outside `basePath`.
 
 ## [1.1.0] - 2026-11-02
 

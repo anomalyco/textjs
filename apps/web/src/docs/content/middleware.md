@@ -44,6 +44,10 @@ export const config = {
 
 Matchers apply to the pathname without `basePath`. In `text dev`, Vite's own module requests (`/@vite/*`, source files) never run middleware.
 
+Every host works out one canonical pathname before middleware runs, and uses it for matching, `request.nextUrl` and the route, handler and file lookup. Percent-escapes are decoded and the path is re-encoded the way `new URL()` writes it, `.` and `..` segments are resolved, and repeated and trailing slashes are removed. `/ad%6din//users/` reaches middleware as `/admin/users`, while `/café` stays `/caf%C3%A9`. A matcher written with a trailing slash, such as `/admin/`, matches `/admin`. Requests whose path has an encoded slash or backslash (`%2F`, `%5C`), a control character or invalid percent-encoding get a `400`. Routes are case-sensitive: `/Admin` doesn't match `/admin`, and static files are only served under their exact name.
+
+Match the URLs a file is served at, not only its file name. Cloudflare Pages serves `report.html` at `/report` too, so a matcher for `/report.html` doesn't protect `/report`. List both, `matcher: ["/report", "/report.html"]`, or keep protected files in a directory and match it, such as `/reports/:path*` for files in `public/reports/`.
+
 ## NextResponse
 
 | API | Effect |

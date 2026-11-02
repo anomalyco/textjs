@@ -1,20 +1,22 @@
-import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { createServer, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
-import { extname, join, normalize, resolve, sep } from "node:path";
+import { extname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { BRAND_MARK, txError, txMessage } from "@textjs/core";
 import { normalizeBasePath, type ProxyTarget } from "../config";
 import { matchApiRoute } from "../server/scan";
 import { loadLiveProduction } from "../server/live-prod";
-import { applyRewrites, compileRewrite, isAllowedHost, isValidHostHeader, normalizeRequestTarget, proxyRequest, requestOrigin, sendWebResponse, toWebRequest, type RouteHandlerModule } from "../server/http";
+import { applyRewrites, canonicalRequestTarget, compileRewrite, isAllowedHost, isValidHostHeader, proxyRequest, requestOrigin, sendWebResponse, toWebRequest, type RouteHandlerModule } from "../server/http";
 import type { RouteManifest } from "../routing";
 import { loadServerRuntime } from "../server/adapters/runtime-node";
 import { runRouteHandlerWithCache } from "../server/cache-route";
 import { runNodeMiddleware } from "../server/middleware-node";
+import { staticFile } from "../server/static-file";
 import { META_DIR } from "./build";
 import { loadTextConfig } from "./config";
 import { banner, color, fail, ok } from "./ui";
+import { resolveRoot } from "../server/paths";
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -45,7 +47,8 @@ export interface StartedServer {
   close(): Promise<void>;
 }
 
-export async function startProductionServer(opts: StartOptions): Promise<StartedServer> {
+export async function startProductionServer(options: StartOptions): Promise<StartedServer> {
+  const opts = { ...options, root: resolveRoot(options.root) };
   const started = performance.now();
   const log = opts.log ?? true;
   const { config } = await loadTextConfig(opts.root, "serve", "production");
@@ -101,7 +104,13 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
         res.end(loopback ? `${BRAND_MARK} ${txMessage("TX028", JSON.stringify((req.headers.host ?? "").replace(/:\d+$/, "")), "server.allowedHosts")}` : "400 | Bad Request");
         return;
       }
-      req.url = normalizeRequestTarget(req.url);
+      // One canonical pathname for middleware, rewrites, handlers and files (`/ad%6din//x/` → `/admin/x`).
+      const canonical = canonicalRequestTarget(req.url);
+      if (canonical === null) {
+        res.statusCode = 400;
+        return res.end("400 | Bad Request");
+      }
+      req.url = canonical;
       const origin = requestOrigin(req, originOptions);
       let url = req.url;
       if (basePath) {
@@ -116,7 +125,12 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
       const rewritten = rewrites.length > 0 ? applyRewrites(rewrites, url) : null;
       if (rewritten) {
         if (/^[a-z]+:\/\//i.test(rewritten)) return proxyRequest(req, res, rewritten, origin);
-        url = rewritten;
+        const target = canonicalRequestTarget(rewritten);
+        if (target === null) {
+          res.statusCode = 400;
+          return res.end("400 | Bad Request");
+        }
+        url = target;
       }
       for (const [prefix, target] of proxies) {
         if (url.startsWith(prefix)) {
@@ -125,29 +139,24 @@ export async function startProductionServer(opts: StartOptions): Promise<Started
         }
       }
       if (live && (await live.handle(req, res, url))) return;
-      let pathname: string;
-      try {
-        pathname = decodeURIComponent(url.split("?")[0] ?? "/");
-      } catch {
-        res.statusCode = 400;
-        return res.end("400 | Bad Request");
-      }
+      // `route` is canonical: route matching decodes it once, file lookups use the decoded form.
+      const route = url.split("?")[0] ?? "/";
+      const pathname = decodeURIComponent(route);
       if (api) {
-        const m = matchApiRoute(api.manifest, pathname);
+        const m = matchApiRoute(api.manifest, route);
         const mod = m ? api.handlers[m.file] : undefined;
         if (m && mod) {
           const request = toWebRequest(Object.assign(req, { url }), origin, res);
-          return sendWebResponse(res, await runRouteHandlerWithCache(mod, request, { params: m.params, pattern: m.pattern, pathname }), request.method);
+          return sendWebResponse(res, await runRouteHandlerWithCache(mod, request, { params: m.params, pattern: m.pattern, pathname: route }), request.method);
         }
       }
       if (req.method !== "GET" && req.method !== "HEAD") {
         res.statusCode = 405;
         return res.end();
       }
-      const filePath = normalize(join(outDir, pathname));
-      const inside = filePath === outDir || filePath.startsWith(outDir + sep);
       const hidden = pathname.split(/[/\\]/).some((p) => p.startsWith(".") && p.length > 1);
-      if (inside && !hidden && existsSync(filePath) && statSync(filePath).isFile()) {
+      const filePath = hidden ? null : staticFile(outDir, pathname);
+      if (filePath) {
         res.statusCode = 200;
         res.setHeader("Content-Type", MIME[extname(filePath)] ?? "application/octet-stream");
         res.setHeader("Cache-Control", pathname.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "public, max-age=0, must-revalidate");

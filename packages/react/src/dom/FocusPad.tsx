@@ -175,6 +175,34 @@ function isMac(): boolean {
   return typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 }
 
+/** The parts of a mousedown `activateFocusPad` reads. */
+export interface FocusPadPress {
+  button: number;
+  ctrlKey: boolean;
+  target: EventTarget | null;
+  preventDefault(): void;
+}
+
+/**
+ * Route keys to the console on a primary press on the pad. Returns whether it did.
+ *
+ * Only then is mousedown's default prevented: otherwise it blurs the input sink we
+ * focus, and IMEs only compose into a focused editable element. Middle and right
+ * presses, ⌃-click on macOS, touch screens (where focusing would open the soft
+ * keyboard) and the pad's own controls keep their defaults.
+ */
+export function activateFocusPad(e: FocusPadPress, o: { root: ConsoleRoot | null; onActivate?: () => void; mac?: boolean; coarsePointer?: boolean }): boolean {
+  if (e.button !== 0 || (e.ctrlKey && (o.mac ?? isMac()))) return false;
+  if (o.coarsePointer ?? (typeof matchMedia === "function" && matchMedia("(hover: none) and (pointer: coarse)").matches)) return false;
+  const t = e.target as Element | null;
+  if (t && typeof t.closest === "function" && t.closest(INTERACTIVE) !== null) return false;
+  if (!o.onActivate && !o.root) return false;
+  e.preventDefault();
+  if (o.onActivate) o.onActivate();
+  else o.root?.input.focus();
+  return true;
+}
+
 /**
  * The console the pad gives directions for: the browser (see `ConsoleBrowser`) and, where the
  * shortcut differs, the platform. Safari only runs on macOS.
@@ -503,10 +531,7 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
   });
 
   const activate = (e: MouseEvent<HTMLDivElement>): void => {
-    const t = e.target as Element | null;
-    if (t && typeof t.closest === "function" && t.closest(INTERACTIVE) !== null) return;
-    if (onActivate) onActivate();
-    else root?.input.focus();
+    if (!activateFocusPad(e, { root, onActivate })) return;
     // Clicking moves focus off DevTools; reflect it immediately.
     setPageFocused(true);
     setEngineCapturing(root !== null && !root.unmounted && root.input.enabled);

@@ -7,6 +7,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
+import { pathToFileURL } from "node:url";
 import { resolveChromium } from "./chromium";
 
 const ROOT = resolve(import.meta.dir, "..");
@@ -39,8 +40,9 @@ export function resolveServed(pathname: string, root = OUT): string | null {
     return null;
   }
   if (rel.includes("\0")) return null;
-  const file = resolve(root, `.${rel === "/" ? "/index.html" : rel}`);
-  return file.startsWith(root + sep) ? file : null;
+  const base = resolve(root);
+  const file = resolve(base, `.${rel === "/" ? "/index.html" : rel}`);
+  return file.startsWith(base + sep) ? file : null;
 }
 
 async function main(): Promise<void> {
@@ -61,7 +63,7 @@ async function main(): Promise<void> {
     const { chromium } = await import("playwright-core");
     mkdirSync(SHOTS, { recursive: true });
     const browser = await chromium.launch({ executablePath: resolveChromium() });
-    const url = `file://${join(OUT, "index.html")}`;
+    const url = pathToFileURL(join(OUT, "index.html")).href;
     const views: Array<{ name: string; query: string; width: number; height: number; act?: (page: import("playwright-core").Page) => Promise<void> }> = [
       { name: "components", query: "tab=components&select=Metric", width: 1100, height: 620 },
       {

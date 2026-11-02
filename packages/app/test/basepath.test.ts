@@ -132,8 +132,8 @@ describe("basePath across hosts", () => {
       await adapt(dir, "cloudflare");
       const dist = join(dir, "dist");
       const routes = JSON.parse(readFileSync(join(dist, "_routes.json"), "utf8"));
-      // dist/assets is served at /assets, so /console/assets/* must go through the worker.
-      expect(routes).toEqual({ version: 1, include: ["/console/*"], exclude: [] });
+      // dist/assets is served at /assets, so /console/assets/* must go through the worker, and so must paths outside /console.
+      expect(routes).toEqual({ version: 1, include: ["/*"], exclude: [] });
       const mod = (await import(`${join(dist, "_worker.js")}?t=${Date.now()}`)) as { default: { fetch(r: Request, env: unknown, ctx: unknown): Promise<Response> } };
       const env = {
         ASSETS: {
@@ -158,11 +158,12 @@ describe("basePath across hosts", () => {
 
 describe("cloudflare _routes.json", () => {
   const ctx = (basePath: string) => ({ basePath, outDir: "/nonexistent" }) as never;
-  test("asset exclusion ignores has / missing and tests real asset paths", () => {
+  test("every request reaches the worker when the app has middleware or a basePath", () => {
     expect(cloudflareRoutes(ctx(""), null)).toEqual({ version: 1, include: ["/*"], exclude: ["/assets/*"] });
     expect(cloudflareRoutes(ctx(""), { config: { matcher: [{ source: "/:path*", has: [{ type: "header", key: "x-a" }] }] } })).toEqual({ version: 1, include: ["/*"], exclude: [] });
     expect(cloudflareRoutes(ctx(""), { config: { matcher: "/assets/:file*" } }).exclude).toEqual([]);
-    expect(cloudflareRoutes(ctx(""), { config: { matcher: "/api/:path*" } }).exclude).toEqual(["/assets/*"]);
-    expect(cloudflareRoutes(ctx("/b"), null)).toEqual({ version: 1, include: ["/b/*"], exclude: [] });
+    // `/assets/../admin/x` is served by Pages without the worker if /assets/* is excluded.
+    expect(cloudflareRoutes(ctx(""), { config: { matcher: "/api/:path*" } }).exclude).toEqual([]);
+    expect(cloudflareRoutes(ctx("/b"), null)).toEqual({ version: 1, include: ["/*"], exclude: [] });
   });
 });

@@ -10,9 +10,9 @@ import type { Rewrite } from "../../config";
 import { matchAppRoutes, type RouteManifest, type RouteSegmentNode } from "../../routing";
 import { runRouteHandlerWithCache } from "../cache-route";
 import { setCacheStore, type CacheStore } from "../cache";
-import { applyRewrites, compileRewrite, isLoopbackUrl, normalizeRequestTarget, proxyFetch, type RouteHandlerModule } from "../http";
+import { applyRewrites, badRequest, canonicalPathname, compileRewrite, isLoopbackUrl, proxyFetch, type RouteHandlerModule } from "../http";
 import type { MiddlewareModule } from "../middleware";
-import { rebuild, runMiddleware, withMiddlewareHeaders, type MiddlewareMerge } from "../middleware-runtime";
+import { canonicalRequest, rebuild, runMiddleware, withMiddlewareHeaders, type MiddlewareMerge } from "../middleware-runtime";
 
 export interface RequestContext {
   waitUntil?: (promise: Promise<unknown>) => void;
@@ -32,7 +32,11 @@ export interface RequestHandlerOptions {
   basePath?: string;
   rewrites?: Rewrite[];
   cacheStore?: CacheStore;
-  /** Serve a static file for `pathname` (without basePath), or `null`. */
+  /**
+   * Serve a static file for `pathname`, or `null`. `pathname` is canonical and
+   * still percent-encoded, without basePath: URL-based backends use it as is,
+   * file-system backends decode it once.
+   */
   assets?: (pathname: string, request: Request, context: RequestContext) => Promise<Response | null> | Response | null;
   /** The SPA document (`index.html`) for page routes. */
   document?: (request: Request, context: RequestContext) => Promise<Response | null> | Response | null;
@@ -63,24 +67,15 @@ function matchApi(manifest: RouteManifest, pathname: string): { id: string; patt
   return id ? { id, pattern: m.pattern, params: m.params } : null;
 }
 
-function safeDecode(pathname: string): string | null {
-  try {
-    return decodeURIComponent(pathname);
-  } catch {
-    return null;
-  }
-}
-
 export function createRequestHandler(options: RequestHandlerOptions): TextRequestHandler {
   const basePath = options.basePath ?? "";
   const rewrites = (options.rewrites ?? []).map(compileRewrite);
   if (options.cacheStore) setCacheStore(options.cacheStore);
 
   return async (raw, context = {}) => {
-    // `//evil.com/x` (and `/\evil.com/x`) must never resolve to another origin downstream.
-    const rawUrl = new URL(raw.url);
-    const normalized = normalizeRequestTarget(`${rawUrl.pathname}${rawUrl.search}`);
-    const incoming = normalized === `${rawUrl.pathname}${rawUrl.search}` ? raw : rebuild(raw, new Headers(raw.headers), new URL(normalized, rawUrl.origin));
+    // One canonical pathname for middleware, rewrites, handlers and files (`/ad%6din//x/` → `/admin/x`).
+    const incoming = canonicalRequest(raw);
+    if (!incoming) return badRequest();
     const url = new URL(incoming.url);
     const stripped = stripBase(url.pathname, basePath);
     if (stripped === null) return notFound();
@@ -99,8 +94,9 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
       merge = { status: outcome.status, private: outcome.private };
       if (outcome.rewrite) {
         if (outcome.rewrite.origin !== url.origin) return finish(await proxyFetch(request, outcome.rewrite, { stripCredentials: !isLoopbackUrl(outcome.rewrite.href) }));
-        const p = stripBase(outcome.rewrite.pathname, basePath);
-        pathname = p ?? outcome.rewrite.pathname;
+        const canonical = canonicalPathname(outcome.rewrite.pathname);
+        if (canonical === null) return finish(badRequest());
+        pathname = stripBase(canonical, basePath) ?? canonical;
         search = outcome.rewrite.search;
       }
     }
@@ -110,7 +106,9 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
       if (target) {
         if (/^[a-z]+:\/\//i.test(target)) return finish(await proxyFetch(request, target, { stripCredentials: !isLoopbackUrl(target) }));
         const u = new URL(target, url.origin);
-        pathname = u.pathname;
+        const canonical = canonicalPathname(u.pathname);
+        if (canonical === null) return finish(badRequest());
+        pathname = canonical;
         search = u.search;
       }
     }
@@ -120,21 +118,21 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
       if (live) return finish(live);
     }
 
-    const decoded = safeDecode(pathname);
-    if (decoded === null) return finish(new Response("400 | Bad Request", { status: 400 }));
-    const api = matchApi(options.manifest, decoded);
+    // `pathname` is canonical: route matching decodes it once, file lookups use the decoded form.
+    const decoded = decodeURIComponent(pathname);
+    const api = matchApi(options.manifest, pathname);
     const mod = api ? options.handlers[api.id] : undefined;
     if (api && mod) {
       const target = new URL(pathname + search, url.origin);
       const req = target.href === request.url ? request : rebuild(request, new Headers(request.headers), target);
-      return finish(await runRouteHandlerWithCache(mod, req, { params: api.params, pattern: api.pattern, pathname: decoded, waitUntil: context.waitUntil }));
+      return finish(await runRouteHandlerWithCache(mod, req, { params: api.params, pattern: api.pattern, pathname, waitUntil: context.waitUntil }));
     }
 
     const method = request.method.toUpperCase();
     if (method !== "GET" && method !== "HEAD") return finish(new Response(null, { status: 405, headers: { allow: "GET, HEAD" } }));
     const hidden = decoded.split(/[/\\]/).some((p) => p.startsWith(".") && p.length > 1);
     if (!hidden && options.assets) {
-      const asset = await options.assets(decoded, request, context);
+      const asset = await options.assets(pathname, request, context);
       if (asset) return finish(asset);
     }
     const last = decoded.split("/").pop() ?? "";

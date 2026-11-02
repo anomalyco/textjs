@@ -131,10 +131,11 @@ export class DiscoveryBackoff {
   }
 }
 
+/** As the file system spells it (`native` also expands Windows 8.3 names, as `text dev` reports its root). */
 function canonical(p: string): string {
   let out = p;
   try {
-    out = realpathSync(p);
+    out = realpathSync.native(p);
   } catch {}
   return out.replace(/\\/g, "/").replace(/\/$/, "").toLowerCase();
 }

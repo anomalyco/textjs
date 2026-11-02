@@ -6,9 +6,10 @@ import { existsSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join, relative, sep } from "node:path";
 import { LIVE_PATH } from "../live-protocol";
-import { isLoopbackUrl, proxyFetch, requestOrigin, requestUrl, sendWebResponse, setMiddlewareState, toWebRequest } from "./http";
+import { badRequest, canonicalPathname, canonicalRequestTarget, isLoopbackUrl, proxyFetch, requestOrigin, requestUrl, sendWebResponse, setMiddlewareState, toWebRequest } from "./http";
 import type { MiddlewareModule } from "./middleware";
 import { matchesMiddleware, MIDDLEWARE_FILES, middlewareMatchers, runMiddleware } from "./middleware-runtime";
+import { resolveRoot } from "./paths";
 
 /** `toWebRequest()` returns this request (once) instead of re-reading the Node stream. */
 export const WEB_REQUEST = Symbol.for("textjs.webRequest");
@@ -49,7 +50,13 @@ export function nodeHeaders(req: IncomingMessage): Headers {
  * or `null` once middleware has sent the response itself.
  */
 export async function runNodeMiddleware(mod: MiddlewareModule, req: IncomingMessage, res: ServerResponse, options: NodeMiddlewareOptions): Promise<string | null> {
-  const url = requestUrl(req.url, options.origin);
+  const canonical = canonicalRequestTarget(req.url);
+  if (canonical === null) {
+    await sendWebResponse(res, badRequest(), req.method);
+    return null;
+  }
+  req.url = canonical;
+  const url = requestUrl(canonical, options.origin);
   const pathname = stripBase(url.pathname, options.basePath);
   // Match on the URL and headers first: unmatched requests keep their Node body stream untouched.
   const probe = new Request(url, { method: "GET", headers: nodeHeaders(req) });
@@ -82,9 +89,14 @@ export async function runNodeMiddleware(mod: MiddlewareModule, req: IncomingMess
     await sendWebResponse(res, response, request.method);
     return null;
   }
-  (req as unknown as Record<symbol, Request>)[WEB_REQUEST] = outcome.request;
   const target = outcome.rewrite ?? url;
-  return `${stripBase(target.pathname, options.basePath) ?? target.pathname}${target.search}`;
+  const routed = canonicalPathname(target.pathname);
+  if (routed === null) {
+    await sendWebResponse(res, badRequest(), request.method);
+    return null;
+  }
+  (req as unknown as Record<symbol, Request>)[WEB_REQUEST] = outcome.request;
+  return `${stripBase(routed, options.basePath) ?? routed}${target.search}`;
 }
 
 const SOURCE_EXT = /\.(?:[cm]?[jt]sx?)$/;
@@ -101,15 +113,16 @@ export function isServerOnlySource(pathname: string, root: string, appDir = "app
   } catch {
     return false;
   }
-  const rel = decoded.replace(/^[/\\]+/, "").replace(/\\/g, "/");
+  // In any case: macOS and Windows serve `/MIDDLEWARE.TS` from `middleware.ts`.
+  const rel = decoded.replace(/^[/\\]+/, "").replace(/\\/g, "/").toLowerCase();
   const name = rel.split("/").pop() ?? "";
   if (/^\.env(?:\..*)?$/.test(name)) return true;
-  if ((MIDDLEWARE_FILES as readonly string[]).includes(rel) || /^text\.config\.[cm]?[jt]s$/.test(rel)) return true;
+  if (MIDDLEWARE_FILES.some((f) => f.toLowerCase() === rel) || /^text\.config\.[cm]?[jt]s$/.test(rel)) return true;
   if (/\.server\.[cm]?[jt]sx?$/.test(name)) return true;
-  if (rel.startsWith(`${appDir.replace(/^\.?\//, "")}/`) && /^route\.[cm]?[jt]sx?$/.test(name)) return true;
+  if (rel.startsWith(`${appDir.replace(/^\.?\//, "").toLowerCase()}/`) && /^route\.[cm]?[jt]sx?$/.test(name)) return true;
   return extra.some((file) => {
     const r = relative(root, file).split(sep).join("/");
-    return r === rel && SOURCE_EXT.test(r);
+    return r.toLowerCase() === rel && SOURCE_EXT.test(r);
   });
 }
 
@@ -124,8 +137,9 @@ export function isDevInternalRequest(rawUrl: string, root: string): boolean {
   if (pathname.startsWith("/@") || pathname.startsWith("/node_modules/") || pathname.startsWith("/__")) return true;
   // Source files Vite serves as modules (`/app/page.tsx?t=…`); `public/` files still run middleware, as in production.
   try {
-    const file = join(root, decodeURIComponent(pathname));
-    return file.startsWith(root + sep) && statSync(file).isFile();
+    const base = resolveRoot(root);
+    const file = join(base, decodeURIComponent(pathname));
+    return file.startsWith(base + sep) && statSync(file).isFile();
   } catch {
     return false;
   }

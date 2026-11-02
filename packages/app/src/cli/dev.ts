@@ -3,6 +3,7 @@ import { createServer, mergeConfig, type InlineConfig, type ViteDevServer } from
 import { textjsVitePlugin, type TextLogger } from "../vite-plugin";
 import { loadTextConfig } from "./config";
 import { banner, color, devtoolsHint, ok } from "./ui";
+import { resolveRoot } from "../server/paths";
 
 export interface DevOptions {
   root: string;
@@ -23,8 +24,9 @@ export function cliLogger(enabled = true): TextLogger {
   };
 }
 
-export async function startDevServer(opts: DevOptions): Promise<ViteDevServer> {
+export async function startDevServer(options: DevOptions): Promise<ViteDevServer> {
   const started = performance.now();
+  const opts = { ...options, root: resolveRoot(options.root) };
   const { config, file } = await loadTextConfig(opts.root, "serve");
   const log = opts.log ?? true;
   const inline: InlineConfig = {

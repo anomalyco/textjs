@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import tsParser from "@typescript-eslint/parser";
 import { ESLint } from "eslint";
 import plugin, { configs, rules } from "../src/index.ts";
 
+/** Absolute on every platform (`C:\\repo` on Windows). */
+const REPO = resolve("/repo");
 const DOCS = join(import.meta.dir, "../../../apps/web/src/docs/content/eslint.md");
 
 /** Same slug algorithm as the docs site (`apps/web/src/docs/registry.ts`). */
@@ -44,7 +46,7 @@ describe("plugin", () => {
 
   test("runs end to end through the ESLint API with a flat config", async () => {
     const eslint = new ESLint({
-      cwd: "/repo",
+      cwd: REPO,
       overrideConfigFile: true,
       overrideConfig: [{ files: ["**/*.tsx", "**/*.ts"], languageOptions: { parser: tsParser } }, configs.recommended as never],
     });
@@ -54,7 +56,7 @@ export default function Page() {
   return <Text>⠋ loading ▶\uFE0F <Box /></Text>;
 }
 `;
-    const [result] = await eslint.lintText(page, { filePath: "/repo/app/page.tsx" });
+    const [result] = await eslint.lintText(page, { filePath: join(REPO, "app/page.tsx") });
     expect(result?.messages.map((m) => m.ruleId).sort()).toEqual([
       "textjs/no-box-in-text",
       "textjs/no-unsupported-glyphs",
@@ -62,14 +64,14 @@ export default function Page() {
       "textjs/valid-metadata",
     ]);
     const [fixed] = await new ESLint({
-      cwd: "/repo",
+      cwd: REPO,
       fix: true,
       overrideConfigFile: true,
       overrideConfig: [{ files: ["**/*.tsx"], languageOptions: { parser: tsParser } }, configs.recommended as never],
-    }).lintText(page, { filePath: "/repo/app/page.tsx" });
+    }).lintText(page, { filePath: join(REPO, "app/page.tsx") });
     expect(fixed?.output).toContain("⠋ loading ▶ <Box />");
 
-    const [route] = await eslint.lintText(`export function get() { return new Response(); }\n`, { filePath: "/repo/app/api/x/route.ts" });
+    const [route] = await eslint.lintText(`export function get() { return new Response(); }\n`, { filePath: join(REPO, "app/api/x/route.ts") });
     expect(route?.messages.map((m) => m.ruleId)).toEqual(["textjs/route-handler-exports"]);
   });
 });

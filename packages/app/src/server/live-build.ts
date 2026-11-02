@@ -13,10 +13,11 @@
 
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, posix } from "node:path";
 import { pathToFileURL } from "node:url";
 import { gzipSync } from "node:zlib";
-import { build, mergeConfig, type InlineConfig, type Rollup } from "vite";
+import { build, type InlineConfig, type Rollup } from "vite";
+import { withFrameworkEntry } from "./vite-entry";
 import { normalizeBasePath, type TextConfig } from "../config";
 import type { ShellCall } from "./live-app";
 import { textjsLivePlugin } from "./live-dev";
@@ -116,10 +117,11 @@ export interface LiveBuildResult {
 
 const META = ".text";
 
+/** Output-relative and `/`-separated: the manifest is read wherever `dist/` is deployed, Windows builds included. */
 function htmlFileFor(pattern: string, server: boolean): string {
   const dir = pattern === "/" ? "" : pattern.slice(1);
-  if (server) return join(META, "pages", dir, "index.html");
-  return dir ? join(dir, "index.html") : "index.html";
+  if (server) return posix.join(META, "pages", dir, "index.html");
+  return dir ? posix.join(dir, "index.html") : "index.html";
 }
 
 /** Run after the client build. Returns `null` when there is nothing to do. */
@@ -133,49 +135,44 @@ export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildRes
   const staticPages = ppr ? pages.filter((p) => !p.dynamic) : [];
   if (serverPages.length === 0 && staticPages.length === 0) return null;
 
-  const withVite = (c: InlineConfig): InlineConfig => (config.vite ? mergeConfig(c, config.vite) : c);
   const serverDir = join(outDir, META, "server");
   await build(
-    withVite({
-      configFile: false,
-      root: o.root,
-      mode: "production",
-      logLevel: "error",
-      clearScreen: false,
-      build: {
-        ssr: VIRTUAL_LIVE,
-        outDir: serverDir,
-        emptyOutDir: false,
-        target: "node18",
-        rollupOptions: { output: { entryFileNames: "live.mjs", format: "es" } },
+    withFrameworkEntry(
+      {
+        configFile: false,
+        root: o.root,
+        mode: "production",
+        logLevel: "error",
+        clearScreen: false,
+        build: { outDir: serverDir, emptyOutDir: false, target: "node18", rollupOptions: { output: { entryFileNames: "live.mjs", format: "es" } } },
+        ssr: { noExternal: [/^@textjs\//] },
+        plugins: o.plugins,
       },
-      ssr: { noExternal: [/^@textjs\//] },
-      plugins: o.plugins,
-    }),
+      config.vite,
+      { input: VIRTUAL_LIVE, ssr: true },
+    ),
   );
 
   let player: LiveBuildResult["player"] = null;
   let playerUrl: string | null = null;
   if (serverPages.length > 0) {
     const out = (await build(
-      withVite({
-        configFile: false,
-        root: o.root,
-        base: basePath ? `${basePath}/` : "/",
-        mode: "production",
-        logLevel: "error",
-        clearScreen: false,
-        publicDir: false,
-        build: {
-          outDir,
-          emptyOutDir: false,
-          target: "es2022",
-          modulePreload: false,
-          rollupOptions: { input: { player: VIRTUAL_PLAYER }, output: { entryFileNames: "assets/player-[hash].js", format: "es" } },
+      withFrameworkEntry(
+        {
+          configFile: false,
+          root: o.root,
+          base: basePath ? `${basePath}/` : "/",
+          mode: "production",
+          logLevel: "error",
+          clearScreen: false,
+          publicDir: false,
+          build: { outDir, emptyOutDir: false, target: "es2022", modulePreload: false, rollupOptions: { output: { entryFileNames: "assets/player-[hash].js", format: "es" } } },
+          // The player imports only @textjs/core: no React, no route modules.
+          plugins: textjsLivePlugin({ appDir: config.appDir, root: o.root }),
         },
-        // The player imports only @textjs/core: no React, no route modules.
-        plugins: textjsLivePlugin({ appDir: config.appDir, root: o.root }),
-      }),
+        config.vite,
+        { input: { player: VIRTUAL_PLAYER } },
+      ),
     )) as Rollup.RollupOutput | Rollup.RollupOutput[];
     const outputs = Array.isArray(out) ? out : [out];
     const chunk = outputs.flatMap((r) => r.output).find((c): c is Rollup.OutputChunk => c.type === "chunk" && c.isEntry);
@@ -205,7 +202,7 @@ export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildRes
   };
   const liveDoc = (shell?: string): string => createLiveHtml({ title, basePath, viewport: config.viewport, playerSrc: playerUrl ?? "", shell });
   if (playerUrl) {
-    manifest.liveHtml = join(META, "live.html");
+    manifest.liveHtml = posix.join(META, "live.html");
     write(manifest.liveHtml, liveDoc());
   }
 

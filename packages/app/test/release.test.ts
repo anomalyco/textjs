@@ -158,9 +158,9 @@ describe("the real workspace", () => {
       expect(m.files ?? []).toContain("dist");
     }
     // Version constants and sibling peer ranges move with the packages.
-    const files = plan.changes.map((c) => c.file);
+    const files = plan.changes.map((c) => c.file.replaceAll("\\", "/"));
     expect(files.some((f) => f.endsWith("packages/font/package.json"))).toBe(true);
-    expect(plan.changes.find((c) => c.file.endsWith("packages/font/package.json"))?.after).toContain(`"@textjs/react": "^${plan.to}"`);
+    expect(plan.changes.find((c) => c.file.replaceAll("\\", "/").endsWith("packages/font/package.json"))?.after).toContain(`"@textjs/react": "^${plan.to}"`);
     expect(files.some((f) => f.endsWith("packages/eslint-plugin-textjs/src/index.ts"))).toBe(true);
   });
 });
