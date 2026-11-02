@@ -327,6 +327,9 @@ class Runner {
       case "paste":
         r.input.handlePaste(msg.text);
         break;
+      case "text":
+        r.input.handleTextInput(msg.text);
+        break;
       case "wheel":
         r.input.handleWheel({ ...msg, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false });
         break;

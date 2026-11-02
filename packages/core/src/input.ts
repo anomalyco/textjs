@@ -190,6 +190,41 @@ export function normalizeKeyEvent(e: KeyboardEventLike): KeyInputEvent | null {
   };
 }
 
+/**
+ * Read committed text from a hidden input sink: IME commits, dead keys and autocorrect.
+ * Text being composed stays in the sink untouched so the IME keeps working, and is
+ * delivered once on `compositionend` (Chromium fires the last `input` before it,
+ * Firefox after it). Returns a function that removes the listeners.
+ */
+export function bindTextSink(sink: HTMLTextAreaElement | HTMLInputElement, onText: (text: string) => void): () => void {
+  let composing = false;
+  const take = (): void => {
+    const value = sink.value;
+    if (value === "") return;
+    sink.value = "";
+    onText(value);
+  };
+  const onStart = (): void => {
+    composing = true;
+  };
+  const onInput = (e: Event): void => {
+    if (composing || (e as { isComposing?: boolean }).isComposing) return;
+    take();
+  };
+  const onEnd = (): void => {
+    composing = false;
+    take();
+  };
+  sink.addEventListener("compositionstart", onStart);
+  sink.addEventListener("input", onInput);
+  sink.addEventListener("compositionend", onEnd);
+  return () => {
+    sink.removeEventListener("compositionstart", onStart);
+    sink.removeEventListener("input", onInput);
+    sink.removeEventListener("compositionend", onEnd);
+  };
+}
+
 export interface InputEngineOptions {
   /** Defaults to the global `document` when present. */
   document?: Document | null;
@@ -320,6 +355,14 @@ export class InputEngine {
     });
   }
 
+  /**
+   * Deliver committed text from a host-owned sink (IME, dead keys) to this engine, for
+   * consoles that keep their own textarea instead of calling `attach()`. Returns a cleanup.
+   */
+  bindTextSink(sink: HTMLTextAreaElement | HTMLInputElement): () => void {
+    return bindTextSink(sink, (text) => this.handleTextInput(text));
+  }
+
   handlePaste(text: string, files?: readonly File[]): void {
     if ((text.length > 0 || files?.length) && this.enabled) this.emit("paste", { type: "paste", text: text.replace(/\r\n?/g, "\n"), ...(files?.length && {files}) });
   }
@@ -387,17 +430,7 @@ export class InputEngine {
       },
       { capture: true },
     );
-    listen<Event>(sink, "input", (e) => {
-      if ((e as unknown as { isComposing?: boolean }).isComposing) return;
-      const value = sink.value;
-      sink.value = "";
-      this.handleTextInput(value);
-    });
-    listen<CompositionEvent>(sink, "compositionend", () => {
-      const value = sink.value;
-      sink.value = "";
-      this.handleTextInput(value);
-    });
+    this.cleanup.push(this.bindTextSink(sink));
     listen<ClipboardEvent>(
       doc,
       "paste",

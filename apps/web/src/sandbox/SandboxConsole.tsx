@@ -34,6 +34,12 @@ export function SandboxConsole({ frame, engine, source, filter, className, captu
   }, [engine, focused]);
 
   useEffect(() => {
+    const el = sink.current;
+    if (!el || !engine) return;
+    return engine.bindTextSink(el);
+  }, [engine]);
+
+  useEffect(() => {
     const el = wrap.current;
     if (!el || !captureWheel || !engine) return;
     const onWheel = (e: WheelEvent): void => {
@@ -72,12 +78,6 @@ export function SandboxConsole({ frame, engine, source, filter, className, captu
               return;
             }
             engine?.handleKeyDown(e.nativeEvent);
-          }}
-          onInput={(e) => {
-            const el = e.currentTarget;
-            const value = el.value;
-            el.value = "";
-            engine?.handleTextInput(value);
           }}
           onPaste={(e) => {
             e.preventDefault();
