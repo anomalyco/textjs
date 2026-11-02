@@ -1,77 +1,111 @@
 # Cloudflare Pages: headers for static responses (Functions under /api/terminal and
-# /terminal/callback set their own, stricter ones). No page Content-Security-Policy beyond
-# frame-ancestors: pages use inline scripts and styles, and a script/connect policy would
-# need auditing every page (and the OpenCode bridge at 127.0.0.1:4096) first.
-# Cache-Control is set only on disjoint path rules so Pages never joins two values.
+# /terminal/callback set their own, stricter ones).
+#
+# Content-Security-Policy: scripts/postbuild-pages.ts adds a 'sha256-…' source to script-src for
+# every inline script in the built HTML, and fails the build if it can't. Other sources:
+# - 'wasm-unsafe-eval': Yoga layout is WebAssembly. data: in connect-src: Yoga's loader fetches
+#   its inlined data: URL first.
+# - static.cloudflareinsights.com / cloudflareinsights.com: Web Analytics, which Cloudflare injects.
+# - 'unsafe-inline' styles: React style props and the console renderer set style attributes.
+# - http://127.0.0.1:* and http://localhost:*: the OpenCode bridge (`bunx @textjs/opencode proxy`).
+#   On every page because client-side navigation keeps the first page's policy, and a same-origin
+#   frame of /opencode would get it anyway. The bridge's pairing code is the real gate.
+# - No upgrade-insecure-requests: Safari upgrades the loopback bridge requests to https and breaks them.
+# Cache-Control and Cross-Origin-Resource-Policy are set only on disjoint path rules, so Pages
+# never joins two values.
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: SAMEORIGIN
-  Content-Security-Policy: frame-ancestors 'self'
-  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://media.textjs.org; media-src 'self' https://media.textjs.org; font-src 'self'; connect-src 'self' data: https://media.textjs.org https://cloudflareinsights.com http://127.0.0.1:* http://localhost:*; worker-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()
   X-Powered-By: Text.js
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+  Cross-Origin-Resource-Policy: same-origin
 
 # Fonts and Open Graph cards aren't content-hashed, so a day, not a year: repeat visits and link
 # unfurls skip the revalidation round trip, and a changed file still shows up within a day.
 /fonts/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+  Cross-Origin-Resource-Policy: same-origin
 
+# Other sites and their link previews may embed Open Graph cards.
 /og/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+  Cross-Origin-Resource-Policy: cross-origin
 
 /
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /docs
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /docs/*
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /learn
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /learn/*
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /playground
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /playground/*
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /opencode
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /coffee
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /store
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /store/*
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /blog
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /blog/*
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /errors
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /errors/*
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /changelog
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /enterprise
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
 
 /status
   Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin

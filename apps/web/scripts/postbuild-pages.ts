@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { OgCard } from "../src/og";
 import type { Route } from "../src/router";
+import { inlineScriptHashes, withScriptHashes } from "./csp";
 import { renderOgImages, type OgImage } from "./og/render";
 
 const rootDir = join(import.meta.dirname, "..");
@@ -212,6 +213,10 @@ for (const [name, body] of Object.entries(server.statusApi())) writeFileSync(joi
 writeFileSync(join(distDir, "home.ansi"), await server.renderHomeAnsi());
 
 writeFileSync(join(distDir, "404.html"), withImage(notFoundHtml, imageFor(server.NOT_FOUND_PATH)));
+
+// Allow exactly the inline scripts the pages ship (OS detection, mirror prefit, ?debug=scroll) by hash.
+const headersPath = join(distDir, "_headers");
+if (existsSync(headersPath)) writeFileSync(headersPath, withScriptHashes(readFileSync(headersPath, "utf8"), inlineScriptHashes(distDir)));
 writeFileSync(join(distDir, "CNAME"), "textjs.org\n");
 writeFileSync(join(distDir, ".nojekyll"), "");
 rmSync(join(distDir, ".vite"), { recursive: true, force: true });

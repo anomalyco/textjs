@@ -156,7 +156,31 @@ describe("F-04: static security headers", () => {
     expect(all.get("x-content-type-options")).toBe("nosniff");
     expect(all.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
     expect(all.get("x-frame-options")).toBe("SAMEORIGIN");
-    expect(all.get("content-security-policy")).toBe("frame-ancestors 'self'");
+    const csp = new Map(
+      all
+        .get("content-security-policy")!
+        .split(";")
+        .map((d) => d.trim().split(/\s+/))
+        .map(([k, ...v]) => [k!, v] as const),
+    );
+    expect(csp.get("default-src")).toEqual(["'self'"]);
+    // postbuild-pages.ts adds the inline script hashes after 'self'.
+    expect(csp.get("script-src")).toEqual(["'self'", "'wasm-unsafe-eval'", "https://static.cloudflareinsights.com"]);
+    expect(csp.get("connect-src")).toEqual(["'self'", "data:", "https://media.textjs.org", "https://cloudflareinsights.com", "http://127.0.0.1:*", "http://localhost:*"]);
+    expect(csp.get("object-src")).toEqual(["'none'"]);
+    expect(csp.get("base-uri")).toEqual(["'none'"]);
+    expect(csp.get("form-action")).toEqual(["'self'"]);
+    expect(csp.get("frame-ancestors")).toEqual(["'self'"]);
+    for (const [k, v] of csp) {
+      const loose = v.filter((src) => src === "*" || src === "'unsafe-eval'" || /^https?:$/.test(src) || (src === "'unsafe-inline'" && k !== "style-src"));
+      expect({ k, loose }).toEqual({ k, loose: [] });
+    }
+    // Safari upgrades the loopback bridge under upgrade-insecure-requests.
+    expect(csp.has("upgrade-insecure-requests")).toBe(false);
+    expect(all.get("strict-transport-security")).toBe("max-age=31536000; includeSubDomains");
+    expect(all.get("cross-origin-opener-policy")).toBe("same-origin");
+    expect(blocks.get("/og/*")!.get("cross-origin-resource-policy")).toBe("cross-origin");
+    for (const [path, rule] of blocks) if (path !== "/*" && path !== "/og/*") expect({ path, corp: rule.get("cross-origin-resource-policy") }).toEqual({ path, corp: "same-origin" });
     expect(blocks.get("/assets/*")!.get("cache-control")).toBe("public, max-age=31536000, immutable");
     for (const path of ["/fonts/*", "/og/*"]) expect(blocks.get(path)!.get("cache-control")).toBe("public, max-age=86400, stale-while-revalidate=604800");
     expect(all.has("cache-control")).toBe(false);

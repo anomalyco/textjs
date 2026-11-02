@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Security
+
+- `@textjs/opencode`: the bridge prints a pairing code when it starts, and textjs.org/opencode asks for it on the first connect. Until a page sends the code, the bridge answers `428` and forwards nothing to OpenCode, so no page, including one on an allowed origin, can drive your agent without it. Each code is good for one bridge run, the token it returns works only from the origin that paired, and ten wrong codes lock pairing until the bridge restarts.
+- `@textjs/opencode`: Cloudflare Pages preview deployments of textjs.org are no longer allowed by default. Pass `--allow-origin` to use one.
+- textjs.org sends a strict Content-Security-Policy, `Strict-Transport-Security`, `Cross-Origin-Opener-Policy` and `Cross-Origin-Resource-Policy`. The OpenCode page connects only to servers on `127.0.0.1` or `localhost`.
+
 ## [1.0.4] - 2026-11-01
 
 ### Added

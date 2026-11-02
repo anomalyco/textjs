@@ -4,6 +4,7 @@ import { gzipSync } from "node:zlib";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { terminalDevMiddleware } from "./server/terminal-dev";
+import { VIEWPORT_SOURCE } from "./src/console-companion/viewport-console";
 
 /**
  * `vite dev` / `vite preview` run the same handler as the Pages Functions in `functions/`
@@ -15,6 +16,14 @@ function terminalFunctions(): Plugin {
     name: "textjs-terminal-functions",
     configureServer: (server) => void server.middlewares.use(middleware),
     configurePreviewServer: (server) => void server.middlewares.use(middleware),
+  };
+}
+
+/** `text:///viewport`, the file every console frame is logged through, as an inline script (no eval under the CSP). */
+function viewportScript(): Plugin {
+  return {
+    name: "textjs-viewport-script",
+    transformIndexHtml: () => [{ tag: "script", children: VIEWPORT_SOURCE, injectTo: "head" }],
   };
 }
 
@@ -58,7 +67,7 @@ function prerenderedPages(): Plugin {
 }
 
 export default defineConfig(({ isSsrBuild }) => ({
-  plugins: [react(), terminalFunctions(), prerenderedPages()],
+  plugins: [react(), viewportScript(), terminalFunctions(), prerenderedPages()],
   build: {
     target: "es2022",
     outDir: "dist",
