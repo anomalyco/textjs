@@ -138,7 +138,22 @@ describe("Windows dead keys (US-International)", () => {
   });
 });
 
-describe("composition dead keys (macOS, Linux)", () => {
+describe("Linux dead keys without an IME (X11, us intl)", () => {
+  // Recorded on Chrome 156 with xdotool: the same shape as Windows, and the completing key may be 229 "Process".
+  test("dead_acute then e inserts é", () => {
+    const r = replay([kd("Dead", 222), kd("e", 69), ...ins("é")]);
+    expect(r.keys).toEqual([{ key: "é", input: "é" }]);
+    expect(r.prevented).toEqual([]);
+  });
+
+  test("dead_acute then t inserts ´t as one text", () => {
+    const r = replay([kd("Dead", 222), kd("Process", 229), ...ins("´t")]);
+    expect(r.keys).toEqual([{ key: "´t", input: "´t" }]);
+    expect(r.prevented).toEqual([]);
+  });
+});
+
+describe("composition dead keys (macOS, Linux with IBus)", () => {
   test("Option+E then E composes é once", () => {
     const engine = new InputEngine({ document: null });
     const sink = new FakeSink();
