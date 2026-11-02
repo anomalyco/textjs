@@ -238,6 +238,8 @@ if (!only || only.test("/opencode")) {
   const found = await violations();
   check("opencode: connecting to the bridge reports nothing", found.length === 0, found.join("\n"));
   await page.click(".status-action");
+  const kept = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("textjs:opencode")));
+  check("opencode: Disconnect forgets the server and its token", (await status()) === "sandbox" && kept.length === 0, `${await status()} ${kept.join(", ")}`);
   await page.evaluate(() => localStorage.clear());
 }
 

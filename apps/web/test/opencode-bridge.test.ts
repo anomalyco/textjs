@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { startProxy, type StartedBridge } from "../../../packages/opencode/src/proxy";
-import { bridgeToken, discoverServer, pairBridge, PairingRequired, rememberBridgeToken } from "../src/demos/opencode/live";
+import { bridgeToken, discoverServer, OUTDATED_BRIDGE, pairBridge, PairingRequired, rememberBridgeToken } from "../src/demos/opencode/live";
 
 const storage = new Map<string, string>();
 const g = globalThis as { localStorage?: unknown };
@@ -49,6 +49,48 @@ describe("/opencode and the bridge's pairing code", () => {
     rememberBridgeToken(bridge.url, "from-a-previous-run");
     await expect(discoverServer(bridge.url)).rejects.toBeInstanceOf(PairingRequired);
     expect(bridgeToken(bridge.url)).toBeNull();
+  });
+
+  test("a bridge from before pairing (1.0.x) is refused with how to update", async () => {
+    // What @textjs/opencode 1.0.4 answers: it forwards with the daemon password and no code.
+    const old = Bun.serve({
+      port: 0,
+      hostname: "127.0.0.1",
+      fetch: () => Response.json({ version: "2.0.0-mock" }, { headers: { "x-textjs-bridge": "1", "access-control-expose-headers": "x-textjs-bridge" } }),
+    });
+    try {
+      await expect(discoverServer(`http://127.0.0.1:${old.port}`)).rejects.toThrow(OUTDATED_BRIDGE);
+    } finally {
+      old.stop(true);
+    }
+    expect(OUTDATED_BRIDGE).toContain("bunx @textjs/opencode@latest proxy");
+  });
+
+  test("a direct OpenCode server still connects without pairing", async () => {
+    const direct = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => Response.json({ version: "2.0.0-direct" }) });
+    try {
+      expect(await discoverServer(`http://127.0.0.1:${direct.port}`)).toEqual({ apiBase: `http://127.0.0.1:${direct.port}`, protocol: "v2", bridge: false, version: "2.0.0-direct", token: undefined });
+    } finally {
+      direct.stop(true);
+    }
+  });
+
+  test("with storage off or full, the token from pairing still connects", async () => {
+    const working = g.localStorage;
+    g.localStorage = {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("QuotaExceededError");
+      },
+      removeItem: () => undefined,
+    };
+    try {
+      const token = await pairBridge(bridge.url, "K7F2QM");
+      expect(bridgeToken(bridge.url)).toBeNull();
+      expect(await discoverServer(bridge.url, 3000, token)).toMatchObject({ bridge: true, token });
+    } finally {
+      g.localStorage = working;
+    }
   });
 
   test("only loopback servers, which the site's CSP allows", async () => {

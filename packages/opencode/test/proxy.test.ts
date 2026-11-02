@@ -10,6 +10,7 @@ import {
   normalizePairingCode,
   normalizeTargetUrl,
   PAIR_PATH,
+  PAIRING_HEADER,
   startProxy,
   TOKEN_HEADER,
   type StartedBridge,
@@ -164,6 +165,8 @@ describe("bunx @textjs/opencode proxy", () => {
     expect(res.headers.get("access-control-allow-methods")).toContain("POST");
     expect(res.headers.get("access-control-allow-headers")).toContain("x-opencode-client");
     expect(res.headers.get("access-control-allow-headers")).toContain(TOKEN_HEADER);
+    expect(res.headers.get("access-control-expose-headers")).toBe(`x-textjs-bridge, ${PAIRING_HEADER}`);
+    expect(res.headers.get(PAIRING_HEADER)).toBe("1");
     expect(res.headers.get("access-control-allow-credentials")).toBeNull();
     expect(res.headers.get("access-control-max-age")).toBe("86400");
     expect(res.headers.get("vary")).toBe("Origin");
@@ -199,6 +202,8 @@ describe("bunx @textjs/opencode proxy", () => {
       expect({ path, status: res.status }).toEqual({ path, status: 428 });
       expect(res.headers.get("access-control-allow-origin")).toBe("https://textjs.org");
       expect(res.headers.get("x-textjs-bridge")).toBe("1");
+      // Lets the page tell this bridge from a 1.0.x one, which forwards without a code.
+      expect(res.headers.get(PAIRING_HEADER)).toBe("1");
     }
     // Simple requests a hostile page can send without a preflight: no Origin, form posts, sendBeacon.
     expect((await fetch(`${base}/api/session`)).status).toBe(428);

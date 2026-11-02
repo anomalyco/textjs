@@ -2,13 +2,13 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { getCompanion } from "../console-companion/boot";
 import { siteStore, type OpenCodeConnection } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
-import { autoConnectTarget, BRIDGE_COMMAND, DEFAULT_SERVER_URL, discoverServer, normalizeServerUrl, pairBridge, PairingRequired, rememberServer } from "../demos/opencode/live";
+import { autoConnectTarget, BRIDGE_COMMAND, DEFAULT_SERVER_URL, discoverServer, normalizeServerUrl, pairBridge, PairingRequired, rememberBridgeToken, rememberServer } from "../demos/opencode/live";
 import { CopyCommand } from "../site/CodeBlock";
 
-async function connectTo(target: string, quiet: boolean): Promise<void> {
+async function connectTo(target: string, quiet: boolean, token?: string): Promise<void> {
   if (!quiet) siteStore.set({ opencode: { mode: "connecting", url: target } });
   try {
-    const info = await discoverServer(target, quiet ? 1500 : 3000);
+    const info = await discoverServer(target, quiet ? 1500 : 3000, token);
     siteStore.set({ opencode: { mode: "live", url: info.apiBase, version: info.version, protocol: info.protocol, bridge: info.bridge, token: info.token } });
     rememberServer(info.apiBase);
   } catch (err) {
@@ -76,8 +76,9 @@ export function ConnectPanel(): ReactNode {
 
   const pair = async (target: string): Promise<void> => {
     setPairing(true);
+    let token: string;
     try {
-      await pairBridge(target, code);
+      token = await pairBridge(target, code);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setPairing(false);
@@ -91,7 +92,7 @@ export function ConnectPanel(): ReactNode {
     }
     setPairing(false);
     setCode("");
-    await connectTo(target, false);
+    await connectTo(target, false, token);
   };
 
   const status: PanelStatus = site.opencodeExited ? "exited" : !hydrated ? "pending" : checking && conn.mode === "sandbox" ? "checking" : conn.mode;
@@ -152,6 +153,7 @@ export function ConnectPanel(): ReactNode {
           className="text-link status-action"
           onClick={() => {
             rememberServer(null);
+            rememberBridgeToken(conn.url, null);
             siteStore.set({ opencode: { mode: "sandbox" } });
           }}
         >

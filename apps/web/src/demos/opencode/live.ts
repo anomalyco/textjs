@@ -3,6 +3,7 @@
 export const DEFAULT_SERVER_URL = "http://127.0.0.1:4096";
 export const BRIDGE_COMMAND = "bunx @textjs/opencode proxy";
 export const BRIDGE_TOKEN_HEADER = "x-textjs-bridge-token";
+export const OUTDATED_BRIDGE = "This bridge is out of date. Stop it and run bunx @textjs/opencode@latest proxy.";
 const REMEMBER_KEY = "textjs:opencode-server";
 const TOKEN_KEY = "textjs:opencode-bridge-token:";
 const LOOPBACK = /^(localhost|127\.0\.0\.1|\[::1\])$/;
@@ -93,7 +94,7 @@ interface DiscoverResult {
 }
 
 /** A simple read-only GET avoids a CORS preflight during local-network discovery, until a bridge has paired. */
-export async function discoverServer(raw: string, timeoutMs = 3000): Promise<DiscoverResult> {
+export async function discoverServer(raw: string, timeoutMs = 3000, pairedToken?: string): Promise<DiscoverResult> {
   const apiBase = normalizeServerUrl(raw);
   const fail = (message: string): never => {
     console.warn(`OpenCode Lite: ${message}`);
@@ -104,7 +105,8 @@ export async function discoverServer(raw: string, timeoutMs = 3000): Promise<Dis
   if (u.username || u.password) return fail(`Don't put credentials in the URL. Run ${BRIDGE_COMMAND} and connect to ${DEFAULT_SERVER_URL}.`);
   // The site's Content-Security-Policy allows loopback servers only.
   if (!LOOPBACK.test(u.hostname)) return fail(`Connect to the bridge on this computer, such as ${DEFAULT_SERVER_URL}.`);
-  const token = bridgeToken(apiBase) ?? undefined;
+  // A token fresh from pairing works even where storage is off or full; storage only carries it across reloads.
+  const token = pairedToken ?? bridgeToken(apiBase) ?? undefined;
   const reach = `Can't reach ${u.host}. Run ${BRIDGE_COMMAND} and ${loopback() ? "connect to 127.0.0.1:4096" : "allow local network access"}.`;
   if (typeof location !== "undefined" && !loopback()) timeoutMs = Math.max(timeoutMs, 60_000);
   for (const protocol of ["v2", "v1"] as const) {
@@ -113,6 +115,11 @@ export async function discoverServer(raw: string, timeoutMs = 3000): Promise<Dis
       res = await fetch(`${apiBase}${protocol === "v2" ? "/api/info" : "/session?limit=1"}`, { headers: { accept: "application/json", ...(token ? { [BRIDGE_TOKEN_HEADER]: token } : {}) }, signal: AbortSignal.timeout(timeoutMs) });
     } catch { return fail(reach); }
     const bridge = res.headers.get("x-textjs-bridge") === "1";
+    // A bridge from before pairing forwards without a code: don't connect through it.
+    if (bridge && res.headers.get("x-textjs-bridge-pairing") !== "1") {
+      await res.body?.cancel().catch(() => undefined);
+      return fail(OUTDATED_BRIDGE);
+    }
     if (res.status === 428 && bridge) {
       if (token) rememberBridgeToken(apiBase, null);
       throw new PairingRequired(apiBase);

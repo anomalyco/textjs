@@ -29,6 +29,8 @@ export const DEFAULT_PROXY_PORT = 4096;
 export const BRIDGE_HEADER = "x-textjs-bridge";
 export const CLIENT_HEADER = "x-opencode-client";
 export const TOKEN_HEADER = "x-textjs-bridge-token";
+/** On every response from a bridge that requires pairing. Older bridges (1.0.x) send only `x-textjs-bridge`. */
+export const PAIRING_HEADER = "x-textjs-bridge-pairing";
 export const PAIR_PATH = "/__bridge/pair";
 export const MAX_BODY_BYTES = 4 * 1024 * 1024;
 /** Wrong codes before pairing locks until the bridge restarts. */
@@ -148,7 +150,7 @@ export function corsHeaders(origin: string): Record<string, string> {
     "access-control-allow-private-network": "true",
     "access-control-allow-methods": "GET, HEAD, POST, PATCH, PUT, DELETE, OPTIONS",
     "access-control-allow-headers": `Content-Type, Accept, Last-Event-ID, x-opencode-directory, ${CLIENT_HEADER}, ${TOKEN_HEADER}`,
-    "access-control-expose-headers": BRIDGE_HEADER,
+    "access-control-expose-headers": `${BRIDGE_HEADER}, ${PAIRING_HEADER}`,
     "access-control-max-age": "86400",
     vary: "Origin",
   };
@@ -344,7 +346,7 @@ export function createBridgeHandler(options: BridgeOptions = {}): BridgeHandler 
     if (!LOOPBACK_HOSTNAMES.has(hostnameOf(host))) return json(403, { error: "Forbidden host" });
     const origin = request.headers.get("origin");
     if (origin !== null && !isAllowedOrigin(origin, extra)) return json(403, { error: "Origin not allowed" });
-    const cors: Record<string, string> = { [BRIDGE_HEADER]: "1", ...(origin !== null ? corsHeaders(origin) : {}) };
+    const cors: Record<string, string> = { [BRIDGE_HEADER]: "1", [PAIRING_HEADER]: "1", ...(origin !== null ? corsHeaders(origin) : {}) };
     const method = request.method.toUpperCase();
     if (method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (url.pathname === PAIR_PATH) return pair(request, origin, cors);
