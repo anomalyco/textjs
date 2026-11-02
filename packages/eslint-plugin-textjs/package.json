@@ -5,6 +5,12 @@
   "type": "module",
   "license": "MIT",
   "homepage": "https://textjs.org/docs/eslint",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anomalyco/textjs.git",
+    "directory": "packages/eslint-plugin-textjs"
+  },
+  "bugs": "https://github.com/anomalyco/textjs/issues",
   "keywords": ["eslint", "eslintplugin", "eslint-plugin", "textjs", "react", "console", "tui"],
   "sideEffects": false,
   "main": "./src/index.ts",

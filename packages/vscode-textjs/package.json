@@ -7,6 +7,12 @@
   "publisher": "textjs",
   "license": "MIT",
   "homepage": "https://textjs.org/docs/vscode",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anomalyco/textjs",
+    "directory": "packages/vscode-textjs"
+  },
+  "bugs": "https://github.com/anomalyco/textjs/issues",
   "icon": "media/icon.png",
   "galleryBanner": {
     "color": "#000000",

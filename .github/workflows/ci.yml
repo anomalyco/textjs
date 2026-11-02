@@ -1,0 +1,58 @@
+# ▼ Typecheck and unit tests for pull requests to dev and production, and pushes to dev.
+# Read-only and secret-free, so it runs the same on pull requests from forks.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, production]
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    name: Typecheck and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: |
+          bun run typecheck
+          bun run --cwd apps/web typecheck
+
+      - name: Test packages
+        run: bun test packages/
+
+      # og.test.ts renders an Open Graph image per route in headless Chromium.
+      - name: Install Chromium
+        working-directory: apps/web
+        run: bunx playwright-core install --with-deps --only-shell chromium
+
+      - name: Test apps
+        run: |
+          bun test apps/opencode-console/
+          bun run --cwd apps/web test
+          bun run --cwd apps/terminal-shop test

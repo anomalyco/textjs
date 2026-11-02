@@ -148,8 +148,24 @@ describe("nextjs.org paths redirect", () => {
 
   test("vercel.json mirrors _redirects", () => {
     const cfg = JSON.parse(readFileSync(join(root, "vercel.json"), "utf8")) as { redirects: Array<{ source: string; destination: string; permanent: boolean }> };
-    const expected = rules.filter((r) => !r.from.endsWith("/")).map((r) => ({ source: r.from.replace(/\/\*$/, "/:path*"), destination: r.to, permanent: r.status === 301 }));
+    const expected = rules.filter((r) => !r.from.endsWith("/")).map((r) => ({ source: r.from.replace(/\/\*$/, "/:path*"), destination: r.to.replace(":splat", ":path*"), permanent: r.status === 301 }));
     expect(cfg.redirects).toEqual(expected);
+  });
+
+  test("renamed pages redirect permanently, and the Terminal sign in callback isn't caught", () => {
+    const renamed = rules.filter((r) => r.from === "/terminal" || r.from.startsWith("/merch"));
+    for (const r of renamed) {
+      expect(r.status).toBe(301);
+      if (!r.to.includes(":splat")) expect(matchRoute(r.to).name).not.toBe("not-found");
+    }
+    expect(renamed.find((r) => r.from === "/terminal")?.to).toBe("/coffee");
+    expect(renamed.find((r) => r.from === "/merch/*")?.to).toBe("/store/:splat");
+    // Old store slugs that the splat rule would send to a 404.
+    for (const slug of ["frame-tee", "hoodie", "cap", "sticker-sheet"]) {
+      expect(matchRoute(`/store/${slug}`).name).toBe("not-found");
+      expect(renamed.find((r) => r.from === `/merch/${slug}`)?.to).toBe("/store");
+    }
+    expect(rules.some((r) => r.from.startsWith("/terminal/") || r.from === "/terminal/*" || r.from === "/*")).toBe(false);
   });
 });
 

@@ -4,11 +4,11 @@ Text.js ships on three npm dist-tags. Every package (`@textjs/app`, `@textjs/rea
 
 | Channel | dist-tag | Version | Install |
 | :-- | :-- | :-- | :-- |
-| Stable | `latest` | `1.0.1` | `bun add @textjs/app` |
-| Canary | `canary` | `1.0.2-canary.N` | `bun add @textjs/app@canary` |
+| Stable | `latest` | `1.0.x` | `bun add @textjs/app` |
+| Canary | `canary` | `1.0.x-canary.N` | `bun add @textjs/app@canary` |
 | LTS | `lts`, `v1-lts` | Published once `2.0.0` ships | `bun add @textjs/app@lts` |
 
-Use stable in production. Use canary to try fixes and features the day they land on `main`. Once an LTS line exists, use it if you upgrade once a year.
+Use stable in production. Use canary to try fixes and features the day they land on `dev`. Once an LTS line exists, use it if you upgrade once a year.
 
 ```bash
 bun create text-app@canary my-console
@@ -20,9 +20,9 @@ Stable releases follow [semantic versioning](https://semver.org): patches fix bu
 
 ## Canary
 
-Every push to `main` in the official repository is type-checked, tested and published as the next patch with a `-canary.N` suffix:
+Every push to `dev` in the official repository is type-checked, tested and published as the next patch with a `-canary.N` suffix:
 
-| `latest` | `main` push | Published |
+| `latest` | `dev` push | Published |
 | :-- | :-- | :-- |
 | `1.0.0` | first | `1.0.1-canary.0` |
 | `1.0.0` | second | `1.0.1-canary.1` |
@@ -30,7 +30,7 @@ Every push to `main` in the official repository is type-checked, tested and publ
 
 `N` continues from the highest canary already on npm, so numbers never repeat. Canary versions are not committed to the repository. Add `[skip canary]` to a commit message to skip a release.
 
-Canaries are builds of `main`. They may change or remove unreleased APIs without notice. Pin an exact canary version if you depend on one.
+Canaries are builds of `dev`, the branch every pull request merges into. They may change or remove unreleased APIs without notice. Pin an exact canary version if you depend on one.
 
 ## Provenance
 

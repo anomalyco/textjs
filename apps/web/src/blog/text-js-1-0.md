@@ -51,4 +51,4 @@ An unchanged frame returns before it allocates a string, so idle frames measure 
 
 Open [textjs.org](/) and press ⌘⌥J (Ctrl+Shift+J on Windows and Linux). The site runs a Text.js app in your console, one view per page. The [Playground](/playground) has a dashboard, streaming Markdown and Snake. [OpenCode](/opencode) connects to your local OpenCode server.
 
-The full list of changes is in the [changelog](/changelog).
+The full list of changes is in the [changelog](/changelog), and the source is on [GitHub](https://github.com/anomalyco/textjs).

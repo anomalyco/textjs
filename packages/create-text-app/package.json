@@ -1,10 +1,17 @@
 {
   "name": "create-text-app",
   "version": "1.0.4",
-  "description": "Create Text.js apps: React App Router apps that render in the DevTools console.",
+  "description": "Scaffold a Text.js app from the starter, dashboard or opencode template.",
   "type": "module",
   "license": "MIT",
   "homepage": "https://textjs.org",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anomalyco/textjs.git",
+    "directory": "packages/create-text-app"
+  },
+  "bugs": "https://github.com/anomalyco/textjs/issues",
+  "keywords": ["textjs", "create-text-app", "react", "console", "devtools", "tui", "starter"],
   "bin": {
     "create-text-app": "bin/create-text-app.js"
   },

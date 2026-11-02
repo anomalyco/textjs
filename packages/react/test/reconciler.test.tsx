@@ -266,5 +266,7 @@ describe("React 19 reconciler", () => {
       }
     });
     expect(String(thrown)).toContain("cannot be nested inside <Text>");
+    // A throwing act() leaves React's act queue open; unmounting inside act() closes it for later files.
+    await t.unmount();
   });
 });

@@ -5,6 +5,7 @@ import { BRIDGE_COMMAND } from "../src/demos/opencode/live";
 import { DOCS, docPath } from "../src/docs/registry";
 import { matchRoute, normalizePath, resetLocation, titleFor } from "../src/router";
 import { Footer, Header } from "../src/site/Chrome";
+import { REPO_URL, docEditUrl } from "../src/site/links";
 import { siteStore, tabForPath } from "../src/console-companion/store";
 
 describe("router", () => {
@@ -150,7 +151,10 @@ describe("page rendering", () => {
 
   test("header and footer", () => {
     const header = renderToStaticMarkup(<Header />);
-    expect(header).not.toContain("github.com");
+    // A static link to the repo, with no star count fetched from GitHub's API.
+    expect(header).toContain(`href="${REPO_URL}"`);
+    expect(header).toContain('aria-label="Text.js on GitHub"');
+    expect(header).not.toContain("api.github.com");
     for (const s of ["Text.js", "Docs", "Learn", "Playground", "Search", "⌘K"]) expect(header).toContain(s);
     // OpenCode and Coffee live in the Playground picker now.
     expect(header).not.toContain('href="/opencode"');
@@ -168,7 +172,7 @@ describe("page rendering", () => {
     for (const s of ["Anomaly", "anomaly-signature.svg", "Docs", "Playground"]) expect(footer).toContain(s);
     // OpenCode and Coffee are reached from the Playground.
     for (const s of ['href="/opencode"', 'href="/coffee"', 'href="/terminal"']) expect(footer).not.toContain(s);
-    expect(footer).not.toContain("GitHub");
+    expect(footer).toContain(`<a href="${REPO_URL}" target="_blank" rel="noreferrer">GitHub</a>`);
     expect(footer).not.toContain("Community");
   });
 
@@ -184,5 +188,7 @@ describe("page rendering", () => {
     expect(docs).toContain('aria-label="Open docs navigation"');
     expect(docs).toContain('aria-controls="docs-drawer"');
     expect(docs).not.toContain("sheet-layer");
+    expect(docs).toContain(`href="${docEditUrl("routing")}"`);
+    expect(docs).toContain("Edit this page on GitHub");
   });
 });
