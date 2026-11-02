@@ -1,0 +1,49 @@
+# ▼ Deploys textjs.org to Cloudflare Pages (project `textjs`).
+#
+# - Push to `production`: the production deployment. Pages' production branch is
+#   `main`, so it deploys with `--branch main` and serves https://textjs.org.
+#   Production runs queue (`queue: max`), so every merge deploys, in order.
+# - Push to `dev`: a preview at https://dev.textjs-avg.pages.dev. A newer push
+#   cancels a running preview deploy.
+# - Pull requests never deploy; CI covers them without secrets.
+#
+# The steps live in deploy-site.yml. Secrets come from the GitHub environment
+# each run deploys to:
+# - `production` and `dev`: CLOUDFLARE_API_TOKEN (Account → Cloudflare Pages →
+#   Edit) and CLOUDFLARE_ACCOUNT_ID.
+# - `production` only, optional: CLOUDFLARE_WORKERS_TOKEN, which deploys the curl
+#   Worker in apps/web/workers/curl-http after every production deploy.
+
+name: Deploy
+
+on:
+  push:
+    branches: [dev, production]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production:
+    name: Production
+    if: github.repository == 'anomalyco/textjs' && github.ref == 'refs/heads/production'
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+      queue: max
+    uses: ./.github/workflows/deploy-site.yml
+    with:
+      environment: production
+      pages-branch: main
+
+  dev:
+    name: Preview
+    if: github.repository == 'anomalyco/textjs' && github.ref == 'refs/heads/dev'
+    concurrency:
+      group: deploy-dev
+      cancel-in-progress: true
+    uses: ./.github/workflows/deploy-site.yml
+    with:
+      environment: dev
+      pages-branch: dev

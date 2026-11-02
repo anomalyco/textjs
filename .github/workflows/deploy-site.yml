@@ -1,0 +1,204 @@
+# ▼ Builds, tests and deploys textjs.org. Called by deploy.yml, which picks the
+# environment and the Pages branch and sets concurrency.
+#
+# Builds the packages and the site (Open Graph images render in headless
+# Chromium, cached in apps/web/.cache/og between runs), runs the web unit tests,
+# uploads apps/web/dist with the Functions in apps/web/functions, then checks
+# that the new deployment serves `/` and a Pages Function.
+
+name: Deploy site
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment that holds the Cloudflare secrets (`production` or `dev`)
+        required: true
+        type: string
+      pages-branch:
+        description: Branch name for the Pages deployment (`main` is the Pages production branch)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  WRANGLER_VERSION: 4.156.0
+  WRANGLER_SEND_METRICS: "false"
+
+jobs:
+  site:
+    name: textjs.org
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ steps.deploy.outputs.url }}
+    outputs:
+      worker: ${{ steps.worker.outputs.deploy }}
+    steps:
+      - name: Refuse stale reruns
+        if: github.run_attempt > 1
+        run: |
+          tip=$(git ls-remote "https://github.com/$GITHUB_REPOSITORY" "refs/heads/$GITHUB_REF_NAME" | cut -f1)
+          if [ "$tip" != "$GITHUB_SHA" ]; then
+            echo "::error::This rerun would deploy $GITHUB_SHA, but $GITHUB_REF_NAME is now at ${tip:-an unknown commit}. Start a fresh run from Actions → Deploy → Run workflow on $GITHUB_REF_NAME."
+            exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Build packages
+        run: bun run build:packages
+
+      - name: Install Chromium for Open Graph images
+        working-directory: apps/web
+        run: bunx playwright-core install --with-deps --only-shell chromium
+
+      # Images are keyed by a hash of their inputs, so any earlier run's cache is safe to reuse.
+      - name: Restore Open Graph image cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: apps/web/.cache/og
+          key: og-${{ github.sha }}
+          restore-keys: og-
+
+      # Without Chromium the build falls back to /og.png for every uncached card. Fail instead.
+      - name: Build site
+        working-directory: apps/web
+        run: |
+          bun run build 2>&1 | tee "$RUNNER_TEMP/build.log"
+          if grep -q "Chromium is unavailable" "$RUNNER_TEMP/build.log"; then
+            echo "::error::Open Graph images need Chromium, which failed to launch."
+            exit 1
+          fi
+
+      - name: Test site
+        run: bun run --cwd apps/web test
+
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        working-directory: apps/web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          PAGES_BRANCH: ${{ inputs.pages-branch }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.json
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the $ENVIRONMENT environment to deploy."
+            exit 1
+          fi
+          message=$(git log -1 --format=%s | cut -c1-200)
+          bunx "wrangler@$WRANGLER_VERSION" pages deploy dist \
+            --project-name textjs \
+            --branch "$PAGES_BRANCH" \
+            --commit-hash "$GITHUB_SHA" \
+            --commit-message "$message" \
+            --commit-dirty=false
+          details=$(jq -c 'select(.type == "pages-deploy-detailed")' "$WRANGLER_OUTPUT_FILE_PATH")
+          deployment=$(jq -r '.url' <<< "$details")
+          alias=$(jq -r '.alias // empty' <<< "$details")
+          if [ "$PAGES_BRANCH" = main ]; then url=https://textjs.org; else url=${alias:-$deployment}; fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "deployment=$deployment" >> "$GITHUB_OUTPUT"
+          {
+            echo "### ▼ textjs.org deployed"
+            echo
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| URL | $url |"
+            echo "| Deployment | $deployment |"
+            echo "| Pages branch | \`$PAGES_BRANCH\` |"
+            echo "| Commit | \`$GITHUB_SHA\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Retries for up to 60 seconds in total while the new deployment propagates.
+      - name: Check the deployment
+        env:
+          DEPLOYMENT: ${{ steps.deploy.outputs.deployment }}
+        run: |
+          deadline=$((SECONDS + 60))
+          check() {
+            local path=$1 code
+            while :; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$DEPLOYMENT$path" || true)
+              [ "$code" = 200 ] && break
+              [ "$SECONDS" -ge "$deadline" ] && break
+              sleep 5
+            done
+            echo "| \`$path\` | $code |" >> "$GITHUB_STEP_SUMMARY"
+            echo "$path → $code"
+            [ "$code" = 200 ]
+          }
+          printf '\n| Check | Status |\n| --- | --- |\n' >> "$GITHUB_STEP_SUMMARY"
+          ok=true
+          check / || ok=false
+          check /api/terminal/_status || ok=false
+          if [ "$ok" != true ]; then
+            echo "::error::$DEPLOYMENT didn't return 200 for every check within 60 seconds."
+            exit 1
+          fi
+
+      - name: Check for a Workers token
+        id: worker
+        if: inputs.environment == 'production'
+        env:
+          HAS_WORKERS_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_TOKEN != '' }}
+        run: |
+          if [ "$HAS_WORKERS_TOKEN" = true ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::CLOUDFLARE_WORKERS_TOKEN isn't set in the production environment. Skipping the curl Worker deploy."
+          fi
+
+  curl-worker:
+    name: curl Worker
+    needs: site
+    if: needs.site.outputs.worker == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: http://textjs.org/
+    steps:
+      - name: Refuse stale reruns
+        if: github.run_attempt > 1
+        run: |
+          tip=$(git ls-remote "https://github.com/$GITHUB_REPOSITORY" "refs/heads/$GITHUB_REF_NAME" | cut -f1)
+          if [ "$tip" != "$GITHUB_SHA" ]; then
+            echo "::error::This rerun would deploy $GITHUB_SHA, but $GITHUB_REF_NAME is now at ${tip:-an unknown commit}. Start a fresh run from Actions → Deploy → Run workflow on $GITHUB_REF_NAME."
+            exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
+      - name: Deploy textjs-curl-http
+        working-directory: apps/web/workers/curl-http
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          bunx "wrangler@$WRANGLER_VERSION" deploy --message "$(git log -1 --format=%s | cut -c1-200)"
+          echo "### ▼ curl Worker deployed to http://textjs.org/" >> "$GITHUB_STEP_SUMMARY"

@@ -68,6 +68,7 @@ Open the page and press **⌘⌥J** (**Ctrl+Shift+J** on Windows and Linux) to s
 
 ## Pull requests
 
+- Open pull requests against `dev`, the default branch.
 - Keep each pull request to one change, and explain what it does and how you tested it.
 - Add an entry under `## [Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md) for any change users will notice.
 - Match the style of the code around your change. TypeScript is strict across the repo.
@@ -83,6 +84,29 @@ Docs, READMEs, error messages and site copy follow [`apps/web/STYLE.md`](apps/we
 - Docs are instructional: "To do X, use Y."
 - Avoid em dashes, contrast templates ("not X, but Y"), lists of three for rhythm, closing morals and stock words such as seamless, powerful, effortless and simply.
 
+## Deploys
+
+The repository has two long-lived branches. Pull requests merge into `dev`, and `production` holds what runs on textjs.org. To ship, maintainers open a pull request from `dev` to `production` and merge it with **Create a merge commit**.
+
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) deploys every push to either branch. It builds the packages and the site, runs `bun run --cwd apps/web test`, uploads `apps/web/dist` and `apps/web/functions` to the `textjs` Cloudflare Pages project, then checks that the deployment serves `/` and `/api/terminal/_status`. Production deploys run one at a time in merge order. A newer push to `dev` cancels a preview deploy that's still running.
+
+| Push to | Deploys to |
+| --- | --- |
+| `dev` | [dev.textjs-avg.pages.dev](https://dev.textjs-avg.pages.dev), a preview |
+| `production` | [textjs.org](https://textjs.org) |
+
+Pull requests don't deploy. When `CLOUDFLARE_WORKERS_TOKEN` is set, each production deploy also deploys the Worker in `apps/web/workers/curl-http`, which answers `curl http://textjs.org`.
+
+The Cloudflare secrets live in GitHub environments, so only runs on the matching branch can read them:
+
+| Environment | Branch | Secrets |
+| --- | --- | --- |
+| `production` | `production` | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_WORKERS_TOKEN` |
+| `dev` | `dev` | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` |
+| `npm-canary` | `dev` | `NPM_TOKEN` |
+
+To redeploy, run the Deploy workflow from the Actions tab on `dev` or `production`. Rerunning an old run fails once its branch has moved on, so it can't put an older commit back live.
+
 ## Releases
 
 Every package is versioned in lockstep. Maintainers cut releases:
@@ -92,7 +116,7 @@ bun run release:version patch                       # or minor, major, canary, s
 bun run release:publish --tag latest --provenance
 ```
 
-`release:version` bumps every `package.json` and the version constants that mirror it. `release:publish` builds, packs and publishes each package, and skips versions that already exist on npm. Every push to `main` also publishes an `x.y.z-canary.N` build under the `canary` tag from [`.github/workflows/canary.yml`](.github/workflows/canary.yml). [Release channels](https://textjs.org/docs/release-channels) has the details.
+`release:version` bumps every `package.json` and the version constants that mirror it. `release:publish` builds, packs and publishes each package, and skips versions that already exist on npm. Every push to `dev` also publishes an `x.y.z-canary.N` build under the `canary` tag from [`.github/workflows/canary.yml`](.github/workflows/canary.yml). [Release channels](https://textjs.org/docs/release-channels) has the details.
 
 ## License
 
