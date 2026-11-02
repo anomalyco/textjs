@@ -1,0 +1,7 @@
+# actionlint 1.7.12 (the latest release) predates `concurrency.queue`, which GitHub
+# Actions supports since May 2026:
+# https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency
+paths:
+  .github/workflows/**/*.yml:
+    ignore:
+      - 'unexpected key "queue" for "concurrency" section'
