@@ -35,7 +35,7 @@ export default function StatusPage(): ReactNode {
 
 ## What the browser downloads
 
-A server-rendered page doesn't ship React, Yoga or your routes. The browser loads a frame player of about 19 kB gzip, which holds a `CellBuffer` and the same `CssConsoleDriver` the client renderer uses. It paces frames at the same 15fps, so a server-rendered frame produces the same `console.log` call as the client would.
+A server-rendered page doesn't ship React, Yoga or your routes. The browser loads a frame player of about 21 kB gzip, which holds a `CellBuffer` and the same `CssConsoleDriver` the client renderer uses. It paces frames at the same 15fps, so a server-rendered frame produces the same `console.log` call as the client would.
 
 ## The protocol
 
@@ -74,7 +74,7 @@ The shell is everything that renders synchronously. A `<Suspense>` boundary that
 When JavaScript boots, the client renderer or the frame player streams the real frame. Because 0.4 also appends frames instead of clearing, the hydrating renderer starts with `initialClear: false` and logs below the shell, and its curtain moves the shell out of view in the same DevTools paint. The console is cleared exactly once, by the shell.
 
 ```text
- ✓ Prerendering console shells (5/5) · 1 server-rendered, frame player 50.4 kB (19.2 kB gzip)
+ ✓ Prerendering console shells (5/5) · 1 server-rendered, frame player 56.5 kB (21.3 kB gzip)
 ```
 
 The shell is rendered at the configured `viewport` size, `100 × 32` by default, because the build can't know the visitor's console size. With `viewport.responsive` on, the first live frame resizes to the docked console. Dynamic routes render no shell, and `ppr: false` in `text.config.ts` turns prerendering off.
