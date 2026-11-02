@@ -12,6 +12,17 @@ function cursor(t: TestRoot): { x: number; y: number } {
 }
 
 describe("<Textarea>", () => {
+  test("moves to a soft row boundary and replaces a visual-line selection", async () => {
+    const t = await createTestRoot({ width: 5, height: 6 });
+    const sent: string[] = [];
+    await t.render(<Textarea advancedEditing defaultValue="abcdefgh" autoFocus onSubmit={(s) => sent.push(s)} />);
+    await t.press("a", { altKey: true });
+    await t.press("e", { altKey: true, shiftKey: true });
+    await t.type("X");
+    await t.press("Enter");
+    expect(sent).toEqual(["abcdeX"]);
+    await t.unmount();
+  });
   test("advanced editing replaces a selected grapheme range and undoes and redoes the edit", async () => {
     const t = await createTestRoot();
     const submitted: string[] = [];

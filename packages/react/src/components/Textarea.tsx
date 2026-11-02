@@ -11,7 +11,7 @@ import { applyEditKey, deleteRange, insert, lineStart, lineEnd, visualMove, type
 import { useFocus } from "../focus";
 import { mergeStyleProps, TxBox, TxText } from "../host";
 import { useInput, usePaste } from "../hooks";
-import { FOCUSED_INPUT_PRIORITY } from "../input-manager";
+import { FOCUSED_INPUT_PRIORITY, type KeyEvent } from "../input-manager";
 import { resolveColor, useTheme } from "../theme";
 import { cursorText, renderCursor, splitAtCursor, useCursor, useEditor, type FieldValueProps } from "./field";
 import { useMergedRef } from "./refs";
@@ -24,6 +24,8 @@ export interface TextareaProps extends FieldValueProps, Omit<LayoutProps, "overf
   highlights?: readonly { start: number; end: number; color: ColorInput }[];
   /** Enable selection and a bounded, in-memory undo history. */
   advancedEditing?: boolean;
+  /** Translate a focused editing key, or return null to leave it unhandled. */
+  mapKey?: (e: KeyEvent) => KeyEvent | null;
   /** Called on Enter (without Shift / Alt / ⌘). Shift+Enter, Alt+Enter and Ctrl+J insert a newline. */
   onSubmit?: (value: string) => void;
   /** Submitted entries, oldest first. Up at the start recalls an entry; Down at the end restores the draft. */
@@ -56,6 +58,7 @@ export function Textarea(props: TextareaProps): ReactNode {
     onCursorChange,
     highlights,
     advancedEditing,
+    mapKey,
     history,
     placeholder,
     minRows = 1,
@@ -115,8 +118,19 @@ export function Textarea(props: TextareaProps): ReactNode {
   submitRef.current = onSubmit;
 
   useInput(
-    (e) => {
+    (original) => {
+      const e = mapKey ? mapKey(original) : original;
+      if (!e) return;
       const cur = editor.current();
+      if (advancedEditing && e.alt && !e.meta && !e.ctrl && (e.key === "a" || e.key === "e")) {
+        select(e.shift ? (anchor ?? cur.cursor) : null);
+        editor.apply({
+          ...cur,
+          cursor: visualMove(cur.value, cur.cursor, boxRef.current?.layout.contentWidth ?? 80, 0, e.key === "a" ? 0 : Infinity).cursor,
+        });
+        e.stopPropagation();
+        return;
+      }
       const hasSelection = advancedEditing && anchor !== null && anchor !== cur.cursor;
       const cleared = () => (hasSelection ? deleteRange(cur, anchor!, cur.cursor) : cur);
       if (advancedEditing && ((e.meta && e.key === "z") || (e.ctrl && ["-", "."].includes(e.key)))) {
