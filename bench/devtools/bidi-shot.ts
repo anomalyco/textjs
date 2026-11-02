@@ -85,7 +85,7 @@ try {
 
   const fonts = await page.evaluate(() => {
     const c = document.createElement("canvas").getContext("2d") as CanvasRenderingContext2D;
-    c.font = '12px "SF Mono",Menlo,Consolas,monospace';
+    c.font = '12px "SF Mono",Menlo,"Cascadia Mono",Consolas,monospace';
     const w = (s: string) => c.measureText(s).width / [...s].length;
     return { latin: w("MMMMMMMMMM"), hebrew: w("שלוםעולםאב"), arabicForms: w("\ufee3\ufeae\ufea3\ufe92\ufe8e\ufe91\ufe8e\ufedf\ufecc\ufe8e"), box: w("──────────") };
   });

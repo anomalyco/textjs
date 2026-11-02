@@ -85,7 +85,7 @@ describe("CssConsoleDriver per browser", () => {
     const css = frameFor("safari").args[2] ?? "";
     expect(css.startsWith('font-family:Menlo,"SF Mono",Consolas,monospace;font-size:12px;line-height:14px;')).toBe(true);
     expect(css).not.toContain("font-variant-ligatures");
-    expect(frameFor("firefox").args[2]?.startsWith('font-family:"SF Mono",Menlo,Consolas,monospace;')).toBe(true);
+    expect(frameFor("firefox").args[2]?.startsWith('font-family:"SF Mono",Menlo,"Cascadia Mono",Consolas,monospace;')).toBe(true);
   });
 
   for (const name of ["firefox", "safari"] as const) {
