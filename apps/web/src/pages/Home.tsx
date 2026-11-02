@@ -151,8 +151,8 @@ export function HomePage(): ReactNode {
     <>
       <Hero />
       <Features />
-      <TurbologSection />
       <KitSection />
+      <TurbologSection />
       <ServerSection />
       <AnywhereSection />
       <OpenCodeSpotlight />
