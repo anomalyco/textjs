@@ -40,6 +40,14 @@ export interface BuildResult {
   adapter?: AdapterResult;
 }
 
+/** Errors `buildApp` already printed with their context. */
+const reported = new WeakSet<object>();
+export const wasReported = (error: unknown): boolean => typeof error === "object" && error !== null && reported.has(error);
+const report = (error: unknown): unknown => {
+  if (typeof error === "object" && error !== null) reported.add(error);
+  return error;
+};
+
 /** `.text/` inside the output directory holds build metadata and the API server bundle. */
 export const META_DIR = ".text";
 
@@ -88,7 +96,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuildResult> {
     adapterName = resolveAdapter(opts.adapter);
   } catch (error) {
     print(fail(error instanceof Error ? error.message : String(error)));
-    throw error;
+    throw report(error);
   }
   let hasMiddleware = false;
   const api = listApiRoutes(scan);
@@ -100,7 +108,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuildResult> {
     print(fail(color.red("Failed to compile.")));
     print();
     print(error instanceof Error ? (error.stack ?? error.message) : String(error));
-    throw error;
+    throw report(error);
   }
 
   async function buildApiServer(): Promise<void> {
@@ -172,7 +180,7 @@ export async function buildApp(opts: BuildOptions): Promise<BuildResult> {
       print(fail(color.red(`Adapter ${adapterName} failed.`)));
       print();
       print(error instanceof Error ? error.message : String(error));
-      throw error;
+      throw report(error);
     }
     print(ok(`Adapter ${color.bold(adapter.adapter)} → ${relative(opts.root, adapter.output) || "."}`));
     for (const note of adapter.notes) print(color.gray(`   ${note}`));

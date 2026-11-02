@@ -144,8 +144,13 @@ export async function main(argv: readonly string[]): Promise<number> {
         return 0;
       }
       case "build": {
-        const { buildApp } = await import("./build");
-        await buildApp({ root, adapter: args.adapter });
+        const { buildApp, wasReported } = await import("./build");
+        try {
+          await buildApp({ root, adapter: args.adapter });
+        } catch (error) {
+          if (!wasReported(error)) console.error(fail(error instanceof Error ? (error.stack ?? error.message) : String(error)));
+          return 1;
+        }
         return 0;
       }
       case "start": {
@@ -179,7 +184,7 @@ export async function main(argv: readonly string[]): Promise<number> {
         return 1;
     }
   } catch (error) {
-    if (args.command !== "build") console.error(fail(error instanceof Error ? error.message : String(error)));
+    console.error(fail(error instanceof Error ? error.message : String(error)));
     return 1;
   }
 }
