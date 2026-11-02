@@ -3,7 +3,7 @@
 A local bridge that lets [textjs.org/opencode](https://textjs.org/opencode) talk to the [OpenCode](https://opencode.ai) server on your machine. It has no dependencies and runs on Node 22+ or Bun.
 
 ```bash
-bunx @textjs/opencode proxy    # or: npx @textjs/opencode proxy
+bunx @textjs/opencode@latest proxy    # or: npx @textjs/opencode@latest proxy
 ```
 
 Leave it running, open [textjs.org/opencode](https://textjs.org/opencode), enter `http://127.0.0.1:4096` and press **Connect**. Allow local network access if Chrome asks, then enter the pairing code the bridge printed. Stop the bridge with Ctrl+C.
@@ -25,7 +25,7 @@ Without `--target`, the bridge asks `opencode service status` for the managed se
 For a foreground server, pass its URL. If the server already uses port 4096, run the bridge on another port and connect the page to that port:
 
 ```bash
-bunx @textjs/opencode proxy --port 4097 --target http://127.0.0.1:4096
+bunx @textjs/opencode@latest proxy --port 4097 --target http://127.0.0.1:4096
 ```
 
 For a password-protected foreground server, export `OPENCODE_PASSWORD` in the bridge's shell. `OPENCODE_SERVER_URL` works in place of `--target`.
@@ -33,8 +33,8 @@ For a password-protected foreground server, export `OPENCODE_PASSWORD` in the br
 ## Security
 
 - **Loopback only.** The bridge listens on `127.0.0.1` and answers only requests whose `Host` is `localhost`, `127.0.0.1` or `[::1]`, which blocks DNS rebinding.
-- **Origin allowlist.** Browser requests must come from `https://textjs.org`, `https://www.textjs.org` or `http://localhost`, `127.0.0.1` and `[::1]` on any port. Other origins get a `403`. Add your own with `--allow-origin`, for example a preview deployment.
-- **Pairing code.** The bridge prints a code when it starts. A page sends it once to `POST /__bridge/pair` and gets a token for this bridge run, tied to that page's origin. Every other request needs the token in `x-textjs-bridge-token`, or it gets a `428` and never reaches OpenCode. Ten wrong codes lock pairing until the bridge restarts. Every response carries `x-textjs-bridge-pairing: 1`, so the page refuses 1.0.x bridges, which forward without a code. An allowed origin, or a script injected into one, can't use the bridge until you type the code.
+- **Origin allowlist.** Browser requests must come from `https://textjs.org`, `https://www.textjs.org` or `http://localhost`, `127.0.0.1` and `[::1]` on any port. Other origins get a `403`. Add your own with `--allow-origin`, for example `--allow-origin 'https://*.textjs-avg.pages.dev'` for textjs.org preview deployments.
+- **Pairing code.** The bridge prints a code when it starts. A page sends it once to `POST /__bridge/pair` and gets a token for this bridge run, tied to that page's origin. Apart from CORS preflights and `GET /__bridge`, every request needs the token in `x-textjs-bridge-token`, or it gets a `428` and never reaches OpenCode. `GET /__bridge` says whether the page is paired, and a wrong code gets a `200` with `ok: false` and the attempts left, so the page never logs a failed request. Ten wrong codes lock pairing until the bridge restarts. Every response carries `x-textjs-bridge-pairing: 1`, so the page refuses 1.0.x bridges, which forward without a code.
 - **The password stays on your machine.** The bridge keeps it in memory and adds it to requests it forwards to OpenCode. It isn't logged, written to disk or sent to the browser.
 - **Writes need a custom header.** Requests other than `GET`, `HEAD` and `OPTIONS` must send `x-opencode-client: 1`, a header HTML forms can't set. Request bodies are capped at 4 MB.
 - **Only a few headers cross.** The bridge forwards `Accept`, `Content-Type`, `Last-Event-ID` and `x-opencode-directory` to OpenCode, and returns `Content-Type`, `Location` and `x-request-id`. Cookies, `Authorization` and the pairing token from the browser are dropped.

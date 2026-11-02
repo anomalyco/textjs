@@ -312,10 +312,10 @@ There is no \`text deploy\`. Build for your platform with \`text build --adapter
     cause: `\`--target\` (or \`OPENCODE_SERVER_URL\`) must be a bare HTTP(S) origin. It contained a path, query, hash or credentials. Credentials in URLs end up in logs and browser history.`,
     fix: `~~~bash
 # Before
-bunx @textjs/opencode proxy --target http://user:pass@127.0.0.1:4096/api
+bunx @textjs/opencode@latest proxy --target http://user:pass@127.0.0.1:4096/api
 
 # After
-bunx @textjs/opencode proxy --target http://127.0.0.1:4096
+bunx @textjs/opencode@latest proxy --target http://127.0.0.1:4096
 ~~~
 
 Set the server password with \`OPENCODE_PASSWORD\` instead.`,
@@ -325,17 +325,17 @@ Set the server password with \`OPENCODE_PASSWORD\` instead.`,
     title: "Bridge port collides with OpenCode",
     cause: `The bridge was asked to listen on the same local port as the OpenCode server it proxies to.`,
     fix: `~~~bash
-bunx @textjs/opencode proxy --port 4097
+bunx @textjs/opencode@latest proxy --port 4097
 ~~~`,
   },
   TX023: {
     package: "@textjs/opencode",
     title: "Bridge already running",
-    cause: `Another bridge (\`bunx @textjs/opencode proxy\` or \`text proxy\`) already listens on this port. You can connect to it instead of starting another.`,
+    cause: `Another bridge (\`bunx @textjs/opencode@latest proxy\` or \`text proxy\`) already listens on this port. You can connect to it instead of starting another.`,
     fix: `Connect to the running bridge, or start a second one on another port:
 
 ~~~bash
-bunx @textjs/opencode proxy --port 4097
+bunx @textjs/opencode@latest proxy --port 4097
 ~~~`,
   },
   TX024: {
@@ -343,7 +343,7 @@ bunx @textjs/opencode proxy --port 4097
     title: "Bridge port in use",
     cause: `Something other than a Text.js bridge is listening on the requested port.`,
     fix: `~~~bash
-bunx @textjs/opencode proxy --port 4097
+bunx @textjs/opencode@latest proxy --port 4097
 ~~~
 
 Or find the other process: \`lsof -i :4096\`.`,

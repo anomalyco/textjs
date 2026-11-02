@@ -46,11 +46,11 @@ export default function SessionPage({ params }: PageProps<{ id: string }>) {
 ```bash
 # From any directory:
 opencode service status  # If stopped: opencode service start
-bunx @textjs/opencode proxy
+bunx @textjs/opencode@latest proxy
 ```
 
-Leave the bridge running. On the [OpenCode page](/opencode), enter `http://127.0.0.1:4096`, press **Connect**, and allow local network access if Chrome asks. Then enter the pairing code the bridge printed. The page keeps it until the bridge restarts. Use the bridge URL, not the service port: the bridge supplies the service credential and CORS headers. Stop it with Ctrl+C when done.
+Leave the bridge running. On the [OpenCode page](/opencode), enter `http://127.0.0.1:4096`, press **Connect**, and allow local network access if Chrome asks. Then enter the pairing code the bridge printed. The page stays paired until the bridge restarts or you press **Disconnect**. Use the bridge URL, not the service port: the bridge supplies the service credential and CORS headers. Stop it with Ctrl+C when done.
 
-For a foreground server already on port 4096, run `bunx @textjs/opencode proxy --port 4097 --target http://127.0.0.1:4096` and connect the page to port **4097**. For a password-protected foreground server, export its `OPENCODE_PASSWORD` in the bridge shell; don't put a password in a browser URL.
+For a foreground server already on port 4096, run `bunx @textjs/opencode@latest proxy --port 4097 --target http://127.0.0.1:4096` and connect the page to port **4097**. For a password-protected foreground server, export its `OPENCODE_PASSWORD` in the bridge shell; don't put a password in a browser URL.
 
 The bridge is the `@textjs/opencode` package. It has no dependencies and also runs with `npx` on Node 22 or later. Inside a Text.js project, `text proxy` starts the same bridge.

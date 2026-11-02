@@ -11,6 +11,8 @@ import {
   normalizeTargetUrl,
   PAIR_PATH,
   PAIRING_HEADER,
+  PAIRING_LOCKED,
+  PAIRING_PROMPT,
   startProxy,
   TOKEN_HEADER,
   type StartedBridge,
@@ -86,7 +88,7 @@ afterAll(async () => {
   upstream.stop(true);
 });
 
-describe("bunx @textjs/opencode proxy", () => {
+describe("bunx @textjs/opencode@latest proxy", () => {
   test("parses bridge flags", () => {
     expect(parseArgs(["proxy", "--port", "4100", "--target", "http://127.0.0.1:4096", "--allow-origin", "https://x.dev", "--allow-origin=https://y.dev"])).toMatchObject({
       command: "proxy",
@@ -98,7 +100,7 @@ describe("bunx @textjs/opencode proxy", () => {
   });
 
   test("help lists proxy; bare runs print it and fail", async () => {
-    expect(HELP).toContain("Usage: bunx @textjs/opencode proxy");
+    expect(HELP).toContain("Usage: bunx @textjs/opencode@latest proxy");
     expect(HELP).toMatch(/^\s+proxy\s+Bridge textjs\.org\/opencode/m);
     for (const flag of ["--port", "--target", "--allow-origin", "--version", "--help"]) expect(HELP).toContain(flag);
     const log = console.log;
@@ -200,6 +202,7 @@ describe("bunx @textjs/opencode proxy", () => {
     for (const path of ["/api/session", "/api/info", "/api/event", "/__textjs/keys", "/session?limit=1"]) {
       const res = await fetch(`${base}${path}`, { headers: { origin: "https://textjs.org" } });
       expect({ path, status: res.status }).toEqual({ path, status: 428 });
+      expect(((await res.clone().json()) as { error: string }).error).toBe(PAIRING_PROMPT);
       expect(res.headers.get("access-control-allow-origin")).toBe("https://textjs.org");
       expect(res.headers.get("x-textjs-bridge")).toBe("1");
       // Lets the page tell this bridge from a 1.0.x one, which forwards without a code.
@@ -252,14 +255,19 @@ describe("bunx @textjs/opencode proxy", () => {
           body: JSON.stringify({ code }),
         }),
       );
+    // Expected outcomes are 200s with a status body, so a browser's DevTools logs no failed request.
     const first = await guess("AAAAAA");
-    expect(first.status).toBe(403);
-    expect(await first.json()).toEqual({ error: "Wrong code", attemptsLeft: MAX_PAIR_ATTEMPTS - 1 });
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({ ok: false, attemptsLeft: MAX_PAIR_ATTEMPTS - 1 });
     const burst = await Promise.all(Array.from({ length: 200 }, (_, i) => guess(`B${String(i).padStart(5, "2")}`)));
-    expect(burst.filter((r) => r.status === 403)).toHaveLength(MAX_PAIR_ATTEMPTS - 2);
-    expect(burst.filter((r) => r.status === 429).length).toBe(200 - (MAX_PAIR_ATTEMPTS - 2));
+    expect(burst.every((r) => r.status === 200)).toBe(true);
+    const bodies = (await Promise.all(burst.map((r) => r.json()))) as Array<{ ok: boolean; attemptsLeft?: number; locked?: boolean; error?: string }>;
+    expect(bodies.filter((b) => typeof b.attemptsLeft === "number")).toHaveLength(MAX_PAIR_ATTEMPTS - 2);
+    expect(bodies.filter((b) => b.locked === true).length).toBe(200 - (MAX_PAIR_ATTEMPTS - 2));
+    expect(bodies.find((b) => b.locked)?.error).toBe(PAIRING_LOCKED);
     // Locked: even the right code is refused until the bridge restarts.
-    expect((await guess(CODE)).status).toBe(429);
+    const right = (await (await guess(CODE)).json()) as { ok: boolean; locked?: boolean; token?: string };
+    expect(right).toEqual({ ok: false, locked: true, error: PAIRING_LOCKED });
     expect(events).toEqual(["locked"]);
     const status = await handler(new Request("http://127.0.0.1:4096/__bridge", { headers: { host: "127.0.0.1:4096" } }));
     expect(await status.json()).toMatchObject({ paired: false, locked: true });

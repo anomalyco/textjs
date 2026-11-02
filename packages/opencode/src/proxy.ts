@@ -1,5 +1,5 @@
 /**
- * `bunx @textjs/opencode proxy` (and `text proxy`): a loopback bridge that lets
+ * `bunx @textjs/opencode@latest proxy` (and `text proxy`): a loopback bridge that lets
  * https://textjs.org (and local dev origins) talk to the OpenCode server running
  * on this machine.
  *
@@ -12,6 +12,8 @@
  * An allowed origin alone can't drive the agent. The bridge prints a pairing code
  * at startup; a page must send it to `/__bridge/pair` once to get a token for this
  * bridge run, bound to that page's origin, and send the token on every request.
+ * `GET /__bridge` (no token needed) says whether a page is paired, so a page never
+ * has to make a request that fails.
  */
 
 import { execFile } from "node:child_process";
@@ -35,6 +37,8 @@ export const PAIR_PATH = "/__bridge/pair";
 export const MAX_BODY_BYTES = 4 * 1024 * 1024;
 /** Wrong codes before pairing locks until the bridge restarts. */
 export const MAX_PAIR_ATTEMPTS = 10;
+export const PAIRING_PROMPT = "Enter the pairing code from your terminal.";
+export const PAIRING_LOCKED = "Too many wrong codes. Restart the bridge for a new code.";
 const MAX_PAIR_BODY_BYTES = 1024;
 const MAX_TOKENS = 64;
 /** No 0/O, 1/I/L or U: easy to read off a terminal and type. 30^6 ≈ 7×10^8 codes. */
@@ -307,7 +311,9 @@ export function createBridgeHandler(options: BridgeOptions = {}): BridgeHandler 
   const pair = async (request: Request, origin: string | null, cors: Record<string, string>): Promise<Response> => {
     if (request.method.toUpperCase() !== "POST") return json(405, { error: "Method Not Allowed" }, cors);
     if (request.headers.get(CLIENT_HEADER) !== "1") return json(403, { error: `Missing ${CLIENT_HEADER} header` }, cors);
-    if (failedPairings >= MAX_PAIR_ATTEMPTS) return json(429, { error: "Too many wrong codes. Restart the bridge to get a new one.", locked: true }, cors);
+    // Expected outcomes (wrong code, locked) are 200s with `ok: false`, so DevTools logs no failed request.
+    const lockedReply = (): Response => json(200, { ok: false, locked: true, error: PAIRING_LOCKED }, cors);
+    if (failedPairings >= MAX_PAIR_ATTEMPTS) return lockedReply();
     const raw = await readBody(request, MAX_PAIR_BODY_BYTES);
     if (raw === null) return json(413, { error: "Payload Too Large" }, cors);
     let code = "";
@@ -318,20 +324,20 @@ export function createBridgeHandler(options: BridgeOptions = {}): BridgeHandler 
       /* Treated as a wrong code. */
     }
     // Checked again after the await, with no await before the count changes, so parallel guesses can't overshoot.
-    if (failedPairings >= MAX_PAIR_ATTEMPTS) return json(429, { error: "Too many wrong codes. Restart the bridge to get a new one.", locked: true }, cors);
+    if (failedPairings >= MAX_PAIR_ATTEMPTS) return lockedReply();
     if (!sameSecret(code, pairingCode)) {
       failedPairings++;
       if (failedPairings >= MAX_PAIR_ATTEMPTS) {
         options.onPairing?.("locked", origin ?? "");
-        return json(429, { error: "Too many wrong codes. Restart the bridge to get a new one.", locked: true }, cors);
+        return lockedReply();
       }
-      return json(403, { error: "Wrong code", attemptsLeft: MAX_PAIR_ATTEMPTS - failedPairings }, cors);
+      return json(200, { ok: false, attemptsLeft: MAX_PAIR_ATTEMPTS - failedPairings }, cors);
     }
     const token = randomBytes(32).toString("base64url");
     if (tokens.size >= MAX_TOKENS) tokens.delete(tokens.keys().next().value as string);
     tokens.set(token, origin ?? "");
     options.onPairing?.("paired", origin ?? "");
-    return json(200, { token }, cors);
+    return json(200, { ok: true, token }, cors);
   };
 
   const target = async (force = false): Promise<BridgeTarget | null> => {
@@ -353,7 +359,7 @@ export function createBridgeHandler(options: BridgeOptions = {}): BridgeHandler 
     const authorized = paired(request, origin);
     // Unpaired callers learn only that this is a bridge, and never start discovery or reach OpenCode.
     if (url.pathname === "/__bridge" && !authorized) return json(200, { bridge: "textjs", paired: false, locked: failedPairings >= MAX_PAIR_ATTEMPTS }, cors);
-    if (!authorized) return json(428, { error: "Pairing required. Enter the code shown by the bridge.", pairing: true }, cors);
+    if (!authorized) return json(428, { error: PAIRING_PROMPT, pairing: true }, cors);
     if (url.pathname === "/__textjs/keys") return method === "GET" ? json(200, await readCliKeys(), { ...cors, "cache-control": "no-store" }) : json(405, {}, cors);
     if (url.pathname === "/__bridge") {
       const wasCached = cached !== null && Date.now() - cached.at < cacheMs;
@@ -522,7 +528,7 @@ export async function startProxy(options: BridgeOptions = {}): Promise<StartedBr
       options.onPairing?.(event, origin);
       if (!log) return;
       if (event === "paired") console.log(`   ${color.green("✓")} Paired with ${origin || "a local client"}`);
-      else console.log(`   ${color.red("⨯")} Too many wrong codes${origin ? ` from ${origin}` : ""}. Pairing is locked until you restart the bridge.`);
+      else console.log(`   ${color.red("⨯")} Too many wrong codes. Pairing is locked until you restart the bridge.`);
     },
   });
   const host = options.host ?? "127.0.0.1";
@@ -571,7 +577,7 @@ export async function startProxy(options: BridgeOptions = {}): Promise<StartedBr
   if (log) {
     const dest = target ? `${target.url}${target.source === "service" ? color.dim(" (opencode service)") : ""}` : color.yellow("no OpenCode server yet. Start opencode.");
     console.log(
-      `\n   ${color.bold("▼ Text.js OpenCode Bridge")}\n\n   ${url} ${color.dim("→")} ${dest}\n\n   Pairing code: ${color.bold(formatPairingCode(handler.pairingCode))}\n   ${color.dim("Open https://textjs.org/opencode, connect and enter the code.")}\n`,
+      `\n   ${color.bold("▼ Text.js OpenCode Bridge")}\n\n   ${url} ${color.dim("→")} ${dest}\n\n   Pairing code: ${color.bold(formatPairingCode(handler.pairingCode))}\n   ${color.dim("Open https://textjs.org/opencode, press Connect, then enter the code.")}\n`,
     );
   }
   return {

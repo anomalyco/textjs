@@ -33,7 +33,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   return out;
 }
 
-export const HELP = `Usage: bunx @textjs/opencode proxy [options]
+export const HELP = `Usage: bunx @textjs/opencode@latest proxy [options]
 
 Commands:
   proxy  Bridge textjs.org/opencode to the OpenCode server on this machine

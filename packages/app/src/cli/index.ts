@@ -64,7 +64,7 @@ Commands:
   start    Serve the production build
   run      Render the app in this terminal (Bun)
   proxy    Bridge textjs.org/opencode to your local OpenCode server
-           (same as bunx @textjs/opencode proxy)
+           (same as bunx @textjs/opencode@latest proxy)
   mcp      Serve the app to coding agents over MCP (stdio, Bun)
 
 Options:
@@ -168,7 +168,7 @@ export async function main(argv: readonly string[]): Promise<number> {
         return 0;
       }
       case "proxy": {
-        // One implementation: the bridge lives in @textjs/opencode (`bunx @textjs/opencode proxy`).
+        // One implementation: the bridge lives in @textjs/opencode (`bunx @textjs/opencode@latest proxy`).
         const { runProxy } = await import("@textjs/opencode");
         return await runProxy({ port: args.port, target: args.target, allowOrigins: args.allowOrigins });
       }

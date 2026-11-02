@@ -9,7 +9,7 @@ export const TX_MESSAGES = {
   TX021: "Use an HTTP(S) server origin without credentials for --target or OPENCODE_SERVER_URL.",
   TX022: "The OpenCode server already uses port %s. Pick another with --port.",
   TX023: "Bridge already running at %s. Connect to %s (or pass --port %s).",
-  TX024: "Port %s is already in use. Run bunx @textjs/opencode proxy --port %s and connect to %s.",
+  TX024: "Port %s is already in use. Run bunx @textjs/opencode@latest proxy --port %s and connect to %s.",
 } as const;
 
 export type TxCode = keyof typeof TX_MESSAGES;

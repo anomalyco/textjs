@@ -14,7 +14,7 @@ describe("text proxy", () => {
 
   test("help lists proxy and points at @textjs/opencode", () => {
     expect(HELP).toMatch(/^\s+proxy\s+Bridge textjs\.org\/opencode/m);
-    expect(HELP).toContain("bunx @textjs/opencode proxy");
+    expect(HELP).toContain("bunx @textjs/opencode@latest proxy");
     expect(HELP).not.toMatch(/^\s+opencode\s/m);
   });
 

@@ -7,7 +7,7 @@
 #   its inlined data: URL first.
 # - static.cloudflareinsights.com / cloudflareinsights.com: Web Analytics, which Cloudflare injects.
 # - 'unsafe-inline' styles: React style props and the console renderer set style attributes.
-# - http://127.0.0.1:* and http://localhost:*: the OpenCode bridge (`bunx @textjs/opencode proxy`).
+# - http://127.0.0.1:* and http://localhost:*: the OpenCode bridge (`bunx @textjs/opencode@latest proxy`).
 #   On every page because client-side navigation keeps the first page's policy, and a same-origin
 #   frame of /opencode would get it anyway. The bridge's pairing code is the real gate.
 # - No upgrade-insecure-requests: Safari upgrades the loopback bridge requests to https and breaks them.
