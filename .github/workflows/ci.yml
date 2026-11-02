@@ -46,7 +46,7 @@ jobs:
 
   packages:
     name: Test packages
-    # The longest file (packages/app/test/adapters.test.ts) sets the floor; past 8 cores the run stops getting shorter.
+    # The longest file (packages/app/test/mcp.test.ts) sets the floor, so more than 8 cores barely helps.
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 10
     steps:
@@ -56,12 +56,21 @@ jobs:
 
       - uses: ./.github/actions/setup
 
+      # Per-file durations from the last run let --parallel start the slowest files first.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/timings
+          key: test-timings-packages-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: test-timings-packages-
+
       - name: Test packages
-        run: bun test packages/ --parallel
+        run: |
+          mkdir -p "$RUNNER_TEMP/timings"
+          bun test packages/ --parallel --timings="$RUNNER_TEMP/timings/packages.json" --update-timings
 
   apps:
     name: Test apps
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -73,11 +82,18 @@ jobs:
       # og.test.ts renders an Open Graph image per route in headless Chromium.
       - uses: ./.github/actions/chromium
 
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/timings
+          key: test-timings-apps-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: test-timings-apps-
+
       - name: Test apps
         run: |
-          bun run --cwd apps/opencode-console test
-          bun run --cwd apps/web test
-          bun run --cwd apps/terminal-shop test
+          mkdir -p "$RUNNER_TEMP/timings"
+          for app in opencode-console web terminal-shop; do
+            bun run --cwd "apps/$app" test --timings="$RUNNER_TEMP/timings/$app.json" --update-timings
+          done
 
   test:
     name: Typecheck and test
