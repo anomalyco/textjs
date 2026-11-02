@@ -36,6 +36,8 @@ jobs:
     with:
       environment: production
       pages-branch: main
+    # A called workflow gets no secrets, environment secrets included, unless the caller passes them.
+    secrets: inherit
 
   dev:
     name: Preview
@@ -47,3 +49,4 @@ jobs:
     with:
       environment: dev
       pages-branch: dev
+    secrets: inherit
