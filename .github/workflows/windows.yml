@@ -146,10 +146,23 @@ jobs:
           Set-WinUserLanguageList $list -Force
           Get-WinUserLanguageList | Format-List LanguageTag, InputMethodTips
 
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
+      # This checkout's FocusPad and input engine, served by text dev.
+      - name: Start text dev (examples/dashboard)
+        run: |
+          bun install --frozen-lockfile
+          cd examples/dashboard
+          nohup bun ../../packages/app/bin/text.ts dev --port 3000 > "$RUNNER_TEMP/dev.log" 2>&1 &
+          for i in $(seq 60); do curl -sf http://localhost:3000/ > /dev/null && break; sleep 1; done
+          curl -sf http://localhost:3000/ > /dev/null || { cat "$RUNNER_TEMP/dev.log"; exit 1; }
+
       - name: Check ${{ matrix.browser }}
         env:
           ORIGIN: ${{ inputs.origin || 'https://textjs.org' }}
-        run: node scripts/windows/browser-check.mjs --browser ${{ matrix.browser }} --origin "$ORIGIN" --out "$RUNNER_TEMP/browser"
+        run: node scripts/windows/browser-check.mjs --browser ${{ matrix.browser }} --origin "$ORIGIN" --local http://localhost:3000/ --out "$RUNNER_TEMP/browser"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()

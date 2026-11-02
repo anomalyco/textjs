@@ -25,6 +25,8 @@ const BROWSER = opt("browser", "chrome");
 const OUT = resolve(opt("out", "windows-artifacts"));
 const ORIGIN = opt("origin", "https://textjs.org");
 const LAYOUTS = opt("layouts", "us,de,ja").split(",");
+/** A `text dev` server from this checkout: its FocusPad and input sink are this branch's code. */
+const LOCAL = opt("local");
 const PORT = 9333;
 const PS = join(import.meta.dirname, "os-input.ps1");
 mkdirSync(OUT, { recursive: true });
@@ -35,8 +37,8 @@ const EXE = {
 }[BROWSER].find((p) => existsSync(p));
 if (!EXE) throw new Error(`${BROWSER} not found`);
 
-const results = { browser: BROWSER, exe: EXE, checks: [], pages: {}, keys: {} };
-const check = (name, ok, detail) => {
+const results = { browser: BROWSER, exe: EXE, checks: [], pages: {}, keys: {}, focus: {} };
+const checkResult = (name, ok, detail) => {
   results.checks.push({ name, ok, detail });
   console.log(`${ok ? "PASS" : "FAIL"}  ${BROWSER} ${name}${detail !== undefined ? `  ${typeof detail === "string" ? detail : JSON.stringify(detail)}` : ""}`);
 };
@@ -241,14 +243,18 @@ async function main() {
 
   for (const path of ["/playground", "/coffee", "/opencode"]) await visit(path);
   await visit("/playground", false);
-  await keys();
+  await keys("textjs.org", LAYOUTS);
+  if (LOCAL) {
+    await visit(LOCAL, false);
+    await keys("local", ["us", "ja"]);
+  }
 }
 
 let consoleOpened = false;
 async function visit(path, shoot = true) {
   frames = 0;
   lastFrame = "";
-  await page.send("Page.navigate", { url: `${ORIGIN}${path}` });
+  await page.send("Page.navigate", { url: path.startsWith("http") ? path : `${ORIGIN}${path}` });
   await sleep(9000);
   console.log(`focus: ${os("focus", proc.pid)}`);
   await sleep(800);
@@ -274,18 +280,18 @@ async function visit(path, shoot = true) {
   const win = await page.eval("({ innerWidth, innerHeight, outerWidth, outerHeight, dpr: devicePixelRatio })");
   results.pages[path] = { screen: size, window: win, framesLogged: frames, console: m, frame: lastFrame.split("\n").slice(0, 60).join("\n") };
   console.log(`${path}: ${frames} frames, screen ${size}`, JSON.stringify(m));
-  check(`${path} renders frames`, frames > 0, `${frames} frames`);
+  checkResult(`${path} renders frames`, frames > 0, `${frames} frames`);
   if (m.error || !m.frames) {
-    check(`${path} console measured`, false, m.error ?? "no frame message in the DevTools console");
+    checkResult(`${path} console measured`, false, m.error ?? "no frame message in the DevTools console");
     return;
   }
-  check(`${path} DevTools docked bottom`, win.innerHeight < win.outerHeight - 200 && Math.abs(win.outerWidth - win.innerWidth) < 40, win);
-  check(`${path} no horizontal overflow`, m.scrollWidth <= m.clientWidth + 1 && (m.viewScrollWidth ?? 0) <= (m.viewClientWidth ?? 0) + 1, { scrollWidth: m.scrollWidth, clientWidth: m.clientWidth, view: [m.viewScrollWidth, m.viewClientWidth] });
-  check(`${path} frame inside the console`, m.viewRight === null || m.rightmostGlyph <= m.viewRight, { rightmostGlyph: m.rightmostGlyph, viewRight: m.viewRight });
+  checkResult(`${path} DevTools docked bottom`, win.innerHeight < win.outerHeight - 200 && Math.abs(win.outerWidth - win.innerWidth) < 40, win);
+  checkResult(`${path} no horizontal overflow`, m.scrollWidth <= m.clientWidth + 1 && (m.viewScrollWidth ?? 0) <= (m.viewClientWidth ?? 0) + 1, { scrollWidth: m.scrollWidth, clientWidth: m.clientWidth, view: [m.viewScrollWidth, m.viewClientWidth] });
+  checkResult(`${path} frame inside the console`, m.viewRight === null || m.rightmostGlyph <= m.viewRight, { rightmostGlyph: m.rightmostGlyph, viewRight: m.viewRight });
   const lh = parseFloat(m.lineHeight);
-  check(`${path} rows don't wrap`, !Number.isFinite(lh) || Math.abs(m.rowHeight - lh) < 1, { rowHeight: m.rowHeight, lineHeight: m.lineHeight, rows: m.rows });
+  checkResult(`${path} rows don't wrap`, !Number.isFinite(lh) || Math.abs(m.rowHeight - lh) < 1, { rowHeight: m.rowHeight, lineHeight: m.lineHeight, rows: m.rows });
   const font = (m.platformFonts ?? []).sort((a, b) => b.glyphCount - a.glyphCount)[0]?.familyName;
-  check(`${path} drawn in Consolas`, font === "Consolas", m.platformFonts);
+  checkResult(`${path} drawn in Consolas`, font === "Consolas", m.platformFonts);
 }
 
 /** Send a key sequence and report what the page saw and whether the app redrew. */
@@ -299,25 +305,26 @@ async function press(label, seq, wait = 700) {
   return { label, seq, redrew, events };
 }
 
-async function keys() {
+async function keys(site, layouts) {
+  const check = (name, ok, detail) => checkResult(`${site} ${name}`, ok, detail);
   // Find where the page viewport sits on screen from a real mouse move, then click the console pad.
   const win = await page.eval("({ x: screenX, y: screenY, w: outerWidth })");
   os("move", win.x + Math.round(win.w / 2), win.y + 220);
   await sleep(300);
   const mouse = await page.eval("window.__mouse || null");
-  const pad = await page.eval(`(() => { const el = document.querySelector(".pad"); const r = (el || document.body).getBoundingClientRect(); return { x: r.left + r.width / 2, y: Math.max(40, Math.min(r.top + r.height / 2, innerHeight - 30)), cls: el && el.className }; })()`);
+  const pad = await page.eval(`(() => { const el = document.querySelector(".pad, .tx-pad"); const r = (el || document.body).getBoundingClientRect(); return { x: r.left + r.width / 2, y: Math.max(40, Math.min(r.top + r.height / 2, innerHeight - 30)), cls: el && el.className }; })()`);
   const dx = mouse ? mouse.sx - mouse.cx : win.x + 8;
   const dy = mouse ? mouse.sy - mouse.cy : win.y + 90;
   await page.eval("window.__keylog.length = 0");
   os("click", Math.round(dx + pad.x), Math.round(dy + pad.y));
   await sleep(800);
   const focus = await page.eval(`({ hasFocus: document.hasFocus(), active: __describe(document.activeElement), finePointer: matchMedia("(pointer: fine)").matches, events: __keylog.slice() })`);
-  results.focus = { mouse, pad, focus };
+  results.focus[site] = { mouse, pad, focus };
   check("page focused after click", focus.hasFocus, focus.active);
   // IMEs and dead keys only compose in an editable element: Text.js's hidden textarea.
   check("input sink focused after click", focus.active.includes("[sink]"), { active: focus.active, finePointer: focus.finePointer, events: focus.events.map((e) => `${e.t}:${e.target}`) });
 
-  for (const layout of LAYOUTS) {
+  for (const layout of layouts) {
     const rows = [];
     if (layout === "us") {
       os("layout", "00000409");
@@ -331,7 +338,7 @@ async function keys() {
         ["letters", "text:hjkl"],
       ])
         rows.push(await press(label, seq));
-      os("screenshot", join(OUT, `${BROWSER}-keys-us.png`));
+      os("screenshot", join(OUT, `${BROWSER}-${site}-keys-us.png`));
       for (const r of rows) {
         const down = r.events.filter((e) => e.t === "keydown");
         check(`keys us ${r.label} reaches the page`, down.length > 0, down.map((e) => `${e.key}/${e.code}${e.prevented ? " prevented" : ""}`).join(" "));
@@ -372,20 +379,20 @@ async function keys() {
       rows.push(r);
       rows.push(await press("convert", "space", 800));
       rows.push(await press("commit", "enter", 800));
-      os("screenshot", join(OUT, `${BROWSER}-keys-ja.png`));
+      os("screenshot", join(OUT, `${BROWSER}-${site}-keys-ja.png`));
       const all = rows.flatMap((x) => x.events);
       const ended = all.filter((e) => e.t === "compositionend").map((e) => e.data);
       check("keys ja IME composes", all.some((e) => e.t === "compositionstart"), ended.join(" ") || all.map((e) => `${e.t}:${e.key ?? e.data}`).slice(0, 20).join(" "));
       os("layout", "00000409");
     }
-    results.keys[layout] = rows.map(({ label, seq, redrew, events, expect }) => ({ label, seq, redrew, expect, events }));
+    results.keys[`${site}-${layout}`] = rows.map(({ label, seq, redrew, events, expect }) => ({ label, seq, redrew, expect, events }));
   }
 }
 
 try {
   await main();
 } catch (error) {
-  check("run", false, String(error?.stack ?? error));
+  checkResult("run", false, String(error?.stack ?? error));
   try {
     os("screenshot", join(OUT, `${BROWSER}-error.png`));
   } catch {}
