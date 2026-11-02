@@ -154,11 +154,7 @@ export function KitSection(): ReactNode {
     <section className="section home-section">
       <div className="container">
         <div className="section-head">
-          <p className="eyebrow">Components</p>
           <h2>Tables, charts, forms and shortcuts</h2>
-          <p>
-            Shortcuts declared with <code>useKeymap</code> also appear in a <kbd>?</kbd> help screen, footer hints and a <kbd>Ctrl+K</kbd> command palette.
-          </p>
         </div>
         <div className="frame kit-frame" ref={ref}>
           <Crosses />

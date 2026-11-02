@@ -67,16 +67,21 @@ function Hero(): ReactNode {
             <p className="lede">
               Build full-stack React apps that render inside <code>console.log</code>.
             </p>
-            <div className="hero-ctas">
-              <A href="/docs" className="btn btn-primary btn-lg">
-                Get started
-              </A>
-              <CopyCommand command="bunx create-text-app" />
+            <div className="hero-actions">
+              <div className="hero-ctas">
+                <A href="/docs" className="btn btn-primary btn-lg">
+                  Get started
+                </A>
+                <CopyCommand command="bunx create-text-app" />
+              </div>
+              <p className="hero-whisper desktop-only">
+                This page is running in your console. Open it with <kbd><DevtoolsShortcut /></kbd>
+                <SafariConsoleNote />, click the preview below and press{" "}
+                <span className="nowrap">
+                  <kbd>↑</kbd> <kbd>↓</kbd>.
+                </span>
+              </p>
             </div>
-            <p className="hero-whisper desktop-only">
-              This page is running in your console. Open it with <kbd><DevtoolsShortcut /></kbd>
-              <SafariConsoleNote />, click the preview below and press <kbd>↑</kbd> <kbd>↓</kbd>.
-            </p>
           </div>
           <div className="split">
             <div className="split-code">
@@ -115,7 +120,7 @@ const FEATURES: Array<{ title: ReactNode; body: ReactNode }> = [
 
 function Features(): ReactNode {
   return (
-    <section className="section" id="fold">
+    <section className="section features-band" id="fold">
       <div className="container">
         <div className="features">
           {FEATURES.map((f, i) => (

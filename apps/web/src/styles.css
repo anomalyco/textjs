@@ -30,6 +30,10 @@
   --mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
   --header-h: 64px;
   --max: 1200px;
+  /* Display type: page titles and section headings share one weight and tracking. */
+  --display-weight: 500;
+  --display-tracking: -0.05em;
+  --section-heading-size: clamp(36px, 4.4vw, 56px);
   color-scheme: dark;
 }
 
@@ -139,6 +143,10 @@ svg {
 
 .subtle {
   color: var(--subtle);
+}
+
+.nowrap {
+  white-space: nowrap;
 }
 
 .sr-only {
@@ -725,8 +733,8 @@ kbd {
   max-width: 900px;
   font-size: clamp(44px, 7.4vw, 80px);
   line-height: 1;
-  font-weight: 700;
-  letter-spacing: -0.055em;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
   color: var(--fg-strong);
   text-wrap: balance;
 }
@@ -1242,31 +1250,12 @@ kbd {
 
 .section {
   position: relative;
-  padding: 144px 0;
-  border-top: 1px solid var(--line);
+  padding: 136px 0;
 }
 
 .section-head {
-  max-width: 720px;
+  max-width: 760px;
   margin-bottom: 56px;
-}
-
-.section-head.center {
-  margin-left: auto;
-  margin-right: auto;
-  text-align: center;
-}
-
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--subtle);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 16px;
 }
 
 /* Turbolog lockup (site/brand-marks.tsx): 1em tall with 0.71em caps; its baseline is 0.143em above the bottom. */
@@ -1288,23 +1277,29 @@ kbd {
 }
 
 .section h2 {
-  margin: 0 0 16px;
-  font-size: clamp(32px, 4.6vw, 48px);
-  line-height: 1.05;
-  font-weight: 700;
-  letter-spacing: -0.045em;
+  margin: 0;
+  font-size: var(--section-heading-size);
+  line-height: 1.04;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
   color: var(--fg-strong);
   text-wrap: balance;
 }
 
-.section-head p {
-  margin: 0;
+.section-head > h2 + p {
+  margin: 20px 0 0;
+  max-width: 640px;
   font-size: 18px;
+  line-height: 1.6;
   color: var(--muted);
   text-wrap: pretty;
 }
 
-/* Features */
+/* Features: a band directly under the hero, which already leaves room above it. */
+
+.section.features-band {
+  padding-top: 0;
+}
 
 .features {
   display: grid;
@@ -1359,11 +1354,21 @@ kbd {
   text-underline-offset: 4px;
 }
 
+/* The CTAs and their footnote read as one group. */
+.hero-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* A footnote to the CTAs, one size smaller than the lede. */
 .hero-whisper {
-  margin: 28px 0 0;
+  margin: 0;
   text-align: center;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--muted);
+  text-wrap: balance;
 }
 
 .hero-whisper kbd {
@@ -1386,22 +1391,53 @@ kbd {
 /* ───────────────────────── Footer ───────────────────────── */
 
 .footer {
+  /* Docs and Learn render the footer in a narrower column, so it wraps by its own width. */
+  container-type: inline-size;
   border-top: 1px solid var(--line);
   padding: 40px 0;
   background: var(--bg);
 }
 
+/* One row when everything fits; otherwise copyright and status share the top row and the links get their own. */
 .footer-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "copy nav status";
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
+  gap: 24px 40px;
+}
+
+.tx-copyright {
+  grid-area: copy;
+}
+
+.footer nav {
+  grid-area: nav;
+  justify-content: center;
+}
+
+.footer-status {
+  grid-area: status;
+  justify-self: start;
+}
+
+@container (max-width: 1180px) {
+  .footer-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "copy status"
+      "nav nav";
+    row-gap: 16px;
+  }
+  .footer nav {
+    justify-content: flex-start;
+  }
 }
 
 .tx-copyright {
   position: relative;
   display: inline-flex;
+  justify-self: start;
   align-items: center;
   min-height: 64px;
 }
@@ -1787,7 +1823,7 @@ kbd {
 .docs-title {
   margin: 0 0 12px;
   font-size: 40px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.045em;
   line-height: 1.1;
   color: var(--fg-strong);
@@ -2752,9 +2788,12 @@ html[data-browser="safari"] .pad-stage {
     padding: 32px 0 calc(32px + env(safe-area-inset-bottom));
   }
   .footer-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "nav"
+      "status";
+    row-gap: 12px;
   }
   .footer nav a {
     display: inline-block;

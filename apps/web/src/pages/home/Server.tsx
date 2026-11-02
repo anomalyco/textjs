@@ -83,7 +83,7 @@ function Stream({ play }: { play: boolean }): ReactNode {
       </div>
       <div className="sv-node">
         <span className="sv-node-k">Frame player</span>
-        <span className="sv-node-v">19 kB gzip</span>
+        <span className="sv-node-v">21 kB gzip</span>
       </div>
       <div className="sv-wire short">
         <span className="sv-bit" style={{ ["--d" as string]: "-0.3s" }} />
@@ -103,10 +103,9 @@ export function ServerSection(): ReactNode {
     <section className="section home-section">
       <div className="container">
         <div className="section-head">
-          <p className="eyebrow">Server Rendering</p>
           <h2>Render routes on the server</h2>
           <p>
-            Export <code>runtime = "server"</code> to render a route, including async components, on the server. The browser downloads a 19 kB (gzip) frame player instead of your app.
+            Export <code>runtime = "server"</code> to render a route and its async components on the server. The browser loads a 21 kB (gzip) frame player instead of your app.
           </p>
         </div>
         <div className="frame sv-frame" ref={ref}>

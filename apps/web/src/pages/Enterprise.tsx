@@ -132,7 +132,6 @@ export function EnterprisePage(): ReactNode {
       <section className="ent-hero">
         <div className="grid-bg" />
         <div className="container ent-hero-body">
-          <p className="eyebrow">Text.js Enterprise</p>
           <h1>The enterprise platform for console applications</h1>
           <p className="rs-lede">Text.js Enterprise adds a 99.99% SLA and a named engineer for teams that ship their product in DevTools.</p>
           <div className="hero-ctas">
@@ -157,7 +156,6 @@ export function EnterprisePage(): ReactNode {
 
       <section className="container ent-section">
         <div className="section-head">
-          <p className="eyebrow">Compliance</p>
           <h2>Console compliance</h2>
           <p>Text.js renders the entire interface in the DevTools console, where your auditors can already inspect it.</p>
         </div>
@@ -173,9 +171,7 @@ export function EnterprisePage(): ReactNode {
 
       <section className="container ent-section">
         <div className="section-head">
-          <p className="eyebrow">Security</p>
-          <h2>A small attack surface</h2>
-          <p>Turbolog escapes text that DevTools would otherwise read as a format specifier or a link.</p>
+          <h2>Security</h2>
         </div>
         <div className="ent-grid">
           {SECURITY.map((c) => (
@@ -189,7 +185,6 @@ export function EnterprisePage(): ReactNode {
 
       <section className="container ent-section">
         <div className="section-head">
-          <p className="eyebrow">Support</p>
           <h2>Dedicated support</h2>
         </div>
         <div className="ent-grid">
@@ -204,8 +199,7 @@ export function EnterprisePage(): ReactNode {
 
       <section className="container ent-section" id="pricing">
         <div className="section-head">
-          <p className="eyebrow">Pricing</p>
-          <h2>Plans</h2>
+          <h2>Pricing</h2>
           <p>The framework is free and MIT licensed.</p>
         </div>
         <div className="ent-plans">
@@ -268,7 +262,6 @@ export function EnterprisePage(): ReactNode {
 
       <section className="container ent-section">
         <div className="section-head">
-          <p className="eyebrow">FAQ</p>
           <h2>Frequently asked questions</h2>
         </div>
         <div className="ent-faq">
