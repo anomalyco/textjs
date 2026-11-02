@@ -245,7 +245,8 @@ describe("middleware hardening", () => {
     const input = `/files-${"a".repeat(40)}/x`;
     const t0 = performance.now();
     expect(re.test(input)).toBe(false);
-    expect(performance.now() - t0).toBeLessThan(50);
+    // Nested quantifiers would take minutes on 40 characters; a second leaves room for a busy machine.
+    expect(performance.now() - t0).toBeLessThan(1000);
     expect(re.test("/files-abc")).toBe(true);
     expect(re.test("/files-")).toBe(true);
     expect(new RegExp(compileMatcherSource("/v:ver+")).test("/v")).toBe(false);

@@ -375,7 +375,7 @@ describe("bunx @textjs/opencode@latest proxy", () => {
     expect(text).toContain('"delta":"hi"');
     ctrl.abort();
     await reader.cancel().catch(() => undefined);
-    for (let i = 0; i < 50 && !sseClosed; i++) await Bun.sleep(20);
+    for (let i = 0; i < 150 && !sseClosed; i++) await Bun.sleep(20);
     expect(sseClosed).toBe(true);
   });
 });

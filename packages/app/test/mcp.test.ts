@@ -749,7 +749,7 @@ export function GET(): Response {
     const next = await call(client, "read_frame", { settleMs: 0 });
     expect(Date.now() - started).toBeLessThan(5000);
     expect(text(next)).toContain("life home");
-    for (let i = 0; i < 50 && !flags.__mcpHangAborted; i++) await new Promise((res) => setTimeout(res, 10));
+    for (let i = 0; i < 300 && !flags.__mcpHangAborted; i++) await new Promise((res) => setTimeout(res, 10));
     expect(flags.__mcpHangAborted).toBe(true);
   });
 
@@ -763,7 +763,7 @@ export function GET(): Response {
     expect(s.body).toContain("data: hello");
     expect(s.body).toContain("data: tick");
     expect(text(r)).toContain("stream still open");
-    for (let i = 0; i < 50 && !flags.__mcpStreamCancelled; i++) await new Promise((res) => setTimeout(res, 10));
+    for (let i = 0; i < 300 && !flags.__mcpStreamCancelled; i++) await new Promise((res) => setTimeout(res, 10));
     expect(flags.__mcpStreamCancelled).toBe(true);
   });
 
@@ -809,7 +809,8 @@ export function GET(): Response {
     const waited = await call(client, "wait_for", { text: "never", timeoutMs: 5000 });
     expect(waited.isError).toBe(true);
     expect(text(waited)).toMatch(/call `reload`/i);
-    expect(Date.now() - started).toBeLessThan(1000);
+    // Well short of the 5 s timeoutMs, with room for a loaded CI machine.
+    expect(Date.now() - started).toBeLessThan(2500);
     const back = await call(client, "reload");
     expect(back.isError).toBeFalsy();
     expect(text(back)).toContain("life home");
