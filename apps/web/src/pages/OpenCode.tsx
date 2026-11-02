@@ -1,21 +1,38 @@
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { getCompanion } from "../console-companion/boot";
 import { siteStore, type OpenCodeConnection } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
-import { autoConnectTarget, BRIDGE_COMMAND, DEFAULT_SERVER_URL, discoverServer, normalizeServerUrl, rememberServer } from "../demos/opencode/live";
+import { autoConnectTarget, BRIDGE_COMMAND, DEFAULT_SERVER_URL, discoverServer, normalizeServerUrl, pairBridge, PairingRequired, rememberServer } from "../demos/opencode/live";
 import { CopyCommand } from "../site/CodeBlock";
 
 async function connectTo(target: string, quiet: boolean): Promise<void> {
   if (!quiet) siteStore.set({ opencode: { mode: "connecting", url: target } });
   try {
     const info = await discoverServer(target, quiet ? 1500 : 3000);
-    siteStore.set({ opencode: { mode: "live", url: info.apiBase, version: info.version, protocol: info.protocol, bridge: info.bridge } });
+    siteStore.set({ opencode: { mode: "live", url: info.apiBase, version: info.version, protocol: info.protocol, bridge: info.bridge, token: info.token } });
     rememberServer(info.apiBase);
   } catch (err) {
+    // A running bridge asks for its code even on a quiet reconnect.
+    if (err instanceof PairingRequired) {
+      siteStore.set({ opencode: { mode: "pair", url: err.apiBase } });
+      return;
+    }
     if (quiet) return;
     const message = err instanceof Error ? (err.name === "AbortError" || err.name === "TimeoutError" ? "Timed out" : err.message) : String(err);
     siteStore.set({ opencode: { mode: "error", url: target, message: message === "Failed to fetch" || message === "Load failed" ? `Unreachable. Run ${BRIDGE_COMMAND}.` : message } });
   }
+}
+
+async function pairWith(target: string, code: string): Promise<void> {
+  siteStore.set({ opencode: { mode: "connecting", url: target } });
+  try {
+    await pairBridge(target, code);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    siteStore.set({ opencode: message.startsWith("Wrong code") ? { mode: "pair", url: target, message } : { mode: "error", url: target, message } });
+    return;
+  }
+  await connectTo(target, false);
 }
 
 let autoTried = false;
@@ -42,6 +59,14 @@ export function ConnectPanel(): ReactNode {
   const hydrated = useHydrated();
   // The default first (as prerendered), then the remembered server once mounted.
   const [url, setUrl] = useState(() => (conn.mode === "sandbox" ? DEFAULT_SERVER_URL : conn.url));
+  const [code, setCode] = useState("");
+  const codeInput = useRef<HTMLInputElement>(null);
+  const lastMode = useRef(conn.mode);
+  // After Connect (not a quiet reconnect on load), move straight to the code field.
+  useEffect(() => {
+    if (conn.mode === "pair" && lastMode.current === "connecting") codeInput.current?.focus();
+    lastMode.current = conn.mode;
+  }, [conn.mode]);
   const [checking, setChecking] = useState(() => probing || (!autoTried && conn.mode === "sandbox" && autoConnectTarget() !== null));
 
   // Quietly reconnect to a server that worked before; stay in the sandbox otherwise.
@@ -84,6 +109,23 @@ export function ConnectPanel(): ReactNode {
         <span className="dot dot-idle" />
         <span className="status-text">Sandbox with a scripted agent. Connect your own server:</span>
       </>
+    ) : conn.mode === "pair" ? (
+      <>
+        <span className="dot dot-amber" />
+        <span className="status-text" title={conn.message}>
+          {conn.message ?? "Enter the pairing code shown in your terminal."}
+        </span>
+        <button
+          type="button"
+          className="text-link status-action"
+          onClick={() => {
+            setCode("");
+            siteStore.set({ opencode: { mode: "sandbox" } });
+          }}
+        >
+          Cancel
+        </button>
+      </>
     ) : conn.mode === "connecting" ? (
       <>
         <span className="dot dot-amber pulse" />
@@ -124,23 +166,49 @@ export function ConnectPanel(): ReactNode {
       {conn.mode === "live" ? null : (
         <div className="pad-connect-row">
           <CopyCommand command={BRIDGE_COMMAND} />
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const raw = url.trim() || DEFAULT_SERVER_URL;
-              const target = normalizeServerUrl(raw);
-              if (target) {
-                setUrl(target);
-                void connectTo(target, false);
-              }
-            }}
-            className="connect-form"
-          >
-            <input className="text-input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={DEFAULT_SERVER_URL} spellCheck={false} aria-label="OpenCode server URL" />
-            <button type="submit" className="btn btn-secondary btn-sm" disabled={conn.mode === "connecting"}>
-              {conn.mode === "connecting" ? "Connecting…" : "Connect"}
-            </button>
-          </form>
+          {conn.mode === "pair" ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (code.trim()) void pairWith(conn.url, code);
+              }}
+              className="connect-form"
+            >
+              <input
+                className="text-input"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                ref={codeInput}
+                placeholder="Pairing code"
+                spellCheck={false}
+                autoComplete="one-time-code"
+                autoCapitalize="characters"
+                maxLength={16}
+                aria-label="Pairing code"
+              />
+              <button type="submit" className="btn btn-secondary btn-sm" disabled={!code.trim()}>
+                Pair
+              </button>
+            </form>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const raw = url.trim() || DEFAULT_SERVER_URL;
+                const target = normalizeServerUrl(raw);
+                if (target) {
+                  setUrl(target);
+                  void connectTo(target, false);
+                }
+              }}
+              className="connect-form"
+            >
+              <input className="text-input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={DEFAULT_SERVER_URL} spellCheck={false} aria-label="OpenCode server URL" />
+              <button type="submit" className="btn btn-secondary btn-sm" disabled={conn.mode === "connecting"}>
+                {conn.mode === "connecting" ? "Connecting…" : "Connect"}
+              </button>
+            </form>
+          )}
         </div>
       )}
     </div>

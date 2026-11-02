@@ -6,6 +6,7 @@ import { createTransport, createV1Client, createV2Client } from "../../../../ope
 import { siteStore } from "../../console-companion/store";
 import { clearViewportConsole } from "../../console-companion/viewport-console";
 import { useSite } from "../../console-companion/useSite";
+import { BRIDGE_TOKEN_HEADER } from "./live";
 import { scenario } from "./scenario";
 
 export function OpenCodeLite(): ReactNode {
@@ -14,11 +15,12 @@ export function OpenCodeLite(): ReactNode {
   const live = connection.mode === "live" ? connection : null;
   const url = live?.url;
   const protocol = live?.protocol;
+  const token = live?.token;
   const client = useMemo(() => {
     if (!url) return createDemoClient({ scenario });
-    const transport = createTransport(url, new URL(url).host);
+    const transport = createTransport(url, new URL(url).host, token ? { [BRIDGE_TOKEN_HEADER]: token } : {});
     return protocol === "v1" ? createV1Client(transport, "custom") : createV2Client(transport, "custom");
-  }, [url, protocol]);
+  }, [url, protocol, token]);
   const { renderer } = useApp();
   const paused = useRef(false);
   // `/exit` drops you at your shell, which here is the DevTools prompt. The connected server is left alone.
@@ -47,5 +49,5 @@ export function OpenCodeLite(): ReactNode {
     },
     [renderer],
   );
-  return <EmbeddedOpenCode key={JSON.stringify([url, protocol])} client={client} onExit={exit} />;
+  return <EmbeddedOpenCode key={JSON.stringify([url, protocol, token])} client={client} onExit={exit} />;
 }

@@ -101,7 +101,8 @@ export const THEME_ORDER: readonly ThemeName[] = ["geistDark", "opencodeDark", "
 export type OpenCodeConnection =
   | { mode: "sandbox" }
   | { mode: "connecting"; url: string }
-  | { mode: "live"; url: string; version?: string; protocol?: "v1" | "v2"; bridge?: boolean }
+  | { mode: "pair"; url: string; message?: string }
+  | { mode: "live"; url: string; version?: string; protocol?: "v1" | "v2"; bridge?: boolean; token?: string }
   | { mode: "error"; url: string; message: string };
 
 export interface SiteState {
