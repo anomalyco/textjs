@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { useEffect, useState } from "react";
-import { Box, Input, Text, useInput, usePaste, useWheel } from "../src/index";
+import { Box, createConsoleRootSync, Input, Text, useInput, usePaste, useWheel } from "../src/index";
 import { cleanup, keyEventFromCombo, render, renderToString } from "../src/testing";
+import { captureWarnings, FakeConsole, ManualScheduler, withoutActEnvironment } from "./helpers";
 
 afterEach(cleanup);
 
@@ -79,6 +80,41 @@ describe("@textjs/react/testing", () => {
     expect(keyEventFromCombo("?")).toMatchObject({ key: "?", input: "?" });
     expect(keyEventFromCombo("space")).toMatchObject({ key: "space", input: " " });
     expect(() => keyEventFromCombo("g g")).toThrow();
+  });
+
+  test("a render that throws doesn't leave act() open for code that runs outside it", async () => {
+    let thrown: unknown;
+    await captureWarnings(async () => {
+      await render(
+        <Text>
+          <Box />
+        </Text>,
+      ).catch((error: unknown) => {
+        thrown = error;
+      });
+    });
+    expect(String(thrown)).toContain("cannot be nested inside <Text>");
+
+    let bump = () => {};
+    function Count() {
+      const [n, setN] = useState(0);
+      bump = () => setN((x) => x + 1);
+      return <Text>{n}</Text>;
+    }
+    const scheduler = new ManualScheduler();
+    const warnings = await captureWarnings(() =>
+      withoutActEnvironment(async () => {
+        const root = createConsoleRootSync({ console: new FakeConsole(), scheduler, width: 4, height: 1, registerGlobal: false });
+        root.render(<Count />);
+        scheduler.flush();
+        bump();
+        await new Promise((r) => setTimeout(r, 10));
+        scheduler.flush();
+        expect(root.renderer.buffer.toPlainString(true).trim()).toBe("1");
+        root.unmount();
+      }),
+    );
+    expect(warnings).toEqual([]);
   });
 
   test("renders when the test stubs fetch before the first render", () => {

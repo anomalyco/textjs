@@ -280,7 +280,14 @@ export async function render(element: ReactNode, options: RenderOptions = {}): P
     },
   };
   mounted.add(result);
-  await runAct(() => root.render(element));
+  try {
+    await runAct(() => root.render(element));
+  } catch (error) {
+    // React leaves its act() queue open when an act callback throws, which breaks every later
+    // update outside act(). The caller never gets a handle here, so unmount (closing the queue) ourselves.
+    await result.unmount().catch(() => {});
+    throw error;
+  }
   return result;
 }
 
