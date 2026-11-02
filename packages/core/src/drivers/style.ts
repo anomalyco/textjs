@@ -104,6 +104,30 @@ export function typographyCss(t: ConsoleTypographyOptions): string {
   return css;
 }
 
+/**
+ * Per-span typography for consoles that keep `%c` spans inline (Firefox,
+ * Safari). Vertical margins don't apply to inline boxes and the line box is
+ * the line height itself, so rows are exactly `lineHeight` apart with no
+ * margins. `rowPaddingY` becomes real padding: it extends each background
+ * without moving the rows. `text-wrap-mode: nowrap` keeps a row that is wider
+ * than the console on one line (clipped), where soft wrapping would break the
+ * grid.
+ */
+export function inlineTypographyCss(t: ConsoleTypographyOptions): string {
+  let css = `font-family:${t.fontFamily};font-size:${t.fontSize}px;line-height:${t.lineHeight}px;text-wrap-mode:nowrap;`;
+  if (t.fontFamily !== DEFAULT_TYPOGRAPHY.fontFamily) css += "font-variant-ligatures:none;";
+  if (t.rowPaddingY !== 0) css += `padding-top:${t.rowPaddingY}px;padding-bottom:${t.rowPaddingY}px;`;
+  if (t.extraCss) css += t.extraCss.endsWith(";") ? t.extraCss : `${t.extraCss};`;
+  return css;
+}
+
+/** Typography defaults for inline consoles: 14px rows with nothing folded into the line height. */
+export const INLINE_TYPOGRAPHY: Readonly<Pick<ConsoleTypographyOptions, "lineHeight" | "rowMarginY" | "rowPaddingY">> = Object.freeze({
+  lineHeight: 14,
+  rowMarginY: 0,
+  rowPaddingY: 0,
+});
+
 export function styleCss(base: string, style: EffectiveStyle): string {
   let css = base;
   if ((style.fg & 255) !== 0) css += `color:${colorToCss(style.fg)};`;

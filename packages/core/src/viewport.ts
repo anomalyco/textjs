@@ -13,6 +13,7 @@
  * under another panel. Those fall back to a fixed size or need `text.resize()`.
  */
 
+import { consoleProfile, type ConsoleBrowser } from "./drivers/console-browser";
 import { DEFAULT_TYPOGRAPHY } from "./drivers/style";
 
 export interface ViewportSize {
@@ -80,6 +81,8 @@ export interface ViewportOptions {
   /** Where the learned browser chrome height is remembered (default `localStorage`, `null` to disable). */
   storage?: StorageLike | null;
   window?: WindowLike | null;
+  /** The console being fitted, for its row pitch and horizontal chrome (default: detected, see `ConsoleBrowser`). */
+  browser?: ConsoleBrowser;
 }
 
 export interface ResolvedViewport extends ViewportSize {
@@ -344,8 +347,10 @@ export class ViewportController {
     if (this.charW === null) this.charW = measureCharWidth(o.fontSize, o.fontFamily);
     if (this.scrollbarW === null) this.scrollbarW = measureScrollbarWidth();
     if (o.browserChromeHeight === undefined) this.learn(analyzeDock(this.win, this.learnedChrome ?? VIEWPORT_DEFAULTS.browserChromeHeight).chromeSample);
-    return estimateDockedConsoleSize(this.win, this.charW, o.charHeight ?? DEFAULT_TYPOGRAPHY.lineHeight, {
+    const profile = consoleProfile(o.browser);
+    return estimateDockedConsoleSize(this.win, this.charW, o.charHeight ?? profile.rowHeight, {
       ...o,
+      consolePaddingX: o.consolePaddingX ?? profile.consolePaddingX,
       browserChromeHeight: o.browserChromeHeight ?? this.learnedChrome ?? VIEWPORT_DEFAULTS.browserChromeHeight,
       scrollbarWidth: this.scrollbarW,
       fallbackCols: this.fallback.cols,

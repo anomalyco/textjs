@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Firefox and Safari consoles. `CssConsoleDriver` detects the browser with CSS feature checks and, where `%c` spans stay inline, writes 14px line heights without margins, turns off soft wrapping and uses a `line-height: 100vh` curtain. Responsive sizing leaves room for Firefox's source link column and fits Safari's 15px rows. Pass `browser: "chromium" | "firefox" | "safari"` to `createConsoleRoot`, `ConsoleRenderer` or `CssConsoleDriver` to choose one. Prerendered shells carry the CSS for both kinds of console.
+- `<FocusPad>` shows the console shortcut for the visitor's browser: ⌘⌥K or Ctrl+Shift+K in Firefox, and ⌘⌥C in Safari, with a note to turn on "Show features for web developers". Prerendered pads render every variant for `html[data-browser]` and `html[data-os]` to pick from.
+
+### Fixed
+
+- ⌘⌥K and Ctrl+Shift+K (Firefox's console shortcut) pass through to the browser instead of reaching the app.
+
 ## [1.0.4] - 2026-11-01
 
 ### Added

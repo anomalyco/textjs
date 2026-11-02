@@ -26,29 +26,29 @@ export function shellPath(basePath: string, pattern: string): string {
 export function shellScript(calls: readonly ShellCall[], path: string): string {
   const table: string[] = [];
   const index = new Map<string, number>();
-  const ops: Array<0 | [string, number[]]> = [];
+  const ops: Array<0 | [string, number[]] | [string, number[], number[]]> = [];
+  const intern = (a: string): number => {
+    let i = index.get(a);
+    if (i === undefined) {
+      i = table.length;
+      table.push(a);
+      index.set(a, i);
+    }
+    return i;
+  };
   for (const c of calls) {
     if (c.method === "clear") {
       ops.push(0);
       continue;
     }
     const [format = "", ...args] = c.args;
-    ops.push([
-      format,
-      args.map((a) => {
-        let i = index.get(a);
-        if (i === undefined) {
-          i = table.length;
-          table.push(a);
-          index.set(a, i);
-        }
-        return i;
-      }),
-    ]);
+    ops.push(c.inlineArgs ? [format, args.map(intern), c.inlineArgs.map(intern)] : [format, args.map(intern)]);
   }
+  // Firefox and Safari (no window.chrome or navigator.userAgentData; -moz-appearance or WebKit-only CSS) get the inline-console CSS.
   const body =
     `(function(p,c,s){var l=location.pathname;if(l.length>1&&l.charAt(l.length-1)==="/")l=l.slice(0,-1);if(l!==p||typeof console==="undefined")return;` +
-    `for(var i=0;i<s.length;i++){var o=s[i];if(o===0){console.clear();continue}var a=[o[0]];for(var j=0;j<o[1].length;j++)a.push(c[o[1][j]]);console.log.apply(console,a)}` +
+    `var n=typeof window!=="undefined"&&typeof CSS!=="undefined"&&CSS.supports&&!window.chrome&&!(typeof navigator!=="undefined"&&navigator.userAgentData)&&(CSS.supports("-moz-appearance","none")||CSS.supports("-webkit-hyphens","auto")||CSS.supports("-webkit-backdrop-filter","none"))?2:1;` +
+    `for(var i=0;i<s.length;i++){var o=s[i];if(o===0){console.clear();continue}var x=o[n]||o[1],a=[o[0]];for(var j=0;j<x.length;j++)a.push(c[x[j]]);console.log.apply(console,a)}` +
     `window.__TEXTJS_SHELL__=1;window.__TEXTJS_SHELL_AT__=typeof performance!=="undefined"?performance.now():void 0})(${inlineJson(path)},${inlineJson(table)},${inlineJson(ops)});`;
   return `<script data-textjs-shell>${body}</script>`;
 }

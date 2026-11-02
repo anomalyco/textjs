@@ -39,9 +39,13 @@
   box-sizing: border-box;
 }
 
-/* Platform-specific labels: both are rendered, `html[data-os]` (set before first paint) picks one. */
+/* Platform- and browser-specific labels: all are rendered, `html[data-os]` and `html[data-browser]`
+   (set before first paint) pick one. No `data-browser` means Chromium. */
 html:not([data-os="mac"]) .os-mac,
-html[data-os="mac"] .os-other {
+html[data-os="mac"] .os-other,
+html[data-browser] .br-chromium,
+html:not([data-browser="firefox"]) .br-firefox,
+html:not([data-browser="safari"]) .br-safari {
   display: none !important;
 }
 
@@ -331,10 +335,14 @@ kbd {
   height: 100%;
 }
 
+/* A fixed width (the Geist wordmark's), so the nav beside it never moves when the font swaps in. */
 .wordmark {
   display: inline-flex;
+  flex: none;
   align-items: center;
+  width: 84px;
   gap: 10px;
+  white-space: nowrap;
   font-weight: 700;
   font-size: 18px;
   letter-spacing: -0.04em;

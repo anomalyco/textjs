@@ -124,7 +124,8 @@ describe("page rendering", () => {
     for (const gone of [">Counter<", ">Form<"]) expect(pg).not.toContain(gone);
     expect(pg).toContain("data-textjs-focus-pad");
     expect(pg).toContain("Open the console");
-    expect(pg).toContain('<span class="tx-pad-line">The app renders in DevTools.</span> <span class="tx-pad-line">Then click here and press ← →.</span>');
+    expect(pg).toContain('<span class="tx-pad-line tx-not-safari">The app renders in DevTools.</span>');
+    expect(pg).toContain('<span class="tx-pad-line">Then click here and press ← →.</span>');
     // The demo's keys are the hero once live; before that it is the DevTools shortcut.
     expect(pg).not.toContain("switch region");
     expect(pg).toContain('aria-label="Press ⌘ ⌥ J"');

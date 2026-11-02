@@ -40,8 +40,32 @@
       html, body { margin: 0; background: #000000; color: #ededed; }
     </style>
     <script>
-      // Platform-specific shortcuts (⌘⌥J vs Ctrl+Shift+J) are prerendered for both and picked by CSS.
-      if (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) document.documentElement.dataset.os = "mac";
+      (function () {
+        // Console shortcuts differ by platform (⌘⌥J, Ctrl+Shift+J) and browser (⌘⌥K in Firefox, ⌘⌥C in Safari).
+        // Every variant is prerendered and CSS picks one. Same checks as detectConsoleBrowser() in @textjs/core.
+        var root = document.documentElement;
+        if (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) root.dataset.os = "mac";
+        if (!window.CSS || !CSS.supports || window.chrome || navigator.userAgentData) return;
+        if (!CSS.supports("-moz-appearance", "none")) {
+          if (CSS.supports("-webkit-hyphens", "auto") || CSS.supports("-webkit-backdrop-filter", "none")) root.dataset.browser = "safari";
+          return;
+        }
+        root.dataset.browser = "firefox";
+        // Chrome holds first paint up to 100ms for a preloaded `optional` font. Firefox paints at once and swaps Geist
+        // in if it lands within 100ms of first using it, which moves text. Hold the page until the fonts are applied
+        // (300ms at most), loading the local fallbacks too: Firefox loads local() faces lazily.
+        if (!document.fonts) return;
+        var shown = false, show = function () {
+          if (shown) return;
+          shown = true;
+          root.style.removeProperty("visibility");
+        };
+        // Firefox restyles for a loaded font a frame or two after the promise settles.
+        var settle = function () { requestAnimationFrame(function () { requestAnimationFrame(show); }); };
+        root.style.visibility = "hidden";
+        setTimeout(show, 300);
+        Promise.all(['16px Geist', '12px "Geist Mono"', '16px "Geist Fallback"', '12px "Geist Mono Fallback"'].map(function (f) { return document.fonts.load(f); })).then(settle, settle);
+      })();
     </script>
   </head>
   <body>

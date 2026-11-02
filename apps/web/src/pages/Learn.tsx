@@ -71,7 +71,7 @@ function Overview(): ReactNode {
             </A>
           )}
         </div>
-        <p className="learn-meta">{`${CHAPTERS.length} chapters · about ${ABOUT_MINUTES} minutes · Chrome, Edge, Arc or Brave`}</p>
+        <p className="learn-meta">{`${CHAPTERS.length} chapters · about ${ABOUT_MINUTES} minutes · Chrome, Edge, Firefox or Safari`}</p>
         <ProgressMeter progress={progress} />
       </header>
 

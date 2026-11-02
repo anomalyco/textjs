@@ -39,6 +39,7 @@ Not covered: APIs marked experimental or `unstable_` (they may change in a minor
 | Runtime | Supported |
 | :-- | :-- |
 | Chrome / Edge DevTools | Current and previous two stable releases |
+| Firefox and Safari consoles | Current stable release |
 | Node.js | Active and maintenance LTS releases (`text start`, Vercel functions) |
 | Bun | Latest 1.x |
 | Cloudflare Workers | `compatibility_date` 2025-01-01 or later, `nodejs_compat` |

@@ -16,7 +16,7 @@ const ALIASES: ReadonlyArray<{ terms: readonly string[]; to: { error: string } |
   { terms: ["css", "tailwind", "classname", "stylesheet"], to: { doc: "styling" } },
   { terms: ["hydration", "hydrate"], to: { doc: "server-rendering" } },
   { terms: ["next.config", "next.config.js", "next.config.mjs", "next.config.ts"], to: { doc: "project-structure" } },
-  { terms: ["safari", "firefox"], to: { doc: "support-policy", heading: "Runtime support" } },
+  { terms: ["safari", "firefox"], to: { doc: "turbolog-engine", heading: "Firefox and Safari" } },
   { terms: ["vercel"], to: { doc: "deploying" } },
 ];
 

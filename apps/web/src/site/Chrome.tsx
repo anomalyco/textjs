@@ -9,23 +9,19 @@ import { LogoMenu, useLogoMenu } from "./LogoMenu";
 import { openSearch, preloadSearchDialog } from "./SearchModal";
 import { Sheet, useCloseOnMedia } from "./Sheet";
 
-export function isMac(): boolean {
-  return typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
-}
-
-export function devtoolsShortcut(): string {
-  return isMac() ? "⌘⌥J" : "Ctrl+Shift+J";
-}
-
 /**
- * The DevTools shortcut for this platform. Both variants are rendered and CSS shows one
- * (`html[data-os]`, set before first paint), so prerendered HTML hydrates without a text swap.
+ * The console shortcut for this browser and platform. Every variant is rendered and CSS shows one
+ * (`html[data-os]` and `html[data-browser]`, set before first paint), so prerendered HTML hydrates
+ * without a text swap.
  */
 export function DevtoolsShortcut(): ReactNode {
   return (
     <>
-      <span className="os-mac">⌘⌥J</span>
-      <span className="os-other">Ctrl+Shift+J</span>
+      <span className="br-chromium os-mac">⌘⌥J</span>
+      <span className="br-chromium os-other">Ctrl+Shift+J</span>
+      <span className="br-firefox os-mac">⌘⌥K</span>
+      <span className="br-firefox os-other">Ctrl+Shift+K</span>
+      <span className="br-safari">⌘⌥C</span>
     </>
   );
 }
