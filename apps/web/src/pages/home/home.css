@@ -1573,7 +1573,7 @@
   border-radius: 8px;
   overflow: hidden;
   background: #0d0d0d;
-  font-family: Menlo, Consolas, "Geist Mono", monospace;
+  font-family: Menlo, "Cascadia Mono", Consolas, "Geist Mono", monospace;
   font-size: 11px;
   line-height: 16px;
 }

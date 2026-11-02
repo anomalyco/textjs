@@ -1241,9 +1241,9 @@ kbd {
   width: max-content;
 }
 
-/* Chrome DevTools renders console text in Menlo / Consolas, which ship full-cell block glyphs. */
+/* Chrome DevTools renders console text in Menlo / Cascadia Mono, which ship full-cell block glyphs. */
 .mirror-scale [data-textjs-mirror] {
-  font-family: Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace !important;
+  font-family: Menlo, "Cascadia Mono", Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace !important;
 }
 
 /* ───────────────────────── Sections ───────────────────────── */
