@@ -289,7 +289,8 @@ async function visit(path, shoot = true) {
   checkResult(`${path} no horizontal overflow`, m.scrollWidth <= m.clientWidth + 1 && (m.viewScrollWidth ?? 0) <= (m.viewClientWidth ?? 0) + 1, { scrollWidth: m.scrollWidth, clientWidth: m.clientWidth, view: [m.viewScrollWidth, m.viewClientWidth] });
   checkResult(`${path} frame inside the console`, m.viewRight === null || m.rightmostGlyph <= m.viewRight, { rightmostGlyph: m.rightmostGlyph, viewRight: m.viewRight });
   const lh = parseFloat(m.lineHeight);
-  checkResult(`${path} rows don't wrap`, !Number.isFinite(lh) || Math.abs(m.rowHeight - lh) < 1, { rowHeight: m.rowHeight, lineHeight: m.lineHeight, rows: m.rows });
+  // A wrapped row doubles its height; Text.js tightens rows below the spans' line-height, so only taller is wrong.
+  checkResult(`${path} rows don't wrap`, !Number.isFinite(lh) || m.rowHeight <= lh + 1, { rowHeight: m.rowHeight, lineHeight: m.lineHeight, rows: m.rows });
   const font = (m.platformFonts ?? []).sort((a, b) => b.glyphCount - a.glyphCount)[0]?.familyName;
   checkResult(`${path} drawn in Consolas`, font === "Consolas", m.platformFonts);
 }

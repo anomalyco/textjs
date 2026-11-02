@@ -75,8 +75,11 @@ jobs:
       - name: Packed packages
         run: bun scripts/verify-pack.ts --skip-build
 
+  # What users get from npm today, so it runs by hand (after a release). Pull requests
+  # cover this checkout's packages in the packages job (verify-pack, template builds).
   cli:
     name: CLI (create-text-app, text, bridge)
+    if: github.event_name == 'workflow_dispatch'
     runs-on: blacksmith-4vcpu-windows-2025
     timeout-minutes: 30
     steps:
