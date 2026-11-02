@@ -3,6 +3,11 @@
 # examples and the runnable apps in headless Chromium. Fails on any console
 # error or warning, page error, CLI warning, tsc error or lint finding.
 #
+# Runs only when something it covers changed (the packages, examples, the
+# runnable apps, the QA scripts or this workflow), split into parallel shards.
+# The `Templates, examples and apps` job always reports a status: it passes
+# when every shard passed or when nothing QA covers changed.
+#
 # Run locally: bun scripts/qa-starters.ts (see the header for options).
 
 name: QA starters
@@ -10,6 +15,8 @@ name: QA starters
 on:
   pull_request:
     branches: [dev, production]
+    # ready_for_review: the draft promotion PR is opened by GITHUB_TOKEN, which starts no workflows.
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [dev]
   workflow_dispatch:
@@ -26,29 +33,100 @@ defaults:
     shell: bash
 
 jobs:
-  qa:
-    name: Templates, examples and apps
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+  changes:
+    name: Changes
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # list a pull request's files
+    outputs:
+      qa: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.qa == 'true' }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # Pushes are compared with the previous commit on the branch, which needs the repository.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'push'
         with:
           persist-credentials: false
 
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        if: github.event_name != 'workflow_dispatch'
         with:
-          bun-version: 1.4.4
+          filters: |
+            qa:
+              - packages/**
+              - examples/**
+              - apps/opencode-console/**
+              - apps/terminal-shop/**
+              - bench/devtools/package.json
+              - bench/devtools/bun.lock
+              - scripts/qa-starters.ts
+              - scripts/verify-pack.ts
+              - package.json
+              - bun.lock
+              - tsconfig.base.json
+              - .github/actions/**
+              - .github/workflows/qa-starters.yml
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+  qa:
+    name: QA (${{ matrix.shard.name }})
+    needs: changes
+    if: needs.changes.outputs.qa == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - name: templates, bun
+            only: template:starter,template:dashboard,template:opencode
+            pm: bun
+          - name: templates, npm
+            only: template:starter,template:dashboard,template:opencode
+            pm: npm
+          - name: example, bun
+            only: example:dashboard
+            pm: bun
+          - name: example, npm
+            only: example:dashboard
+            pm: npm
+          - name: apps
+            only: app:opencode-console,app:opencode-console-offline,app:terminal-shop
+            pm: bun
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 
-      - name: Install
-        run: |
-          bun install --frozen-lockfile
-          cd bench/devtools
-          bun install --frozen-lockfile
-          bunx playwright-core install --with-deps chromium
+      - uses: ./.github/actions/setup
+        with:
+          install-dirs: bench/devtools
+
+      - uses: ./.github/actions/chromium
 
       - name: QA
-        run: bun scripts/qa-starters.ts
+        env:
+          ONLY: ${{ matrix.shard.only }}
+          PM: ${{ matrix.shard.pm }}
+        run: bun scripts/qa-starters.ts --only "$ONLY" --pm "$PM"
+
+  status:
+    name: Templates, examples and apps
+    needs: [changes, qa]
+    if: always()
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 2
+    steps:
+      - name: Check results
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          QA: ${{ needs.qa.result }}
+          EXPECTED: ${{ needs.changes.outputs.qa == 'true' && 'success' || 'skipped' }}
+        run: |
+          echo "changes: $CHANGES, QA shards: $QA (expected $EXPECTED)"
+          test "$CHANGES" = success && test "$QA" = "$EXPECTED"
