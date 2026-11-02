@@ -12,7 +12,9 @@
 //   bun run build && bun run preview -- --port 4173 --strictPort
 //   PLAYWRIGHT=/path/to/playwright-core BASE=http://localhost:4173 OUT=/tmp/browsers node scripts/e2e-browsers.mjs
 //
-// Env: BROWSERS=firefox,webkit, ROUTES=/a,/b, OUT (screenshots). Needs `playwright install firefox webkit`.
+// Env: BROWSERS=firefox,webkit, ROUTES=/a,/b, OUT (screenshots), LATENCY=ms added to every request (a cold, slow
+// load; also reports Firefox's first paint and how long its font hold kept the page hidden).
+// Needs `playwright install firefox webkit`.
 // Never reaches a local OpenCode server (loopback requests other than BASE are aborted) and never
 // writes to terminal.shop (only GET requests leave the machine).
 import { mkdirSync } from "node:fs";
@@ -24,6 +26,7 @@ const base = (process.env.BASE ?? "http://localhost:4173").replace(/\/$/, "");
 const port = new URL(base).port;
 const out = process.env.OUT ?? "";
 if (out) mkdirSync(out, { recursive: true });
+const latency = Number(process.env.LATENCY ?? 0);
 const browsers = (process.env.BROWSERS ?? "firefox,webkit").split(",").filter(Boolean);
 const routes = process.env.ROUTES ? process.env.ROUTES.split(",").filter(Boolean) : ["/", "/docs/routing", "/playground", "/learn/getting-started", "/store", "/blog", "/opencode", "/coffee"];
 const PAD_ROUTES = new Set(["/playground", "/opencode", "/coffee"]);
@@ -42,10 +45,20 @@ function sampler() {
     if (state.frames.length < 3 && typeof args[0] === "string" && args[0].startsWith("%c\u200b%c\n")) state.frames.push(String(args[1]));
     return log.apply(this, args);
   };
+  // Firefox's font hold: when the page was hidden and shown again.
+  new MutationObserver(() => {
+    const hidden = document.documentElement.style.visibility === "hidden";
+    if (hidden && state.hiddenAt === undefined) state.hiddenAt = performance.now();
+    if (!hidden && state.hiddenAt !== undefined && state.shownAt === undefined) state.shownAt = performance.now();
+  }).observe(document, { attributes: true, attributeFilter: ["style"], subtree: true });
   let painted = false;
   try {
     new PerformanceObserver((list) => {
-      if (list.getEntriesByName("first-contentful-paint").length > 0) painted = true;
+      const fcp = list.getEntriesByName("first-contentful-paint")[0];
+    if (fcp) {
+      painted = true;
+      state.fcp = fcp.startTime;
+    }
     }).observe({ type: "paint", buffered: true });
   } catch {
     painted = true;
@@ -98,10 +111,38 @@ const fail = (msg) => {
   console.log(`  ✗ ${msg}`);
 };
 
+/** A loopback URL on any port but the preview's (requests the route below aborts). */
+const otherLoopback = new RegExp(String.raw`\b(127\.0\.0\.1|localhost):(?!${port}\b)\d+`);
+
+/**
+ * The pad's message rows (top and height), and whether the message fits its frame: in the Playground
+ * stage it must end above the bottom slot and inside `--pad-frame`.
+ */
+function padRows() {
+  const box = (sel) => {
+    const el = [...document.querySelectorAll(sel)].find((e) => e.offsetParent !== null);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { top: Math.round(r.top * 10) / 10, height: Math.round(r.height * 10) / 10, bottom: Math.round(r.bottom * 10) / 10 };
+  };
+  const rows = { headline: box(".tx-pad-headline"), hero: box(".tx-pad-hero"), sub: box(".tx-pad-sub"), steps: box(".tx-pad-steps") };
+  const banner = box(".tx-pad-desk .pad-slot-banner");
+  const bottom = box(".pad-slot-bottom");
+  const stage = document.querySelector(".pad-stage");
+  const frame = stage ? parseFloat(getComputedStyle(stage).getPropertyValue("--pad-frame")) : null;
+  return {
+    rows,
+    state: document.querySelector("[data-textjs-focus-pad]")?.getAttribute("data-state") ?? null,
+    overlap: bottom && rows.sub ? Math.max(0, rows.sub.bottom - bottom.top) : 0,
+    overflow: frame && banner && rows.sub ? Math.max(0, rows.sub.bottom - banner.top - frame) : 0,
+  };
+}
+
 async function newPage(browser, options) {
   const context = await browser.newContext(options);
   const page = await context.newPage();
-  await page.route("**/*", (route) => {
+  await page.route("**/*", async (route) => {
+    if (latency > 0) await new Promise((r) => setTimeout(r, latency));
     const req = route.request();
     const url = new URL(req.url());
     if (/^(127\.0\.0\.1|localhost|\[::1\])$/.test(url.hostname) && url.port !== port) return route.abort();
@@ -115,7 +156,7 @@ async function newPage(browser, options) {
     if (msg.type() !== "error") return;
     const text = msg.text();
     // Requests aborted above, and media.textjs.org, whose CORS policy allows textjs.org but not the preview origin.
-    if (/\b(127\.0\.0\.1|localhost):(?!${port}\b)\d+/.test(text) || (/media\.textjs\.org|Access-Control-Allow-Origin/.test(text) && !base.startsWith("https://textjs.org"))) return;
+    if (otherLoopback.test(text) || (/media\.textjs\.org|Access-Control-Allow-Origin/.test(text) && !base.startsWith("https://textjs.org"))) return;
     errors.push(`console.error: ${text.slice(0, 200)}`);
   });
   return { context, page, errors };
@@ -151,11 +192,48 @@ for (const name of browsers) {
       if (keys !== `Press ${SHORTCUT[name]}`) fail(`${label}: pad shortcut ${JSON.stringify(keys)}, expected "Press ${SHORTCUT[name]}"`);
     }
     if (out) await page.screenshot({ path: join(out, `${name}${route === "/" ? "_home" : route.replace(/\//g, "_")}.png`) });
-    console.log(`  ${failures.some((f) => f.startsWith(`${label}:`)) ? "✗" : "✓"} ${route}  shift ${shifts.score.toFixed(4)}  errors ${errors.length}`);
+    const hold = shifts.hiddenAt !== undefined ? `  hold ${Math.round((shifts.shownAt ?? NaN) - shifts.hiddenAt)}ms` : "";
+    const fcp = shifts.fcp !== undefined ? `  fcp ${Math.round(shifts.fcp)}ms` : "";
+    if (shifts.hiddenAt !== undefined && !(shifts.shownAt - shifts.hiddenAt <= 200)) fail(`${label}: the font hold kept the page hidden ${Math.round(shifts.shownAt - shifts.hiddenAt)}ms`);
+    console.log(`  ${failures.some((f) => f.startsWith(`${label}:`)) ? "✗" : "✓"} ${route}  shift ${shifts.score.toFixed(4)}  errors ${errors.length}${fcp}${hold}`);
     await context.close();
   }
 
   if (name === "webkit") {
+    // Safari's line below the hero is one line longer. It must fit the Playground's frame (also with Web Inspector
+    // docked, a short page, and in narrow windows) and every state must reserve it, so open → click moves nothing.
+    const PAD_CASES = [
+      { route: "/playground", width: 1440, height: 900 },
+      { route: "/playground", width: 1440, height: 520 },
+      { route: "/playground", width: 600, height: 760 },
+      { route: "/coffee", width: 1440, height: 520 },
+      { route: "/learn", width: 1440, height: 900, scroll: ".tx-pad" },
+    ];
+    for (const c of PAD_CASES) {
+      const { context, page, errors } = await newPage(browser, { viewport: { width: c.width, height: c.height }, deviceScaleFactor: 1 });
+      await page.goto(base + c.route, { waitUntil: "load", timeout: 60_000 });
+      await page.waitForTimeout(1200);
+      if (c.scroll) await page.locator(c.scroll).first().scrollIntoViewIfNeeded();
+      const open = await page.evaluate(padRows);
+      // A blur with the page visible reads as focus moving into Web Inspector: the pad asks for a click.
+      await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+      await page.waitForTimeout(600);
+      const click = await page.evaluate(padRows);
+      const label = `webkit pad ${c.route} ${c.width}x${c.height}`;
+      if (errors.length > 0) fail(`${label}: ${errors.join(" | ")}`);
+      if (open.state !== "open" || click.state !== "click") fail(`${label}: states ${open.state} → ${click.state}, expected open → click`);
+      if (open.overlap > 0 || click.overlap > 0) fail(`${label}: the message overlaps the bottom slot by ${Math.max(open.overlap, click.overlap)}px`);
+      if (open.overflow > 0 || click.overflow > 0) fail(`${label}: the message overflows --pad-frame by ${Math.max(open.overflow, click.overflow)}px`);
+      for (const row of ["steps", "headline", "hero", "sub"]) {
+        const a = open.rows[row];
+        const b = click.rows[row];
+        if (!a || !b || a.top !== b.top || a.height !== b.height) fail(`${label}: ${row} moved from ${JSON.stringify(a)} to ${JSON.stringify(b)} between open and click`);
+      }
+      if (out) await page.screenshot({ path: join(out, `webkit-pad${c.route.replace(/\//g, "_")}-${c.width}x${c.height}.png`) });
+      console.log(`  ${failures.some((f) => f.startsWith(`${label}:`)) ? "✗" : "✓"} pad ${c.route} ${c.width}x${c.height}  sub ${open.rows.sub?.height}px`);
+      await context.close();
+    }
+
     for (const route of MOBILE_ROUTES) {
       const { context, page, errors } = await newPage(browser, { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
       await page.goto(base + route, { waitUntil: "commit", timeout: 60_000 });

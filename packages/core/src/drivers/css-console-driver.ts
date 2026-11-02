@@ -12,8 +12,6 @@ import {
 import {
   DEFAULT_STYLE_RESOLVE,
   DEFAULT_TYPOGRAPHY,
-  INLINE_TYPOGRAPHY,
-  inlineTypographyCss,
   resolveStyle,
   styleCss,
   styleKeyOf,
@@ -24,7 +22,7 @@ import {
 } from "./style";
 import { hasRtl, isRtlCodePoint, LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../bidi";
 import { LruCache } from "../text-measure";
-import { consoleProfile, type ConsoleBrowser } from "./console-browser";
+import { consoleProfile, inlineTypographyCss, type ConsoleBrowser } from "./console-browser";
 
 /** Minimal console surface used by the driver; inject a fake for tests and benchmarks. */
 export interface ConsoleTarget {
@@ -310,14 +308,14 @@ export class CssConsoleDriver {
   constructor(options: CssConsoleDriverOptions = {}) {
     this.target = options.console ?? null;
     const profile = consoleProfile(options.browser);
-    this.typography = Object.freeze({ ...DEFAULT_TYPOGRAPHY, ...(profile.inline ? INLINE_TYPOGRAPHY : null), ...options.typography });
+    this.typography = Object.freeze({ ...DEFAULT_TYPOGRAPHY, ...profile.typography, ...options.typography });
     this.styleOptions = Object.freeze({ ...DEFAULT_STYLE_RESOLVE, ...options.style });
     const clear = options.clear ?? "append";
     this.clearMode = clear === true ? "frame" : clear === false ? "never" : clear;
     this.maxFrames = Math.max(1, options.maxFrames ?? 300);
     this.curtainOption = options.curtain;
     this.coalesce = options.coalesceWhitespace ?? true;
-    this.baseCss = profile.inline ? inlineTypographyCss(this.typography) : typographyCss(this.typography);
+    this.baseCss = profile.inline ? inlineTypographyCss(this.typography, profile.typography.fontFamily) : typographyCss(this.typography);
     this.curtainCss = profile.curtainCss;
     if (options.initialClear === false) this.appended = 1;
     this.measureOption = options.measureText;

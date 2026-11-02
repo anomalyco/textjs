@@ -25,7 +25,7 @@ class Scheduler implements RendererScheduler {
  * padding), encoded by the real Turbolog driver. Run `bun scripts/generate-logo-console.ts` after
  * changing the encoder or the font; a test fails while the committed copy is stale.
  */
-export async function encodeLogoConsoleLog(): Promise<string> {
+export async function encodeLogoConsoleLog(browser: "chromium" | "firefox" = "chromium"): Promise<string> {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   await initYoga();
   const rows = renderAsciiFont(LOGO_BANNER, "block", 1);
@@ -34,7 +34,7 @@ export async function encodeLogoConsoleLog(): Promise<string> {
   const logs: unknown[][] = [];
   const target: ConsoleTarget = { log: (...args: unknown[]) => void logs.push(args), clear: () => undefined };
   const scheduler = new Scheduler();
-  const root = createConsoleRootSync({ width, height, console: target, scheduler, input: new InputEngine({ document: null }), registerGlobal: false, theme: "geistDark", tabFocus: false });
+  const root = createConsoleRootSync({ width, height, console: target, scheduler, input: new InputEngine({ document: null }), registerGlobal: false, theme: "geistDark", tabFocus: false, browser });
   await act(async () =>
     root.render(
       <Box paddingX={2} paddingY={1}>

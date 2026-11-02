@@ -175,11 +175,12 @@ describe("DOM companion", () => {
     const click = renderToStaticMarkup(<FocusPadMessage state="click" hints={[]} doThis="type" devtools={null} />);
     for (const [cls, keys] of [
       ["tx-br-chromium tx-os-mac", "⌘⌥J"],
-      ["tx-br-chromium tx-os-other", "CtrlShiftJ"],
+      ["tx-br-chromium tx-os-other", "Ctrl+Shift+J"],
       ["tx-br-firefox tx-os-mac", "⌘⌥K"],
-      ["tx-br-firefox tx-os-other", "CtrlShiftK"],
+      ["tx-br-firefox tx-os-other", "Ctrl+Shift+K"],
       ["tx-br-safari", "⌘⌥C"],
     ]) expect(click).toContain(`<kbd class="${cls}">${keys}</kbd>`);
+    expect(renderToStaticMarkup(<FocusPadMessage state="click" hints={[]} doThis="type" devtools="firefox-other" />)).toContain("<kbd>Ctrl+Shift+K</kbd> opens the console.");
     // FocusPad itself prerenders every variant.
     expect(renderToStaticMarkup(<FocusPad root={null} />).match(/class="tx-pad-keys /g)?.length).toBe(5);
   });

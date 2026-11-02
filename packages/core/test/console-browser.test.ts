@@ -1,14 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import {
+  analyzeDock,
   CellBuffer,
-  CONSOLE_PROFILES,
-  consoleProfile,
+  CHROME_STORAGE_KEY,
+  ConsoleRenderer,
   CssConsoleDriver,
   detectConsoleBrowser,
   isPassthroughShortcut,
   ViewportController,
+  type StorageLike,
   type WindowLike,
 } from "../src/index";
+import { CONSOLE_PROFILES, consoleProfile } from "../src/drivers/console-browser";
 import { FakeConsole } from "./fixtures";
 
 const BG = 0x18181bff;
@@ -35,8 +38,12 @@ describe("detectConsoleBrowser", () => {
     expect(detectConsoleBrowser(browser(["-webkit-hyphens"], { chrome: {} }))).toBe("chromium");
   });
 
-  test("Firefox supports -moz-appearance", () => {
+  test("Firefox supports -moz-appearance, checked first", () => {
     expect(detectConsoleBrowser(browser(["-moz-appearance"]))).toBe("firefox");
+    // An extension's `window.chrome` shim doesn't turn Firefox into Chromium.
+    expect(detectConsoleBrowser(browser(["-moz-appearance"], { chrome: {} }))).toBe("firefox");
+    // Falsy globals don't count as Chromium.
+    expect(detectConsoleBrowser(browser(["-webkit-hyphens"], { chrome: null, navigator: { userAgentData: undefined } }))).toBe("safari");
   });
 
   test("Safari supports -webkit-hyphens or -webkit-backdrop-filter", () => {
@@ -72,6 +79,13 @@ describe("CssConsoleDriver per browser", () => {
     expect(args[2]).toContain("line-height:16px;margin-top:-1px;margin-bottom:-1px;");
     expect(args[2]).not.toContain("text-wrap-mode");
     expect(frameFor()).toEqual({ format, args });
+  });
+
+  test("Safari puts Menlo first, the font its pages can measure", () => {
+    const css = frameFor("safari").args[2] ?? "";
+    expect(css.startsWith('font-family:Menlo,"SF Mono",Consolas,monospace;font-size:12px;line-height:14px;')).toBe(true);
+    expect(css).not.toContain("font-variant-ligatures");
+    expect(frameFor("firefox").args[2]?.startsWith('font-family:"SF Mono",Menlo,Consolas,monospace;')).toBe(true);
   });
 
   for (const name of ["firefox", "safari"] as const) {
@@ -116,9 +130,41 @@ describe("fitting the console per browser", () => {
     expect(fit("firefox")).toEqual({ cols: Math.floor((1440 - 140) / 7.2), rows: Math.floor((400 - 104) / 14), dock: "bottom" });
   });
 
-  test("Safari rows are fitted at 15px", () => {
-    expect(fit("safari")).toEqual({ cols: Math.floor((1440 - 40) / 7.2), rows: Math.floor((400 - 104) / 15), dock: "bottom" });
+  test("Safari uses the full width", () => {
+    expect(fit("safari")).toEqual({ cols: Math.floor((1440 - 40) / 7.2), rows: Math.floor((400 - 104) / 14), dock: "bottom" });
   });
+
+  test("a renderer passes its browser to the viewport unless the viewport names one", () => {
+    const base = { console: { clear() {}, log() {} }, input: false, registerGlobal: false } as const;
+    const vp = { responsive: true, window: win, charWidth: 7.2, scrollbarWidth: 0, storage: null, browserChromeHeight: 88, maxCols: 999 };
+    expect(new ConsoleRenderer({ ...base, browser: "firefox", viewport: { ...vp, browser: undefined } }).viewport.cols).toBe(Math.floor((1440 - 140) / 7.2));
+    expect(new ConsoleRenderer({ ...base, browser: "firefox", viewport: { ...vp, browser: "safari" } }).viewport.cols).toBe(Math.floor((1440 - 40) / 7.2));
+  });
+});
+
+describe("slim browser chrome", () => {
+  class Storage implements StorageLike {
+    data = new Map<string, string>();
+    getItem(k: string): string | null {
+      return this.data.get(k) ?? null;
+    }
+    setItem(k: string, v: string): void {
+      this.data.set(k, v);
+    }
+  }
+  // Safari's toolbar is about 52px and Firefox's about 40px, well under the 120px assumed until learned.
+  for (const chrome of [52, 40]) {
+    test(`a ${chrome}px toolbar is learned while DevTools is closed, then used to size a bottom dock`, () => {
+      expect(analyzeDock({ innerWidth: 1440, innerHeight: 900 - chrome, outerWidth: 1440, outerHeight: 900 })).toMatchObject({ dock: "undocked", chromeSample: chrome });
+      const w = { innerWidth: 1440, innerHeight: 900 - chrome, outerWidth: 1440, outerHeight: 900 };
+      const storage = new Storage();
+      const v = new ViewportController({ responsive: true, window: w, charWidth: 7.2, scrollbarWidth: 0, storage, debounceMs: 0, browser: "chromium" });
+      expect(storage.getItem(CHROME_STORAGE_KEY)).toBe(String(chrome));
+      // Dock a 400px console at the bottom.
+      w.innerHeight = 900 - chrome - 400;
+      expect(v.refresh()).toMatchObject({ dock: "bottom", rows: Math.floor((400 - 104) / 14) });
+    });
+  }
 });
 
 test("⌘⌥K and Ctrl+Shift+K (Firefox's console) pass through to the browser", () => {

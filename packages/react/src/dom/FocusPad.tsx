@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
-import { detectConsoleBrowser, estimateDockedConsoleSize, extractStyledFrame, type ConsoleBrowser, type KeyInputEvent, type StyledFrame } from "@textjs/core";
+import { CHROME_STORAGE_KEY, detectConsoleBrowser, estimateDockedConsoleSize, extractStyledFrame, type ConsoleBrowser, type KeyInputEvent, type StyledFrame } from "@textjs/core";
 import type { ConsoleRoot } from "../root";
 import { ConsoleMirror } from "./ConsoleMirror";
 import { ViewportControl, type ViewportControlProps } from "./ViewportControl";
@@ -149,7 +149,9 @@ const CSS = `
 .tx-pad-size:has(select:focus-visible){outline:2px solid var(--tx-focus);outline-offset:4px;border-radius:4px}
 @media (min-width:901px){.tx-pad[data-size-corner] .tx-pad-desk{padding-bottom:32px}}
 @media (max-width:900px){.tx-pad-size{position:static}}
+html[data-browser=safari] .tx-pad .tx-pad-sub,.tx-pad[data-console=safari] .tx-pad-sub{min-height:48px}
 @media (max-width:640px){
+html[data-browser=safari] .tx-pad .tx-pad-sub,.tx-pad[data-console=safari] .tx-pad-sub{min-height:72px}
 .tx-pad{--tx-pad-gap:24px;--tx-pad-headline:28px;--tx-pad-headline-lh:36px;--tx-pad-hero:64px}
 .tx-pad-hints{column-gap:24px}
 .tx-pad-click{width:48px;height:48px}
@@ -243,9 +245,19 @@ function keycapMatches(cap: string, pressed: string): boolean {
     .some((k) => parts.includes(k));
 }
 
+/** The browser chrome height the viewport learned while DevTools was closed (see `ViewportController`). */
+function storedChromeHeight(): number | undefined {
+  try {
+    const v = Number(localStorage.getItem(CHROME_STORAGE_KEY) ?? Number.NaN);
+    return Number.isFinite(v) && v >= 0 ? v : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function devtoolsDocked(): boolean {
   if (typeof window === "undefined") return false;
-  return estimateDockedConsoleSize(window, 7, 14).dock !== "undocked";
+  return estimateDockedConsoleSize(window, 7, 14, { browserChromeHeight: storedChromeHeight() }).dock !== "undocked";
 }
 
 const ARROWS: Record<string, string> = {
@@ -363,7 +375,7 @@ export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, la
             <span className="tx-pad-line">
               {(devtools ? [devtools] : CONSOLES).map((c) => (
                 <kbd key={c} className={devtools ? undefined : variantClass(c)}>
-                  {SHORTCUT_KEYS[c].join("")}
+                  {SHORTCUT_KEYS[c].join(c.endsWith("-other") ? "+" : "")}
                 </kbd>
               ))}{" "}
               opens the console.
@@ -515,6 +527,8 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
       className={`tx-pad${className ? ` ${className}` : ""}`}
       data-textjs-focus-pad=""
       data-state={state}
+      // Safari's open-state line wraps to two lines (three when narrow); every state reserves them.
+      data-console={devtools === "safari" ? "safari" : undefined}
       // The size control sits in the corner on wide screens; without content below, the message keeps clear of it.
       data-size-corner={sizeControl && children == null ? "" : undefined}
       onMouseDown={activate}

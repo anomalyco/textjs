@@ -200,7 +200,7 @@ export class ConsoleRenderer {
   constructor(options: ConsoleRendererOptions = {}) {
     this.options = options;
     this.root = options.root ?? null;
-    this.viewport = options.viewport instanceof ViewportController ? options.viewport : new ViewportController({ browser: options.browser, ...options.viewport });
+    this.viewport = options.viewport instanceof ViewportController ? options.viewport : new ViewportController({ ...options.viewport, browser: options.viewport?.browser ?? options.browser });
     this.buffer = new CellBuffer(this.viewport.cols, this.viewport.rows);
     this.driver = new CssConsoleDriver({
       console: options.console,

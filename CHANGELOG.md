@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Text.js renders in the Firefox and Safari consoles. `CssConsoleDriver` detects the browser with CSS feature checks. Where `%c` spans stay inline, it writes 14px line heights without margins, turns off soft wrapping and uses a `line-height: 100vh` curtain.
-- Responsive sizing leaves room for Firefox's source link column and fits Safari's taller rows.
+- Responsive sizing leaves room for Firefox's source link column. Safari puts Menlo first in the font stack: its pages can't use a user-installed SF Mono, which Web Inspector may draw with.
 - Pass `browser: "chromium" | "firefox" | "safari"` to `createConsoleRoot`, `ConsoleRenderer` or `CssConsoleDriver` to choose a console.
 - Prerendered shells carry the CSS for both kinds of console.
 - `<FocusPad>` shows the console shortcut for the visitor's browser: ⌘⌥K or Ctrl+Shift+K in Firefox, and ⌘⌥C in Safari with a note to turn on "Show features for web developers".
@@ -18,6 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - ⌘⌥K and Ctrl+Shift+K (Firefox's console shortcut) pass through to the browser instead of reaching the app.
+- Responsive sizing learns browser toolbars under 60px tall (Safari's and Firefox's) while DevTools is closed, so a console docked at the bottom gets every row it fits. `<FocusPad>` uses the learned height to tell whether DevTools is docked.
+- `<FocusPad>` writes Windows and Linux shortcuts in its click state as `Ctrl+Shift+J`.
 
 ## [1.0.4] - 2026-11-01
 

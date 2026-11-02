@@ -207,7 +207,9 @@ export function analyzeDock(win: WindowLike, browserChromeHeight: number = VIEWP
   for (const z of candidates) {
     const dockW = ow - z * iw;
     const dockH = oh - chrome - z * ih;
-    const bottomScore = dockH >= -SLACK_Y ? Math.abs(dockW) / SLACK_X : Infinity;
+    // The bottom (or closed) hypothesis only needs the page to fit in the window: gating on the assumed
+    // chrome height would discard the slim toolbars of Safari (~52px) and Firefox (~40px) before they're learned.
+    const bottomScore = oh - z * ih >= -SLACK_X ? Math.abs(dockW) / SLACK_X : Infinity;
     const sideScore = dockW >= -SLACK_X && dockW > DOCK_THRESHOLD_PX ? Math.abs(dockH) / SLACK_Y : Infinity;
     // Prefer zoom 1 and the bottom hypothesis on ties.
     const bias = z === 1 ? 0 : 0.05;
@@ -344,10 +346,10 @@ export class ViewportController {
   measure(): ResolvedViewport {
     if (this.win === null) return { ...this.fallback, dock: "undocked" };
     const o = this.options;
-    if (this.charW === null) this.charW = measureCharWidth(o.fontSize, o.fontFamily);
+    const profile = consoleProfile(o.browser);
+    if (this.charW === null) this.charW = measureCharWidth(o.fontSize, o.fontFamily ?? profile.typography.fontFamily);
     if (this.scrollbarW === null) this.scrollbarW = measureScrollbarWidth();
     if (o.browserChromeHeight === undefined) this.learn(analyzeDock(this.win, this.learnedChrome ?? VIEWPORT_DEFAULTS.browserChromeHeight).chromeSample);
-    const profile = consoleProfile(o.browser);
     return estimateDockedConsoleSize(this.win, this.charW, o.charHeight ?? profile.rowHeight, {
       ...o,
       consolePaddingX: o.consolePaddingX ?? profile.consolePaddingX,

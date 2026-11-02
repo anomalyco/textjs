@@ -3,7 +3,7 @@ export * from "./text-measure";
 export * from "./bidi";
 export * from "./cell-buffer";
 export * from "./drivers/style";
-export * from "./drivers/console-browser";
+export { detectConsoleBrowser, type ConsoleBrowser, type DetectGlobals } from "./drivers/console-browser";
 export * from "./drivers/css-console-driver";
 export * from "./drivers/ansi-driver";
 export * from "./drivers/frame-snapshot";

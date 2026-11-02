@@ -11,7 +11,7 @@ import { onRequest, wantsAnsi } from "../functions/index";
 import curlHttp, { isTerminalHttp } from "../workers/curl-http/index";
 import { renderHomeAnsi } from "../src/home-ansi";
 import { encodeLogoConsoleLog } from "../src/site/logo-console-gen";
-import { LOGO_CONSOLE_LOG } from "../src/site/logo-console";
+import { LOGO_CONSOLE_LOG, LOGO_CONSOLE_LOG_INLINE } from "../src/site/logo-console";
 import { LOGO_SVG, WORDMARK_SVG } from "../src/site/LogoMenu";
 import { DevToolsWindow } from "../src/site/DevToolsWindow";
 import { siteStore } from "../src/console-companion/store";
@@ -362,6 +362,9 @@ describe("curl textjs.org", () => {
 describe("logo menu", () => {
   test("the console.log copy is fresh output of the Turbolog encoder", async () => {
     expect(await encodeLogoConsoleLog()).toBe(LOGO_CONSOLE_LOG);
+    expect(await encodeLogoConsoleLog("firefox")).toBe(LOGO_CONSOLE_LOG_INLINE);
+    expect(LOGO_CONSOLE_LOG_INLINE).toContain("line-height:14px;text-wrap-mode:nowrap;");
+    expect(LOGO_CONSOLE_LOG_INLINE).not.toContain("margin-top");
     expect(LOGO_CONSOLE_LOG).toStartWith('console.log("%c');
     expect(LOGO_CONSOLE_LOG).not.toContain("\u25B2");
     // It's one call: evaluating it logs once, with the banner.

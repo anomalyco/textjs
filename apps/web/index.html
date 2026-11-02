@@ -53,8 +53,9 @@
         root.dataset.browser = "firefox";
         // Chrome holds first paint up to 100ms for a preloaded `optional` font. Firefox paints at once and swaps Geist
         // in if it lands within 100ms of first using it, which moves text. Hold the page until the fonts are applied
-        // (300ms at most), loading the local fallbacks too: Firefox loads local() faces lazily.
-        if (!document.fonts) return;
+        // (150ms at most), loading the local fallbacks too: Firefox loads local() faces lazily. The stylesheets come
+        // after this script (postbuild-pages.ts), so it runs, and the timer starts, without waiting for them.
+        if (!document.fonts || !Promise.allSettled) return;
         var shown = false, show = function () {
           if (shown) return;
           shown = true;
@@ -63,8 +64,14 @@
         // Firefox restyles for a loaded font a frame or two after the promise settles.
         var settle = function () { requestAnimationFrame(function () { requestAnimationFrame(show); }); };
         root.style.visibility = "hidden";
-        setTimeout(show, 300);
-        Promise.all(['16px Geist', '12px "Geist Mono"', '16px "Geist Fallback"', '12px "Geist Mono Fallback"'].map(function (f) { return document.fonts.load(f); })).then(settle, settle);
+        setTimeout(show, 150);
+        // allSettled: a local() fallback that isn't installed rejects at once. " \u2588" loads Geist Mono's symbols subset too.
+        Promise.allSettled([
+          document.fonts.load("16px Geist"),
+          document.fonts.load('12px "Geist Mono"', " \u2588"),
+          document.fonts.load('16px "Geist Fallback"'),
+          document.fonts.load('12px "Geist Mono Fallback"'),
+        ]).then(settle);
       })();
     </script>
   </head>

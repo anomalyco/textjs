@@ -43,7 +43,8 @@
    (set before first paint) pick one. No `data-browser` means Chromium. */
 html:not([data-os="mac"]) .os-mac,
 html[data-os="mac"] .os-other,
-html[data-browser] .br-chromium,
+html[data-browser="firefox"] .br-chromium,
+html[data-browser="safari"] .br-chromium,
 html:not([data-browser="firefox"]) .br-firefox,
 html:not([data-browser="safari"]) .br-safari {
   display: none !important;
@@ -347,6 +348,10 @@ kbd {
   font-size: 18px;
   letter-spacing: -0.04em;
   color: var(--fg-strong);
+}
+
+.wordmark svg {
+  flex: none;
 }
 
 .logo-menu {
@@ -2607,6 +2612,27 @@ kbd {
   }
   .pad-stage .tx-pad-sub {
     min-height: 72px;
+  }
+}
+
+/* Safari's line below the hero (turn on the developer features, then click) is one line longer at every
+   width, and FocusPad reserves it in every state; the frame grows by the same 24px. */
+html[data-browser="safari"] .pad-stage {
+  --pad-frame: 320px;
+}
+
+@media (max-width: 640px) {
+  html[data-browser="safari"] .pad-stage {
+    --pad-frame: 300px;
+  }
+}
+
+@media (max-width: 359px) {
+  html[data-browser="safari"] .pad-stage {
+    --pad-frame: 320px;
+  }
+  html[data-browser="safari"] .pad-stage .tx-pad-sub {
+    min-height: 96px;
   }
 }
 

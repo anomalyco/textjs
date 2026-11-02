@@ -44,10 +44,11 @@ export function shellScript(calls: readonly ShellCall[], path: string): string {
     const [format = "", ...args] = c.args;
     ops.push(c.inlineArgs ? [format, args.map(intern), c.inlineArgs.map(intern)] : [format, args.map(intern)]);
   }
-  // Firefox and Safari (no window.chrome or navigator.userAgentData; -moz-appearance or WebKit-only CSS) get the inline-console CSS.
+  // Firefox and Safari get the inline-console CSS, detected as in detectConsoleBrowser(): -moz-appearance first, then
+  // window.chrome or navigator.userAgentData (Chromium), then WebKit-only CSS.
   const body =
     `(function(p,c,s){var l=location.pathname;if(l.length>1&&l.charAt(l.length-1)==="/")l=l.slice(0,-1);if(l!==p||typeof console==="undefined")return;` +
-    `var n=typeof window!=="undefined"&&typeof CSS!=="undefined"&&CSS.supports&&!window.chrome&&!(typeof navigator!=="undefined"&&navigator.userAgentData)&&(CSS.supports("-moz-appearance","none")||CSS.supports("-webkit-hyphens","auto")||CSS.supports("-webkit-backdrop-filter","none"))?2:1;` +
+    `var n=1;try{if(typeof window!=="undefined"&&typeof CSS!=="undefined"&&CSS.supports)n=CSS.supports("-moz-appearance","none")||!window.chrome&&!(typeof navigator!=="undefined"&&navigator.userAgentData)&&(CSS.supports("-webkit-hyphens","auto")||CSS.supports("-webkit-backdrop-filter","none"))?2:1}catch(e){}` +
     `for(var i=0;i<s.length;i++){var o=s[i];if(o===0){console.clear();continue}var x=o[n]||o[1],a=[o[0]];for(var j=0;j<x.length;j++)a.push(c[x[j]]);console.log.apply(console,a)}` +
     `window.__TEXTJS_SHELL__=1;window.__TEXTJS_SHELL_AT__=typeof performance!=="undefined"?performance.now():void 0})(${inlineJson(path)},${inlineJson(table)},${inlineJson(ops)});`;
   return `<script data-textjs-shell>${body}</script>`;

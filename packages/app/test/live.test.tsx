@@ -608,13 +608,16 @@ describe("partial prerendering", () => {
     // Firefox and Safari replay the same format string with their inline-console CSS.
     expect(calls[1]?.inlineArgs?.[0]).toBe("line-height:100vh;");
     expect(calls[1]?.inlineArgs?.length).toBe((calls[1]?.args.length ?? 0) - 1);
-    const replayIn = (supports: string[]): FakeConsole => {
+    const replayIn = (supports: string[], win: object = {}): FakeConsole => {
       const con = new FakeConsole();
       const body = script.replace(/^<script[^>]*>/, "").replace(/<\/script>$/, "");
       const css = { supports: (property: string) => supports.includes(property) };
-      new Function("console", "location", "window", "CSS", "navigator", body)(con, { pathname: "/async" }, {}, css, {});
+      new Function("console", "location", "window", "CSS", "navigator", body)(con, { pathname: "/async" }, win, css, {});
       return con;
     };
+    // Firefox is checked before `window.chrome` (an extension shim), and Chromium never gets the inline CSS.
+    expect(replayIn(["-moz-appearance"], { chrome: {} }).logs).toEqual([[calls[1]?.args[0], ...(calls[1]?.inlineArgs ?? [])]]);
+    expect(replayIn(["-webkit-hyphens"], { chrome: {} }).logs).toEqual([calls[1]?.args as unknown[]]);
     expect(replayIn(["-moz-appearance"]).logs).toEqual([[calls[1]?.args[0], ...(calls[1]?.inlineArgs ?? [])]]);
     expect(replayIn(["-webkit-hyphens"]).logs).toEqual([[calls[1]?.args[0], ...(calls[1]?.inlineArgs ?? [])]]);
     expect(replayIn([]).logs).toEqual([calls[1]?.args as unknown[]]);
