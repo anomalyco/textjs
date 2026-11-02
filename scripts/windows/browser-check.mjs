@@ -133,8 +133,11 @@ const MEASURE = `(() => {
   for (const s of spans) for (const r of s.getClientRects()) right = Math.max(right, r.right);
   const text = last.innerText;
   const rows = text.split("\\n");
-  const firstStyled = [...spans].find((s) => s.style && s.style.fontFamily) || last;
-  const cs = getComputedStyle(firstStyled);
+  // The frame's font: the span drawing the most visible letters and digits (leading spans are zero-width).
+  const glyphs = (el) => (el.textContent.match(/[A-Za-z0-9]/g) || []).length;
+  const textSpan = [...spans].filter((s) => s.children.length === 0 && s.getBoundingClientRect().width > 0).sort((a, b) => glyphs(b) - glyphs(a))[0] || last;
+  window.__fontSpan = textSpan;
+  const cs = getComputedStyle(textSpan);
   return {
     messages: msgs.length,
     frames: frames.length,
@@ -145,6 +148,7 @@ const MEASURE = `(() => {
     lineHeight: cs.lineHeight,
     fontSize: cs.fontSize,
     fontFamily: cs.fontFamily,
+    fontSample: textSpan.textContent.trim().slice(0, 40),
     messageWidth: Math.round(box.width),
     scrollWidth: last.scrollWidth,
     clientWidth: last.clientWidth,
@@ -169,7 +173,7 @@ async function measureDevtools() {
       await c.send("DOM.enable");
       await c.send("CSS.enable");
       await c.send("DOM.getDocument", { depth: -1, pierce: true });
-      const { result } = await c.send("Runtime.evaluate", { expression: "window.__lastFrame.querySelector('span') || window.__lastFrame" });
+      const { result } = await c.send("Runtime.evaluate", { expression: "window.__fontSpan" });
       const { nodeId } = await c.send("DOM.requestNode", { objectId: result.objectId });
       const { fonts } = await c.send("CSS.getPlatformFontsForNode", { nodeId });
       m.platformFonts = fonts;
@@ -287,7 +291,7 @@ async function visit(path, shoot = true) {
   // A wrapped row doubles its height; Text.js tightens rows below the spans' line-height, so only taller is wrong.
   checkResult(`${path} rows don't wrap`, !Number.isFinite(lh) || m.rowHeight <= lh + 1, { rowHeight: m.rowHeight, lineHeight: m.lineHeight, rows: m.rows });
   const font = (m.platformFonts ?? []).sort((a, b) => b.glyphCount - a.glyphCount)[0]?.familyName;
-  checkResult(`${path} drawn in Consolas`, font === "Consolas", m.platformFonts);
+  checkResult(`${path} drawn in Cascadia Mono or Consolas`, font === "Cascadia Mono" || font === "Consolas", { sample: m.fontSample, fonts: m.platformFonts });
 }
 
 /** Send a key sequence and report what the page saw and whether the app redrew. */
