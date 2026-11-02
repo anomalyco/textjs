@@ -8,7 +8,7 @@ The Open Graph renderer (`scripts/og/`) draws with the site's own Geist subsets 
 | `geist-mono-og.woff2` | Geist 1.9.0, `GeistMono-Variable.woff2` | Latin, punctuation, arrows, math, technical, box drawing, blocks, geometric shapes |
 | `noto-symbols-og.woff2` | Noto Sans Symbols 2 (google/fonts) | Arrows, technical (⌘ ⌥ ⌫), geometric shapes (◆), symbols, dingbats, braille |
 
-All three are licensed under the SIL Open Font License 1.1.
+All three are licensed under the SIL Open Font License 1.1 ([OFL.txt](OFL.txt)).
 
 To add characters, subset again with [fonttools](https://github.com/fonttools/fonttools):
 

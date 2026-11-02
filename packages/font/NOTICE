@@ -1,6 +1,6 @@
 @textjs/font
-Copyright (c) Text.js authors. The parser, renderer and React bindings (src/*.ts,
-src/react.tsx, scripts/, test/) are MIT licensed, like the rest of Text.js.
+Copyright (c) 2026 Anomaly. The parser, renderer and React bindings (src/*.ts,
+src/react.tsx, scripts/, test/) are MIT licensed (see LICENSE), like the rest of Text.js.
 
 Bundled FIGfonts
 ----------------

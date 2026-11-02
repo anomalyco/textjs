@@ -47,6 +47,6 @@ Dropping a runtime version that has reached its own end of life is not a breakin
 
 ## Security
 
-Report vulnerabilities privately through the repository's GitHub security advisories rather than public issues. Fixes are released for every supported line at the same time, and the advisory is published once patched versions are on npm.
+Report vulnerabilities privately to [security@textjs.org](mailto:security@textjs.org) or through the repository's GitHub security advisories, not in public issues. Fixes are released for every supported line at the same time, and the advisory is published once patched versions are on npm.
 
 See [Release Channels](/docs/release-channels) for how versions and dist-tags are produced.

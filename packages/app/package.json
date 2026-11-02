@@ -6,6 +6,12 @@
   "license": "MIT",
   "sideEffects": false,
   "homepage": "https://textjs.org",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anomalyco/textjs.git",
+    "directory": "packages/app"
+  },
+  "bugs": "https://github.com/anomalyco/textjs/issues",
   "keywords": ["react", "console", "devtools", "tui", "framework", "app-router"],
   "bin": {
     "text": "bin/text.js"
