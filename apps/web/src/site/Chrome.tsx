@@ -4,7 +4,8 @@ import { activateCompanion } from "../console-companion/bridge";
 import { isPadRoute, siteStore } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
 import { A, useLocation } from "../router";
-import { ChevronRight, CloseIcon, Logo, MenuIcon, SearchIcon } from "./icons";
+import { ArrowUpRight, ChevronRight, CloseIcon, GitHubIcon, Logo, MenuIcon, SearchIcon } from "./icons";
+import { REPO_URL } from "./links";
 import { LogoMenu, useLogoMenu } from "./LogoMenu";
 import { openSearch, preloadSearchDialog } from "./SearchModal";
 import { Sheet, useCloseOnMedia } from "./Sheet";
@@ -95,6 +96,9 @@ export function Header(): ReactNode {
           >
             <SearchIcon size={18} />
           </button>
+          <A href={REPO_URL} className="icon-btn github-btn" aria-label="Text.js on GitHub">
+            <GitHubIcon size={18} />
+          </A>
           <button
             type="button"
             className="icon-btn menu-btn"
@@ -123,6 +127,10 @@ export function Header(): ReactNode {
               <ChevronRight />
             </A>
           ))}
+          <A href={REPO_URL}>
+            GitHub
+            <ArrowUpRight />
+          </A>
         </nav>
       </Sheet>
     </header>
@@ -165,6 +173,7 @@ export function Footer(): ReactNode {
           <A href="/enterprise">Enterprise</A>
           <A href="/store">Store</A>
           <A href="/status">Status</A>
+          <A href={REPO_URL}>GitHub</A>
         </nav>
         <FooterStatus />
       </div>
