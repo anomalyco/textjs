@@ -160,7 +160,6 @@
   color: var(--muted);
 }
 
-.learn-section-lede kbd,
 /* Narrated chapter video (see video.ts). The frame reserves 16:9 before anything loads. */
 .learn-video {
   margin: 0 0 40px;
@@ -394,6 +393,7 @@
   background: var(--bg-2);
 }
 
+.learn-section-lede kbd,
 .learn-live-note kbd {
   height: 20px;
   vertical-align: 1px;
