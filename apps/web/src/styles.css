@@ -1391,6 +1391,8 @@ kbd {
 /* ───────────────────────── Footer ───────────────────────── */
 
 .footer {
+  /* Docs and Learn render the footer in a narrower column, so it wraps by its own width. */
+  container-type: inline-size;
   border-top: 1px solid var(--line);
   padding: 40px 0;
   background: var(--bg);
@@ -1416,9 +1418,10 @@ kbd {
 
 .footer-status {
   grid-area: status;
+  justify-self: start;
 }
 
-@media (max-width: 1180px) {
+@container (max-width: 1180px) {
   .footer-row {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
