@@ -203,6 +203,7 @@ export class OpenCodeStore {
     }
   }
   private catalogSeq = 0;
+  private commandDirectory?: string;
   clearHistory() {
     this.promptHistory.entries = [];
     if (this.historyKey) this.promptHistory.save(this.historyKey);
@@ -310,6 +311,7 @@ export class OpenCodeStore {
     this.historyKey = undefined;
     this.promptHistory.entries = [];
     this.catalogSeq++;
+    this.commandDirectory = undefined;
     this.requestReads.clear();
     this.currentSession = null;
     this.drafts.clear();
@@ -402,6 +404,11 @@ export class OpenCodeStore {
   async refreshCommands(directory?: string): Promise<void> {
     const client = this.client,
       seq = ++this.catalogSeq;
+    directory ??= this.state.connection.directory;
+    if (this.commandDirectory !== directory) {
+      this.commandDirectory = directory;
+      this.set({ commands: [], skills: [], references: [] });
+    }
     const [commands, skills, references] = await Promise.all([
       client?.commands?.(directory).catch(() => []) ?? [],
       client?.skills?.(directory).catch(() => []) ?? [],

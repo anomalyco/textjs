@@ -523,3 +523,20 @@ test("last-turn review excludes edits from previous user turns", async () => {
     await api.interrupt("ses_demo_cart");
   }
 });
+
+test("switching locations immediately removes old reference aliases, including while a search is pending", async () => {
+  const api = createDemoClient(),
+    store = new OpenCodeStore({ client: api });
+  try {
+    await store.connect();
+    expect(store.getSnapshot().references[0]?.name).toBe("docs");
+    const gate = Promise.withResolvers<[]>();
+    api.references = () => gate.promise;
+    const load = store.refreshCommands("/new-project");
+    expect(store.getSnapshot().references).toEqual([]);
+    gate.resolve([]);
+    await load;
+  } finally {
+    store.dispose();
+  }
+});

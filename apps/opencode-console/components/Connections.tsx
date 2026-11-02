@@ -32,7 +32,7 @@ export function Connections({ kind, dir, close }: { kind: "integrations" | "mcps
   }, []);
   useEffect(() => {
     if (!api) {
-      note("This server does not expose integration management.");
+      note("Integration management in OpenCode Lite requires a V2 server.");
       return;
     }
     let live = true;
