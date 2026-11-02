@@ -904,7 +904,7 @@ const TARGETS: Target[] = [
         { expect: "~ featured ~" },
         { press: "a" },
         { expect: "order history" },
-        { press: "ArrowDown", repeat: 8 },
+        { press: "ArrowDown", repeat: 10 },
         { expect: "environment: dev sandbox" },
         { press: "s" },
         { expect: "~ featured ~" },

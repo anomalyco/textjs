@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { CONTENT, CONTENT_HEIGHT, WIDTH, type Command } from "../../lib/frame";
+import { LARGE, LARGE_LAYOUT, type Command, type Layout } from "../../lib/frame";
 import { shopPrice } from "../../lib/format";
 import { useShop, useShopState } from "../../lib/store";
 import { palette, type Theme } from "../../lib/theme";
@@ -19,17 +19,19 @@ export function isSubscribed(product: Product, subscriptions: { id: string; prod
   return null;
 }
 
-/** `getShopMenuContent`: the product list. */
-export function shopMenu(products: Product[], selected: number, t: Theme): Line[] {
+/** `getShopMenuContent`: the product list (centered and full width below the large layout). */
+export function shopMenu(products: Product[], selected: number, t: Theme, L: Layout = LARGE_LAYOUT): Line[] {
   const menuWidth = menuWidthFor(products);
   const itemWidth = menuWidth + 2;
   const product = products[selected];
   const hl = { fg: product?.name === "cron" ? "#000000" : palette.accent, bg: t.highlight };
+  const stacked = L.size < LARGE;
   const item = (p: Product, i: number): Line => {
     const style = i === selected ? hl : t.baseStyle;
+    if (stacked) return [span(" "), ...fit([span(p.name, style)], L.widthContent - 1, "center", style)];
     return [span(" "), ...fit([span(` ${p.name}`, style)], itemWidth, "left", style)];
   };
-  const header = (label: string): Line => [span(" "), ...fit([t.accent(` ${label}`)], itemWidth)];
+  const header = (label: string): Line => (stacked ? [span(" "), ...fit([t.accent(label)], L.widthContent, "center")] : [span(" "), ...fit([t.accent(` ${label}`)], itemWidth)]);
   const featured = products.filter((p) => p.tags?.featured).length;
   const out: Line[] = [];
   if (featured > 0) {
@@ -148,20 +150,27 @@ export function ShopScreen(): ReactNode {
     <Page
       page="shop"
       commands={commands}
-      body={(h, t) => {
+      body={(h, t, L) => {
         if (products.length === 0) {
-          return place(centerLines([[t.accent("no products available for this region.")], [], [t.base("press 'r' to change region.")]]), CONTENT, CONTENT_HEIGHT);
+          return place(centerLines([[t.accent("no products available for this region.")], [], [t.base("press 'r' to change region.")]]), L.widthContent, L.heightContent);
         }
-        const menuWidth = menuWidthFor(products);
-        const detailWidth = CONTENT - menuWidth;
         const product = products[selected] as Product;
         const quantity = store.cartItem(product.variants[0]?.id ?? "").quantity;
-        const menu = shopMenu(products, selected, t);
+        const menu = shopMenu(products, selected, t, L);
         const featured = products.filter((p) => p.tags?.featured).length;
         const targetY = featured > 0 && selected >= featured ? selected + 4 : selected + 2;
         const menuOffset = targetY - Math.floor(h / 2);
-        const detail = shopDetail(product, quantity, isSubscribed(product, subscriptions) !== null, detailWidth, t);
-        return hjoin(block(viewport(menu, h, menuOffset), menuWidth), block([], 2), block(viewport(detail, h, detailOffset), WIDTH - menuWidth - 2));
+        const subscribed = isSubscribed(product, subscriptions) !== null;
+        if (L.size < LARGE) {
+          // `ShopView` below the large layout stacks the two viewports (each the full body
+          // height), so the product list fills the body and the details sit below it.
+          const detail = shopDetail(product, quantity, subscribed, L.widthContent + 2, t);
+          return [...viewport(menu, h, menuOffset).map((l) => fit(l, L.widthContent)), ...viewport(detail, h, detailOffset).map((l) => fit(l, L.widthContent))];
+        }
+        const menuWidth = menuWidthFor(products);
+        const detailWidth = L.widthContent - menuWidth;
+        const detail = shopDetail(product, quantity, subscribed, detailWidth, t);
+        return hjoin(block(viewport(menu, h, menuOffset), menuWidth), block([], 2), block(viewport(detail, h, detailOffset), L.widthContainer - menuWidth - 2));
       }}
     />
   );

@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "@textjs/app/navigation";
-import { HEIGHT, WIDTH } from "../lib/frame";
 import { useKeys } from "../lib/keys";
 import { PUBLIC_PATHS, useShop, useShopState } from "../lib/store";
 import { defaultTheme, palette } from "../lib/theme";
 import { centerLines, place, span, type Line } from "../lib/ui";
-import { HeaderModeContext, useBlink, type HeaderMode } from "./chrome";
+import { HeaderModeContext, useBlink, useLayout, type HeaderMode } from "./chrome";
 import { LoginScreen } from "./screens/Login";
 import { Screen } from "./Screen";
 
@@ -16,12 +15,15 @@ export function logo(cursor: boolean): Line {
 function Splash(): ReactNode {
   const cursor = useBlink();
   const error = useShopState((s) => s.error);
+  const L = useLayout();
   const t = defaultTheme;
   const content: Line[] = error
     ? centerLines([[], [], [], [], logo(cursor), [], [], [t.error(error)], [t.bold("esc"), t.base(" "), t.base("quit")]])
     : [logo(cursor)];
-  return <Screen lines={place(content, WIDTH, HEIGHT)} />;
+  return <Screen lines={place(content, L.viewportWidth, L.viewportHeight)} />;
 }
+
+
 
 /** What `ssh` prints after the session ends. */
 function Quit(): ReactNode {
@@ -31,7 +33,7 @@ function Quit(): ReactNode {
     return true;
   }, { priority: 100 });
   const t = defaultTheme;
-  return <Screen lines={[[t.base("Connection to terminal.shop closed.")], [], [t.bold("enter"), t.base(" reconnect")]]} />;
+  return <Screen raw lines={[[t.base("Connection to terminal.shop closed.")], [], [t.bold("enter"), t.base(" reconnect")]]} />;
 }
 
 /** The initial path as a same-origin URL; anything odd (`/\\host`, bad escapes) opens the shop. */

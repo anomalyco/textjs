@@ -3,8 +3,9 @@ import { terminalDevMiddleware } from "./server/terminal-proxy";
 
 export default defineConfig({
   title: "terminal",
-  // The SSH shop's "large" layout: an 80 × 30 container.
-  viewport: { width: 80, height: 30, responsive: false, theme: "geistDark" },
+  // Follows the console like the SSH shop follows the terminal: 80 × 30 ("large") when the
+  // console can't be measured, the smaller layouts below 80 columns.
+  viewport: { width: 80, height: 30, responsive: true, theme: "geistDark" },
   devIndicators: false,
   action: "press ↑ ↓ to browse",
   hints: [

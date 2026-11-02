@@ -12,7 +12,7 @@ export const RECORDED_STATUS = {
     prod: { label: "production", api: "https://api.terminal.shop", enabled: true, serverToken: false },
     dev: { label: "dev sandbox", api: "https://api.dev.terminal.shop", enabled: false, serverToken: false },
   },
-  session: { signedIn: false, configured: true, signInUrl: "/api/terminal/login", signOutUrl: "/api/terminal/logout" },
+  session: { signedIn: false, configured: true, signInUrl: "/api/terminal/login", signOutUrl: "/api/terminal/logout", credentials: false },
 } as const;
 
 const json = (body: unknown): Response => Response.json(body, { headers: { "x-terminal-catalogue": "recorded" } });

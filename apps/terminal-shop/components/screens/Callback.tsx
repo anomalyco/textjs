@@ -1,11 +1,11 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "@textjs/app/navigation";
-import { HEIGHT, WIDTH } from "../../lib/frame";
 import { errorMessage } from "../../lib/api";
 import { useShop, useShopState } from "../../lib/store";
 import { defaultTheme } from "../../lib/theme";
 import { place } from "../../lib/ui";
 import { Screen } from "../Screen";
+import { useLayout } from "../chrome";
 
 /** `/auth/callback`: finish the OAuth 2.0 + PKCE sign in, then strip the code from the URL. */
 export function CallbackScreen(): ReactNode {
@@ -14,6 +14,7 @@ export function CallbackScreen(): ReactNode {
   const params = useSearchParams();
   const base = useShopState((s) => s.base);
   const done = useRef(false);
+  const L = useLayout();
 
   useEffect(() => {
     if (!base || done.current) return;
@@ -32,5 +33,5 @@ export function CallbackScreen(): ReactNode {
     );
   }, [base]);
 
-  return <Screen lines={place([[defaultTheme.base("signing in...")]], WIDTH, HEIGHT)} />;
+  return <Screen lines={place([[defaultTheme.base("signing in...")]], L.viewportWidth, L.viewportHeight)} />;
 }

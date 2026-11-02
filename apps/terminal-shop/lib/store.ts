@@ -46,6 +46,11 @@ export interface SiteSession {
   signInUrl: string;
   /** `POST` here (with `x-terminal-client: 1`) to sign out. */
   signOutUrl: string;
+  /**
+   * Whether this deployment forwards `POST /token` and `POST /app` (`TERMINAL_ALLOW_CREDENTIALS`).
+   * Off by default: new access tokens and OAuth apps then come from the ssh shop.
+   */
+  credentials?: boolean;
 }
 
 export interface StoreState {
@@ -57,6 +62,8 @@ export interface StoreState {
   auth: "browser-token" | "oauth" | "server" | "session" | null;
   /** Set when a signed-out visitor tries something that needs an account (site mode). */
   signInPrompt: string | null;
+  /** Where to come back to after that sign in (an entry path), when it isn't the current page. */
+  signInReturn: string | null;
   error: string | null;
   user: User | null;
   products: Product[];
@@ -102,7 +109,7 @@ export interface StoreOptions {
 }
 
 /** Pages a signed-out visitor can browse in site mode. */
-export const PUBLIC_PATHS: ReadonlySet<string> = new Set(["/shop", "/menu"]);
+export const PUBLIC_PATHS: ReadonlySet<string> = new Set(["/shop", "/menu", "/cart", "/account"]);
 
 const BASES = ["/__terminal", "/api/terminal"];
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -157,6 +164,7 @@ export class ShopStore {
       proxy: null,
       auth: null,
       signInPrompt: null,
+      signInReturn: null,
       error: null,
       user: null,
       products: [],
@@ -396,12 +404,17 @@ export class ShopStore {
   }
 
   /** Site mode: show the sign in screen over the current page. */
-  requireSignIn(message: string): void {
-    this.set({ signInPrompt: message, error: null });
+  requireSignIn(message: string, returnTo: string | null = null): void {
+    this.set({ signInPrompt: message, signInReturn: returnTo, error: null });
   }
 
   dismissSignIn(): void {
-    this.set({ signInPrompt: null, error: null });
+    this.set({ signInPrompt: null, signInReturn: null, error: null });
+  }
+
+  /** Site mode: whether the proxy lets this page mint access tokens and OAuth apps. */
+  get canCreateCredentials(): boolean {
+    return !this.siteMode || this.state.proxy?.session?.credentials === true;
   }
 
   setError(message: string | null): void {
@@ -796,14 +809,26 @@ export class ShopStore {
     this.set({ subscriptions: await this.api.subscription.list() });
   }
 
-  async updateSubscription(id: string, patch: { addressID?: string; cardID?: string }): Promise<Subscription> {
+  async updateSubscription(id: string, patch: { addressID?: string; cardID?: string; schedule?: Subscription["schedule"] }): Promise<Subscription> {
     const updated = await this.api.subscription.update(id, patch);
     this.set({ subscriptions: await this.api.subscription.list() });
     return updated;
   }
 
+  /** `PUT /profile`: the only profile field the API changes is the name. */
+  async updateProfile(name: string): Promise<User> {
+    const profile = await this.api.profile.update(name);
+    this.set({ user: profile.user });
+    return profile.user;
+  }
+
+  /** `GET /order`, for a fresh look at tracking. */
+  async refreshOrders(): Promise<void> {
+    this.set({ orders: await this.api.order.list() });
+  }
+
   async createToken(): Promise<void> {
-    if (this.siteMode) throw new Error("create access tokens in the ssh shop: ssh terminal.shop -t tokens");
+    if (!this.canCreateCredentials) throw new Error("create access tokens in the ssh shop: ssh terminal.shop -t tokens");
     const created = await this.api.token.create();
     this.set({ newToken: created, tokens: await this.api.token.list() });
   }
@@ -814,7 +839,7 @@ export class ShopStore {
   }
 
   async createApp(name: string, redirectURI: string): Promise<void> {
-    if (this.siteMode) throw new Error("create oauth apps in the ssh shop: ssh terminal.shop -t apps");
+    if (!this.canCreateCredentials) throw new Error("create oauth apps in the ssh shop: ssh terminal.shop -t apps");
     const created = await this.api.app.create(name, redirectURI);
     this.set({ newApp: created, apps: await this.api.app.list() });
   }

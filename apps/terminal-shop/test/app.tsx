@@ -48,17 +48,19 @@ export async function mountShop(
     email?: string | null;
     env?: Record<string, string | undefined>;
     /** Behind a textjs.org-style site proxy (session held server-side). */
-    site?: { configured?: boolean };
+    site?: { configured?: boolean; credentials?: boolean };
     store?: StoreOptions;
+    /** Console size (default 80 × 30). */
+    size?: { cols: number; rows: number };
   } = {},
 ): Promise<Harness> {
   const api = startMockTerminal({ email: opts.email });
-  const proxy = opts.site ? startMockSiteProxy(api, { signedIn: opts.signedIn ?? true, configured: opts.site.configured }) : startMockProxy(api, opts.env);
+  const proxy = opts.site ? startMockSiteProxy(api, { signedIn: opts.signedIn ?? true, configured: opts.site.configured, credentials: opts.site.credentials }) : startMockProxy(api, opts.env);
   const storage = memoryStorage(opts.signedIn === false || opts.site ? {} : { "terminal-shop:auth:dev": JSON.stringify({ kind: "token", access: MOCK_TOKEN }) });
   const store = resetShopStore({ storage, bases: [proxy.base], splashMs: 0, pollMs: 20, ...opts.store });
   const routes = await loadRoutes();
   const history = createMemoryHistory(opts.path ?? "/");
-  const t = await createTestRoot({ width: 80, height: 30, onCaughtError: (e) => console.error(e) });
+  const t = await createTestRoot({ width: opts.size?.cols ?? 80, height: opts.size?.rows ?? 30, onCaughtError: (e) => console.error(e) });
   // The shell reads `window.location` when present; tests use the memory history instead.
   await t.render(<AppRouter routes={routes} history={history} errorStore={null} documentTitle={false} />);
   const screen = (): string => t.frame();

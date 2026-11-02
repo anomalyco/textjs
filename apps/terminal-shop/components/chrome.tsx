@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useInterval, useViewport } from "@textjs/app";
 import { useRouter } from "@textjs/app/navigation";
-import { composeFrame, type Command, type PageId } from "../lib/frame";
+import { composeFrame, layoutFor, placeInViewport, type Command, type Layout, type PageId } from "../lib/frame";
 import { useKeys } from "../lib/keys";
 import { useShop, useShopState } from "../lib/store";
 import { makeTheme, type Theme } from "../lib/theme";
@@ -37,6 +37,12 @@ export function useBlink(ms = 700): boolean {
   return on;
 }
 
+/** The SSH shop's size class and container for the current console size. */
+export function useLayout(): Layout {
+  const vp = useViewport();
+  return useMemo(() => layoutFor(vp.cols, vp.rows), [vp.cols, vp.rows]);
+}
+
 export function useTheme(): Theme {
   const store = useShop();
   useShopState((s) => s.shopSelected + s.products.length);
@@ -57,16 +63,17 @@ export function Page({
 }: {
   page: PageId;
   commands: Command[];
-  body: (height: number, theme: Theme) => Line[];
+  body: (height: number, theme: Theme, layout: Layout) => Line[];
   subscriptionPayment?: boolean;
 }): ReactNode {
   const theme = useTheme();
+  const layout = useLayout();
   const cart = useShopState((s) => s.cart);
   const error = useShopState((s) => s.error);
   const region = useShopState((s) => s.region);
   const subscribing = useShopState((s) => s.subscribing !== null);
-  const lines = composeFrame({ page, cart, theme, subscribing, subscriptionPayment, commands, error, region, body: (h) => body(h, theme) });
-  return <Screen lines={lines} />;
+  const frame = composeFrame({ page, cart, theme, subscribing, subscriptionPayment, commands, error, region, layout, body: (h) => body(h, theme, layout) });
+  return <Screen lines={placeInViewport(frame, layout, layout.widthContainer)} />;
 }
 
 /** Stable submit-guard for async actions (`state.*.submitting`). */

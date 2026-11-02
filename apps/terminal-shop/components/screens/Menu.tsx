@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { useSearchParams } from "@textjs/app/navigation";
-import { CONTENT, HEIGHT, WIDTH, type Command } from "../../lib/frame";
+import { CONTENT, type Command } from "../../lib/frame";
 import { defaultTheme, palette } from "../../lib/theme";
 import { centerLines, fit, place, span, width, type Line } from "../../lib/ui";
-import { useBlink, useHeaderMode, useKeys, useNav } from "../chrome";
+import { useBlink, useHeaderMode, useKeys, useLayout, useNav } from "../chrome";
 import { Screen } from "../Screen";
 import { logo } from "../Shell";
 
@@ -27,7 +27,7 @@ const PAGE_COMMANDS: Record<string, Command[]> = {
   ],
 };
 
-export function menuLines(from: string, cursor: boolean): Line[] {
+export function menuLines(from: string, cursor: boolean, widthContent = CONTENT): Line[] {
   const t = defaultTheme;
   const rows: Array<[string, string]> = [
     ["s", "shop"],
@@ -46,7 +46,7 @@ export function menuLines(from: string, cursor: boolean): Line[] {
   const ruleW = inner + 2;
   const rule: Line = [span("─".repeat(ruleW), { fg: palette.border })];
   const modal: Line[] = [rule, [], ...table.map((l) => fit([span(" "), ...fit(l, inner)], ruleW)), [], rule];
-  return centerLines([logo(cursor), ...modal, fit([t.accent("press esc to close")], CONTENT, "center")]);
+  return centerLines([logo(cursor), ...modal, fit([t.accent("press esc to close")], widthContent, "center")]);
 }
 
 export function MenuScreen(): ReactNode {
@@ -54,6 +54,7 @@ export function MenuScreen(): ReactNode {
   const params = useSearchParams();
   const from = params.get("from") ?? "/shop";
   const cursor = useBlink();
+  const L = useLayout();
   useHeaderMode("menu");
   useKeys((key) => {
     if (key === "esc") {
@@ -62,5 +63,5 @@ export function MenuScreen(): ReactNode {
     }
     return false;
   });
-  return <Screen lines={place(menuLines(from, cursor), WIDTH, HEIGHT)} />;
+  return <Screen lines={place(menuLines(from, cursor, L.widthContent), L.viewportWidth, L.viewportHeight)} />;
 }

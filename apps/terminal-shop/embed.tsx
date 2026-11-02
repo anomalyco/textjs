@@ -62,7 +62,7 @@ export function createEmbeddedShop(options: StoreOptions = {}): EmbeddedShop {
   return { store, history: createMemoryHistory("/") };
 }
 
-/** Renders the whole 80 × 30 shop. Keep `shop` across mounts to resume where you were. */
+/** Renders the whole shop, laid out for the console size like the ssh shop. Keep `shop` across mounts to resume where you were. */
 export function TerminalShop({ shop }: { shop: EmbeddedShop }): ReactNode {
   return (
     <ShopProvider store={shop.store}>

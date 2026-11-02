@@ -109,6 +109,12 @@ async function main(): Promise<void> {
   const { chromium } = await loadPlaywright();
   const browser = await chromium.launch({ headless: !flag("headed"), executablePath: chromiumPath() });
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  // Loopback is only this run's dev server: never another local server (OpenCode, other apps).
+  const ownPort = new URL(url).port;
+  await context.route(
+    (u: URL) => /^(127\.0\.0\.1|localhost|\[::1\])$/.test(u.hostname) && u.port !== ownPort,
+    (r: { abort(): Promise<void> }) => r.abort(),
+  );
   const page = await context.newPage();
 
   const frames: string[] = [];
@@ -194,15 +200,36 @@ async function main(): Promise<void> {
     // Refuse anything but the sandbox: the debug page names the environment.
     await press("a");
     await until("order history");
-    for (let i = 0; i < 8; i++) await press("ArrowDown");
+    for (let i = 0; i < 10; i++) await press("ArrowDown");
     await until("environment:");
     await snap("account-debug");
     if (!(await grid()).includes("environment: dev sandbox")) throw new Error(`not in the dev sandbox, refusing to continue\n${await grid()}`);
     await press("ArrowUp", "ArrowUp");
     await until("help, i have a question");
     await snap("account-faq");
+    await press("ArrowUp");
+    await until("select this item to change your name.");
+    await snap("account-profile");
+    await press("ArrowUp");
+    await until("add payment information via browser");
+    await snap("account-payment");
     await press("s");
     await until("~ featured ~");
+
+    // The layouts follow the console size like the ssh shop follows the terminal.
+    const resize = (cols: number, rows: number): Promise<void> =>
+      page.evaluate(([c, r]: [number, number]) => (window as unknown as { text: { renderer: { resize(c: number, r: number): void } } }).text.renderer.resize(c, r), [cols, rows]);
+    await resize(60, 24);
+    await until("m ☰");
+    await snap("shop-60x24");
+    await resize(45, 20);
+    await until("~ featured ~");
+    await snap("shop-45x20");
+    await resize(18, 8);
+    await until("is too small");
+    await snap("shop-18x8");
+    await resize(80, 30);
+    await until("s shop");
 
     // Add two bags of the first regular coffee.
     for (let i = 0; i < 3; i++) await press("ArrowDown");

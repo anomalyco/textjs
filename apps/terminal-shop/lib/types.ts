@@ -111,7 +111,7 @@ export interface Order {
   shipping: AddressInput;
   created: string;
   amount: { shipping: number; subtotal: number };
-  tracking: { service?: string; number?: string; url?: string; status?: string };
+  tracking: { service?: string; number?: string; url?: string; status?: string; statusDetails?: string; statusUpdatedAt?: string };
   items: OrderItem[];
 }
 

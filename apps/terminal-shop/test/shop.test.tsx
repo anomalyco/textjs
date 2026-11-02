@@ -22,6 +22,24 @@ const trimmed = (s: string): string =>
     .join("\n")
     .replace(/\n+$/, "");
 
+/**
+ * The ssh captures plus this port's two extra account menu rows ("payment methods" is the
+ * shop's own commented-out `paymentPage`, "profile" is ours), spliced in after "link email".
+ */
+const withExtraMenuRows = (screen: string): string => {
+  const rows = screen.split("\n");
+  const r0 = rows.findIndex((l) => l.startsWith("  order history"));
+  if (r0 < 0) return screen;
+  const MENU = 22;
+  const menu = rows.map((l) => l.slice(0, MENU).padEnd(MENU));
+  const rest = rows.map((l) => l.slice(MENU));
+  const at = r0 + 6;
+  menu.splice(at, 0, "  payment methods".padEnd(MENU), "  profile".padEnd(MENU));
+  menu.splice(r0 + 11, 2);
+  return rows.map((_, i) => `${menu[i]}${rest[i]}`.trimEnd()).join("\n");
+};
+const accountFixture = (name: string): string => withExtraMenuRows(fixture(name));
+
 /** Fill the address form (name is prefilled from the profile). */
 async function fillAddress(x: Harness): Promise<void> {
   await x.press("tab");
@@ -47,17 +65,17 @@ describe("matches the ssh shop (captured from `ssh terminal.shop`, 80×30)", () 
     expect(trimmed(h.screen())).toBe(fixture("cart-empty"));
     await h.press("a");
     await h.until("no orders found");
-    expect(trimmed(h.screen())).toBe(fixture("account-orders"));
+    expect(trimmed(h.screen())).toBe(accountFixture("account-orders"));
     for (const name of ["account-subscriptions", "account-tokens"]) {
       await h.press("down");
-      expect(trimmed(h.screen())).toBe(fixture(name));
+      expect(trimmed(h.screen())).toBe(accountFixture(name));
     }
     await h.press("down", "down");
-    expect(trimmed(h.screen())).toBe(fixture("account-addresses"));
-    await h.press("down", "down");
-    expect(trimmed(h.screen())).toBe(fixture("account-faq"));
+    expect(trimmed(h.screen())).toBe(accountFixture("account-addresses"));
+    await h.press("down", "down", "down", "down");
+    expect(trimmed(h.screen())).toBe(accountFixture("account-faq"));
     await h.press("down");
-    expect(trimmed(h.screen())).toBe(fixture("account-about"));
+    expect(trimmed(h.screen())).toBe(accountFixture("account-about"));
     await h.press("m");
     await h.until("press esc to close");
     expect(trimmed(h.screen())).toBe(fixture("menu-from-account"));
@@ -282,11 +300,194 @@ describe("account", () => {
     await h.until("1 saved address.");
   });
 
+  test("payment methods: add a card through the hosted page, then remove it", async () => {
+    h = await mountShop({ path: "/account?page=payment" });
+    await h.until("add payment information via browser");
+    await h.press("enter");
+    await h.until("enter add");
+    await h.press("enter");
+    await h.until("scan or copy to enter payment information");
+    expect(h.screen()).toMatch(/https:\/\/dev\.trm\.sh\/\w+/);
+    expect(h.api.requests.filter((r) => r.method === "POST" && r.path === "/card/collect")).toHaveLength(1);
+    h.api.completeCollect("1881");
+    await h.until("card added");
+    expect(h.screen()).toContain("Visa  **** **** **** 1881  12/30");
+    await h.press("x");
+    await h.until("remove this card? (y/n)");
+    await h.press("n");
+    await h.until("x/del remove");
+    await h.press("x", "y");
+    await h.until("card removed");
+    expect(h.api.state.cards).toHaveLength(0);
+    expect(h.api.requests.some((r) => r.method === "DELETE" && r.path.startsWith("/card/crd_"))).toBe(true);
+  });
+
+  test("payment methods: esc stops waiting for the hosted card page", async () => {
+    h = await mountShop({ path: "/account?page=payment" });
+    await h.until("add payment information via browser");
+    await h.press("enter", "enter");
+    await h.until("scan or copy");
+    await h.press("esc");
+    await h.until("add payment information via browser");
+    const polls = h.api.requests.filter((r) => r.path === "/card").length;
+    await h.t.settle(100);
+    expect(h.api.requests.filter((r) => r.path === "/card").length).toBe(polls);
+  });
+
+  test("profile: shows name, email and id; changing the name uses PUT /profile", async () => {
+    h = await mountShop({ path: "/account?page=profile" });
+    await h.until("ada@example.com");
+    expect(h.screen()).toContain("Ada Lovelace");
+    expect(h.screen()).toContain("usr_mock");
+    expect(h.screen()).toContain("select this item to change your name.");
+    await h.press("enter");
+    await h.until("change the name on your account");
+    // Header keys are typed while the form has focus.
+    for (let i = 0; i < 12; i++) await h.press("backspace");
+    await h.press("enter");
+    await h.until("name cannot be empty");
+    await h.press("esc");
+    await h.t.type("Ada King");
+    await h.press("enter");
+    await h.until("name updated");
+    expect(h.screen()).toContain("Ada King");
+    const put = h.api.requests.filter((r) => r.method === "PUT" && r.path === "/profile");
+    expect(put.map((r) => r.body)).toEqual([{ name: "Ada King" }]);
+    expect(h.store.s.user?.name).toBe("Ada King");
+  });
+
+  test("profile: without an email, it points at ssh -t link-email", async () => {
+    h = await mountShop({ email: null, path: "/account?page=profile" });
+    await h.until("link one from your ssh session:");
+    expect(h.screen()).toContain("ssh dev.terminal.shop -t link-email");
+  });
+
+  test("link email: selecting it shows the ssh command", async () => {
+    h = await mountShop({ email: null, path: "/account?page=link-email" });
+    await h.until("select this item to start.");
+    await h.press("enter");
+    await h.until("ssh dev.terminal.shop -t link-email");
+    await h.press("esc");
+    await h.until("select this item to start.");
+  });
+
+  test("subscriptions: +/- and enter change a weekly schedule", async () => {
+    h = await mountShop();
+    const variant = h.api.state.products[2]!.variants[0]!.id;
+    h.api.state.addresses = [{ id: "shp_1", name: "Ada", street1: "1 Main", city: "Austin", province: "TX", country: "US", zip: "78701" }];
+    h.api.state.cards = [{ id: "crd_1", brand: "Visa", last4: "4242", expiration: { month: 1, year: 2031 } }];
+    h.api.state.subscriptions = [{ id: "sub_1", productVariantID: variant, price: 2200, quantity: 2, addressID: "shp_1", cardID: "crd_1", schedule: { type: "weekly", interval: 3 }, next: "2026-11-21", created: "2026-10-01" }];
+    await h.until("~ featured ~");
+    await h.press("a", "down", "enter", "enter");
+    await h.until("back to subscriptions");
+    expect(h.screen()).toContain("+/- schedule");
+    await h.press("pgdown");
+    await h.until("every 3 weeks");
+    await h.press("+", "+");
+    await h.until("every 5 weeks");
+    expect(h.screen()).toContain("press enter to save, esc to keep every 3 weeks");
+    await h.press("esc");
+    await h.until("e address");
+    expect(h.api.requests.some((r) => r.method === "PUT")).toBe(false);
+    await h.press("-", "enter");
+    await h.until("schedule updated");
+    await h.press("pgdown");
+    await h.until("every 2 weeks");
+    expect(h.api.requests.filter((r) => r.method === "PUT").map((r) => [r.path, r.body])).toEqual([["/subscription/sub_1", { schedule: { type: "weekly", interval: 2 } }]]);
+    for (let i = 0; i < 5; i++) await h.press("-");
+    await h.until("every 1 week");
+  });
+
+  test("subscriptions: monthly (cron) schedules don't change", async () => {
+    h = await mountShop();
+    const cron = h.api.state.products[0]!.variants[0]!.id;
+    h.api.state.subscriptions = [{ id: "sub_c", productVariantID: cron, price: 3000, quantity: 1, addressID: "shp_x", cardID: "crd_x", schedule: { type: "fixed" }, next: "2026-12-01", created: "2026-10-01" }];
+    await h.until("~ featured ~");
+    await h.press("a", "down", "enter", "enter", "pgdown");
+    await h.until("monthly");
+    expect(h.screen()).not.toContain("+/- schedule");
+    await h.press("+", "enter");
+    expect(h.api.requests.some((r) => r.method === "PUT")).toBe(false);
+  });
+
+  test("orders: tracking shows the carrier's link", async () => {
+    h = await mountShop();
+    h.api.state.orders = [
+      {
+        id: "ord_1",
+        status: "shipped",
+        fulfillmentStarted: true,
+        canCancel: false,
+        canUpdateShipping: false,
+        changeUnavailableReason: "fulfillment_started",
+        shipping: { name: "Ada", street1: "1 Main", city: "Austin", province: "TX", country: "US", zip: "78701" },
+        created: "2026-10-30",
+        amount: { subtotal: 2200, shipping: 800 },
+        tracking: { service: "USPS Ground Advantage", number: "9234", status: "TRANSIT", statusDetails: "In transit to next facility", url: "https://tools.usps.com/go/TrackConfirmAction_input?origTrackNum=9234" },
+        items: [{ id: "i", amount: 2200, quantity: 1, productVariantID: h.api.state.products[2]!.variants[0]!.id }],
+      },
+    ];
+    await h.until("~ featured ~");
+    await h.press("a", "enter", "enter");
+    await h.until("tracking");
+    const screen = h.screen();
+    expect(screen).toContain("status: TRANSIT");
+    expect(screen).toContain("service: USPS Ground Advantage");
+    expect(screen).toContain("details: In transit to next facility");
+    expect(screen).toContain("track: https://tools.usps.com");
+    expect(screen).not.toContain("x/del cancel");
+    await h.press("x");
+    await h.until("fulfillment started; contact support for changes");
+  });
+
+  test("apps: create shows the secret once; remove asks first", async () => {
+    h = await mountShop({ path: "/account?page=apps" });
+    await h.until("create app");
+    await h.press("enter", "enter");
+    await h.until("redirect uri");
+    await h.t.type("my app");
+    await h.press("tab");
+    await h.t.type("http://localhost:3000/cb");
+    await h.press("enter");
+    await h.until("(will not be shown again)");
+    expect(h.screen()).toContain(`secret: sec_${"a".repeat(16)}`);
+    expect(h.api.requests.find((r) => r.method === "POST" && r.path === "/app")?.body).toEqual({ name: "my app", redirectURI: "http://localhost:3000/cb" });
+    await h.press("up", "x");
+    await h.until("are you sure you want to remove?");
+    await h.press("y");
+    await h.t.waitFor(() => h!.api.state.apps.length === 0, "app removed");
+  });
+
+  test("tokens: revoke asks first", async () => {
+    h = await mountShop({ path: "/account?page=tokens" });
+    await h.until("pat_existing");
+    await h.press("enter", "x");
+    await h.until("are you sure you want to revoke?");
+    await h.press("y");
+    await h.t.waitFor(() => h!.api.state.tokens.length === 0, "token revoked");
+    expect(h.api.requests.some((r) => r.method === "DELETE" && r.path === "/token/pat_existing")).toBe(true);
+  });
+
+  test("shipping starts on the cart's address", async () => {
+    h = await mountShop();
+    const variant = h.api.state.products[2]!.variants[0]!.id;
+    h.api.state.cart.items = [{ id: "itm_1", productVariantID: variant, quantity: 1 }];
+    h.api.state.addresses = [
+      { id: "shp_1", name: "Ada", street1: "1 Main", city: "Austin", province: "TX", country: "US", zip: "78701" },
+      { id: "shp_2", name: "Ada", street1: "2 Side", city: "Austin", province: "TX", country: "US", zip: "78702" },
+    ];
+    h.api.state.cart.addressID = "shp_2";
+    await h.until("~ featured ~");
+    await h.press("c", "enter");
+    await h.until("select shipping address");
+    expect(h.screen()).toContain("☉   2 Side");
+  });
+
   test("debug info names the environment; production needs the server opt-in", async () => {
     h = await mountShop();
     await h.until("~ featured ~");
     await h.press("a");
-    for (let i = 0; i < 8; i++) await h.press("down");
+    for (let i = 0; i < 10; i++) await h.press("down");
     await h.until("environment: dev sandbox");
     expect(h.screen()).toContain("mode: personal access token");
     expect(h.screen()).not.toContain("trm_test_0123");
@@ -298,7 +499,7 @@ describe("account", () => {
     h = await mountShop({ env: { TERMINAL_ENABLE_PRODUCTION: "1" } });
     await h.until("~ featured ~");
     await h.press("a");
-    for (let i = 0; i < 8; i++) await h.press("down");
+    for (let i = 0; i < 10; i++) await h.press("down");
     await h.press("e");
     await h.until("switch to production?");
     await h.press("n");
