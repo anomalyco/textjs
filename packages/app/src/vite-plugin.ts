@@ -12,12 +12,13 @@ import react from "@vitejs/plugin-react";
 import type { Plugin, ProxyOptions, ViteDevServer } from "vite";
 import { BRAND_MARK, ENGINE_NAME, txMessage, VERSION } from "@textjs/core";
 import { normalizeBasePath, toClientConfig, type Rewrite, type TextConfig } from "./config";
-import { applyRewrites, compileRewrite, normalizeRequestTarget, proxyRequest, requestOrigin, runRouteHandler, sendWebResponse, toWebRequest, type CompiledRewrite, type RouteHandlerModule } from "./server/http";
+import { applyRewrites, canonicalRequestTarget, compileRewrite, proxyRequest, requestOrigin, runRouteHandler, sendWebResponse, toWebRequest, type CompiledRewrite, type RouteHandlerModule } from "./server/http";
 import { attachFrameStream } from "./server/frames";
 import { createLiveDevHandler, textjsLivePlugin } from "./server/live-dev";
 import { withServerStubs } from "./server/live-routes";
 import { runRouteHandlerWithCache } from "./server/cache-route";
 import { createDevMiddleware, isServerOnlySource } from "./server/middleware-node";
+import { isMiscasedFile } from "./server/static-file";
 import { generateRoutesModule, isRouteFile, matchApiRoute, scanApp, toApiManifest, toPosix, toStaticManifest, type AppScan } from "./server/scan";
 import { flattenRoutes, type RouteManifest, type RouteSegmentNode } from "./routing";
 
@@ -332,12 +333,29 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
           res.end(`${BRAND_MARK} ${txMessage("TX028", JSON.stringify((req.headers.host ?? "").replace(/:\d+$/, "")), "vite.server.allowedHosts")}`);
           return;
         }
-        // `//evil.com/x` must not become `request.url` → http://evil.com/x.
-        req.url = normalizeRequestTarget(req.url);
+        // One canonical pathname for middleware, handlers and files: `//evil.com/x` must not become `request.url` → http://evil.com/x,
+        // and `/ad%6din//x/` is `/admin/x` everywhere.
+        const canonical = canonicalRequestTarget(req.url);
+        if (canonical === null) {
+          res.statusCode = 400;
+          res.setHeader("Content-Type", "text/plain; charset=utf-8");
+          res.end("400 | Bad Request");
+          return;
+        }
+        req.url = canonical;
         let pathname = req.url.split("?")[0] ?? "/";
         if (basePath && (pathname === basePath || pathname.startsWith(`${basePath}/`))) pathname = pathname.slice(basePath.length) || "/";
         if (pathname.startsWith("/@fs/")) pathname = `/${relative(root, pathname.slice(4)).split(sep).join("/")}`;
         if (isServerOnlySource(pathname, root, appDirName, serverOnly)) {
+          res.statusCode = 404;
+          res.setHeader("Content-Type", "text/plain; charset=utf-8");
+          res.end("404 | This page could not be found.");
+          return;
+        }
+        // A public file under another spelling on a case-insensitive disk: middleware never saw its real path.
+        const requested = decodeURIComponent(req.url.split("?")[0] ?? "/");
+        const publicPath = basePath && requested.startsWith(`${basePath}/`) ? requested.slice(basePath.length) : requested;
+        if (server.config.publicDir && isMiscasedFile(server.config.publicDir, publicPath)) {
           res.statusCode = 404;
           res.setHeader("Content-Type", "text/plain; charset=utf-8");
           res.end("404 | This page could not be found.");

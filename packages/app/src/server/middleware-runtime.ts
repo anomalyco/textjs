@@ -4,7 +4,7 @@
  * `text dev`, `text start` and every deploy adapter.
  */
 
-import { hasGeneratedCacheControl, PRIVATE_CACHE_CONTROL, requestOrigin, type OriginOptions } from "./http";
+import { badRequest, canonicalPathname, hasGeneratedCacheControl, PRIVATE_CACHE_CONTROL, requestOrigin, type OriginOptions } from "./http";
 import {
   isMiddlewareControl,
   MIDDLEWARE_NEXT,
@@ -278,8 +278,14 @@ function stripInternal(response: Response): Response {
  * Run middleware for `request`. `request` is never consumed: middleware gets a
  * tee'd clone, and the outcome's `request` carries the original body.
  */
-export async function runMiddleware(mod: MiddlewareModule, request: Request, options: RunMiddlewareOptions = {}): Promise<MiddlewareOutcome> {
+export async function runMiddleware(mod: MiddlewareModule, incoming: Request, options: RunMiddlewareOptions = {}): Promise<MiddlewareOutcome> {
   const basePath = options.basePath ?? "";
+  // Match, and show middleware, the same pathname routing will use.
+  const request = canonicalRequest(incoming);
+  if (!request) {
+    cancelUnread(incoming);
+    return { type: "response", response: badRequest() };
+  }
   const url = new URL(request.url);
   const matchers = options.matchers !== undefined ? options.matchers : middlewareMatchers(mod);
   if (!matchesMiddleware(matchers, stripBase(url.pathname, basePath), request)) {
@@ -374,6 +380,20 @@ export async function runMiddleware(mod: MiddlewareModule, request: Request, opt
   };
 }
 
+/**
+ * `request` with its URL's {@link canonicalPathname} (the same request when
+ * it already is canonical; otherwise a copy that takes over the body), or
+ * `null` when the path is invalid and the request should get a 400.
+ */
+export function canonicalRequest(request: Request): Request | null {
+  const url = new URL(request.url);
+  const pathname = canonicalPathname(url.pathname);
+  if (pathname === null) return null;
+  if (pathname === url.pathname) return request;
+  url.pathname = pathname;
+  return rebuild(request, new Headers(request.headers), url);
+}
+
 /** Copy `request` with new headers (and optionally a new URL), moving its body. */
 export function rebuild(request: Request, headers: Headers, url?: URL | string): Request {
   const init: RequestInit & { duplex?: "half" } = { method: request.method, headers, signal: request.signal, redirect: request.redirect };
@@ -459,7 +479,7 @@ export async function authorizeWithMiddleware(mod: MiddlewareModule, href: strin
   headers.set("sec-fetch-mode", "navigate");
   const outcome = await runMiddleware(mod, new Request(url, { method: "GET", headers }), { basePath });
   if (outcome.type === "response") return false;
-  if (outcome.rewrite) return outcome.rewrite.origin === url.origin && outcome.rewrite.pathname === url.pathname;
+  if (outcome.rewrite) return outcome.rewrite.origin === url.origin && outcome.rewrite.pathname === new URL(outcome.request.url).pathname;
   return outcome.status === undefined || outcome.status < 400;
 }
 

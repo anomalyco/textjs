@@ -12,11 +12,12 @@
  * merged in (the stricter of Vercel's behaviors for the Text.js adapter).
  */
 
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { extname, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { staticFile as exactFile } from "../src/server/static-file";
 
 interface Condition {
   type: "header" | "cookie" | "query" | "host";
@@ -111,12 +112,15 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
     if (dest && existsSync(join(outputDir, "functions", `${dest.slice(1)}.func`)) && !functionUrls.has(dest)) await loadFunction(dest.slice(1));
   }
 
+  // Vercel's file system is case-sensitive.
   const staticFile = (pathname: string): string | null => {
-    for (const candidate of [pathname, join(pathname, "index.html")]) {
-      const p = join(outputDir, "static", decodeURIComponent(candidate));
-      if (p.startsWith(join(outputDir, "static")) && existsSync(p) && statSync(p).isFile()) return p;
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(pathname);
+    } catch {
+      return null;
     }
-    return null;
+    return exactFile(join(outputDir, "static"), decoded, { index: true });
   };
 
   const router = createServer((req, res) => {

@@ -6,7 +6,7 @@ import { existsSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join, relative, sep } from "node:path";
 import { LIVE_PATH } from "../live-protocol";
-import { isLoopbackUrl, proxyFetch, requestOrigin, requestUrl, sendWebResponse, setMiddlewareState, toWebRequest } from "./http";
+import { badRequest, canonicalPathname, canonicalRequestTarget, isLoopbackUrl, proxyFetch, requestOrigin, requestUrl, sendWebResponse, setMiddlewareState, toWebRequest } from "./http";
 import type { MiddlewareModule } from "./middleware";
 import { matchesMiddleware, MIDDLEWARE_FILES, middlewareMatchers, runMiddleware } from "./middleware-runtime";
 
@@ -49,7 +49,13 @@ export function nodeHeaders(req: IncomingMessage): Headers {
  * or `null` once middleware has sent the response itself.
  */
 export async function runNodeMiddleware(mod: MiddlewareModule, req: IncomingMessage, res: ServerResponse, options: NodeMiddlewareOptions): Promise<string | null> {
-  const url = requestUrl(req.url, options.origin);
+  const canonical = canonicalRequestTarget(req.url);
+  if (canonical === null) {
+    await sendWebResponse(res, badRequest(), req.method);
+    return null;
+  }
+  req.url = canonical;
+  const url = requestUrl(canonical, options.origin);
   const pathname = stripBase(url.pathname, options.basePath);
   // Match on the URL and headers first: unmatched requests keep their Node body stream untouched.
   const probe = new Request(url, { method: "GET", headers: nodeHeaders(req) });
@@ -82,9 +88,14 @@ export async function runNodeMiddleware(mod: MiddlewareModule, req: IncomingMess
     await sendWebResponse(res, response, request.method);
     return null;
   }
-  (req as unknown as Record<symbol, Request>)[WEB_REQUEST] = outcome.request;
   const target = outcome.rewrite ?? url;
-  return `${stripBase(target.pathname, options.basePath) ?? target.pathname}${target.search}`;
+  const routed = canonicalPathname(target.pathname);
+  if (routed === null) {
+    await sendWebResponse(res, badRequest(), request.method);
+    return null;
+  }
+  (req as unknown as Record<symbol, Request>)[WEB_REQUEST] = outcome.request;
+  return `${stripBase(routed, options.basePath) ?? routed}${target.search}`;
 }
 
 const SOURCE_EXT = /\.(?:[cm]?[jt]sx?)$/;

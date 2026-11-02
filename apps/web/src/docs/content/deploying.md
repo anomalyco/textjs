@@ -59,7 +59,7 @@ Or push to a Git repository connected to Vercel: the build runs `text build`, de
 | `functions/_middleware.func` | `middleware.ts` as Edge Routing Middleware |
 | `config.json` | Asset headers, middleware matchers, rewrites, handler routes and the console document |
 
-The edge middleware speaks the `x-middleware-next` / `x-middleware-rewrite` protocol, so header overrides and rewrites happen in Vercel's router before the function or CDN is reached. Matchers become route `src` patterns (with `has` / `missing`), so unmatched requests never invoke the middleware. The handler function is internal: requests for `/_textjs/*` return `404`, and requests carrying the internal `__textjs_path` parameter return `400`, so it is only reachable through the routes the adapter writes.
+The edge middleware speaks the `x-middleware-next` / `x-middleware-rewrite` protocol, so header overrides and rewrites happen in Vercel's router before the function or CDN is reached. Matchers become one route `src` pattern, so requests no matcher covers never invoke the middleware. Paths that aren't in canonical form (percent-encoded characters, `//`, `.` or `..` segments, a trailing slash) always invoke it: it matches the canonical path, checks `has` / `missing`, and rewrites the request to that path so Vercel routes it the same way. The handler function is internal: requests for `/_textjs/*` return `404`, and requests carrying the internal `__textjs_path` parameter return `400`, so it is only reachable through the routes the adapter writes.
 
 ## Cloudflare Pages
 

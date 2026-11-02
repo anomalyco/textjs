@@ -36,6 +36,51 @@ export function normalizeRequestTarget(raw: string | undefined): string {
   return target.replace(/^[/\\]+/, "/");
 }
 
+/** Characters the WHATWG URL parser percent-encodes in a path (plus `%` itself). */
+const PATH_ESCAPE = /[\u0020"#%<>?^`{}]|[^\u0000-\u007f]+/gu;
+
+/**
+ * The canonical spelling of a request pathname, used for the middleware match
+ * and for every route, handler and file lookup, so a path can't be written in
+ * a way that one sees and the other doesn't. Percent-decodes once, drops empty
+ * and `.` segments, resolves `..`, drops the trailing slash, then re-encodes
+ * the way `new URL()` serializes paths (`/ad%6din//x/` → `/admin/x`).
+ *
+ * Returns `null` (answer 400) for invalid percent-encoding, control
+ * characters, and encoded or literal backslashes and encoded slashes
+ * (`%2F`, `%5C`): no route can name them, and decoding them would change
+ * where the segments split.
+ */
+export function canonicalPathname(pathname: string): string | null {
+  if (/%(?:2f|5c)/i.test(pathname)) return null;
+  try {
+    const decoded = decodeURIComponent(pathname);
+    if (/[\u0000-\u001f\u007f\\]/.test(decoded)) return null;
+    const out: string[] = [];
+    for (const segment of decoded.split("/")) {
+      if (segment === "" || segment === ".") continue;
+      if (segment === "..") out.pop();
+      else out.push(segment.replace(PATH_ESCAPE, encodeURIComponent));
+    }
+    return `/${out.join("/")}`;
+  } catch {
+    return null;
+  }
+}
+
+/** {@link normalizeRequestTarget} with a {@link canonicalPathname} (the query is kept as sent). `null` = 400. */
+export function canonicalRequestTarget(raw: string | undefined): string | null {
+  const target = normalizeRequestTarget(raw);
+  const q = target.indexOf("?");
+  const pathname = canonicalPathname(q < 0 ? target : target.slice(0, q));
+  return pathname === null ? null : q < 0 ? pathname : pathname + target.slice(q);
+}
+
+/** The response for a request whose path {@link canonicalPathname} rejects. */
+export function badRequest(): Response {
+  return new Response("400 | Bad Request", { status: 400, headers: { "content-type": "text/plain; charset=utf-8" } });
+}
+
 /** Resolve a request target against `origin`, never leaving it. */
 export function requestUrl(raw: string | undefined, origin: string): URL {
   const base = new URL(origin);

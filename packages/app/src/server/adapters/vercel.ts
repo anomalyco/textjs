@@ -23,6 +23,13 @@ export const VERCEL_MIDDLEWARE = "_middleware";
 export const PATH_PARAM = "__textjs_path";
 export const VERCEL_NODE_RUNTIME = "nodejs22.x";
 
+/**
+ * Paths whose canonical form differs (`%` escapes, `//`, `.` and `..`
+ * segments, backslashes, a trailing slash). Vercel's router may match these
+ * differently from the middleware matchers, so they always reach middleware.
+ */
+export const NON_CANONICAL_PATH = String.raw`^.*(?:%|\/\/|\\|\/\.\.?(?:\/|$)).*$|^.+\/$`;
+
 /** A routed path the function accepts: one leading slash, no backslashes or control characters. */
 export const ROUTED_PATH = /^\/(?![/\\])[^\\\u0000-\u001f\u007f]*$/;
 
@@ -64,6 +71,8 @@ import { runMiddleware, toMiddlewareResponse } from ${JSON.stringify(frameworkFi
 
 export default async function textjsMiddleware(request, context) {
   const outcome = await runMiddleware(middleware, request, { basePath: options.basePath, waitUntil: (p) => context?.waitUntil?.(p) });
+  // Middleware saw the canonical path (/ad%6din → /admin): route that path too.
+  if (outcome.type === "next" && !outcome.rewrite && outcome.request.url !== request.url) outcome.rewrite = new URL(outcome.request.url);
   return toMiddlewareResponse(outcome, request);
 }
 `;
@@ -98,19 +107,18 @@ export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule |
     { src: `^${escapeRegex(base)}\\/assets\\/(.*)$`, headers: { "cache-control": "public, max-age=31536000, immutable" }, continue: true },
   ];
   if (middleware) {
+    // One route, so middleware runs once per request. It covers every path a
+    // matcher names and every non-canonical spelling; the middleware checks
+    // the canonical path against the matchers (with `has` / `missing`) itself.
     const matchers = middlewareMatchers(middleware);
-    const list = matchers ?? [{ source: "/:path*", regex: "", has: undefined, missing: undefined }];
-    for (const m of list) {
-      routes.push({
-        src: matchers ? matcherRegex(m.source, base) : `^${escapeRegex(base)}(?:\\/.*)?$`,
-        middlewarePath: VERCEL_MIDDLEWARE,
-        middlewareRawSrc: [m.source],
-        continue: true,
-        override: true,
-        ...(m.has ? { has: m.has } : {}),
-        ...(m.missing ? { missing: m.missing } : {}),
-      });
-    }
+    const src = matchers ? [...matchers.map((m) => matcherRegex(m.source, base)), NON_CANONICAL_PATH].map((re) => `(?:${re})`).join("|") : ".*";
+    routes.push({
+      src: `^(?:${src})$`,
+      middlewarePath: VERCEL_MIDDLEWARE,
+      middlewareRawSrc: matchers ? matchers.map((m) => m.source) : ["/:path*"],
+      continue: true,
+      override: true,
+    });
   }
   for (const r of ctx.rewrites) {
     const { src, dest } = rewriteRoute(r, base);

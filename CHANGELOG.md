@@ -20,6 +20,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Charts and spinners fit the frame on Windows. Consolas has no ▁▂▃▅▆▇ blocks, quadrants, braille, ▶ or ✓, so Windows drew them in fallback fonts up to 1.8 cells wide and chart rows ran past the frame's right edge. The console font stack is now `"SF Mono",Menlo,"Cascadia Mono",Consolas,monospace`, and Windows 11 draws the whole frame in Cascadia Mono. `<ConsoleMirror>`, the VS Code preview and the DevTools extension's frame view also put Cascadia Mono before Consolas.
 - `@textjs/opencode`: under Node on Windows, the bridge finds an OpenCode installed with `npm i -g opencode-ai`. Node can't start npm's `opencode.cmd` shim by name, so the bridge behaved as if OpenCode wasn't installed. It now searches `PATH` with each `PATHEXT` extension and runs `.cmd` shims through `cmd.exe`. Under Bun (`bunx`) it already worked.
 
+### Security
+
+- `@textjs/app` 1.1.0 and earlier: a request could skip `middleware.ts` by spelling a protected path differently, such as `/ad%6din`, `/api//admin` or `/admin%2Fx`. Middleware matched the path as sent, while route handlers, pages and static files were looked up after decoding it, and handler lookups decoded it twice. This affected `text dev`, `text start` and the bun, vercel and cloudflare adapters. Every host now decodes the pathname once, resolves `.` and `..` segments, removes repeated and trailing slashes, and uses that one path for the matcher, `request.nextUrl` and every lookup. Paths with an encoded slash or backslash, or invalid percent-encoding, get a `400`. `text start` and the bun adapter serve static files only under their exact name, so `/ADMIN/report.txt` no longer reaches `public/admin/report.txt` on macOS and Windows. Static exports don't run middleware and aren't affected.
+
 ## [1.1.0] - 2026-11-02
 
 ### Added

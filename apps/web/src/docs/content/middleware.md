@@ -44,6 +44,8 @@ export const config = {
 
 Matchers apply to the pathname without `basePath`. In `text dev`, Vite's own module requests (`/@vite/*`, source files) never run middleware.
 
+Every host cleans up the pathname once, before middleware runs, and uses the result for matching, `request.nextUrl` and the route, handler and file lookup. Percent-encoded characters are decoded, `.` and `..` segments are resolved, and repeated and trailing slashes are removed, so `/ad%6din//users/` reaches middleware as `/admin/users`. Requests whose path has an encoded slash or backslash (`%2F`, `%5C`), a backslash, a control character or invalid percent-encoding get a `400`. Routes are case-sensitive: `/Admin` doesn't match `/admin`, and static files are only served under their exact name.
+
 ## NextResponse
 
 | API | Effect |
