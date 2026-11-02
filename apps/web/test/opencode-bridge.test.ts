@@ -3,18 +3,22 @@ import { startProxy, type StartedBridge } from "../../../packages/opencode/src/p
 import { bridgeToken, discoverServer, pairBridge, PairingRequired, rememberBridgeToken } from "../src/demos/opencode/live";
 
 const storage = new Map<string, string>();
-const hadStorage = "localStorage" in globalThis;
+const g = globalThis as { localStorage?: unknown };
+const previousStorage = Object.getOwnPropertyDescriptor(g, "localStorage");
 let upstream: ReturnType<typeof Bun.serve>;
 let bridge: StartedBridge;
 
 beforeAll(async () => {
-  if (!hadStorage) {
-    (globalThis as { localStorage?: unknown }).localStorage = {
+  // Other suites install their own storage; this one needs a working one.
+  Object.defineProperty(g, "localStorage", {
+    configurable: true,
+    writable: true,
+    value: {
       getItem: (k: string) => storage.get(k) ?? null,
       setItem: (k: string, v: string) => void storage.set(k, v),
       removeItem: (k: string) => void storage.delete(k),
-    };
-  }
+    },
+  });
   upstream = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => Response.json({ version: "2.0.0-mock" }) });
   bridge = await startProxy({ port: 0, log: false, pairingCode: "K7F2QM", discover: async () => ({ url: `http://127.0.0.1:${upstream.port}`, source: "flag" }) });
 });
@@ -22,7 +26,8 @@ beforeAll(async () => {
 afterAll(async () => {
   await bridge.close();
   upstream.stop(true);
-  if (!hadStorage) delete (globalThis as { localStorage?: unknown }).localStorage;
+  if (previousStorage) Object.defineProperty(g, "localStorage", previousStorage);
+  else delete g.localStorage;
 });
 
 describe("/opencode and the bridge's pairing code", () => {
