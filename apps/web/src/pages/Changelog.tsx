@@ -41,7 +41,6 @@ export function ChangelogPage(): ReactNode {
   return (
     <div className="container cl">
       <header className="rs-head">
-        <p className="eyebrow">Changelog</p>
         <h1>What’s new in Text.js</h1>
         <div className="rs-lede prose">
           <p>

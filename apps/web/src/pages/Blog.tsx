@@ -7,7 +7,6 @@ export function BlogPage(): ReactNode {
   return (
     <div className="container blog">
       <header className="rs-head">
-        <p className="eyebrow">Blog</p>
         <h1>The latest from Text.js</h1>
         <p className="rs-lede">Releases and engineering notes from the Text.js team.</p>
         <div className="rs-head-links">
