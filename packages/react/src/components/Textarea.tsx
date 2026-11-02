@@ -1,15 +1,31 @@
-import { useMemo, useRef, type ReactNode, type Ref } from "react";
-import { layoutGraphemeLines, segmentGraphemes, type ColorInput, type LayoutProps, type SceneNode, type SceneNodeProps } from "@textjs/core";
-import { applyEditKey, insert, visualMove } from "../editing";
+import { useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
+import {
+  layoutGraphemeLines,
+  segmentGraphemes,
+  type ColorInput,
+  type LayoutProps,
+  type SceneNode,
+  type SceneNodeProps,
+} from "@textjs/core";
+import { applyEditKey, deleteRange, insert, lineStart, lineEnd, visualMove, type EditState } from "../editing";
 import { useFocus } from "../focus";
 import { mergeStyleProps, TxBox, TxText } from "../host";
 import { useInput, usePaste } from "../hooks";
-import { FOCUSED_INPUT_PRIORITY } from "../input-manager";
+import { FOCUSED_INPUT_PRIORITY, type KeyEvent } from "../input-manager";
 import { resolveColor, useTheme } from "../theme";
 import { cursorText, renderCursor, splitAtCursor, useCursor, useEditor, type FieldValueProps } from "./field";
 import { useMergedRef } from "./refs";
 
 export interface TextareaProps extends FieldValueProps, Omit<LayoutProps, "overflow"> {
+  /** Replace the buffer and position the caret (UTF-16 offsets, as in String.slice). */
+  editorRef?: Ref<{ replace(value: string, cursor: number): void }>;
+  onCursorChange?: (cursor: number) => void;
+  /** Optional foreground ranges in the buffer, e.g. file mentions. */
+  highlights?: readonly { start: number; end: number; color: ColorInput }[];
+  /** Enable selection and a bounded, in-memory undo history. */
+  advancedEditing?: boolean;
+  /** Translate a focused editing key, or return null to leave it unhandled. */
+  mapKey?: (e: KeyEvent) => KeyEvent | null;
   /** Called on Enter (without Shift / Alt / ⌘). Shift+Enter, Alt+Enter and Ctrl+J insert a newline. */
   onSubmit?: (value: string) => void;
   /** Submitted entries, oldest first. Up at the start recalls an entry; Down at the end restores the draft. */
@@ -38,6 +54,11 @@ const MAX_SCROLL = Number.MAX_SAFE_INTEGER;
 export function Textarea(props: TextareaProps): ReactNode {
   const {
     onSubmit,
+    editorRef,
+    onCursorChange,
+    highlights,
+    advancedEditing,
+    mapKey,
     history,
     placeholder,
     minRows = 1,
@@ -60,6 +81,31 @@ export function Textarea(props: TextareaProps): ReactNode {
   } = props;
   const theme = useTheme();
   const editor = useEditor(props);
+  const [anchor, select] = useState<number | null>(null);
+  const past = useRef<EditState[]>([]),
+    future = useRef<EditState[]>([]);
+  const apply = (next: EditState) => {
+    const cur = editor.current();
+    if (advancedEditing && next.value !== cur.value) {
+      // Bound retained paste data as well as the number of edits.
+      let size = cur.value.length;
+      past.current = [cur, ...past.current].slice(0, 100).filter((s, i) => {
+        if (i) size += s.value.length;
+        return size <= 256_000;
+      });
+      future.current = [];
+    }
+    editor.apply(next);
+  };
+  useImperativeHandle(editorRef, () => ({
+    replace(value, cursor) {
+      select(null);
+      apply({ value, cursor: Math.max(0, Math.min(value.length, cursor)) });
+    },
+  }));
+  useLayoutEffect(() => {
+    onCursorChange?.(editor.cursor);
+  }, [editor.cursor, onCursorChange]);
   const focus = useFocus({ id, autoFocus, focused, isActive });
   const active = focus.isFocused && isActive;
   const mode = useCursor(active, cursorBlink, editor.value.length * 1e6 + editor.cursor);
@@ -72,23 +118,78 @@ export function Textarea(props: TextareaProps): ReactNode {
   submitRef.current = onSubmit;
 
   useInput(
-    (e) => {
+    (original) => {
+      const e = mapKey ? mapKey(original) : original;
+      if (!e) return;
+      const cur = editor.current();
+      if (advancedEditing && e.alt && !e.meta && !e.ctrl && (e.key === "a" || e.key === "e")) {
+        select(e.shift ? (anchor ?? cur.cursor) : null);
+        editor.apply({
+          ...cur,
+          cursor: visualMove(cur.value, cur.cursor, boxRef.current?.layout.contentWidth ?? 80, 0, e.key === "a" ? 0 : Infinity).cursor,
+        });
+        e.stopPropagation();
+        return;
+      }
+      const hasSelection = advancedEditing && anchor !== null && anchor !== cur.cursor;
+      const cleared = () => (hasSelection ? deleteRange(cur, anchor!, cur.cursor) : cur);
+      if (advancedEditing && ((e.meta && e.key === "z") || (e.ctrl && ["-", "."].includes(e.key)))) {
+        const redo = e.key === "." || e.shift,
+          from = redo ? future : past,
+          to = redo ? past : future;
+        const next = from.current.shift();
+        if (next) {
+          to.current.unshift(cur);
+          select(null);
+          editor.apply(next);
+        }
+        e.stopPropagation();
+        return;
+      }
+      if (advancedEditing && e.meta && e.key === "a") {
+        select(0);
+        editor.apply({ ...cur, cursor: cur.value.length });
+        e.stopPropagation();
+        return;
+      }
+      if (advancedEditing && e.shift && (e.key === "home" || e.key === "end")) {
+        select(anchor ?? cur.cursor);
+        editor.apply({ ...cur, cursor: e.key === "home" ? 0 : cur.value.length });
+        e.stopPropagation();
+        return;
+      }
+      if (advancedEditing && e.shift && e.ctrl && e.key === "d") {
+        const start = lineStart(cur.value, cur.cursor),
+          end = lineEnd(cur.value, cur.cursor);
+        select(null);
+        apply(deleteRange(cur, start, Math.min(cur.value.length, end + 1)));
+        e.stopPropagation();
+        return;
+      }
       if (e.key === "return") {
         recall.current = null;
         e.stopPropagation();
-        if (e.shift || e.alt || e.meta || e.ctrl) editor.apply(insert(editor.current(), "\n"));
-        else submitRef.current?.(editor.current().value);
+        if (e.shift || e.alt || e.meta || e.ctrl) {
+          apply(insert(cleared(), "\n"));
+          select(null);
+        } else {
+          past.current = [];
+          future.current = [];
+          select(null);
+          submitRef.current?.(cur.value);
+        }
         return;
       }
       if (e.ctrl && e.key === "j") {
         recall.current = null;
         e.stopPropagation();
-        editor.apply(insert(editor.current(), "\n"));
+        apply(insert(cleared(), "\n"));
+        select(null);
         return;
       }
       if (e.key === "tab" || e.key === "escape" || e.key === "pageup" || e.key === "pagedown") return;
       if ((e.key === "up" || e.key === "down") && !e.meta && !e.ctrl && !e.alt) {
-        const cur = editor.current();
+        select(advancedEditing && e.shift ? (anchor ?? cur.cursor) : null);
         const up = e.key === "up";
         if (!e.shift && history?.length && (up ? cur.cursor === 0 : cur.cursor === cur.value.length)) {
           const previous = recall.current ?? { index: history.length, draft: cur.value };
@@ -109,11 +210,18 @@ export function Textarea(props: TextareaProps): ReactNode {
         return;
       }
       goalCol.current = null;
-      const next = applyEditKey(editor.current(), e, true);
+      let next = applyEditKey(
+        cur,
+        advancedEditing && e.alt && e.shift && ["b", "f"].includes(e.key) ? { ...e, shift: false } : e,
+        true,
+      );
+      if (hasSelection && ["backspace", "delete"].includes(e.key)) next = cleared();
+      else if (hasSelection && e.input && !e.ctrl && !e.meta && !e.alt) next = insert(cleared(), e.input);
       if (next === null) return;
+      select(advancedEditing && e.shift && next.value === cur.value ? (anchor ?? cur.cursor) : null);
       if (next.value !== editor.current().value) recall.current = null;
       e.stopPropagation();
-      editor.apply(next);
+      apply(next);
     },
     { isActive: active, priority: FOCUSED_INPUT_PRIORITY },
   );
@@ -122,7 +230,10 @@ export function Textarea(props: TextareaProps): ReactNode {
     (e) => {
       e.stopPropagation();
       recall.current = null;
-      editor.apply(insert(editor.current(), e.text.replace(/\r\n?/g, "\n")));
+      const cur = editor.current();
+      if (e.text)
+        apply(insert(advancedEditing && anchor !== null ? deleteRange(cur, anchor, cur.cursor) : cur, e.text.replace(/\r\n?/g, "\n")));
+      select(null);
     },
     { isActive: active, priority: FOCUSED_INPUT_PRIORITY },
   );
@@ -147,6 +258,23 @@ export function Textarea(props: TextareaProps): ReactNode {
     };
   }, [value, cursor, placeholder, mode]);
 
+  const styled = (s: string, offset: number): ReactNode => {
+    const a = Math.min(anchor ?? cursor, cursor),
+      b = Math.max(anchor ?? cursor, cursor);
+    if (!highlights?.length && a === b) return s;
+    const cuts = [
+      ...new Set([
+        offset,
+        offset + s.length,
+        ...[a, b, ...(highlights ?? []).flatMap((h) => [h.start, h.end])].filter((i) => i > offset && i < offset + s.length),
+      ]),
+    ].sort((a, b) => a - b);
+    return cuts.slice(0, -1).map((i, j) => (
+      <TxText key={i} inverse={i >= a && i < b} fg={highlights?.find((h) => h.start <= i && i < h.end)?.color}>
+        {s.slice(i - offset, cuts[j + 1]! - offset)}
+      </TxText>
+    ));
+  };
   const content: ReactNode = split.isPlaceholder ? (
     <TxText fg={phResolved}>
       {mode === "block" ? <TxText inverse>{split.parts.glyph}</TxText> : split.parts.glyph}
@@ -154,9 +282,9 @@ export function Textarea(props: TextareaProps): ReactNode {
     </TxText>
   ) : (
     <>
-      {split.parts.before}
+      {styled(split.parts.before, 0)}
       {renderCursor(split.parts.glyph, mode, theme)}
-      {split.parts.after}
+      {styled(split.parts.after, value.length - split.parts.after.length)}
     </>
   );
   const display = split.display;
@@ -194,7 +322,15 @@ export function Textarea(props: TextareaProps): ReactNode {
   }
 
   return (
-    <TxBox {...boxProps} flexDirection="column" minHeight={minRows} maxHeight={visibleRows} overflow="hidden" scrollY={scrollY} ref={setRef}>
+    <TxBox
+      {...boxProps}
+      flexDirection="column"
+      minHeight={minRows}
+      maxHeight={visibleRows}
+      overflow="hidden"
+      scrollY={scrollY}
+      ref={setRef}
+    >
       <TxText wrap="wrap" fg={fg}>
         {content}
       </TxText>

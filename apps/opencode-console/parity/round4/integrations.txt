@@ -1,0 +1,32 @@
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                        Connect an integration                           esc                         │                         Connect an integration                           esc
+                                                                                                     │
+                        Search                                                                       │                         Search
+                                                                                                     │
+                        Popular                                                                      │                         Popular
+                        OpenCode Go                                                                  │                         OpenCode Go
+                        OpenCode Console                                                             │                         OpenCode Console
+             ┃          OpenAI                                                                       │              ┃          OpenAI
+             ┃  Ask     GitHub Copilot                                                               │              ┃  Ask     GitHub Copilot
+             ┃          Anthropic                                                                    │              ┃          Anthropic
+             ┃  Buil    Google                                                                       │              ┃  Buil    Google
+             ╹▀▀▀▀▀▀                                                            ▀▀▀▀▀▀▀▀             │              ╹▀▀▀▀▀▀                                                            ▀▀▀▀▀▀▀▀
+             ~/proje    Services                                                commands             │              ~/proje    Services                                                commands
+                        302.AI                                                                       │                         302.AI
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                             2.1.4   │                                                                                              2.1.4
+                                                                                                     │

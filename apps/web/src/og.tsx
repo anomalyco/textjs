@@ -72,7 +72,8 @@ export async function ogCard(route: PrerenderRoute): Promise<OgCard> {
     case "opencode":
       return { ...base, section: "Playground", title: "OpenCode in the Console", wordmark: svg(<OpenCodeWordmark />), alt: alt("Playground", "OpenCode in the Console") };
     case "coffee":
-      return { ...base, section: "Playground", title: "terminal.shop in the Console", wordmark: svg(<TerminalWordmark />), alt: alt("Playground", "terminal.shop in the Console") };
+      // The terminal wordmark names the shop; an all-lowercase title read a size smaller than its second line.
+      return { ...base, section: "Playground", title: "Coffee in the Console", wordmark: svg(<TerminalWordmark />), alt: alt("Playground", "Coffee from terminal.shop in the Console") };
     case "learn": {
       if (m.slug === "") {
         const [section, rest] = title.split(": ");

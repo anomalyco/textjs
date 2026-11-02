@@ -6,11 +6,37 @@ import { createTestRoot, type TestRoot } from "./helpers";
 function cursor(t: TestRoot): { x: number; y: number } {
   t.frame();
   const b = t.root.renderer.buffer;
-  for (let y = 0; y < b.height; y++) for (let x = 0; x < b.width; x++) if ((b.getCell(x, y)?.attrs ?? 0) & ATTR_INVERSE) return { x, y };
+  for (let y = 0; y < b.height; y++)
+    for (let x = 0; x < b.width; x++) if ((b.getCell(x, y)?.attrs ?? 0) & ATTR_INVERSE) return { x, y };
   return { x: -1, y: -1 };
 }
 
 describe("<Textarea>", () => {
+  test("moves to a soft row boundary and replaces a visual-line selection", async () => {
+    const t = await createTestRoot({ width: 5, height: 6 });
+    const sent: string[] = [];
+    await t.render(<Textarea advancedEditing defaultValue="abcdefgh" autoFocus onSubmit={(s) => sent.push(s)} />);
+    await t.press("a", { altKey: true });
+    await t.press("e", { altKey: true, shiftKey: true });
+    await t.type("X");
+    await t.press("Enter");
+    expect(sent).toEqual(["abcdeX"]);
+    await t.unmount();
+  });
+  test("advanced editing replaces a selected grapheme range and undoes and redoes the edit", async () => {
+    const t = await createTestRoot();
+    const submitted: string[] = [];
+    await t.render(<Textarea autoFocus advancedEditing defaultValue="abc👩🏽‍💻" onSubmit={(s) => submitted.push(s)} />);
+    await t.press("ArrowLeft", { shiftKey: true });
+    await t.paste("X");
+    expect(t.frame()).toContain("abcX");
+    await t.press("z", { metaKey: true });
+    expect(t.frame()).toContain("abc👩🏽‍💻");
+    await t.press("z", { metaKey: true, shiftKey: true });
+    await t.press("Enter");
+    expect(submitted).toEqual(["abcX"]);
+    await t.unmount();
+  });
   test("recalls history only at a buffer edge and restores the unfinished draft", async () => {
     const t = await createTestRoot({ width: 25, height: 5 });
     await t.render(<Textarea autoFocus history={["first", "second\nline"]} defaultValue="draft" />);

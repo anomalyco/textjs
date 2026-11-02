@@ -23,6 +23,28 @@ Open the page, press **⌘⌥J** (or **Ctrl+Shift+J**), then click back into the
 
 ## Keys
 
+Type `/` to search commands or `@` to attach a file, directory or subagent. Use Up/Down (or Ctrl+P/N) to select a result. Tab opens a directory; Enter attaches it. File mentions accept line ranges such as `@src/events.ts#10-20`. You can also paste an image into the browser composer.
+
+In the sandbox, select `/demo-tools`, then press Enter to run it. The session asks whether to allow `bun test`. Allow once continues the scripted run; Reject stops it. No shell process starts.
+
+Press `Ctrl+X` to see the leader shortcuts. Open `/settings` and select **Keybinds** to change a shortcut for this connection. On a live bridge the initial bindings come from its `~/.config/opencode/cli.json` (`$XDG_CONFIG_HOME/opencode/cli.json` when set). A direct V2 HTTP connection has no access to that file.
+
+Try `/diff` to review the sandbox changes. Press `d` to select a comparison, `n` for the next file and `m` to mark it reviewed. In a session, `/terminal` opens a scripted pane. `pwd`, `ls`, `git status` and `bun test` have recorded responses. Live servers expose read-only terminal snapshots instead.
+
+`/history` can load earlier turns from the active session. `/connect` lists provider sign-in methods; `/mcps` manages MCP connections. Use a test value in sandbox sign-in dialogs. New MCP definitions register disabled, and workspace deletion refuses to force-remove modified files.
+
+### Try the sandbox
+
+| To try | What to do |
+| --- | --- |
+| Reference attachment | Type `Review @docs`, select the reference with Enter, then press Enter again to submit. |
+| Session panes | Open the first seeded session with `/sessions`. Run `/terminal`, type `pwd` and press Enter. Esc hides the pane; `Ctrl+X t` reopens it with the same output. |
+| Diff review | Run `/diff`, press `d` and select **Uncommitted**. Use `m` to mark a file reviewed, `s` for a single patch and `?` for shortcuts. **Last turn** is available inside a session. |
+| Accounts | Run `/connect`, select **OpenAI** and choose **Authorization code**. In the sandbox any test value completes the fixture. Reopen the provider to rename or disconnect the account. |
+| MCP sign-in | Run `/mcps`, select **project-notes** and press Space. Its device flow completes inside the sandbox. **design-files** starts with a connection error; Space retries it. |
+| Plugin updates | Run `/plugins`, select **project-tools**, press `Ctrl+U` and confirm the target. **example-plugin** demonstrates an error; Space shows the message. |
+| Worktrees | Run `/worktrees`, press `Ctrl+A` and type a name (or use Tab to generate one). Creating or removing a sandbox workspace only changes the fixture. |
+
 | Key                    | Action                                    |
 | ---------------------- | ----------------------------------------- |
 | `Enter` / `⇧Enter`     | Send prompt / newline (`Ctrl+J` too)      |
@@ -33,6 +55,9 @@ Open the page, press **⌘⌥J** (or **Ctrl+Shift+J**), then click back into the
 | `Ctrl+X` then `l`      | Switch session (`/sessions`)              |
 | `Ctrl+X` then `m`, `a` | Model or agent picker (`/models`, `/agents`) |
 | `Ctrl+X` then `b`      | Toggle session sidebar                    |
+| `Ctrl+X` then `g` | Search the session timeline and open message actions |
+| `Ctrl+X` then `u` / `r` | Stage an undo / restore the reverted messages |
+| `Ctrl+X` then `Enter` / `q` | Queue a prompt / manage the inbox in a V2 or sandbox session |
 | `Ctrl+T`               | Cycle model variants (`/variants` to pick) |
 | `F2` / `Shift+F2`      | Cycle recent models                       |
 | `↑` / `↓` at the ends  | Recall submitted prompts / restore draft  |
@@ -45,7 +70,9 @@ Open the page, press **⌘⌥J** (or **Ctrl+Shift+J**), then click back into the
 | `↑` / `↓`, `1`–`9` on a question | Choose an answer; `Tab` changes field, `Esc` dismisses |
 | `Ctrl+R` / `Ctrl+D` in sessions | Rename / arm deletion (repeat `Ctrl+D` to confirm) |
 
-`/help`, `/settings`, `/themes`, `/rename <title>`, `/compact` and `/copy` run locally in the client instead of sending a prompt. The theme picker previews the highlighted theme, rolls back on Escape and commits on Enter. The context sidebar overlays at ≤120 columns and docks to the right on wider screens. V2 also dispatches commands advertised by `GET /api/command`. Shell mode in the static simulation **never** executes on the host.
+`/help`, `/settings`, `/themes` and `/copy` run in the client. `/rename`, `/compact`, `/undo` and `/redo` change the session on the connected server. Server-defined commands use `/command`; `/btw` uses the session's model without adding the answer to its transcript. In shell mode, Enter runs the command in the connected session's working directory. The sandbox never executes a shell command.
+
+The theme picker previews the highlighted theme, rolls back on Escape and commits on Enter. The context sidebar overlays at ≤120 columns and docks to the right on wider screens.
 
 ## Layout
 

@@ -41,6 +41,8 @@ export interface KeyInputEvent extends KeyModifiers {
 export interface PasteInputEvent {
   type: "paste";
   text: string;
+  /** Files supplied by an actual clipboard event. No clipboard read permission is requested. */
+  files?: readonly File[];
 }
 
 export interface WheelInputEvent extends KeyModifiers {
@@ -318,8 +320,8 @@ export class InputEngine {
     });
   }
 
-  handlePaste(text: string): void {
-    if (text.length > 0 && this.enabled) this.emit("paste", { type: "paste", text: text.replace(/\r\n?/g, "\n") });
+  handlePaste(text: string, files?: readonly File[]): void {
+    if ((text.length > 0 || files?.length) && this.enabled) this.emit("paste", { type: "paste", text: text.replace(/\r\n?/g, "\n"), ...(files?.length && {files}) });
   }
 
   handleWheel(e: WheelEventLike): void {
@@ -403,7 +405,7 @@ export class InputEngine {
         if (isForeignEditable(e.target) || !this.enabled) return;
         const text = e.clipboardData?.getData("text/plain") ?? "";
         e.preventDefault();
-        this.handlePaste(text);
+        this.handlePaste(text, Array.from(e.clipboardData?.files ?? []));
       },
       { capture: true },
     );

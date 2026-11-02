@@ -7,7 +7,7 @@
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { discoverOpencode, normalizeTargetUrl, probeOpenCode, selectsTarget } from "@textjs/opencode";
+import { discoverOpencode, normalizeTargetUrl, probeOpenCode, selectsTarget,readCliKeys } from "@textjs/opencode";
 
 export { normalizeTargetUrl };
 
@@ -145,6 +145,7 @@ export function createOpencodeProxy(options: OpencodeProxyOptions = {}): Opencod
     const denied = guardRequest(request);
     if (denied) return denied;
     const incoming = new URL(request.url);
+    if(subpath==="/__textjs/keys")return request.method==="GET"?Response.json(await readCliKeys(),{headers:{"cache-control":"no-store"}}):new Response(null,{status:405});
     if (subpath === "/_status") {
       return Response.json(await status(), { headers: { "cache-control": "no-store" } });
     }

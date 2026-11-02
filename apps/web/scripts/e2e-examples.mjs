@@ -78,6 +78,7 @@ async function shootConsole(file) {
   const raw = await page.evaluate(() => window.__raw);
   if (!raw) return;
   const shot = await browser.newPage({ viewport: { width: 1100, height: 500 } });
+  await shot.route("**/*",r=>r.abort());
   await shot.setContent(`<body style="margin:0;background:#202124;padding:12px"><pre id="o" style="margin:0;font:12px/14px Menlo,monospace"></pre></body>`);
   await shot.evaluate(([format, ...args]) => {
     const o = document.getElementById("o");
@@ -192,6 +193,14 @@ if (out) {
   await preview("counter").screenshot({ path: join(out, "page-counter.png") });
   await shootConsole(join(out, "console-counter.png"));
 }
+await page.goto(`${base}/opencode`);
+await settle(800);await page.mouse.click(640,600);
+await page.keyboard.type("/demo-tools");await settle();await page.keyboard.press("Enter");await page.keyboard.press("Enter");
+await page.waitForFunction(()=>window.__frames.at(-1)?.includes("Allow once"));
+check("OpenCode: the sandbox waits for permission to run bun test",(await last()).includes("bun test"),await last());
+await page.keyboard.press("Enter");await page.waitForFunction(()=>window.__frames.at(-1)?.includes("All 3 tests passed."));
+check("OpenCode: approving resumes the scripted tool run",new URL(page.url()).pathname==="/opencode");
+
 // ── Home: the Components section runs its selected tab in the console ───────
 const homeView = (f) => f.includes("React 19 in console.log") && !f.includes("Components ›");
 const kit = page.locator(".kit-live");

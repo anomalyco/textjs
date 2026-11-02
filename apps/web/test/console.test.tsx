@@ -132,6 +132,7 @@ describe("console companion (104×32)", () => {
     expect(f).toContain("explain the renderer");
     expect(f).toMatch(/Thinking|Thought/);
     await h.key("p", { ctrl: true });
+    for(let i=0;i<100 && !h.frame().includes("Commands");i++)await h.wait(10);
     f = h.frame();
     expect(f).toContain("Commands");
     await h.type("flaky");

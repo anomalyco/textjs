@@ -15,7 +15,8 @@ export type SessionInfo = {
   directory?: string;
   outcome?: "succeeded" | "failed" | "interrupted";
   cost?: number;
-  time: { created: number; updated: number; busy?: number; idle?: number };
+  revertedFrom?: string;
+  time: { created: number; updated: number; busy?: number; idle?: number; viewed?: number };
 };
 
 export type ToolContent = { type: "text"; text: string } | { type: "file"; uri: string; mime: string; name?: string | null };
@@ -30,10 +31,24 @@ export type ToolState =
 
 export type TextPart = { type: "text"; text: string; ordinal?: number };
 export type ReasoningPart = { type: "reasoning"; text: string; ordinal?: number; time?: { created: number; completed?: number } };
-export type ToolPart = { type: "tool"; id: string; name: string; state: ToolState; time?: { created: number; ran?: number; completed?: number } };
+export type ToolPart = {
+  type: "tool";
+  id: string;
+  name: string;
+  state: ToolState;
+  time?: { created: number; ran?: number; completed?: number };
+};
 export type AssistantPart = TextPart | ReasoningPart | ToolPart;
 
-export type UserMessage = { type: "user"; id: string; time: { created: number }; text: string; pending?: boolean; files?: { name: string; mime: string }[] };
+export type UserMessage = {
+  type: "user";
+  id: string;
+  time: { created: number };
+  text: string;
+  pending?: boolean;
+  files?: { name: string; mime: string }[];
+  mentions?: readonly Attachment[];
+};
 export type AssistantMessage = {
   type: "assistant";
   id: string;
@@ -43,10 +58,16 @@ export type AssistantMessage = {
   content: AssistantPart[];
   finish?: string;
   error?: { message: string };
-  tokens?: { input: number; output: number; reasoning: number; cache?: {read:number; write:number} };
+  tokens?: { input: number; output: number; reasoning: number; cache?: { read: number; write: number } };
   cost?: number;
 };
-export type NoteMessage = { type: "note"; id: string; time: { created: number }; text: string; tone: "muted" | "info" | "warning" | "danger" };
+export type NoteMessage = {
+  type: "note";
+  id: string;
+  time: { created: number };
+  text: string;
+  tone: "muted" | "info" | "warning" | "danger";
+};
 export type ShellMessage = { type: "shell"; id: string; time: { created: number }; command: string; status: string; output?: string };
 
 export type SessionMessage = UserMessage | AssistantMessage | NoteMessage | ShellMessage;
@@ -68,10 +89,27 @@ export type FormOption = { value: string; label: string; description?: string };
 export type FormWhen = { key: string; op: "eq" | "neq"; value: string | number | boolean };
 type FormFieldBase = { key: string; title?: string; description?: string; required?: boolean; hidden?: boolean; when?: FormWhen[] };
 export type FormField =
-  | (FormFieldBase & { type: "string"; format?: "email" | "uri" | "date" | "date-time"; minLength?: number; maxLength?: number; pattern?: string; placeholder?: string; default?: string; options?: FormOption[]; custom?: boolean })
+  | (FormFieldBase & {
+      type: "string";
+      format?: "email" | "uri" | "date" | "date-time";
+      minLength?: number;
+      maxLength?: number;
+      pattern?: string;
+      placeholder?: string;
+      default?: string;
+      options?: FormOption[];
+      custom?: boolean;
+    })
   | (FormFieldBase & { type: "number" | "integer"; minimum?: number; maximum?: number; default?: number })
   | (FormFieldBase & { type: "boolean"; default?: boolean })
-  | (FormFieldBase & { type: "multiselect"; options: FormOption[]; minItems?: number; maxItems?: number; custom?: boolean; default?: string[] })
+  | (FormFieldBase & {
+      type: "multiselect";
+      options: FormOption[];
+      minItems?: number;
+      maxItems?: number;
+      custom?: boolean;
+      default?: string[];
+    })
   | { key: string; type: "external"; url: string; title?: string; description?: string };
 export type FormValue = string | number | boolean | string[];
 export type FormAnswer = Record<string, FormValue>;
@@ -79,14 +117,38 @@ export type FormAnswer = Record<string, FormValue>;
 export type FormInfo = { id: string; sessionID: string; title: string; metadata?: JsonRecord; fields: FormField[] };
 
 /** `colorIndex` is the agent's position among all visible agents (subagents included), as the TUI colors them. */
-export type AgentOption = { id: string; name: string; description?: string; color?: string; colorIndex?: number };
-export type ModelOption = { id: string; providerID: string; name: string; context?: number; variants?: string[]; free?: boolean; providerName?: string; group?: string };
+export type AgentOption = { id: string; name: string; mode?: string; description?: string; color?: string; colorIndex?: number };
+export type CommandOption = { name: string; description?: string };
+export type FileOption = { path: string; directory: boolean; uri: string };
+export type ReportKind = "usage" | "stats" | "plugins";
+export type FilePatch = { file: string; patch: string; additions: number; deletions: number; status?: string };
+export type DiffSource = "branch" | "working" | "committed" | "turn";
+export type Mention = { start: number; end: number; text: string };
+export type Attachment = ({ kind: "file"; uri: string; mime: string } | { kind: "agent" } | { kind: "skill" }) & {
+  name: string;
+  mention: Mention;
+};
+export type PromptOptions = { agent?: string; model?: ModelRef | null; attachments?: readonly Attachment[]; delivery?: "queue" };
+export type ModelOption = {
+  id: string;
+  providerID: string;
+  name: string;
+  context?: number;
+  variants?: string[];
+  free?: boolean;
+  providerName?: string;
+  group?: string;
+};
 
 export type ServerInfo = { version: string; directory?: string };
+export type KeySettings = { keybinds: Record<string, string | false>; timeout: number };
 
 /** Events consumed by the store, parsed from V2 SSE (or synthesized by V1 / demo backends). */
 export type AppEvent =
   | { type: "connected" }
+  | { type: "catalog.changed" }
+  | { type: "management.changed" }
+  | { type: "revert.changed"; sessionID: string; before?: string; committed?: boolean }
   | { type: "sessions.changed" }
   | { type: "session.renamed"; sessionID: string; title: string }
   | { type: "session.agent"; sessionID: string; agent: string }
@@ -95,7 +157,15 @@ export type AppEvent =
   | { type: "status"; sessionID: string; busy: boolean }
   | { type: "messages.changed"; sessionID: string }
   | { type: "step.started"; sessionID: string; messageID: string; agent: string; model: ModelRef; started: number }
-  | { type: "step.ended"; sessionID: string; messageID: string; finish?: string; tokens?: AssistantMessage["tokens"]; cost?: number; error?: string }
+  | {
+      type: "step.ended";
+      sessionID: string;
+      messageID: string;
+      finish?: string;
+      tokens?: AssistantMessage["tokens"];
+      cost?: number;
+      error?: string;
+    }
   | { type: "part.started"; sessionID: string; messageID: string; kind: "text" | "reasoning"; ordinal?: number }
   | { type: "part.delta"; sessionID: string; messageID: string; kind: "text" | "reasoning"; ordinal?: number; delta: string }
   | { type: "part.ended"; sessionID: string; messageID: string; kind: "text" | "reasoning"; ordinal?: number; text: string }
@@ -115,32 +185,61 @@ export type BackendKind = "v2" | "v1" | "demo";
 export type ConnectionMode = "service" | "direct" | "custom" | "demo";
 
 export interface OpenCodeClient {
+  management?: import("./management").Management;
+  terminals?: import("./terminals").Terminals;
+  workspace?: import("./workspaces").WorkspaceApi;
   readonly kind: BackendKind;
   readonly mode: ConnectionMode;
   /** Human label: `localhost:49374`, `demo`. */
   readonly label: string;
   info(): Promise<ServerInfo>;
+  keySettings?(): Promise<KeySettings>;
+  pairing?: { origins: () => Promise<string[]>; issue: () => Promise<{ code: string; expires_in: number }> };
+  shells?(id: string, dir?: string): Promise<{ id: string; command: string; status: string }[]>;
+  shellOutput?(id: string, dir?: string): Promise<string>;
+  killShell?(id: string, dir?: string): Promise<void>;
+  background?(id: string): Promise<void>;
   branch?(directory: string): Promise<string | null>;
   sessions(): Promise<SessionInfo[]>;
+  searchSessions?(query: string, directory?: string): Promise<SessionInfo[]>;
   session(id: string): Promise<SessionInfo | null>;
   messages(sessionID: string): Promise<SessionMessage[]>;
-  create(input: { agent?: string; model?: ModelRef | null; title?: string }): Promise<SessionInfo>;
-  prompt(sessionID: string, text: string, options?: { agent?: string; model?: ModelRef | null }): Promise<void>;
+  historyPage?(sessionID: string, cursor?: string): Promise<{ messages: SessionMessage[]; next?: string }>;
+  create(input: { agent?: string; model?: ModelRef | null; title?: string; directory?: string }): Promise<SessionInfo>;
+  prompt(sessionID: string, text: string, options?: PromptOptions): Promise<void>;
   interrupt(sessionID: string): Promise<void>;
   setAgent(sessionID: string, agent: string): Promise<void>;
   setModel(sessionID: string, model: ModelRef): Promise<void>;
   view(sessionID: string): Promise<void>;
   agents(): Promise<AgentOption[]>;
   models(): Promise<ModelOption[]>;
-  commands?(): Promise<string[]>;
-  command?(sessionID: string, name: string, text: string): Promise<void>;
+  commands?(directory?: string): Promise<CommandOption[]>;
+  command?(sessionID: string, name: string, text: string, options?: PromptOptions): Promise<void>;
+  findFiles?(query: string, directory?: string): Promise<FileOption[]>;
+  skills?(directory?: string): Promise<{ id: string; description?: string }[]>;
+  references?(directory?: string): Promise<{ name: string; description?: string; file: FileOption }[]>;
   rename?(sessionID: string, title: string): Promise<void>;
   removeSession?(sessionID: string): Promise<void>;
-  integrations?(): Promise<{id:string;name:string;connected:boolean}[]>;
-  mcpServers?(directory:string): Promise<{name:string; status:string}[]>;
+  integrations?(): Promise<{ id: string; name: string; connected: boolean }[]>;
+  mcpServers?(directory: string): Promise<{ name: string; status: string }[]>;
   workspaces?(): Promise<string[]>;
   compact?(sessionID: string, model: ModelRef | null): Promise<void>;
-  shell?(sessionID: string, command: string): Promise<void>;
+  shell?(sessionID: string, command: string, agent?: string): Promise<void>;
+  revert?(id: string, before: string): Promise<void>;
+  redo?(id: string): Promise<void>;
+  commitRevert?(id: string): Promise<void>;
+  fork?(id: string, before?: string): Promise<string>;
+  exportSession?(id: string): Promise<unknown>;
+  share?(id: string): Promise<string>;
+  unshare?(id: string): Promise<void>;
+  reload?(directory?: string): Promise<void>;
+  report?(kind: ReportKind, directory?: string): Promise<{ label: string; value: string }[]>;
+  diff?(id?: string, dir?: string, source?: DiffSource, base?: string): Promise<FilePatch[]>;
+  diffBase?(directory?: string): Promise<{ name: string; ref: string } | null>;
+  branches?(directory?: string): Promise<string[]>;
+  aside?(id: string, question: string): Promise<string>;
+  inbox?(id: string): Promise<{ id: string; text: string; delivery: string }[]>;
+  cancelQueued?(id: string, item: string): Promise<void>;
   defaultModel(): Promise<ModelRef | null>;
   /** Child sessions (subagents) whose requests surface in the parent. */
   children?(sessionID: string): Promise<SessionInfo[]>;

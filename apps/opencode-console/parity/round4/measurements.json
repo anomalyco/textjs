@@ -1,0 +1,49 @@
+{
+  "nativeVersion": "2.1.4",
+  "cols": 100,
+  "rows": 32,
+  "mismatches": {
+    "slash": {
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "mention": {
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "shell": {
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "reference": {
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "leader": {
+      "glyph": 333,
+      "fg": 362,
+      "bg": 684,
+      "attrs": 13
+    },
+    "diff": {
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 0
+    },
+    "integrations": {
+      "glyph": 0,
+      "fg": 0,
+      "bg": 0,
+      "attrs": 1
+    }
+  }
+}

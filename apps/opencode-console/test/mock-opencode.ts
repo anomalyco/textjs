@@ -109,8 +109,15 @@ export function startMockOpenCode(options: { password?: string; connectedProvide
 
       if (path === "/api/info") return Response.json({ version: "2.0.0-mock", pid: 1, urls: [url.origin], paths: { tmp: "/tmp" } });
       if(path === "/api/provider")return Response.json({data:[{id:"anthropic",name:"Anthropic"},{id:"openai",name:"OpenAI"}]});
-      if(path === "/api/integration")return Response.json({data:[{id:"anthropic",name:"Anthropic",connections:options.connectedProvider?[{type:"env"}]:[]}]});
+      if(path === "/api/integration")return Response.json({data:[{id:"anthropic",name:"Anthropic",methods:[{type:"key",label:"API key"}],connections:options.connectedProvider?[{type:"env",name:"FIXTURE_KEY"}]:[]}]});
+      if(path==="/api/vcs/base")return Response.json({data:{name:"main",ref:"refs/heads/main"}});
+      if(path==="/api/vcs/branch")return Response.json({data:["main","review"]});
+      if(path==="/api/vcs/diff")return Response.json({data:[{file:"src/auth.ts",patch:"--- a/src/auth.ts\n+++ b/src/auth.ts\n@@ -1 +1 @@\n-export const attempts = 2\n+export const attempts = 3",additions:1,deletions:1,status:"modified"}]});
       if (path === "/api/command") return Response.json({ data: [{ name: "review", description: "Review changes" }] });
+      if(path === "/api/fs/find") {
+        const paths=[{path:"src",type:"directory"},{path:"src/cart badge.ts",type:"file"},{path:"README.md",type:"file"}];
+        return Response.json({location:{directory:"/fixture"},data:paths.filter(f=>f.path.startsWith(url.searchParams.get("query")??""))});
+      }
       if (path === "/api/agent")
         return Response.json({
           location: { directory: DIR },

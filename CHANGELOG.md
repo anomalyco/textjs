@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- OpenCode Lite: review per-file diffs, browse prompt history, configure leader shortcuts and manage provider accounts and MCP servers. The sandbox includes a scripted terminal pane.
+- OpenCode Lite: type `/` to search commands or `@` to attach a project file. Tab opens a directory in the file menu. Connected sessions search the server's project; the sandbox searches its example repository.
 - textjs.org/coffee: the terminal.shop demo follows the console size like the SSH app, with its small, medium and large layouts and "your terminal is too small" under 20 × 10. The account adds payment methods, a profile with an editable name and weekly schedule changes for subscriptions. Signed out, the cart and the account's faq, about and debug info open without signing in.
 
 ## [1.0.3] - 2026-11-01

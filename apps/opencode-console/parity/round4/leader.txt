@@ -1,0 +1,32 @@
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                ▄                                    │                                                                 ▄
+                               █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█                               │                                █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+                               █  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀                               │                                █  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
+                               ▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀                               │                                ▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+                                                                                                     │
+                                                                                                     │
+             ┃                                                                                       │              ┃
+             ┃  Review the changes                                                                   │              ┃  Review the changes
+             ┃                                                                                       │              ┃                                  Leader · ctrl+x
+             ┃  Build · Flint 40B Free OpenCode                                                      │              ┃  Build · Flint 40B Free OpenCod  ctrl+x l List all sessions
+             ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀             │              ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀  ctrl+x i View image attachments
+             ~/project:review                          shift+tab agents  ctrl+p commands             │              ~/project:review                   ctrl+x n Create a new session
+                                                                                                     │                                                 ctrl+x m List available models
+                                                                                                     │                                                 ctrl+x a List agents
+                                                                                                     │                                                 ctrl+x e Open external editor
+                                                                                                     │                                                 ctrl+x s View status
+                                                                                                     │                                                 ctrl+x return Queue prompt
+                                                                                                     │                                                 ctrl+x q Manage queued prompts
+                                                                                                     │                                                 ctrl+x w Close current session tab
+                                                                                                     │                                                 ctrl+x 1 Switch to session tab 1
+                                                                                             2.1.4   │                                                 ctrl+x 2 Switch to session tab 2
+                                                                                                     │

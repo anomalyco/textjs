@@ -59,6 +59,87 @@ async function mount(path = "/") {
 const requested = (method: string, prefix: string): boolean => mock.requests.some((r) => r.method === method && r.path.startsWith(prefix));
 
 describe("OpenCode Lite console app (live V2 server)", () => {
+  test("a slash action at the caret preserves text to its right",async()=>{
+    const {t}=await mount();await t.paste("/help remaining draft");await t.press("a",{ctrlKey:true});
+    for(let i=0;i<5;i++)await t.press("ArrowRight");await t.press("Enter");await t.waitFor(()=>t.frame().includes("see all available"));
+    await t.press("Escape");expect(t.frame()).toContain("remaining draft");expect(t.frame()).not.toContain("/help");
+  });
+  test("leader+Enter queues without dropping the draft into the command palette", async () => {
+    const { t } = await mount("/session/ses_alpha");
+    await t.waitFor(() => t.frame().includes("It lives in"));
+    await t.type("Run tests later");
+    await t.press("x", { ctrlKey: true });
+    await t.press("Enter");
+    await t.waitFor(() => requested("POST", "/api/session/ses_alpha/prompt"));
+    expect(mock.requests.find((r) => r.path.endsWith("/prompt"))?.body).toEqual({ text: "Run tests later", delivery: "queue" });
+  });
+  test("timeline leader and message actions keep keyboard focus out of the composer", async () => {
+    const { t } = await mount("/session/ses_alpha");
+    await t.waitFor(() => t.frame().includes("It lives in"));
+    await t.press("x", { ctrlKey: true });
+    await t.press("g");
+    expect(t.frame()).toContain("Timeline");
+    await t.press("Enter");
+    expect(t.frame()).toContain("Message Actions");
+    expect(t.frame()).toContain("Revert");
+    await t.press("Enter");
+    expect(t.frame()).not.toContain("Message Actions");
+    expect(requested("POST", "/api/session/ses_alpha/prompt")).toBe(false);
+    await t.press("x", { ctrlKey: true });
+    await t.press("x");
+    expect(t.frame()).toContain("Export session transcript");
+    await t.press("Escape");
+  });
+  test("inline slash menu filters, owns Ctrl+P/N and leaves custom commands ready for arguments", async () => {
+    const { t } = await mount();
+    await t.type("/");
+    expect(t.frame()).toContain("Switch agent");
+    await t.press("p", { ctrlKey: true });
+    expect(t.frame()).not.toContain("Suggested");
+    await t.press("Escape");
+    expect(t.frame()).not.toContain("Switch agent");
+    await t.type("rvw");
+    expect(t.frame()).toContain("Review changes");
+    await t.press("Tab");
+    expect(t.frame()).toContain("/review");
+    expect(requested("POST", "/api/session")).toBe(false);
+    await t.type("staged");
+    await t.press("Enter");
+    await t.waitFor(() => mock.requests.some((r) => r.method === "POST" && r.path.endsWith("/command")));
+    expect(mock.requests.find((r) => r.method === "POST" && r.path.endsWith("/command"))?.body).toEqual({
+      name: "review",
+      text: "staged",
+    });
+  });
+  test("Tab descends into directories; Enter attaches a file and a subagent without sending", async () => {
+    const { t } = await mount();
+    await t.type("Review @src");
+    await t.waitFor(() => t.frame().includes("cart badge.ts"));
+    const rows=t.frame().split("\n"), y=rows.findIndex(row=>row.includes("cart badge.ts")), x=rows[y]!.indexOf("┃");
+    expect(t.root.renderer.buffer.getCell(x,y)?.bg).toBe(t.root.renderer.buffer.getCell(0,y)?.bg);
+    await t.press("Tab");
+    await t.waitFor(() => mock.requests.some((r) => r.path.includes("query=src%2F")));
+    await t.type("cart#2-4");
+    await t.waitFor(() => t.frame().includes("cart badge.ts#2-4"));
+    await t.press("Enter");
+    await t.type("with @expl");
+    expect(t.frame()).toContain("@explore");
+    await t.press("Enter");
+    expect(requested("POST", "/api/session")).toBe(false);
+    await t.press("Enter");
+    await t.waitFor(() => mock.requests.some((r) => r.path.endsWith("/prompt")));
+    expect(mock.requests.find((r) => r.path.endsWith("/prompt"))?.body).toEqual({
+      text: "Review @src/cart badge.ts#2-4 with @explore ",
+      files: [
+        {
+          uri: "file:///fixture/src/cart%20badge.ts?start=2&end=4",
+          name: "src/cart badge.ts#2-4",
+          mention: { start: 7, end: 29, text: "@src/cart badge.ts#2-4" },
+        },
+      ],
+      agents: [{ name: "explore", mention: { start: 35, end: 43, text: "@explore" } }],
+    });
+  });
   test("home: two-tone logo, split-border prompt with metadata, quiet status bar", async () => {
     const { t } = await mount("/");
     await t.waitFor(() => t.frame().includes("Claude Opus 5.5"), "model metadata");

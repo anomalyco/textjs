@@ -1,16 +1,18 @@
 import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Box, Input, Text, fuzzyFilter, useAppTheme, useFocus, useInput, useTheme, useViewport } from "@textjs/app";
+import { Box, Input, Text, fuzzyFilter, useAppTheme, useClipboard, useFocus, useInput, useTheme, useViewport } from "@textjs/app";
 import { useRouter } from "@textjs/app/navigation";
-import { DispatchAction, type Picker } from "../lib/commands";
+import { DispatchAction, slashCommands, type Picker, type InfoPicker } from "../lib/commands";
 import { nativeTheme, nativeThemes, rememberTheme, themeNames, useTokens, type NativeTheme } from "../lib/native-theme";
 import { useStore, useStoreState } from "../lib/store";
 import { useActiveSessionId } from "./Shell";
 import { PickerPanel } from "./PickerPanel";
+import { exportMarkdown } from "../lib/transcript";
+import { binding, defaults, NativeActions, useCommandKeys } from "../lib/bindings";
 
-export type PaletteKind = Picker;
+export type PaletteKind = Picker | InfoPicker;
 interface Props {
-  kind: Picker;
-  onKind: (kind: Picker) => void;
+  kind: PaletteKind;
+  onKind: (kind: PaletteKind) => void;
   onClose: () => void;
 }
 interface Option {
@@ -31,11 +33,37 @@ const titles = {
   settings: "Settings",
   integrations: "Connect an integration",
   workspaces: "Manage workspaces",
+  keys: "Keybinds",
+  history: "Prompt history",
+  images: "Image attachments",
+  open: "Open",
+  hostInfo: "Native terminal controls",
+  children: "Subagents",
+  shells: "Shell commands",
+  debug: "Debug",
+  pair: "Pair",
+  restart: "Restart service",
+  update: "Update OpenCode",
+  highlights: "What's new in OpenCode Lite",
+  editorInfo: "Open editor",
+  stashes: "Stashed prompts",
+  queued: "Queued prompts",
+  timeline: "Timeline",
+  fork: "Fork session",
+  status: "Status",
+  mcps: "MCP servers",
+  export: "Export session transcript",
+  share: "Share session",
+  skills: "Select skill",
+  usage: "Usage limits",
+  plugins: "Plugins",
+  stats: "Statistics",
+  diff: "Diff",
 };
 
 export function Palette(props: Props) {
   return (
-    <PickerPanel width={props.kind === "sessions" ? 88 : 60}>
+    <PickerPanel width={["sessions", "timeline", "fork"].includes(props.kind) ? 88 : 60}>
       <Content key={props.kind} {...props} />
     </PickerPanel>
   );
@@ -50,6 +78,16 @@ function Content({ kind, onKind, onClose }: Props) {
     vp = useViewport(),
     active = useActiveSessionId();
   const dispatch = useContext(DispatchAction);
+  const actions = useContext(NativeActions),
+    keys = useStoreState((s) => s.keys);
+  const { copy } = useClipboard(),
+    skills = useStoreState((s) => s.skills),
+    commands = useStoreState((s) => s.commands),
+    messages = useStoreState((s) => (active ? s.messages[active] : undefined));
+  const [message, selectMessage] = useState(""),
+    [waiting, setWaiting] = useState(false);
+  const [thinking, withThinking] = useState(true),
+    [tools, withTools] = useState(true);
   const sessions = useStoreState((s) => s.sessions),
     agents = useStoreState((s) => s.agents),
     models = useStoreState((s) => s.models),
@@ -57,75 +95,262 @@ function Content({ kind, onKind, onClose }: Props) {
     agent = useStoreState((s) => s.agent);
   const connection = useStoreState((s) => s.connection),
     ui = useStoreState((s) => s.ui);
-  const favorites=useStoreState(s=>s.favorites), connected=models.some(m=>!!m.group);
+  const favorites = useStoreState((s) => s.favorites),
+    connected = models.some((m) => !!m.group);
   const [query, filter] = useState(""),
     [index, highlight] = useState<number | null>(null),
     [allProjects, showAll] = useState(false);
   const [deleting, setDeleting] = useState(""),
     [renaming, setRenaming] = useState(""),
     [titleDraft, setTitleDraft] = useState("");
-  const [integrations, setIntegrations] = useState<{ id: string; name: string }[]>([]),
-    [notice, setNotice] = useState("");
-  const [workspaces, setWorkspaces] = useState<string[]>([]);
+  const [notice, setNotice] = useState("");
+  const [projects, setProjects] = useState<{ canonical: string; name?: string }[]>([]);
   useEffect(() => {
-    if (kind !== "workspaces") return;
-    let alive = true;
-    void store.api?.workspaces?.().then(
-      (v) => {
-        if (alive) setWorkspaces(v);
-      },
-      (e) => {
-        if (alive) setNotice(String(e));
-      },
-    );
+    let live = true;
+    if (kind === "open")
+      void store.api?.workspace?.projects().then(
+        (v) => {
+          if (live) setProjects(v);
+        },
+        (e) => {
+          if (live) setNotice(String(e));
+        },
+      );
     return () => {
-      alive = false;
+      live = false;
     };
   }, [kind, store]);
   const initialTheme = useRef(theme),
     confirmed = useRef(false);
+  const dir = sessions.find((s) => s.id === active)?.directory ?? connection.directory;
+  const pins = useStoreState((s) => s.pins),
+    [matches, setMatches] = useState<{ query: string; rows: typeof sessions }>();
   useEffect(() => {
-    if (kind !== "integrations") return;
-    let alive = true;
-    void store.api?.integrations?.().then(
-      (v) => {
-        if (alive) setIntegrations(v);
-      },
-      (e) => {
-        if (alive) setNotice(String(e));
-      },
+    if (kind !== "sessions" || !query.trim() || !store.api?.searchSessions) return;
+    let live = true;
+    const timer = setTimeout(
+      () =>
+        void store.api!.searchSessions!(query, allProjects ? undefined : dir).then(
+          (rows) => {
+            if (live) setMatches({ query, rows });
+          },
+          () => {},
+        ),
+      100,
     );
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [store, query, kind, allProjects, dir]);
+  const [mcps, setMcps] = useState<{ name: string; status: string }[]>([]);
+  const [report, setReport] = useState<{ label: string; value: string }[]>([]);
+  const stashes = useStoreState((s) => s.stashes),
+    [queue, setQueue] = useState<{ id: string; text: string; delivery: string }[]>([]);
+  const busy = useStoreState((s) => active && s.busy[active]);
+  useEffect(() => {
+    let live = true;
+    if (kind === "queued" && active)
+      void store.api?.inbox?.(active).then(
+        (list) => {
+          if (live) setQueue(list);
+        },
+        (e) => {
+          if (live) setNotice(String(e));
+        },
+      );
+    return () => {
+      live = false;
+    };
+  }, [kind, active, store, busy]);
+  useEffect(() => {
+    let alive = true;
+    if (kind === "usage" || kind === "stats")
+      void store.api?.report?.(kind, dir).then(
+        (v) => {
+          if (alive) setReport(v);
+        },
+        (e) => {
+          if (alive) setNotice(String(e));
+        },
+      );
     return () => {
       alive = false;
     };
-  }, [kind, store]);
-  const dir = sessions.find((s) => s.id === active)?.directory ?? connection.directory;
+  }, [kind, dir, store]);
+  useEffect(() => {
+    let alive = true;
+    if (kind === "status" && dir)
+      void store.api?.mcpServers?.(dir).then(
+        (v) => {
+          if (alive) setMcps(v);
+        },
+        (e) => {
+          if (alive) setNotice(String(e));
+        },
+      );
+    return () => {
+      alive = false;
+    };
+  }, [kind, dir, store]);
   const proj = dir?.replace(/\/+$/u, "").split("/").pop() || "project";
   const options = useMemo((): Option[] => {
     const today = new Date().toDateString();
-    const list: Option[] = sessions
+    const candidates =
+      kind === "sessions" && query && matches?.query === query
+        ? [...new Map([...sessions, ...matches.rows].map((s) => [s.id, s])).values()]
+        : sessions;
+    const list: Option[] = candidates
       .filter((s) => !s.parentID && (kind !== "sessions" || allProjects || !dir || !s.directory || s.directory === dir))
       .map((s) => ({
         value: `session:${s.id}`,
         label: s.title || "Untitled session",
-        group: new Date(s.time.updated).toDateString() === today ? "Today" : new Date(s.time.updated).toDateString(),
-      }));
+        group: pins.includes(s.id)
+          ? "Pinned"
+          : new Date(s.time.updated).toDateString() === today
+            ? "Today"
+            : new Date(s.time.updated).toDateString(),
+      }))
+      .sort((a, b) => Number(b.group === "Pinned") - Number(a.group === "Pinned"));
     if (kind === "sessions") return list;
-    if (kind === "workspaces")
-      return [...new Set([...(dir ? [dir] : []), ...workspaces])].map((d) => ({ label: d, value: `workspace:${d}`, current: d === dir }));
+    if (kind === "hostInfo")
+      return [
+        { value: "dismiss", label: "Console", detail: "OpenCode Lite runs in the DevTools Console." },
+        { value: "dismiss", label: "File context", detail: "Use @ to attach a server file. There is no IDE selection." },
+        { value: "dismiss", label: "Suspend terminal", detail: "DevTools cannot suspend a terminal process." },
+        { value: "dismiss", label: "Terminal title", detail: "The inspected page owns the browser title." },
+      ].map((v, i) => ({ ...v, value: `host:${i}` }));
+    if (kind === "open")
+      return [
+        ...list.map((o) => ({ ...o, group: "Sessions" })),
+        ...[
+          ...new Set(
+            [...projects.map((p) => p.canonical), ...sessions.map((s) => s.directory)].filter((d): d is string => !!d && d !== "/"),
+          ),
+        ].map((d) => ({
+          value: "project-dir:" + d,
+          label: projects.find((p) => p.canonical === d)?.name ?? d.split("/").at(-1) ?? d,
+          group: "Projects",
+          hint: d,
+        })),
+      ];
+    if (kind === "debug")
+      return [
+        ["Version", connection.version],
+        ["Terminal", "Text.js"],
+        ["Session ID", active ?? "n/a"],
+        ["Model", model ? model.providerID + "/" + model.id : "n/a"],
+        ["Size", vp.cols + "×" + vp.rows],
+      ].map(([label, hint]) => ({ value: "copyDebug", label: label!, hint }));
+    if (kind === "pair" || kind === "restart" || kind === "update")
+      return [
+        {
+          value: "dismiss",
+          label:
+            kind === "pair"
+              ? "Open /pair in the native TUI."
+              : kind === "restart"
+                ? "Run opencode service restart in your terminal."
+                : "Run /update in the native TUI.",
+        },
+        {
+          value: "dismiss-note",
+          label:
+            kind === "pair"
+              ? "Pairing links grant server access. They aren't printed in DevTools."
+              : "DevTools does not control the native installation.",
+        },
+      ];
+    if (kind === "highlights")
+      return [
+        { value: "action:models", label: "Switch model", description: "Type /models" },
+        { value: "action:diff", label: "Review changes", description: "Type /diff" },
+        { value: "action:help", label: "Help" },
+      ];
+    if (kind === "editorInfo")
+      return [
+        { value: "dismiss", label: "Set $VISUAL or $EDITOR to open an external editor" },
+        { value: "dismiss-note", label: "DevTools cannot launch the native editor. Your draft stays here." },
+      ];
+    if (kind === "queued") return queue.map((q) => ({ value: "queue:" + q.id, label: q.text, hint: q.delivery }));
+    if (kind === "stashes") return stashes.map((s, i) => ({ value: "stash:" + i, label: s.text }));
+    if (kind === "usage" || kind === "stats") return report.map((r, i) => ({ value: `report:${i}`, label: r.label, hint: r.value }));
+    if (kind === "timeline" && message)
+      return [
+        { value: "jump", label: "Jump to", description: "view message in session" },
+        { value: "revert", label: "Revert", description: "undo messages and file changes" },
+        { value: "messageCopy", label: "Copy", description: "message text to clipboard" },
+        { value: "messageFork", label: "Fork", description: "create a new session" },
+      ];
+    if (kind === "timeline" || kind === "fork")
+      return [
+        ...(kind === "fork" ? [{ value: "fullFork", label: "Full session" }] : []),
+        ...(messages ?? [])
+          .slice()
+          .reverse()
+          .flatMap((m) =>
+            m.type === "user" && !m.pending
+              ? [
+                  {
+                    value: "msg:" + m.id,
+                    label: m.text.replace(/\s+/g, " "),
+                    hint: new Date(m.time.created).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                  },
+                ]
+              : [],
+          ),
+      ];
+    if (kind === "skills") return skills.map((s) => ({ value: "skill:" + s.id, label: s.id, description: s.description }));
+    if (kind === "status" || kind === "mcps")
+      return [
+        ...(kind === "status"
+          ? [
+              { value: "serverInfo", label: connection.label, hint: connection.version, group: "Server" },
+              { value: "dirInfo", label: dir ?? "", group: "Directory" },
+            ]
+          : []),
+        ...mcps.map((m) => ({ value: "mcp:" + m.name, label: m.name, hint: m.status, group: "MCP" })),
+      ];
+    if (kind === "export")
+      return [
+        { value: "mdCopy", label: "Copy Markdown to clipboard" },
+        ...(typeof document !== "undefined" ? [{ value: "mdFile", label: "Save Markdown file" }] : []),
+        { value: "exportCopy", label: "Copy JSON to clipboard" },
+        ...(typeof document !== "undefined" ? [{ value: "exportFile", label: "Save JSON file" }] : []),
+        { value: "mdThinking", label: "Include thinking", hint: thinking ? "on" : "off" },
+        { value: "mdTools", label: "Include tools", hint: tools ? "on" : "off" },
+      ];
+    if (kind === "share")
+      return [
+        { value: "cancel", label: "Cancel" },
+        connection.kind === "demo"
+          ? { value: "publish", label: "Preview transcript link", description: "Only works in this browser" }
+          : { value: "publish", label: "Create public share link", description: "Include this session's messages and tool output" },
+      ];
     if (kind === "themes") return themeNames.map((n) => ({ label: n, value: `theme:${n}`, current: n === initialTheme.current.name }));
-    if (kind === "integrations") return integrations.map((v) => ({ label: v.name, value: `integration:${v.id}` }));
     if (kind === "models") {
-      const recent=store.recent().map(m=>`model:${m.providerID}/${m.id}`);
-      const priority=(id:string)=>id==="opencode-go"?0:id==="opencode"?1:2;
-      const list=models.slice().sort((a,b)=>(connected ? priority(a.providerID)-priority(b.providerID) || (a.group??"").localeCompare(b.group??"") : 0)||Number(!!b.free)-Number(!!a.free)).map(m=>{
-        const value=`model:${m.providerID}/${m.id}`;
-        return {value,label:m.name,hint:m.free?"Free":undefined,current:m.id===model?.id && m.providerID===model.providerID,
-          group:connected && favorites.includes(value)?"Favorites":connected && recent.includes(value)?"Recent":m.group,
-          description:connected && favorites.includes(value) && query?"(Favorite)":undefined};
-      });
-      const rank=(g?:string)=>g==="Favorites"?0:g==="Recent"?1:2;
-      return list.sort((a,b)=>rank(a.group)-rank(b.group));
+      const recent = store.recent().map((m) => `model:${m.providerID}/${m.id}`);
+      const priority = (id: string) => (id === "opencode-go" ? 0 : id === "opencode" ? 1 : 2);
+      const list = models
+        .slice()
+        .sort(
+          (a, b) =>
+            (connected ? priority(a.providerID) - priority(b.providerID) || (a.group ?? "").localeCompare(b.group ?? "") : 0) ||
+            Number(!!b.free) - Number(!!a.free),
+        )
+        .map((m) => {
+          const value = `model:${m.providerID}/${m.id}`;
+          return {
+            value,
+            label: m.name,
+            hint: m.free ? "Free" : undefined,
+            current: m.id === model?.id && m.providerID === model.providerID,
+            group: connected && favorites.includes(value) ? "Favorites" : connected && recent.includes(value) ? "Recent" : m.group,
+            description: connected && favorites.includes(value) && query ? "(Favorite)" : undefined,
+          };
+        });
+      const rank = (g?: string) => (g === "Favorites" ? 0 : g === "Recent" ? 1 : 2);
+      return list.sort((a, b) => rank(a.group) - rank(b.group));
     }
     if (kind === "agents")
       return agents.map((a) => ({ value: `agent:${a.id}`, label: a.id, description: a.description, current: a.id === agent }));
@@ -136,15 +361,34 @@ function Content({ kind, onKind, onClose }: Props) {
         current: v === (model?.variant ?? "default"),
       }));
     const settings: Option[] = [
+      { value: "clear-local-history", label: "Clear local prompt history", group: "Input" },
+      { value: "action:hostInfo", label: "Native terminal controls", group: "System" },
+      { value: "tabs-mode", label: ui.noTabs ? "Show session tabs" : "Hide session tabs", group: "Session" },
+      { value: "action:keys", label: "Keybinds", group: "Input" },
       { value: "themes", label: "Switch theme", group: "Appearance" },
       { value: "mode", label: "Switch theme mode", group: "Appearance" },
-      ...(active ? [{ value: "sidebar", label: (ui.sidebar ?? vp.cols>120) ? "Hide sidebar" : "Show sidebar", group: "Session", hint: "ctrl+x b" }] : []),
+      ...(active
+        ? [
+            {
+              value: "sidebar",
+              label: (ui.sidebar ?? vp.cols > 120) ? "Hide sidebar" : "Show sidebar",
+              group: "Session",
+              hint: "ctrl+x b",
+            },
+          ]
+        : []),
       { value: "tools", label: ui.toolDetails ? "Compact tool output" : "Expand tool output", group: "Session" },
       { value: "group", label: ui.groupExploration ? "Show tool calls individually" : "Group related tool calls", group: "Session" },
       { value: "thinking", label: ui.thinking ? "Collapse thinking" : "Expand thinking", group: "Session" },
     ];
     if (kind === "settings") return settings;
     const base: Option[] = [
+      ...(active
+        ? [
+            { value: "action:children", label: "Select subagent", group: "Session" },
+            { value: "action:shells", label: "View shell output", group: "Session" },
+          ]
+        : []),
       { value: "sessions", label: "Switch session", hint: "ctrl+x l", group: "Session" },
       { value: "new", label: "New session", hint: "ctrl+x n", group: "Session" },
       { value: "clear", label: "Clear session", group: "Session" },
@@ -152,6 +396,14 @@ function Content({ kind, onKind, onClose }: Props) {
       { value: "close", label: "Close tab", hint: "ctrl+x w", group: "Session" },
       { value: "reopen", label: "Reopen closed tab", hint: "ctrl+shift+t", group: "Session" },
       { value: "editor", label: "Open editor", hint: "ctrl+x e", group: "Session" },
+      { value: "stash", label: "Stash prompt", group: "Prompt" },
+      ...(stashes.length
+        ? [
+            { value: "pop", label: "Pop stashed prompt", group: "Prompt" },
+            { value: "stashes", label: "List stashed prompts", group: "Prompt" },
+          ]
+        : []),
+      ...(active && store.api?.inbox ? [{ value: "queued", label: "Queued prompts", hint: "ctrl+x q", group: "Session" }] : []),
       { value: "workspaces", label: "Manage workspaces", group: "Session" },
       { value: "models", label: "Switch model", hint: "ctrl+x m", group: "Agent" },
       { value: "agents", label: "Switch agent", hint: "ctrl+x a", group: "Agent" },
@@ -164,6 +416,23 @@ function Content({ kind, onKind, onClose }: Props) {
       ...(active ? [{ value: "copy", label: "Copy last assistant message", hint: "ctrl+x y", group: "Session" }] : []),
       ...settings,
     ];
+    for (const c of slashCommands(commands, !!active, !!store.api?.share, connection.kind === "v1")) {
+      if (!c.action || c.aliases?.includes(c.name) || base.some((o) => o.value === c.action || o.value === "action:" + c.action))
+        continue;
+      base.push({ value: "action:" + c.action, label: c.description ?? c.name, group: c.session ? "Session" : "System", hint: c.key });
+    }
+    for (const [id, fn] of Object.entries(actions)) {
+      if (!fn || !defaults[id] || id.startsWith("session.tab.select.") || id.startsWith("session.quick_switch.")) continue;
+      const hint = binding(id, keys).split(",")[0],
+        defaultHint = defaults[id]![0]?.replace("<leader>", "ctrl+x ").split(",")[0];
+      const existing = base.find((o) => o.hint && o.hint === defaultHint);
+      if (existing) {
+        existing.hint = hint;
+        continue;
+      }
+      if (!base.some((o) => o.label === defaults[id]![1]))
+        base.push({ value: "native:" + id, label: defaults[id]![1]!, group: defaults[id]![2], hint });
+    }
     if (query) return [...base, ...list];
     const suggested = [
       ...(sessions.length && store.tabs.list().length ? ["sessions"] : []),
@@ -173,7 +442,39 @@ function Content({ kind, onKind, onClose }: Props) {
       "settings",
     ];
     return [...suggested.map((value) => ({ ...base.find((o) => o.value === value)!, group: "Suggested" })), ...base];
-  }, [kind, query, sessions, allProjects, dir, agents, models, model, agent, ui, store, active, integrations, workspaces,favorites,connected,vp.cols]);
+  }, [
+    kind,
+    query,
+    sessions,
+    allProjects,
+    dir,
+    agents,
+    models,
+    model,
+    agent,
+    ui,
+    store,
+    active,
+    favorites,
+    connected,
+    vp.cols,
+    commands,
+    message,
+    messages,
+    skills,
+    mcps,
+    connection,
+    report,
+    pins,
+    matches,
+    stashes,
+    queue,
+    actions,
+    keys,
+    thinking,
+    tools,
+    projects,
+  ]);
   const filtered = useMemo(
     () => (query ? fuzzyFilter(query, options, (o) => `${o.label} ${o.description ?? ""} ${o.value}`).map((v) => v.item) : options),
     [options, query],
@@ -190,6 +491,9 @@ function Content({ kind, onKind, onClose }: Props) {
     ),
   );
   const item = filtered[selected];
+  useEffect(() => {
+    if (active && (kind === "timeline" || kind === "fork") && item?.value.startsWith("msg:")) store.jump(active, item.value.slice(4));
+  }, [active, kind, item?.value, store]);
   const rows: ({ heading: string } | { option: Option; i: number })[] = [];
   let group = "",
     activeRow = 0;
@@ -222,30 +526,140 @@ function Content({ kind, onKind, onClose }: Props) {
     else router.push("/");
   };
   const choose = (o: Option | undefined) => {
-    if (!o) return;
+    if (!o || waiting) return;
     const v = o.value;
+    if (v === "clear-local-history") {
+      store.clearHistory();
+      onClose();
+      return;
+    }
+    if (v === "mdThinking") {
+      withThinking(!thinking);
+      return;
+    }
+    if (v === "mdTools") {
+      withTools(!tools);
+      return;
+    }
+    if (v.startsWith("project-dir:")) {
+      void store.cd(null, v.slice(12)).then(
+        () => {
+          router.push("/");
+          onClose();
+        },
+        (e) => setNotice(String(e)),
+      );
+      return;
+    }
+    if (v === "copyDebug") {
+      void copy(options.map((o) => o.label + ": " + o.hint).join("\n")).then((ok) =>
+        store.notify(ok ? "Debug info copied to clipboard" : "Clipboard unavailable"),
+      );
+      onClose();
+      return;
+    }
+    if (v.startsWith("native:")) {
+      onClose();
+      actions[v.slice(7)]?.();
+      return;
+    }
+    if (v === "tabs-mode") {
+      store.toggle("noTabs");
+      onClose();
+      return;
+    }
+    if (v === "stashes" || v === "queued") {
+      onKind(v);
+      return;
+    }
+    if (v === "stash") {
+      store.composer?.("stash");
+      onClose();
+      return;
+    }
+    if (v === "pop" || v.startsWith("stash:")) {
+      const i = v === "pop" ? 0 : Number(v.slice(6)),
+        s = stashes[i];
+      if (s) {
+        store.restore(active ?? "", s.text, undefined, s.marks);
+        store.dropStash(i);
+      }
+      onClose();
+      return;
+    }
+    if (v.startsWith("action:")) {
+      onClose();
+      dispatch(v.slice(7) as import("../lib/commands").Action);
+      return;
+    }
+    if (v.startsWith("msg:") && kind === "timeline") {
+      selectMessage(v.slice(4));
+      update("");
+      return;
+    }
+    if (v.startsWith("skill:")) {
+      store.restore(active ?? "", "@" + v.slice(6) + " ", v.slice(6));
+      onClose();
+      return;
+    }
+    if (["timeline", "fork", "share", "export"].includes(kind) && active) {
+      const sid = active;
+      setWaiting(true);
+      void (async () => {
+        const id = v.startsWith("msg:") ? v.slice(4) : message;
+        const m = messages?.find((m) => m.id === id);
+        if (v === "revert") await store.revert(sid, false, id);
+        if (v === "messageCopy" && m?.type === "user" && !(await copy(m.text))) throw Error("Clipboard unavailable");
+        if (v === "messageFork" || kind === "fork") {
+          if (!store.api?.fork) throw Error("Fork unavailable on this server");
+          const fork = await store.api.fork(sid, id || undefined);
+          if (m?.type === "user") store.restore(fork, m.text, undefined, m.mentions);
+          goSession(fork);
+        }
+        if (v === "publish" && store.api?.share) {
+          const url = await store.api.share(sid);
+          if (!(await copy(url))) {
+            setNotice(url);
+            return;
+          }
+          store.notify("Share link copied to clipboard", "success");
+        }
+        if (kind === "export") {
+          const md = v === "mdCopy" || v === "mdFile";
+          const data = md
+            ? await exportMarkdown(store.api!, store.session(sid)!, thinking, tools)
+            : store.api?.exportSession
+              ? await store.api.exportSession(sid)
+              : { info: store.session(sid), messages: await store.api?.messages(sid) };
+          const json = md ? String(data) : JSON.stringify(data, null, 2);
+          if (v === "exportCopy" || v === "mdCopy") {
+            if (!(await copy(json))) throw Error("Clipboard unavailable");
+            store.notify("Copied to clipboard");
+          } else {
+            const url = URL.createObjectURL(new Blob([json], { type: md ? "text/markdown" : "application/json" }));
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `session-${sid}.${md ? "md" : "json"}`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }
+        }
+        onClose();
+      })()
+        .catch((e) => setNotice(String(e)))
+        .finally(() => setWaiting(false));
+      return;
+    }
     if (["models", "agents", "sessions", "themes", "variants", "settings", "integrations", "workspaces"].includes(v)) {
       onKind(v as Picker);
       return;
     }
-    if (v.startsWith("workspace:")) {
-      const id = sessions.find((s) => s.directory === v.slice(10))?.id;
-      if (id) {
-        goSession(id);
-        onClose();
-      } else setNotice("No sessions in this workspace");
-      return;
-    }
     if (v === "open") {
-      onKind("sessions");
+      onKind("open");
       return;
     }
     if (v === "editor") {
-      setNotice("External editor requires the native CLI.");
-      return;
-    }
-    if (v.startsWith("integration:")) {
-      setNotice(`Use the native CLI to connect ${o.label}.`);
+      onKind("editorInfo");
       return;
     }
     if (v.startsWith("theme:")) {
@@ -271,7 +685,7 @@ function Content({ kind, onKind, onClose }: Props) {
       const id = store.tabs.reopen();
       if (id) goSession(id);
     } else if (v === "sidebar" || v === "thinking" || v === "group" || v === "tools")
-      store.toggle(v === "group" ? "groupExploration" : v === "tools" ? "toolDetails" : v,v==="sidebar" && vp.cols>120);
+      store.toggle(v === "group" ? "groupExploration" : v === "tools" ? "toolDetails" : v, v === "sidebar" && vp.cols > 120);
     else if (v === "connect") router.push("/connect");
     else if (v === "reload") void store.refreshSessions();
     else if (v === "help" || v === "copy") dispatch(v);
@@ -300,34 +714,11 @@ function Content({ kind, onKind, onClose }: Props) {
         setRenaming("");
       } else if (k === "escape") {
         onClose();
-      } else if (k === "up" || k === "down" || (e.ctrl && ["n", "p"].includes(k)))
-        highlight((selected + (["up", "p"].includes(k) ? -1 : 1) + filtered.length) % Math.max(1, filtered.length));
-      else if (k === "pageup" || k === "pagedown")
-        highlight(Math.max(0, Math.min(filtered.length - 1, selected + (k === "pageup" ? -limit : limit))));
-      else if (k === "home" || k === "end") highlight(k === "home" ? 0 : Math.max(0, filtered.length - 1));
-      else if (e.ctrl && k === "a" && kind === "models") onKind("integrations");
-      else if(e.ctrl && k==="f" && kind==="models" && connected && item){store.toggleFavorite(item.value);highlight(null);}
-      else if (e.ctrl && k === "a" && kind === "sessions") {
+      } else if (e.ctrl && k === "a" && kind === "sessions") {
         showAll(!allProjects);
         highlight(0);
-      } else if (e.ctrl && ["r", "d"].includes(k) && kind === "sessions" && item) {
-        const id = item.value.slice(8);
-        if (k === "r") {
-          setRenaming(id);
-          setTitleDraft(item.label);
-        } else if (!e.repeat && deleting === id && store.api?.removeSession) {
-          setDeleting("");
-          void store.api.removeSession(id).then(
-            async () => {
-              store.tabs.close(id);
-              await store.refreshSessions();
-              if (active === id) goSession(undefined);
-            },
-            (e) => setNotice(String(e)),
-          );
-        } else if (!e.repeat) setDeleting(id);
       } else return;
-      if (k !== "d") setDeleting("");
+      setDeleting("");
       e.stopPropagation();
     },
     { priority: 30 },
@@ -342,13 +733,91 @@ function Content({ kind, onKind, onClose }: Props) {
       (e) => setNotice(String(e)),
     );
   };
-  const title = renaming
-    ? "Rename session"
-    : connection.kind === "demo" && kind === "sessions"
-      ? "Switch session"
-      : connection.kind === "demo" && kind === "models"
-        ? "Switch model"
-        : titles[kind];
+  const nav = (i: number) => {
+    highlight(i);
+    setDeleting("");
+  };
+  const cancelQueued = (undo: boolean) => {
+    if (!active || !item || waiting || !store.api?.cancelQueued) return;
+    const id = item.value.slice(6);
+    setWaiting(true);
+    void store.api
+      .cancelQueued(active, id)
+      .then(
+        () => {
+          setQueue((prev) => prev.filter((q) => q.id !== id));
+          if (undo) {
+            store.restore(active, item.label);
+            onClose();
+          }
+        },
+        (e) => setNotice(String(e)),
+      )
+      .finally(() => setWaiting(false));
+  };
+  const sid = kind === "sessions" && item ? item.value.slice(8) : undefined;
+  useCommandKeys(
+    renaming
+      ? { "dialog.prompt.submit": () => edit(titleDraft) }
+      : {
+          "dialog.select.prev": () => nav((selected - 1 + filtered.length) % Math.max(1, filtered.length)),
+          "dialog.select.next": () => nav((selected + 1) % Math.max(1, filtered.length)),
+          "dialog.select.page_up": () => nav(Math.max(0, selected - limit)),
+          "dialog.select.page_down": () => nav(Math.min(filtered.length - 1, selected + limit)),
+          "dialog.select.home": () => nav(0),
+          "dialog.select.end": () => nav(Math.max(0, filtered.length - 1)),
+          "dialog.select.submit": () => choose(item),
+          "model.dialog.provider": kind === "models" ? () => onKind("integrations") : undefined,
+          "model.dialog.usage": kind === "models" ? () => onKind("usage") : undefined,
+          "model.dialog.favorite":
+            kind === "models" && connected && item
+              ? () => {
+                  store.toggleFavorite(item.value);
+                  highlight(null);
+                }
+              : undefined,
+          "session.pin.toggle": sid ? () => store.togglePin(sid) : undefined,
+          "session.rename": sid
+            ? () => {
+                setRenaming(sid);
+                setTitleDraft(item!.label);
+                setDeleting("");
+              }
+            : undefined,
+          "session.delete": sid
+            ? () => {
+                if (deleting !== sid) {
+                  setDeleting(sid);
+                  return;
+                }
+                setDeleting("");
+                void store.api?.removeSession?.(sid).then(
+                  async () => {
+                    store.tabs.forget(sid);
+                    await store.refreshSessions();
+                    if (active === sid) goSession(undefined);
+                  },
+                  (e) => setNotice(String(e)),
+                );
+              }
+            : undefined,
+          "queued_prompt.undo": kind === "queued" ? () => cancelQueued(true) : undefined,
+          "queued_prompt.delete": kind === "queued" ? () => cancelQueued(false) : undefined,
+          "stash.delete": kind === "stashes" && item ? () => store.dropStash(Number(item.value.slice(6))) : undefined,
+        },
+    30,
+  );
+  const keyHint = (id: string) => binding(id, keys).split(",")[0];
+  const title =
+    kind === "timeline" && message
+      ? "Message Actions"
+      : renaming
+        ? "Rename session"
+        : connection.kind === "demo" && kind === "sessions"
+          ? "Switch session"
+          : connection.kind === "demo" && kind === "models"
+            ? "Switch model"
+            : titles[kind];
   const filterInput = (
     <Input
       key={renaming || kind}
@@ -358,7 +827,6 @@ function Content({ kind, onKind, onClose }: Props) {
       autoFocus
       placeholder="Search"
       placeholderColor={t.muted}
-      onSubmit={renaming ? edit : () => choose(item)}
     />
   );
   const foot = kind === "models" || kind === "sessions";
@@ -421,12 +889,19 @@ function Content({ kind, onKind, onClose }: Props) {
         <Box flexDirection="row" marginTop={1} paddingX={4} justifyContent="space-between">
           {kind === "models" ? (
             <Text>
-              {connected?"Connect an integration":"View all integrations"}<Text color={t.muted}> ctrl+a</Text>{connected && <>{"  "}Favorite<Text color={t.muted}> ctrl+f</Text></>}
+              {connected ? "Connect an integration" : "View all integrations"}
+              <Text color={t.muted}> {keyHint("model.dialog.provider")}</Text>
+              {connected && (
+                <>
+                  {"  "}Favorite<Text color={t.muted}> {keyHint("model.dialog.favorite")}</Text>
+                </>
+              )}
             </Text>
           ) : (
             <>
               <Text>
-                delete<Text color={t.muted}>{" ctrl+d  "}</Text>rename<Text color={t.muted}> ctrl+r</Text>
+                delete<Text color={t.muted}>{` ${keyHint("session.delete")}  `}</Text>rename
+                <Text color={t.muted}> {keyHint("session.rename")}</Text>
               </Text>
               <Text>
                 {allProjects ? "current directory" : "all projects"}
@@ -439,6 +914,11 @@ function Content({ kind, onKind, onClose }: Props) {
       {notice && (
         <Text marginTop={1} paddingX={4} color={t.warning}>
           {notice}
+        </Text>
+      )}
+      {kind === "queued" && (
+        <Text paddingX={4} color={t.muted}>
+          undo ctrl+u delete ctrl+d
         </Text>
       )}
       <Box height={foot ? 1 : 2} />

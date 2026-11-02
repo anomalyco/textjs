@@ -4,11 +4,11 @@ import { useTokens } from "../lib/native-theme";
 
 /** packages/tui/src/ui/dialog.tsx (legacy/classic surface). Same modal trap
  * as the Text.js kit; the TUI doesn't center or draw a rounded frame. */
-export function InputTrap({ children }: { children: ReactNode }) {
+export function InputTrap({ children, active = true }: { children: ReactNode; active?: boolean }) {
   const rt = useRuntime(),
     parent = useContext(ScopeContext);
   const scope = useMemo(() => createScope(parent, true), [parent]);
-  useLayoutEffect(() => rt.focus.pushTrap(scope), [rt, scope]);
+  useLayoutEffect(() => (active ? rt.focus.pushTrap(scope) : undefined), [rt, scope, active]);
   return <ScopeContext value={scope}>{children}</ScopeContext>;
 }
 export function PickerPanel({ children, width = 60 }: { children: ReactNode; width?: number }) {

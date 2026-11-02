@@ -5,6 +5,7 @@
 //   bun run dev   (or: bun run build && bun run preview)
 //   PLAYWRIGHT=/path/to/playwright-core BASE=http://localhost:3000 node scripts/e2e-keys.mjs
 import { fileURLToPath } from "node:url";
+import {gzipSync} from "node:zlib";
 
 const pw = process.env.PLAYWRIGHT ?? fileURLToPath(new URL("../../../bench/devtools/node_modules/playwright-core/index.mjs", import.meta.url));
 const { chromium } = await import(pw);
@@ -23,6 +24,7 @@ await page.addInitScript(() => {
 // Never reach a real local OpenCode server from tests: the OpenCode page must stay in its sandbox.
 await page.route((url) => /^(127\.0\.0\.1|localhost|\[::1\])$/.test(url.hostname) && url.port !== port, (r) => r.abort());
 const errors = [];
+const modules=new Map();page.on("response",r=>{const u=new URL(r.url());if(u.origin===new URL(base).origin&&/^\/assets\/.*\.js$/.test(u.pathname))modules.set(u.pathname,r);});
 page.on("pageerror", (e) => errors.push(e.message));
 const last = () => page.evaluate(() => window.__frames[window.__frames.length - 1] ?? "");
 const settle = (ms = 250) => page.waitForTimeout(ms);
@@ -59,6 +61,8 @@ check("picker pills are words only", (await page.locator(".pad-picker svg").coun
 const wordmark = () => page.evaluate(() => document.querySelector(".tx-pad-desk .pad-slot-banner svg")?.getAttribute("aria-label") ?? null);
 check("/playground opens on Dashboard", (await picked()) === "Dashboard", await picked());
 check("no on-page TUI mirror", (await page.locator("[data-textjs-mirror]").count()) === 0);
+const openCodeLoaded=()=>page.evaluate(()=>performance.getEntriesByType("resource").some(e=>/\/OpenCodeLite(?:-[\w-]+\.js|\.tsx)/.test(e.name)));
+check("OpenCode: its client chunk isn't fetched by the initial Playground",!await openCodeLoaded());
 const before0 = await last();
 await page.keyboard.press("ArrowUp");
 await settle();
@@ -79,10 +83,13 @@ for (const d of demos) {
 check("pad is live after keystrokes", (await padState()) === "live", await padState());
 
 // OpenCode and Coffee: same pad, their own URLs and bottom panels; back and forward work.
+const beforeOpenCode=new Set(modules.keys());
 await picker("OpenCode").click();
 await settle(800);
 check("OpenCode: picked at /opencode with the connection panel", path() === "/opencode" && (await picked()) === "OpenCode" && (await page.locator(".pad-connect").count()) === 1, page.url());
 check("OpenCode: its wordmark leads the message", (await wordmark()) === "OpenCode", await wordmark());
+check("OpenCode: selecting it loads the client",await openCodeLoaded());
+const activation=await Promise.all([...modules].filter(([name])=>!beforeOpenCode.has(name)).map(async([name,r])=>({name,gzipBytes:gzipSync(await r.body()).byteLength})));console.log("OpenCode activation JS (gzip bytes):",JSON.stringify(activation));
 check("OpenCode: the console switches without a reload, keys still routed", (await last()).includes("Ask anything") && (await padState()) === "live", await last());
 await picker("Coffee").click();
 await settle(800);
@@ -164,6 +171,17 @@ await settle(1200);
 await page.mouse.click(640, 400);
 await settle();
 const ob = await last();
+check("OpenCode: dialog code stays deferred on Home",!await page.evaluate(()=>performance.getEntriesByType("resource").some(e=>/\/SessionDialogs[-.]/.test(e.name))));
+await press(["Control+x"]);check("OpenCode: the pending leader lists available continuations",(await last()).includes("Leader · ctrl+x"));await press(["Escape","/diff","Enter","d"]);check("OpenCode: diff source selection stays in the console",(await last()).includes("Diff source") && path()==="/opencode");await press(["Escape","q"]);
+await press(["/mdl"]);
+check("OpenCode: slash completion shows the native description without a palette shortcut",(await last()).includes("/models") && (await last()).includes("Switch model") && !(await last()).includes("ctrl+x m"),await last());
+await press(["Enter"]);check("OpenCode: Enter runs the highlighted slash command",(await last()).includes("Switch model"));
+await press(["Escape","@app/settings/page"]);
+check("OpenCode: file menu searches the sandbox project",(await last()).includes("app/settings/page.tsx"),await last());
+await press(["Enter"]);check("OpenCode: selecting a path attaches it without submitting",(await last()).includes("@app/settings/page.tsx") && !(await last()).includes("interrupt"),await last());
+await press(["Control+u"]);
+await page.evaluate(async()=>{const canvas=document.createElement("canvas");canvas.width=canvas.height=4;const ctx=canvas.getContext("2d");ctx.fillStyle="#4080ff";ctx.fillRect(0,0,4,4);const png=await new Promise(resolve=>canvas.toBlob(resolve,"image/png"));const transfer=new DataTransfer();transfer.items.add(new File([png],"fixture.png",{type:"image/png"}));document.dispatchEvent(new ClipboardEvent("paste",{bubbles:true,clipboardData:transfer}));});
+await settle();check("OpenCode: pasting an image adds a removable prompt attachment",(await last()).includes("[Image 1]"),await last());await press(["Control+x","i"]);check("OpenCode: the image viewer preserves the prompt attachment",(await last()).includes("Image attachments") && (await last()).includes("fixture.png"));await press(["Escape","Control+u"]);
 await press(["Control+x", "m"]);
 check("OpenCode: leader+m opens the model picker", (await last()).includes("Switch model"));
 await press(["Escape", "Shift+Tab"]);
@@ -180,6 +198,7 @@ check("OpenCode: first Escape arms rather than interrupts", (await last()).inclu
 await press(["Escape", "Control+x", "l"]);
 check("OpenCode: the session picker stays inside the website route", (await last()).includes("Switch session") && new URL(page.url()).pathname === "/opencode");
 await press(["Escape", "Escape"]);
+await press(["/terminal","Enter","pwd","Enter"]);check("OpenCode: terminal commands stay in the scripted pane",(await last()).includes("scripted sandbox") && (await last()).includes("$ pwd"),await last());await press(["Escape"]);
 await press(["/exit", "Enter"]);
 await settle(400);
 check("OpenCode: /exit leaves a Restart in the connection panel", (await page.getAttribute(".pad-connect", "data-status")) === "exited" && (await padState()) !== "live", await page.getAttribute(".pad-connect", "data-status"));

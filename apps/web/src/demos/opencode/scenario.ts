@@ -13,6 +13,7 @@ function content(p: Part): AssistantPart {
 /** Preserve the site's Text.js examples without maintaining a second renderer or SSE reducer. */
 export const scenario: NonNullable<DemoOptions["scenario"]> = {
   directory: "~/code/textjs",
+  paths:["app/page.tsx","app/settings/page.tsx","src/events.ts","src/events.test.ts","packages/core/src/scene.ts","packages/react/src/components/Textarea.tsx","apps/web/src/pages/OpenCode.tsx"],
   script: (text, agent) => partsFromSteps(scriptFor(text, agent === "plan" ? "plan" : "build")).map(content),
   seed(now) {
     const sessions: SessionInfo[] = [];

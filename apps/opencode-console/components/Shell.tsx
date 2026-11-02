@@ -1,14 +1,32 @@
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { segmentGraphemes, sliceColumns } from "@textjs/core";
-import { Box, diffTexts, Spinner, Text, ThemeProvider, useApp, useClipboard, useKeymap, useTheme, useViewport } from "@textjs/app";
+import {
+  Box,
+  diffTexts,
+  Spinner,
+  Text,
+  ThemeProvider,
+  useApp,
+  useAppTheme,
+  useClipboard,
+  useKeymap,
+  useTheme,
+  useViewport,
+} from "@textjs/app";
 import { usePathname, useRouter } from "@textjs/app/navigation";
-import { savedTheme, useTokens } from "../lib/native-theme";
+import { savedTheme, useTokens, nativeTheme, nativeThemes, rememberTheme, type NativeTheme } from "../lib/native-theme";
 import { useStore, useStoreState, type ConnectionState } from "../lib/store";
 import type { SessionMessage, ToolPart } from "../lib/types";
 import { patchFiles } from "../lib/tool-data";
 import { DispatchAction, type Action } from "../lib/commands";
-import { HelpDialog, Palette, type PaletteKind } from "./Palette";
+import type { PaletteKind } from "./Palette";
+import { DeferredDialog } from "./DeferredDialog";
 import { ContextSidebar } from "./ContextSidebar";
+import { Review } from "./Review";
+import { Shortcuts } from "./KeyGuide";
+import { exportMarkdown } from "../lib/transcript";
+import { TerminalPane, type TerminalRequest } from "./TerminalPane";
+import { NativeActions, type Commands } from "../lib/bindings";
 import { tint } from "./Logo";
 
 export function useActiveSessionId(): string | null {
@@ -33,16 +51,75 @@ function SessionShell({ children }: { children?: ReactNode }) {
   const sidebar = useStoreState((s) => s.ui.sidebar),
     parent = useStoreState((s) => active && s.parents[active]);
   const open = useStoreState(() => store.tabs.list());
+  const answer = useStoreState((s) => (s.answer?.sessionID === active ? s.answer : undefined));
+  const v1 = useStoreState((s) => s.connection.kind === "v1");
   const [palette, setPalette] = useState<PaletteKind | null>(null),
+    [diffFocused, focusDiff] = useState(true),
     [help, setHelp] = useState(false);
   const { copy } = useClipboard();
   const app = useApp();
+  const [systemMode, follow] = useState(false),
+    { setTheme } = useAppTheme();
+  useEffect(() => {
+    if (!systemMode || typeof window === "undefined" || !window.matchMedia || !Object.hasOwn(nativeThemes, theme.name)) return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      const next = nativeTheme(theme.name as NativeTheme, media.matches ? "dark" : "light");
+      setTheme(next);
+      rememberTheme(next);
+    };
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, [systemMode, theme.name, setTheme]);
+  const [term, setTerm] = useState<TerminalRequest | null>(null),
+    termOpen = term && term.scope === active;
+  const noTabs = useStoreState((s) => s.ui.noTabs);
+  const debug = useStoreState((s) => s.ui.debug),
+    vp = useViewport();
+  const parents = useStoreState((s) => s.parents),
+    busy = useStoreState((s) => active && s.busy[active]);
+  const siblings = Object.keys(parents).filter((k) => parents[k] === parent && !!parent);
   const dispatch = useCallback(
     (action: Action) => {
       if (action === "exit") {
         if (!store.exitToHost()) app.exit();
-      } else if (action === "new") router.push("/");
-      else if (action === "help") setHelp(true);
+      } else if (action === "new" || action === "clear") {
+        if (action === "clear" && active) store.tabs.close(active);
+        router.push("/");
+      } else if (action === "terminal") {
+        if (active) setTerm({ scope: active, view: "new", focused: true, seq: Date.now() });
+        else store.notify("Open a session first");
+      } else if (action === "diff") {
+        focusDiff(true);
+        setTerm(null);
+        setPalette("diff");
+      } else if (action === "editor") setPalette("editorInfo");
+      else if (action === "reload") {
+        const dir = active ? store.session(active)?.directory : store.getSnapshot().connection.directory;
+        void (async () => {
+          await store.api?.reload?.(dir);
+          await Promise.all([store.refreshSessions(), store.refreshCommands(dir), store.loadKeys()]);
+          store.notify("Reloaded");
+        })().catch((e) => store.notify(String(e), "danger"));
+      } else if (
+        ["undo", "redo", "timeline", "export", "copy", "details", "share", "unshare", "compact", "fork"].includes(action) &&
+        !active
+      )
+        store.notify("Open a session first", "warning");
+      else if (action === "undo" || action === "redo") void store.revert(active!, action === "redo");
+      else if (action === "details") store.toggle("toolDetails");
+      else if (action === "reasoning") store.toggle("thinking");
+      else if (action === "compact") void store.send(active, "/compact");
+      else if (action === "share" && !store.api?.share) store.notify("This server does not support session sharing.", "warning");
+      else if (action === "unshare") {
+        if (!store.api?.unshare) store.notify("This server does not support session sharing.", "warning");
+        else
+          void store.api.unshare(active!).then(
+            () => store.notify("Session unshared"),
+            (e) => store.notify(String(e), "danger"),
+          );
+      } else if (action === "help") setHelp(true);
       else if (action === "copy") {
         const msg =
           active &&
@@ -71,49 +148,187 @@ function SessionShell({ children }: { children?: ReactNode }) {
   const select = (id: string | undefined) => {
     if (id) router.push(`/session/${encodeURIComponent(id)}`);
   };
-  useKeymap(
-    {
-      "ctrl+p": () => dispatch("commands"),
-      "ctrl+x l, ctrl+o": () => dispatch("sessions"),
-      "ctrl+x n": () => dispatch("new"),
-      "ctrl+x m": () => dispatch("models"),
-      "ctrl+x a": () => dispatch("agents"),
-      "ctrl+x y": () => dispatch("copy"),
-      "ctrl+tab, alt+down": () => select(store.tabs.cycle(active, 1)),
-      "ctrl+shift+tab, alt+up": () => select(store.tabs.cycle(active, -1)),
-      "ctrl+shift+t": () => select(store.tabs.reopen()),
-      "ctrl+x w": () => {
-        if (!active) return;
-        const id = store.tabs.close(active);
-        if (id) select(id);
-        else router.push("/");
-      },
-      ...Object.fromEntries(
-        Array.from({ length: 10 }, (_, i) => [`ctrl+x ${(i + 1) % 10}, ctrl+${(i + 1) % 10}`, () => select(store.tabs.at(i))]),
-      ),
-      "ctrl+x b": () => {
-        if (active && !parent) store.toggle("sidebar", wide);
-      },
-      "shift+tab": () => store.cycleAgent(active),
-      "ctrl+t": () => store.cycleVariant(active),
-      f2: () => store.cycleRecentModel(1, active),
-      "shift+f2": () => store.cycleRecentModel(-1, active),
+  const commands: Commands = {
+    "theme.mode.lock": () => {
+      if (typeof window === "undefined" || !window.matchMedia) {
+        store.notify("System appearance is unavailable in this host");
+        return;
+      }
+      follow(!systemMode);
+      store.notify(systemMode ? "Theme mode locked" : "Following system appearance");
     },
-    { priority: 20, sequenceTimeout: 2000 },
+    "app.toggle.paste_summary": () => store.toggle("fullPaste"),
+    "session.tab.next_unread": noTabs ? undefined : () => select(store.unread(active, 1)),
+    "session.tab.previous_unread": noTabs ? undefined : () => select(store.unread(active, -1)),
+    "session.verbosity.cycle": () => store.cycleVerbosity(),
+    "app.toggle.animations": () => store.toggle("reducedMotion"),
+    "app.toggle.diffwrap": () => store.toggle("noWrap"),
+    "app.debug": () => store.toggle("debug"),
+    "opencode.debug": () => setPalette("debug"),
+    "server.pair": () => setPalette("pair"),
+    "service.restart": () => setPalette("restart"),
+    "session.child.first":
+      active && Object.values(parents).includes(active)
+        ? () => {
+            if (!store.promptEmpty) return false;
+            setPalette("children");
+          }
+        : undefined,
+    "session.parent": parent
+      ? () => {
+          if (!store.promptEmpty) return false;
+          select(parent);
+        }
+      : undefined,
+    ...Object.fromEntries(
+      [1, -1].map((d) => [
+        d === 1 ? "session.child.next" : "session.child.previous",
+        active && parent && siblings.length
+          ? () => {
+              if (!store.promptEmpty) return false;
+              select(siblings[(siblings.indexOf(active) + d + siblings.length) % siblings.length]);
+            }
+          : undefined,
+      ]),
+    ),
+    "session.background":
+      active && busy && store.api?.background
+        ? () => {
+            if (!store.promptEmpty) return false;
+            void store.api?.background?.(active).catch((e) => store.notify(String(e), "danger"));
+          }
+        : undefined,
+    "session.move": () => setPalette("workspaces"),
+    "session.cd": () => setPalette("workspaces"),
+    "session.toggle.scrollbar": active ? () => store.toggle("scrollbar") : undefined,
+    ...Object.fromEntries(
+      ["session.message.next", "session.message.previous", "session.message.user.next", "session.message.user.previous"].map((id) => [
+        id,
+        active ? () => store.moveMessage(active, id.endsWith("next") ? 1 : -1, id.includes(".user.")) : undefined,
+      ]),
+    ),
+    "session.copy.id": active
+      ? () => void copy(active).then((ok) => store.notify(ok ? "Session ID copied to clipboard!" : "Clipboard unavailable"))
+      : undefined,
+    "session.copy": active
+      ? () => {
+          const s = store.session(active);
+          if (s && store.api)
+            void exportMarkdown(store.api, s).then(
+              async (text) => store.notify((await copy(text)) ? "Session transcript copied to clipboard!" : "Clipboard unavailable"),
+              (e) => store.notify(String(e), "danger"),
+            );
+        }
+      : undefined,
+    "model.cycle_favorite": () => store.cycleFavorite(1, active),
+    "model.cycle_favorite_reverse": () => store.cycleFavorite(-1, active),
+    "session.toggle.thinking": () => store.toggle("thinking"),
+    "session.toggle.exploration_grouping": () => store.toggle("groupExploration"),
+    "docs.open": () => {
+      if (typeof window !== "undefined") window.open("https://opencode.ai/v2/docs/cli/tui/", "_blank", "noopener,noreferrer");
+      else store.notify("https://opencode.ai/v2/docs/cli/tui/");
+    },
+    "terminal.toggle": active ? () => setTerm(termOpen ? null : { scope: active, view: "last", focused: true }) : undefined,
+    "terminal.select": active ? () => setTerm({ scope: active, view: "select", focused: true }) : undefined,
+    "terminal.close": termOpen ? () => setTerm(null) : undefined,
+    "pane.focus.right": palette === "diff" ? () => focusDiff(true) : termOpen ? () => setTerm({ ...term!, focused: true }) : undefined,
+    "command.palette.show": () => dispatch("commands"),
+    "help.show": () => dispatch("help"),
+    "theme.switch": () => dispatch("themes"),
+    "open.menu": () => dispatch("open"),
+    "session.list": () => dispatch("sessions"),
+    "prompt.images.view": () => setPalette("images"),
+    "prompt.submit": () => store.composer?.("submit"),
+    "session.new": () => dispatch("new"),
+    "model.list": () => dispatch("models"),
+    "agent.list": () => dispatch("agents"),
+    "messages.copy": active ? () => dispatch("copy") : undefined,
+    "session.timeline": active ? () => dispatch("timeline") : undefined,
+    "session.export": active ? () => dispatch("export") : undefined,
+    "session.undo": active ? () => dispatch("undo") : undefined,
+    "session.redo": active ? () => dispatch("redo") : undefined,
+    "session.compact": active ? () => dispatch("compact") : undefined,
+    "prompt.editor": () => dispatch("editor"),
+    "opencode.status": () => dispatch("status"),
+    "prompt.queue": () => store.composer?.("queue"),
+    "session.queued_prompts": () => (active && store.api?.inbox ? setPalette("queued") : dispatch("exit")),
+    "session.tab.next": () => select(store.tabs.cycle(active, 1)),
+    "session.tab.previous": () => select(store.tabs.cycle(active, -1)),
+    "session.tab.reopen": () => select(store.tabs.reopen()),
+    "session.tab.history.forward": () => select(store.tabs.travel(1)),
+    "session.tab.history.back": () => select(store.tabs.travel(-1)),
+    "session.tab.close": () => {
+      if (!active) return;
+      const id = store.tabs.close(active);
+      if (id) select(id);
+      else router.push("/");
+    },
+    ...Object.fromEntries(
+      Array.from({ length: noTabs ? 9 : 10 }, (_, i) =>
+        noTabs
+          ? [
+              `session.quick_switch.${i + 1}`,
+              () => select(store.getSnapshot().pins.filter((id) => store.session(id) && !store.session(id)?.parentID)[i]),
+            ]
+          : [`session.tab.select.${i + 1}`, () => select(store.tabs.at(i))],
+      ),
+    ),
+    "session.sidebar.toggle": () => {
+      if (active && !parent) store.toggle("sidebar", wide);
+    },
+    "agent.cycle": () => store.cycleAgent(active, v1 ? -1 : 1),
+    "agent.cycle.reverse": () => store.cycleAgent(active, -1),
+    "variant.cycle": () => store.cycleVariant(active),
+    "model.cycle_recent": () => store.cycleRecentModel(1, active),
+    "model.cycle_recent_reverse": () => store.cycleRecentModel(-1, active),
+    "opencode.settings": () => dispatch("settings"),
+    "diff.open": () => dispatch("diff"),
+    "provider.connect": () => dispatch("integrations"),
+    "plugins.list": () => dispatch("plugins"),
+    "mcp.list": () => dispatch("mcps"),
+    "usage.show": () => dispatch("usage"),
+  };
+  useKeymap({ tab: () => store.cycleAgent(active) }, { priority: 20, isActive: v1 });
+  const dialog = (kind: PaletteKind | "help") => (
+    <DeferredDialog
+      kind={kind}
+      id={active}
+      ids={Object.keys(commands)}
+      focused={diffFocused}
+      focus={focusDiff}
+      onKind={setPalette}
+      close={() => (kind === "help" ? setHelp(false) : setPalette(null))}
+    />
   );
   return (
     <DispatchAction value={dispatch}>
-      <Box flexDirection="column" width="100%" height="100%" bg={theme.bg}>
-        {(active || open.length > 0) && <SessionTabs active={active} ids={open} />}
-        <Box flexDirection="row" flexGrow={1} flexShrink={1} minHeight={0}>
-          <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={0}>
-            {children}
+      <NativeActions value={commands}>
+        <Box flexDirection="column" width="100%" height="100%" bg={theme.bg}>
+          {debug && (
+            <Text height={1} bg={theme.panel} color={theme.muted}>
+              Debug {vp.cols}×{vp.rows} {store.getSnapshot().connection.kind} {active ?? "Home"}{" "}
+              {store.getSnapshot().messages[active ?? ""]?.length ?? 0} messages
+            </Text>
+          )}
+          {!noTabs && (active || open.length > 0) && <SessionTabs active={active} ids={open} />}
+          <Box flexDirection="row" flexGrow={1} flexShrink={1} minHeight={0}>
+            <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={0}>
+              {children}
+            </Box>
+            {palette === "diff" ? (
+              dialog("diff")
+            ) : termOpen ? (
+              <TerminalPane request={term!} close={() => setTerm(null)} focus={(focused) => setTerm((v) => v && { ...v, focused })} />
+            ) : (
+              active && !parent && (sidebar ?? wide) && <ContextSidebar id={active} overlay={!wide} />
+            )}
           </Box>
-          {active && !parent && (sidebar ?? wide) && <ContextSidebar id={active} overlay={!wide} />}
+          <Shortcuts commands={commands} />
+          {palette && palette !== "diff" && dialog(palette)}
+          {answer && <Review answer={answer.text} onClose={() => store.dismissAnswer()} />}
+          {help && dialog("help")}
         </Box>
-        {palette && <Palette kind={palette} onKind={setPalette} onClose={() => setPalette(null)} />}
-        {help && <HelpDialog onClose={() => setHelp(false)} />}
-      </Box>
+      </NativeActions>
     </DispatchAction>
   );
 }
