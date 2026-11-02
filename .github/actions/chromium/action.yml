@@ -1,15 +1,9 @@
-# ▼ Chromium for playwright-core, cached per Playwright version. The system
-# libraries Chromium needs come from apt on every run; the browser download is
-# what the cache saves. Run after the Setup action.
+# ▼ Chromium's headless shell for playwright-core (headless launches use it),
+# cached per Playwright version. The system libraries it needs come from apt on
+# every run; the browser download is what the cache saves. Run after the Setup action.
 
 name: Chromium
-description: Install Playwright's Chromium (or its headless shell) and the system libraries it needs.
-
-inputs:
-  shell-only:
-    description: Install only the headless shell (enough for headless screenshots), not full Chromium
-    required: false
-    default: "false"
+description: Install Playwright's headless Chromium shell and the system libraries it needs.
 
 runs:
   using: composite
@@ -17,21 +11,14 @@ runs:
     - name: Read the playwright-core version
       id: playwright
       shell: bash
-      run: |
-        echo "version=$(jq -r '.devDependencies["playwright-core"] // .dependencies["playwright-core"]' apps/web/package.json)" >> "$GITHUB_OUTPUT"
-        if [ "${{ inputs.shell-only }}" = true ]; then
-          echo "args=--only-shell chromium" >> "$GITHUB_OUTPUT"
-        else
-          echo "args=--no-shell chromium" >> "$GITHUB_OUTPUT"
-        fi
+      run: echo "version=$(jq -r '.devDependencies["playwright-core"] // .dependencies["playwright-core"]' apps/web/package.json)" >> "$GITHUB_OUTPUT"
 
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       id: cache
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}-${{ inputs.shell-only == 'true' && 'shell' || 'chromium' }}
+        key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}-headless-shell
 
-    # The headless shell needs the same libraries as Chromium.
     - name: Install system libraries
       shell: bash
       working-directory: apps/web
@@ -41,6 +28,4 @@ runs:
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: apps/web
-      env:
-        ARGS: ${{ steps.playwright.outputs.args }}
-      run: bunx playwright-core install $ARGS
+      run: bunx playwright-core install --only-shell chromium

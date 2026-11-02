@@ -62,8 +62,6 @@ jobs:
 
       # Open Graph images render in Chromium's headless shell.
       - uses: ./.github/actions/chromium
-        with:
-          shell-only: "true"
 
       # Images are keyed by a hash of their inputs, so any earlier run's cache is safe to reuse.
       - name: Restore Open Graph image cache

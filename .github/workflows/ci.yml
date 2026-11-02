@@ -72,8 +72,6 @@ jobs:
 
       # og.test.ts renders an Open Graph image per route in headless Chromium.
       - uses: ./.github/actions/chromium
-        with:
-          shell-only: "true"
 
       - name: Test apps
         run: |
