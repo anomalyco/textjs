@@ -43,7 +43,7 @@ export default function Page() {
 }
 ```
 
-Each frame is laid out with Yoga, run-length encoded into `%c` spans and written in one `console.log`. Idle frames log nothing. [`ARCHITECTURE.md`](ARCHITECTURE.md) covers the rendering pipeline.
+Each frame is laid out with Yoga, run-length encoded into `%c` spans and written in one `console.log`. A frame with no changed cells logs nothing. [`ARCHITECTURE.md`](ARCHITECTURE.md) covers the rendering pipeline.
 
 ## Packages
 
@@ -62,25 +62,10 @@ The editor and browser extensions live here too:
 - [`packages/vscode-textjs`](packages/vscode-textjs): the [VS Code extension](https://textjs.org/docs/vscode), with a live preview, App Router scaffolding and error code links
 - [`packages/devtools-extension`](packages/devtools-extension): the [Chrome DevTools extension](https://textjs.org/docs/devtools-extension), with a component tree, frame inspector and timeline
 
-## Repository layout
-
-| Path | Contents |
-| --- | --- |
-| `packages/` | The packages and extensions above |
-| `apps/web` | [textjs.org](https://textjs.org): docs, Learn, the playground and the store |
-| `apps/opencode-console` | The OpenCode client behind [textjs.org/opencode](https://textjs.org/opencode) |
-| `apps/terminal-shop` | The [terminal.shop](https://terminal.shop) client behind [textjs.org/coffee](https://textjs.org/coffee) |
-| `examples/` | Example apps |
-| `scripts/` | Release scripts and `qa-starters.ts` |
-| `bench/devtools` | DevTools rendering benchmarks, and the Playwright install the e2e scripts use |
-| `media/learn` | The pipeline that renders the Learn chapter videos |
-| `brand/`, `merch/` | Brand images, and the artwork and tech packs for [textjs.org/store](https://textjs.org/store) |
-
 ## Development
 
 ```bash
 bun install
-bun run build:packages
 bun test packages/
 bun run typecheck
 bun run --cwd apps/web dev

@@ -10,10 +10,23 @@ You need [Bun](https://bun.sh) 1.2 or later (CI uses 1.4.4) and Node.js 22 or la
 git clone https://github.com/anomalyco/textjs.git
 cd textjs
 bun install
-bun run build:packages
 ```
 
-`build:packages` builds each package's `dist/` in dependency order. The apps and tests import the TypeScript sources, so you need to rebuild only before packing or publishing.
+The apps and tests import the TypeScript sources. `bun run build:packages` builds each package's `dist/` in dependency order, which you need only before packing or publishing.
+
+## Repository layout
+
+| Path | Contents |
+| --- | --- |
+| `packages/` | The packages and extensions above |
+| `apps/web` | [textjs.org](https://textjs.org): docs, Learn, the playground and the store |
+| `apps/opencode-console` | The OpenCode client behind [textjs.org/opencode](https://textjs.org/opencode) |
+| `apps/terminal-shop` | The [terminal.shop](https://terminal.shop) client behind [textjs.org/coffee](https://textjs.org/coffee) |
+| `examples/` | Example apps |
+| `scripts/` | Release scripts and `qa-starters.ts` |
+| `bench/devtools` | DevTools rendering benchmarks, and the Playwright install the e2e scripts use |
+| `media/learn` | The pipeline that renders the Learn chapter videos |
+| `brand/`, `merch/` | Brand images, and the artwork and tech packs for [textjs.org/store](https://textjs.org/store) |
 
 ## Tests
 
@@ -38,7 +51,7 @@ cd bench/devtools && bunx playwright-core install chromium
 ```
 
 - `bun scripts/qa-starters.ts` scaffolds every `create-text-app` template from packed tarballs, installs it with bun and npm, and runs `text dev`, `build`, `start` and `run` in Chromium and a pty. It also covers `examples/` and the apps, and fails on any console error or warning. `--only` and `--steps` narrow the run; the header of the script lists every option. CI runs it on every pull request.
-- `node apps/web/scripts/e2e-*.mjs` checks the site's keyboard input, layout, Learn pages and easter eggs. Each script's header says which server to start first, usually `bun run --cwd apps/web dev`.
+- `node apps/web/scripts/e2e-*.mjs` checks the site's keyboard input, layout, Learn pages and easter eggs. Each script's header lists the server it expects in `apps/web`, either `bun run dev` or `bun run build && bun run preview`.
 - `bun apps/terminal-shop/scripts/e2e.ts --mock` walks through checkout against an in-memory Terminal API.
 - `bun run --cwd packages/devtools-extension e2e` loads the DevTools extension in Chromium against `examples/dashboard`.
 

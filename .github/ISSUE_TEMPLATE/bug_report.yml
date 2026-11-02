@@ -15,8 +15,8 @@ body:
       label: Steps to reproduce
       description: The smallest app or commands that show the problem. A link to a repository is ideal.
       placeholder: |
-        1. bunx create-text-app@latest --template starter
-        2. bun dev
+        1. bunx create-text-app@latest my-app --yes
+        2. cd my-app && bun install && bun dev
         3. Press ...
     validations:
       required: true
@@ -32,7 +32,7 @@ body:
     attributes:
       label: Environment
       description: Browser and version, runtime (Bun or Node.js) and version, and operating system.
-      placeholder: Chrome 142, Bun 1.4.4, macOS 26
+      placeholder: Chrome 147, Bun 1.4.4, macOS 26
     validations:
       required: true
   - type: textarea

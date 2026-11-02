@@ -1,7 +1,7 @@
 {
   "name": "@textjs/font",
   "version": "1.0.4",
-  "description": "next/font for FIGlet: a FIGlet 2.2 .flf parser and renderer with 17 bundled, tree-shakable FIGfonts for Text.js.",
+  "description": "FIGlet 2.2 .flf parser and renderer for Text.js, with 17 bundled, tree-shakable fonts.",
   "type": "module",
   "license": "MIT AND BSD-3-Clause",
   "homepage": "https://textjs.org/docs/fonts",

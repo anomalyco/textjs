@@ -1,7 +1,7 @@
 {
   "name": "@textjs/react",
   "version": "1.0.4",
-  "description": "Text.js React 19 renderer: custom reconciler, cell-utility styling, hooks and the PascalCase TUI component kit for console.log.",
+  "description": "React 19 renderer for Text.js, with a custom reconciler, cell utility classes, hooks and components.",
   "type": "module",
   "license": "MIT",
   "homepage": "https://textjs.org/docs",

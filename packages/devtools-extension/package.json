@@ -2,7 +2,7 @@
   "name": "@textjs/devtools-extension",
   "version": "1.0.0",
   "private": true,
-  "description": "Text.js DevTools: a Chrome DevTools panel for console roots: component tree, frame inspector and timeline.",
+  "description": "Chrome DevTools panel for Text.js apps, with a component tree, frame inspector and timeline.",
   "type": "module",
   "license": "MIT",
   "homepage": "https://textjs.org/docs/devtools-extension",
