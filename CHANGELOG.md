@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-02
+
 ### Added
 
 - `@textjs/core`: `bindTextSink(element, onText)` reads text committed by an IME or a dead key from a hidden textarea or input, once per commit and never mid-composition. `engine.bindTextSink(element)` connects a textarea you render yourself to an `InputEngine`. Both return a function that removes the listeners.

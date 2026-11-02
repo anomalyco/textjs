@@ -1,6 +1,6 @@
 {
   "name": "create-text-app",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Scaffold a Text.js app from the starter, dashboard or opencode template.",
   "type": "module",
   "license": "MIT",
