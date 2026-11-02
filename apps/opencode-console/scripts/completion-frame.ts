@@ -5,7 +5,7 @@ import { gzipSync } from "node:zlib";
 import { createTransport, createV2Client } from "../lib/client";
 const [tmp, version] = process.argv.slice(2),
   app = resolve(import.meta.dir, ".."),
-  out = resolve(app, "parity/round3");
+  out = resolve(app, process.env.PARITY_ROUND === "round4" ? "parity/round4" : "parity/round3");
 const endpoint = process.env.OPENCODE_SERVER_URL!;
 if (
   !tmp ||
@@ -33,20 +33,38 @@ try {
     return r.structuredContent as any;
   };
   await call("navigate", { path: "/" });
-  await call("wait_for", { text: version });
+  await call("wait_for", { text: [version, "Build ·"] });
   const page = await browser.newPage({ viewport: { width: 1640, height: 555 }, deviceScaleFactor: 1, serviceWorkers: "block" });
   await page.route("**/*", (r: any) => r.abort());
   for (const [name, typed, marker] of [
     ["slash", "/model", "Switch model"],
     ["mention", "@readm", "README.md"],
     ["shell", "!pwd", "Shell"],
+    ...(process.env.PARITY_ROUND === "round4"
+      ? [
+          ["leader", "", "Leader ·"],
+          ["diff", "/diff", "Run bun test."],
+          ["integrations", "/connect", "Connect an integration"],
+        ]
+      : []),
   ] as const) {
     if (name === "shell") {
       await call("press", { keys: "!" });
       await call("type", { text: "pwd" });
+    } else if (name === "leader") {
+      await call("type", { text: "Review the changes" });
+      await call("press", { keys: "ctrl+x" });
     } else await call("type", { text: typed });
+    if (name === "diff" || name === "integrations") await call("press", { keys: "enter" });
+    if (name === "diff") {
+      await call("press", { keys: "d" });
+      await call("wait_for", { text: "Diff source" });
+      await call("type", { text: "Uncommitted" });
+      await call("press", { keys: "enter" });
+    }
     const f = await call("wait_for", { text: marker, styles: true, trim: false });
-    if (f.focus?.id !== "opencode-prompt") throw Error("Lost composer focus");
+    if (f.focus?.id !== (name === "diff" ? "opencode-diff" : name === "integrations" ? "opencode-choice" : "opencode-prompt"))
+      throw Error("Unexpected focus in " + name);
     await Bun.write(
       resolve(out, `${name}.json.gz`),
       gzipSync(
@@ -110,6 +128,15 @@ try {
   await api.agents();
   if ((await api.info()).directory !== resolve(tmp, "project") || (await api.sessions()).length)
     throw Error("Expected empty disposable capture project");
+  if (process.env.PARITY_ROUND === "round4") {
+    const loc = await api.workspace!.location(resolve(tmp, "project"));
+    if (!(await api.workspace!.projects()).some((p) => p.id === loc.project.id))
+      throw Error("Capture project missing from project catalog");
+    await api.workspace!.list(loc.project.id);
+    await api.management!.mcps(loc.directory);
+    await api.management!.plugins(loc.directory);
+    console.log("Private V2: verified project, worktree, plugin and MCP catalogs");
+  }
   const seed = await http.json<{ data: Record<string, unknown> }>("POST", "/api/session", {
     title: "Capture seed",
     location: { directory: resolve(tmp, "project") },

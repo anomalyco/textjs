@@ -78,6 +78,8 @@ try {
         await dt.locator("#console-messages").screenshot({ path: resolve(out, `${name}.png`) });
       };
       await snap("home", "Ask anything");
+      await page.keyboard.press("Control+x");await snap("which-key","Leader · ctrl+x");await page.keyboard.press("Escape");
+      await page.keyboard.type("/diff");await page.keyboard.press("Enter");await snap("diff","export const attempts = 3");await page.keyboard.press("q");
       await page.keyboard.type("/model");await snap("slash","/models");
       await page.keyboard.press("Escape");await page.keyboard.press("Control+u");
       await page.keyboard.type("@src");await snap("mention","cart badge.ts");
