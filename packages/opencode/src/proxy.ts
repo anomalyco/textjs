@@ -18,7 +18,7 @@
 
 import { execFile } from "node:child_process";
 import { randomBytes, randomInt, timingSafeEqual } from "node:crypto";
-import { existsSync } from "node:fs";
+import { accessSync, constants, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { homedir } from "node:os";
@@ -173,29 +173,91 @@ export function normalizeTargetUrl(raw: string): string | null {
   }
 }
 
-function opencodeFallbacks(): string[] {
+/**
+ * Paths `name` resolves to on `PATH`, in search order. On Windows each directory
+ * is tried with every `PATHEXT` extension (`.EXE`, `.CMD`, …), the way a shell
+ * finds npm's `opencode.cmd` shim, and the bare name (npm's POSIX shell script)
+ * is skipped because Windows can't run it.
+ */
+export function findExecutable(name: string, env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): string[] {
+  const win = platform === "win32";
+  const pathVar = win ? envVar(env, "PATH") : env.PATH;
+  const exts = win ? (envVar(env, "PATHEXT") || ".COM;.EXE;.BAT;.CMD").split(";").filter((e) => /^\.(com|exe|bat|cmd)$/i.test(e)) : [""];
+  const sep = win ? "\\" : "/";
+  const found: string[] = [];
+  for (const dir of (pathVar ?? "").split(win ? ";" : ":")) {
+    const base = dir.trim().replace(/^"(.*)"$/, "$1").replace(/[\\/]+$/, "");
+    if (!base) continue;
+    for (const ext of exts) {
+      const candidate = `${base}${sep}${name}${ext.toLowerCase()}`;
+      if (isExecutable(candidate, win) && !found.includes(candidate)) found.push(candidate);
+    }
+  }
+  return found;
+}
+
+/** Windows environment names are case-insensitive (`Path`, `PATH`). */
+function envVar(env: NodeJS.ProcessEnv, name: string): string | undefined {
+  return Object.entries(env).find(([k]) => k.toUpperCase() === name)?.[1];
+}
+
+function isExecutable(path: string, win = process.platform === "win32"): boolean {
   try {
-    const home = homedir();
-    return [join(home, ".bun", "bin", "opencode"), join(home, ".opencode", "bin", "opencode"), "/opt/homebrew/bin/opencode", "/usr/local/bin/opencode"];
+    if (!statSync(path).isFile()) return false;
+    if (!win) accessSync(path, constants.X_OK);
+    return true;
   } catch {
-    return ["/opt/homebrew/bin/opencode", "/usr/local/bin/opencode"];
+    return false;
   }
 }
 
+function opencodeFallbacks(): string[] {
+  if (process.platform === "win32") {
+    try {
+      const home = homedir();
+      return [join(home, ".bun", "bin", "opencode.exe"), join(home, ".opencode", "bin", "opencode.exe")];
+    } catch {
+      return [];
+    }
+  }
+  const system = ["/opt/homebrew/bin/opencode", "/usr/local/bin/opencode"];
+  try {
+    const home = homedir();
+    return [join(home, ".bun", "bin", "opencode"), join(home, ".opencode", "bin", "opencode"), ...system];
+  } catch {
+    return system;
+  }
+}
+
+/**
+ * Windows runs `.cmd` and `.bat` files only through `cmd.exe` (Node refuses to
+ * spawn them directly since CVE-2024-27980). `args` are this module's fixed
+ * subcommands, so they need no escaping. `cmd.exe` expands `%VAR%` even inside
+ * quotes, so a shim whose path holds `%`, `!`, `"` or a line break is `null` (skipped).
+ */
+export function opencodeCommand(bin: string, args: string[], env: NodeJS.ProcessEnv = process.env): { file: string; args: string[]; verbatim: boolean } | null {
+  if (!/\.(cmd|bat)$/i.test(bin)) return { file: bin, args, verbatim: false };
+  if (/[%!"\r\n]/.test(bin)) return null;
+  if (!args.every((a) => /^[\w-]+$/.test(a))) throw new Error(`unsafe argument for ${bin}`);
+  const comspec = envVar(env, "COMSPEC") || `${envVar(env, "SYSTEMROOT") || "C:\\Windows"}\\System32\\cmd.exe`;
+  return { file: comspec, args: ["/d", "/v:off", "/s", "/c", `""${bin}" ${args.join(" ")}"`], verbatim: true };
+}
+
 function execOpencode(bin: string, args: string[]): Promise<{ ok: boolean; enoent: boolean; stdout: string }> {
+  const cmd = opencodeCommand(bin, args);
+  if (cmd === null) return Promise.resolve({ ok: false, enoent: true, stdout: "" });
   return new Promise((resolve) => {
-    execFile(bin, args, { timeout: 4000, windowsHide: true }, (error, stdout) => {
+    execFile(cmd.file, cmd.args, { timeout: 4000, windowsHide: true, windowsVerbatimArguments: cmd.verbatim }, (error, stdout) => {
       const enoent = Boolean(error && (error as NodeJS.ErrnoException).code === "ENOENT");
       resolve({ ok: !error, enoent, stdout: error ? "" : String(stdout).trim() });
     });
   });
 }
 
-async function run(args: string[]): Promise<string> {
-  const first = await execOpencode("opencode", args);
-  if (!first.enoent) return first.stdout;
-  for (const candidate of opencodeFallbacks()) {
-    if (!existsSync(candidate)) continue;
+/** Runs the first `opencode` found on `PATH` or in a known install location. Returns its stdout, or `""`. */
+export async function runOpencode(args: string[]): Promise<string> {
+  for (const candidate of [...findExecutable("opencode"), ...opencodeFallbacks()]) {
+    if (!isExecutable(candidate)) continue;
     const res = await execOpencode(candidate, args);
     if (!res.enoent) return res.stdout;
   }
@@ -221,9 +283,9 @@ export async function discoverOpencode(target?: string): Promise<BridgeTarget | 
     }
     explicit = normalizeTargetUrl(u.origin) ?? undefined;
   }
-  const service = normalizeTargetUrl(await run(["service", "status"]));
+  const service = normalizeTargetUrl(await runOpencode(["service", "status"]));
   if (service && (!explicit || selectsTarget(explicit, service))) {
-    const password = await run(["service", "get", "password"]);
+    const password = await runOpencode(["service", "get", "password"]);
     return { url: service, source: "service", authorization: password ? `Basic ${Buffer.from(`opencode:${password}`).toString("base64")}` : undefined };
   }
   if (!explicit) return null;

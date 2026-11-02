@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The VS Code preview delivers IME and dead-key text, which it used to drop, and no longer forwards dead keys or IME composition keystrokes to the app. With a `text dev` server from `@textjs/app` 1.1.0 or earlier, it sends the text as key presses or a paste.
 - `@textjs/core`: `InputEngine.handleTextInput` ignores text while `shouldCapture` returns `false`, as key and paste input already did.
 - `text dev` pre-bundles `@textjs/app/live-stub` and `@textjs/app/live-player`. An app with a `runtime = "server"` page found them only after the first page load, so Vite bundled them again mid-load, which caused 404s for stale chunks and an "Invalid hook call" from two copies of React.
+- `@textjs/opencode`: under Node on Windows, the bridge finds an OpenCode installed with `npm i -g opencode-ai`. Node can't start npm's `opencode.cmd` shim by name, so the bridge behaved as if OpenCode wasn't installed. It now searches `PATH` with each `PATHEXT` extension and runs `.cmd` shims through `cmd.exe`. Under Bun (`bunx`) it already worked.
 
 ## [1.1.0] - 2026-11-02
 
