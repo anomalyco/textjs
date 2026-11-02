@@ -80,6 +80,7 @@ export interface KeyboardEventLike {
   repeat?: boolean;
   isComposing?: boolean;
   keyCode?: number;
+  target?: EventTarget | null;
   preventDefault(): void;
 }
 
@@ -166,6 +167,39 @@ function isSingleGrapheme(s: string): boolean {
     return c >= 0xd800 && c <= 0xdbff;
   }
   return false;
+}
+
+function isTextField(t: EventTarget | null | undefined): boolean {
+  const tag = (t as { tagName?: unknown } | null | undefined)?.tagName;
+  return tag === "TEXTAREA" || tag === "INPUT";
+}
+
+/**
+ * Dead keys on Windows send no composition events: a `Dead` keydown, then an ordinary keydown
+ * for the next character, which the browser combines into the focused text field (`'` then `e`
+ * inserts `é`, `'` then `t` inserts `'t`). That keydown must keep its default and not count as a
+ * key, so the text arrives once through the sink. macOS and Linux compose dead keys, which
+ * `isComposing` already covers.
+ */
+export class DeadKeyTracker {
+  private pending = false;
+
+  /** `true` when the text field owns this keydown: a dead key, or the character that completes one. */
+  owns(e: KeyboardEventLike): boolean {
+    if (e.key === "Dead") {
+      this.pending = true;
+      return true;
+    }
+    if (!this.pending) return false;
+    this.pending = false;
+    // Arrows, Esc and shortcuts after a dead key are ordinary keys. AltGr (Ctrl+Alt) characters still combine.
+    return isTextField(e.target) && isSingleGrapheme(e.key) && !e.metaKey && !(e.ctrlKey && !e.altKey);
+  }
+
+  /** Text reached the field, so nothing is pending (a dead key pressed twice inserts text by itself). */
+  reset(): void {
+    this.pending = false;
+  }
 }
 
 /** Normalize a keyboard event. Returns `null` for modifier-only and IME-composition keys. */
@@ -267,6 +301,7 @@ export class InputEngine {
   private sink: HTMLTextAreaElement | null = null;
   private cleanup: Array<() => void> = [];
   private isFocused = true;
+  private readonly deadKeys = new DeadKeyTracker();
 
   constructor(options: InputEngineOptions = {}) {
     this.doc = options.document !== undefined ? options.document : typeof document !== "undefined" ? document : null;
@@ -314,7 +349,7 @@ export class InputEngine {
    * default prevented). Browser and DevTools shortcuts always pass through.
    */
   handleKeyDown(e: KeyboardEventLike): boolean {
-    if (!this.enabled || isPassthroughShortcut(e)) return false;
+    if (!this.enabled || isPassthroughShortcut(e) || this.deadKeys.owns(e)) return false;
     const event = normalizeKeyEvent(e);
     if (event === null) return false;
     let prevent = false;
@@ -339,6 +374,7 @@ export class InputEngine {
 
   /** Text committed by the sink (IME, dead keys, autocorrect). */
   handleTextInput(text: string): void {
+    this.deadKeys.reset();
     if (text.length === 0 || !this.enabled) return;
     if (text.includes("\n") || text.length > 16) {
       this.emit("paste", { type: "paste", text });

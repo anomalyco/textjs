@@ -378,21 +378,41 @@ async function keys(layouts) {
       for (const r of rows) check(`keys de ${r.label} → ${r.expect}`, Boolean(r.hit), r.hit ?? r.events.filter((e) => e.t === "keydown").map((e) => e.key).join(" "));
       os("layout", "00000409");
     } else if (layout === "intl") {
-      // US-International: ' is a dead key, so ' then e commits é.
+      // US-International: ' is a dead key. Windows sends no composition for it: keydown Dead, then an ordinary
+      // keydown for the next character, which the browser combines into the focused sink. InputEngine leaves that
+      // keydown alone and the sink's input event delivers the text once.
       os("layout", "00020409");
-      const seen = (r) => r.events.some((e) => (e.t === "input" || e.t === "compositionend") && e.data === "é");
-      const focused = await press("dead key ' e (sink focused)", "quote,e", 600);
-      rows.push(focused);
-      // Reported, not checked yet: with the sink focused, Chrome on Windows sends keydown "e" after the dead key,
-      // and InputEngine prevents it, so the input event carrying é never fires. The fix belongs in packages/core/src/input.ts.
-      results.keys.deadKeyWithSink = { committed: seen(focused), events: focused.events.map((e) => `${e.t}:${e.key ?? ""}${e.data ? `(${e.data})` : ""}@${e.target}`) };
-      console.log(`dead key with the sink focused: ${JSON.stringify(results.keys.deadKeyWithSink)}`);
-      // Informational: the same keys with focus on <body>, as before the FocusPad fix.
+      const sinkValue = () => page.eval(`(document.querySelector("[data-textjs-input-sink]") || {}).value ?? null`);
+      const inserted = (r) => r.events.filter((e) => e.t === "input" && e.target === "TEXTAREA").map((e) => e.data ?? "").join("");
+      const describeRow = (r) => r.events.filter((e) => e.t !== "keyup").map((e) => `${e.t}:${e.key ?? e.inputType ?? ""}${e.keyCode ? `/${e.keyCode}` : ""}${e.data ? `(${e.data})` : ""}${e.prevented ? "!" : ""}@${e.target}`);
+      const dead = {};
+      for (const [name, seq, text] of [
+        ["' e", "quote,e", "é"],
+        ["' t", "quote,t", "'t"],
+        ["' Space", "quote,space", "'"],
+        ["' '", "quote,quote", null],
+        ["' ↓", "quote,down", null],
+        ["' Esc", "quote,esc", null],
+        ["e after ' Esc", "e", null],
+      ]) {
+        const r = await press(`dead key ${name} (sink focused)`, seq, 600);
+        rows.push(r);
+        const left = await sinkValue();
+        dead[name] = { inserted: inserted(r), sinkAfter: left, events: describeRow(r) };
+        if (text !== null) check(`keys intl ${name} → ${JSON.stringify(text)}`, inserted(r) === text && left === "", dead[name]);
+      }
+      // A dead key followed by a non-character key passes that key to the app and inserts nothing.
+      const arrow = rows[rows.length - 3];
+      check("keys intl ' ↓ reaches the app", arrow.events.some((e) => e.t === "keydown" && e.key === "ArrowDown" && e.prevented) && inserted(arrow) === "", dead["' ↓"]);
+      results.keys.deadKeys = dead;
+      console.log(`dead keys with the sink focused: ${JSON.stringify(dead)}`);
+      // With <body> focused (no text field), the browser reports the composed key itself and the app takes it as a key.
       await page.eval("document.activeElement && document.activeElement.blur()");
       const unfocused = await press("dead key ' e (body focused)", "quote,e", 600);
       rows.push(unfocused);
-      results.keys.deadKeyWithoutSink = { committed: seen(unfocused), keydown: unfocused.events.filter((e) => e.t === "keydown").map((e) => e.key) };
-      console.log(`dead key with <body> focused: ${JSON.stringify(results.keys.deadKeyWithoutSink)}`);
+      const composedKey = unfocused.events.find((e) => e.t === "keydown" && e.key === "é");
+      results.keys.deadKeyWithoutSink = describeRow(unfocused);
+      check("keys intl ' e with <body> focused → key é", Boolean(composedKey && composedKey.prevented), results.keys.deadKeyWithoutSink);
       os("layout", "00000409");
       // Put focus back where a click leaves it.
       os("click", Math.round(dx + pad.x), Math.round(dy + pad.y));

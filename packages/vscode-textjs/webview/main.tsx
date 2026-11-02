@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { ConsoleMirror } from "@textjs/react/dom";
-import { bindTextSink, normalizeKeyEvent, type StyledFrame } from "@textjs/core";
+import { bindTextSink, DeadKeyTracker, normalizeKeyEvent, type StyledFrame } from "@textjs/core";
 import { FrameDecoder, frameToText } from "@textjs/app/frame-protocol";
 import type { HostToWebview, ModePreference, PreviewState, WebviewCommand, WebviewToHost } from "../src/webview-protocol";
 import { Icon, type IconName } from "./icons";
@@ -284,6 +284,7 @@ function EmptyState({ state }: { state: PreviewState }): ReactNode {
 function Stage({ state, frame }: { state: PreviewState; frame: StyledFrame | null }): ReactNode {
   const stageRef = useRef<HTMLDivElement>(null);
   const sinkRef = useRef<HTMLTextAreaElement>(null);
+  const deadKeys = useMemo(() => new DeadKeyTracker(), []);
   const [focused, setFocused] = useState(false);
   const [zoom, setZoom] = useState(1);
   const fontSize = state.fontSize;
@@ -326,7 +327,7 @@ function Stage({ state, frame }: { state: PreviewState; frame: StyledFrame | nul
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     // Modifier-only, dead and IME keys stay native; their text arrives through the sink.
-    if (normalizeKeyEvent(e.nativeEvent) === null) return;
+    if (deadKeys.owns(e.nativeEvent) || normalizeKeyEvent(e.nativeEvent) === null) return;
     // Leave editor-level shortcuts (⌘P, ⌘W, ⌘⇧P…) to VS Code; ⌘C/⌘V keep their defaults.
     if (state.mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && e.shiftKey) return;
     if (!state.mac && e.ctrlKey && (e.key === "v" || e.key === "c")) return;
@@ -342,8 +343,11 @@ function Stage({ state, frame }: { state: PreviewState; frame: StyledFrame | nul
   useEffect(() => {
     const el = sinkRef.current;
     if (!el) return;
-    return bindTextSink(el, (text) => post({ type: "input", msg: { type: "text", text } }));
-  }, [showMirror]);
+    return bindTextSink(el, (text) => {
+      deadKeys.reset();
+      post({ type: "input", msg: { type: "text", text } });
+    });
+  }, [showMirror, deadKeys]);
   const source = state.mode === "live" ? "text://viewport:1" : `${state.target?.label.split("/").pop() ?? "preview"}:1`;
 
   return (
