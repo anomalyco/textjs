@@ -387,13 +387,15 @@ async function keys(layouts) {
       const describeRow = (r) => r.events.filter((e) => e.t !== "keyup").map((e) => `${e.t}:${e.key ?? e.inputType ?? ""}${e.keyCode ? `/${e.keyCode}` : ""}${e.data ? `(${e.data})` : ""}${e.prevented ? "!" : ""}@${e.target}`);
       const dead = {};
       for (const [name, seq, text] of [
-        ["' e", "quote,e", "é"],
         ["' t", "quote,t", "'t"],
+        ["' e", "quote,e", "é"],
+        ["' a", "quote,a", "á"],
         ["' Space", "quote,space", "'"],
         ["' '", "quote,quote", null],
         ["' ↓", "quote,down", null],
         ["' Esc", "quote,esc", null],
         ["e after ' Esc", "e", null],
+        ["' e again", "quote,e", null],
       ]) {
         const r = await press(`dead key ${name} (sink focused)`, seq, 600);
         rows.push(r);
@@ -402,7 +404,7 @@ async function keys(layouts) {
         if (text !== null) check(`keys intl ${name} → ${JSON.stringify(text)}`, inserted(r) === text && left === "", dead[name]);
       }
       // A dead key followed by a non-character key passes that key to the app and inserts nothing.
-      const arrow = rows[rows.length - 3];
+      const arrow = rows.find((r) => r.seq === "quote,down");
       check("keys intl ' ↓ reaches the app", arrow.events.some((e) => e.t === "keydown" && e.key === "ArrowDown" && e.prevented) && inserted(arrow) === "", dead["' ↓"]);
       results.keys.deadKeys = dead;
       console.log(`dead keys with the sink focused: ${JSON.stringify(dead)}`);
