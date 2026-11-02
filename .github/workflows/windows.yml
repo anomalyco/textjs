@@ -101,6 +101,24 @@ jobs:
       - name: Packed packages
         run: bun scripts/verify-pack.ts --skip-build
 
+  # TEMPORARY: diagnose text dev's close on Windows.
+  dev-close:
+    name: dev.test close probe
+    needs: changes
+    if: needs.changes.outputs.packages == 'true'
+    runs-on: blacksmith-4vcpu-windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: dev.test.ts x3
+        env:
+          TEXTJS_DEBUG_CLOSE: "1"
+        run: |
+          for n in 1 2 3; do echo "=== run $n"; bun test packages/app/test/dev.test.ts 2>&1 | grep -E "close|pass|fail|\(fail\)|timed out|ERROR" || true; done
+
   # What users get from npm today, so it runs by hand (after a release). Pull requests
   # cover this checkout's packages in the packages job (verify-pack, template builds).
   cli:

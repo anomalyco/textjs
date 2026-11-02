@@ -33,6 +33,39 @@ beforeAll(async () => {
 
 // Closing Vite's file watcher can take several seconds on Windows.
 afterAll(async () => {
+  if (process.env.TEXTJS_DEBUG_CLOSE) {
+    const t0 = performance.now();
+    const log = (m: string) => console.log(`[close +${Math.round(performance.now() - t0)}ms] ${m}`);
+    const pending = new Set<string>();
+    const wrap = (name: string, obj: any, key: string) => {
+      const orig = obj?.[key];
+      if (typeof orig !== "function") return;
+      obj[key] = (...args: any[]) => {
+        pending.add(name);
+        log(`${name} start`);
+        const cb = typeof args.at(-1) === "function" ? args.pop() : null;
+        const done = (v?: unknown) => { pending.delete(name); log(`${name} done`); return v; };
+        if (cb) return orig.call(obj, ...args, (...r: any[]) => { done(); cb(...r); });
+        const r = orig.apply(obj, args);
+        return r && typeof r.then === "function" ? r.then(done, (e: unknown) => { done(); throw e; }) : done(r);
+      };
+    };
+    wrap("watcher.close", server.watcher, "close");
+    wrap("ws.close", server.ws, "close");
+    wrap("httpServer.close", server.httpServer, "close");
+    for (const [n, env] of Object.entries(server.environments)) {
+      wrap(`env.${n}.close`, env, "close");
+      wrap(`env.${n}.depsOptimizer.close`, (env as any).depsOptimizer, "close");
+      wrap(`env.${n}.pluginContainer.close`, (env as any).pluginContainer, "close");
+    }
+    const watched = server.watcher.getWatched();
+    log(`watched dirs: ${Object.keys(watched).length}`);
+    (server.httpServer as any)?.getConnections?.((_: unknown, n: number) => log(`open connections: ${n}`));
+    const result = await Promise.race([server.close().then(() => "closed"), new Promise((r) => setTimeout(() => r("TIMEOUT"), 20_000))]);
+    log(`server.close: ${result}; pending: ${[...pending].join(", ") || "none"}`);
+    const handles = (process as any)._getActiveHandles?.() ?? [];
+    log(`active handles: ${handles.map((h: any) => h?.constructor?.name).join(", ")}`);
+  }
   await server?.close();
   upstream?.stop(true);
   rmSync(dir, { recursive: true, force: true });
