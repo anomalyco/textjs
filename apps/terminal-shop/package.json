@@ -8,7 +8,7 @@
     "build": "text build",
     "start": "text start --port 3002",
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
+    "test": "bun test --parallel",
     "e2e": "bun scripts/e2e.ts"
   },
   "dependencies": {

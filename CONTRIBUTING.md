@@ -31,15 +31,15 @@ The apps and tests import the TypeScript sources. `bun run build:packages` build
 ## Tests
 
 ```bash
-bun test packages/                  # unit tests for every package
-bun test apps/opencode-console/     # OpenCode client
+bun run test                        # unit tests for every package
+bun run --cwd apps/opencode-console test
 bun run --cwd apps/web test         # site, docs and API routes
 bun run --cwd apps/terminal-shop test
 bun run typecheck                   # packages
 bun run --cwd apps/web typecheck
 ```
 
-Tests render frames to an in-memory buffer, so they don't need a browser. Add or update a test with every change.
+Tests render frames to an in-memory buffer, so they don't need a browser. Each `test` script runs its files in parallel across your CPU cores (`bun test --parallel`), so a test file can't rely on state another file leaves behind. Add or update a test with every change.
 
 ### Browser tests
 
@@ -72,7 +72,7 @@ Open the page and [open the browser console](https://textjs.org/docs/installatio
 - Keep each pull request to one change, and explain what it does and how you tested it.
 - Add an entry under `## [Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md) for any change users will notice.
 - Match the style of the code around your change. TypeScript is strict across the repo.
-- Run `bun test packages/` and `bun run typecheck` before you push.
+- Run `bun run test` and `bun run typecheck` before you push.
 
 ## Writing docs and copy
 

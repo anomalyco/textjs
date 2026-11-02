@@ -1,10 +1,10 @@
-import { afterAll, afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, setSystemTime, spyOn, test } from "bun:test";
 import { act } from "react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CompanionApp } from "../src/console-companion/App";
 import { siteStore } from "../src/console-companion/store";
-import { fnv1a, gatePath, GATES, matchGate } from "../src/console-companion/team-gate";
+import { fnv1a, gatePath, GATES, gatesSettled, matchGate } from "../src/console-companion/team-gate";
 import { TEAM_EGGS } from "../src/console-companion/team";
 import { ludvigStep, PIN, pushBack } from "../src/console-companion/team/eggs/ludvig";
 import { CHIPS, MULT } from "../src/console-companion/team/eggs/brendan";
@@ -59,9 +59,9 @@ async function open(path: string): Promise<Harness> {
   return mount(<CompanionApp />, HOME_TAB.has(path) ? { cols: 100, rows: 26, tabFocus: false } : { cols: 120, rows: 36, tabFocus: false });
 }
 
-/** Lets the lazy team chunk resolve. */
+/** Waits for any gate the typed letters matched to load the team chunk and open its egg. */
 async function settle(h: Harness): Promise<string> {
-  for (let i = 0; i < 20 && siteStore.getSnapshot().teamEgg === null; i++) await h.wait(10);
+  await act(() => gatesSettled());
   await h.wait(10);
   return h.frame();
 }
@@ -201,8 +201,12 @@ describe("team eggs", () => {
   test("letters pressed slower than 1.5s apart start over", async () => {
     const h = await open("/docs/caching");
     await h.type("ja");
-    await h.wait(1600);
-    await h.type("ck");
+    setSystemTime(new Date(Date.now() + 1600));
+    try {
+      await h.type("ck");
+    } finally {
+      setSystemTime();
+    }
     await settle(h);
     expect(siteStore.getSnapshot().teamEgg).toBeNull();
     await h.unmount();

@@ -75,7 +75,7 @@ jobs:
 
       - name: Test apps
         run: |
-          bun test apps/opencode-console/ --parallel
+          bun run --cwd apps/opencode-console test
           bun run --cwd apps/web test
           bun run --cwd apps/terminal-shop test
 
