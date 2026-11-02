@@ -1,0 +1,43 @@
+name: Bug report
+description: Something in a Text.js package, extension or textjs.org doesn't work as documented.
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected to see instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: The smallest app or commands that show the problem. A link to a repository is ideal.
+      placeholder: |
+        1. bunx create-text-app@latest --template starter
+        2. bun dev
+        3. Press ...
+    validations:
+      required: true
+  - type: input
+    id: packages
+    attributes:
+      label: Package versions
+      description: For example `@textjs/app 1.0.4`. Run `bun pm ls` or `npm ls` to see them.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser and version, runtime (Bun or Node.js) and version, and operating system.
+      placeholder: Chrome 142, Bun 1.4.4, macOS 26
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Error messages, CLI output or a screenshot of the console.
+      render: text

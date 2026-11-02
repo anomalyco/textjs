@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://textjs.org/docs
+    about: Guides and API reference for Text.js.
+  - name: Report a vulnerability
+    url: https://github.com/anomalyco/textjs/security/policy
+    about: Report security issues privately, not in a public issue.

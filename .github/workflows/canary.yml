@@ -27,7 +27,7 @@ jobs:
     name: Verify and publish canary
     # Only on the canonical repository: never on forks or pull requests.
     if: >-
-      github.repository == 'adamdotdevin/textjs' &&
+      github.repository == 'anomalyco/textjs' &&
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip canary]'))
     runs-on: ubuntu-latest
