@@ -5,6 +5,7 @@
 //   bun run dev   (or: bun run build && bun run preview)
 //   PLAYWRIGHT=/path/to/playwright-core BASE=http://localhost:3000 node scripts/e2e-keys.mjs
 import { fileURLToPath } from "node:url";
+import {gzipSync} from "node:zlib";
 
 const pw = process.env.PLAYWRIGHT ?? fileURLToPath(new URL("../../../bench/devtools/node_modules/playwright-core/index.mjs", import.meta.url));
 const { chromium } = await import(pw);
@@ -23,6 +24,7 @@ await page.addInitScript(() => {
 // Never reach a real local OpenCode server from tests: the OpenCode page must stay in its sandbox.
 await page.route((url) => /^(127\.0\.0\.1|localhost|\[::1\])$/.test(url.hostname) && url.port !== port, (r) => r.abort());
 const errors = [];
+const modules=new Map();page.on("response",r=>{const u=new URL(r.url());if(u.origin===new URL(base).origin&&/^\/assets\/.*\.js$/.test(u.pathname))modules.set(u.pathname,r);});
 page.on("pageerror", (e) => errors.push(e.message));
 const last = () => page.evaluate(() => window.__frames[window.__frames.length - 1] ?? "");
 const settle = (ms = 250) => page.waitForTimeout(ms);
@@ -81,11 +83,13 @@ for (const d of demos) {
 check("pad is live after keystrokes", (await padState()) === "live", await padState());
 
 // OpenCode and Coffee: same pad, their own URLs and bottom panels; back and forward work.
+const beforeOpenCode=new Set(modules.keys());
 await picker("OpenCode").click();
 await settle(800);
 check("OpenCode: picked at /opencode with the connection panel", path() === "/opencode" && (await picked()) === "OpenCode" && (await page.locator(".pad-connect").count()) === 1, page.url());
 check("OpenCode: its wordmark leads the message", (await wordmark()) === "OpenCode", await wordmark());
 check("OpenCode: selecting it loads the client",await openCodeLoaded());
+const activation=await Promise.all([...modules].filter(([name])=>!beforeOpenCode.has(name)).map(async([name,r])=>({name,gzipBytes:gzipSync(await r.body()).byteLength})));console.log("OpenCode activation JS (gzip bytes):",JSON.stringify(activation));
 check("OpenCode: the console switches without a reload, keys still routed", (await last()).includes("Ask anything") && (await padState()) === "live", await last());
 await picker("Coffee").click();
 await settle(800);
