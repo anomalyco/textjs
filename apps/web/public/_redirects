@@ -19,3 +19,15 @@
 /docs/app/* /docs 302
 /learn/dashboard-app /learn 302
 /learn/dashboard-app/* /learn 302
+
+# Renamed pages. Without these, Pages keeps serving a removed page's old HTML for up to a week
+# (its asset preservation cache answers 404s), and zone purges don't clear it. /terminal/callback
+# is a Function and stays put.
+/terminal /coffee 301
+/merch /store 301
+/merch/ /store 301
+/merch/frame-tee /store 301
+/merch/hoodie /store 301
+/merch/cap /store 301
+/merch/sticker-sheet /store 301
+/merch/* /store/:splat 301
