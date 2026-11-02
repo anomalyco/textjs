@@ -29,7 +29,7 @@ import {
   VIRTUAL_LIVE,
   VIRTUAL_PLAYER,
 } from "./live-routes";
-import { scanApp } from "./scan";
+import { scanApp, toPosix } from "./scan";
 import type { MiddlewareModule } from "./middleware";
 import { findMiddlewareFile } from "./middleware-node";
 import { createLiveAuthorizer } from "./middleware-runtime";
@@ -299,10 +299,13 @@ export function createLiveDevHandler(vite: ViteDevServer, o: LiveDevOptions): Li
   };
 
   let timer: ReturnType<typeof setTimeout> | null = null;
-  const rootPrefix = o.root.endsWith(sep) ? o.root : o.root + sep;
-  const appPrefix = appDir.endsWith(sep) ? appDir : appDir + sep;
-  const onChange = (file: string, kind: "change" | "add" | "unlink"): void => {
-    if (!file.startsWith(rootPrefix) || file.includes(`${sep}node_modules${sep}`)) return;
+  // Vite's root and module graph use `/`; the watcher reports native paths (`\` on Windows).
+  const withSlash = (p: string): string => (p.endsWith("/") ? p : `${p}/`);
+  const rootPrefix = withSlash(toPosix(o.root));
+  const appPrefix = withSlash(toPosix(appDir));
+  const onChange = (native: string, kind: "change" | "add" | "unlink"): void => {
+    const file = toPosix(native);
+    if (!file.startsWith(rootPrefix) || file.includes("/node_modules/")) return;
     changed.add(file);
     if (kind !== "change" && file.startsWith(appPrefix)) structureChanged = true;
     if (timer !== null) clearTimeout(timer);
