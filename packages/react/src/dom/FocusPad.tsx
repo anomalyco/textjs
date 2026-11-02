@@ -505,6 +505,9 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
   const activate = (e: MouseEvent<HTMLDivElement>): void => {
     const t = e.target as Element | null;
     if (t && typeof t.closest === "function" && t.closest(INTERACTIVE) !== null) return;
+    // Otherwise mousedown's default action blurs the input sink we focus below, and IMEs
+    // (Japanese, Chinese, Korean) only compose into a focused editable element.
+    e.preventDefault();
     if (onActivate) onActivate();
     else root?.input.focus();
     // Clicking moves focus off DevTools; reflect it immediately.
