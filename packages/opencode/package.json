@@ -15,6 +15,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./cli": "./src/cli.ts",
+    "./key-defaults": "./src/key-defaults.ts",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -23,6 +24,7 @@
     "exports": {
       ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
       "./cli": { "types": "./dist/cli.d.ts", "default": "./dist/cli.js" },
+      "./key-defaults": { "types": "./dist/key-defaults.d.ts", "default": "./dist/key-defaults.js" },
       "./package.json": "./package.json"
     }
   },
