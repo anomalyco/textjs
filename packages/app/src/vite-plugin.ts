@@ -215,9 +215,10 @@ const DEPS_SETTLE_MS = 10_000;
  * Closing Vite while its dependency optimizer is re-running hangs forever:
  * module loads for optimized deps wait on the run's promise, the close cancels
  * the run without resolving it, and the plugin container's close waits on those
- * loads (Vite 6.4). It happens when `text dev` stops in the first seconds after
- * a page load, when Vite discovers the app's dependencies. So `close()` first
- * waits, bounded, for every discovered dependency to finish optimizing.
+ * loads (vitejs/vite#22934, fixed in Vite 8.3.1; drop this on upgrading). It
+ * happens when `text dev` stops in the first seconds after a page load, while
+ * Vite discovers the app's dependencies. So `close()` first waits, bounded, for
+ * every discovered dependency to finish optimizing.
  */
 function settleDepsBeforeClose(server: ViteDevServer): void {
   const close = server.close.bind(server);

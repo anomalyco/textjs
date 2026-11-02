@@ -29,7 +29,7 @@ test("text dev closes while Vite is optimizing dependencies it discovered after 
   writeFileSync(join(dir, "app/logs/page.tsx"), page("logs"));
   for (let i = 0; i < 40 && !((await server.transformRequest("virtual:textjs/routes"))?.code ?? "").includes("/app/logs/page.tsx"); i++) await Bun.sleep(100);
 
-  // Vite 6.4 alone never finishes this close: optimized-dep loads wait on the canceled run.
+  // Vite 6.4 alone never finishes this close (vitejs/vite#22934): optimized-dep loads wait on the canceled run.
   const closed = await Promise.race([server.close().then(() => true), Bun.sleep(12_000).then(() => false)]);
   expect(closed).toBe(true);
 }, 30_000);
