@@ -64,7 +64,9 @@ describe("security contract (SCOPED_APP)", () => {
         expect(blocked.status).toBe(403);
         expect(blocked.body).toContain('Text.js error TX028: Blocked request. This host ("attacker.example") is not allowed. Add it to `vite.server.allowedHosts` in text.config.ts.');
         // Server-only sources are never served as modules.
-        for (const path of ["/middleware.ts", "/text.config.ts", "/app/api/admin/secret/route.ts", "/.env"]) {
+        // Also under other spellings: case (NTFS and APFS match it), Vite's /@fs/ prefix and bad encoding.
+        const fs = `/@fs/${dir.replaceAll("\\", "/").replace(/^\//, "")}`;
+        for (const path of ["/middleware.ts", "/text.config.ts", "/app/api/admin/secret/route.ts", "/.env", "/Middleware.ts", "/TEXT.config.ts", "/app/api/admin/secret/Route.ts", "/.ENV", `${fs}/middleware.ts`, `${fs}/text.config.ts`, "/middleware%2ets", "/%E0%A4%A"]) {
           const res = await fetch(`${base}${path}`);
           expect({ path, status: res.status }).toEqual({ path, status: 404 });
           await res.arrayBuffer();

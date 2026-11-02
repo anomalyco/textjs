@@ -333,7 +333,6 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
         req.url = normalizeRequestTarget(req.url);
         let pathname = req.url.split("?")[0] ?? "/";
         if (basePath && (pathname === basePath || pathname.startsWith(`${basePath}/`))) pathname = pathname.slice(basePath.length) || "/";
-        if (pathname.startsWith("/@fs/")) pathname = `/${relative(root, pathname.slice(4)).split(sep).join("/")}`;
         if (isServerOnlySource(pathname, root, appDirName, serverOnly)) {
           res.statusCode = 404;
           res.setHeader("Content-Type", "text/plain; charset=utf-8");

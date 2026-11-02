@@ -4,11 +4,12 @@
 
 import { existsSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { join, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { LIVE_PATH } from "../live-protocol";
 import { isLoopbackUrl, proxyFetch, requestOrigin, requestUrl, sendWebResponse, setMiddlewareState, toWebRequest } from "./http";
 import type { MiddlewareModule } from "./middleware";
 import { matchesMiddleware, MIDDLEWARE_FILES, middlewareMatchers, runMiddleware } from "./middleware-runtime";
+import { CASE_INSENSITIVE_FS, resolveRoot } from "./paths";
 
 /** `toWebRequest()` returns this request (once) instead of re-reading the Node stream. */
 export const WEB_REQUEST = Symbol.for("textjs.webRequest");
@@ -92,25 +93,42 @@ const SOURCE_EXT = /\.(?:[cm]?[jt]sx?)$/;
 /**
  * Server-only sources `text dev` must never hand to the browser as modules:
  * `middleware.ts`, `text.config.*`, the cache handler, route handlers,
- * `*.server.*` modules and `.env` files.
+ * `*.server.*` modules and `.env` files. `pathname` is the request path without
+ * basePath, `/@fs/<absolute path>` included. A path that doesn't decode counts.
+ *
+ * The file is matched both as the URL spells it and as the file system does,
+ * and reserved names in any case, so `/Middleware.ts`, `/.ENV`, an 8.3 short
+ * name or a symlink can't reach a server-only file under another name.
  */
 export function isServerOnlySource(pathname: string, root: string, appDir = "app", extra: readonly string[] = []): boolean {
   let decoded: string;
   try {
     decoded = decodeURIComponent(pathname);
   } catch {
-    return false;
+    return true;
   }
-  const rel = decoded.replace(/^[/\\]+/, "").replace(/\\/g, "/");
-  const name = rel.split("/").pop() ?? "";
-  if (/^\.env(?:\..*)?$/.test(name)) return true;
-  if ((MIDDLEWARE_FILES as readonly string[]).includes(rel) || /^text\.config\.[cm]?[jt]s$/.test(rel)) return true;
-  if (/\.server\.[cm]?[jt]sx?$/.test(name)) return true;
-  if (rel.startsWith(`${appDir.replace(/^\.?\//, "")}/`) && /^route\.[cm]?[jt]sx?$/.test(name)) return true;
-  return extra.some((file) => {
-    const r = relative(root, file).split(sep).join("/");
-    return r === rel && SOURCE_EXT.test(r);
-  });
+  const fold = (p: string): string => (CASE_INSENSITIVE_FS ? p.toLowerCase() : p);
+  const base = resolveRoot(root);
+  const projectPath = (file: string): string => {
+    const rel = relative(base, file);
+    return (rel.startsWith("..") || isAbsolute(rel) ? file : rel).split(sep).join("/");
+  };
+  // `/@fs/C:/app/x.ts` on Windows: drop the slash before the drive letter.
+  const file = decoded.startsWith("/@fs/") ? resolve(decoded.slice(4).replace(/^\/([A-Za-z]:)/, "$1")) : join(base, decoded);
+  const candidates = new Set([projectPath(file), projectPath(resolveRoot(file))]);
+  const app = appDir.replace(/^\.?\//, "").replace(/\/+$/, "").toLowerCase();
+  const extras = extra.filter((f) => SOURCE_EXT.test(f)).map((f) => fold(projectPath(resolveRoot(resolve(base, f)))));
+  for (const spelled of candidates) {
+    if (extras.includes(fold(spelled))) return true;
+    // The reserved names match in any case: harmless on case-sensitive disks, required on the others.
+    const rel = spelled.toLowerCase();
+    const name = rel.split("/").pop() ?? "";
+    if (/^\.env(?:\..*)?$/.test(name)) return true;
+    if ((MIDDLEWARE_FILES as readonly string[]).includes(rel) || /^text\.config\.[cm]?[jt]s$/.test(rel)) return true;
+    if (/\.server\.[cm]?[jt]sx?$/.test(name)) return true;
+    if (rel.startsWith(`${app}/`) && /^route\.[cm]?[jt]sx?$/.test(name)) return true;
+  }
+  return false;
 }
 
 /**
@@ -122,9 +140,11 @@ export function isDevInternalRequest(rawUrl: string, root: string): boolean {
   const pathname = rawUrl.split("?")[0] ?? "/";
   if (pathname === LIVE_PATH) return false;
   if (pathname.startsWith("/@") || pathname.startsWith("/node_modules/") || pathname.startsWith("/__")) return true;
+  // A server-only file is never a module request, whatever its spelling: middleware decides.
+  if (isServerOnlySource(pathname, root)) return false;
   // Source files Vite serves as modules (`/app/page.tsx?t=…`); `public/` files still run middleware, as in production.
   try {
-    const base = resolve(root);
+    const base = resolveRoot(root);
     const file = join(base, decodeURIComponent(pathname));
     return file.startsWith(base + sep) && statSync(file).isFile();
   } catch {
