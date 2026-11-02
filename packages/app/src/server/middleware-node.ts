@@ -4,7 +4,7 @@
 
 import { existsSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { join, relative, sep } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import { LIVE_PATH } from "../live-protocol";
 import { isLoopbackUrl, proxyFetch, requestOrigin, requestUrl, sendWebResponse, setMiddlewareState, toWebRequest } from "./http";
 import type { MiddlewareModule } from "./middleware";
@@ -124,8 +124,9 @@ export function isDevInternalRequest(rawUrl: string, root: string): boolean {
   if (pathname.startsWith("/@") || pathname.startsWith("/node_modules/") || pathname.startsWith("/__")) return true;
   // Source files Vite serves as modules (`/app/page.tsx?t=…`); `public/` files still run middleware, as in production.
   try {
-    const file = join(root, decodeURIComponent(pathname));
-    return file.startsWith(root + sep) && statSync(file).isFile();
+    const base = resolve(root);
+    const file = join(base, decodeURIComponent(pathname));
+    return file.startsWith(base + sep) && statSync(file).isFile();
   } catch {
     return false;
   }
