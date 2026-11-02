@@ -7,6 +7,7 @@ import { DOCS_READING_HINTS, hintsFor, PRESETS, siteStore, type CompanionTab, ty
 import { NotFoundTab } from "./tabs/NotFoundTab";
 import { getLoadedCompanionTabs, preloadCompanionTab, subscribeCompanionTabs } from "./tabs-loader";
 import { teamModule, useTeamGate } from "./team-gate";
+import { prefetchFailed } from "../telemetry/capture";
 import { useSite } from "./useSite";
 
 const PAGE_LABEL: Record<CompanionTab, string> = { home: "", playground: "playground", opencode: "opencode", docs: "docs", learn: "learn", terminal: "terminal", blog: "blog" };
@@ -57,8 +58,8 @@ export function CompanionApp(): ReactNode {
   const example = runsExamples(tab) && !notFound && site.example !== null && exampleGrid(site.example, tab) ? site.example : null;
 
   useEffect(() => {
-    void preloadCompanionTab(tab);
-    if (example !== null) void preloadCompanionTab("example");
+    preloadCompanionTab(tab).catch(prefetchFailed);
+    if (example !== null) preloadCompanionTab("example").catch(prefetchFailed);
   }, [tab, example]);
 
   useInput(

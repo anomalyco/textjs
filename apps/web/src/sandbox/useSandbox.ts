@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ConsoleTarget, FrameResult, InputEngine, StyledFrame } from "@textjs/core";
 import type { ConsoleRoot, ThemeName } from "@textjs/react";
 import { useDocumentVisible } from "../site/useInView";
+import { consoleRootErrors, report } from "../telemetry/capture";
 
 export interface CapturedLog {
   format: string;
@@ -82,6 +83,7 @@ export function useSandbox(app: ReactNode, { cols, rows, theme, wireframe = fals
           // `window.text` always belongs to the live console companion.
           registerGlobal: false,
           identifierPrefix: "txs",
+          ...consoleRootErrors,
         });
         if (cancelled) {
           r.unmount();
@@ -105,7 +107,10 @@ export function useSandbox(app: ReactNode, { cols, rows, theme, wireframe = fals
         });
         setRoot(r);
       })
-      .catch((err: unknown) => console.error(err));
+      .catch((err: unknown) => {
+        console.error(err);
+        report(err, "console");
+      });
     return () => {
       cancelled = true;
       created?.unmount();

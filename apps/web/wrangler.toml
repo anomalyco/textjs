@@ -1,0 +1,12 @@
+# Cloudflare Pages project `textjs` (`bun run deploy`). Once a deploy includes this file it is the
+# source of truth for the project's bindings and compatibility date, and the dashboard shows them
+# read-only. Secrets (TERMINAL_CLIENT_ID, TERMINAL_COOKIE_SECRET) stay in the dashboard.
+name = "textjs"
+pages_build_output_dir = "./dist"
+compatibility_date = "2026-10-31"
+
+# Crash reports from `POST /api/errors` (server/reports.ts). The dataset is created on first write.
+# Read them with `bun scripts/errors.ts`.
+[[analytics_engine_datasets]]
+binding = "ERRORS"
+dataset = "textjs_errors"

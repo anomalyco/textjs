@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { report } from "./telemetry/capture";
 
 interface State {
   error: Error | null;
@@ -14,6 +15,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
 
   override componentDidCatch(error: unknown, info: ErrorInfo): void {
     console.error("▼ Text.js website crashed", error, info.componentStack);
+    report(error, "boundary");
   }
 
   override render(): ReactNode {

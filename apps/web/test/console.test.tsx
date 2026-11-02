@@ -160,6 +160,8 @@ describe("doc previews render at their declared sizes", () => {
 describe("demo logic", () => {
   test("snake moves, eats and dies on walls", () => {
     const g = newGame(12, 8);
+    // Food is placed at random; keep it off the snake's row so the first step can't eat it.
+    g.food = { x: 0, y: 0 };
     const head = { ...(g.snake[0] as { x: number; y: number }) };
     step(g);
     expect(g.snake[0]?.x).toBe(head.x + 1);
