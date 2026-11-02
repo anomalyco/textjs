@@ -15,7 +15,7 @@ export interface ConsoleMirrorProps {
   style?: CSSProperties;
 }
 
-const FONT = 'ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace';
+const FONT = 'ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", Consolas, monospace';
 
 const DEVTOOLS = {
   dark: { bg: "#282828", panel: "#3c3c3c", border: "#4a4a4a", text: "#e3e3e3", muted: "#9aa0a6", accent: "#7cacf8", row: "#202124" },

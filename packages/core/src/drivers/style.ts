@@ -23,8 +23,13 @@ export interface ConsoleTypographyOptions {
   extraCss: string;
 }
 
+/**
+ * Cascadia Mono (Windows 11) comes before Consolas, which lacks most block
+ * elements, quadrants, braille and arrows: Windows would draw those in
+ * proportional fallback fonts up to twice as wide as a cell.
+ */
 export const DEFAULT_TYPOGRAPHY: Readonly<ConsoleTypographyOptions> = Object.freeze({
-  fontFamily: '"SF Mono",Menlo,Consolas,monospace',
+  fontFamily: '"SF Mono",Menlo,"Cascadia Mono",Consolas,monospace',
   fontSize: 12,
   lineHeight: 14,
   rowMarginY: -1,
