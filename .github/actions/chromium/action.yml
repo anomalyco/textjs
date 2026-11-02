@@ -1,9 +1,10 @@
 # ▼ Chromium's headless shell for playwright-core (headless launches use it),
-# cached per Playwright version. The system libraries it needs come from apt on
-# every run; the browser download is what the cache saves. Run after the Setup action.
+# cached per Playwright version, plus the system packages it needs. apt's .deb
+# downloads are cached too: the runner's Ubuntu mirror can take minutes to
+# serve them, while installing them takes seconds. Run after the Setup action.
 
 name: Chromium
-description: Install Playwright's headless Chromium shell and the system libraries it needs.
+description: Install Playwright's headless Chromium shell and the system packages it needs.
 
 runs:
   using: composite
@@ -19,10 +20,23 @@ runs:
         path: ~/.cache/ms-playwright
         key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}-headless-shell
 
-    - name: Install system libraries
+    - name: Keep apt downloads where the cache can save them
+      shell: bash
+      run: |
+        mkdir -p "$HOME/.cache/apt-archives/partial"
+        printf 'Dir::Cache::Archives "%s";\nAPT::Keep-Downloaded-Packages "true";\nAPT::Sandbox::User "root";\n' "$HOME/.cache/apt-archives" | sudo tee /etc/apt/apt.conf.d/99-cache-archives > /dev/null
+
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/apt-archives
+        key: apt-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}-chromium
+
+    - name: Install system packages
       shell: bash
       working-directory: apps/web
-      run: bunx playwright-core install-deps chromium
+      run: |
+        bunx playwright-core install-deps chromium
+        sudo chown -R "$(id -u):$(id -g)" "$HOME/.cache/apt-archives"
 
     - name: Install Chromium
       if: steps.cache.outputs.cache-hit != 'true'
