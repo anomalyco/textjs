@@ -46,6 +46,13 @@ describe("server-rendered routes and adapters", () => {
     expect(existsSync(join(dir, "dist/.text/server/live.mjs"))).toBe(true);
   }, 60_000);
 
+  test("the live manifest's paths use / on every OS, so dist/ deploys from a Windows build", () => {
+    const manifest = JSON.parse(readFileSync(join(dir, "dist/.text/live-manifest.json"), "utf8")) as { pages: Record<string, string>; liveHtml: string | null };
+    expect(Object.keys(manifest.pages).length).toBeGreaterThan(0);
+    for (const file of [...Object.values(manifest.pages), manifest.liveHtml ?? ""]) expect(file).not.toContain("\\");
+    expect(manifest.liveHtml).toBe(".text/live.html");
+  });
+
   test(
     "bun: dist/server.js hosts live sessions",
     async () => {
