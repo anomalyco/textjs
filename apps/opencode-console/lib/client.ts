@@ -8,7 +8,9 @@
  */
 
 import { createDemoClient } from "./demo";
-import {fileOption, v1Parts, v2Parts} from "./mentions";
+import { management } from "./management";
+import { workspaceApi } from "./workspaces";
+import { fileOption, v1Parts, v2Parts } from "./mentions";
 import type {
   AgentOption,
   Attachment,
@@ -43,6 +45,7 @@ export class HttpError extends Error {
 }
 
 export interface Transport {
+  bridgeKeys?(): Promise<import("./types").KeySettings>;
   /** Display label for the server (`localhost:49374`). */
   label: string;
   json<T>(method: string, path: string, body?: unknown, timeoutMs?: number): Promise<T>;
@@ -53,12 +56,15 @@ export function createTransport(base: string, label: string, extraHeaders: Recor
   const root = base.replace(/\/+$/, "");
   // Direct servers need no custom headers. Both proxies require a CSRF header on writes.
   let proxy = root.startsWith("/");
-  return {
+  const transport: Transport = {
     label,
+    async bridgeKeys() {
+      return proxy ? transport.json("GET", "/__textjs/keys") : { keybinds: {}, timeout: 2000 };
+    },
     async json<T>(method: string, path: string, body?: unknown, timeoutMs = 15_000): Promise<T> {
       const headers: Record<string, string> = { accept: "application/json", ...extraHeaders };
       if (proxy && method !== "GET" && method !== "HEAD") headers["x-opencode-client"] = "1";
-      const init: RequestInit = { method, headers };
+      const init: RequestInit = { method, headers, ...(method !== "GET" && method !== "HEAD" && { redirect: "error" as const }) };
       if (body !== undefined) {
         init.body = JSON.stringify(body);
         init.headers = { ...init.headers, "content-type": "application/json" };
@@ -82,6 +88,7 @@ export function createTransport(base: string, label: string, extraHeaders: Recor
       return res;
     },
   };
+  return transport;
 }
 
 /** Parse a `text/event-stream` body into JSON payloads (one per `data:` block). */
@@ -123,7 +130,12 @@ export async function readSse(res: Response, onData: (data: unknown) => void): P
 }
 
 /** Subscribe to an SSE endpoint with automatic reconnect (1s → 8s backoff). */
-function subscribeSse(t: Transport, path: string, onData: (data: unknown) => void, onState?: (s: "open" | "closed") => void): () => void {
+function subscribeSse(
+  t: Transport,
+  path: string,
+  onData: (data: unknown) => void,
+  onState?: (s: "open" | "closed") => void,
+): () => void {
   let stopped = false;
   let controller: AbortController | null = null;
   let delay = 1000;
@@ -178,7 +190,8 @@ function toolContent(v: unknown): ToolContent[] {
   return v.flatMap((c): ToolContent[] => {
     if (!isRecord(c)) return [];
     if (c.type === "text" && typeof c.text === "string") return [{ type: "text", text: c.text }];
-    if (c.type === "file" && typeof c.uri === "string") return [{ type: "file", uri: c.uri, mime: str(c.mime) ?? "", name: str(c.name) }];
+    if (c.type === "file" && typeof c.uri === "string")
+      return [{ type: "file", uri: c.uri, mime: str(c.mime) ?? "", name: str(c.name) }];
     return [];
   });
 }
@@ -215,7 +228,13 @@ function v2Session(v: unknown): SessionInfo | null {
     directory: str(rec(v.location).directory),
     cost: num(v.cost),
     outcome: v.outcome === "succeeded" || v.outcome === "failed" || v.outcome === "interrupted" ? v.outcome : undefined,
-    time: { created: num(time.created) ?? 0, updated: num(time.updated) ?? num(time.created) ?? 0, busy: num(time.busy), idle: num(time.idle) },
+    time: {
+      created: num(time.created) ?? 0,
+      updated: num(time.updated) ?? num(time.created) ?? 0,
+      busy: num(time.busy),
+      idle: num(time.idle),
+      viewed: num(time.viewed),
+    },
   };
 }
 
@@ -227,19 +246,41 @@ function v2ToolState(v: unknown): ToolState {
     case "running":
       return { status: "running", input: rec(s.input), metadata: rec(s.metadata) };
     case "completed":
-      return { status: "completed", input: rec(s.input), content: toolContent(s.content), metadata: isRecord(s.metadata) ? s.metadata : undefined };
+      return {
+        status: "completed",
+        input: rec(s.input),
+        content: toolContent(s.content),
+        metadata: isRecord(s.metadata) ? s.metadata : undefined,
+      };
     default:
-      return { status: "error", input: rec(s.input), error: { message: errorMessage(s.error) }, content: toolContent(s.content), metadata: isRecord(s.metadata) ? s.metadata : undefined };
+      return {
+        status: "error",
+        input: rec(s.input),
+        error: { message: errorMessage(s.error) },
+        content: toolContent(s.content),
+        metadata: isRecord(s.metadata) ? s.metadata : undefined,
+      };
   }
 }
 
 function v2Part(v: unknown): AssistantPart | null {
   if (!isRecord(v)) return null;
   if (v.type === "text") return { type: "text", text: str(v.text) ?? "" };
-  if (v.type === "reasoning") return { type: "reasoning", text: str(v.text) ?? "", time: isRecord(v.time) ? { created: num(v.time.created) ?? 0, completed: num(v.time.completed) } : undefined };
+  if (v.type === "reasoning")
+    return {
+      type: "reasoning",
+      text: str(v.text) ?? "",
+      time: isRecord(v.time) ? { created: num(v.time.created) ?? 0, completed: num(v.time.completed) } : undefined,
+    };
   if (v.type === "tool") {
     const time = rec(v.time);
-    return { type: "tool", id: str(v.id) ?? "", name: str(v.name) ?? "tool", state: v2ToolState(v.state), time: { created: num(time.created) ?? 0, ran: num(time.ran), completed: num(time.completed) } };
+    return {
+      type: "tool",
+      id: str(v.id) ?? "",
+      name: str(v.name) ?? "tool",
+      state: v2ToolState(v.state),
+      time: { created: num(time.created) ?? 0, ran: num(time.ran), completed: num(time.completed) },
+    };
   }
   return null;
 }
@@ -252,18 +293,36 @@ export function v2Message(v: unknown): SessionMessage | null {
   switch (v.type) {
     case "user": {
       // Attachment bytes/URIs don't belong in the cell grid or the app store.
-      const files = Array.isArray(v.files) ? v.files.filter(isRecord).map((f) => ({ mime: str(f.mime) ?? "", name: str(f.name) || "attachment" })) : undefined;
-      const text=str(v.text)??"",mentions:Attachment[]=[];
-      for(const [kind,values] of [["file",v.files],["agent",v.agents],["skill",v.skills]] as const){
-        for(const p of Array.isArray(values)?values.filter(isRecord):[]){
-          const {start,end,text:token}=rec(p.mention), name=str(kind==="skill"?p.id:p.name);
-          if(!name || typeof start!=="number" || typeof end!=="number" || typeof token!=="string" || text.slice(start,end)!==token)continue;
-          const mention={start,end,text:token};
-          if(kind!=="file")mentions.push({kind,name,mention});
-          else {const uri=str(rec(p.source).uri);if(uri?.startsWith("file:///"))mentions.push({kind,name,mention,uri,mime:str(p.mime)??"text/plain"});}
+      const files = Array.isArray(v.files)
+        ? v.files.filter(isRecord).map((f) => ({ mime: str(f.mime) ?? "", name: str(f.name) || "attachment" }))
+        : undefined;
+      const text = str(v.text) ?? "",
+        mentions: Attachment[] = [];
+      for (const [kind, values] of [
+        ["file", v.files],
+        ["agent", v.agents],
+        ["skill", v.skills],
+      ] as const) {
+        for (const p of Array.isArray(values) ? values.filter(isRecord) : []) {
+          const { start, end, text: token } = rec(p.mention),
+            name = str(kind === "skill" ? p.id : p.name);
+          if (
+            !name ||
+            typeof start !== "number" ||
+            typeof end !== "number" ||
+            typeof token !== "string" ||
+            text.slice(start, end) !== token
+          )
+            continue;
+          const mention = { start, end, text: token };
+          if (kind !== "file") mentions.push({ kind, name, mention });
+          else {
+            const uri = str(rec(p.source).uri);
+            if (uri?.startsWith("file:///")) mentions.push({ kind, name, mention, uri, mime: str(p.mime) ?? "text/plain" });
+          }
         }
       }
-      return { ...base, type: "user", text, files, ...(mentions.length && {mentions}) };
+      return { ...base, type: "user", text, files, ...(mentions.length && { mentions }) };
     }
     case "assistant": {
       const tokens = rec(v.tokens);
@@ -281,7 +340,14 @@ export function v2Message(v: unknown): SessionMessage | null {
         content,
         finish: str(v.finish),
         error: v.error ? { message: errorMessage(v.error) } : undefined,
-        tokens: isRecord(v.tokens) ? { input: num(tokens.input) ?? 0, output: num(tokens.output) ?? 0, reasoning: num(tokens.reasoning) ?? 0, cache: {read:num(rec(tokens.cache).read) ?? 0,write:num(rec(tokens.cache).write) ?? 0} } : undefined,
+        tokens: isRecord(v.tokens)
+          ? {
+              input: num(tokens.input) ?? 0,
+              output: num(tokens.output) ?? 0,
+              reasoning: num(tokens.reasoning) ?? 0,
+              cache: { read: num(rec(tokens.cache).read) ?? 0, write: num(rec(tokens.cache).write) ?? 0 },
+            }
+          : undefined,
         cost: num(v.cost),
       };
     }
@@ -289,19 +355,38 @@ export function v2Message(v: unknown): SessionMessage | null {
     case "system":
       return { ...base, type: "note", text: str(v.description) ?? str(v.text) ?? v.type, tone: "muted" };
     case "shell":
-      return { ...base, type: "shell", command: str(v.command) ?? "", status: str(v.status) ?? "exited", output: str(rec(v.output).output) };
+      return {
+        ...base,
+        type: "shell",
+        command: str(v.command) ?? "",
+        status: str(v.status) ?? "exited",
+        output: str(rec(v.output).output),
+      };
     case "idle":
       if (v.outcome === "succeeded") return null;
-      return { ...base, type: "note", text: v.outcome === "interrupted" ? "interrupted" : `failed${v.error ? ` · ${errorMessage(v.error)}` : ""}`, tone: v.outcome === "interrupted" ? "warning" : "danger" };
+      return {
+        ...base,
+        type: "note",
+        text: v.outcome === "interrupted" ? "interrupted" : `failed${v.error ? ` · ${errorMessage(v.error)}` : ""}`,
+        tone: v.outcome === "interrupted" ? "warning" : "danger",
+      };
     case "model-switched":
       return { ...base, type: "note", text: `model → ${modelRef(v.model)?.id ?? "?"}`, tone: "muted" };
     case "agent-switched":
       return { ...base, type: "note", text: `agent → ${str(v.agent) ?? "?"}`, tone: "muted" };
     case "location-switched":
-      return {...base,type:"note",text:`Directory: ${str(rec(v.location).directory)??str(v.subpath)??""}`,tone:"muted"};
+      return { ...base, type: "note", text: `Directory: ${str(rec(v.location).directory) ?? str(v.subpath) ?? ""}`, tone: "muted" };
     case "compaction":
       if (v.status === "failed") return { ...base, type: "note", text: `Compaction failed: ${errorMessage(v.error)}`, tone: "danger" };
-      return { ...base, type: "note", text: v.status === "running" ? "compacting conversation…" : ["conversation compacted",str(v.summary)].filter(Boolean).join("\n\n"), tone: "info" };
+      return {
+        ...base,
+        type: "note",
+        text:
+          v.status === "running"
+            ? "compacting conversation…"
+            : ["conversation compacted", str(v.summary)].filter(Boolean).join("\n\n"),
+        tone: "info",
+      };
     case "skill":
       return { ...base, type: "note", text: `skill · ${str(v.name) ?? str(v.skill) ?? ""}`, tone: "info" };
     default:
@@ -311,26 +396,57 @@ export function v2Message(v: unknown): SessionMessage | null {
 
 export function v2Permission(v: unknown): PermissionRequest | null {
   if (!isRecord(v) || typeof v.id !== "string" || typeof v.sessionID !== "string" || typeof v.action !== "string") return null;
-  const strings = (x: unknown): string[] | undefined => (Array.isArray(x) ? x.filter((i): i is string => typeof i === "string") : undefined);
-  const source = isRecord(v.source) && v.source.type === "tool" && typeof v.source.messageID === "string" && typeof v.source.id === "string"
-    ? { type: "tool" as const, messageID: v.source.messageID, id: v.source.id }
-    : undefined;
-  return { id: v.id, sessionID: v.sessionID, action: v.action, resources: strings(v.resources) ?? [], save: strings(v.save), metadata: isRecord(v.metadata) ? v.metadata : undefined, source, message: str(v.message) };
+  const strings = (x: unknown): string[] | undefined =>
+    Array.isArray(x) ? x.filter((i): i is string => typeof i === "string") : undefined;
+  const source =
+    isRecord(v.source) && v.source.type === "tool" && typeof v.source.messageID === "string" && typeof v.source.id === "string"
+      ? { type: "tool" as const, messageID: v.source.messageID, id: v.source.id }
+      : undefined;
+  return {
+    id: v.id,
+    sessionID: v.sessionID,
+    action: v.action,
+    resources: strings(v.resources) ?? [],
+    save: strings(v.save),
+    metadata: isRecord(v.metadata) ? v.metadata : undefined,
+    source,
+    message: str(v.message),
+  };
 }
 
 export function v2Form(v: unknown): FormInfo | null {
   if (!isRecord(v) || typeof v.id !== "string" || typeof v.sessionID !== "string" || !Array.isArray(v.fields)) return null;
   const keys = new Set<string>();
   const fields = v.fields.filter((f): f is FormInfo["fields"][number] => {
-    if (!isRecord(f) || typeof f.key !== "string" || keys.has(f.key) || typeof f.type !== "string" || !["string","boolean","number","integer","multiselect","external"].includes(f.type)) return false;
+    if (
+      !isRecord(f) ||
+      typeof f.key !== "string" ||
+      keys.has(f.key) ||
+      typeof f.type !== "string" ||
+      !["string", "boolean", "number", "integer", "multiselect", "external"].includes(f.type)
+    )
+      return false;
     keys.add(f.key);
     if (f.type === "external") return typeof f.url === "string";
-    if (f.when !== undefined && !(Array.isArray(f.when) && f.when.every(w => isRecord(w) && typeof w.key === "string" && ["eq","neq"].includes(String(w.op))))) return false;
-    return (f.options === undefined && f.type !== "multiselect") || Array.isArray(f.options) && f.options.every(o => isRecord(o) && typeof o.value === "string" && typeof o.label === "string");
+    if (
+      f.when !== undefined &&
+      !(Array.isArray(f.when) && f.when.every((w) => isRecord(w) && typeof w.key === "string" && ["eq", "neq"].includes(String(w.op))))
+    )
+      return false;
+    return (
+      (f.options === undefined && f.type !== "multiselect") ||
+      (Array.isArray(f.options) && f.options.every((o) => isRecord(o) && typeof o.value === "string" && typeof o.label === "string"))
+    );
   });
   // Never reply to a subset of a malformed form; it could omit a required field.
   if (!fields.length || fields.length !== v.fields.length) return null;
-  return { id: v.id, sessionID: v.sessionID, title: str(v.title) ?? "", metadata: isRecord(v.metadata) ? v.metadata : undefined, fields };
+  return {
+    id: v.id,
+    sessionID: v.sessionID,
+    title: str(v.title) ?? "",
+    metadata: isRecord(v.metadata) ? v.metadata : undefined,
+    fields,
+  };
 }
 
 /** Parse a raw V2 SSE payload (`V2Event`) into an `AppEvent`. Unknown events are dropped. */
@@ -343,9 +459,24 @@ export function parseV2Event(raw: unknown): AppEvent | null {
   switch (raw.type) {
     case "server.connected":
       return { type: "connected" };
-    case "command.updated":case "skill.updated":case "agent.updated":return {type:"catalog.changed"};
-    case "session.revert.staged":return {type:"revert.changed",sessionID,before:str(rec(d.revert).messageID)};
-    case "session.revert.cleared":case "session.revert.committed":return {type:"revert.changed",sessionID,committed:raw.type.endsWith("committed")};
+    case "command.updated":
+    case "skill.updated":
+    case "agent.updated":
+    case "reference.updated":
+      return { type: "catalog.changed" };
+    case "session.moved":
+      return { type: "sessions.changed" };
+    case "credential.updated":
+    case "credential.switched":
+    case "integration.updated":
+    case "plugin.updated":
+    case "mcp.status.changed":
+      return { type: "management.changed" };
+    case "session.revert.staged":
+      return { type: "revert.changed", sessionID, before: str(rec(d.revert).messageID) };
+    case "session.revert.cleared":
+    case "session.revert.committed":
+      return { type: "revert.changed", sessionID, committed: raw.type.endsWith("committed") };
     case "session.created":
     case "session.deleted":
     case "session.archived":
@@ -357,7 +488,7 @@ export function parseV2Event(raw: unknown): AppEvent | null {
     case "session.agent.selected":
       return { type: "session.agent", sessionID, agent: str(d.agent) ?? "build" };
     case "session.usage.updated":
-      return typeof d.cost === "number" ? { type: "session.usage", sessionID, cost:d.cost } : null;
+      return typeof d.cost === "number" ? { type: "session.usage", sessionID, cost: d.cost } : null;
     case "session.model.selected": {
       const model = modelRef(d.model);
       return model ? { type: "session.model", sessionID, model } : null;
@@ -386,10 +517,31 @@ export function parseV2Event(raw: unknown): AppEvent | null {
     case "session.skill.activated":
       return { type: "messages.changed", sessionID };
     case "session.step.started":
-      return { type: "step.started", sessionID, messageID, agent: str(d.agent) ?? "build", model: modelRef(d.model) ?? { id: "unknown", providerID: "unknown" }, started: num(d.started) ?? Date.now() };
+      return {
+        type: "step.started",
+        sessionID,
+        messageID,
+        agent: str(d.agent) ?? "build",
+        model: modelRef(d.model) ?? { id: "unknown", providerID: "unknown" },
+        started: num(d.started) ?? Date.now(),
+      };
     case "session.step.ended": {
       const tokens = rec(d.tokens);
-      return { type: "step.ended", sessionID, messageID, finish: str(d.finish), cost: num(d.cost), tokens: isRecord(d.tokens) ? { input: num(tokens.input) ?? 0, output: num(tokens.output) ?? 0, reasoning: num(tokens.reasoning) ?? 0,cache:{read:num(rec(tokens.cache).read) ?? 0,write:num(rec(tokens.cache).write) ?? 0} } : undefined };
+      return {
+        type: "step.ended",
+        sessionID,
+        messageID,
+        finish: str(d.finish),
+        cost: num(d.cost),
+        tokens: isRecord(d.tokens)
+          ? {
+              input: num(tokens.input) ?? 0,
+              output: num(tokens.output) ?? 0,
+              reasoning: num(tokens.reasoning) ?? 0,
+              cache: { read: num(rec(tokens.cache).read) ?? 0, write: num(rec(tokens.cache).write) ?? 0 },
+            }
+          : undefined,
+      };
     }
     case "session.text.started":
       return { type: "part.started", sessionID, messageID, ordinal, kind: "text" };
@@ -412,7 +564,14 @@ export function parseV2Event(raw: unknown): AppEvent | null {
     case "session.tool.progress":
       return { type: "tool.progress", sessionID, messageID, toolID: str(d.id) ?? "", metadata: rec(d.metadata) };
     case "session.tool.success":
-      return { type: "tool.success", sessionID, messageID, toolID: str(d.id) ?? "", content: toolContent(d.content), metadata: isRecord(d.metadata) ? d.metadata : undefined };
+      return {
+        type: "tool.success",
+        sessionID,
+        messageID,
+        toolID: str(d.id) ?? "",
+        content: toolContent(d.content),
+        metadata: isRecord(d.metadata) ? d.metadata : undefined,
+      };
     case "session.tool.failed":
       return { type: "tool.failed", sessionID, messageID, toolID: str(d.id) ?? "", error: errorMessage(d.error) };
     case "permission.asked": {
@@ -448,6 +607,56 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
   };
   return {
     kind: "v2",
+    pairing: {
+      async origins() {
+        const info = await t.json<{ urls: string[] }>("GET", "/api/info");
+        return [
+          ...new Set(
+            info.urls.flatMap((s) => {
+              try {
+                const u = new URL(s);
+                return !u.username && !u.password && ["http:", "https:"].includes(u.protocol) ? [u.origin] : [];
+              } catch {
+                return [];
+              }
+            }),
+          ),
+        ];
+      },
+      issue: () => t.json("POST", "/api/pair"),
+    },
+    management: management(t),
+    workspace: workspaceApi(t),
+    terminals: {
+      async list(id) {
+        return (
+          await t.json<{ data: import("./terminals").Term[] }>("GET", `/api/experimental/session/${encodeURIComponent(id)}/terminal`)
+        ).data.map(({ id, title, cwd, status }) => ({ id, title, cwd, status }));
+      },
+      async snapshot(id) {
+        return (await t.json<{ data: { text: string } }>("GET", `/api/experimental/persistent-pty/${encodeURIComponent(id)}/snapshot`))
+          .data.text;
+      },
+    },
+    keySettings: t.bridgeKeys,
+    async shells(id, dir) {
+      const res = await t.json<{ data: JsonRecord[] }>("GET", "/api/shell" + locationQuery(dir));
+      return res.data.flatMap((s) =>
+        rec(s.metadata).sessionID === id && typeof s.id === "string"
+          ? [{ id: s.id, command: str(s.command) ?? "", status: str(s.status) ?? "exited" }]
+          : [],
+      );
+    },
+    async shellOutput(id, dir) {
+      const p = new URLSearchParams({ limit: "65536", ...(dir && { "location[directory]": dir }) });
+      return (await t.json<{ data: { output: string } }>("GET", `/api/shell/${encodeURIComponent(id)}/output?${p}`)).data.output;
+    },
+    async killShell(id, dir) {
+      await t.json("DELETE", `/api/shell/${encodeURIComponent(id)}` + locationQuery(dir));
+    },
+    async background(id) {
+      await t.json("POST", `/api/session/${encodeURIComponent(id)}/background`);
+    },
     mode,
     label: t.label,
     async branch(dir) {
@@ -496,12 +705,20 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
         .filter((m): m is SessionMessage => m !== null)
         .reverse();
     },
+    async historyPage(id, cursor) {
+      const params = new URLSearchParams({ limit: "100", order: "desc", ...(cursor && { cursor }) });
+      const res = await t.json<{ data: unknown[]; cursor?: { next?: string | null } }>(
+        "GET",
+        `/api/session/${encodeURIComponent(id)}/message?${params}`,
+      );
+      return { messages: res.data.map(v2Message).filter((m): m is SessionMessage => m !== null), next: res.cursor?.next ?? undefined };
+    },
     async create(input) {
       const res = await t.json<{ data?: unknown }>("POST", "/api/session", {
         title: input.title,
         agent: input.agent,
         model: input.model ? { id: input.model.id, providerID: input.model.providerID, variant: input.model.variant } : undefined,
-        location: directory ? { directory } : undefined,
+        location: input.directory || directory ? { directory: input.directory ?? directory } : undefined,
       });
       const s = v2Session(res?.data);
       if (!s) throw new Error("OpenCode returned an invalid session");
@@ -529,6 +746,16 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
       );
       return res.data.flatMap((v) => fileOption(res.location.directory, v.path, v.type === "directory") ?? []);
     },
+    async references(dir) {
+      const res = await t.json<{ data: JsonRecord[] }>("GET", "/api/reference" + locationQuery(dir));
+      return res.data.flatMap((r) => {
+        if (r.hidden || typeof r.name !== "string" || typeof r.path !== "string" || !r.path.startsWith("/")) return [];
+        const file = fileOption("/", r.path.slice(1), true);
+        return file
+          ? [{ name: r.name, description: str(rec(r.source).repository) ?? str(rec(r.source).path) ?? str(r.description), file }]
+          : [];
+      });
+    },
     async command(sessionID, name, text, options) {
       await t.json("POST", `/api/session/${encodeURIComponent(sessionID)}/command`, { name, text, ...v2Parts(options) });
     },
@@ -549,15 +776,14 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
       return res.data.id;
     },
     async exportSession(id) {
-      return (await t.json<{ data: unknown }>("GET", `/api/experimental/session/${encodeURIComponent(id)}/export?sanitize=true`))
-        .data;
+      return (await t.json<{ data: unknown }>("GET", `/api/experimental/session/${encodeURIComponent(id)}/export?sanitize=true`)).data;
     },
     async reload() {
       await t.json("POST", "/api/location/reload");
     },
     async aside(id, prompt) {
-      return (await t.json<{ data: { text: string } }>("POST", `/api/session/${encodeURIComponent(id)}/generate`, { prompt }, 0))
-        .data.text;
+      return (await t.json<{ data: { text: string } }>("POST", `/api/session/${encodeURIComponent(id)}/generate`, { prompt }, 0)).data
+        .text;
     },
     async inbox(id) {
       const res = await t.json<{ data: JsonRecord[] }>("GET", `/api/session/${encodeURIComponent(id)}/inbox`);
@@ -570,13 +796,19 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     async cancelQueued(id, item) {
       await t.json("DELETE", `/api/session/${encodeURIComponent(id)}/inbox/${encodeURIComponent(item)}`);
     },
-    async diff(id, dir) {
+    async diffBase(dir) {
+      return (await t.json<{ data: { name: string; ref: string } | null }>("GET", "/api/vcs/base" + locationQuery(dir))).data;
+    },
+    async branches(dir) {
+      return (await t.json<{ data: string[] }>("GET", "/api/vcs/branch" + locationQuery(dir))).data;
+    },
+    async diff(id, dir, source = id ? "turn" : "working", base) {
       return (
         await t.json<{ data: import("./types").FilePatch[] }>(
           "GET",
-          id
-            ? `/api/session/${encodeURIComponent(id)}/diff?context=3`
-            : `/api/vcs/diff?${new URLSearchParams({ mode: "working", context: "3", ...(dir && { "location[directory]": dir }) })}`,
+          id && source === "turn"
+            ? `/api/session/${encodeURIComponent(id)}/diff?context=12`
+            : `/api/vcs/diff?${new URLSearchParams({ mode: source, context: "12", ...(base && { base }), ...(dir && { "location[directory]": dir }) })}`,
         )
       ).data;
     },
@@ -621,10 +853,7 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
       );
     },
     async mcpServers(directory) {
-      const res = await t.json<{ data?: unknown[] }>(
-        "GET",
-        `/api/mcp?${new URLSearchParams({ "location[directory]": directory })}`,
-      );
+      const res = await t.json<{ data?: unknown[] }>("GET", `/api/mcp?${new URLSearchParams({ "location[directory]": directory })}`);
       return (res.data ?? []).flatMap((x) =>
         isRecord(x) && typeof x.name === "string" ? [{ name: x.name, status: str(rec(x.status).status) ?? "disabled" }] : [],
       );
@@ -633,9 +862,7 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
       const res = await t.json<{ data?: unknown }>("GET", "/api/worktree");
       const data = Array.isArray(res.data) ? res.data : rec(res.data).directories;
       return Array.isArray(data)
-        ? data.flatMap((v) =>
-            typeof v === "string" ? [v] : typeof rec(v).directory === "string" ? [rec(v).directory as string] : [],
-          )
+        ? data.flatMap((v) => (typeof v === "string" ? [v] : typeof rec(v).directory === "string" ? [rec(v).directory as string] : []))
         : [];
     },
     async interrupt(sessionID) {
@@ -659,9 +886,7 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     async agents() {
       const res = await t.json<{ location?: { directory?: string }; data?: unknown[] }>("GET", "/api/agent");
       directory ??= res?.location?.directory;
-      const visible = (res?.data ?? []).filter(
-        (a): a is JsonRecord => isRecord(a) && typeof a.id === "string" && a.hidden !== true,
-      );
+      const visible = (res?.data ?? []).filter((a): a is JsonRecord => isRecord(a) && typeof a.id === "string" && a.hidden !== true);
       return visible.flatMap((a, colorIndex): AgentOption[] => {
         return [
           {
@@ -771,7 +996,14 @@ export function createV2Client(t: Transport, mode: ConnectionMode): OpenCodeClie
 function v1Session(v: unknown): SessionInfo | null {
   if (!isRecord(v) || typeof v.id !== "string") return null;
   const time = rec(v.time);
-  return { id: v.id, parentID: str(v.parentID), revertedFrom:str(rec(v.revert).messageID), title: str(v.title), directory: str(v.directory), time: { created: num(time.created) ?? 0, updated: num(time.updated) ?? num(time.created) ?? 0 } };
+  return {
+    id: v.id,
+    parentID: str(v.parentID),
+    revertedFrom: str(rec(v.revert).messageID),
+    title: str(v.title),
+    directory: str(v.directory),
+    time: { created: num(time.created) ?? 0, updated: num(time.updated) ?? num(time.created) ?? 0 },
+  };
 }
 
 function v1ToolState(v: unknown): ToolState {
@@ -779,7 +1011,8 @@ function v1ToolState(v: unknown): ToolState {
   const input = rec(s.input);
   if (s.status === "pending") return { status: "streaming", input: "" };
   if (s.status === "running") return { status: "running", input, metadata: rec(s.metadata) };
-  if (s.status === "completed") return { status: "completed", input, content: [{ type: "text", text: str(s.output) ?? "" }], metadata: rec(s.metadata) };
+  if (s.status === "completed")
+    return { status: "completed", input, content: [{ type: "text", text: str(s.output) ?? "" }], metadata: rec(s.metadata) };
   return { status: "error", input, error: { message: errorMessage(s.error) } };
 }
 
@@ -792,7 +1025,16 @@ export function v1Message(v: unknown): SessionMessage | null {
   const time = rec(info.time);
   const created = num(time.created) ?? 0;
   if (info.role === "user") {
-    return { type: "user", id, time: { created }, text: parts.filter((p) => p.type === "text" && p.synthetic !== true).map((p) => str(p.text) ?? "").join("\n"),files:parts.filter(p=>p.type==="file").map(p=>({name:str(p.filename)??"attachment",mime:str(p.mime)??""})) };
+    return {
+      type: "user",
+      id,
+      time: { created },
+      text: parts
+        .filter((p) => p.type === "text" && p.synthetic !== true)
+        .map((p) => str(p.text) ?? "")
+        .join("\n"),
+      files: parts.filter((p) => p.type === "file").map((p) => ({ name: str(p.filename) ?? "attachment", mime: str(p.mime) ?? "" })),
+    };
   }
   return {
     type: "assistant",
@@ -803,21 +1045,27 @@ export function v1Message(v: unknown): SessionMessage | null {
     content: parts.flatMap((p): AssistantPart[] => {
       if (p.type === "text") return [{ type: "text", text: str(p.text) ?? "" }];
       if (p.type === "reasoning") return [{ type: "reasoning", text: str(p.text) ?? "" }];
-      if (p.type === "tool") return [{ type: "tool", id: str(p.callID) ?? str(p.id) ?? "", name: str(p.tool) ?? "tool", state: v1ToolState(p.state) }];
+      if (p.type === "tool")
+        return [{ type: "tool", id: str(p.callID) ?? str(p.id) ?? "", name: str(p.tool) ?? "tool", state: v1ToolState(p.state) }];
       return [];
     }),
     error: info.error ? { message: errorMessage(rec(info.error).data ?? info.error) } : undefined,
   };
 }
 
-function locationQuery(dir?:string) { return dir ? `?${new URLSearchParams({"location[directory]":dir})}` : ""; }
+function locationQuery(dir?: string) {
+  return dir ? `?${new URLSearchParams({ "location[directory]": dir })}` : "";
+}
 function commandCatalog(list: unknown) {
-  return Array.isArray(list) ? list.flatMap(v => isRecord(v) && typeof v.name === "string" ? [{name:v.name,description:str(v.description)}] : []) : [];
+  return Array.isArray(list)
+    ? list.flatMap((v) => (isRecord(v) && typeof v.name === "string" ? [{ name: v.name, description: str(v.description) }] : []))
+    : [];
 }
 export function createV1Client(t: Transport, mode: ConnectionMode): OpenCodeClient {
   let agentModel: ModelRef | null = null;
   return {
     kind: "v1",
+    keySettings: t.bridgeKeys,
     mode,
     label: t.label,
     async info() {
@@ -903,12 +1151,7 @@ export function createV1Client(t: Transport, mode: ConnectionMode): OpenCodeClie
     },
     async compact(id, model) {
       if (!model) throw Error("Select a model first");
-      await t.json(
-        "POST",
-        `/session/${encodeURIComponent(id)}/summarize`,
-        { providerID: model.providerID, modelID: model.id },
-        0,
-      );
+      await t.json("POST", `/session/${encodeURIComponent(id)}/summarize`, { providerID: model.providerID, modelID: model.id }, 0);
     },
     async revert(id, messageID) {
       await t.json("POST", `/session/${encodeURIComponent(id)}/revert`, { messageID });

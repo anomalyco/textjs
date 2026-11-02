@@ -17,6 +17,7 @@ import type { AddressInfo } from "node:net";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { color } from "./color";
+import {readCliKeys} from "./cli-keys";
 import { txError } from "./errors";
 
 export const DEFAULT_PROXY_PORT = 4096;
@@ -258,6 +259,7 @@ export function createBridgeHandler(options: BridgeOptions = {}): BridgeHandler 
     const cors: Record<string, string> = { [BRIDGE_HEADER]: "1", ...(origin !== null ? corsHeaders(origin) : {}) };
     const method = request.method.toUpperCase();
     if (method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+    if(url.pathname==="/__textjs/keys")return method==="GET"?json(200,await readCliKeys(),{...cors,"cache-control":"no-store"}):json(405,{},cors);
     if (url.pathname === "/__bridge") {
       const wasCached = cached !== null && Date.now() - cached.at < cacheMs;
       let t = await target();

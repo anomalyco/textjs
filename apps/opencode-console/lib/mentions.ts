@@ -1,4 +1,4 @@
-import type { Attachment, FileOption, PromptOptions } from "./types";
+import type { Attachment, FileOption, PromptOptions, Mention } from "./types";
 
 /** Only paths returned by file search become attachments. No local filesystem reads. */
 export function fileOption(root: string, path: string, directory: boolean): FileOption | undefined {
@@ -22,7 +22,12 @@ export function lineRange(query: string) {
 }
 
 /** Edits before a mark shift it. Edits through it detach it, even if another copy of its text exists. */
-export function rebaseMarks(marks: readonly Attachment[], before: string, after: string, caret: number) {
+export function rebaseMarks<T extends { mention: Mention }>(
+  marks: readonly T[],
+  before: string,
+  after: string,
+  caret: number,
+): readonly T[] {
   if (before === after || !marks.length) return marks;
   // The caret disambiguates deleting one of two identical adjacent strings.
   let start = 0,
@@ -37,6 +42,21 @@ export function rebaseMarks(marks: readonly Attachment[], before: string, after:
         ? [{ ...a, mention: { ...a.mention, start: a.mention.start + delta, end: a.mention.end + delta } }]
         : [],
   );
+}
+export type PasteMark = { mention: Mention; content: string };
+export function expandedDraft(text: string, marks: readonly Attachment[], pastes: readonly PasteMark[]) {
+  let result = text,
+    attachments = marks;
+  for (const p of pastes.slice().sort((a, b) => b.mention.start - a.mention.start)) {
+    const { start, end } = p.mention;
+    if (result.slice(start, end) !== p.mention.text) continue;
+    result = result.slice(0, start) + p.content + result.slice(end);
+    const delta = p.content.length - (end - start);
+    attachments = attachments.map((a) =>
+      a.mention.start >= end ? { ...a, mention: { ...a.mention, start: a.mention.start + delta, end: a.mention.end + delta } } : a,
+    );
+  }
+  return { text: result, marks: attachments };
 }
 
 export function v2Parts(options?: PromptOptions, offset = 0) {

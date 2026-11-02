@@ -1,0 +1,32 @@
+                                                                                                     │
+  Uncommitted · vs HEAD  0/1     README.md                                                  +1 -0    │   Uncommitted · vs HEAD  0/1     README.md                                                  +1 -0
+                                                                                                     │
+  ≡ README.md              M     1   Project fixture                                                 │   ≡ README.md              M     1   Project fixture
+                                 2 + Run bun test.                                                   │                                  2 + Run bun test.
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+  ? help                                                                                             │   ? help
+                                                                                                     │
+                                                                                                     │

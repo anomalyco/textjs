@@ -1,0 +1,32 @@
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                ▄                                    │                                                                 ▄
+                               █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█                               │                                █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+                               █  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀                               │                                █  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
+                               ▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀                               │                                ▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+                                                                                                     │
+             ┃ @docs /tmp/tmp0lcia5h8/product-docs                           reference ┃             │              ┃ @docs /tmp/tmp0lcia5h8/product-docs                           reference ┃
+             ┃                                                                                       │              ┃
+             ┃  @docs/                                                                               │              ┃  @docs/
+             ┃                                                                                       │              ┃
+             ┃  Build · Flint 40B Free OpenCode                                                      │              ┃  Build · Flint 40B Free OpenCode
+             ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀             │              ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+             ~/project:review                          shift+tab agents  ctrl+p commands             │              ~/project:review                          shift+tab agents  ctrl+p commands
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                                     │
+                                                                                             2.1.4   │                                                                                              2.1.4
+                                                                                                     │

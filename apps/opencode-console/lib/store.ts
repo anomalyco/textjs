@@ -8,8 +8,12 @@
 import { createContext, createElement, useContext, useSyncExternalStore, type ReactNode } from "react";
 import { connectOpenCode, HttpError, saveEndpoint, savedEndpoint } from "./client";
 import { SessionTabs } from "./session-tabs";
+import { PromptHistory } from "./history";
+import { directoryPath } from "./workspaces";
+import { defaults, validBinding } from "./key-config";
 import type {
   AgentOption,
+  KeySettings,
   Attachment,
   CommandOption,
   PromptOptions,
@@ -45,6 +49,13 @@ export interface ConnectionState {
 }
 
 export interface UiState {
+  hideMcp?: boolean;
+  scrollbar?: boolean;
+  noTabs?: boolean;
+  reducedMotion?: boolean;
+  noWrap?: boolean;
+  debug?: boolean;
+  fullPaste?: boolean;
   sidebar: boolean | null;
   toolDetails: boolean;
   thinking: boolean;
@@ -68,7 +79,8 @@ export interface StoreState {
   agents: AgentOption[];
   mentionAgents: AgentOption[];
   commands: CommandOption[];
-  skills: {id:string;description?:string}[];
+  references: Awaited<ReturnType<NonNullable<OpenCodeClient["references"]>>>;
+  skills: { id: string; description?: string }[];
   models: ModelOption[];
   agent: string;
   model: ModelRef | null;
@@ -77,10 +89,14 @@ export interface StoreState {
   history: readonly string[];
   favorites: readonly string[];
   pins: readonly string[];
-  stashes:readonly {text:string;marks:readonly Attachment[]}[];
-  jump?:{sessionID:string; messageID:string};
-  restore?:{sessionID:string; text:string; skill?:string; marks?:readonly Attachment[]};
-  answer?:{sessionID:string;text:string};
+  keys: KeySettings;
+  managementVersion: number;
+  verbosity: "low" | "medium" | "high";
+  stashes: readonly { text: string; marks: readonly Attachment[] }[];
+  jump?: { sessionID: string; messageID: string };
+  motion?: { id: string; direction: 1 | -1; users: boolean };
+  restore?: { sessionID: string; text: string; skill?: string; marks?: readonly Attachment[] };
+  answer?: { sessionID: string; text: string };
   /** Pending permission requests and forms by owning session (children included). */
   permissions: Readonly<Record<string, readonly PermissionRequest[]>>;
   forms: Readonly<Record<string, readonly FormInfo[]>>;
@@ -106,7 +122,8 @@ export function rootSession(state: Pick<StoreState, "parents">, id: string): str
 export function pendingPermissions(state: StoreState, sessionID: string): readonly PermissionRequest[] {
   if (state.parents[sessionID]) return NO_PERMISSIONS;
   const out: PermissionRequest[] = [];
-  for (const [id, list] of Object.entries(state.permissions)) if (list.length && rootSession(state, id) === sessionID) out.push(...list);
+  for (const [id, list] of Object.entries(state.permissions))
+    if (list.length && rootSession(state, id) === sessionID) out.push(...list);
   return out.length ? out : NO_PERMISSIONS;
 }
 
@@ -132,6 +149,10 @@ export interface StoreOptions {
 }
 
 export class OpenCodeStore {
+  promptEmpty = true;
+  promptImages: readonly Attachment[] = [];
+  readonly promptHistory = new PromptHistory();
+  readonly review: { source: import("./types").DiffSource; bases: Record<string, string> } = { source: "branch", bases: {} };
   readonly tabs = new SessionTabs();
   private state: StoreState;
   private readonly listeners = new Set<() => void>();
@@ -148,12 +169,48 @@ export class OpenCodeStore {
   }
   toggleFavorite(key: string) {
     this.set((s) => ({ favorites: s.favorites.includes(key) ? s.favorites.filter((k) => k !== key) : [key, ...s.favorites] }));
+    this.saveChoices();
   }
   togglePin(id: string) {
-    this.set((s) => ({ pins: s.pins.includes(id) ? s.pins.filter((k) => k !== id) : [id, ...s.pins] }));
+    this.set((s) => ({ pins: s.pins.includes(id) ? s.pins.filter((k) => k !== id) : [...s.pins, id] }));
+    this.saveChoices();
+  }
+  private prefs = "";
+  private historyKey?: string;
+  private saveChoices() {
+    try {
+      if (this.prefs)
+        localStorage.setItem(
+          this.prefs,
+          JSON.stringify({ pins: this.state.pins, favorites: this.state.favorites, recent: this.recentModels }),
+        );
+    } catch {
+      /* no browser storage */
+    }
+  }
+  private loadChoices(client: OpenCodeClient, dir?: string) {
+    this.prefs = `opencode:choices:${client.kind}:${client.label}:${dir ?? ""}`;
+    try {
+      const p = JSON.parse(localStorage.getItem(this.prefs) ?? "null");
+      if (!p) return;
+      const ids = (x: unknown) => (Array.isArray(x) ? x.filter((i) => typeof i === "string").slice(0, 500) : []);
+      this.recentModels = Array.isArray(p.recent)
+        ? p.recent.filter((m: ModelRef) => typeof m?.id === "string" && typeof m.providerID === "string").slice(0, 10)
+        : [];
+      this.set({ pins: ids(p.pins), favorites: ids(p.favorites) });
+    } catch {
+      /* corrupt or unavailable */
+    }
   }
   private catalogSeq = 0;
-  composer: ((action: "queue" | "stash") => void) | null = null;
+  private commandDirectory?: string;
+  clearHistory() {
+    this.promptHistory.entries = [];
+    if (this.historyKey) this.promptHistory.save(this.historyKey);
+    this.set({ history: [] });
+    this.notify("Local prompt history cleared");
+  }
+  composer: ((action: "queue" | "stash" | "submit") => void) | null = null;
   stash(text: string, marks: readonly Attachment[]) {
     this.set((s) => ({ stashes: [{ text, marks }, ...s.stashes].slice(0, 8) }));
   }
@@ -172,6 +229,9 @@ export class OpenCodeStore {
     this.state = {
       connection: { status: "connecting", kind: null, mode: null, label: "", live: false },
       sessions: [],
+      managementVersion: 0,
+      verbosity: "medium",
+      keys: { keybinds: {}, timeout: 2000 },
       sessionsLoaded: false,
       messages: {},
       loaded: {},
@@ -179,6 +239,7 @@ export class OpenCodeStore {
       busy: {},
       agents: DEFAULT_AGENTS,
       commands: [],
+      references: [],
       skills: [],
       mentionAgents: [],
       models: [],
@@ -246,7 +307,11 @@ export class OpenCodeStore {
   async connect(endpoint?: string | null, persist = false): Promise<ConnectionState> {
     const seq = ++this.connectSeq;
     this.recentModels = [];
+    this.prefs = "";
+    this.historyKey = undefined;
+    this.promptHistory.entries = [];
     this.catalogSeq++;
+    this.commandDirectory = undefined;
     this.requestReads.clear();
     this.currentSession = null;
     this.drafts.clear();
@@ -288,6 +353,8 @@ export class OpenCodeStore {
       sessions: [],
       sessionsLoaded: false,
       commands: [],
+      keys: { keybinds: {}, timeout: 2000 },
+      references: [],
       skills: [],
       mentionAgents: [],
       messages: {},
@@ -306,6 +373,11 @@ export class OpenCodeStore {
       forms: {},
       parents: {},
     });
+    if (client.kind === "demo") {
+      this.historyKey = "opencode:sandbox-history:" + info.directory;
+      this.promptHistory.load(this.historyKey);
+      this.set({ history: this.promptHistory.entries.map((e) => e.text) });
+    }
     let disconnected = false;
     this.unsubscribe = client.subscribe(
       (e) => {
@@ -324,18 +396,71 @@ export class OpenCodeStore {
         disconnected = s === "closed";
       },
     );
-    await Promise.all([this.refreshSessions(), this.loadCatalog(), this.syncRequests("global")]);
+    await Promise.all([this.refreshSessions(), this.loadCatalog(), this.syncRequests("global"), this.loadKeys()]);
+    if (client === this.client) this.loadChoices(client, this.state.connection.directory);
     return this.state.connection;
   }
 
   async refreshCommands(directory?: string): Promise<void> {
     const client = this.client,
       seq = ++this.catalogSeq;
-    const [commands, skills] = await Promise.all([
+    directory ??= this.state.connection.directory;
+    if (this.commandDirectory !== directory) {
+      this.commandDirectory = directory;
+      this.set({ commands: [], skills: [], references: [] });
+    }
+    const [commands, skills, references] = await Promise.all([
       client?.commands?.(directory).catch(() => []) ?? [],
       client?.skills?.(directory).catch(() => []) ?? [],
+      client?.references?.(directory).catch(() => []) ?? [],
     ]);
-    if (client === this.client && seq === this.catalogSeq) this.set({ commands, skills });
+    if (client === this.client && seq === this.catalogSeq) this.set({ commands, skills, references });
+  }
+  async loadKeys() {
+    const client = this.client;
+    if (!client?.keySettings) return;
+    const cfg = await client.keySettings().catch(() => null);
+    if (!cfg || client !== this.client) return;
+    const keybinds = Object.fromEntries(
+      Object.entries(cfg.keybinds ?? {}).filter(
+        ([id, v]) =>
+          Object.hasOwn(defaults, id) &&
+          (v === false || (typeof v === "string" && validBinding(v) && !(id === "leader" && v.includes("<leader>")))),
+      ),
+    );
+    this.set({ keys: { keybinds, timeout: Number.isInteger(cfg.timeout) && cfg.timeout > 0 ? Math.min(cfg.timeout, 60000) : 2000 } });
+  }
+  managementChanged() {
+    this.set((s) => ({ managementVersion: s.managementVersion + 1 }));
+    void this.loadCatalog();
+  }
+  async cd(id: string | null, path: string) {
+    const api = this.client;
+    if (!api?.workspace) throw Error("Location changes require a V2 server");
+    if (!path.trim()) throw Error("Directory is required");
+    const dir = directoryPath((id && this.session(id)?.directory) || this.state.connection.directory || "/", path.trim());
+    const loc = await api.workspace.location(dir);
+    if (api !== this.client) return;
+    if (id) {
+      await api.workspace.move(id, loc.directory);
+      if (api !== this.client) return;
+      await this.refreshSessions();
+    } else this.set((s) => ({ connection: { ...s.connection, directory: loc.directory } }));
+    await this.refreshCommands(loc.directory);
+  }
+  moveMessage(id: string, direction: 1 | -1, users: boolean) {
+    this.set({ motion: { id, direction, users } });
+  }
+  cycleFavorite(direction: 1 | -1, id: string | null) {
+    const keys = this.state.favorites,
+      at = keys.indexOf(`model:${this.state.model?.providerID}/${this.state.model?.id}`);
+    const model = keys[(at + direction + keys.length) % keys.length];
+    const m = this.state.models.find((m) => model === `model:${m.providerID}/${m.id}`);
+    if (m) void this.setModel({ id: m.id, providerID: m.providerID }, id);
+    else this.notify("No favorite models");
+  }
+  bind(id: string, keys: string | false) {
+    this.set((s) => ({ keys: { ...s.keys, keybinds: { ...s.keys.keybinds, [id]: keys } } }));
   }
 
   private async loadCatalog(): Promise<void> {
@@ -425,7 +550,14 @@ export class OpenCodeStore {
     if (model) this.set({ model });
     void this.syncRequests(id);
     await this.reloadMessages(id);
-    if (client === this.client) void client.view(id).catch(() => undefined);
+    if (client === this.client)
+      void client
+        .view(id)
+        .then(() => {
+          if (client === this.client && sess?.time.idle && this.session(id)?.time.idle === sess.time.idle)
+            this.patchSession(id, { time: { ...this.session(id)!.time, viewed: sess.time.idle } });
+        })
+        .catch(() => undefined);
   }
 
   /** Load pending permission requests and forms for a session and its child sessions. */
@@ -600,6 +732,14 @@ export class OpenCodeStore {
     const body = text.trim();
     if (!client || body.length === 0) return null;
     const head = /^\/([^\s]+)(?:\s+([\s\S]*))?$/.exec(body);
+    if (mode === "prompt" && head?.[1] === "cd") {
+      try {
+        await this.cd(sessionID, head[2] ?? "");
+      } catch (e) {
+        this.notify(String(e), "warning");
+      }
+      return null;
+    }
     if (mode === "prompt" && head?.[1] === "btw") {
       if (!sessionID || !client.aside || !head[2]) {
         this.notify(!sessionID ? "Open a session first" : "Use /btw followed by a question on a V2 server", "warning");
@@ -654,7 +794,7 @@ export class OpenCodeStore {
     try {
       if (mode === "shell" && !client.shell) throw new Error("Shell mode unavailable on this server");
       if (!id) {
-        const s = await client.create({ agent, model });
+        const s = await client.create({ agent, model, directory: this.state.connection.directory });
         if (client !== this.client) return null;
         id = s.id;
         const created = s;
@@ -712,9 +852,11 @@ export class OpenCodeStore {
     };
     const queued = options.delivery === "queue" && !!this.state.busy[target];
     if (queued) this.notify("Prompt queued");
+    this.promptHistory.append({ text, marks: options.attachments ?? [] });
+    if (this.historyKey) this.promptHistory.save(this.historyKey);
     this.set((s) => ({
       messages: queued ? s.messages : { ...s.messages, [target]: [...(s.messages[target] ?? []), pending] },
-      history: s.history.at(-1) === text ? s.history : [...s.history.slice(-99), text],
+      history: this.promptHistory.entries.map((e) => e.text),
       busy: { ...s.busy, [target]: true },
       sessions: s.sessions.map((x) =>
         x.id === target
@@ -797,6 +939,25 @@ export class OpenCodeStore {
       this.notify(`Interrupt failed: ${error instanceof Error ? error.message : String(error)}`, "danger");
     }
   }
+  cycleVerbosity() {
+    const next = this.state.verbosity === "low" ? "medium" : this.state.verbosity === "medium" ? "high" : "low";
+    this.set({ verbosity: next });
+    this.notify("Verbosity: " + next);
+  }
+  unread(active: string | null, d: 1 | -1) {
+    const tabs = this.tabs.list(),
+      at = active ? tabs.indexOf(active) : -1;
+    for (let n = 1; n <= tabs.length; n++) {
+      const id = tabs[(at + n * d + 2 * tabs.length) % tabs.length]!;
+      const s = this.session(id);
+      if (
+        id !== active &&
+        (this.state.permissions[id]?.length || this.state.forms[id]?.length || (s?.time.idle && s.time.idle > (s.time.viewed ?? 0)))
+      )
+        return id;
+    }
+    return undefined;
+  }
 
   // -- agent / model ---------------------------------------------------------
 
@@ -821,6 +982,7 @@ export class OpenCodeStore {
     }
     if (sessionID) this.drafts.set(sessionID, { ...this.drafts.get(sessionID), model });
     this.set({ model });
+    if (remember) this.saveChoices();
     this.notify(`Model → ${model.id}`, "info");
   }
 
@@ -865,6 +1027,9 @@ export class OpenCodeStore {
         return;
       case "catalog.changed":
         void this.loadCatalog();
+        return;
+      case "management.changed":
+        this.managementChanged();
         return;
       case "revert.changed":
         this.patchSession(e.sessionID, { revertedFrom: e.before });
@@ -982,10 +1147,20 @@ function updateAssistant(msg: AssistantMessage, e: Extract<AppEvent, { messageID
   const tool = (id: string): number => lastIndex(content, (p) => p.type === "tool" && p.id === id);
   switch (e.type) {
     case "step.ended":
-      return { ...msg, time: { ...msg.time, completed: Date.now() }, finish: e.finish, tokens: e.tokens ?? msg.tokens, cost: e.cost ?? msg.cost };
+      return {
+        ...msg,
+        time: { ...msg.time, completed: Date.now() },
+        finish: e.finish,
+        tokens: e.tokens ?? msg.tokens,
+        cost: e.cost ?? msg.cost,
+      };
     case "part.started":
       if (e.ordinal !== undefined && content.some((p) => p.type === e.kind && p.ordinal === e.ordinal)) return msg;
-      content.push(e.kind === "text" ? { type: "text", ordinal: e.ordinal, text: "" } : { type: "reasoning", ordinal: e.ordinal, text: "", time: { created: Date.now() } });
+      content.push(
+        e.kind === "text"
+          ? { type: "text", ordinal: e.ordinal, text: "" }
+          : { type: "reasoning", ordinal: e.ordinal, text: "", time: { created: Date.now() } },
+      );
       return { ...msg, content };
     case "part.delta": {
       let i = lastIndex(content, (p) => p.type === e.kind && (e.ordinal === undefined || p.ordinal === e.ordinal));
@@ -1001,13 +1176,20 @@ function updateAssistant(msg: AssistantMessage, e: Extract<AppEvent, { messageID
       const i = lastIndex(content, (p) => p.type === e.kind && (e.ordinal === undefined || p.ordinal === e.ordinal));
       if (i < 0) return { ...msg, content: [...content, { type: e.kind, ordinal: e.ordinal, text: e.text }] };
       const p = content[i] as AssistantPart;
-      if (p.type === "reasoning") content[i] = { ...p, text: e.text, time: { created: p.time?.created ?? Date.now(), completed: Date.now() } };
+      if (p.type === "reasoning")
+        content[i] = { ...p, text: e.text, time: { created: p.time?.created ?? Date.now(), completed: Date.now() } };
       else if (p.type === "text") content[i] = { ...p, text: e.text };
       return { ...msg, content };
     }
     case "tool.started":
       if (tool(e.toolID) >= 0) return msg;
-      content.push({ type: "tool", id: e.toolID, name: e.name, state: { status: "streaming", input: "" }, time: { created: Date.now() } });
+      content.push({
+        type: "tool",
+        id: e.toolID,
+        name: e.name,
+        state: { status: "streaming", input: "" },
+        time: { created: Date.now() },
+      });
       return { ...msg, content };
     case "tool.delta": {
       const i = tool(e.toolID);
@@ -1020,7 +1202,11 @@ function updateAssistant(msg: AssistantMessage, e: Extract<AppEvent, { messageID
       const i = tool(e.toolID);
       const p = content[i] as ToolPart | undefined;
       if (!p) return msg;
-      content[i] = { ...p, state: { status: "running", input: e.input, metadata: {} }, time: { created: p.time?.created ?? Date.now(), ran: Date.now() } };
+      content[i] = {
+        ...p,
+        state: { status: "running", input: e.input, metadata: {} },
+        time: { created: p.time?.created ?? Date.now(), ran: Date.now() },
+      };
       return { ...msg, content };
     }
     case "tool.progress": {
@@ -1035,7 +1221,11 @@ function updateAssistant(msg: AssistantMessage, e: Extract<AppEvent, { messageID
       const p = content[i] as ToolPart | undefined;
       if (!p) return msg;
       const input = p.state.status === "streaming" ? {} : p.state.input;
-      content[i] = { ...p, state: { status: "completed", input, content: e.content, metadata: e.metadata }, time: { created: p.time?.created ?? Date.now(), ran: p.time?.ran, completed: Date.now() } };
+      content[i] = {
+        ...p,
+        state: { status: "completed", input, content: e.content, metadata: e.metadata },
+        time: { created: p.time?.created ?? Date.now(), ran: p.time?.ran, completed: Date.now() },
+      };
       return { ...msg, content };
     }
     case "tool.failed": {
@@ -1043,7 +1233,11 @@ function updateAssistant(msg: AssistantMessage, e: Extract<AppEvent, { messageID
       const p = content[i] as ToolPart | undefined;
       if (!p) return msg;
       const input = p.state.status === "streaming" ? {} : p.state.input;
-      content[i] = { ...p, state: { status: "error", input, error: { message: e.error } }, time: { created: p.time?.created ?? Date.now(), completed: Date.now() } };
+      content[i] = {
+        ...p,
+        state: { status: "error", input, error: { message: e.error } },
+        time: { created: p.time?.created ?? Date.now(), completed: Date.now() },
+      };
       return { ...msg, content };
     }
     default:
@@ -1074,7 +1268,8 @@ export function mergeMessages(local: readonly SessionMessage[], fetched: readonl
   for (const m of local) {
     if (ids.has(m.id)) continue;
     if (m.type === "user" && m.pending) {
-      if (fetched.some((f) => f.type === "user" && f.text.trim() === m.text.trim() && f.time.created >= m.time.created - 60_000)) continue;
+      if (fetched.some((f) => f.type === "user" && f.text.trim() === m.text.trim() && f.time.created >= m.time.created - 60_000))
+        continue;
       out.push(m);
     } else if (m.type === "assistant" && !m.time.completed && m.time.created >= lastFetched) out.push(m);
   }

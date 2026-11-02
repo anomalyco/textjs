@@ -116,7 +116,7 @@ export function verticalMove(text: string, i: number, dir: -1 | 1, goalCol?: num
 
 /** Move by a painted row, preserving a *cell* column across soft wraps,
  * wide clusters and short hard lines. Only built for a vertical key press. */
-export function visualMove(value: string, cursor: number, width: number, dir: -1 | 1, goal: number | null) {
+export function visualMove(value: string, cursor: number, width: number, dir: -1 | 0 | 1, goal: number | null) {
   const gs: Grapheme[] = [];
   const offsets: number[] = [];
   let caret = 0;

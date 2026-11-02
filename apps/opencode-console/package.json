@@ -14,11 +14,12 @@
     "@modelcontextprotocol/sdk": "^1.32.2"
   },
   "dependencies": {
+    "@textjs/app": "workspace:*",
     "@textjs/core": "workspace:*",
     "@textjs/opencode": "workspace:*",
     "@textjs/react": "workspace:*",
+    "fuzzysort": "3.1.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "@textjs/app": "workspace:*"
+    "react-dom": "^19.3.1"
   }
 }
