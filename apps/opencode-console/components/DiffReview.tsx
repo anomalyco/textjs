@@ -15,15 +15,27 @@ const sources = {
   working: ["Uncommitted", "Local changes only"],
   turn: ["Last turn", "Latest session turn"],
 } as const;
-export function DiffReview(props: { id?: string; close: () => void }) {
+type ReviewProps = { id?: string; close: () => void; focused: boolean; focus: (v: boolean) => void };
+export function DiffReview(props: ReviewProps) {
+  const [full, expand] = useState(false),
+    vp = useViewport(),
+    docked = !!props.id && !full && vp.cols >= 108;
   return (
-    <InputTrap>
-      <Body {...props} />
+    <InputTrap active={props.focused || !docked}>
+      <Body {...props} docked={docked} full={full} expand={expand} />
     </InputTrap>
   );
 }
-function Body({ id, close }: { id?: string; close: () => void }) {
-  useFocus({ id: "opencode-diff", autoFocus: true });
+function Body({
+  id,
+  close,
+  focused,
+  focus,
+  docked,
+  full,
+  expand,
+}: ReviewProps & { docked: boolean; full: boolean; expand: (v: boolean) => void }) {
+  useFocus({ id: "opencode-diff", autoFocus: true, isActive: focused || !docked });
   const store = useStore(),
     api = store.api,
     t = useTokens(),
@@ -43,7 +55,6 @@ function Body({ id, close }: { id?: string; close: () => void }) {
   const [tree, treeOn] = useState(true),
     [one, single] = useState(false),
     [pair, columns] = useState(true),
-    [full, expand] = useState(false),
     [reviewed, mark] = useState(new Set<string>());
   const busy = useStoreState((s) => source === "turn" && !!id && s.busy[id]);
   useEffect(() => {
@@ -87,8 +98,7 @@ function Body({ id, close }: { id?: string; close: () => void }) {
       live = false;
     };
   }, [api, modal, dir]);
-  const docked = !!id && !full && vp.cols >= 108,
-    width = docked ? Math.floor(vp.cols / 2) : vp.cols,
+  const width = docked ? Math.floor(vp.cols / 2) : vp.cols,
     showTree = tree && !docked && width >= 88 && files.length > 0,
     treeWidth = Math.max(30, Math.min(40, Math.floor(width / 4))),
     split = pair && width - (showTree ? treeWidth : 0) - 4 >= 100;
@@ -131,6 +141,7 @@ function Body({ id, close }: { id?: string; close: () => void }) {
     }
   };
   const actions: Commands = {
+    "pane.focus.left": docked ? () => focus(false) : undefined,
     "diff.close": close,
     "diff.down": () => by(1),
     "diff.up": () => by(-1),
@@ -165,13 +176,13 @@ function Body({ id, close }: { id?: string; close: () => void }) {
       mark(next);
     },
   };
-  useCommandKeys(actions, 28, undefined, !modal);
+  useCommandKeys(actions, 28, undefined, !modal && (focused || !docked));
   useWheel(
     (e) => {
       by(Math.trunc(e.rows));
       e.stopPropagation();
     },
-    { isActive: !modal, priority: 28 },
+    { isActive: !modal && (focused || !docked), priority: 28 },
   );
   const treeRows = useMemo(() => fileTree(files, sel, reviewed), [files, sel, reviewed]);
   const header = (
@@ -190,10 +201,7 @@ function Body({ id, close }: { id?: string; close: () => void }) {
   return (
     <>
       <Box
-        position="absolute"
-        right={0}
-        top={id ? 1 : 0}
-        bottom={0}
+        {...(docked ? { height: "100%" as const } : { position: "absolute" as const, right: 0, top: 0, bottom: 0 })}
         width={width}
         bg={docked ? t.raised : t.bg}
         zIndex={80}

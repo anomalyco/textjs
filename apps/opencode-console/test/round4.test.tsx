@@ -391,3 +391,22 @@ test("settings rebinds a previously unbound editor action", async () => {
   await t.type("A");
   expect(t.frame()).toContain("Afirst");
 });
+
+test("a docked review gives the draft its keys back without losing reviewed files", async () => {
+  await mount();
+  await slash("sessions");
+  await t.type("Fix cart");
+  await t.press("Enter");
+  await slash("diff");
+  await t.waitFor(() => t.frame().includes("README.md"));
+  await t.press("m");
+  expect(t.frame()).toContain("1/2");
+  await leader("ArrowLeft");
+  await t.type("draft remains");
+  expect(t.frame()).toContain("draft remains");
+  await leader("ArrowRight");
+  await t.press("f");
+  expect(t.frame()).toContain("1/2");
+  await t.press("q");
+  expect(t.frame()).toContain("draft remains");
+});

@@ -60,6 +60,7 @@ function SessionShell({ children }: { children?: ReactNode }) {
   const answer = useStoreState((s) => (s.answer?.sessionID === active ? s.answer : undefined));
   const v1 = useStoreState((s) => s.connection.kind === "v1");
   const [palette, setPalette] = useState<PaletteKind | null>(null),
+    [diffFocused, focusDiff] = useState(true),
     [help, setHelp] = useState(false);
   const { copy } = useClipboard();
   const app = useApp();
@@ -95,6 +96,10 @@ function SessionShell({ children }: { children?: ReactNode }) {
       } else if (action === "terminal") {
         if (active) setTerm({ scope: active, view: "new", focused: true, seq: Date.now() });
         else store.notify("Open a session first");
+      } else if (action === "diff") {
+        focusDiff(true);
+        setTerm(null);
+        setPalette("diff");
       } else if (action === "editor") setPalette("editorInfo");
       else if (action === "reload") {
         const dir = active ? store.session(active)?.directory : store.getSnapshot().connection.directory;
@@ -232,7 +237,7 @@ function SessionShell({ children }: { children?: ReactNode }) {
     "terminal.toggle": active ? () => setTerm(termOpen ? null : { scope: active, view: "last", focused: true }) : undefined,
     "terminal.select": active ? () => setTerm({ scope: active, view: "select", focused: true }) : undefined,
     "terminal.close": termOpen ? () => setTerm(null) : undefined,
-    "pane.focus.right": termOpen ? () => setTerm({ ...term!, focused: true }) : undefined,
+    "pane.focus.right": palette === "diff" ? () => focusDiff(true) : termOpen ? () => setTerm({ ...term!, focused: true }) : undefined,
     "command.palette.show": () => dispatch("commands"),
     "help.show": () => dispatch("help"),
     "theme.switch": () => dispatch("themes"),
@@ -305,7 +310,9 @@ function SessionShell({ children }: { children?: ReactNode }) {
             <Box flexDirection="column" flexGrow={1} flexShrink={1} minWidth={0}>
               {children}
             </Box>
-            {termOpen ? (
+            {palette === "diff" ? (
+              <DiffReview id={active ?? undefined} focused={diffFocused} focus={focusDiff} close={() => setPalette(null)} />
+            ) : termOpen ? (
               <TerminalPane request={term!} close={() => setTerm(null)} focus={(focused) => setTerm((v) => v && { ...v, focused })} />
             ) : (
               active && !parent && (sidebar ?? wide) && <ContextSidebar id={active} overlay={!wide} />
@@ -329,10 +336,8 @@ function SessionShell({ children }: { children?: ReactNode }) {
             <History id={active ?? undefined} close={() => setPalette(null)} />
           ) : palette === "keys" ? (
             <KeySettingsDialog ids={Object.keys(commands)} close={() => setPalette(null)} />
-          ) : palette === "diff" ? (
-            <DiffReview id={active ?? undefined} close={() => setPalette(null)} />
           ) : (
-            palette && <Palette kind={palette} onKind={setPalette} onClose={() => setPalette(null)} />
+            palette && palette !== "diff" && <Palette kind={palette} onKind={setPalette} onClose={() => setPalette(null)} />
           )}
           {answer && <Review answer={answer.text} onClose={() => store.dismissAnswer()} />}
           {help && <HelpDialog onClose={() => setHelp(false)} />}
