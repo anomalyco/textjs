@@ -4,8 +4,8 @@ Text.js ships on three npm dist-tags. Every package (`@textjs/app`, `@textjs/rea
 
 | Channel | dist-tag | Version | Install |
 | :-- | :-- | :-- | :-- |
-| Stable | `latest` | `1.0.1` | `bun add @textjs/app` |
-| Canary | `canary` | `1.0.2-canary.N` | `bun add @textjs/app@canary` |
+| Stable | `latest` | `1.0.x` | `bun add @textjs/app` |
+| Canary | `canary` | `1.0.x-canary.N` | `bun add @textjs/app@canary` |
 | LTS | `lts`, `v1-lts` | Published once `2.0.0` ships | `bun add @textjs/app@lts` |
 
 Use stable in production. Use canary to try fixes and features the day they land on `main`. Once an LTS line exists, use it if you upgrade once a year.
