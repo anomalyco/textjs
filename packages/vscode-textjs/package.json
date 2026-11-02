@@ -2,7 +2,7 @@
   "name": "vscode-textjs",
   "displayName": "Text.js",
   "description": "Preview Text.js apps next to your code, scaffold App Router files, and link TX error codes to their docs.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "publisher": "textjs",
   "license": "MIT",

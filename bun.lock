@@ -81,7 +81,7 @@
     },
     "packages/app": {
       "name": "@textjs/app",
-      "version": "1.0.4",
+      "version": "1.1.0",
       "bin": {
         "text": "bin/text.js",
       },
@@ -101,14 +101,14 @@
     },
     "packages/core": {
       "name": "@textjs/core",
-      "version": "1.0.4",
+      "version": "1.1.0",
       "dependencies": {
         "yoga-layout": "^3.2.1",
       },
     },
     "packages/create-text-app": {
       "name": "create-text-app",
-      "version": "1.0.4",
+      "version": "1.1.0",
       "bin": {
         "create-text-app": "bin/create-text-app.js",
       },
@@ -127,7 +127,7 @@
     },
     "packages/eslint-plugin-textjs": {
       "name": "eslint-plugin-textjs",
-      "version": "1.0.4",
+      "version": "1.1.0",
       "dependencies": {
         "@typescript-eslint/utils": "^8.72.1",
       },
@@ -142,12 +142,12 @@
     },
     "packages/font": {
       "name": "@textjs/font",
-      "version": "1.0.4",
+      "version": "1.1.0",
       "devDependencies": {
         "@textjs/react": "workspace:*",
       },
       "peerDependencies": {
-        "@textjs/react": "^1.0.4",
+        "@textjs/react": "^1.1.0",
         "react": "^19.0.0",
       },
       "optionalPeers": [
@@ -157,14 +157,14 @@
     },
     "packages/opencode": {
       "name": "@textjs/opencode",
-      "version": "1.0.4",
+      "version": "1.1.0",
       "bin": {
         "textjs-opencode": "bin/textjs-opencode.js",
       },
     },
     "packages/react": {
       "name": "@textjs/react",
-      "version": "1.0.4",
+      "version": "1.1.0",
       "dependencies": {
         "@textjs/core": "workspace:*",
         "react-reconciler": "^0.34.0",
