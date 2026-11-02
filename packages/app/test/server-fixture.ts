@@ -489,10 +489,18 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   // Deny by rewrite: the visitor gets the login page at the restricted URL.
   if (pathname === "/restricted") return NextResponse.rewrite(new URL("/login", request.url));
-  if (request.cookies.get("auth")?.value === "1") return NextResponse.next();
+  if (request.cookies.get("auth")?.value === "1") {
+    // User code forwarding a routed-path header must not steer the Vercel handler function.
+    if (request.headers.get("x-spoof")) {
+      const headers = new Headers(request.headers);
+      headers.set("x-textjs-path", "/api/admin");
+      return NextResponse.next({ request: { headers } });
+    }
+    return NextResponse.next();
+  }
   return new Response("denied " + pathname, { status: 401 });
 }
-export const config = { matcher: ["/admin/:path*", "/api/admin/:path*", "/ops/:path*", "/restricted/", "/café/:path*", "/api/café/:path*", "/legacy/:path*"] };
+export const config = { matcher: ["/admin/:path*", "/api/admin/:path*", "/ops/:path*", "/restricted/", "/café/:path*", "/api/café/:path*", "/legacy/:path*", "/api/{x}/:path*"] };
 `;
 
 /** Middleware-bypass fixture (`middleware-bypass.test.ts`): guarded pages, handlers and a public file, optionally server-rendered routes. */
@@ -503,6 +511,8 @@ export default defineConfig({ title: "Bypass Fixture"${basePath ? `, basePath: $
   "app/api/café/route.ts": `export function GET() { return Response.json({ secret: "admin-only café" }); }
 `,
   "public/café/report.txt": "admin-only café report\n",
+  "app/api/{x}/route.ts": `export function GET() { return Response.json({ secret: "admin-only {x}" }); }
+`,
   "app/page.tsx": `import { Text } from "@textjs/app";
 export default function Page() { return <Text>home</Text>; }
 `,

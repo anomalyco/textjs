@@ -6,7 +6,7 @@
 
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { isIP } from "node:net";
-import { dirname, extname, join, relative, resolve, sep } from "node:path";
+import { dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import type { Plugin, ProxyOptions, ViteDevServer } from "vite";
@@ -214,6 +214,23 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
   const appDirName = options.appDir ?? "app";
   const basePath = normalizeBasePath(options.basePath);
   let root = resolve(options.root ?? process.cwd());
+  let serving = false;
+  const realPath = (file: string): string => {
+    try {
+      return realpathSync.native(file);
+    } catch {
+      return file;
+    }
+  };
+  const within = (dir: string, file: string): boolean => file === dir || file.startsWith(dir + sep);
+  /** A server-only source by its file path (any spelling: the real path decides). */
+  const isServerOnlyFile = (file: string): boolean => {
+    const realRoot = realPath(root);
+    const real = realPath(file);
+    if (!within(realRoot, real)) return false;
+    const rel = relative(realRoot, real).split(sep).map(encodePathSegment).join("/");
+    return isServerOnlySource(`/${rel}`, root, appDirName, options.cacheHandler ? [resolve(root, options.cacheHandler)] : []);
+  };
   let scan: AppScan = scanApp(root, appDirName);
   let apiManifest: RouteManifest = toApiManifest(scan);
   let routesSignature = "";
@@ -277,6 +294,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
 
     configResolved(config) {
       root = config.root;
+      serving = config.command === "serve";
       rescan();
     },
 
@@ -294,7 +312,11 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
       return null;
     },
 
-    load(id) {
+    load(id, loadOptions) {
+      // Vite resolves module requests itself (`/text.config?import`, `/app/api/x/route?raw`): guard the resolved file, not only the URL.
+      if (serving && !loadOptions?.ssr && !id.startsWith("\0") && isAbsolute(id.split("?")[0] ?? "") && isServerOnlyFile(id.split("?")[0] as string)) {
+        throw new Error(`${BRAND_MARK} ${toPosix(relative(root, id.split("?")[0] as string))} is server-only and can't be loaded in the browser.`);
+      }
       if (id === RESOLVED(VIRTUAL_ROUTES)) return generateRoutesModule(withServerStubs(scan), { hmr: true });
       if (id === RESOLVED(VIRTUAL_CONFIG)) return `export default ${JSON.stringify(toClientConfig(options))};`;
       if (id === RESOLVED(VIRTUAL_ENTRY)) return createEntryModule();
@@ -325,16 +347,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
 
       const rewrites = await resolveRewrites(options.rewrites);
       // Registered before user middleware and API routes so neither bypasses the host check.
-      const serverOnly = options.cacheHandler ? [resolve(root, options.cacheHandler)] : [];
-      const realRoot = realpathSync.native(root);
-      const realPath = (file: string): string => {
-        try {
-          return realpathSync.native(file);
-        } catch {
-          return file;
-        }
-      };
-      const within = (dir: string, file: string): boolean => file === dir || file.startsWith(dir + sep);
+      const realRoot = realPath(root);
       const miscased = (spelled: string, onDisk: string): boolean => spelled !== onDisk && spelled.toLowerCase() === onDisk.toLowerCase();
       /**
        * Files Vite would hand out that the browser must not get, from a canonical request target:
@@ -359,8 +372,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
           const asset = join(server.config.publicDir, pathname);
           if (within(server.config.publicDir, asset) && miscased(relative(server.config.publicDir, asset), relative(publicDir, realPath(asset)))) return true;
         }
-        const rel = relative(realRoot, file).split(sep).map(encodePathSegment).join("/");
-        return isServerOnlySource(`/${rel}`, root, appDirName, serverOnly);
+        return isServerOnlyFile(file);
       };
       server.middlewares.use((req, res, next) => {
         if (!isAllowedDevHost(server, req.headers.host)) {
@@ -425,6 +437,13 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
             }
             url = target;
             req.url = basePath + target;
+            // The rewritten URL may name a file Vite would serve: guard it like the original.
+            if (isHiddenFromBrowser(req.url)) {
+              res.statusCode = 404;
+              res.setHeader("Content-Type", "text/plain; charset=utf-8");
+              res.end("404 | This page could not be found.");
+              return;
+            }
           }
           const pathname = url.split("?")[0] ?? "/";
           if (await live.handle(req, res, url)) return;

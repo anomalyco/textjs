@@ -60,12 +60,15 @@ function holds(c: Condition, headers: Headers, query: URLSearchParams): boolean 
   return c.value === undefined || new RegExp(`^(?:${c.value})$`).test(actual);
 }
 
-/** The raw request target as a URL on the router's own origin (never another host). */
-function routerUrl(raw: string | undefined): URL {
-  const target = raw ?? "/";
-  if (target.startsWith("/")) return new URL(`http://vercel.local${target}`);
-  const u = new URL(target);
-  return new URL(`http://vercel.local${u.pathname}${u.search}`);
+/** The raw request target's path, as sent (route `src` sees it before any URL parser re-encodes it), and its query. */
+function routerTarget(raw: string | undefined): { pathname: string; search: string } {
+  let target = raw ?? "/";
+  if (!target.startsWith("/")) {
+    const u = new URL(target);
+    target = `${u.pathname}${u.search}`;
+  }
+  const q = target.indexOf("?");
+  return q < 0 ? { pathname: target, search: "" } : { pathname: target.slice(0, q), search: target.slice(q) };
 }
 
 type NodeHandler = (req: IncomingMessage, res: ServerResponse) => unknown;
@@ -87,6 +90,8 @@ export interface VercelHarness {
   url: string;
   /** Edge middleware invocations (for assertions). */
   middlewareCalls: string[];
+  /** Node.js function invocations, by routed path. */
+  functionCalls: string[];
   close(): Promise<void>;
 }
 
@@ -97,6 +102,7 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
   const servers: Server[] = [];
   const edge = new Map<string, EdgeHandler>();
   const middlewareCalls: string[] = [];
+  const functionCalls: string[] = [];
 
   async function loadFunction(name: string): Promise<void> {
     const dir = join(outputDir, "functions", `${name}.func`);
@@ -130,7 +136,8 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
 
   const router = createServer((req, res) => {
     void (async () => {
-      const original = routerUrl(req.url);
+      // Node hands over the request line as latin1: recover the UTF-8 bytes the client sent.
+      const original = routerTarget(Buffer.from(req.url ?? "/", "latin1").toString("utf8"));
       let pathname = original.pathname;
       const query = new URLSearchParams(original.search);
       const headers = new Headers();
@@ -162,7 +169,8 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
       const resolve = async (): Promise<void> => {
         const fn = functionUrls.get(pathname);
         if (fn) {
-          const target = new URL(`${fn}${original.pathname}`);
+          functionCalls.push(pathname);
+          const target = new URL(`${fn}${new URL(original.pathname, "http://x").pathname}`);
           target.search = query.toString();
           const forwarded = new Headers(headers);
           forwarded.set("x-forwarded-host", req.headers.host ?? "vercel.local");
@@ -189,6 +197,7 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
         if (route.has && !route.has.every((c) => holds(c, headers, query))) continue;
         if (route.missing && route.missing.some((c) => holds(c, headers, query))) continue;
         // As on Vercel, `status` without `dest` only sets the status: the path still resolves (a function runs).
+        if (route.status !== undefined && route.dest) middlewareStatus = route.status;
         if (route.status !== undefined && !route.dest) {
           middlewareStatus = route.status;
           if (!route.continue) return resolve();
@@ -269,6 +278,7 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
   return {
     url,
     middlewareCalls,
+    functionCalls,
     close: async () => {
       for (const s of servers) {
         s.closeAllConnections();

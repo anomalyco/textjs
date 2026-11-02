@@ -6,7 +6,7 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { Rewrite, TextConfig } from "../../config";
-import { encodePathText } from "../../path-text";
+import { encodePathSegment } from "../../path-text";
 import { parseSegment } from "../../routing";
 import { generateApiModule } from "../../vite-plugin";
 import type { ApiRoute, AppScan } from "../scan";
@@ -96,7 +96,7 @@ export function patternRegex(pattern: string, basePath = ""): string {
   for (const seg of pattern.split("/").filter(Boolean)) {
     const p = parseSegment(seg);
     if (p.kind === "group") continue;
-    if (p.kind === "static") body += `\\/${escapeRegex(encodePathText(p.name))}`;
+    if (p.kind === "static") body += `\\/${escapeRegex(encodePathSegment(p.name))}`;
     else if (p.kind === "dynamic") body += "\\/[^/]+";
     else if (p.kind === "catchAll") body += "\\/[^/]+(?:\\/[^/]+)*";
     else body += "(?:\\/[^/]+(?:\\/[^/]+)*)?";

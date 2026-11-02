@@ -101,6 +101,12 @@ export function compileMatcherSource(input: string, keys: Array<string | null> =
   // Requests arrive without a trailing slash (see `canonicalPathname`), so `/admin/` matches like `/admin`; `/` matches the root.
   const source = input.replace(/\/+$/, "");
   let re = "";
+  // Literal text, compared with the canonical (percent-encoded) path. Escapes span characters (`%C3%A9`), so encode whole runs.
+  let literal = "";
+  const flush = (): void => {
+    re += escapeRe(encodePathText(literal));
+    literal = "";
+  };
   let i = 0;
   while (i < source.length) {
     const ch = source[i] as string;
@@ -108,6 +114,7 @@ export function compileMatcherSource(input: string, keys: Array<string | null> =
     let j = prefix ? i + 1 : i;
     const c = source[j] as string;
     if (c === ":" || c === "(") {
+      flush();
       let pattern = DEFAULT_SEGMENT;
       let key: string | null = null;
       if (c === ":") {
@@ -149,11 +156,10 @@ export function compileMatcherSource(input: string, keys: Array<string | null> =
       i = j;
       continue;
     }
-    // Literal text, compared with the canonical (percent-encoded) path: one code point at a time.
-    const literal = String.fromCodePoint(source.codePointAt(i) as number);
-    re += escapeRe(encodePathText(literal));
-    i += literal.length;
+    literal += ch;
+    i++;
   }
+  flush();
   return `^${re}(?:\\/)?$`;
 }
 
@@ -254,10 +260,10 @@ export function middlewareMatchers(mod: MiddlewareModule): CompiledMatcher[] | n
   return m;
 }
 
-function stripBase(pathname: string, basePath: string): string {
+function stripBase(pathname: string, basePath: string): string | null {
   if (!basePath) return pathname;
   if (pathname === basePath) return "/";
-  return pathname.startsWith(`${basePath}/`) ? pathname.slice(basePath.length) : pathname;
+  return pathname.startsWith(`${basePath}/`) ? pathname.slice(basePath.length) : null;
 }
 
 const INTERNAL: string[] = [MIDDLEWARE_NEXT, MIDDLEWARE_REWRITE, MIDDLEWARE_OVERRIDE_HEADERS];
@@ -292,7 +298,9 @@ export async function runMiddleware(mod: MiddlewareModule, incoming: Request, op
   }
   const url = new URL(request.url);
   const matchers = options.matchers !== undefined ? options.matchers : middlewareMatchers(mod);
-  if (!matchesMiddleware(matchers, stripBase(url.pathname, basePath), request)) {
+  // Outside basePath there's no app, so no middleware (even without a matcher).
+  const pathname = stripBase(url.pathname, basePath);
+  if (pathname === null || !matchesMiddleware(matchers, pathname, request)) {
     return { type: "next", request, headers: new Headers(), matched: false };
   }
   const fn = middlewareFunction(mod);
@@ -486,8 +494,10 @@ export async function authorizeWithMiddleware(mod: MiddlewareModule, href: strin
   if (rendered === null) return false;
   const outcome = await runMiddleware(mod, new Request(url, { method: "GET", headers }), { basePath });
   if (outcome.type === "response") return false;
-  if (outcome.rewrite) return outcome.rewrite.origin === url.origin && canonicalPathname(outcome.rewrite.pathname) === rendered;
-  return outcome.status === undefined || outcome.status < 400;
+  if (outcome.status !== undefined && outcome.status >= 400) return false;
+  // A rewrite must keep everything the session renders: origin, path and query.
+  if (outcome.rewrite) return outcome.rewrite.origin === url.origin && canonicalPathname(outcome.rewrite.pathname) === rendered && outcome.rewrite.search === url.search;
+  return true;
 }
 
 export interface LiveAuthorizerOptions extends OriginOptions {
