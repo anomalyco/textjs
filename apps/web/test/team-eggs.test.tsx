@@ -274,8 +274,9 @@ describe("team eggs", () => {
     await h.type("brendan");
     await settle(h);
     await h.key("space");
-    await h.wait(1700);
-    expect(h.frame()).toContain(`151 × ${MULT} = 1,208`);
+    const score = `151 × ${MULT} = 1,208`;
+    for (let i = 0; i < 50 && !h.frame().includes(score); i++) await h.wait(100);
+    expect(h.frame()).toContain(score);
     await h.unmount();
   });
 

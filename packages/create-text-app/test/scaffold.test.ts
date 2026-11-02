@@ -146,8 +146,9 @@ describe("create-text-app CLI", () => {
 });
 
 describe("generated projects typecheck and build", () => {
+  // Each template builds in its own directory, so the three run at once.
   for (const template of Object.keys(TEMPLATES) as TemplateName[]) {
-    test(
+    test.concurrent(
       `${template}: tsc --noEmit && text build`,
       async () => {
         const dir = join(tmp, `build-${template}`);
