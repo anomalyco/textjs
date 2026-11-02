@@ -1,5 +1,75 @@
 # OpenCode Lite parity
 
+## Round 4
+
+Round 4 compares the same 237 command IDs and the same classic OpenCode 2.1.4 binary as round 3. The code reference is `anomalyco/opencode@8bca5329`. The [command ledger](parity/KEYBINDINGS.md) gives the default key and the remaining limitation for each partial or missing ID. A command with no default binding can still be available in Ctrl+P.
+
+| Inventory | Done | Partial | Missing |
+| --- | ---: | ---: | ---: |
+| All 237 IDs, round 3 → 4 | **97 → 185** | **36 → 45** | **104 → 7** |
+| The 187 IDs with default bindings | **90 → 160** | **25 → 25** | **72 → 2** |
+
+The number of partial IDs increased because native-only and incomplete workflows now have usable controls. For example, a persistent terminal snapshot can be selected and read, but does not accept live PTY input. None of these partials count toward the 185 done IDs.
+
+### What changed
+
+| Surface | Behavior |
+| --- | --- |
+| Slash and `@` | Uses the native fuzzysort version, separate name/description keys and prefix scoring. The key hint belongs in the palette rather than the slash row. V2 reference aliases come from `/api/reference`, skip hidden entries and send the server's file URI with the selected alias. The sandbox includes `@docs`. |
+| Keys | The leader preview shows available continuations; Ctrl+Alt+K opens the grouped guide. It supports one/two columns, group changes, line/page scrolling and boundaries. Settings → Keybinds changes bindings for this connection. The bridge serves validated chords and the leader timeout from its machine's `cli.json`, with `OPENCODE_CLI_CONFIG_CONTENT` overrides. The V2 server config endpoint does **not** serve CLI keybinds. Direct connections have defaults and local overrides. Release-only bindings, native fallthrough flags, some modal shortcuts and browser-reserved keys remain different. |
+| Diff review | Read All, Committed, Uncommitted or Last turn. `d` selects a source/base; `s` switches all files/single file, `n`/`p` move between files, `[`/`]` between hunks, `m` marks reviewed. `b`, `v`, `f` and `?` control tree, split/unified, fullscreen and help. At 108 columns or wider a session can keep the review beside its prompt with leader+Left/Right focus. The viewer only mounts visible patch rows. Binary/image diffs, native sticky headings and pointer menus are not complete. |
+| History and editor | `/history` searches recent drafts and pages older user turns from the selected server session. Recall preserves URI mentions; large pastes use native summary markers and expand on send. Clipboard images have a leader+I preview. Sandbox recall persists in browser storage (500 entries, bounded by size, no inline image data); Settings can clear it. Live prompts are not written to browser storage. Alt+A/E and their selection variants operate on wrapped rows. |
+| Integrations | `/connect` lists providers, methods and accounts. Supports key entry, OAuth auto/code, external methods, confirmed provider commands, account activation, rename and confirmed removal. Secrets go to the selected endpoint on submit; the key field is masked and is not the composer. Fixtures use test values only. Provider-specific optional/custom form choices and V1 authentication are incomplete. Environment variables must be set on the server. |
+| MCP and plugins | `/mcps` shows status and errors, signs in through the server's advertised integration, connects/disconnects, and supports confirmed registration/removal. New remote URLs or local argument arrays register **disabled**. Secret headers and environment options belong in the server config. `/plugins` shows failures and package updates; check before updating an explicit target. A local toggle changes the MCP sidebar contribution. There is no server API for enabling arbitrary native TUI plugins in a web client. |
+| Session controls | Recent sessions/projects, tab history, unread/attention tab cycling, pinned quick slots with tabs hidden, child navigation, session-owned shell output and stop/interrupt controls. `/worktrees` uses the selected project ID for create/refresh/move/delete; deletion never sets `force: true`. `/cd` validates the server location before changing it. Session export supports Markdown and JSON, with reasoning/tool options for Markdown. Browser preferences retain favorite/recent models and pins. |
+| Terminal pane | From a session, `/terminal` opens a **scripted sandbox** shell. `help` lists its commands. Hiding and reopening it retains its output; each pane belongs to its session. On V2, only existing persistent terminal lists and text snapshots are read. `r` refreshes a snapshot. There is no live PTY input, process creation, VT emulation or terminal resize negotiation. |
+| Pairing and native-only controls | `/pair` lists the reported server origins and asks before issuing a clipboard-only link. No QR code or bearer URL is printed to the console. `/editor` retains the draft and shows the native configuration message. `/restart` and `/update` explain the native CLI action rather than claiming success. `/debug` reports the actual client/session details. |
+
+### Captures
+
+Left is the disposable native PTY, right is the styled Text.js console framebuffer at 100×32. Each PNG has an adjacent plain-text pair and compressed source frames. [Counts by glyph, foreground, background and attributes](parity/round4/measurements.json).
+
+| Input | Pair | Difference |
+| --- | --- | --- |
+| `/model` | [slash.png](parity/round4/slash.png) | Round 3 had **107** different glyphs. Round 4 matches glyphs and styles. |
+| `@readm` and `!pwd` | [mention.png](parity/round4/mention.png) · [shell.png](parity/round4/shell.png) | Matching glyphs and styles. |
+| `@docs/` | [reference.png](parity/round4/reference.png) | Matching glyphs and styles for a real sibling-directory alias. The same private server also returned a hidden alias, which Lite excluded. |
+| `/diff`, Uncommitted | [diff.png](parity/round4/diff.png) | Matching glyphs and styles for a tracked README with one added line. Both clients read the private server's diff. |
+| `/connect` | [integrations.png](parity/round4/integrations.png) | Native grouping, gutter, selected label and provider order. The console paints an inverse caret; tmux does not serialize the hardware cursor. |
+| Ctrl+X | [leader.png](parity/round4/leader.png) | Intentional difference: the 2.1.4 binary accepts the sequence but does not show a list in this classic profile. Lite shows the requested preview. The capture keeps the same typed draft behind both frames. |
+
+Real Chrome DevTools, using the authenticated test bridge: [leader preview](parity/round4/devtools/which-key.png), [diff](parity/round4/devtools/diff.png), [slash menu](parity/round4/devtools/slash.png) and [Help opened by the fixture's F9 binding](parity/round4/devtools/bridge-keybind.png).
+
+### Remaining gaps
+
+The seven **missing behaviors** are `app.console` (the host already is the console), `app.scrap` (no handler found in the pinned classic source), `app.clear` (Mini-only scrollback), `app.toggle.file_context` and `prompt.editor_context.clear` (no attached IDE selection channel), `terminal.suspend` (no process job control from a page), and `terminal.title.toggle` (the embed does not own the host title). Settings includes a native-controls note. Explanatory text does not count as implementing those actions.
+
+The ledger records all 45 partial IDs separately. The main open implementation work is image and pointer diff review, complete dialog/editor remapping, deeper session timeline and project browsing, complete provider-specific forms, media restoration on fork/undo, and native plugin UI execution. Browser limitations account for the OS editor, job control, terminal title and native terminal palette, **not** for all of those gaps. This is not a visual sign-off for every tool, theme, dialog or viewport.
+
+### Round 4 verification
+
+| Check | Result on the Text.js runner |
+| --- | --- |
+| `CI=1 bun test packages/` | **1,231 passed, 8 skipped**, zero failures |
+| App suites | OpenCode console **65 passed**, web **327 passed**, terminal.shop **51 passed** |
+| Types and builds | Package build, root typecheck and all three app typechecks and production builds passed |
+| Starter QA | `bun scripts/qa-starters.ts --skip-build` passed all applicable checks on all seven targets, including the Bun and npm OpenCode template |
+| Production preview | `e2e-keys`, `e2e-examples`, `e2e-layout`, `e2e-eggs`, `cls.mjs` and live-bridge DevTools passed. Cold `/opencode` and the measured navigations to it had **CLS 0.0000**. |
+| Embed cost | The initial Playground did not load `OpenCodeLite`. Vite reported **88.01 kB gzip** for that chunk (round 3: 73.29 kB). The dialog chunk is a separate **17.84 kB gzip** and was not fetched on OpenCode Home. During the measured Playground → OpenCode activation, seven newly requested JS assets totaled **102,554 bytes** when gzipped individually. |
+| API isolation | Verified real reference visibility, project, worktree, plugin and MCP catalog responses, fork, staged undo, redo, sanitized export and committed revert on a disposable V2 server. Authentication, account mutations, MCP provisioning and scripted terminal input used fixtures. No real provider credential or paid model call was used. |
+
+### Reproduce
+
+```sh
+bun install && bun run build:packages
+PARITY_ROUND=4 PYTHONDONTWRITEBYTECODE=1 python3 apps/opencode-console/scripts/compare-completion.py
+bun run --cwd apps/web build
+PARITY_ROUND=4 FILMSTRIP=0 ROUTES=/opencode node apps/opencode-console/scripts/verify-preview.mjs
+bun scripts/qa-starters.ts --skip-build
+```
+
+The Text.js runner provides `PLAYWRIGHT`. The capture waits for the native model row as well as the requested menu. It uses a throwaway git branch, HOME, XDG directories and listener, then checks real V2 catalog, fork, revert and export responses. It never submits a model prompt. Browser tests allow only the preview and their own test/debug listeners on loopback.
+
 ## Round 3 inventory
 
 Reference: [`anomalyco/opencode` at `8bca5329`](https://github.com/anomalyco/opencode/tree/8bca5329293a34f4bdd7fdc4f4020be80c1eb477/packages/tui/src), classic theme and layout. The comparison binary is **2.1.4**. The baseline for this round is Text.js **1.0.3** (`6ba85bb`). The [TUI guide](https://opencode.ai/v2/docs/cli/tui/), [command guide](https://opencode.ai/v2/docs/commands/), [attachment contract](https://opencode.ai/v2/docs/attachments/) and upstream `packages/protocol/openapi.json` describe the V2 interactions. V1 uses a separate HTTP adapter.
