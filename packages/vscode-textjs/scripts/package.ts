@@ -1,7 +1,6 @@
 /**
  * Package the extension into `vscode-textjs-<version>.vsix` with @vscode/vsce
- * and verify the archive's contents. The repository is private, so the
- * manifest has no `repository` field.
+ * and verify the archive's contents.
  *
  *   bun run package
  */
@@ -16,7 +15,7 @@ const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { na
 const out = join(ROOT, `${pkg.name}-${pkg.version}.vsix`);
 const vsce = join(ROOT, "node_modules/@vscode/vsce/vsce");
 
-const run = spawnSync(process.execPath, [vsce, "package", "--no-dependencies", "--allow-missing-repository", "--out", out], { cwd: ROOT, stdio: "inherit" });
+const run = spawnSync(process.execPath, [vsce, "package", "--no-dependencies", "--out", out], { cwd: ROOT, stdio: "inherit" });
 if (run.status !== 0) process.exit(run.status ?? 1);
 
 /** Minimal ZIP central-directory reader (the .vsix is a zip). */
