@@ -1,6 +1,6 @@
 {
   "name": "@textjs/opencode",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A loopback bridge that connects textjs.org/opencode to the OpenCode server on your machine.",
   "type": "module",
   "license": "MIT",

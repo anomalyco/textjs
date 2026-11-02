@@ -1,6 +1,6 @@
 {
   "name": "@textjs/core",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Text.js core engine: CellBuffer, Yoga layout scene graph, text measurement, input and console drivers.",
   "type": "module",
   "license": "MIT",

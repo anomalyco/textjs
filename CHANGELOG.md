@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-11-01
+
 ### Added
 
 - OpenCode Lite: review per-file diffs, browse prompt history, configure leader shortcuts and manage provider accounts and MCP servers. The sandbox includes a scripted terminal pane.
