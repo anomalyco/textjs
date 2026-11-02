@@ -31,15 +31,15 @@ The apps and tests import the TypeScript sources. `bun run build:packages` build
 ## Tests
 
 ```bash
-bun test packages/                  # unit tests for every package
-bun test apps/opencode-console/     # OpenCode client
+bun run test                        # unit tests for every package
+bun run --cwd apps/opencode-console test
 bun run --cwd apps/web test         # site, docs and API routes
 bun run --cwd apps/terminal-shop test
 bun run typecheck                   # packages
 bun run --cwd apps/web typecheck
 ```
 
-Tests render frames to an in-memory buffer, so they don't need a browser. Add or update a test with every change.
+Tests render frames to an in-memory buffer, so they don't need a browser. Each `test` script runs its files in parallel across your CPU cores (`bun test --parallel`), so a test file can't rely on state another file leaves behind. Add or update a test with every change.
 
 ### Browser tests
 
@@ -50,7 +50,7 @@ bun install --cwd bench/devtools
 cd bench/devtools && bunx playwright-core install chromium
 ```
 
-- `bun scripts/qa-starters.ts` scaffolds every `create-text-app` template from packed tarballs, installs it with bun and npm, and runs `text dev`, `build`, `start` and `run` in Chromium and a pty. It also covers `examples/` and the apps, and fails on any console error or warning. `--only` and `--steps` narrow the run; the header of the script lists every option. CI runs it on every pull request.
+- `bun scripts/qa-starters.ts` scaffolds every `create-text-app` template from packed tarballs, installs it with bun and npm, and runs `text dev`, `build`, `start` and `run` in Chromium and a pty. It also covers `examples/` and the apps, and fails on any console error or warning. `--only`, `--pm` and `--steps` narrow the run; the header of the script lists every option. CI runs it in parallel shards on every pull request that changes the packages, `examples/` or the apps it covers.
 - `node apps/web/scripts/e2e-*.mjs` checks the site's keyboard input, layout, Learn pages and easter eggs. Each script's header lists the server it expects in `apps/web`, either `bun run dev` or `bun run build && bun run preview`.
 - `bun apps/terminal-shop/scripts/e2e.ts --mock` walks through checkout against an in-memory Terminal API.
 - `bun run --cwd packages/devtools-extension e2e` loads the DevTools extension in Chromium against `examples/dashboard`.
@@ -72,7 +72,7 @@ Open the page and [open the browser console](https://textjs.org/docs/installatio
 - Keep each pull request to one change, and explain what it does and how you tested it.
 - Add an entry under `## [Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md) for any change users will notice.
 - Match the style of the code around your change. TypeScript is strict across the repo.
-- Run `bun test packages/` and `bun run typecheck` before you push.
+- Run `bun run test` and `bun run typecheck` before you push.
 
 ## Writing docs and copy
 
@@ -86,7 +86,9 @@ Docs, READMEs, error messages and site copy follow [`apps/web/STYLE.md`](apps/we
 
 ## Deploys
 
-The repository has two long-lived branches. Pull requests merge into `dev`, and `production` holds what runs on textjs.org. To ship, maintainers open a pull request from `dev` to `production` and merge it with **Create a merge commit**.
+The repository has two long-lived branches. Pull requests merge into `dev`, and `production` holds what runs on textjs.org.
+
+[`.github/workflows/promotion-pr.yml`](.github/workflows/promotion-pr.yml) keeps a draft pull request from `dev` to `production` open whenever `dev` is ahead, and new commits on `dev` join it. To ship, a maintainer marks it **Ready for review**, which runs CI and QA starters, then merges it with **Create a merge commit**.
 
 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) deploys every push to either branch. It builds the packages and the site, runs `bun run --cwd apps/web test`, uploads `apps/web/dist` and `apps/web/functions` to the `textjs` Cloudflare Pages project, then checks that the deployment serves `/` and `/api/terminal/_status`. Production deploys run one at a time in merge order. A newer push to `dev` cancels a preview deploy that's still running.
 

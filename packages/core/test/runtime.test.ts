@@ -328,8 +328,9 @@ describe("zero-jump input", () => {
     const elapsed = performance.now() - t0;
     expect(frame?.skipped).toBe(false);
     expect(con.logs.length).toBe(1);
+    // Synchronous: the frame is logged before flushInputFrame returns, with nothing scheduled.
+    // Wall-clock time is reported, not asserted; a GC pause on a busy machine would fail a 1 ms bound.
     expect(scheduler.queue.length).toBe(0);
-    expect(elapsed).toBeLessThan(1);
     console.info(`[bench] input → frame (sync flush): ${elapsed.toFixed(3)}ms`);
     // A second flush within 8ms defers to the next animation frame.
     (label.children[0] ?? label).setText("ab");

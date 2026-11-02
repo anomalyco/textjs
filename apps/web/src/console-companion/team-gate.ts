@@ -41,6 +41,7 @@ interface Typed {
 }
 
 let loaded: TeamModule | null = null;
+const opening = new Set<Promise<void>>();
 
 /** The team module, once a gate opened it. */
 export function teamModule(): TeamModule | null {
@@ -63,6 +64,13 @@ export function matchGate(path: string, typed: readonly Pick<Typed, "ch" | "free
     if (GATES.has(fnv1a(`${path}:${word}`))) return { word, start };
   }
   return null;
+}
+
+/** Resolves once every gate a typed name matched has opened its egg or given up. */
+export async function gatesSettled(): Promise<void> {
+  // A key's match runs in a microtask after its handlers, so let pending ones start first.
+  await Promise.resolve();
+  while (opening.size > 0) await Promise.allSettled(opening);
 }
 
 async function open(path: string, word: string, before: Typed): Promise<void> {
@@ -101,7 +109,8 @@ export function useTeamGate(enabled: boolean): void {
         if (!hit) return;
         const before = list[hit.start] as Typed;
         list.length = 0;
-        void open(path, hit.word, before);
+        const p = open(path, hit.word, before).finally(() => opening.delete(p));
+        opening.add(p);
       });
     },
     { isActive: enabled, priority: 100 },

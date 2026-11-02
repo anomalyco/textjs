@@ -175,7 +175,10 @@ function findUp(start: string, rel: string): string | null {
   }
 }
 
-const OPTIMIZE = ["react", "react/jsx-runtime", "react/jsx-dev-runtime", "react-dom", "react-dom/client", "react-reconciler", "react-reconciler/constants.js", "scheduler", "yoga-layout/load"];
+// The live stub and player are imported by code text dev generates (server pages' client
+// stand-in, /@textjs/player), which Vite's dependency scan never sees. Found later, they make
+// Vite re-bundle mid-load: 404s for stale chunks and two copies of React.
+const OPTIMIZE = ["react", "react/jsx-runtime", "react/jsx-dev-runtime", "react-dom", "react-dom/client", "react-reconciler", "react-reconciler/constants.js", "scheduler", "yoga-layout/load", "@textjs/app/live-stub", "@textjs/app/live-player"];
 
 function toViteProxy(proxy: TextConfig["proxy"]): Record<string, string | ProxyOptions> | undefined {
   if (!proxy) return undefined;
@@ -240,7 +243,11 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
       rescan();
       const optimize = OPTIMIZE.filter((id) => {
         const pkg = id.startsWith("@") ? id.split("/").slice(0, 2).join("/") : (id.split("/")[0] as string);
-        return findUp(root, join("node_modules", pkg, "package.json")) !== null;
+        const manifest = findUp(root, join("node_modules", pkg, "package.json"));
+        if (manifest === null) return false;
+        // A workspace-linked @textjs/app isn't pre-bundled, so neither are its entry points:
+        // bundling them alone would give them their own copy of the package's modules.
+        return pkg !== "@textjs/app" || realpathSync(manifest).includes(`${sep}node_modules${sep}`);
       });
       return {
         root,

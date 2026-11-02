@@ -1,0 +1,48 @@
+# ▼ Bun 1.4.4 with its package cache restored, then `bun install --frozen-lockfile`
+# in the root and in any extra directories that have their own lockfile.
+
+name: Setup
+description: Install Bun and the workspace's dependencies, with Bun's package cache restored.
+
+inputs:
+  install-dirs:
+    description: Extra directories with their own bun.lock to install, space-separated (e.g. `bench/devtools`)
+    required: false
+    default: ""
+  cache:
+    description: Restore and save caches (the Bun executable and Bun's package cache). Deploys set `false`.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    # Any branch, fork pull requests included, can write Actions cache entries that other
+    # jobs restore (Blacksmith's cache branch protection is off for the org). Jobs that ship
+    # to production pass `cache: false` and download everything fresh.
+    - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version: 1.4.4
+        no-cache: ${{ inputs.cache != 'true' }}
+
+    - name: Locate Bun's package cache
+      id: bun
+      if: inputs.cache == 'true'
+      shell: bash
+      run: echo "dir=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+
+    # Bun stores every package version separately, so an older cache is a safe starting point.
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      if: inputs.cache == 'true'
+      with:
+        path: ${{ steps.bun.outputs.dir }}
+        key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock', 'bench/devtools/bun.lock') }}
+        restore-keys: bun-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Install
+      shell: bash
+      env:
+        INSTALL_DIRS: ${{ inputs.install-dirs }}
+      run: |
+        bun install --frozen-lockfile
+        for dir in $INSTALL_DIRS; do bun install --cwd "$dir" --frozen-lockfile; done

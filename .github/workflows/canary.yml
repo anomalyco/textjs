@@ -37,6 +37,7 @@ jobs:
       github.repository == 'anomalyco/textjs' &&
       github.ref == 'refs/heads/dev' &&
       (github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip canary]'))
+    # npm only signs provenance on GitHub-hosted runners, so this job stays off Blacksmith.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: npm-canary
@@ -60,7 +61,7 @@ jobs:
           fi
 
       # Third-party actions are pinned to full commit SHAs (tags can be moved).
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: env.HAS_NPM_TOKEN == 'true'
         with:
           persist-credentials: false
@@ -70,7 +71,7 @@ jobs:
         with:
           bun-version: 1.4.4
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: env.HAS_NPM_TOKEN == 'true'
         with:
           node-version: 22
@@ -86,7 +87,7 @@ jobs:
 
       - name: Test
         if: env.HAS_NPM_TOKEN == 'true'
-        run: bun test packages/
+        run: bun test packages/ --parallel
 
       - name: Version (x.y.z-canary.N)
         if: env.HAS_NPM_TOKEN == 'true'
