@@ -67,6 +67,7 @@ jobs:
       - name: Test packages
         run: |
           mkdir -p "$RUNNER_TEMP/timings"
+          echo "$(nproc) CPUs"
           bun test packages/ --parallel --timings="$RUNNER_TEMP/timings/packages.json" --update-timings
           echo "Slowest files (ms):"
           jq -r '.files | to_entries | sort_by(-.value) | .[:6][] | "  \(.value)  \(.key)"' "$RUNNER_TEMP/timings/packages.json"

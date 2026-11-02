@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { CellBuffer, CssConsoleDriver, initYoga, paintScene, type SceneNode } from "../src/index";
 import { buildDashboard, FakeConsole } from "./fixtures";
 
@@ -6,6 +6,10 @@ const COLS = 100;
 const ROWS = 32;
 const WARMUP = 200;
 const ITERATIONS = 1000;
+
+// 1,200 timed frames per test: well under a second on a laptop, past bun's 5 s default on a
+// CI runner busy with other test files.
+setDefaultTimeout(30_000);
 
 beforeAll(async () => {
   await initYoga();
