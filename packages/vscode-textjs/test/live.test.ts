@@ -63,8 +63,11 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await server?.close();
-  // Windows keeps the files locked briefly after the server closes.
-  rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  try {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  } catch {
+    // Windows: a runner process can still hold the directory. It's in the OS temp dir.
+  }
 });
 
 function fakeTab(): Promise<{ ws: WebSocket; inputs: unknown[]; mirror: boolean[] }> {
