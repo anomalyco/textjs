@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, type ReactNode } from "react";
 import { Box, ScrollBox, Text, useKeymap, useTheme, type ScrollBoxHandle } from "@textjs/app";
 import { duration, modelLabel } from "../lib/format";
 import { useStoreState } from "../lib/store";
+import { useCommandKeys } from "../lib/bindings";
 import type {
   AssistantMessage,
   AssistantPart,
@@ -134,6 +135,7 @@ function Assistant({
   const models = useStoreState((s) => s.models);
   const took = msg.time.completed ? duration(Math.max(0, msg.time.completed - (turnStart ?? msg.time.created))) : "";
   const color = useAgentColor(theme, msg.agent);
+  const verbosity = useStoreState((s) => s.verbosity);
   const model = models.find((m) => m.id === msg.model.id && m.providerID === msg.model.providerID)?.name ?? modelLabel(msg.model);
   const parts = msg.content.filter((p) =>
     p.type === "text" ? p.text.trim().length > 0 : p.type === "reasoning" ? p.text.trim().length > 0 || live : true,
@@ -143,7 +145,20 @@ function Assistant({
     !!p && p.type === "tool" && p.state.status !== "error" && exploration(p.name) !== undefined;
   for (let i = 0; i < parts.length; i++) {
     const p = parts[i]!;
-    if (options.groupExploration && grouped(p)) {
+    if (verbosity === "low" && p.type !== "text" && !(p.type === "tool" && (p.state.status === "error" || p.name === "question"))) {
+      let n = 1;
+      while (parts[i + 1] && parts[i + 1]!.type !== "text") {
+        const next = parts[i + 1]!;
+        if (next.type === "tool" && (next.state.status === "error" || next.name === "question")) break;
+        i++;
+        n++;
+      }
+      rows.push(
+        <Text key={`activity:${i}`} color={theme.muted} paddingLeft={3} marginTop={rows.length ? 1 : 0}>
+          + Activity · {n}
+        </Text>,
+      );
+    } else if (verbosity !== "high" && options.groupExploration && grouped(p)) {
       const group = [p];
       while (grouped(parts[i + 1])) group.push(parts[++i] as ToolPart);
       rows.push(
@@ -250,6 +265,9 @@ export function Timeline({
 }): ReactNode {
   const theme = useTheme();
   const scroll = useRef<ScrollBoxHandle>(null);
+  const scrollbar = useStoreState((s) => s.ui.scrollbar),
+    motion = useStoreState((s) => s.motion),
+    last = useRef<string | null>(null);
   const boundary = useStoreState((s) => s.sessions.find((v) => v.id === sessionID)?.revertedFrom),
     jump = useStoreState((s) => s.jump);
   const cut = boundary ? messages.findIndex((m) => m.id === boundary) : -1;
@@ -264,21 +282,34 @@ export function Timeline({
   useEffect(() => {
     if (jump && jump.sessionID === sessionID) go(jump.messageID);
   }, [jump, sessionID]);
+  useEffect(() => {
+    if (!motion || motion.id !== sessionID) return;
+    const eligible = messages.filter((m) => !motion.users || m.type === "user");
+    const i = eligible.findIndex((m) => m.id === last.current);
+    const m =
+      eligible[
+        Math.min(eligible.length - 1, Math.max(0, i < 0 ? (motion.direction === 1 ? 0 : eligible.length - 1) : i + motion.direction))
+      ];
+    if (m) {
+      last.current = m.id;
+      go(m.id);
+    }
+  }, [motion, sessionID]);
   const page = () => Math.max(1, (scroll.current?.node?.layout.contentHeight ?? 1) - 1);
-  useKeymap(
+  useCommandKeys(
     {
-      "pageup, ctrl+alt+b": () => scroll.current?.scrollBy(-page()),
-      "pagedown, ctrl+alt+f": () => scroll.current?.scrollBy(page()),
-      "ctrl+alt+u": () => scroll.current?.scrollBy(-Math.ceil(page() / 2)),
-      "ctrl+alt+d": () => scroll.current?.scrollBy(Math.ceil(page() / 2)),
-      "ctrl+alt+y": () => scroll.current?.scrollBy(-1),
-      "ctrl+alt+e": () => scroll.current?.scrollBy(1),
-      "ctrl+g, alt+home, home": () => scroll.current?.scrollToTop(),
-      "ctrl+alt+g, end": () => {
+      "session.page.up": () => scroll.current?.scrollBy(-page()),
+      "session.page.down": () => scroll.current?.scrollBy(page()),
+      "session.half.page.up": () => scroll.current?.scrollBy(-Math.ceil(page() / 2)),
+      "session.half.page.down": () => scroll.current?.scrollBy(Math.ceil(page() / 2)),
+      "session.line.up": () => scroll.current?.scrollBy(-1),
+      "session.line.down": () => scroll.current?.scrollBy(1),
+      "session.first": () => scroll.current?.scrollToTop(),
+      "session.last": () => {
         scroll.current?.scrollToBottom();
         onAway?.(false);
       },
-      "alt+end": () =>
+      "session.messages_last_user": () =>
         go(
           messages
             .slice()
@@ -286,7 +317,9 @@ export function Timeline({
             .find((m) => m.type === "user")?.id,
         ),
     },
-    { priority: 11, isActive: interactive },
+    11,
+    undefined,
+    interactive,
   );
   const lastAssistant = (() => {
     for (let i = messages.length - 1; i >= 0; i--)
@@ -299,7 +332,7 @@ export function Timeline({
       ref={scroll}
       isActive={interactive}
       stickyScroll
-      showScrollbar={false}
+      showScrollbar={!!scrollbar}
       flexGrow={1}
       paddingTop={1}
       gap={1}

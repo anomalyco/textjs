@@ -6,6 +6,8 @@ import { nativeTheme, nativeThemes, rememberTheme, themeNames, useTokens, type N
 import { useStore, useStoreState } from "../lib/store";
 import { useActiveSessionId } from "./Shell";
 import { PickerPanel } from "./PickerPanel";
+import { exportMarkdown } from "../lib/transcript";
+import { binding, defaults, NativeActions } from "../lib/bindings";
 
 export type PaletteKind = Picker | InfoPicker;
 interface Props {
@@ -31,6 +33,19 @@ const titles = {
   settings: "Settings",
   integrations: "Connect an integration",
   workspaces: "Manage workspaces",
+  keys: "Keybinds",
+  history: "Prompt history",
+  images: "Image attachments",
+  open: "Open",
+  hostInfo: "Native terminal controls",
+  children: "Subagents",
+  shells: "Shell commands",
+  debug: "Debug",
+  pair: "Pair",
+  restart: "Restart service",
+  update: "Update OpenCode",
+  highlights: "What's new in OpenCode Lite",
+  editorInfo: "Open editor",
   stashes: "Stashed prompts",
   queued: "Queued prompts",
   timeline: "Timeline",
@@ -63,12 +78,16 @@ function Content({ kind, onKind, onClose }: Props) {
     vp = useViewport(),
     active = useActiveSessionId();
   const dispatch = useContext(DispatchAction);
+  const actions = useContext(NativeActions),
+    keys = useStoreState((s) => s.keys);
   const { copy } = useClipboard(),
     skills = useStoreState((s) => s.skills),
     commands = useStoreState((s) => s.commands),
     messages = useStoreState((s) => (active ? s.messages[active] : undefined));
   const [message, selectMessage] = useState(""),
     [waiting, setWaiting] = useState(false);
+  const [thinking, withThinking] = useState(true),
+    [tools, withTools] = useState(true);
   const sessions = useStoreState((s) => s.sessions),
     agents = useStoreState((s) => s.agents),
     models = useStoreState((s) => s.models),
@@ -84,41 +103,25 @@ function Content({ kind, onKind, onClose }: Props) {
   const [deleting, setDeleting] = useState(""),
     [renaming, setRenaming] = useState(""),
     [titleDraft, setTitleDraft] = useState("");
-  const [integrations, setIntegrations] = useState<{ id: string; name: string }[]>([]),
-    [notice, setNotice] = useState("");
-  const [workspaces, setWorkspaces] = useState<string[]>([]);
+  const [notice, setNotice] = useState("");
+  const [projects, setProjects] = useState<{ canonical: string; name?: string }[]>([]);
   useEffect(() => {
-    if (kind !== "workspaces") return;
-    let alive = true;
-    void store.api?.workspaces?.().then(
-      (v) => {
-        if (alive) setWorkspaces(v);
-      },
-      (e) => {
-        if (alive) setNotice(String(e));
-      },
-    );
+    let live = true;
+    if (kind === "open")
+      void store.api?.workspace?.projects().then(
+        (v) => {
+          if (live) setProjects(v);
+        },
+        (e) => {
+          if (live) setNotice(String(e));
+        },
+      );
     return () => {
-      alive = false;
+      live = false;
     };
   }, [kind, store]);
   const initialTheme = useRef(theme),
     confirmed = useRef(false);
-  useEffect(() => {
-    if (kind !== "integrations") return;
-    let alive = true;
-    void store.api?.integrations?.().then(
-      (v) => {
-        if (alive) setIntegrations(v);
-      },
-      (e) => {
-        if (alive) setNotice(String(e));
-      },
-    );
-    return () => {
-      alive = false;
-    };
-  }, [kind, store]);
   const dir = sessions.find((s) => s.id === active)?.directory ?? connection.directory;
   const pins = useStoreState((s) => s.pins),
     [matches, setMatches] = useState<{ query: string; rows: typeof sessions }>();
@@ -162,7 +165,7 @@ function Content({ kind, onKind, onClose }: Props) {
   }, [kind, active, store, busy]);
   useEffect(() => {
     let alive = true;
-    if (kind === "plugins" || kind === "usage" || kind === "stats")
+    if (kind === "usage" || kind === "stats")
       void store.api?.report?.(kind, dir).then(
         (v) => {
           if (alive) setReport(v);
@@ -177,7 +180,7 @@ function Content({ kind, onKind, onClose }: Props) {
   }, [kind, dir, store]);
   useEffect(() => {
     let alive = true;
-    if ((kind === "mcps" || kind === "status") && dir)
+    if (kind === "status" && dir)
       void store.api?.mcpServers?.(dir).then(
         (v) => {
           if (alive) setMcps(v);
@@ -210,10 +213,68 @@ function Content({ kind, onKind, onClose }: Props) {
       }))
       .sort((a, b) => Number(b.group === "Pinned") - Number(a.group === "Pinned"));
     if (kind === "sessions") return list;
+    if (kind === "hostInfo")
+      return [
+        { value: "dismiss", label: "Console", detail: "OpenCode Lite runs in the DevTools Console." },
+        { value: "dismiss", label: "File context", detail: "Use @ to attach a server file. There is no IDE selection." },
+        { value: "dismiss", label: "Suspend terminal", detail: "DevTools cannot suspend a terminal process." },
+        { value: "dismiss", label: "Terminal title", detail: "The inspected page owns the browser title." },
+      ].map((v, i) => ({ ...v, value: `host:${i}` }));
+    if (kind === "open")
+      return [
+        ...list.map((o) => ({ ...o, group: "Sessions" })),
+        ...[
+          ...new Set(
+            [...projects.map((p) => p.canonical), ...sessions.map((s) => s.directory)].filter((d): d is string => !!d && d !== "/"),
+          ),
+        ].map((d) => ({
+          value: "project-dir:" + d,
+          label: projects.find((p) => p.canonical === d)?.name ?? d.split("/").at(-1) ?? d,
+          group: "Projects",
+          hint: d,
+        })),
+      ];
+    if (kind === "debug")
+      return [
+        ["Version", connection.version],
+        ["Terminal", "Text.js"],
+        ["Session ID", active ?? "n/a"],
+        ["Model", model ? model.providerID + "/" + model.id : "n/a"],
+        ["Size", vp.cols + "×" + vp.rows],
+      ].map(([label, hint]) => ({ value: "copyDebug", label: label!, hint }));
+    if (kind === "pair" || kind === "restart" || kind === "update")
+      return [
+        {
+          value: "dismiss",
+          label:
+            kind === "pair"
+              ? "Open /pair in the native TUI."
+              : kind === "restart"
+                ? "Run opencode service restart in your terminal."
+                : "Run /update in the native TUI.",
+        },
+        {
+          value: "dismiss-note",
+          label:
+            kind === "pair"
+              ? "Pairing links grant server access. They aren't printed in DevTools."
+              : "DevTools does not control the native installation.",
+        },
+      ];
+    if (kind === "highlights")
+      return [
+        { value: "action:models", label: "Switch model", description: "Type /models" },
+        { value: "action:diff", label: "Review changes", description: "Type /diff" },
+        { value: "action:help", label: "Help" },
+      ];
+    if (kind === "editorInfo")
+      return [
+        { value: "dismiss", label: "Set $VISUAL or $EDITOR to open an external editor" },
+        { value: "dismiss-note", label: "DevTools cannot launch the native editor. Your draft stays here." },
+      ];
     if (kind === "queued") return queue.map((q) => ({ value: "queue:" + q.id, label: q.text, hint: q.delivery }));
     if (kind === "stashes") return stashes.map((s, i) => ({ value: "stash:" + i, label: s.text }));
-    if (kind === "usage" || kind === "stats" || kind === "plugins")
-      return report.map((r, i) => ({ value: `report:${i}`, label: r.label, hint: r.value }));
+    if (kind === "usage" || kind === "stats") return report.map((r, i) => ({ value: `report:${i}`, label: r.label, hint: r.value }));
     if (kind === "timeline" && message)
       return [
         { value: "jump", label: "Jump to", description: "view message in session" },
@@ -252,8 +313,12 @@ function Content({ kind, onKind, onClose }: Props) {
       ];
     if (kind === "export")
       return [
+        { value: "mdCopy", label: "Copy Markdown to clipboard" },
+        ...(typeof document !== "undefined" ? [{ value: "mdFile", label: "Save Markdown file" }] : []),
         { value: "exportCopy", label: "Copy JSON to clipboard" },
         ...(typeof document !== "undefined" ? [{ value: "exportFile", label: "Save JSON file" }] : []),
+        { value: "mdThinking", label: "Include thinking", hint: thinking ? "on" : "off" },
+        { value: "mdTools", label: "Include tools", hint: tools ? "on" : "off" },
       ];
     if (kind === "share")
       return [
@@ -262,14 +327,7 @@ function Content({ kind, onKind, onClose }: Props) {
           ? { value: "publish", label: "Preview transcript link", description: "Only works in this browser" }
           : { value: "publish", label: "Create public share link", description: "Include this session's messages and tool output" },
       ];
-    if (kind === "workspaces")
-      return [...new Set([...(dir ? [dir] : []), ...workspaces])].map((d) => ({
-        label: d,
-        value: `workspace:${d}`,
-        current: d === dir,
-      }));
     if (kind === "themes") return themeNames.map((n) => ({ label: n, value: `theme:${n}`, current: n === initialTheme.current.name }));
-    if (kind === "integrations") return integrations.map((v) => ({ label: v.name, value: `integration:${v.id}` }));
     if (kind === "models") {
       const recent = store.recent().map((m) => `model:${m.providerID}/${m.id}`);
       const priority = (id: string) => (id === "opencode-go" ? 0 : id === "opencode" ? 1 : 2);
@@ -303,6 +361,9 @@ function Content({ kind, onKind, onClose }: Props) {
         current: v === (model?.variant ?? "default"),
       }));
     const settings: Option[] = [
+      { value: "action:hostInfo", label: "Native terminal controls", group: "System" },
+      { value: "tabs-mode", label: ui.noTabs ? "Show session tabs" : "Hide session tabs", group: "Session" },
+      { value: "action:keys", label: "Keybinds", group: "Input" },
       { value: "themes", label: "Switch theme", group: "Appearance" },
       { value: "mode", label: "Switch theme mode", group: "Appearance" },
       ...(active
@@ -321,6 +382,12 @@ function Content({ kind, onKind, onClose }: Props) {
     ];
     if (kind === "settings") return settings;
     const base: Option[] = [
+      ...(active
+        ? [
+            { value: "action:children", label: "Select subagent", group: "Session" },
+            { value: "action:shells", label: "View shell output", group: "Session" },
+          ]
+        : []),
       { value: "sessions", label: "Switch session", hint: "ctrl+x l", group: "Session" },
       { value: "new", label: "New session", hint: "ctrl+x n", group: "Session" },
       { value: "clear", label: "Clear session", group: "Session" },
@@ -353,6 +420,18 @@ function Content({ kind, onKind, onClose }: Props) {
         continue;
       base.push({ value: "action:" + c.action, label: c.description ?? c.name, group: c.session ? "Session" : "System", hint: c.key });
     }
+    for (const [id, fn] of Object.entries(actions)) {
+      if (!fn || !defaults[id] || id.startsWith("session.tab.select.") || id.startsWith("session.quick_switch.")) continue;
+      const hint = binding(id, keys).split(",")[0],
+        defaultHint = defaults[id]![0]?.replace("<leader>", "ctrl+x ").split(",")[0];
+      const existing = base.find((o) => o.hint && o.hint === defaultHint);
+      if (existing) {
+        existing.hint = hint;
+        continue;
+      }
+      if (!base.some((o) => o.label === defaults[id]![1]))
+        base.push({ value: "native:" + id, label: defaults[id]![1]!, group: defaults[id]![2], hint });
+    }
     if (query) return [...base, ...list];
     const suggested = [
       ...(sessions.length && store.tabs.list().length ? ["sessions"] : []),
@@ -375,8 +454,6 @@ function Content({ kind, onKind, onClose }: Props) {
     ui,
     store,
     active,
-    integrations,
-    workspaces,
     favorites,
     connected,
     vp.cols,
@@ -391,6 +468,11 @@ function Content({ kind, onKind, onClose }: Props) {
     matches,
     stashes,
     queue,
+    actions,
+    keys,
+    thinking,
+    tools,
+    projects,
   ]);
   const filtered = useMemo(
     () => (query ? fuzzyFilter(query, options, (o) => `${o.label} ${o.description ?? ""} ${o.value}`).map((v) => v.item) : options),
@@ -445,6 +527,41 @@ function Content({ kind, onKind, onClose }: Props) {
   const choose = (o: Option | undefined) => {
     if (!o || waiting) return;
     const v = o.value;
+    if (v === "mdThinking") {
+      withThinking(!thinking);
+      return;
+    }
+    if (v === "mdTools") {
+      withTools(!tools);
+      return;
+    }
+    if (v.startsWith("project-dir:")) {
+      void store.cd(null, v.slice(12)).then(
+        () => {
+          router.push("/");
+          onClose();
+        },
+        (e) => setNotice(String(e)),
+      );
+      return;
+    }
+    if (v === "copyDebug") {
+      void copy(options.map((o) => o.label + ": " + o.hint).join("\n")).then((ok) =>
+        store.notify(ok ? "Debug info copied to clipboard" : "Clipboard unavailable"),
+      );
+      onClose();
+      return;
+    }
+    if (v.startsWith("native:")) {
+      onClose();
+      actions[v.slice(7)]?.();
+      return;
+    }
+    if (v === "tabs-mode") {
+      store.toggle("noTabs");
+      onClose();
+      return;
+    }
     if (v === "stashes" || v === "queued") {
       onKind(v);
       return;
@@ -490,7 +607,7 @@ function Content({ kind, onKind, onClose }: Props) {
         if (v === "messageFork" || kind === "fork") {
           if (!store.api?.fork) throw Error("Fork unavailable on this server");
           const fork = await store.api.fork(sid, id || undefined);
-          if (m?.type === "user") store.restore(fork, m.text);
+          if (m?.type === "user") store.restore(fork, m.text, undefined, m.mentions);
           goSession(fork);
         }
         if (v === "publish" && store.api?.share) {
@@ -502,18 +619,21 @@ function Content({ kind, onKind, onClose }: Props) {
           store.notify("Share link copied to clipboard", "success");
         }
         if (kind === "export") {
-          const data = store.api?.exportSession
-            ? await store.api.exportSession(sid)
-            : { info: store.session(sid), messages: await store.api?.messages(sid) };
-          const json = JSON.stringify(data, null, 2);
-          if (v === "exportCopy") {
+          const md = v === "mdCopy" || v === "mdFile";
+          const data = md
+            ? await exportMarkdown(store.api!, store.session(sid)!, thinking, tools)
+            : store.api?.exportSession
+              ? await store.api.exportSession(sid)
+              : { info: store.session(sid), messages: await store.api?.messages(sid) };
+          const json = md ? String(data) : JSON.stringify(data, null, 2);
+          if (v === "exportCopy" || v === "mdCopy") {
             if (!(await copy(json))) throw Error("Clipboard unavailable");
             store.notify("Copied to clipboard");
           } else {
-            const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+            const url = URL.createObjectURL(new Blob([json], { type: md ? "text/markdown" : "application/json" }));
             const a = document.createElement("a");
             a.href = url;
-            a.download = `session-${sid}.json`;
+            a.download = `session-${sid}.${md ? "md" : "json"}`;
             a.click();
             setTimeout(() => URL.revokeObjectURL(url), 1000);
           }
@@ -528,24 +648,12 @@ function Content({ kind, onKind, onClose }: Props) {
       onKind(v as Picker);
       return;
     }
-    if (v.startsWith("workspace:")) {
-      const id = sessions.find((s) => s.directory === v.slice(10))?.id;
-      if (id) {
-        goSession(id);
-        onClose();
-      } else setNotice("No sessions in this workspace");
-      return;
-    }
     if (v === "open") {
-      onKind("sessions");
+      onKind("open");
       return;
     }
     if (v === "editor") {
-      setNotice("External editor requires the native CLI.");
-      return;
-    }
-    if (v.startsWith("integration:")) {
-      setNotice(`Use the native CLI to connect ${o.label}.`);
+      onKind("editorInfo");
       return;
     }
     if (v.startsWith("theme:")) {

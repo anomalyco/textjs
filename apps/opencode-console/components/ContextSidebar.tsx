@@ -53,6 +53,8 @@ function SidebarBody({ id, overlay }: { id: string; overlay: boolean }) {
     [onboard, show] = useState(false),
     [mcps, servers] = useState<{ name: string; status: string }[]>([]);
   const client = store.api;
+  const version = useStoreState((s) => s.managementVersion),
+    hideMcp = useStoreState((s) => s.ui.hideMcp);
   useEffect(() => {
     let alive = true;
     if (client && dir) {
@@ -78,7 +80,7 @@ function SidebarBody({ id, overlay }: { id: string; overlay: boolean }) {
     return () => {
       alive = false;
     };
-  }, [client, dir]);
+  }, [client, dir, version]);
   useFocus({ id: "session-sidebar", autoFocus: true, isActive: overlay });
   useKeymap(
     { "escape, ctrl+c, ctrl+x b": () => store.toggle("sidebar", false) },
@@ -101,7 +103,7 @@ function SidebarBody({ id, overlay }: { id: string; overlay: boolean }) {
             {!!session?.cost && <Text color={t.muted}>{dollars.format(session.cost)} spent</Text>}
           </Box>
         )}
-        {mcps.length > 0 && (
+        {!hideMcp && mcps.length > 0 && (
           <Box flexDirection="column">
             <Text bold>{mcps.length > 2 ? "▼ " : ""}MCP</Text>
             {mcps.map((m) => (

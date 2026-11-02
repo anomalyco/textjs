@@ -1,7 +1,8 @@
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { SceneNode } from "@textjs/core";
 import { Autocomplete } from "./Autocomplete";
-import { rebaseMarks, trigger } from "../lib/mentions";
+import { binding, editorMap } from "../lib/bindings";
+import { rebaseMarks, trigger, expandedDraft, type PasteMark } from "../lib/mentions";
 import type { Attachment, PromptOptions } from "../lib/types";
 import {
   Box,
@@ -46,7 +47,8 @@ export function useAgentColor(theme: TextTheme, agent: string): string {
 export function Dots({ color }: { color: string }): ReactNode {
   const vp = useViewport();
   const [i, setI] = useState(0);
-  useInterval(() => setI((n) => (n + 1) % 6), vp.paused ? null : 120);
+  const stopped = useStoreState((s) => s.ui.reducedMotion);
+  useInterval(() => setI((n) => (n + 1) % 6), vp.paused || stopped ? null : 120);
   const pos = i < 4 ? i : 6 - i;
   return (
     <Text color={color} wrap="nowrap" flexShrink={0}>
@@ -57,6 +59,12 @@ export function Dots({ color }: { color: string }): ReactNode {
 
 export function Hints({ items }: { items: Array<[string, string]> }): ReactNode {
   const theme = useTheme();
+  const keys = useStoreState((s) => s.keys);
+  const ids: Record<string, string> = { "ctrl+p": "command.palette.show", "shift+tab": "agent.cycle", "ctrl+x l": "session.list" };
+  items = items.flatMap(([k, label]) => {
+    const v = ids[k] ? binding(ids[k]!, keys).split(",")[0] : k;
+    return v ? [[v, label] as [string, string]] : [];
+  });
   return (
     <Text wrap="nowrap" flexShrink={0}>
       {items.map(([k, label], i) => (
@@ -88,10 +96,15 @@ export function Composer({
   const [caret, setCaret] = useState(0),
     [dismissed, dismiss] = useState(false);
   const [marks, setMarks] = useState<readonly Attachment[]>([]);
+  const [pastes, setPastes] = useState<readonly PasteMark[]>([]);
+  const fullPaste = useStoreState((s) => s.ui.fullPaste);
+  const recall = useRef<{ index: number; draft: { text: string; marks: readonly Attachment[] } } | null>(null);
   const editor = useRef<{ replace: (value: string, cursor: number) => void }>(null),
     anchor = useRef<SceneNode>(null);
   const change = (next: string) => {
+    recall.current = null;
     setMarks((prev) => rebaseMarks(prev, value, next, caret));
+    setPastes((prev) => rebaseMarks(prev, value, next, caret));
     setValue(next);
     dismiss(false);
   };
@@ -106,6 +119,15 @@ export function Composer({
   const store = useStore(),
     vp = useViewport();
   const restore = useStoreState((s) => s.restore);
+  useEffect(() => {
+    store.promptImages = marks.filter((a) => a.kind === "file" && a.mime.startsWith("image/"));
+    return () => {
+      store.promptImages = [];
+    };
+  }, [store, marks]);
+  useEffect(() => {
+    store.promptEmpty = !disabled && !value && !shell;
+  }, [store, value, disabled, shell]);
   useEffect(() => {
     if (!restore || restore.sessionID !== (sessionID ?? "")) return;
     const prefix = value && !/\s$/.test(value) ? value + " " : value;
@@ -165,6 +187,32 @@ export function Composer({
       .join(" · ");
   });
   const history = useStoreState((s) => s.history);
+  const keys = useStoreState((s) => s.keys);
+  useInput(
+    (e) => {
+      const up = e.key === "up";
+      if (
+        !history.length ||
+        e.shift ||
+        e.ctrl ||
+        e.alt ||
+        e.meta ||
+        (!up && e.key !== "down") ||
+        (up ? caret !== 0 : caret !== value.length)
+      )
+        return;
+      const state = recall.current ?? { index: history.length, draft: expandedDraft(value, marks, pastes) };
+      const index = Math.min(history.length, Math.max(0, state.index + (up ? -1 : 1)));
+      if (index === state.index) return;
+      const entry = store.promptHistory.entries[index] ?? state.draft;
+      editor.current?.replace(entry.text, up ? 0 : entry.text.length);
+      setMarks(entry.marks);
+      dismiss(true);
+      recall.current = index === history.length ? null : { ...state, index };
+      e.stopPropagation();
+    },
+    { priority: 13, isActive: !shell && !disabled && !token },
+  );
   const dispatch = useContext(DispatchAction);
   const focused = useFocusManager().activeId === "opencode-prompt";
   const clipboardVersion = useRef(0);
@@ -177,7 +225,24 @@ export function Composer({
   usePaste(
     (e) => {
       const images = e.files?.filter((f) => /^image\/(png|jpeg|webp|gif)$/.test(f.type));
-      if (!images?.length) return;
+      if (!images?.length) {
+        const raw = e.text.replace(/\r\n?/g, "\n"),
+          lines = raw.split("\n").length;
+        if (fullPaste || raw.startsWith("/") || (lines < 3 && raw.length <= 150) || !editor.current) return;
+        e.stopPropagation();
+        const duplicate = pastes.find((p) => p.content === raw && p.mention.end === caret);
+        if (duplicate) {
+          editor.current.replace(
+            value.slice(0, duplicate.mention.start) + raw + value.slice(caret),
+            duplicate.mention.start + raw.length,
+          );
+          return;
+        }
+        const text = `[Pasted ~${lines} lines]`;
+        editor.current.replace(value.slice(0, caret) + text + value.slice(caret), caret + text.length);
+        setPastes((prev) => [...prev, { content: raw, mention: { text, start: caret, end: caret + text.length } }]);
+        return;
+      }
       e.stopPropagation();
       if (images.reduce((n, f) => n + f.size, 0) > 20 * 1024 * 1024) {
         store.notify("Image attachments exceed 20 MiB", "warning");
@@ -242,6 +307,7 @@ export function Composer({
     if (text.trim().length === 0) return;
     setValue("");
     setMarks([]);
+    setPastes([]);
     dismiss(false);
     if (shell) {
       setShell(false);
@@ -250,21 +316,30 @@ export function Composer({
     }
     const action = slashAction(text, client?.kind === "v1");
     if (action) dispatch(action);
-    else onSubmit(text, "prompt", { attachments: marks });
+    else {
+      const entry = expandedDraft(text, marks, pastes);
+      onSubmit(entry.text, "prompt", { attachments: entry.marks });
+    }
   };
   useEffect(() => {
     if (disabled) return;
-    const run = (action: "queue" | "stash") => {
+    const run = (action: "queue" | "stash" | "submit") => {
+      if (action === "submit") {
+        submit(value);
+        return;
+      }
       if (!value.trim() || shell) return;
       if (action === "stash") {
-        store.stash(value, marks);
+        const entry = expandedDraft(value, marks, pastes);
+        store.stash(entry.text, entry.marks);
         store.notify("Prompt stashed");
       } else {
         if (client?.kind === "v1" || slashAction(value) || /^\/(?:btw|rename|compact)\b/.test(value)) {
           store.notify("This prompt cannot be queued", "warning");
           return;
         }
-        onSubmit(value, "prompt", { attachments: marks, delivery: "queue" });
+        const entry = expandedDraft(value, marks, pastes);
+        onSubmit(entry.text, "prompt", { attachments: entry.marks, delivery: "queue" });
       }
       change("");
     };
@@ -272,7 +347,7 @@ export function Composer({
     return () => {
       if (store.composer === run) store.composer = null;
     };
-  }, [store, value, marks, shell, disabled, client, onSubmit]);
+  }, [store, value, marks, pastes, shell, disabled, client, onSubmit]);
 
   const right = shell ? (
     <Hints items={[["esc", "exit shell mode"]]} />
@@ -339,7 +414,8 @@ export function Composer({
               dispatch(option.command.action);
               return;
             }
-            const label = option.command ? option.label : option.file ? "@" + option.label.replace(/\/$/u, "") : option.label;
+            const label =
+              option.command || option.reference ? option.label : option.file ? "@" + option.label.replace(/\/$/u, "") : option.label;
             const insert = label + (drill ? "/" : value[caret] === " " ? "" : " ");
             const next = value.slice(0, token.start) + insert + value.slice(caret);
             editor.current?.replace(next, token.start + insert.length);
@@ -374,6 +450,7 @@ export function Composer({
           <Textarea
             id="opencode-prompt"
             advancedEditing
+            mapKey={editorMap(keys)}
             highlights={marks.map((a) => ({
               ...a.mention,
               color: a.kind === "agent" ? tokens(theme).agents[1]! : tokens(theme).formfieldFocused,
@@ -383,7 +460,6 @@ export function Composer({
             value={value}
             onChange={change}
             onSubmit={submit}
-            history={shell ? undefined : history}
             isActive={!disabled}
             autoFocus
             placeholderColor={theme.muted}

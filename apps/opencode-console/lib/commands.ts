@@ -17,9 +17,20 @@ export type Picker =
   | "mcps"
   | "export"
   | "share"
-  | "queued" | "stashes"
-  | "skills";
-export type InfoPicker = "plugins" | "stats" | "usage" | "diff";
+  | "queued"
+  | "stashes"
+  | "skills"
+  | "history"
+  | "children"
+  | "shells"
+  | "debug"
+  | "pair"
+  | "restart"
+  | "update"
+  | "images"
+  | "open"
+  | "hostInfo";
+export type InfoPicker = "plugins" | "stats" | "usage" | "diff" | "highlights" | "editorInfo" | "keys";
 export type Action =
   | Picker
   | InfoPicker
@@ -33,6 +44,7 @@ export type Action =
   | "details"
   | "reasoning"
   | "editor"
+  | "terminal"
   | "compact"
   | "unshare"
   | "reload";
@@ -41,7 +53,7 @@ const builtins: SlashCommand[] = [
   { name: "new", description: "New session", action: "new", key: "ctrl+x n" },
   { name: "clear", description: "Clear session", action: "clear" },
   { name: "sessions", aliases: ["resume", "continue"], description: "Switch session", action: "sessions", key: "ctrl+x l" },
-  { name: "open", aliases: ["project", "projects"], description: "Open session or project", action: "sessions", key: "ctrl+o" },
+  { name: "open", aliases: ["project", "projects"], description: "Open session or project", action: "open", key: "ctrl+o" },
   { name: "models", description: "Switch model", action: "models", key: "ctrl+x m" },
   { name: "agents", description: "Switch agent", action: "agents", key: "ctrl+x a" },
   { name: "variants", aliases: ["thinking", "effort"], description: "Switch model variant", action: "variants" },
@@ -49,6 +61,11 @@ const builtins: SlashCommand[] = [
   { name: "connect", description: "Connect an integration", action: "integrations" },
   { name: "settings", description: "Open settings", action: "settings" },
   { name: "worktrees", description: "Manage workspaces", action: "workspaces" },
+  { name: "cd", description: "Change working directory", args: true },
+  { name: "debug", description: "View debug info", action: "debug" },
+  { name: "pair", aliases: ["web"], description: "Pair device", action: "pair" },
+  { name: "update", description: "Update OpenCode", action: "update" },
+  { name: "restart", description: "Restart service", action: "restart" },
   { name: "mcps", description: "MCP servers", action: "mcps" },
   { name: "skills", description: "Select skill", action: "skills" },
   { name: "plugins", description: "Manage plugins", action: "plugins" },
@@ -60,6 +77,9 @@ const builtins: SlashCommand[] = [
   { name: "reload", description: "Reload configuration", action: "reload" },
   { name: "editor", description: "Open editor", action: "editor", key: "ctrl+x e" },
   { name: "help", description: "Help", action: "help" },
+  { name: "history", description: "Prompt history", action: "history" },
+  { name: "terminal", description: "New terminal", action: "terminal", session: true },
+  { name: "highlights", description: "Show release highlights", action: "highlights" },
   { name: "exit", aliases: ["quit", "q"], description: "Exit the app", action: "exit" },
   { name: "rename", description: "Rename session", session: true, args: true },
   { name: "copy", description: "Copy last assistant message", session: true, action: "copy", key: "ctrl+x y" },
@@ -75,14 +95,12 @@ const builtins: SlashCommand[] = [
 ];
 const all = builtins.flatMap((c) => [c, ...(c.aliases ?? []).map((name) => ({ ...c, name }))]);
 const byName = new Map(all.map((c) => [c.name, c]));
-export function slashCommands(server: readonly CommandOption[], session: boolean, canShare: boolean, v1=false) {
+export function slashCommands(server: readonly CommandOption[], session: boolean, canShare: boolean, v1 = false) {
   return [
     ...all
       .filter((c) => (!c.session || session) && (canShare || !["share", "unshare"].includes(c.name)))
       .map((c) =>
-        v1 && c.name === "thinking"
-          ? { ...c, action: "reasoning" as const, description: "Toggle thinking blocks visibility" }
-          : c,
+        v1 && c.name === "thinking" ? { ...c, action: "reasoning" as const, description: "Toggle thinking blocks visibility" } : c,
       ),
     ...server.filter((c) => !byName.has(c.name)).map((c) => ({ ...c, args: true })),
   ].sort((a, b) => a.name.localeCompare(b.name)) as SlashCommand[];

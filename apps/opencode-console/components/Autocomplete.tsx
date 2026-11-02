@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Text, fuzzyFilter, useInput } from "@textjs/app";
+import { Box, Text, useInput } from "@textjs/app";
+import fuzzysort from "fuzzysort";
+import { useCommandKeys } from "../lib/bindings";
 import { slashCommands, type SlashCommand } from "../lib/commands";
 import { lineRange, type trigger } from "../lib/mentions";
 import { useTokens } from "../lib/native-theme";
@@ -13,6 +15,7 @@ type Option = {
   command?: SlashCommand;
   file?: FileOption;
   kind?: "agent" | "skill";
+  reference?: boolean;
 };
 export function Autocomplete({
   token,
@@ -34,14 +37,15 @@ export function Autocomplete({
     api = store.api;
   const commands = useStoreState((s) => s.commands),
     agents = useStoreState((s) => s.mentionAgents),
-    skills = useStoreState((s) => s.skills);
+    skills = useStoreState((s) => s.skills),
+    refs = useStoreState((s) => s.references);
   const [index, move] = useState(0),
     [paths, setPaths] = useState<FileOption[]>(),
     [failed, fail] = useState(false);
   const range = lineRange(token.query),
     slash = token.mode === "slash";
   useEffect(() => {
-    if (slash || !api?.findFiles) return;
+    if (slash || !api?.findFiles || refs.some((r) => r.name === range.base.split("/")[0])) return;
     let active = true;
     const timer = setTimeout(
       () =>
@@ -59,24 +63,28 @@ export function Autocomplete({
       active = false;
       clearTimeout(timer);
     };
-  }, [api, range.base, directory, slash]);
+  }, [api, range.base, directory, slash, refs]);
   const catalog = useMemo(() => slashCommands(commands, session, !!api?.share, api?.kind === "v1"), [commands, session, api]);
   const options = useMemo(() => {
     const local: Option[] = slash
-      ? catalog.map((command) => ({ label: `/${command.name}`, description: command.description, hint: command.key, command }))
+      ? catalog.map((command) => ({ label: `/${command.name}`, description: command.description, command }))
       : [
           ...skills.map((a) => ({ label: `@${a.id}`, kind: "skill" as const, description: a.description })),
+          ...refs.map((r) => ({ label: `@${r.name}`, file: r.file, reference: true, hint: "reference", description: r.description })),
           ...agents.map((a) => ({ label: `@${a.id}`, kind: "agent" as const })),
         ];
     const q = slash ? token.query : range.base;
+    const alias = !slash && local.find((o) => o.reference && o.label.slice(1) === q.split("/")[0]);
+    if (alias) return [alias];
     const ranked = q
-      ? fuzzyFilter(q, local, (o) => `${o.label}${slash ? " " + (o.description ?? "") : ""}`)
-          .map((r) => r.item)
-          .sort(
-            (a, b) =>
-              Number(b.label.slice(1) === q) - Number(a.label.slice(1) === q) ||
-              Number(b.label.slice(1).startsWith(q)) - Number(a.label.slice(1).startsWith(q)),
-          )
+      ? fuzzysort
+          .go(q, local, {
+            keys: [(o) => o.label, ...(slash ? ["description"] : []), () => ""],
+            limit: 10,
+            threshold: slash ? 0 : 0.5,
+            scoreFn: (r) => r.score * (r[0]?.target.startsWith((slash ? "/" : "@") + q) ? 2 : 1),
+          })
+          .map((r) => r.obj)
       : local;
     const files = (paths ?? []).map((file) => {
       if (!range.start || file.directory) return { label: file.path, file };
@@ -88,22 +96,31 @@ export function Autocomplete({
     });
     const list: Option[] = [...ranked, ...files];
     return q ? list.slice(0, 10) : list;
-  }, [slash, catalog, skills, agents, token.query, range.base, range.start, range.end, paths]);
+  }, [slash, catalog, skills, agents, refs, token.query, range.base, range.start, range.end, paths]);
   const height = Math.min(10, Math.max(1, space), options.length || 1),
     selected = Math.min(index, Math.max(0, options.length - 1));
   const start = Math.max(0, selected - height + 1);
   useInput(
     (e) => {
-      if (e.key === "escape" || (e.ctrl && e.key === "c")) onHide(e.ctrl && slash);
-      else if (["up", "down"].includes(e.key) || (e.ctrl && ["n", "p"].includes(e.key)))
-        move((selected + (["up", "p"].includes(e.key) ? -1 : 1) + options.length) % Math.max(1, options.length));
-      else if ((e.key === "return" || e.key === "tab") && !e.shift && !e.ctrl && !e.meta && !e.alt) {
-        const item = options[selected];
-        if (item) onSelect(item, e.key === "tab" && !!item.file?.directory);
-      } else return;
+      if (e.ctrl && e.key === "c") onHide(slash);
+      else return;
       e.stopPropagation();
     },
     { priority: 25 },
+  );
+  const choose = (tab: boolean) => {
+    const o = options[selected];
+    if (o) onSelect(o, tab && !!o.file?.directory && !o.reference);
+  };
+  useCommandKeys(
+    {
+      "prompt.autocomplete.hide": () => onHide(false),
+      "prompt.autocomplete.select": () => choose(false),
+      "prompt.autocomplete.complete": () => choose(true),
+      "prompt.autocomplete.prev": () => move((selected + options.length - 1) % Math.max(1, options.length)),
+      "prompt.autocomplete.next": () => move((selected + 1) % Math.max(1, options.length)),
+    },
+    25,
   );
   const width = slash ? Math.max(0, ...catalog.map((c) => c.name.length)) + 3 : undefined;
   return (
