@@ -71,6 +71,10 @@ jobs:
       - name: Test
         run: bun test packages/
 
+      # This checkout's packages, packed the way npm ships them, under Node and Bun.
+      - name: Packed packages
+        run: bun scripts/verify-pack.ts --skip-build
+
   cli:
     name: CLI (create-text-app, text, bridge)
     runs-on: blacksmith-4vcpu-windows-2025

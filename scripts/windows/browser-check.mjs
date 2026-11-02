@@ -108,6 +108,9 @@ const KEYLOG = `(() => {
       setTimeout(() => (row.prevented = e.defaultPrevented), 0);
     }, true);
   }
+  const describe = (el) => el && el.tagName ? el.tagName + (el.id ? "#" + el.id : "") + (el.hasAttribute && el.hasAttribute("data-textjs-input-sink") ? "[sink]" : "") + (typeof el.className === "string" && el.className ? "." + el.className.split(" ").join(".") : "") : String(el);
+  window.__describe = describe;
+  for (const t of ["focusin", "focusout", "mousedown", "click"]) addEventListener(t, (e) => log.push({ t, target: describe(e.target), related: e.relatedTarget ? describe(e.relatedTarget) : undefined }), true);
   addEventListener("mousemove", (e) => (window.__mouse = { sx: e.screenX, sy: e.screenY, cx: e.clientX, cy: e.clientY }), true);
 })()`;
 
@@ -241,6 +244,7 @@ async function main() {
   await keys();
 }
 
+let consoleOpened = false;
 async function visit(path, shoot = true) {
   frames = 0;
   lastFrame = "";
@@ -248,6 +252,12 @@ async function visit(path, shoot = true) {
   await sleep(9000);
   console.log(`focus: ${os("focus", proc.pid)}`);
   await sleep(800);
+  if (!consoleOpened) {
+    // DevTools opens on Elements (Chrome) or Welcome (Edge): Ctrl+Shift+J switches it to the Console, as a user would.
+    os("keys", "ctrl+shift+j");
+    consoleOpened = true;
+    await sleep(1500);
+  }
   if (!shoot) return;
   const name = path.slice(1);
   const size = os("screenshot", join(OUT, `${BROWSER}-${name}.png`));
@@ -289,11 +299,14 @@ async function keys() {
   const pad = await page.eval(`(() => { const el = document.querySelector(".pad"); const r = (el || document.body).getBoundingClientRect(); return { x: r.left + r.width / 2, y: Math.max(40, Math.min(r.top + r.height / 2, innerHeight - 30)), cls: el && el.className }; })()`);
   const dx = mouse ? mouse.sx - mouse.cx : win.x + 8;
   const dy = mouse ? mouse.sy - mouse.cy : win.y + 90;
+  await page.eval("window.__keylog.length = 0");
   os("click", Math.round(dx + pad.x), Math.round(dy + pad.y));
   await sleep(800);
-  const focus = await page.eval("({ hasFocus: document.hasFocus(), active: document.activeElement && document.activeElement.tagName })");
+  const focus = await page.eval(`({ hasFocus: document.hasFocus(), active: __describe(document.activeElement), finePointer: matchMedia("(pointer: fine)").matches, events: __keylog.slice() })`);
   results.focus = { mouse, pad, focus };
-  check("page focused after click", focus.hasFocus, focus);
+  check("page focused after click", focus.hasFocus, focus.active);
+  // IMEs and dead keys only compose in an editable element: Text.js's hidden textarea.
+  check("input sink focused after click", focus.active.includes("[sink]"), { active: focus.active, finePointer: focus.finePointer, events: focus.events.map((e) => `${e.t}:${e.target}`) });
 
   for (const layout of LAYOUTS) {
     const rows = [];
