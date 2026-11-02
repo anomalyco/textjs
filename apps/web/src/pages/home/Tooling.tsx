@@ -20,18 +20,17 @@ export function ToolingSection(): ReactNode {
     <section className="section home-section">
       <div className="container">
         <div className="section-head">
-          <p className="eyebrow">Developer Experience</p>
           <h2>Editor, lint and test tooling</h2>
         </div>
         <div className="tool-grid">
           {TOOLS.map((t) => (
             <A key={t.title} href={t.href} className="tool-cell">
-              <span className="tool-label">{t.label}</span>
               <h3>
                 {t.title}
                 <ArrowRight size={13} />
               </h3>
               <p>{t.body}</p>
+              <span className="tool-label">{t.label}</span>
             </A>
           ))}
         </div>
@@ -47,7 +46,6 @@ export function LearnSection(): ReactNode {
         <div className="frame home-learn">
           <Crosses />
           <div className="home-learn-copy">
-            <p className="eyebrow">Learn Text.js</p>
             <h2>Build a deploy dashboard in your console</h2>
             <p className="muted">
               The free course has {CHAPTERS.length} chapters and takes about {ABOUT_MINUTES} minutes.

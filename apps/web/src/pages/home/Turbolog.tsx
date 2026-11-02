@@ -217,9 +217,9 @@ export function TurbologSection(): ReactNode {
     <section className="section home-section" id="turbolog">
       <div className="container" ref={ref}>
         <div className="section-head">
-          <p className="eyebrow tl-eyebrow">
+          <div className="section-mark">
             <TurbologLockup />
-          </p>
+          </div>
           <h2>
             Every changed frame is one <code>console.log</code> call
           </h2>
