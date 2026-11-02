@@ -31,12 +31,11 @@ runs:
         path: ~/.cache/ms-playwright
         key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}-${{ inputs.shell-only == 'true' && 'shell' || 'chromium' }}
 
+    # The headless shell needs the same libraries as Chromium.
     - name: Install system libraries
       shell: bash
       working-directory: apps/web
-      env:
-        ARGS: ${{ steps.playwright.outputs.args }}
-      run: bunx playwright-core install-deps $ARGS
+      run: bunx playwright-core install-deps chromium
 
     - name: Install Chromium
       if: steps.cache.outputs.cache-hit != 'true'
