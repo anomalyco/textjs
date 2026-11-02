@@ -100,6 +100,8 @@ export type InputMessage =
       repeat?: boolean;
     }
   | { type: "paste"; text: string }
+  /** Text committed by an IME or dead key in the sender's input sink. */
+  | { type: "text"; text: string }
   | { type: "wheel"; deltaX: number; deltaY: number; deltaMode: number }
   | { type: "navigate"; href: string };
 
@@ -296,6 +298,8 @@ export function parseInputMessage(value: unknown): InputMessage | null {
     }
     case "paste":
       return typeof value.text === "string" && value.text.length <= MAX_TEXT ? { type: "paste", text: value.text } : null;
+    case "text":
+      return typeof value.text === "string" && value.text.length > 0 && value.text.length <= MAX_TEXT ? { type: "text", text: value.text } : null;
     case "wheel": {
       const n = (k: string): number => (typeof value[k] === "number" && Number.isFinite(value[k]) ? Math.max(-10_000, Math.min(10_000, value[k] as number)) : 0);
       const mode = value.deltaMode === 1 || value.deltaMode === 2 ? value.deltaMode : 0;

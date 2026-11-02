@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { ConsoleMirror } from "@textjs/react/dom";
-import type { StyledFrame } from "@textjs/core";
+import { bindTextSink, normalizeKeyEvent, type StyledFrame } from "@textjs/core";
 import { FrameDecoder, frameToText } from "@textjs/app/frame-protocol";
 import type { HostToWebview, ModePreference, PreviewState, WebviewCommand, WebviewToHost } from "../src/webview-protocol";
 import { Icon, type IconName } from "./icons";
@@ -325,10 +325,10 @@ function Stage({ state, frame }: { state: PreviewState; frame: StyledFrame | nul
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (e.nativeEvent.isComposing) return;
+    // Modifier-only, dead and IME keys stay native; their text arrives through the sink.
+    if (normalizeKeyEvent(e.nativeEvent) === null) return;
     // Leave editor-level shortcuts (⌘P, ⌘W, ⌘⇧P…) to VS Code; ⌘C/⌘V keep their defaults.
     if (state.mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && e.shiftKey) return;
-    if (e.key === "Meta" || e.key === "Control" || e.key === "Shift" || e.key === "Alt") return;
     if (!state.mac && e.ctrlKey && (e.key === "v" || e.key === "c")) return;
     e.preventDefault();
     post({
@@ -338,6 +338,12 @@ function Stage({ state, frame }: { state: PreviewState; frame: StyledFrame | nul
   };
 
   const showMirror = state.mode !== "idle";
+
+  useEffect(() => {
+    const el = sinkRef.current;
+    if (!el) return;
+    return bindTextSink(el, (text) => post({ type: "input", msg: { type: "text", text } }));
+  }, [showMirror]);
   const source = state.mode === "live" ? "text://viewport:1" : `${state.target?.label.split("/").pop() ?? "preview"}:1`;
 
   return (
@@ -372,6 +378,7 @@ function Stage({ state, frame }: { state: PreviewState; frame: StyledFrame | nul
             aria-label="Keyboard input for the app"
             autoCapitalize="off"
             autoComplete="off"
+            autoCorrect="off"
             spellCheck={false}
             onFocus={() => sendFocus(true)}
             onBlur={() => sendFocus(false)}
@@ -380,9 +387,6 @@ function Stage({ state, frame }: { state: PreviewState; frame: StyledFrame | nul
               e.preventDefault();
               const text = e.clipboardData.getData("text/plain");
               if (text) post({ type: "input", msg: { type: "paste", text } });
-            }}
-            onInput={(e) => {
-              (e.target as HTMLTextAreaElement).value = "";
             }}
           />
           <footer className="hint">
