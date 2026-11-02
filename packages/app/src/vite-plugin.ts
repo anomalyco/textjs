@@ -283,10 +283,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
       rescan();
     },
 
-    resolveId(rawId) {
-      // `build.ssr` entries arrive resolved against the root.
-      const v = rawId.indexOf("virtual:textjs/");
-      const id = v > 0 && !rawId.startsWith("\0") ? rawId.slice(v) : rawId;
+    resolveId(id) {
       if (id === VIRTUAL_ROUTES || id === VIRTUAL_CONFIG || id === VIRTUAL_API) return RESOLVED(id);
       if (id === VIRTUAL_ENTRY || id === ENTRY_URL || id === `${basePath}${ENTRY_URL}`) return RESOLVED(VIRTUAL_ENTRY);
       if (!userHtml() && toPosix(id) === toPosix(htmlPath())) return id;

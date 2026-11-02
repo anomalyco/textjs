@@ -143,11 +143,11 @@ export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildRes
       logLevel: "error",
       clearScreen: false,
       build: {
-        ssr: VIRTUAL_LIVE,
+        ssr: true,
         outDir: serverDir,
         emptyOutDir: false,
         target: "node18",
-        rollupOptions: { output: { entryFileNames: "live.mjs", format: "es" } },
+        rollupOptions: { input: VIRTUAL_LIVE, output: { entryFileNames: "live.mjs", format: "es" } },
       },
       ssr: { noExternal: [/^@textjs\//] },
       plugins: o.plugins,

@@ -111,11 +111,11 @@ export async function buildApp(opts: BuildOptions): Promise<BuildResult> {
       logLevel: "warn",
       clearScreen: false,
       build: {
-        ssr: VIRTUAL_API,
+        ssr: true,
         outDir: join(outDir, META_DIR, "server"),
         emptyOutDir: true,
         target: "node18",
-        rollupOptions: { output: { entryFileNames: "api.mjs", format: "es" } },
+        rollupOptions: { input: VIRTUAL_API, output: { entryFileNames: "api.mjs", format: "es" } },
       },
       // Bundle the framework into api.mjs so `text start` runs on plain Node.
       ssr: { noExternal: ["@textjs/app", /^@textjs\//] },

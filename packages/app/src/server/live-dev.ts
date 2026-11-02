@@ -132,7 +132,7 @@ export function textjsLivePlugin(options: { appDir?: string; root?: string } = {
       root = config.root;
     },
     resolveId(id, importer, opts) {
-      if (id === VIRTUAL_LIVE || id.endsWith(`/${VIRTUAL_LIVE}`)) return RESOLVED_LIVE;
+      if (id === VIRTUAL_LIVE) return RESOLVED_LIVE;
       if (id === VIRTUAL_PLAYER || id === PLAYER_URL || id.endsWith(PLAYER_URL)) return RESOLVED_PLAYER;
       if (id.endsWith(SERVER_STUB_QUERY)) return `${STUB_PREFIX}${id.slice(0, -SERVER_STUB_QUERY.length)}`;
       if (id.endsWith(SERVER_ONLY_QUERY)) return `${SERVER_ONLY_PREFIX}${id.slice(0, -SERVER_ONLY_QUERY.length)}`;

@@ -48,7 +48,7 @@ export async function bundleServerEntry(opts: BundleOptions): Promise<void> {
     name: "textjs:server-entry",
     enforce: "pre",
     resolveId(id) {
-      return id.endsWith(ENTRY) ? `\0${ENTRY}` : null;
+      return id === ENTRY ? `\0${ENTRY}` : null;
     },
     load(id) {
       return id === `\0${ENTRY}` ? opts.code : null;
@@ -79,7 +79,7 @@ export async function bundleServerEntry(opts: BundleOptions): Promise<void> {
       ...(worker ? { resolve: { conditions: ["workerd", "worker", "edge-light", "import", "module", "default"], externalConditions: ["workerd", "worker"] } } : {}),
     },
     build: {
-      ssr: ENTRY,
+      ssr: true,
       outDir: dirname(opts.outFile),
       emptyOutDir: false,
       copyPublicDir: false,
@@ -87,6 +87,7 @@ export async function bundleServerEntry(opts: BundleOptions): Promise<void> {
       minify: false,
       reportCompressedSize: false,
       rollupOptions: {
+        input: ENTRY,
         external: worker ? [/^node:/] : undefined,
         output: { entryFileNames: basename(opts.outFile), format: "es", inlineDynamicImports: true },
       },
