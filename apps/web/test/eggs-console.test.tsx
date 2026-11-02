@@ -330,7 +330,7 @@ describe("/exit in OpenCode", () => {
 describe("text:///viewport", () => {
   test("the file Sources opens is the one every frame is logged through", () => {
     expect(VIEWPORT_SOURCE).toBe(
-      "// Every frame in the console is one call to log() below.\nvar viewport = {\n  log(...args) { console.log(...args) },\n  clear() { console.clear() },\n};\n//# sourceURL=text:///viewport",
+      "// Every frame in the console is one call to log() below.\nglobalThis.__textjsViewport = {\n  log(...args) { console.log(...args) },\n  clear() { console.clear() },\n};\n//# sourceURL=text:///viewport",
     );
     // DevTools labels the link with the line of the console.log call.
     expect(VIEWPORT_SOURCE.split("\n")[2]).toContain("console.log(");
@@ -356,7 +356,7 @@ describe("text:///viewport", () => {
     }
     expect(clears).toBe(1);
     expect(seen).toEqual([["%cframe", "color:red"]]);
-    delete (globalThis as { viewport?: unknown }).viewport;
+    delete (globalThis as { __textjsViewport?: unknown }).__textjsViewport;
     expect(viewportConsole()).toBeNull();
   });
 });

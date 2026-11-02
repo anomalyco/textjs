@@ -19,11 +19,21 @@ function terminalFunctions(): Plugin {
   };
 }
 
-/** `text:///viewport`, the file every console frame is logged through, as an inline script (no eval under the CSP). */
+/**
+ * `text:///viewport`, the file every console frame is logged through, as an inline script (no eval under
+ * the CSP). Before the head `<style>`, so it runs before any stylesheet link on every page, 404 included.
+ */
 function viewportScript(): Plugin {
   return {
     name: "textjs-viewport-script",
-    transformIndexHtml: () => [{ tag: "script", children: VIEWPORT_SOURCE, injectTo: "head" }],
+    transformIndexHtml: {
+      order: "pre",
+      handler(html) {
+        const at = html.indexOf("<style>");
+        if (at < 0 || at > html.indexOf("</head>")) throw new Error("index.html needs a <style> in <head> for the viewport script to go before");
+        return `${html.slice(0, at)}<script>${VIEWPORT_SOURCE}</script>\n    ${html.slice(at)}`;
+      },
+    },
   };
 }
 

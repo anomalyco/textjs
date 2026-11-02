@@ -38,6 +38,8 @@ describe("Content-Security-Policy script hashes", () => {
     expect(() => withScriptHashes(HEADERS.replace(/  Content-Security-Policy.*\n/, ""), ["'sha256-A'"])).toThrow();
     expect(() => withScriptHashes(HEADERS.replace("script-src 'self' ", "script-src "), ["'sha256-A'"])).toThrow();
     expect(() => withScriptHashes(withScriptHashes(HEADERS, ["'sha256-A'"]), ["'sha256-A'"])).toThrow();
+    // Cloudflare Pages ignores the whole line past 2,000 characters.
+    expect(() => withScriptHashes(HEADERS, Array.from({ length: 40 }, (_, i) => `'sha256-${String(i).padStart(44, "x")}='`))).toThrow("2000");
   });
 
   test("the console frames' viewport file is a plain inline script (no eval)", () => {

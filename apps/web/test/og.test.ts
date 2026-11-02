@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NOT_FOUND_PATH, ROUTES } from "../src/entry-server";
 import { OG_HEIGHT, OG_WIDTH, ogCards, ogSlug } from "../src/og";
 import { cardHtml, drawn, escapeHtml } from "../scripts/og/template";
+import { inlineScriptHashes } from "../scripts/csp";
 
 const ROOT = join(import.meta.dir, "..");
 
@@ -104,6 +105,64 @@ describe("Open Graph images in the build", () => {
       expect([size.width, size.height]).toEqual([OG_WIDTH, OG_HEIGHT]);
       // Cloudflare Pages takes files up to 25 MiB; unfurlers want far less.
       expect(statSync(onDisk).size).toBeLessThan(300 * 1024);
+    }
+  });
+
+  /** `_headers` rules in file order: path → lowercased header → value. */
+  const headerRules = (): Map<string, Map<string, string>> => {
+    const rules = new Map<string, Map<string, string>>();
+    let current: Map<string, string> | null = null;
+    for (const line of readFileSync(join(dist, "_headers"), "utf8").split("\n")) {
+      if (!line.trim() || line.startsWith("#")) continue;
+      if (!/^\s/.test(line)) rules.set(line.trim(), (current = new Map()));
+      else current!.set(line.slice(0, line.indexOf(":")).trim().toLowerCase(), line.slice(line.indexOf(":") + 1).trim());
+    }
+    return rules;
+  };
+  const htmlFiles = (): string[] => {
+    const out: string[] = [];
+    const walk = (d: string): void => {
+      for (const e of readdirSync(d, { withFileTypes: true })) {
+        if (e.isDirectory()) walk(join(d, e.name));
+        else if (e.name.endsWith(".html")) out.push(join(d, e.name));
+      }
+    };
+    walk(dist);
+    return out;
+  };
+
+  test("every route has its own _headers rule (no cache, same-origin resource policy)", () => {
+    const rules = headerRules();
+    for (const { path } of ROUTES) {
+      const rule = [...rules].find(([p]) => p !== "/*" && (p === path || (p.endsWith("/*") && path.startsWith(p.slice(0, -1)))));
+      expect({ path, cache: rule?.[1].get("cache-control"), corp: rule?.[1].get("cross-origin-resource-policy") }).toEqual({
+        path,
+        cache: "public, max-age=0, must-revalidate",
+        corp: "same-origin",
+      });
+    }
+  });
+
+  test("the Content-Security-Policy allows every inline script the pages ship, on one line Pages accepts", () => {
+    const line = readFileSync(join(dist, "_headers"), "utf8")
+      .split("\n")
+      .find((l) => /^\s+Content-Security-Policy:/.test(l))!;
+    const hashes = inlineScriptHashes(dist);
+    expect(hashes.length).toBeGreaterThan(0);
+    for (const h of hashes) expect(line).toContain(h);
+    expect(line.length).toBeLessThanOrEqual(2000);
+  });
+
+  test("prerendered pages embed nothing the policy doesn't expect", () => {
+    for (const file of htmlFiles()) {
+      const html = readFileSync(file, "utf8");
+      const rel = file.slice(dist.length);
+      expect({ rel, embeds: html.match(/<(iframe|object|embed)\b/gi) ?? [] }).toEqual({ rel, embeds: [] });
+      expect({ rel, handlers: html.match(/<[^>]*\son[a-z]+\s*=/gi) ?? [] }).toEqual({ rel, handlers: [] });
+      const external = [...html.matchAll(/\s(?:src|srcset)="([^"]*)"/gi)]
+        .flatMap((m) => (m[1] as string).split(",").map((c) => c.trim().split(/\s+/)[0] as string))
+        .filter((u) => /^[a-z][a-z0-9+.-]*:|^\/\//i.test(u) && !/^https:\/\/(media\.)?textjs\.org\//.test(u));
+      expect({ rel, external }).toEqual({ rel, external: [] });
     }
   });
 });

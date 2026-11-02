@@ -221,7 +221,7 @@ writeFileSync(join(distDir, "404.html"), withImage(notFoundHtml, imageFor(server
 
 // Allow exactly the inline scripts the pages ship (OS detection, mirror prefit, ?debug=scroll) by hash.
 const headersPath = join(distDir, "_headers");
-if (existsSync(headersPath)) writeFileSync(headersPath, withScriptHashes(readFileSync(headersPath, "utf8"), inlineScriptHashes(distDir)));
+writeFileSync(headersPath, withScriptHashes(readFileSync(headersPath, "utf8"), inlineScriptHashes(distDir)));
 writeFileSync(join(distDir, "CNAME"), "textjs.org\n");
 writeFileSync(join(distDir, ".nojekyll"), "");
 rmSync(join(distDir, ".vite"), { recursive: true, force: true });

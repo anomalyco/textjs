@@ -32,7 +32,10 @@ export function inlineScriptHashes(dir: string): string[] {
   return [...hashes].sort();
 }
 
-/** Adds `hashes` after `'self'` in the `/*` rule's `script-src`. Throws unless there's exactly one to extend. */
+/** Cloudflare Pages silently drops `_headers` lines longer than this. */
+export const MAX_HEADER_LINE = 2000;
+
+/** Adds `hashes` after `'self'` in the `/*` rule's `script-src`. Throws unless there's exactly one to extend, or if the line gets too long for Pages. */
 export function withScriptHashes(headers: string, hashes: readonly string[]): string {
   const lines = headers.split("\n");
   const at: number[] = [];
@@ -47,6 +50,7 @@ export function withScriptHashes(headers: string, hashes: readonly string[]): st
   if (/'sha256-/.test(line)) throw new Error("_headers: script-src already has hashes");
   const next = line.replace(/(script-src 'self')(?=[ ;])/, `$1${hashes.map((h) => ` ${h}`).join("")}`);
   if (next === line && hashes.length > 0) throw new Error("_headers: no script-src 'self' to add inline script hashes to");
+  if (next.length > MAX_HEADER_LINE) throw new Error(`_headers: the Content-Security-Policy line is ${next.length} characters; Cloudflare Pages ignores lines over ${MAX_HEADER_LINE}`);
   lines[i] = next;
   return lines.join("\n");
 }
