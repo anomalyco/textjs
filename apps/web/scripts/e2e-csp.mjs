@@ -104,6 +104,11 @@ page.on("console", (m) => {
   if (/Content.Security.Policy|Permissions.Policy|Refused to|Cross-Origin-(Opener|Resource)-Policy|Strict-Transport/i.test(t)) warnings.push(`${page.url()}: ${t.slice(0, 300)}`);
 });
 const errors = [];
+// Red "Failed to load resource" rows from the bridge, which would land in the console the app renders into.
+const bridgeFailures = [];
+page.on("console", (m) => {
+  if (m.type() === "error" && /Failed to load resource/.test(m.text()) && (m.location()?.url ?? "").startsWith(bridge.url)) bridgeFailures.push(`${m.location().url}: ${m.text()}`);
+});
 if (process.env.DEBUG) page.on("requestfailed", (r) => console.log("requestfailed", r.url(), r.failure()?.errorText));
 page.on("pageerror", (e) => errors.push(`${page.url()}: ${e.message}`));
 const violations = async () => page.evaluate(() => window.__csp.splice(0)).catch(() => []);
@@ -237,6 +242,7 @@ if (!only || only.test("/opencode")) {
   await settle(1000);
   const found = await violations();
   check("opencode: connecting to the bridge reports nothing", found.length === 0, found.join("\n"));
+  check("opencode: pairing logs no failed request to the console", bridgeFailures.length === 0, bridgeFailures.join("\n"));
   await page.click(".status-action");
   const kept = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("textjs:opencode")));
   check("opencode: Disconnect forgets the server and its token", (await status()) === "sandbox" && kept.length === 0, `${await status()} ${kept.join(", ")}`);

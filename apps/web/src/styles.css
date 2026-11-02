@@ -206,6 +206,12 @@ svg {
   color: var(--muted);
 }
 
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  pointer-events: none;
+}
+
 .btn-ghost:hover {
   color: var(--fg);
   background: var(--bg-2);
@@ -2493,7 +2499,8 @@ kbd {
 .pad-connect-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /* Room for the whole bridge command next to the form. */
+  grid-template-columns: minmax(0, 9fr) minmax(0, 8fr);
   gap: 8px;
 }
 
@@ -2513,6 +2520,10 @@ kbd {
   min-width: 0;
   flex: 1;
   text-align: left;
+}
+
+.status-region {
+  width: 100%;
 }
 
 /* One line in every state (long errors truncate; the full text is in the tooltip). */
@@ -2570,8 +2581,19 @@ kbd {
   gap: 8px;
 }
 
+/* Fixed width, so the input never resizes between Connect and Pair. */
 .connect-form .btn {
   height: 40px;
+  min-width: 80px;
+}
+
+/* Codes show in capitals; the typed value is sent as is (the bridge ignores case). */
+.connect-form .code-input {
+  text-transform: uppercase;
+}
+
+.connect-form .code-input::placeholder {
+  text-transform: none;
 }
 
 .connect-form .text-input {
@@ -2592,6 +2614,15 @@ kbd {
   }
   .pad-connect-row {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Phones: the whole bridge command still fits on one line. */
+@media (max-width: 420px) {
+  .pad-connect .copy-cmd {
+    gap: 8px;
+    padding: 0 10px;
+    font-size: 12px;
   }
 }
 

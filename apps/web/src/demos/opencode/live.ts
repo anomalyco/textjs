@@ -1,19 +1,32 @@
 /** Connection discovery for the HTML focus pad. All session traffic and SSE
  * are owned by the embedded app, never by the page or its prerenderer. */
 export const DEFAULT_SERVER_URL = "http://127.0.0.1:4096";
-export const BRIDGE_COMMAND = "bunx @textjs/opencode proxy";
+export const BRIDGE_COMMAND = "bunx @textjs/opencode@latest proxy";
 export const BRIDGE_TOKEN_HEADER = "x-textjs-bridge-token";
-export const OUTDATED_BRIDGE = "This bridge is out of date. Stop it and run bunx @textjs/opencode@latest proxy.";
+/** Followed on the page by the copyable {@link BRIDGE_COMMAND}. */
+export const OUTDATED_BRIDGE = "This bridge is out of date. Stop it and run:";
+/** The same words as the bridge's own replies (`@textjs/opencode`). */
+export const PAIRING_PROMPT = "Enter the pairing code from your terminal.";
+export const PAIRING_LOCKED = "Too many wrong codes. Restart the bridge for a new code.";
 const REMEMBER_KEY = "textjs:opencode-server";
 const TOKEN_KEY = "textjs:opencode-bridge-token:";
-const LOOPBACK = /^(localhost|127\.0\.0\.1|\[::1\])$/;
-const loopback = () => typeof location !== "undefined" && LOOPBACK.test(location.hostname);
+const loopback = () => typeof location !== "undefined" && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+/** The hosts the site's Content-Security-Policy lets the page connect to (CSP has no IPv6 literals). */
+const SERVER_HOSTS = /^(localhost|127\.0\.0\.1)$/;
 
 /** The bridge wants the pairing code from its terminal before it forwards anything. */
 export class PairingRequired extends Error {
   constructor(readonly apiBase: string) {
-    super("Enter the pairing code shown by the bridge.");
+    super(PAIRING_PROMPT);
     this.name = "PairingRequired";
+  }
+}
+
+/** The bridge refused a code; `attemptsLeft` more before it locks. */
+export class WrongCode extends Error {
+  constructor(readonly attemptsLeft: number) {
+    super(`Wrong code. ${attemptsLeft} ${attemptsLeft === 1 ? "try" : "tries"} left.`);
+    this.name = "WrongCode";
   }
 }
 
@@ -33,7 +46,7 @@ export function rememberBridgeToken(url: string, token: string | null): void {
   } catch { /* Storage unavailable: the token lasts as long as this page. */ }
 }
 
-/** Trade the code printed by `bunx @textjs/opencode proxy` for a token. */
+/** Trade the code printed by `bunx @textjs/opencode@latest proxy` for a token. Expected outcomes are 200s, so DevTools logs no failed request. */
 export async function pairBridge(apiBase: string, code: string, timeoutMs = 10_000): Promise<string> {
   let res: Response;
   try {
@@ -44,15 +57,15 @@ export async function pairBridge(apiBase: string, code: string, timeoutMs = 10_0
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
-    throw new Error(`Can't reach ${new URL(apiBase).host}. Is the bridge still running?`);
+    throw new Error(`Can't reach ${new URL(apiBase).host}. Run ${BRIDGE_COMMAND}.`);
   }
-  const body = (await res.json().catch(() => null)) as { token?: unknown } | null;
-  if (res.ok && typeof body?.token === "string") {
+  const body = (await res.json().catch(() => null)) as { ok?: unknown; token?: unknown; locked?: unknown; attemptsLeft?: unknown } | null;
+  if (res.ok && body?.ok === true && typeof body.token === "string") {
     rememberBridgeToken(apiBase, body.token);
     return body.token;
   }
-  if (res.status === 429) throw new Error("Too many wrong codes. Restart the bridge for a new code.");
-  if (res.status === 403) throw new Error("Wrong code. Try again.");
+  if (res.ok && body?.locked === true) throw new Error(PAIRING_LOCKED);
+  if (res.ok && typeof body?.attemptsLeft === "number") throw new WrongCode(body.attemptsLeft);
   throw new Error(`The bridge returned HTTP ${res.status}.`);
 }
 
@@ -93,7 +106,28 @@ interface DiscoverResult {
   token?: string;
 }
 
-/** A simple read-only GET avoids a CORS preflight during local-network discovery, until a bridge has paired. */
+type BridgeProbe = { kind: "none" } | { kind: "outdated" } | { kind: "bridge"; paired: boolean; locked: boolean; connected?: boolean };
+
+/** `GET /__bridge` answers 200 whether or not this page is paired, so asking never logs a failed request. */
+async function probeBridge(apiBase: string, token: string | undefined, timeoutMs: number): Promise<BridgeProbe> {
+  const res = await fetch(`${apiBase}/__bridge`, { headers: { accept: "application/json", ...(token ? { [BRIDGE_TOKEN_HEADER]: token } : {}) }, signal: AbortSignal.timeout(timeoutMs) });
+  if (res.headers.get("x-textjs-bridge") !== "1") {
+    await res.body?.cancel().catch(() => undefined);
+    return { kind: "none" };
+  }
+  // A bridge from before pairing (1.0.x) forwards without a code: don't connect through it.
+  if (res.headers.get("x-textjs-bridge-pairing") !== "1") {
+    await res.body?.cancel().catch(() => undefined);
+    return { kind: "outdated" };
+  }
+  const data = (await res.json().catch(() => null)) as { paired?: unknown; locked?: unknown; connected?: unknown } | null;
+  return { kind: "bridge", paired: data?.paired === true, locked: data?.locked === true, connected: typeof data?.connected === "boolean" ? data.connected : undefined };
+}
+
+/**
+ * Asks `/__bridge` first: an unpaired bridge throws {@link PairingRequired} without a failed request. Then a
+ * read-only GET of the API (a simple request, with no preflight, when there's no token).
+ */
 export async function discoverServer(raw: string, timeoutMs = 3000, pairedToken?: string): Promise<DiscoverResult> {
   const apiBase = normalizeServerUrl(raw);
   const fail = (message: string): never => {
@@ -103,25 +137,38 @@ export async function discoverServer(raw: string, timeoutMs = 3000, pairedToken?
   let u: URL;
   try { u = new URL(apiBase); } catch { return fail(`Invalid URL. Enter ${DEFAULT_SERVER_URL} and run ${BRIDGE_COMMAND}.`); }
   if (u.username || u.password) return fail(`Don't put credentials in the URL. Run ${BRIDGE_COMMAND} and connect to ${DEFAULT_SERVER_URL}.`);
-  // The site's Content-Security-Policy allows loopback servers only.
-  if (!LOOPBACK.test(u.hostname)) return fail(`Connect to the bridge on this computer, such as ${DEFAULT_SERVER_URL}.`);
+  if (!SERVER_HOSTS.test(u.hostname)) return fail(`Connect to the bridge on this computer, such as ${DEFAULT_SERVER_URL}.`);
   // A token fresh from pairing works even where storage is off or full; storage only carries it across reloads.
-  const token = pairedToken ?? bridgeToken(apiBase) ?? undefined;
-  const reach = `Can't reach ${u.host}. Run ${BRIDGE_COMMAND} and ${loopback() ? "connect to 127.0.0.1:4096" : "allow local network access"}.`;
+  let token = pairedToken ?? bridgeToken(apiBase) ?? undefined;
+  const reach = `Can't reach ${u.host}. Run ${BRIDGE_COMMAND}.`;
   if (typeof location !== "undefined" && !loopback()) timeoutMs = Math.max(timeoutMs, 60_000);
+  let probe: BridgeProbe;
+  try {
+    probe = await probeBridge(apiBase, token, timeoutMs);
+  } catch {
+    return fail(reach);
+  }
+  if (probe.kind === "outdated") throw new Error(OUTDATED_BRIDGE);
+  if (probe.kind === "bridge" && !probe.paired) {
+    if (token) rememberBridgeToken(apiBase, null);
+    if (probe.locked) return fail(PAIRING_LOCKED);
+    throw new PairingRequired(apiBase);
+  }
+  if (probe.kind === "bridge" && probe.connected === false) return fail("Bridge can't reach OpenCode. Run opencode service start (or pass --target).");
+  if (probe.kind === "none") token = undefined;
   for (const protocol of ["v2", "v1"] as const) {
     let res: Response;
     try {
       res = await fetch(`${apiBase}${protocol === "v2" ? "/api/info" : "/session?limit=1"}`, { headers: { accept: "application/json", ...(token ? { [BRIDGE_TOKEN_HEADER]: token } : {}) }, signal: AbortSignal.timeout(timeoutMs) });
     } catch { return fail(reach); }
     const bridge = res.headers.get("x-textjs-bridge") === "1";
-    // A bridge from before pairing forwards without a code: don't connect through it.
     if (bridge && res.headers.get("x-textjs-bridge-pairing") !== "1") {
       await res.body?.cancel().catch(() => undefined);
-      return fail(OUTDATED_BRIDGE);
+      throw new Error(OUTDATED_BRIDGE);
     }
+    // The bridge restarted between the probe and this request.
     if (res.status === 428 && bridge) {
-      if (token) rememberBridgeToken(apiBase, null);
+      rememberBridgeToken(apiBase, null);
       throw new PairingRequired(apiBase);
     }
     if (res.status === 401) return fail(bridge ? "OpenCode rejected the bridge password. Check opencode service status or OPENCODE_PASSWORD." : `Auth required. Run ${BRIDGE_COMMAND} and connect to ${DEFAULT_SERVER_URL}.`);

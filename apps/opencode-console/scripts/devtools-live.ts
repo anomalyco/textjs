@@ -66,8 +66,8 @@ try {
       await page.getByLabel("OpenCode server URL").fill(bridge.url);
       await page.getByRole("button", { name: "Connect", exact: true }).click();
       // The bridge asks for the code it printed (here, read from the handle) before it forwards anything.
+      // A full code submits itself.
       await page.getByLabel("Pairing code").fill(bridge.pairingCode);
-      await page.getByRole("button", { name: "Pair", exact: true }).click();
       await page.getByRole("button", { name: "Disconnect" }).waitFor();
       await mock.waitForSubscriber();
       const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json());

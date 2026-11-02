@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { startProxy, type StartedBridge } from "../../../packages/opencode/src/proxy";
-import { bridgeToken, discoverServer, OUTDATED_BRIDGE, pairBridge, PairingRequired, rememberBridgeToken } from "../src/demos/opencode/live";
+import { PAIRING_LOCKED as BRIDGE_LOCKED, PAIRING_PROMPT as BRIDGE_PROMPT, startProxy, type StartedBridge } from "../../../packages/opencode/src/proxy";
+import { BRIDGE_COMMAND, bridgeToken, discoverServer, OUTDATED_BRIDGE, pairBridge, PAIRING_LOCKED, PAIRING_PROMPT, PairingRequired, rememberBridgeToken, WrongCode } from "../src/demos/opencode/live";
 
 const storage = new Map<string, string>();
 const g = globalThis as { localStorage?: unknown };
@@ -37,8 +37,40 @@ describe("/opencode and the bridge's pairing code", () => {
     expect((err as PairingRequired).apiBase).toBe(bridge.url);
   });
 
-  test("a wrong code says so; the right one pairs and connects", async () => {
-    await expect(pairBridge(bridge.url, "AAA-BBB")).rejects.toThrow("Wrong code");
+  test("the page and the bridge use the same words", () => {
+    expect(PAIRING_PROMPT).toBe(BRIDGE_PROMPT);
+    expect(PAIRING_LOCKED).toBe(BRIDGE_LOCKED);
+    expect(BRIDGE_COMMAND).toBe("bunx @textjs/opencode@latest proxy");
+    expect(new WrongCode(1).message).toBe("Wrong code. 1 try left.");
+    expect(new WrongCode(9).message).toBe("Wrong code. 9 tries left.");
+  });
+
+  test("connecting and pairing make no request the browser would log as failed", async () => {
+    const statuses: number[] = [];
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const res = await real(input, init);
+      statuses.push(res.status);
+      return res;
+    }) as typeof fetch;
+    try {
+      const other = await startProxy({ port: 0, log: false, pairingCode: "K7F2QM", discover: async () => ({ url: `http://127.0.0.1:${upstream.port}`, source: "flag" }) });
+      try {
+        await expect(discoverServer(other.url)).rejects.toBeInstanceOf(PairingRequired);
+        await expect(pairBridge(other.url, "AAAAAA")).rejects.toBeInstanceOf(WrongCode);
+        const token = await pairBridge(other.url, "k7f2qm");
+        expect(await discoverServer(other.url, 3000, token)).toMatchObject({ bridge: true, token });
+      } finally {
+        await other.close();
+      }
+    } finally {
+      globalThis.fetch = real;
+    }
+    expect(statuses.every((s) => s >= 200 && s < 300)).toBe(true);
+  });
+
+  test("a wrong code says how many tries are left; the right one pairs and connects", async () => {
+    await expect(pairBridge(bridge.url, "AAA-BBB")).rejects.toThrow("Wrong code. 9 tries left.");
     expect(bridgeToken(bridge.url)).toBeNull();
     const token = await pairBridge(bridge.url, "k7f-2qm");
     expect(bridgeToken(bridge.url)).toBe(token);
@@ -63,7 +95,8 @@ describe("/opencode and the bridge's pairing code", () => {
     } finally {
       old.stop(true);
     }
-    expect(OUTDATED_BRIDGE).toContain("bunx @textjs/opencode@latest proxy");
+    // The page shows the copyable bridge command right below it.
+    expect(OUTDATED_BRIDGE).toBe("This bridge is out of date. Stop it and run:");
   });
 
   test("a direct OpenCode server still connects without pairing", async () => {
