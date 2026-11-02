@@ -97,6 +97,15 @@ jobs:
           VERSION: ${{ inputs.version || 'latest' }}
         run: node scripts/windows/cli-smoke.mjs --version "$VERSION" --json "$RUNNER_TEMP/cli.json"
 
+      - name: Probe opencode discovery (temporary)
+        continue-on-error: true
+        run: |
+          npm install -g opencode-ai >/dev/null 2>&1 || true
+          where opencode || true
+          node -e "require('child_process').execFile('opencode',['--version'],{windowsHide:true},(e,o)=>console.log('node execFile:',e?e.code+' '+e.message:o.trim()))"
+          bun -e "require('child_process').execFile('opencode',['--version'],{windowsHide:true},(e,o)=>console.log('bun execFile:',e?e.code+' '+e.message:o.trim()))"
+          ls "$USERPROFILE/.bun/bin" 2>/dev/null || true
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
@@ -105,14 +114,15 @@ jobs:
           if-no-files-found: ignore
 
   browser:
-    name: Browser (${{ matrix.browser }}, ${{ matrix.runner }})
-    runs-on: ${{ matrix.runner }}
+    name: Browser (${{ matrix.browser }})
+    # GitHub-hosted: Blacksmith's Windows runner runs jobs in session 0 with no desktop,
+    # so it can't show a browser window, take screenshots or receive SendInput.
+    runs-on: windows-2025
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         browser: [chrome, edge]
-        runner: [blacksmith-4vcpu-windows-2025, windows-2025]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -127,8 +137,6 @@ jobs:
         continue-on-error: true
         run: |
           Add-Type -AssemblyName System.Windows.Forms
-          "Session $((Get-Process -Id $PID).SessionId), interactive $([Environment]::UserInteractive), user $env:USERNAME"
-          query user 2>&1
           "Screen: $([System.Windows.Forms.Screen]::PrimaryScreen.Bounds)"
           try { Set-DisplayResolution -Width 1920 -Height 1080 -Force -ErrorAction Stop } catch { "Set-DisplayResolution: $_" }
           "Screen: $([System.Windows.Forms.Screen]::PrimaryScreen.Bounds)"
@@ -146,6 +154,6 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: windows-browser-${{ matrix.browser }}-${{ matrix.runner }}
+          name: windows-browser-${{ matrix.browser }}
           path: ${{ runner.temp }}/browser
           if-no-files-found: ignore

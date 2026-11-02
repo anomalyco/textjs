@@ -191,7 +191,7 @@ mkdirSync(join(profile, "Default"), { recursive: true });
 writeFileSync(
   join(profile, "Default", "Preferences"),
   JSON.stringify({
-    devtools: { preferences: { currentDockState: '"bottom"', "panel-selectedTab": '"console"', "inspector.drawer-split-view-state": '{"horizontal":{"size":0,"showMode":"OnlyMain"}}' } },
+    devtools: { preferences: { currentDockState: '"bottom"', "panel-selectedTab": '"console"', "panel-selected-tab": '"console"', "inspector.drawer-split-view-state": '{"horizontal":{"size":0,"showMode":"OnlyMain"}}' } },
     browser: { has_seen_welcome_page: true },
   }),
 );
@@ -253,10 +253,19 @@ async function visit(path, shoot = true) {
   console.log(`focus: ${os("focus", proc.pid)}`);
   await sleep(800);
   if (!consoleOpened) {
-    // DevTools opens on Elements (Chrome) or Welcome (Edge): Ctrl+Shift+J switches it to the Console, as a user would.
-    os("keys", "ctrl+shift+j");
+    // DevTools may open on Elements (Chrome) or Welcome (Edge): select its Console tab.
+    // (Ctrl+Shift+J toggles DevTools closed when it is already open.)
     consoleOpened = true;
-    await sleep(1500);
+    const fe = (await targets()).find((t) => t.url.startsWith("devtools://"));
+    if (fe) {
+      const c = await Cdp.connect(fe.webSocketDebuggerUrl);
+      const clicked = await c
+        .eval(`(() => { const find = (root) => { for (const el of root.querySelectorAll("*")) { if (el.id === "tab-console") return el; if (el.shadowRoot) { const f = find(el.shadowRoot); if (f) return f; } } return null; }; const tab = find(document); if (!tab) return false; tab.click(); return true; })()`)
+        .catch((error) => String(error));
+      console.log(`console tab: ${clicked}`);
+      c.close();
+      await sleep(1500);
+    } else console.log("console tab: no DevTools frontend target");
   }
   if (!shoot) return;
   const name = path.slice(1);
