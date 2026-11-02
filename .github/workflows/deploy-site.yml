@@ -2,9 +2,14 @@
 # environment and the Pages branch and sets concurrency.
 #
 # Builds the packages and the site (Open Graph images render in headless
-# Chromium, cached in apps/web/.cache/og between runs), runs the web unit tests,
-# uploads apps/web/dist with the Functions in apps/web/functions, then checks
-# that the new deployment serves `/` and a Pages Function.
+# Chromium), runs the web unit tests, uploads apps/web/dist with the Functions
+# in apps/web/functions, then checks that the new deployment serves `/` and a
+# Pages Function.
+#
+# Deploys restore no caches: any branch, fork pull requests included, can write
+# Actions cache entries (Blacksmith's cache branch protection is off for the
+# org), so Bun, its packages, Chromium, apt packages and every Open Graph image
+# come fresh from their sources on each run.
 
 name: Deploy site
 
@@ -56,22 +61,19 @@ jobs:
           persist-credentials: false
 
       - uses: ./.github/actions/setup
+        with:
+          cache: "false"
 
       - name: Build packages
         run: bun run build:packages
 
       # Open Graph images render in Chromium's headless shell.
       - uses: ./.github/actions/chromium
-
-      # Images are keyed by a hash of their inputs, so any earlier run's cache is safe to reuse.
-      - name: Restore Open Graph image cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: apps/web/.cache/og
-          key: og-${{ github.sha }}
-          restore-keys: og-
+          dir: apps/web
+          cache: "false"
 
-      # Without Chromium the build falls back to /og.png for every uncached card. Fail instead.
+      # Without Chromium the build falls back to /og.png for every card. Fail instead.
       - name: Build site
         working-directory: apps/web
         run: |
@@ -184,9 +186,11 @@ jobs:
         with:
           persist-credentials: false
 
+      # No cached Bun executable in a deploy (see the header).
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.4
+          no-cache: true
 
       - name: Deploy textjs-curl-http
         working-directory: apps/web/workers/curl-http

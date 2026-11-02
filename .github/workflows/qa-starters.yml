@@ -4,7 +4,7 @@
 # error or warning, page error, CLI warning, tsc error or lint finding.
 #
 # Runs only when something it covers changed (the packages, examples, the
-# runnable apps, the QA scripts or this workflow), split into parallel shards.
+# runnable apps, the build and QA scripts or this workflow), split into parallel shards.
 # The `Templates, examples and apps` job always reports a status: it passes
 # when every shard passed or when nothing QA covers changed.
 #
@@ -15,7 +15,8 @@ name: QA starters
 on:
   pull_request:
     branches: [dev, production]
-    # ready_for_review: the draft promotion PR is opened by GITHUB_TOKEN, which starts no workflows.
+    # ready_for_review: runs for the draft promotion PR, opened by GITHUB_TOKEN, wait for a maintainer's
+    # approval; marking it Ready for review starts them too.
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [dev]
@@ -61,8 +62,7 @@ jobs:
               - apps/terminal-shop/**
               - bench/devtools/package.json
               - bench/devtools/bun.lock
-              - scripts/qa-starters.ts
-              - scripts/verify-pack.ts
+              - scripts/**
               - package.json
               - bun.lock
               - tsconfig.base.json
@@ -105,6 +105,8 @@ jobs:
           install-dirs: bench/devtools
 
       - uses: ./.github/actions/chromium
+        with:
+          dir: bench/devtools
 
       - name: QA
         env:

@@ -10,7 +10,8 @@ name: CI
 on:
   pull_request:
     branches: [dev, production]
-    # ready_for_review: the draft promotion PR is opened by GITHUB_TOKEN, which starts no workflows.
+    # ready_for_review: runs for the draft promotion PR, opened by GITHUB_TOKEN, wait for a maintainer's
+    # approval; marking it Ready for review starts them too.
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [dev]
@@ -81,6 +82,8 @@ jobs:
 
       # og.test.ts renders an Open Graph image per route in headless Chromium.
       - uses: ./.github/actions/chromium
+        with:
+          dir: apps/web
 
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

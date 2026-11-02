@@ -28,10 +28,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          PR_HEAD: ${{ github.repository_owner }}:dev
         run: |
           set -euo pipefail
 
-          pr="$(gh pr list --base production --head dev --state open --json url --jq '.[0].url // empty')"
+          # Filter on owner:branch so a fork's dev branch can't stand in for this one.
+          pr="$(gh api "repos/$GH_REPO/pulls?state=open&base=production&head=$PR_HEAD" --jq '.[0].html_url // empty')"
           if [[ -n "$pr" ]]; then
             echo "Promotion PR already open: $pr"
             exit 0
@@ -43,7 +45,8 @@ jobs:
             exit 0
           fi
 
-          # A PR opened with GITHUB_TOKEN starts no workflows; marking it ready runs CI and QA.
+          # Runs for a PR opened with GITHUB_TOKEN wait for a maintainer's approval (since June 2026);
+          # marking it Ready for review also starts CI and QA.
           gh pr create \
             --base production \
             --head dev \

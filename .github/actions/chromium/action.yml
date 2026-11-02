@@ -1,45 +1,60 @@
-# ▼ Chromium's headless shell for playwright-core (headless launches use it),
-# cached per Playwright version, plus the system packages it needs. apt's .deb
-# downloads are cached too: the runner's Ubuntu mirror can take minutes to
-# serve them, while installing them takes seconds. Run after the Setup action.
+# ▼ Chromium's headless shell for playwright-core (headless launches use it), plus
+# the system packages it needs. The browser is cached per Playwright version, and
+# so are apt's .deb downloads: the runner's Ubuntu mirror can take minutes to serve
+# them, while installing them takes seconds. Run after the Setup action.
 
 name: Chromium
 description: Install Playwright's headless Chromium shell and the system packages it needs.
 
+inputs:
+  dir:
+    description: Directory whose playwright-core installs the browser and sets the version (`apps/web` or `bench/devtools`)
+    required: true
+  cache:
+    description: Restore and save the browser and apt caches. Deploys set `false` (see the Setup action).
+    required: false
+    default: "true"
+
 runs:
   using: composite
   steps:
-    - name: Read the playwright-core version
+    - name: Resolve playwright-core
       id: playwright
       shell: bash
-      run: echo "version=$(jq -r '.devDependencies["playwright-core"] // .dependencies["playwright-core"]' apps/web/package.json)" >> "$GITHUB_OUTPUT"
+      working-directory: ${{ inputs.dir }}
+      run: echo "version=$(bun -p 'require("playwright-core/package.json").version')" >> "$GITHUB_OUTPUT"
 
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      id: cache
+      id: browser
+      if: inputs.cache == 'true'
       with:
         path: ~/.cache/ms-playwright
         key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}-headless-shell
 
     - name: Keep apt downloads where the cache can save them
+      if: inputs.cache == 'true'
       shell: bash
       run: |
         mkdir -p "$HOME/.cache/apt-archives/partial"
         printf 'Dir::Cache::Archives "%s";\nAPT::Keep-Downloaded-Packages "true";\nAPT::Sandbox::User "root";\n' "$HOME/.cache/apt-archives" | sudo tee /etc/apt/apt.conf.d/99-cache-archives > /dev/null
 
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      if: inputs.cache == 'true'
       with:
         path: ~/.cache/apt-archives
         key: apt-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}-chromium
 
     - name: Install system packages
       shell: bash
-      working-directory: apps/web
+      working-directory: ${{ inputs.dir }}
+      env:
+        CACHE: ${{ inputs.cache }}
       run: |
         bunx playwright-core install-deps chromium
-        sudo chown -R "$(id -u):$(id -g)" "$HOME/.cache/apt-archives"
+        if [ "$CACHE" = true ]; then sudo chown -R "$(id -u):$(id -g)" "$HOME/.cache/apt-archives"; fi
 
     - name: Install Chromium
-      if: steps.cache.outputs.cache-hit != 'true'
+      if: steps.browser.outputs.cache-hit != 'true'
       shell: bash
-      working-directory: apps/web
+      working-directory: ${{ inputs.dir }}
       run: bunx playwright-core install --only-shell chromium
