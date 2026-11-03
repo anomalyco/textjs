@@ -41,7 +41,7 @@
     { "source": "/zh-TW", "destination": "/zh-tw", "permanent": true },
     { "source": "/zh-TW/:path*", "destination": "/zh-tw/:path*", "permanent": true }
   ],
-  "rewrites": [{ "source": "/((?!assets/|fonts/|og/|favicon\\.svg|og\\.png|og\\.svg|robots\\.txt|sitemap(?:-[a-z-]+)?\\.xml|(?:[a-z-]+/)?blog/rss\\.xml|humans\\.txt|llms\\.txt|home\\.ansi|api/v2/|enterprise/sample-invoice\\.pdf).*)", "destination": "/index.html" }],
+  "rewrites": [{ "source": "/((?!assets/|fonts/|doom/|og/|favicon\\.svg|og\\.png|og\\.svg|robots\\.txt|sitemap(?:-[a-z-]+)?\\.xml|(?:[a-z-]+/)?blog/rss\\.xml|humans\\.txt|llms\\.txt|home\\.ansi|api/v2/|enterprise/sample-invoice\\.pdf).*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/assets/(.*)",
@@ -49,6 +49,10 @@
     },
     {
       "source": "/fonts/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }]
+    },
+    {
+      "source": "/doom/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }]
     },
     {
