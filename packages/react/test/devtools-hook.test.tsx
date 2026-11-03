@@ -196,6 +196,27 @@ describe("devtools hook", () => {
     await t.unmount();
   });
 
+  test("frame snapshot materializes pixel sprites via readCells()", async () => {
+    const { Pixels } = await import("../src/experimental");
+    const hook = installDevToolsHook();
+    const t = await createTestRoot({ width: 6, height: 2 });
+    const source = {
+      width: 2,
+      height: 2,
+      data: new Uint32Array([0xff0000ff, 0x00ff00ff, 0x0000ffff, 0xffffffff]),
+    };
+    await t.render(<Pixels source={source} frame={0} width={2} height={1} fit="fill" />);
+    t.frame();
+    const frame = [...hook.roots.values()][0]!.frame();
+    expect(frame.chars[0]).toBe("▀");
+    expect(frame.chars[1]).toBe("▀");
+    expect(frame.fg[0]).toBe(0xff0000ff);
+    expect(frame.bg[0]).toBe(0x0000ffff);
+    expect(frame.fg[1]).toBe(0x00ff00ff);
+    expect(frame.bg[1]).toBe(0xffffffff);
+    await t.unmount();
+  });
+
   test("controls: highlight, wireframe, pause/resume, resize, fit, copy", async () => {
     const hook = installDevToolsHook();
     const t = await createTestRoot({ width: 20, height: 3 });

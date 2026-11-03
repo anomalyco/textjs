@@ -12,6 +12,7 @@ import {
   type SceneNode,
   type SceneNodeProps,
 } from "../../packages/core/src/index";
+import { drawPixels, paintHalfBlocks } from "../../packages/core/src/pixels";
 import {
   Box as RBox,
   createConsoleRootSync,
@@ -22,8 +23,10 @@ import {
   Text as RText,
   Textarea as RTextarea,
 } from "../../packages/react/src/index";
+import { createDoom, type DoomHost } from "../../apps/web/src/demos/doom/host";
+import { DOOM_PALETTE_32, DOOM_PALETTE_64 } from "../../apps/web/src/demos/doom/palette";
 
-export type BenchScenario = "dashboard" | "react-stream";
+export type BenchScenario = "dashboard" | "react-stream" | "doom";
 
 export interface StreamOptions {
   scenario?: BenchScenario;
@@ -373,7 +376,8 @@ function readQueryOptions(): StreamOptions & { autostart: boolean } {
   const scheduler = (params.get("scheduler") === "raf" ? "raf" : "timer") as "timer" | "raf";
   const coalesce = params.get("coalesce") !== "0" && params.get("coalesce") !== "false";
   const dirtyMode = (params.get("dirty") === "partial" ? "partial" : "all") as "all" | "partial";
-  const scenario = (params.get("scenario") === "react-stream" ? "react-stream" : "dashboard") as BenchScenario;
+  const sp = params.get("scenario");
+  const scenario = (sp === "react-stream" || sp === "doom" ? sp : "dashboard") as BenchScenario;
   const autostart = params.get("autostart") === "1" || params.get("autostart") === "true";
 
   return {
@@ -458,8 +462,30 @@ declare global {
   }
 }
 
+/** Posterize packed RGBA to `levels` steps per channel (0 = untouched). */
+function posterize(src: Uint32Array, out: Uint32Array, levels: number): Uint32Array {
+  if (levels <= 1) return src;
+  const q = (c: number): number => Math.round((Math.round((c / 255) * (levels - 1)) * 255) / (levels - 1));
+  for (let i = 0; i < src.length; i++) {
+    const p = src[i] as number;
+    out[i] = ((q(p >>> 24) << 24) | (q((p >>> 16) & 255) << 16) | (q((p >>> 8) & 255) << 8) | 255) >>> 0;
+  }
+  return out;
+}
+
 async function boot(): Promise<void> {
   await initYoga();
+  let doom: DoomHost | null = null;
+  if (new URLSearchParams(window.location.search).get("scenario") === "doom") {
+    const [wasm, wad] = await Promise.all([fetch("/doom.wasm").then((r) => r.arrayBuffer()), fetch("/doom.wad").then((r) => r.arrayBuffer())]);
+    doom = await createDoom({ wasm, wads: [new Uint8Array(wad)] });
+    // Let the title screen give way to the first attract-mode demo (live gameplay).
+    const until = performance.now() + 6000;
+    while (performance.now() < until) {
+      doom.tick();
+      await new Promise((r) => setTimeout(r, 28));
+    }
+  }
   const dashboard = buildDynamicDashboard();
   const defaults = readQueryOptions();
   const statusEl = document.getElementById("status");
@@ -621,8 +647,51 @@ async function boot(): Promise<void> {
       clear: parsed.driverClearOption,
       curtain: parsed.raw === "native",
       coalesceWhitespace: opts.coalesce,
+      ...(new URLSearchParams(window.location.search).get("extraCss") && { typography: { extraCss: new URLSearchParams(window.location.search).get("extraCss") as string } }),
+      ...(Number(new URLSearchParams(window.location.search).get("maxFrames")) > 0 && { maxFrames: Number(new URLSearchParams(window.location.search).get("maxFrames")) }),
     });
     const buf = new CellBuffer(opts.cols, opts.rows);
+    const levels = Number(new URLSearchParams(window.location.search).get("levels") || 0);
+    const doomScratch = new Uint32Array(320 * 200);
+    const tickSamples: number[] = [];
+    const paintDoom = (frameId: number, epochMs: number): void => {
+      const host = doom as DoomHost;
+      const t0 = performance.now();
+      host.tick();
+      tickSamples.push(performance.now() - t0);
+      buf.clear(0x000000ff);
+      const label = `FRAME:${String(frameId).padStart(6, "0")} · T:${epochMs.toFixed(1)} · doom ${opts.cols}x${opts.rows - 1}`;
+      for (let i = 0; i < label.length && i < opts.cols; i++) buf.setCell(i, 0, label[i] as string, 0xa1a1aaff, 0x000000ff);
+      const src = { width: 320, height: 200, data: posterize(host.source.data, doomScratch, levels) };
+      const q = new URLSearchParams(window.location.search);
+      const mode = q.get("mode") === "halfblock" ? "halfblock" : "auto";
+      const palette =
+        q.get("palette") === "32"
+          ? DOOM_PALETTE_32
+          : q.get("palette") === "64"
+            ? DOOM_PALETTE_64
+            : q.get("palette") === "256" || mode === "halfblock"
+              ? undefined
+              : DOOM_PALETTE_64;
+      const sample = q.get("sample") === "average" ? "average" : "nearest";
+      if (mode === "halfblock") {
+        paintHalfBlocks(buf, { x: 0, y: 1, width: opts.cols, height: opts.rows - 1 }, src, "fill", 1, palette, sample);
+      } else {
+        drawPixels(buf, {
+          x: 0,
+          y: 1,
+          width: opts.cols,
+          height: opts.rows - 1,
+          source: src,
+          fit: q.get("fit") === "fill" ? "fill" : "contain",
+          pixelAspect: q.get("fit") === "fill" ? 1 : 5 / 6,
+          palette,
+          sample,
+          renderMode: mode,
+        });
+      }
+    };
+    (window as unknown as { __doomTicks: number[] }).__doomTicks = tickSamples;
 
     const layoutPaintSamples: number[] = [];
     const encodeSamples: number[] = [];
@@ -635,28 +704,56 @@ async function boot(): Promise<void> {
     let frameId = 0;
 
     // Prime driver's row cache with warmup frame 0 without emitting to console
-    dashboard.updateFrame(0, frameEmitEpochs[0]!, parsed.raw, opts.fps, opts.dirtyMode);
-    dashboard.root.calculateLayout(opts.cols, opts.rows);
-    paintScene(dashboard.root, buf);
+    if (doom) paintDoom(0, frameEmitEpochs[0]!);
+    else {
+      dashboard.updateFrame(0, frameEmitEpochs[0]!, parsed.raw, opts.fps, opts.dirtyMode);
+      dashboard.root.calculateLayout(opts.cols, opts.rows);
+      paintScene(dashboard.root, buf);
+    }
     driver.encode(buf, { force: true });
     target.resetStats();
 
     return new Promise<PageStreamResult>((resolve) => {
       const startPerf = performance.now();
       const intervalMs = 1000 / opts.fps;
+      let lastLogAt = -Infinity;
+      let lastLogCleared = false;
 
       const emitOneFrame = (): void => {
         frameId++;
         const f0 = performance.now();
         const emitEpoch = performance.timeOrigin + f0;
 
-        dashboard.updateFrame(frameId, emitEpoch, parsed.raw, opts.fps, opts.dirtyMode);
-        dashboard.root.calculateLayout(opts.cols, opts.rows);
-        paintScene(dashboard.root, buf);
+        if (doom) paintDoom(frameId, emitEpoch);
+        else {
+          dashboard.updateFrame(frameId, emitEpoch, parsed.raw, opts.fps, opts.dirtyMode);
+          dashboard.root.calculateLayout(opts.cols, opts.rows);
+          paintScene(dashboard.root, buf);
+        }
         const afterPaint = performance.now();
 
-        const res = driver.render(buf, { force: true });
+        const useTemporal =
+          doom !== null && buf._sprites.length > 0 && driver._supportsTemporalSprites && parsed.mode === "native" && intervalMs < 51;
+        const minEmitGap = lastLogCleared ? 110 : 51;
+        if (useTemporal && afterPaint - lastLogAt < minEmitGap) {
+          driver._stageKeyframe(buf, afterPaint);
+          const afterStage = performance.now();
+          layoutPaintSamples.push(afterPaint - f0);
+          encodeSamples.push(afterStage - afterPaint);
+          consoleCallSamples.push(0);
+          totalFrameSamples.push(afterStage - f0);
+          frameEmitEpochs.push(emitEpoch);
+          window.__latestEmittedFrame = frameId;
+          return;
+        }
+
+        const clearsBefore = target.clearsCalled;
+        const res = driver.render(buf, { force: !doom });
         const afterRender = performance.now();
+        if (!res.skipped) {
+          lastLogAt = afterRender;
+          lastLogCleared = target.clearsCalled > clearsBefore;
+        }
 
         const lpMs = afterPaint - f0;
         const callMs = target.lastCallMs;
@@ -727,7 +824,8 @@ async function boot(): Promise<void> {
           const clearsBefore = target.clearsCalled;
           emitOneFrame();
           const didClear = target.clearsCalled > clearsBefore;
-          if (didClear && parsed.mode === "native") {
+          const spriteTemporal = doom !== null && buf._sprites.length > 0 && driver._supportsTemporalSprites;
+          if (didClear && parsed.mode === "native" && !spriteTemporal) {
             nextTarget = performance.now() + Math.max(intervalMs, 110);
           } else {
             nextTarget += intervalMs;

@@ -1162,6 +1162,10 @@ interface Deferred {
   clipY: number;
   clipW: number;
   clipH: number;
+  sClipX: number;
+  sClipY: number;
+  sClipX1: number;
+  sClipY1: number;
   z: number;
   order: number;
 }
@@ -1230,7 +1234,7 @@ class Painter {
         yEnd++;
       }
       buffer.resetScissor();
-      buffer.pushScissor(0, y, W, yEnd - y);
+      buffer._pushBandScissor(y, yEnd - y);
       buffer.fillRect(0, y, W, yEnd - y, clearBg, CHAR_SPACE, 0, 0);
       this.paintNode(root, 0, 0, 0, 0);
       this.flushDeferred();
@@ -1246,7 +1250,14 @@ class Painter {
       this.deferred.sort((a, b) => a.z - b.z || a.order - b.order);
       const d = this.deferred.shift() as Deferred;
       buf.resetScissor();
-      buf.pushScissor(d.clipX, d.clipY, d.clipW, d.clipH);
+      buf._clipX0 = d.clipX;
+      buf._clipY0 = d.clipY;
+      buf._clipX1 = d.clipX + d.clipW;
+      buf._clipY1 = d.clipY + d.clipH;
+      buf._sClipX0 = d.sClipX;
+      buf._sClipY0 = d.sClipY;
+      buf._sClipX1 = d.sClipX1;
+      buf._sClipY1 = d.sClipY1;
       this.paintNode(d.node, d.ox, d.oy, d.fg, d.attrs);
     }
   }
@@ -1343,7 +1354,23 @@ class Painter {
       const cz = c.props.zIndex ?? 0;
       if (cz > 0 && c.props.position === "absolute") {
         const sc = buf.getScissor();
-        this.deferred.push({ node: c, ox: cox, oy: coy, fg, attrs, clipX: sc.x, clipY: sc.y, clipW: sc.width, clipH: sc.height, z: cz, order: this.deferred.length });
+        this.deferred.push({
+          node: c,
+          ox: cox,
+          oy: coy,
+          fg,
+          attrs,
+          clipX: sc.x,
+          clipY: sc.y,
+          clipW: sc.width,
+          clipH: sc.height,
+          sClipX: buf._sClipX0,
+          sClipY: buf._sClipY0,
+          sClipX1: buf._sClipX1,
+          sClipY1: buf._sClipY1,
+          z: cz,
+          order: this.deferred.length,
+        });
         continue;
       }
       this.paintNode(c, cox, coy, fg, attrs);

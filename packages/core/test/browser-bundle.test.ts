@@ -11,5 +11,7 @@ test("bundles for browser ESM with inlined Yoga WASM and no Node built-ins", asy
   expect(code).not.toMatch(/from\s+["']node:/);
   expect(code).not.toMatch(/\brequire\(["'](fs|path|module)["']\)/);
   expect(code).toContain("loadYoga");
+  expect(code).not.toContain("@keyframes s");
+  expect(code).not.toMatch(/0xedb88320|3988292384/);
   expect(code.length).toBeGreaterThan(50_000);
 });

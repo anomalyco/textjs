@@ -1,5 +1,5 @@
-import { blendOver, parseColor } from "../color";
-import type { ConsoleBanner } from "../internal";
+import { blendOver } from "../color";
+import { parseBannerColor, type ConsoleBanner } from "../internal";
 import {
   ATTR_ALLOW_LINK,
   ATTR_INVERSE,
@@ -10,6 +10,7 @@ import {
   GRAPHEME_POOL_FLAG,
   type CellBuffer,
 } from "../cell-buffer";
+import type { SpriteDriverContext } from "../sprite-types";
 import {
   DEFAULT_STYLE_RESOLVE,
   DEFAULT_TYPOGRAPHY,
@@ -23,7 +24,7 @@ import {
 } from "./style";
 import { hasRtl, isRtlCodePoint, LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../bidi";
 import { LruCache } from "../text-measure";
-import { consoleProfile, inlineTypographyCss, type ConsoleBrowser } from "./console-browser";
+import { consoleProfile, inlineTypographyCss, type ConsoleBrowser, type ConsoleProfile } from "./console-browser";
 
 /** Minimal console surface used by the driver; inject a fake for tests and benchmarks. */
 export interface ConsoleTarget {
@@ -150,6 +151,8 @@ export interface DriverRenderResult {
   cleared?: boolean;
   dirtyRows: number;
   spanCount: number;
+  /** @internal Distinct visual frames delivered by this log call (`> 1` when temporal sprite keyframes are batched). */
+  _visualFrames?: number;
   encodeMs: number;
   frame: ConsoleFrame | null;
 }
@@ -208,6 +211,7 @@ function unescapeConsoleText(escaped: string): string {
 
 const IDLE_COMPACT_FRAMES = 100;
 const IDLE_COMPACT_MS = 1000;
+const SPRITE_MAX_BYTES = 4 * 1024 * 1024;
 
 const SKIPPED: DriverRenderResult = Object.freeze({
   skipped: true,
@@ -265,6 +269,7 @@ export class CssConsoleDriver {
   private target: ConsoleTarget | null;
   readonly clearMode: ClearMode;
   private readonly maxFrames: number;
+  private readonly profile: Readonly<ConsoleProfile>;
   private readonly curtainOption: boolean | undefined;
   private readonly coalesce: boolean;
   private readonly baseCss: string;
@@ -288,14 +293,18 @@ export class CssConsoleDriver {
   private width = -1;
   private height = -1;
   private prevHashes: Uint32Array = new Uint32Array(0);
+  private rowSpanned: Uint8Array = new Uint8Array(0);
+  private hasSpannedRows = false;
   private rowCache: CompiledSpan[][] = [];
   private preRows: PrecompiledRow[] = [];
   private readonly partsBuf: string[] = [];
   private rendered = false;
   private banner: ConsoleBanner | null = null;
   private lastSpanCount = 0;
+  private lastVisualFrames = 1;
   /** Frames logged since the last `console.clear()`; 0 forces a clear on the next frame. */
   private appended = 0;
+  private appendedBytes = 0;
   private lastLogAt = 0;
   private parity = false;
   private readonly curtainCss: string;
@@ -306,10 +315,14 @@ export class CssConsoleDriver {
   private readonly fitCache = new LruCache<string, string>(1024);
   private nextFitId = -2;
   private readonly blankScratch: EffectiveStyle = { fg: 0, bg: 0, flags: 0 };
+  private readonly stagedSprites = new Map<string, Array<{ hash: number; pixels: Uint32Array; atMs: number }>>();
+  private readonly stagePixelPool: Uint32Array[] = [];
+  private readonly spriteSvgCache = new Map<string, { hash: number; drawW: number; drawH: number; url: string }>();
 
   constructor(options: CssConsoleDriverOptions = {}) {
     this.target = options.console ?? null;
     const profile = consoleProfile(options.browser);
+    this.profile = profile;
     this.typography = Object.freeze({ ...DEFAULT_TYPOGRAPHY, ...profile.typography, ...options.typography });
     this.styleOptions = Object.freeze({ ...DEFAULT_STYLE_RESOLVE, ...options.style });
     const clear = options.clear ?? "append";
@@ -323,6 +336,41 @@ export class CssConsoleDriver {
     this.measureOption = options.measureText;
   }
 
+  /** @internal */
+  get _profile(): Readonly<ConsoleProfile> {
+    return this.profile;
+  }
+
+  /** @internal */
+  _nextFitId(): number {
+    return this.nextFitId--;
+  }
+
+  /** @internal Whether this console supports multi-keyframe sprite batching (`true` in Chromium append mode). */
+  get _supportsTemporalSprites(): boolean {
+    return this.profile.supportsTemporalBatching && this.clearMode === "append";
+  }
+
+  /** @internal */
+  get _hasStagedKeyframes(): boolean {
+    return this.stagedSprites.size > 0;
+  }
+
+  /** @internal Drop any buffered temporal sprite keyframes without emitting them. */
+  _discardStagedKeyframes(): void {
+    if (this.stagedSprites.size === 0) return;
+    for (const list of this.stagedSprites.values()) {
+      for (const f of list) if (this.stagePixelPool.length < 8) this.stagePixelPool.push(f.pixels);
+    }
+    this.stagedSprites.clear();
+  }
+
+  /** @internal */
+  _stageKeyframe(buffer: CellBuffer, atMs: number = now()): boolean {
+    if (!this._supportsTemporalSprites || buffer._sprites.length === 0) return false;
+    return buffer._sprites[0]!.codec.stageKeyframe(this.stagedSprites, this.stagePixelPool, buffer, atMs);
+  }
+
   setConsole(target: ConsoleTarget | null): void {
     this.target = target;
   }
@@ -333,6 +381,8 @@ export class CssConsoleDriver {
     this.width = -1;
     this.height = -1;
     this.appended = 0;
+    this.appendedBytes = 0;
+    this._discardStagedKeyframes();
   }
 
   /** Number of interned CSS style strings. */
@@ -366,10 +416,10 @@ export class CssConsoleDriver {
   compileRow(buffer: CellBuffer, y: number): CompiledSpan[] {
     const spans: CompiledSpan[] = [];
     const W = buffer.width;
-    const C = buffer.chars;
-    const F = buffer.fg;
-    const B = buffer.bg;
-    const A = buffer.attrs;
+    const C = buffer._chars;
+    const F = buffer._fg;
+    const B = buffer._bg;
+    const A = buffer._attrs;
     const pool = buffer.graphemePool;
     const opts = this.styleOptions;
     const scratch = this.scratch;
@@ -750,14 +800,20 @@ export class CssConsoleDriver {
    * margins are capped at half a cell, so only drift is corrected; a span
    * whose fallback font is much wider overflows rather than being overlapped.
    */
-  private fitRtlSpans(spans: CompiledSpan[]): void {
+  /** @internal */
+  _getCellAdvance(): number {
     if (this.measurer === undefined) {
       const m = this.measureOption;
       this.measurer = m === false ? null : (m ?? createCanvasMeasurer(this.typography.fontFamily, this.typography.fontSize));
       if (this.measurer !== null) this.cellAdvance = this.measurer("M".repeat(32), false, false) / 32;
     }
+    return this.cellAdvance > 0 ? this.cellAdvance : this.typography.fontSize * 0.602;
+  }
+
+  private fitRtlSpans(spans: CompiledSpan[]): void {
+    this._getCellAdvance();
     const measure = this.measurer;
-    if (measure === null || !(this.cellAdvance > 0)) return;
+    if (measure === null || measure === undefined || !(this.cellAdvance > 0)) return;
     for (const span of spans) {
       if (span.blank || span.text.charCodeAt(0) !== 0x202d) continue;
       const bold = span.css.includes("font-weight:700");
@@ -803,8 +859,10 @@ export class CssConsoleDriver {
     const coalesce = this.coalesce;
     const preRows = this.preRows;
     const rowCount = preRows.length;
+    const spanned = this.hasSpannedRows ? this.rowSpanned : null;
 
     for (let y = 0; y < rowCount; y++) {
+      if (spanned !== null && spanned[y] === 1) continue;
       if (y > 0) sep += "\n";
       const row = preRows[y];
       if (row === undefined) continue;
@@ -1055,7 +1113,7 @@ export class CssConsoleDriver {
     if (banner === null || buffer.height === 0) return this.encodeRows(buffer, options);
     // Console-only: drawn over the last row for this frame, then put back, so the buffer never holds it.
     const y = buffer.height - 1;
-    const saved = buffer._overlayRow(y, banner.text, parseColor(banner.fg), parseColor(banner.bg));
+    const saved = buffer._overlayRow(y, banner.text, parseBannerColor(banner.fg), parseBannerColor(banner.bg));
     try {
       return this.encodeRows(buffer, options);
     } finally {
@@ -1072,6 +1130,15 @@ export class CssConsoleDriver {
   }
 
   private encodeRows(buffer: CellBuffer, options: DriverRenderOptions): { frame: ConsoleFrame | null; dirtyRows: number } {
+    this.lastVisualFrames = 1;
+    const hasSprites = buffer._sprites.length > 0;
+    const useSpriteUrls = hasSprites && this.profile.supportsSpriteUrl;
+    if (hasSprites && !useSpriteUrls) {
+      this._discardStagedKeyframes();
+      buffer._ensureSpritesMaterialized();
+    } else if (!hasSprites && this.stagedSprites.size > 0) {
+      this._discardStagedKeyframes();
+    }
     const W = buffer.width;
     const H = buffer.height;
     const resized = W !== this.width || H !== this.height;
@@ -1079,25 +1146,62 @@ export class CssConsoleDriver {
       this.width = W;
       this.height = H;
       this.prevHashes = new Uint32Array(H);
+      this.rowSpanned = new Uint8Array(H);
+      this.hasSpannedRows = false;
       this.rowCache = new Array<CompiledSpan[]>(H);
       this.preRows = new Array<PrecompiledRow>(H);
       this.rendered = false;
     }
-    const hashes = buffer.getRowHashes();
-    const prev = this.prevHashes;
-    let dirty = 0;
-    const full = !this.rendered;
+
+    if (!useSpriteUrls) {
+      const hashes = buffer.getRowHashes();
+      const prev = this.prevHashes;
+      const spanned = this.rowSpanned;
+      const hadSpanned = this.hasSpannedRows;
+      if (hadSpanned) this.hasSpannedRows = false;
+      let dirty = 0;
+      const full = !this.rendered;
+      for (let y = 0; y < H; y++) {
+        const h = hashes[y] as number;
+        const wasSpanned = hadSpanned && spanned[y] !== 0;
+        if (wasSpanned) spanned[y] = 0;
+        if (full || wasSpanned || h !== prev[y]) {
+          dirty++;
+          prev[y] = h;
+          const compiled = this.compileRow(buffer, y);
+          this.rowCache[y] = compiled;
+          this.preRows[y] = buildPrecompiledRow(compiled);
+        }
+      }
+      if (dirty === 0 && !options.force && this.rendered) return { frame: null, dirtyRows: 0 };
+      this.rendered = true;
+      return { frame: this.assemble(), dirtyRows: dirty };
+    }
+
+    const { nextSpanned, dirty, maxVisualFrames } = buffer._sprites[0]!.codec.encodeSprites(
+      this,
+      buffer,
+      buffer.getRowHashes(),
+      this.prevHashes,
+      this.rowSpanned,
+      this.rowCache,
+      this.stagedSprites,
+      this.stagePixelPool,
+      this.spriteSvgCache,
+      !this.rendered,
+      options.force === true,
+      now(),
+    );
     for (let y = 0; y < H; y++) {
-      const h = hashes[y] as number;
-      if (full || h !== prev[y]) {
-        dirty++;
-        prev[y] = h;
-        const compiled = this.compileRow(buffer, y);
-        this.rowCache[y] = compiled;
-        this.preRows[y] = buildPrecompiledRow(compiled);
+      if (this.rowCache[y] !== undefined && this.preRows[y]?.spans !== this.rowCache[y]) {
+        this.preRows[y] = buildPrecompiledRow(this.rowCache[y] as CompiledSpan[]);
       }
     }
-    if (dirty === 0 && !options.force && this.rendered) return { frame: null, dirtyRows: 0 };
+    this.rowSpanned = nextSpanned;
+    this.hasSpannedRows = nextSpanned.some((v) => v !== 0);
+    this.lastVisualFrames = maxVisualFrames;
+
+    if (dirty === 0 && maxVisualFrames <= 1 && !options.force && this.rendered) return { frame: null, dirtyRows: 0 };
     this.rendered = true;
     return { frame: this.assemble(), dirtyRows: dirty };
   }
@@ -1106,6 +1210,12 @@ export class CssConsoleDriver {
     const t0 = now();
     const { frame, dirtyRows } = this.encode(buffer, options);
     if (frame === null) return SKIPPED;
+    const hasSprites = buffer._sprites.length > 0;
+    let frameBytes = 0;
+    if (hasSprites) {
+      frameBytes = frame.format.length;
+      for (let i = 0; i < frame.args.length; i++) frameBytes += (frame.args[i] as string).length;
+    }
     const target = this.target ?? (typeof console !== "undefined" ? console : null);
     let cleared = false;
     if (target !== null) {
@@ -1113,11 +1223,14 @@ export class CssConsoleDriver {
       let clear = mode === "frame";
       if (mode === "append") {
         const n = this.appended;
-        if (n === 0 || n >= this.maxFrames || (n >= IDLE_COMPACT_FRAMES && t0 - this.lastLogAt >= IDLE_COMPACT_MS)) {
+        const overSpriteBudget = hasSprites && n >= 1 && this.appendedBytes + frameBytes > SPRITE_MAX_BYTES;
+        if (n === 0 || n >= this.maxFrames || overSpriteBudget || (n >= IDLE_COMPACT_FRAMES && t0 - this.lastLogAt >= IDLE_COMPACT_MS)) {
           clear = true;
           this.appended = 0;
+          this.appendedBytes = 0;
         }
         this.appended++;
+        if (hasSprites) this.appendedBytes += frameBytes;
         this.lastLogAt = t0;
       }
       if (clear) {
@@ -1128,7 +1241,16 @@ export class CssConsoleDriver {
       else target.log(frame.format, ...frame.args);
     }
     this.lastSpanCount = frame.args.length;
-    return { skipped: false, cleared, dirtyRows, spanCount: frame.args.length, encodeMs: now() - t0, frame };
+    const res: DriverRenderResult = {
+      skipped: false,
+      cleared,
+      dirtyRows,
+      spanCount: frame.args.length,
+      encodeMs: now() - t0,
+      frame,
+    };
+    if (this.lastVisualFrames > 1) res._visualFrames = this.lastVisualFrames;
+    return res;
   }
 
   private logAppended(target: ConsoleTarget, frame: ConsoleFrame, unchanged: boolean): void {

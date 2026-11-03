@@ -85,6 +85,7 @@ const selectionCollapsed = (): boolean => {
 };
 
 const finePointer = (): boolean => typeof matchMedia === "function" && matchMedia("(pointer: fine)").matches;
+const touchFallback = (): boolean => typeof matchMedia === "function" && matchMedia("(hover: none) and (pointer: coarse)").matches;
 
 let bootStarted: Promise<Companion> | null = null;
 
@@ -170,6 +171,7 @@ export function bootCompanion(): Promise<Companion> {
     document.addEventListener("mousedown", (e) => {
       const t = e.target as Element | null;
       focusOnClick = false;
+      if (touchFallback()) return;
       if (!t || typeof t.closest !== "function") return;
       const snap = siteStore.getSnapshot();
       if (!engagesConsole(t, snap.consoleInput, snap.pathname)) return;

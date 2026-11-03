@@ -71,6 +71,7 @@ function sgr(fg: PackedColor, bg: PackedColor, attrs: number, assumedBg: PackedC
 
 /** Render a buffer to a truecolor ANSI string. */
 export function renderToAnsi(buffer: CellBuffer, options: AnsiRenderOptions = {}): string {
+  const cells = buffer.readCells();
   const sep = options.lineSeparator ?? "\n";
   const assumedBg = options.assumedBg ?? 0x09090bff;
   const W = buffer.width;
@@ -87,10 +88,10 @@ export function renderToAnsi(buffer: CellBuffer, options: AnsiRenderOptions = {}
     let lastStyled = 0;
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
-      const a = buffer.attrs[i] as number;
+      const a = cells.attrs[i] as number;
       if (a & ATTR_WIDE_CONT) continue;
-      const f = buffer.fg[i] as number;
-      const b = buffer.bg[i] as number;
+      const f = cells.fg[i] as number;
+      const b = cells.bg[i] as number;
       const sa = a & styleMask;
       if (f !== pf || b !== pb || sa !== pa) {
         line += sgr(f, b, sa, assumedBg);
@@ -100,7 +101,7 @@ export function renderToAnsi(buffer: CellBuffer, options: AnsiRenderOptions = {}
       }
       const ch = buffer.cellText(i);
       if (pin && !rtl) {
-        const c = buffer.chars[i] as number;
+        const c = cells.chars[i] as number;
         // A pooled cluster can carry RTL after a low first code point (a mark or a Prepend character).
         if (c >= GRAPHEME_POOL_FLAG ? hasRtl(ch) : c >= 0x0590 && isRtlCodePoint(c)) rtl = true;
       }

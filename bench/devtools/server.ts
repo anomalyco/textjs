@@ -63,6 +63,20 @@ export async function startBenchServer(port = 0): Promise<BenchServer> {
           },
         });
       }
+      if (url.pathname === "/doom.wasm" || url.pathname === "/doom.wad") {
+        const defaultPath = fileURLToPath(
+          new URL(
+            url.pathname === "/doom.wasm"
+              ? "../../apps/web/src/demos/doom/engine/out/doom.wasm"
+              : "../../apps/web/public/doom/DOOM1.WAD",
+            import.meta.url,
+          ),
+        );
+        const assetPath = process.env[url.pathname === "/doom.wasm" ? "DOOM_WASM" : "DOOM_WAD"] ?? defaultPath;
+        return new Response(Bun.file(assetPath), {
+          headers: { "content-type": url.pathname === "/doom.wasm" ? "application/wasm" : "application/octet-stream" },
+        });
+      }
       if (url.pathname === "/favicon.ico") {
         return new Response(null, { status: 204 });
       }

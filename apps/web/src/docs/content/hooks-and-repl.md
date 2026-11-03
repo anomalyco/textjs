@@ -25,6 +25,20 @@ usePaste((e) => insert(e.text));
 useWheel((e) => scrollBy(e.rows));
 ```
 
+## `useKeyState` (experimental)
+
+`@textjs/react/experimental` exports `useKeyState` to track held physical keys by `KeyboardEvent.code` (`"KeyW"`, `"ArrowUp"`, `"ControlLeft"`). Polling `keys.isDown(code)` or reading `keys.pressed` does not trigger React re-renders. Pass a callback to react to key presses and releases as they happen.
+
+```tsx
+import { useKeyState } from "@textjs/react/experimental";
+
+const keys = useKeyState((e) => {
+  if (e.code === "Space" && e.down) fire();
+});
+```
+
+Held keys are released automatically when the page loses focus. See [Breaking changes](/docs/support-policy#breaking-changes) for how experimental exports are versioned.
+
 ## `useViewport`
 
 ```tsx

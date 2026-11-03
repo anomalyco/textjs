@@ -20,6 +20,10 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./experimental": {
+      "types": "./src/experimental.ts",
+      "default": "./src/experimental.ts"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -29,6 +33,10 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
+      },
+      "./experimental": {
+        "types": "./dist/experimental.d.ts",
+        "default": "./dist/experimental.js"
       }
     }
   },

@@ -56,7 +56,7 @@ const path = () => new URL(page.url()).pathname;
 await page.goto(`${base}/playground`);
 await settle(1200);
 check("playground pad starts in 'open' state", (await padState()) === "open", await padState());
-check("picker: five demos, OpenCode and Coffee last", (await page.locator(".pad-picker a").allTextContents()).join("|") === "Dashboard|Streaming|Snake|OpenCode|Coffee", (await page.locator(".pad-picker a").allTextContents()).join("|"));
+check("picker: six demos, OpenCode and Coffee last", (await page.locator(".pad-picker a").allTextContents()).join("|") === "Dashboard|Streaming|Snake|Doom|OpenCode|Coffee", (await page.locator(".pad-picker a").allTextContents()).join("|"));
 check("picker pills are words only", (await page.locator(".pad-picker svg").count()) === 0);
 const wordmark = () => page.evaluate(() => document.querySelector(".tx-pad-desk .pad-slot-banner svg")?.getAttribute("aria-label") ?? null);
 check("/playground opens on Dashboard", (await picked()) === "Dashboard", await picked());
