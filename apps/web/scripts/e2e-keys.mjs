@@ -140,13 +140,13 @@ const heroMirror = () =>
   page.evaluate(() => {
     const box = document.querySelector(".split-console .mirror-scale > div");
     const live = box?.children[1]?.firstElementChild;
-    return box && live ? { placeholder: [box.children[0].offsetWidth, box.children[0].offsetHeight], live: [live.offsetWidth, live.offsetHeight] } : null;
+    return box && live ? { strut: [box.children[0].offsetWidth, box.children[0].offsetHeight], live: [live.offsetWidth, live.offsetHeight] } : null;
   });
 const homeDefaults = async (how) => {
   const g = grid(await last());
   check(`${how}: Home console keeps its 100×26 default`, g.cols === 100 && g.rows === 26, JSON.stringify(g));
   const m = await heroMirror();
-  check(`${how}: the hero mirror is filled exactly`, m !== null && m.live[0] === m.placeholder[0] && m.live[1] === m.placeholder[1], JSON.stringify(m));
+  check(`${how}: the hero mirror is filled exactly`, m !== null && m.live[0] === m.strut[0] && m.live[1] === m.strut[1], JSON.stringify(m));
 };
 await page.locator(".header .wordmark").click();
 await settle(1000);

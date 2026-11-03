@@ -1,14 +1,19 @@
-import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { StyledFrame } from "@textjs/core";
 import { ConsoleMirror } from "@textjs/react/dom";
 import { ClearIcon, DeviceIcon, EyeIcon, GearIcon, InspectIcon, KebabIcon, SidebarIcon } from "./icons";
 
-/** A blank frame used as a placeholder so mirrors reserve their final size (zero layout shift). */
-export function blankFrame(cols: number, rows: number, bgCss = "#0a0a0a"): StyledFrame {
-  const row = (): StyledFrame["rows"][number] => [
-    { text: " ".repeat(cols), width: cols, fg: 0, bg: 0, attrs: 0, fgCss: null, bgCss, bold: false, dim: false, italic: false, underline: false, strikethrough: false, inverse: false, allowLink: false },
-  ];
-  return { width: cols, height: rows, rows: Array.from({ length: rows }, row) };
+/**
+ * Reserves a mirror's final cols×rows box (zero layout shift) with one node: a single line of
+ * `cols` spaces in the mirror's font gives the exact width a full row of cells measures to, at any
+ * zoom, and the explicit height covers `rows` lines.
+ */
+function MirrorStrut({ cols, rows, fontSize, lineHeight }: { cols: number; rows: number; fontSize: number; lineHeight: number }): ReactNode {
+  return (
+    <div className="mirror-strut" aria-hidden="true" style={{ fontSize, lineHeight: `${lineHeight}px`, height: rows * lineHeight }}>
+      {" ".repeat(cols)}
+    </div>
+  );
 }
 
 /** Scale (never up) and resulting height that fit a mirror's natural size into its container. */
@@ -47,7 +52,6 @@ export function ScaledMirror({
   cols?: number;
   rows?: number;
 }): ReactNode {
-  const placeholder = useMemo(() => blankFrame(cols, rows), [cols, rows]);
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState<{ scale: number; height: number | undefined }>({ scale: 1, height: undefined });
@@ -70,9 +74,9 @@ export function ScaledMirror({
   return (
     <div ref={outer} className="mirror-scale" style={{ height: fit.height }}>
       <div ref={inner} style={{ position: "relative", transform: fit.scale === 1 ? undefined : `scale(${fit.scale})` }}>
-        {/* The blank cols×rows grid always sizes the box; live frames of any size (a responsive
-            companion resizing, a stale frame from another page) paint over it without moving layout. */}
-        <ConsoleMirror frame={placeholder} fontSize={fontSize} lineHeight={lineHeight} style={{ display: "block" }} />
+        {/* The strut always sizes the box; live frames of any size (a responsive companion
+            resizing, a stale frame from another page) paint over it without moving layout. */}
+        <MirrorStrut cols={cols} rows={rows} fontSize={fontSize} lineHeight={lineHeight} />
         {frame ? (
           <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
             <ConsoleMirror frame={frame} fontSize={fontSize} lineHeight={lineHeight} style={{ display: "block" }} />
