@@ -1,6 +1,7 @@
 // Host glue for jacobenget/doom.wasm (GPL-2.0, loaded at runtime from ./engine/, never bundled).
-// This file only implements the module's 10 imports, so it's ours to license.
+// This file only implements the module's 14 imports, so it's ours to license.
 import type { PixelSource } from "@textjs/react/experimental";
+import type { DoomSoundSink } from "./sound";
 
 const DOOM_TICRATE = 35;
 // A normal tickGame() reads the clock twice, once more per tic it runs, and 5 more times to draw a level frame
@@ -40,9 +41,11 @@ export interface DoomOptions {
   wads: Uint8Array[];
   now?: () => number;
   log?: (message: string) => void;
+  /** Where sound effects go. Without one, Doom runs silent. */
+  sound?: DoomSoundSink;
 }
 
-export async function createDoom({ wasm, wads, now = () => performance.now(), log }: DoomOptions): Promise<DoomHost> {
+export async function createDoom({ wasm, wads, now = () => performance.now(), log, sound }: DoomOptions): Promise<DoomHost> {
   const total = wads.reduce((n, w) => n + w.length, 0);
   let memory: WebAssembly.Memory | null = null;
   const mem = (): ArrayBuffer => (memory as WebAssembly.Memory).buffer;
@@ -93,6 +96,13 @@ export async function createDoom({ wasm, wads, now = () => performance.now(), lo
           dv.setInt32(pLengths + i * 4, w.length, true);
         });
       },
+    },
+    sound: {
+      startSound: (lump: number, p: number, n: number, channel: number, vol: number, sep: number) =>
+        sound?.start(lump, new Uint8Array(mem(), p, n), channel, vol, sep),
+      updateSound: (channel: number, vol: number, sep: number) => sound?.update(channel, vol, sep),
+      stopSound: (channel: number) => sound?.stop(channel),
+      isPlaying: (channel: number) => (sound?.isPlaying(channel) ? 1 : 0),
     },
     runtimeControl: {
       timeInMilliseconds: () => {

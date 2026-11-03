@@ -4,6 +4,7 @@ import { Pixels, useKeyState, type PixelSource } from "@textjs/react/experimenta
 import { siteStore, type DoomStatus } from "../../console-companion/store";
 import wasmUrl from "./engine/out/doom.wasm?url";
 import { createDoom, type DoomHost, type DoomKeys } from "./host";
+import { DoomSound } from "./sound";
 
 // id's shareware DOOM1.WAD v1.9, gzipped from the unmodified file (see fetch-wad.ts) and verified by SHA-256 after decompression.
 export const WAD_URL = "/doom/DOOM1.WAD.gz";
@@ -137,6 +138,7 @@ export function DoomDemo({ reserveRows = 4, active = true, loadAssets }: DoomDem
   const [status, setStatus] = useState<DoomStatus>(() => (started ? "loading" : "idle"));
   const [loadedBytes, setLoadedBytes] = useState(0);
   const [frame, setFrame] = useState(0);
+  const [sound] = useState(() => new DoomSound());
   // Doom runs on its own clock, which stands still while the console is paused or the page is unfocused.
   const clock = useRef({ offset: 0, stoppedAt: 0 as number | null });
   const now = (): number => {
@@ -180,7 +182,7 @@ export function DoomDemo({ reserveRows = 4, active = true, loadAssets }: DoomDem
         // Start at 0 and stopped: the clock runs once the game is ready and the page is focused.
         const t = performance.now();
         clock.current = { offset: t, stoppedAt: t };
-        return createDoom({ wasm, wads: [wad], now });
+        return createDoom({ wasm, wads: [wad], now, sound });
       })
       .then(
         (h) => {
@@ -200,8 +202,30 @@ export function DoomDemo({ reserveRows = 4, active = true, loadAssets }: DoomDem
     };
   }, [started, attempt, loadAssets]);
 
+  // Browsers only start audio from a user gesture, so the page's first click or keypress turns sound on.
+  useEffect(() => {
+    if (typeof window === "undefined" || isMobileTouchFallback()) return;
+    const stopListening = (): void => {
+      window.removeEventListener("mousedown", unlock, true);
+      window.removeEventListener("keydown", unlock, true);
+    };
+    const unlock = (e: Event): void => {
+      // Synthetic events don't count as a gesture, so the browser would keep the context suspended.
+      if (!e.isTrusted) return;
+      sound.unlock();
+      stopListening();
+    };
+    window.addEventListener("mousedown", unlock, true);
+    window.addEventListener("keydown", unlock, true);
+    return () => {
+      stopListening();
+      sound.dispose();
+    };
+  }, [sound]);
+
   const running = status === "ready" && vp.focused && !vp.paused;
   useEffect(() => {
+    sound.setRunning(running);
     const c = clock.current;
     if (!running) {
       if (c.stoppedAt === null) c.stoppedAt = performance.now();

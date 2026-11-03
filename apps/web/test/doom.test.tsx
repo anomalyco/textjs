@@ -7,6 +7,7 @@ import { cleanup, render } from "@textjs/react/testing";
 import { DOOM_CREDIT, DoomDemo, fetchVerifiedWad, WAD_BYTES, WAD_SHA256 } from "../src/demos/doom/Doom";
 import { LICENSE_HEADER, TRADEMARK_NOTICE, verifyDoomAssets, WAD } from "../src/demos/doom/fetch-wad";
 import { createDoom } from "../src/demos/doom/host";
+import { decodeDmx, DoomSound, gainFor, panFor, type DoomSoundSink } from "../src/demos/doom/sound";
 import { DOOM_ERROR_HINTS, DOOM_LOADING_HINTS, hintsFor, PRESETS, siteStore } from "../src/console-companion/store";
 import { PlaygroundPage } from "../src/pages/Playground";
 
@@ -47,7 +48,7 @@ describe("Doom shareware & GPL engine assets", () => {
     const engineReadme = readFileSync(join(WEB_ROOT, "src/demos/doom/engine/README.md"), "utf8");
     expect(engineReadme).toContain("https://github.com/jacobenget/doom.wasm");
     expect(engineReadme).toContain("about 150 KB gzipped");
-    expect(engineReadme).toContain("10 imports and 19 exports");
+    expect(engineReadme).toContain("14 imports and 19 exports");
   });
 
   test("fetchVerifiedWad decompresses gzipped DOOM1.WAD.gz, reports progress to 4.2 MB, and rejects tampered bytes", async () => {
@@ -206,5 +207,204 @@ describe("Doom shareware & GPL engine assets", () => {
     await app.press("return");
     expect(calls).toBe(2);
     expect(siteStore.getSnapshot().doomStatus).toBe("loading");
+  });
+});
+
+function readWad(): { bytes: Uint8Array; lumpName: (i: number) => string; lump: (name: string) => Uint8Array } {
+  const bytes = new Uint8Array(readFileSync(join(WEB_ROOT, "public/doom/DOOM1.WAD")));
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const count = view.getInt32(4, true);
+  const dir = view.getInt32(8, true);
+  const lumpName = (i: number): string => new TextDecoder().decode(bytes.subarray(dir + i * 16 + 8, dir + i * 16 + 16)).replace(/\0.*$/, "");
+  const lump = (name: string): Uint8Array => {
+    for (let i = 0; i < count; i++) {
+      if (lumpName(i) !== name) continue;
+      const pos = view.getInt32(dir + i * 16, true);
+      return bytes.subarray(pos, pos + view.getInt32(dir + i * 16 + 4, true));
+    }
+    throw new Error(`no ${name}`);
+  };
+  return { bytes, lumpName, lump };
+}
+
+class FakeParam {
+  value = 0;
+}
+class FakeNode {
+  connected: FakeNode[] = [];
+  connect<T extends FakeNode>(next: T): T {
+    this.connected.push(next);
+    return next;
+  }
+  disconnect(): void {
+    this.connected = [];
+  }
+}
+class FakeSource extends FakeNode {
+  buffer: { rate: number; length: number } | null = null;
+  onended: (() => void) | null = null;
+  started = false;
+  stopped = false;
+  start(): void {
+    this.started = true;
+  }
+  stop(): void {
+    this.stopped = true;
+  }
+}
+class FakeContext {
+  state = "suspended";
+  log: string[] = [];
+  sources: FakeSource[] = [];
+  panners: { pan: FakeParam }[] = [];
+  gains: { gain: FakeParam }[] = [];
+  destination = new FakeNode();
+  resume(): Promise<void> {
+    this.state = "running";
+    this.log.push("resume");
+    return Promise.resolve();
+  }
+  suspend(): Promise<void> {
+    this.state = "suspended";
+    this.log.push("suspend");
+    return Promise.resolve();
+  }
+  createBuffer(_channels: number, length: number, rate: number) {
+    const data = new Float32Array(length);
+    return { rate, length, getChannelData: () => data };
+  }
+  createBufferSource(): FakeSource {
+    const s = new FakeSource();
+    this.sources.push(s);
+    return s;
+  }
+  createGain() {
+    const g = Object.assign(new FakeNode(), { gain: new FakeParam() });
+    this.gains.push(g);
+    return g;
+  }
+  createStereoPanner() {
+    const p = Object.assign(new FakeNode(), { pan: new FakeParam() });
+    this.panners.push(p);
+    return p;
+  }
+}
+
+describe("Doom sound effects", () => {
+  test("decodeDmx skips the 16 padding samples at each end, keeps each lump's rate and rejects broken lumps", () => {
+    const wad = readWad();
+    const pistol = wad.lump("DSPISTOL");
+    const decoded = decodeDmx(pistol)!;
+    expect(decoded.rate).toBe(11_025);
+    expect(decoded.samples.length).toBe(pistol.length - 8 - 32);
+    expect(decoded.samples[0]).toBe(((pistol[8 + 16] as number) - 128) / 128);
+    expect(decodeDmx(wad.lump("DSITMBK"))!.rate).toBe(22_050);
+
+    const tiny = new Uint8Array(8 + 48);
+    tiny.set([3, 0, 0x11, 0x2b, 48, 0, 0, 0]);
+    expect(decodeDmx(tiny)).toBeNull();
+    expect(decodeDmx(new Uint8Array([2, 0, 0x11, 0x2b, 0, 1, 0, 0]))).toBeNull();
+    const truncated = pistol.slice(0, 100);
+    expect(decodeDmx(truncated)).toBeNull();
+  });
+
+  test("Doom's volume and separation map to gain and pan", () => {
+    expect(gainFor(127)).toBe(1);
+    expect(gainFor(64)).toBeCloseTo(0.504, 3);
+    expect(gainFor(-5)).toBe(0);
+    expect(panFor(128)).toBe(0);
+    expect(panFor(0)).toBe(-1);
+    expect(panFor(254)).toBeCloseTo(0.992, 3);
+    expect(panFor(255)).toBe(1);
+  });
+
+  test("the engine plays the player's pistol centred at the default volume, plus doors and pickups, in the first demo", async () => {
+    const wad = readWad();
+    const wasm = readFileSync(join(WEB_ROOT, "src/demos/doom/engine/out/doom.wasm"));
+    const started: { name: string; channel: number; vol: number; sep: number; rate: number }[] = [];
+    const playing = new Set<number>();
+    const sink: DoomSoundSink = {
+      start(lump, dmx, channel, vol, sep) {
+        started.push({ name: wad.lumpName(lump), channel, vol, sep, rate: decodeDmx(dmx)?.rate ?? 0 });
+        playing.add(channel);
+      },
+      update() {},
+      stop: (channel) => playing.delete(channel),
+      isPlaying: (channel) => playing.has(channel),
+    };
+    let t = 0;
+    const doom = await createDoom({ wasm: wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength) as ArrayBuffer, wads: [wad.bytes], now: () => t, sound: sink });
+    // The title screen is silent; the first demo, a level, starts after 170 tics.
+    for (; t < 4800; t += 1000 / 60) doom.tick();
+    expect(started).toEqual([]);
+    for (; t < 12_000; t += 1000 / 60) doom.tick();
+
+    const names = new Set(started.map((s) => s.name));
+    for (const name of ["DSPISTOL", "DSDOROPN", "DSITEMUP", "DSSHOTGN"]) expect(names).toContain(name);
+    // The player's own sounds play centred at the default volume (8 of 15 in the menu, 64 of 127).
+    expect(started.find((s) => s.name === "DSPISTOL")).toMatchObject({ vol: 64, sep: 128, rate: 11_025 });
+    // A monster's sounds come from where it stands.
+    expect(started.some((s) => s.sep !== 128 && s.vol < 64)).toBe(true);
+    expect(Math.max(...started.map((s) => s.channel))).toBeLessThan(8);
+  });
+
+  test("DoomSound stays silent until a gesture, plays each channel through a gain and a stereo panner, and follows Doom's clock", async () => {
+    const wad = readWad();
+    const pistol = wad.lump("DSPISTOL");
+    const ctx = new FakeContext();
+    let created = 0;
+    const sound = new DoomSound(() => {
+      created++;
+      return ctx as unknown as AudioContext;
+    });
+
+    sound.setRunning(true);
+    sound.start(1, pistol, 0, 64, 128);
+    expect(created).toBe(0);
+    expect(sound.isPlaying(0)).toBe(false);
+
+    sound.unlock();
+    sound.unlock();
+    expect(created).toBe(1);
+    expect(ctx.log).toEqual(["resume"]);
+
+    sound.start(1, pistol, 3, 127, 0);
+    const [source] = ctx.sources;
+    expect(source!.started).toBe(true);
+    expect(source!.buffer).toMatchObject({ rate: 11_025, length: pistol.length - 40 });
+    expect(ctx.gains[0]!.gain.value).toBe(1);
+    expect(ctx.panners[0]!.pan.value).toBe(-1);
+    expect(sound.isPlaying(3)).toBe(true);
+
+    sound.update(3, 0, 254);
+    expect(ctx.gains[0]!.gain.value).toBe(0);
+    expect(ctx.panners[0]!.pan.value).toBeCloseTo(0.992, 3);
+
+    // A new sound on the same channel cuts the old one off; the buffer is decoded once.
+    sound.start(1, pistol, 3, 64, 128);
+    expect(source!.stopped).toBe(true);
+    expect(ctx.sources[1]!.buffer).toBe(source!.buffer);
+    ctx.sources[1]!.onended?.();
+    expect(sound.isPlaying(3)).toBe(false);
+
+    sound.setRunning(false);
+    sound.setRunning(true);
+    expect(ctx.log.slice(1)).toEqual(["suspend", "resume"]);
+
+    sound.start(2, pistol, 5, 64, 128);
+    sound.dispose();
+    expect(ctx.sources[2]!.stopped).toBe(true);
+    expect(sound.isPlaying(5)).toBe(false);
+    expect(ctx.log.at(-1)).toBe("suspend");
+  });
+
+  test("DoomSound unlocked while the game is still loading suspends until Doom's clock runs", async () => {
+    const ctx = new FakeContext();
+    const sound = new DoomSound(() => ctx as unknown as AudioContext);
+    sound.unlock();
+    await Promise.resolve();
+    expect(ctx.log).toEqual(["resume", "suspend"]);
+    sound.setRunning(true);
+    expect(ctx.state).toBe("running");
   });
 });
