@@ -195,6 +195,30 @@ describe("catalog", () => {
     expect(validatePlural("ru", { one: "{count} вопрос", few: "{count} вопроса", many: "{count} вопросов", other: "{count} вопроса" })).toEqual([]);
   });
 
+  test("Firefox holds the page for Geist, Geist Mono and the page's Latin Extended or Cyrillic subset", () => {
+    const html = readFileSync(join(import.meta.dir, "..", "index.html"), "utf8");
+    const script = /<script>\s*\(function \(\) \{[\s\S]*?\}\)\(\);\s*<\/script>/.exec(html)?.[0].replace(/^<script>|<\/script>$/g, "") ?? "";
+    expect(script).toContain('root.dataset.browser = "firefox"');
+    const loads = (lang: string): string[][] => {
+      const calls: string[][] = [];
+      const root = { lang, dataset: {} as Record<string, string>, style: { visibility: "", removeProperty() {} } };
+      const env = {
+        document: { documentElement: root, fonts: { load: (font: string, text?: string) => (calls.push([font, text ?? ""]), Promise.resolve([])) } },
+        navigator: { platform: "MacIntel", userAgent: "Firefox" },
+        window: { CSS: { supports: (p: string) => p === "-moz-appearance" } },
+        CSS: { supports: (p: string) => p === "-moz-appearance" },
+        Promise,
+        setTimeout: () => 0,
+        requestAnimationFrame: () => 0,
+      };
+      new Function(...Object.keys(env), script)(...Object.values(env));
+      return calls;
+    };
+    expect(loads("en")).toEqual([["16px Geist", "a"], ['12px "Geist Mono"', " \u2588"], ['16px "Geist Fallback"', ""], ['12px "Geist Mono Fallback"', ""]]);
+    expect(loads("ja").slice(0, 2)).toEqual([["16px Geist", "a"], ['12px "Geist Mono"', " \u2588"]]);
+    for (const [lang, ch] of [["pl", "ą"], ["tr", "ğ"], ["vi", "ạ"], ["ru", "ж"]]) expect(loads(lang as string).slice(0, 2)).toEqual([["16px Geist", `a${ch}`], ['12px "Geist Mono"', ` \u2588${ch}`]]);
+  });
+
   test("Polish, Turkish, Vietnamese and Russian pages preload their Geist subsets; others don't", () => {
     const html = readFileSync(join(import.meta.dir, "..", "index.html"), "utf8");
     expect(withGeistSubsets(html, "en")).toBe(html);
