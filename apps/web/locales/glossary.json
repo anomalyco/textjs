@@ -43,7 +43,14 @@
       "pt-BR": "console",
       "ko": "콘솔",
       "zh-CN": "控制台",
-      "zh-TW": "主控台"
+      "zh-TW": "主控台",
+      "it": "console",
+      "ru": "консоль",
+      "tr": "konsol",
+      "pl": "konsola",
+      "id": "konsol",
+      "vi": "console",
+      "hi": "कंसोल"
     },
     "frame": {
       "ja": "フレーム",
@@ -54,7 +61,14 @@
       "pt-BR": "quadro",
       "ko": "프레임",
       "zh-CN": "帧",
-      "zh-TW": "影格"
+      "zh-TW": "影格",
+      "it": "frame",
+      "ru": "кадр",
+      "tr": "kare",
+      "pl": "klatka",
+      "id": "frame",
+      "vi": "frame",
+      "hi": "फ़्रेम"
     },
     "cell": {
       "ja": "セル",
@@ -65,7 +79,14 @@
       "pt-BR": "célula",
       "ko": "셀",
       "zh-CN": "单元格",
-      "zh-TW": "儲存格"
+      "zh-TW": "儲存格",
+      "it": "cella",
+      "ru": "ячейка",
+      "tr": "hücre",
+      "pl": "komórka",
+      "id": "sel",
+      "vi": "ô",
+      "hi": "सेल"
     },
     "route": {
       "ja": "ルート",
@@ -76,7 +97,14 @@
       "pt-BR": "rota",
       "ko": "라우트",
       "zh-CN": "路由",
-      "zh-TW": "路由"
+      "zh-TW": "路由",
+      "it": "route",
+      "ru": "маршрут",
+      "tr": "rota",
+      "pl": "trasa",
+      "id": "route",
+      "vi": "route",
+      "hi": "रूट"
     },
     "layout": {
       "ja": "レイアウト",
@@ -87,7 +115,14 @@
       "pt-BR": "layout",
       "ko": "레이아웃",
       "zh-CN": "布局",
-      "zh-TW": "版面配置"
+      "zh-TW": "版面配置",
+      "it": "layout",
+      "ru": "макет",
+      "tr": "layout",
+      "pl": "layout",
+      "id": "layout",
+      "vi": "layout",
+      "hi": "लेआउट"
     },
     "Docs": {
       "ja": "ドキュメント",
@@ -98,7 +133,14 @@
       "pt-BR": "Documentação",
       "ko": "문서",
       "zh-CN": "文档",
-      "zh-TW": "文件"
+      "zh-TW": "文件",
+      "it": "Documentazione",
+      "ru": "Документация",
+      "tr": "Belgeler",
+      "pl": "Dokumentacja",
+      "id": "Dokumentasi",
+      "vi": "Tài liệu",
+      "hi": "डॉक्स"
     },
     "route handler": {
       "ja": "ルートハンドラー",
@@ -108,7 +150,14 @@
       "pt-BR": "manipulador de rota",
       "ko": "라우트 핸들러",
       "zh-CN": "路由处理程序",
-      "zh-TW": "路由處理常式"
+      "zh-TW": "路由處理常式",
+      "it": "route handler",
+      "ru": "обработчик маршрута",
+      "tr": "rota işleyicisi",
+      "pl": "handler trasy",
+      "id": "route handler",
+      "vi": "route handler",
+      "hi": "रूट हैंडलर"
     },
     "theme": {
       "ja": "テーマ",
@@ -118,7 +167,14 @@
       "pt-BR": "tema",
       "ko": "테마",
       "zh-CN": "主题",
-      "zh-TW": "主題"
+      "zh-TW": "主題",
+      "it": "tema",
+      "ru": "тема",
+      "tr": "tema",
+      "pl": "motyw",
+      "id": "tema",
+      "vi": "theme",
+      "hi": "थीम"
     },
     "browser": {
       "ja": "ブラウザー",
@@ -128,7 +184,14 @@
       "pt-BR": "navegador",
       "ko": "브라우저",
       "zh-CN": "浏览器",
-      "zh-TW": "瀏覽器"
+      "zh-TW": "瀏覽器",
+      "it": "browser",
+      "ru": "браузер",
+      "tr": "tarayıcı",
+      "pl": "przeglądarka",
+      "id": "browser",
+      "vi": "trình duyệt",
+      "hi": "ब्राउज़र"
     },
     "Preserve log": {
       "ja": "ログを保持",
@@ -138,7 +201,14 @@
       "pt-BR": "Preservar registro",
       "ko": "로그 보존",
       "zh-CN": "保留日志",
-      "zh-TW": "保留記錄"
+      "zh-TW": "保留記錄",
+      "it": "Mantieni il log",
+      "ru": "Сохранить журнал",
+      "tr": "Günlüğü sakla",
+      "pl": "Zachowaj dziennik",
+      "id": "Simpan log",
+      "vi": "Lưu giữ nhật ký",
+      "hi": "लॉग सेव करें"
     },
     "prerender": {
       "ja": "プリレンダリング",
@@ -148,7 +218,14 @@
       "pt-BR": "pré-renderização",
       "ko": "프리렌더링",
       "zh-CN": "预渲染",
-      "zh-TW": "預先渲染"
+      "zh-TW": "預先渲染",
+      "it": "pre-rendering",
+      "ru": "пререндеринг",
+      "tr": "ön render",
+      "pl": "prerenderowanie",
+      "id": "prerender",
+      "vi": "prerender",
+      "hi": "प्रीरेंडरिंग"
     },
     "server rendering": {
       "ja": "サーバーレンダリング",
@@ -158,7 +235,14 @@
       "pt-BR": "renderização no servidor",
       "ko": "서버 렌더링",
       "zh-CN": "服务端渲染",
-      "zh-TW": "伺服器端渲染"
+      "zh-TW": "伺服器端渲染",
+      "it": "rendering lato server",
+      "ru": "серверный рендеринг",
+      "tr": "sunucuda render etme",
+      "pl": "renderowanie po stronie serwera",
+      "id": "rendering di server",
+      "vi": "render phía máy chủ",
+      "hi": "सर्वर रेंडरिंग"
     },
     "server-rendered": {
       "ja": "サーバーレンダリングされる",
@@ -168,7 +252,14 @@
       "pt-BR": "renderizado no servidor",
       "ko": "서버에서 렌더링된",
       "zh-CN": "服务端渲染的",
-      "zh-TW": "伺服器端渲染的"
+      "zh-TW": "伺服器端渲染的",
+      "it": "renderizzato lato server",
+      "ru": "отрендеренный на сервере",
+      "tr": "sunucuda render edilen",
+      "pl": "renderowany po stronie serwera",
+      "id": "di-render di server",
+      "vi": "được render phía máy chủ",
+      "hi": "सर्वर पर रेंडर किया गया"
     },
     "utility": {
       "ja": "ユーティリティー"
@@ -181,7 +272,14 @@
       "pt-BR": "diretório",
       "ko": "디렉터리",
       "zh-CN": "目录",
-      "zh-TW": "目錄"
+      "zh-TW": "目錄",
+      "it": "directory",
+      "ru": "каталог",
+      "tr": "dizin",
+      "pl": "katalog",
+      "id": "direktori",
+      "vi": "thư mục",
+      "hi": "डायरेक्टरी"
     },
     "query": {
       "ja": "クエリー",
@@ -191,7 +289,14 @@
       "pt-BR": "consulta",
       "ko": "쿼리",
       "zh-CN": "查询",
-      "zh-TW": "查詢"
+      "zh-TW": "查詢",
+      "it": "query",
+      "ru": "запрос",
+      "tr": "sorgu",
+      "pl": "zapytanie",
+      "id": "kueri",
+      "vi": "truy vấn",
+      "hi": "क्वेरी"
     },
     "binary": {
       "ja": "バイナリー",
@@ -201,7 +306,14 @@
       "pt-BR": "binário",
       "ko": "바이너리",
       "zh-CN": "二进制文件",
-      "zh-TW": "二進位檔"
+      "zh-TW": "二進位檔",
+      "it": "binario",
+      "ru": "бинарный файл",
+      "tr": "ikili dosya",
+      "pl": "plik binarny",
+      "id": "biner",
+      "vi": "tệp nhị phân",
+      "hi": "बाइनरी"
     },
     "edge function": {
       "ja": "エッジ関数",
@@ -211,7 +323,14 @@
       "pt-BR": "função edge",
       "ko": "에지 함수",
       "zh-CN": "边缘函数",
-      "zh-TW": "邊緣函式"
+      "zh-TW": "邊緣函式",
+      "it": "edge function",
+      "ru": "edge-функция",
+      "tr": "edge fonksiyonu",
+      "pl": "funkcja edge",
+      "id": "edge function",
+      "vi": "edge function",
+      "hi": "एज फ़ंक्शन"
     },
     "edge middleware": {
       "ja": "エッジミドルウェア",
@@ -221,7 +340,14 @@
       "pt-BR": "middleware edge",
       "ko": "에지 미들웨어",
       "zh-CN": "边缘中间件",
-      "zh-TW": "邊緣中介軟體"
+      "zh-TW": "邊緣中介軟體",
+      "it": "middleware edge",
+      "ru": "edge-middleware",
+      "tr": "edge middleware",
+      "pl": "middleware edge",
+      "id": "edge middleware",
+      "vi": "edge middleware",
+      "hi": "एज मिडलवेयर"
     },
     "span": {
       "ja": "スパン",
@@ -231,7 +357,14 @@
       "pt-BR": "span",
       "ko": "스팬",
       "zh-CN": "span",
-      "zh-TW": "span"
+      "zh-TW": "span",
+      "it": "span",
+      "ru": "span",
+      "tr": "span",
+      "pl": "span",
+      "id": "span",
+      "vi": "span",
+      "hi": "span"
     },
     "chart": {
       "ja": "チャート",
@@ -241,7 +374,14 @@
       "pt-BR": "gráfico",
       "ko": "차트",
       "zh-CN": "图表",
-      "zh-TW": "圖表"
+      "zh-TW": "圖表",
+      "it": "grafico",
+      "ru": "график",
+      "tr": "grafik",
+      "pl": "wykres",
+      "id": "grafik",
+      "vi": "biểu đồ",
+      "hi": "चार्ट"
     },
     "word joiner": {
       "ja": "ワードジョイナー",
@@ -251,7 +391,14 @@
       "pt-BR": "word joiner",
       "ko": "워드 조이너",
       "zh-CN": "word joiner",
-      "zh-TW": "word joiner"
+      "zh-TW": "word joiner",
+      "it": "word joiner",
+      "ru": "word joiner",
+      "tr": "word joiner",
+      "pl": "word joiner",
+      "id": "word joiner",
+      "vi": "word joiner",
+      "hi": "word joiner"
     },
     "architecture": {
       "ja": "アーキテクチャー"
@@ -267,7 +414,14 @@
       "pt-BR": "incidente",
       "ko": "장애",
       "zh-CN": "事件",
-      "zh-TW": "事件"
+      "zh-TW": "事件",
+      "it": "incidente",
+      "ru": "инцидент",
+      "tr": "olay",
+      "pl": "incydent",
+      "id": "insiden",
+      "vi": "sự cố",
+      "hi": "इंसिडेंट"
     },
     "Learn": {
       "ja": "学習",
@@ -277,7 +431,14 @@
       "pt-BR": "Aprender",
       "ko": "학습",
       "zh-CN": "学习",
-      "zh-TW": "學習"
+      "zh-TW": "學習",
+      "it": "Impara",
+      "ru": "Обучение",
+      "tr": "Öğren",
+      "pl": "Nauka",
+      "id": "Belajar",
+      "vi": "Học",
+      "hi": "सीखें"
     },
     "shared": {
       "ja": "共通の"
@@ -290,7 +451,14 @@
       "pt-BR": "mapa de teclas",
       "ko": "키맵",
       "zh-CN": "按键映射",
-      "zh-TW": "按鍵對應"
+      "zh-TW": "按鍵對應",
+      "it": "mappa dei tasti",
+      "ru": "раскладка клавиш",
+      "tr": "tuş haritası",
+      "pl": "mapa klawiszy",
+      "id": "keymap",
+      "vi": "keymap",
+      "hi": "कीमैप"
     },
     "sparkline": {
       "ja": "スパークライン",
@@ -300,7 +468,14 @@
       "pt-BR": "sparkline",
       "ko": "스파크라인",
       "zh-CN": "迷你图",
-      "zh-TW": "走勢圖"
+      "zh-TW": "走勢圖",
+      "it": "sparkline",
+      "ru": "спарклайн",
+      "tr": "sparkline",
+      "pl": "sparkline",
+      "id": "sparkline",
+      "vi": "sparkline",
+      "hi": "स्पार्कलाइन"
     },
     "append": {
       "ja": "追記",
@@ -310,7 +485,14 @@
       "pt-BR": "anexar",
       "ko": "덧붙이기",
       "zh-CN": "追加",
-      "zh-TW": "附加"
+      "zh-TW": "附加",
+      "it": "accodare",
+      "ru": "дописывать",
+      "tr": "sona eklemek",
+      "pl": "dopisywać",
+      "id": "menambahkan di akhir",
+      "vi": "nối thêm",
+      "hi": "जोड़ना"
     },
     "component": {
       "es": "componente",
@@ -319,7 +501,14 @@
       "pt-BR": "componente",
       "ko": "컴포넌트",
       "zh-CN": "组件",
-      "zh-TW": "元件"
+      "zh-TW": "元件",
+      "it": "componente",
+      "ru": "компонент",
+      "tr": "bileşen",
+      "pl": "komponent",
+      "id": "komponen",
+      "vi": "component",
+      "hi": "कंपोनेंट"
     },
     "hook": {
       "es": "hook",
@@ -328,7 +517,14 @@
       "pt-BR": "hook",
       "ko": "훅",
       "zh-CN": "Hook",
-      "zh-TW": "Hook"
+      "zh-TW": "Hook",
+      "it": "hook",
+      "ru": "хук",
+      "tr": "hook",
+      "pl": "hook",
+      "id": "hook",
+      "vi": "hook",
+      "hi": "हुक"
     },
     "deploy": {
       "es": "desplegar",
@@ -337,7 +533,14 @@
       "pt-BR": "fazer deploy",
       "ko": "배포",
       "zh-CN": "部署",
-      "zh-TW": "部署"
+      "zh-TW": "部署",
+      "it": "deploy",
+      "ru": "развернуть",
+      "tr": "dağıtmak",
+      "pl": "wdrożyć",
+      "id": "deploy",
+      "vi": "triển khai",
+      "hi": "डिप्लॉय"
     },
     "shortcut": {
       "es": "atajo",
@@ -346,7 +549,14 @@
       "pt-BR": "atalho",
       "ko": "단축키",
       "zh-CN": "快捷键",
-      "zh-TW": "快速鍵"
+      "zh-TW": "快速鍵",
+      "it": "scorciatoia",
+      "ru": "сочетание клавиш",
+      "tr": "kısayol",
+      "pl": "skrót klawiszowy",
+      "id": "pintasan",
+      "vi": "phím tắt",
+      "hi": "शॉर्टकट"
     },
     "terminal": {
       "es": "terminal",
@@ -355,7 +565,14 @@
       "pt-BR": "terminal",
       "ko": "터미널",
       "zh-CN": "终端",
-      "zh-TW": "終端機"
+      "zh-TW": "終端機",
+      "it": "terminale",
+      "ru": "терминал",
+      "tr": "terminal",
+      "pl": "terminal",
+      "id": "terminal",
+      "vi": "terminal",
+      "hi": "टर्मिनल"
     },
     "error boundary": {
       "de": "Error Boundary",
@@ -364,7 +581,14 @@
       "pt-BR": "error boundary",
       "ko": "에러 바운더리",
       "zh-CN": "错误边界",
-      "zh-TW": "錯誤邊界"
+      "zh-TW": "錯誤邊界",
+      "it": "error boundary",
+      "ru": "граница ошибок",
+      "tr": "hata sınırı",
+      "pl": "granica błędów",
+      "id": "error boundary",
+      "vi": "error boundary",
+      "hi": "एरर बाउंड्री"
     },
     "focus pad": {
       "es": "panel de foco",
@@ -373,31 +597,70 @@
       "pt-BR": "área de foco",
       "ko": "포커스 패드",
       "zh-CN": "焦点区",
-      "zh-TW": "焦點區"
+      "zh-TW": "焦點區",
+      "it": "pannello del focus",
+      "ru": "панель фокуса",
+      "tr": "odak alanı",
+      "pl": "panel fokusu",
+      "id": "focus pad",
+      "vi": "vùng focus",
+      "hi": "फ़ोकस पैड"
     },
     "dynamic segment": {
       "zh-CN": "动态路由段",
-      "zh-TW": "動態區段"
+      "zh-TW": "動態區段",
+      "it": "segmento dinamico",
+      "ru": "динамический сегмент",
+      "tr": "dinamik segment",
+      "pl": "segment dynamiczny",
+      "id": "segmen dinamis",
+      "vi": "phân đoạn động",
+      "hi": "डायनामिक सेगमेंट"
     },
     "offscreen": {
       "zh-CN": "离屏"
     },
     "confirmation key": {
       "de": "Bestätigungstaste",
-      "es": "tecla de confirmación"
+      "es": "tecla de confirmación",
+      "it": "tasto di conferma",
+      "ru": "клавиша подтверждения",
+      "tr": "onay tuşu",
+      "pl": "klawisz potwierdzenia",
+      "id": "tombol konfirmasi",
+      "vi": "phím xác nhận",
+      "hi": "पुष्टि करने वाली कुंजी"
     },
     "deep link": {
       "de": "Deep-Link"
     },
     "named engineer": {
       "zh-CN": "专属工程师",
-      "zh-TW": "專屬工程師"
+      "zh-TW": "專屬工程師",
+      "it": "ingegnere di riferimento",
+      "ru": "закреплённый инженер",
+      "tr": "atanmış mühendis",
+      "pl": "przydzielony inżynier",
+      "id": "engineer khusus",
+      "vi": "kỹ sư phụ trách riêng",
+      "hi": "नियुक्त इंजीनियर"
     },
     "kB": {
-      "fr": "ko"
+      "fr": "ko",
+      "ru": "КБ"
     },
     "Next steps": {
-      "es": "Próximos pasos"
+      "es": "Próximos pasos",
+      "it": "Prossimi passi",
+      "ru": "Что дальше",
+      "tr": "Sonraki adımlar",
+      "pl": "Następne kroki",
+      "id": "Langkah berikutnya",
+      "vi": "Bước tiếp theo",
+      "hi": "अगले कदम"
+    },
+    "framework": {
+      "tr": "framework"
     }
   },
   "notes": {
