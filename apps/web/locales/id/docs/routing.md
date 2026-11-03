@@ -36,7 +36,7 @@ Navigasi
 `useRouter`
 
 <!-- s:97ca5cffaf -->
-Lakukan navigasi dari kode:
+Navigasi dari kode:
 
 <!-- s:4d9f7f9c5b -->
 `usePathname` dan `useParams`
@@ -45,4 +45,4 @@ Lakukan navigasi dari kode:
 Baca route saat ini:
 
 <!-- s:a5386906c8 -->
-Navigasi mundur, maju, dan tautan langsung semuanya berfungsi. Pada host statis, segmen dinamis memerlukan fallback ke `index.html`. Adapter `static` menulis fallback tersebut sebagai `404.html`.
+Navigasi mundur, maju, dan deep link semuanya berfungsi. Pada host statis, segmen dinamis memerlukan fallback ke `index.html`. Adapter `static` menulis fallback tersebut sebagai `404.html`.

@@ -1,6 +1,6 @@
 # Polish (pl)
 
-- Address the reader informally (Ty) in docs, UI and marketing. Never Pan/Pani or Państwo. Polish drops the pronoun, so write the verb alone; when a pronoun or possessive is needed it's lowercase in UI and docs (twoja aplikacja, w twojej konsoli). Instructions use the imperative: „Uruchom `bun dev`”, „Otwórz konsolę”.
+- Address the reader informally (ty) in docs, UI and marketing. Never Pan/Pani or Państwo. Polish drops the pronoun, so write the verb alone; when a pronoun or possessive is needed it's lowercase in UI and docs (twoja aplikacja, w twojej konsoli). Instructions use the imperative: „Uruchom `bun dev`”, „Otwórz konsolę”.
 - Headings and labels are noun phrases or infinitives without a period: „Instalacja”, „Otwieranie konsoli”, „Grupowanie tras”. Sentence case: only the first word and proper names take a capital.
 - Quotes are „…” (U+201E, U+201D), with «…» inside. Browser interface labels go in „…” and match Chrome's Polish interface: „Zachowaj dziennik”, „Ustawienia”. The Console panel is „Konsola”.
 - Numerals govern the noun's case: 1 klatka, 2–4 klatki (also 22–24), 5–21 klatek (also 25–31); 1 pytanie, 3 pytania, 10 pytań. Plural catalog strings have one, few, many and other forms; other is for fractions (1,5 klatki).

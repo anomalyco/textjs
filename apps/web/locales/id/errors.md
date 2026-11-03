@@ -146,7 +146,7 @@ Digunakan di luar <AppRouter>
 `useRouter`, `usePathname`, `useParams`, `useSearchParams`, `useAppTheme` dan `<Link>` membaca state yang disediakan `<AppRouter>`. Komponen di-render di luarnya, biasanya dalam pemanggilan `renderToConsole` mandiri atau pengujian unit.
 
 <!-- s:0dd134139b -->
-Jalankan aplikasi dengan `text dev`, `text start` atau `text run`, yang memasang `<AppRouter>` untuk Anda. Saat melakukan rendering secara manual (pengujian, penyematan), pasang router alih-alih halaman:
+Jalankan aplikasi dengan `text dev`, `text start` atau `text run`, yang memasang `<AppRouter>` untuk Anda. Saat me-render secara manual (pengujian, penyematan), pasang router alih-alih halaman:
 
 <!-- s:f72dd41076 -->
 File route tidak memiliki komponen default

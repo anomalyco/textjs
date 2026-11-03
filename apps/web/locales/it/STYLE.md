@@ -4,7 +4,7 @@
 - Headings and labels are noun phrases or infinitives without a period: «Installazione», «Aprire la console», «Raggruppare le route». Sentence case: only the first word and proper names take a capital.
 - Quotes are «…», with “…” inside. Browser interface labels go in «…» and match Chrome's Italian interface: «Mantieni il log», «Impostazioni». The Console panel is «Console».
 - Use the typographic apostrophe (’) for every elision in prose: l’app, l’errore, un’app, dell’interfaccia, all’avvio, nell’URL, sull’elemento, c’è, dov’è. ASCII ' stays in code. Un without an apostrophe before a masculine word (un errore, un hook, un layout); un’ only before a feminine one (un’app, un’API).
-- Elide the article before English words that start with a vowel or a silent h: l’hook, l’handler, l’URL; plurals take gli (gli hook, gli handler). English nouns don't take a plural -s: i frame, le route, i componenti.
+- Elide the article before English words that start with a vowel or an h: l’hook, l’handler, l’URL; plurals take gli (gli hook, gli handler). English nouns don't take a plural -s: i frame, le route, i componenti.
 - Accents: è (is), but perché, poiché, né, sé with é. Capital È, never E'. Grave accents on à, ì, ò, ù.
 - Decimal comma, and a no-break space (U+00A0) before units in prose: 0,163 ms, 66 ms, 21 kB. The percent sign follows the number without a space: 70,6%. Four-digit numbers take no separator (3200 celle); larger ones take a period (12.000 frame). Never touch version numbers (Bun 1.2+, Node.js 22+, 1.4.1), numbers in code, paths or URLs.
 - Dates read 3 novembre 2026. Ranges use an en dash: 70–81%.

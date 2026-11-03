@@ -20,7 +20,7 @@ Segmen dinamis bekerja dengan cara yang sama seperti di Next.js. `[id]` menjadi 
 Route handler berada di `app/api` dan mengembalikan `Response` standar:
 
 <!-- s:fe0c29445c -->
-Router menjaga sinkronisasi `window.location` melalui `history.pushState`, sehingga Kembali, Maju, dan tautan langsung berfungsi, serta menulis `metadata.title` ke `document.title`. Aplikasi menggambar di konsol, dan halaman menampung focus pad yang mengumpulkan input.
+Router menjaga sinkronisasi `window.location` melalui `history.pushState`, sehingga Kembali, Maju, dan deep link berfungsi, serta menulis `metadata.title` ke `document.title`. Aplikasi menggambar di konsol, dan halaman menampung focus pad yang mengumpulkan input.
 
 <!-- s:6109f13d80 -->
 CLI

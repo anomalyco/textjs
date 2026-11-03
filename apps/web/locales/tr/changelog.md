@@ -7,9 +7,10 @@ Biçim, [Değişiklik günlüğü tutma](https://keepachangelog.com/en/1.1.0/) t
 <!-- s:2e16922cfc -->
 Eklenenler
 
-<!-- s:fd5b09c2ec -->
-- `@textjs/react`: `<FocusPad messages>`, çevrilmiş siteler için odak alanının yerleşik metinlerinden herhangi birini değiştirir. Her satırı, ekran okuyucu etiketlerini ve konsol boyutu denetimini kapsar. `<TextCanvas>` ve `<ViewportControl>` da `messages` alır. `<ViewportControl>`, yalnızca boyut denetiminin anahtarlarını kullanır. “Sonra buraya tıklayın ve ↑ ↓ tuşlarına basın.” gibi bir değer içeren metinler, cümlenin tamamını döndüren fonksiyonlardır. `defaultFocusPadMessages`, İngilizce metni içerir. [Odak alanını çevirme](https://textjs.org/docs/internationalization#translating-the-focus-pad) bölümüne bakın.
-- `@textjs/react`: sağdan sola yazılan sayfalarda odak alanı, ⌘ ⌥ J gibi tuş simgelerini ve 120×36 gibi konsol boyutlarını soldan sağa tutar, boyut denetimini ve adım çubuğunu aynalar. Çince ve Japonca sayfalarda iki cümlesi arasındaki boşluğu kaldırır; Korecede boşluğu korur.
+<!-- s:f71df9184f -->
+- `@textjs/react`: `<FocusPad messages>`, çevrilmiş siteler için odak alanının yerleşik metinlerinden herhangi birini değiştirir. Her satırı, ekran okuyucu etiketlerini ve konsol boyutu denetimini kapsar. `<TextCanvas>` ve `<ViewportControl>` da `messages` alır. `<ViewportControl>` yalnızca boyut denetiminin anahtarlarını kullanır. “Sonra buraya tıklayın ve ↑ ↓ tuşlarına basın.” gibi bir değer içeren metinler, cümlenin tamamını döndüren işlevlerdir. `defaultFocusPadMessages` İngilizce metni içerir. [Odak alanını çevirme](https://textjs.org/docs/internationalization#translating-the-focus-pad) bölümüne bakın.
+- `@textjs/react`: sağdan sola yazılan sayfalarda odak alanı, ⌘ ⌥ J gibi tuş etiketlerini ve 120×36 gibi konsol boyutlarını soldan sağa tutar; boyut denetimini ve adım çubuğunu aynalar. Çince ve Japonca sayfalarda iki cümlesi arasındaki boşluğu kaldırır; Korecede korur.
+- textjs.org: textjs.org/ja artık taslak değil. Altbilgideki dil seçici aynı sayfayı İngilizce veya Japonca açar. Japoncaya ayarlanmış bir tarayıcıda “Japonca oku” düğmesi, textjs.org/ja üzerindeki İngilizce bir tarayıcıda ise “İngilizce oku” düğmesi görünür. Bir dil seçtiğinizde veya düğmeyi kapattığınızda düğme artık görünmez. Arama motorları çevrilmiş Japonca sayfaları dizine ekler ve her birini İngilizce sürümüyle eşleştirir.
 - textjs.org: textjs.org/ja üzerinde odak alanı, her demonun tuşlarının altındaki etiketler dahil her sayfada Japoncadır.
 
 <!-- s:5b88618770 -->

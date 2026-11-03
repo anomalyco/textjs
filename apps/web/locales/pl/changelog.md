@@ -7,10 +7,11 @@ Format opiera się na [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), 
 <!-- s:2e16922cfc -->
 Dodano
 
-<!-- s:fd5b09c2ec -->
-- `@textjs/react`: `<FocusPad messages>` zastępuje dowolne wbudowane teksty panelu na przetłumaczonych stronach. Obejmuje każdy wiersz, etykiety dla czytników ekranu i kontrolkę rozmiaru konsoli. `<TextCanvas>` i `<ViewportControl>` również przyjmują `messages`. `<ViewportControl>` używa tylko kluczy kontrolki rozmiaru. Teksty zawierające wartość, takie jak „Potem kliknij tutaj i naciśnij ↑ ↓.”, są funkcjami zwracającymi całe zdanie. `defaultFocusPadMessages` zawiera angielskie teksty. Zobacz [Tłumaczenie panelu fokusu](https://textjs.org/docs/internationalization#translating-the-focus-pad).
-- `@textjs/react`: na stronach pisanych od prawej do lewej panel fokusu zachowuje kierunek od lewej do prawej dla symboli klawiszy, takich jak ⌘ ⌥ J, i rozmiarów konsoli, takich jak 120×36, oraz odwraca kontrolkę rozmiaru i pasek kroków. Na stronach chińskich i japońskich usuwa spację między dwoma zdaniami; na koreańskich ją zachowuje.
-- textjs.org: na textjs.org/ja panel fokusu jest po japońsku na każdej stronie, włącznie z etykietami pod klawiszami każdego dema.
+<!-- s:f71df9184f -->
+- `@textjs/react`: `<FocusPad messages>` zastępuje dowolne wbudowane teksty panelu na przetłumaczonych stronach. Obejmuje każdy wiersz, etykiety dla czytników ekranu i kontrolkę rozmiaru konsoli. `<TextCanvas>` i `<ViewportControl>` również przyjmują `messages`. `<ViewportControl>` używa tylko kluczy kontrolki rozmiaru. Teksty zawierające wartość, takie jak „Potem kliknij tutaj i naciśnij ↑ ↓.”, są funkcjami zwracającymi całe zdanie. `defaultFocusPadMessages` zawiera tekst w języku angielskim. Zobacz [Tłumaczenie panelu fokusu](https://textjs.org/docs/internationalization#translating-the-focus-pad).
+- `@textjs/react`: na stronach pisanych od prawej do lewej panel fokusu zachowuje kierunek od lewej do prawej dla symboli klawiszy, takich jak ⌘ ⌥ J, oraz rozmiarów konsoli, takich jak 120×36, a kontrolkę rozmiaru i pasek kroków wyświetla w odbiciu lustrzanym. Na stronach chińskich i japońskich usuwa spację między swoimi dwoma zdaniami; na koreańskich ją zachowuje.
+- textjs.org: textjs.org/ja nie jest już wersją roboczą. Selektor języka w stopce otwiera tę samą stronę po angielsku lub w języku 日本語. Przeglądarka ustawiona na język japoński otrzymuje przycisk 日本語で読む, a przeglądarka ustawiona na angielski na textjs.org/ja otrzymuje przycisk Czytaj po angielsku. Przycisk przestaje się pojawiać po wybraniu języka lub jego zamknięciu. Wyszukiwarki indeksują przetłumaczone strony japońskie i łączą każdą z jej angielską wersją.
+- textjs.org: na textjs.org/ja panel fokusu jest po japońsku na każdej stronie, łącznie z etykietami pod klawiszami każdego dema.
 
 <!-- s:5b88618770 -->
 Zmieniono

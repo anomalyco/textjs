@@ -62,7 +62,7 @@ Frame dan idle
 Sebelum alat membaca frame, alat menunggu aplikasi menjadi idle: tidak ada frame terjadwal, tidak ada `fetch` yang sedang berjalan, dan tidak ada commit atau frame selama 50 ms. Jadi agen melihat hasil inputnya, bukan frame di tengah pembaruan.
 
 <!-- s:fbad6f5c1a -->
-`<Spinner>` atau grafik yang diperbarui sekali per detik tetap dianggap idle di antara pembaruan, sehingga halaman dengan animasi tetap terbaca. Aplikasi yang melakukan rendering lebih sering daripada setiap 50 ms tidak pernah menjadi idle. Pembacaan berhenti menunggu setelah 1,5 detik (`settleMs` mengubah durasi ini), mengeluarkan frame terbaru dan menandainya sebagai `busy`. `wait_for` tanpa teks menunggu idle, dengan `quietMs` tersendiri, dan mengembalikan error jika kondisi idle tidak pernah tercapai.
+`<Spinner>` atau grafik yang diperbarui sekali per detik tetap dianggap idle di antara pembaruan, sehingga halaman dengan animasi tetap terbaca. Aplikasi yang me-render lebih sering daripada setiap 50 ms tidak pernah menjadi idle. Pembacaan berhenti menunggu setelah 1,5 detik (`settleMs` mengubah durasi ini), mengeluarkan frame terbaru dan menandainya sebagai `busy`. `wait_for` tanpa teks menunggu idle, dengan `quietMs` tersendiri, dan mengembalikan error jika kondisi idle tidak pernah tercapai.
 
 <!-- s:c5250c2f7a -->
 Koordinat berupa sel berbasis nol: `x` adalah kolom, `y` adalah baris. Karakter lebar seperti CJK dan emoji menempati dua kolom.
@@ -92,7 +92,7 @@ Opsi
 Cara kerja
 
 <!-- s:7c71219a13 -->
-`text mcp` menjalankan aplikasi Anda dengan cara yang sama seperti [`text run`](/docs/terminal): setiap modul route diimpor di awal, App Router menggunakan riwayat dalam memori, dan panggilan `fetch("/api/…")` dengan origin yang sama menjalankan handler Anda dalam proses yang sama. Frame dikirim ke kisi sel di luar layar, bukan ke terminal. Halaman yang di-render di server (`export const runtime = "server"`) dan komponen `async function` di dalamnya melakukan rendering dalam proses yang sama, seperti pada `text dev`, dan frame dibaca setelah semuanya selesai.
+`text mcp` menjalankan aplikasi Anda dengan cara yang sama seperti [`text run`](/docs/terminal): setiap modul route diimpor di awal, App Router menggunakan riwayat dalam memori, dan panggilan `fetch("/api/…")` dengan origin yang sama menjalankan handler Anda dalam proses yang sama. Frame dikirim ke kisi sel di luar layar, bukan ke terminal. Halaman yang di-render di server (`export const runtime = "server"`) dan komponen `async function` di dalamnya me-render dalam proses yang sama, seperti pada `text dev`, dan frame dibaca setelah semuanya selesai.
 
 <!-- s:c965dcc0e4 -->
 `reload` melepas aplikasi, menghapus setiap modul proyek dari cache modul Bun (termasuk file di luar `app/`), memindai `app/` lagi dan memasang ulang aplikasi di lokasi saat ini.

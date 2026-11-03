@@ -23,7 +23,7 @@ Adaptor server (`bun`, `vercel`, dan `cloudflare`) menjalankan pipeline yang sam
 Statis
 
 <!-- s:9ebd0d2866 -->
-Gunakan untuk host tanpa server, seperti GitHub Pages, S3, atau CDN. Route handler `GET` dengan `dynamic = "force-static"` atau `revalidate` menjalani prerender menjadi file: `app/api/feed.json/route.ts` menjadi `dist/api/feed.json`. Salinan `index.html` ditulis ke `404.html` agar tautan langsung membuka aplikasi konsol. Host statis tidak dapat membedakan curl dari browser, sehingga curl menerima halaman HTML.
+Gunakan untuk host tanpa server, seperti GitHub Pages, S3, atau CDN. Route handler `GET` dengan `dynamic = "force-static"` atau `revalidate` menjalani prerender menjadi file: `app/api/feed.json/route.ts` menjadi `dist/api/feed.json`. Salinan `index.html` ditulis ke `404.html` agar deep link membuka aplikasi konsol. Host statis tidak dapat membedakan curl dari browser, sehingga curl menerima halaman HTML.
 
 <!-- s:1e90536a2a -->
 Build gagal dan mencantumkan setiap alasannya jika aplikasi memerlukan server: `middleware.ts`, [route yang di-render di server](/docs/server-rendering), route handler dinamis, route handler dengan segmen dinamis, atau metode selain `GET`. Konfigurasikan `rewrites` pada host sebagai gantinya.

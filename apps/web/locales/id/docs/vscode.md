@@ -79,7 +79,7 @@ Perintah
 | Text.js: New Page | `app/<route>/page.tsx` dengan metadata dan `params` bertipe |
 | Text.js: New Layout | `app/<route>/layout.tsx` |
 | Text.js: New Route Handler | `app/<route>/route.ts` dengan `GET` dan `POST` |
-| Text.js: New Loading UI / Error Boundary / Not Found Page | `loading.tsx`, `error.tsx`, `not-found.tsx` |
+| Text.js: New Loading UI / Error boundary / Not Found Page | `loading.tsx`, `error.tsx`, `not-found.tsx` |
 
 <!-- s:87b5f49afb -->
 Perintah scaffolding juga tersedia di menu konteks Explorer untuk folder. Perintah ini menerima segmen [App Router](/docs/routing) seperti `settings`, `blog/[slug]`, `docs/[...path]`, dan `(marketing)/about`, serta menolak menempatkan `page` dan `route.ts` dalam segmen yang sama. Proyek JavaScript (tanpa `tsconfig.json`) mendapatkan file `.jsx` dan `.js`.

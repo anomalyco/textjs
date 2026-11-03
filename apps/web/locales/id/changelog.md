@@ -7,9 +7,10 @@ Formatnya didasarkan pada [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 <!-- s:2e16922cfc -->
 Ditambahkan
 
-<!-- s:fd5b09c2ec -->
-- `@textjs/react`: `<FocusPad messages>` mengganti string bawaan apa pun pada pad untuk situs yang diterjemahkan. Cakupannya meliputi setiap baris, label pembaca layar, dan kontrol ukuran konsol. `<TextCanvas>` dan `<ViewportControl>` juga menerima `messages`. `<ViewportControl>` hanya menggunakan kunci kontrol ukuran. String yang memuat nilai, seperti “Lalu klik di sini dan tekan ↑ ↓.”, berupa fungsi yang mengembalikan seluruh kalimat. `defaultFocusPadMessages` memuat teks bahasa Inggris. Lihat [Menerjemahkan focus pad](https://textjs.org/docs/internationalization#translating-the-focus-pad).
-- `@textjs/react`: pada halaman kanan-ke-kiri, focus pad mempertahankan arah kiri-ke-kanan untuk tampilan tombol seperti ⌘ ⌥ J dan ukuran konsol seperti 120×36, serta mencerminkan kontrol ukuran dan bilah langkahnya. Pada halaman bahasa Mandarin dan Jepang, spasi di antara kedua kalimatnya dihilangkan; bahasa Korea tetap mempertahankannya.
+<!-- s:f71df9184f -->
+- `@textjs/react`: `<FocusPad messages>` mengganti string bawaan mana pun pada pad untuk situs terjemahan. Ini mencakup setiap baris, label pembaca layar, dan kontrol ukuran konsol. `<TextCanvas>` dan `<ViewportControl>` juga menerima `messages`. `<ViewportControl>` hanya menggunakan kunci kontrol ukuran. String yang memuat nilai, seperti “Lalu klik di sini dan tekan ↑ ↓.”, berupa fungsi yang mengembalikan seluruh kalimat. `defaultFocusPadMessages` memuat teks bahasa Inggris. Lihat [Menerjemahkan focus pad](https://textjs.org/docs/internationalization#translating-the-focus-pad).
+- `@textjs/react`: pada halaman kanan-ke-kiri, focus pad tetap menampilkan label tombol seperti ⌘ ⌥ J dan ukuran konsol seperti 120×36 dari kiri ke kanan, serta mencerminkan kontrol ukuran dan bilah langkahnya. Pada halaman berbahasa Mandarin dan Jepang, spasi di antara kedua kalimatnya dihilangkan; bahasa Korea tetap mempertahankannya.
+- textjs.org: textjs.org/ja tidak lagi berstatus draf. Pemilih bahasa di footer membuka halaman yang sama dalam bahasa Inggris atau 日本語. Browser yang diatur ke bahasa Jepang menampilkan tombol 日本語で読む, dan browser berbahasa Inggris di textjs.org/ja menampilkan Baca dalam bahasa Inggris. Tombol tidak muncul lagi setelah Anda memilih bahasa atau menutupnya. Mesin pencari mengindeks halaman terjemahan bahasa Jepang dan mencocokkan masing-masing dengan versi bahasa Inggrisnya.
 - textjs.org: di textjs.org/ja, focus pad menggunakan bahasa Jepang pada setiap halaman, termasuk label di bawah tombol setiap demo.
 
 <!-- s:5b88618770 -->

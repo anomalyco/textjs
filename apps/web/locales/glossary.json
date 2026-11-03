@@ -636,7 +636,14 @@
     },
     "named engineer": {
       "zh-CN": "专属工程师",
-      "zh-TW": "專屬工程師"
+      "zh-TW": "專屬工程師",
+      "it": "ingegnere di riferimento",
+      "ru": "закреплённый инженер",
+      "tr": "atanmış mühendis",
+      "pl": "przydzielony inżynier",
+      "id": "engineer khusus",
+      "vi": "kỹ sư phụ trách riêng",
+      "hi": "नियुक्त इंजीनियर"
     },
     "kB": {
       "fr": "ko",

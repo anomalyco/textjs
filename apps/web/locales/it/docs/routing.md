@@ -5,7 +5,7 @@ L’App Router associa le cartelle in `app/` agli URL e le mantiene sincronizzat
 Pagine
 
 <!-- s:c4bd849316 -->
-Esporta un componente come export predefinito da `page.tsx`:
+Esporta di default un componente da `page.tsx`:
 
 <!-- s:66a6e1dc46 -->
 Layout
@@ -45,4 +45,4 @@ Naviga dal codice:
 Leggi la route corrente:
 
 <!-- s:a5386906c8 -->
-Indietro, avanti e link diretti funzionano tutti. Su un host statico, i segmenti dinamici richiedono un fallback a `index.html`. L’adattatore `static` ne scrive uno come `404.html`.
+Indietro, avanti e deep link funzionano tutti. Su un host statico, i segmenti dinamici richiedono un fallback a `index.html`. L’adattatore `static` ne scrive uno come `404.html`.

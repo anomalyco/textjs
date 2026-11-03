@@ -23,7 +23,7 @@ Gli adattatori server (`bun`, `vercel` e `cloudflare`) eseguono la stessa pipeli
 Statico
 
 <!-- s:9ebd0d2866 -->
-Usalo per host senza server, come GitHub Pages, S3 o una CDN. I route handler `GET` con `dynamic = "force-static"` o `revalidate` vengono sottoposti a pre-rendering in file: `app/api/feed.json/route.ts` diventa `dist/api/feed.json`. Una copia di `index.html` viene scritta in `404.html` affinché i link diretti aprano l’app nella console. Gli host statici non distinguono curl da un browser, quindi curl riceve la pagina HTML.
+Usalo per host senza server, come GitHub Pages, S3 o una CDN. I route handler `GET` con `dynamic = "force-static"` o `revalidate` vengono sottoposti a pre-rendering in file: `app/api/feed.json/route.ts` diventa `dist/api/feed.json`. Una copia di `index.html` viene scritta in `404.html` affinché i deep link aprano l’app nella console. Gli host statici non distinguono curl da un browser, quindi curl riceve la pagina HTML.
 
 <!-- s:1e90536a2a -->
 La build fallisce, elencando ogni motivo, se l’app richiede un server: `middleware.ts`, [route renderizzate lato server](/docs/server-rendering), route handler dinamici, route handler con segmenti dinamici o metodi diversi da `GET`. Configura invece `rewrites` sull’host.

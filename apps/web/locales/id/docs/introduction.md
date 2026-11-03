@@ -1,5 +1,5 @@
 <!-- s:b3d5e86364 -->
-Text.js adalah framework React untuk aplikasi yang melakukan rendering di konsol DevTools dengan `console.log`.
+Text.js adalah framework React untuk aplikasi yang di-render di konsol DevTools dengan `console.log`.
 
 <!-- s:34bf1ea7dd -->
 Pratinjau ini berjalan langsung. Klik lalu tekan `↑`.
@@ -8,7 +8,7 @@ Pratinjau ini berjalan langsung. Klik lalu tekan `↑`.
 Fitur yang disertakan
 
 <!-- s:d3708efc68 -->
-- **React 19**: rendering konkuren, Suspense, dan batas galat.
+- **React 19**: concurrent rendering, Suspense, dan batas galat.
 - **App Router**: layout, halaman, segmen dinamis, dan route handler.
 - **Layout Yoga**: flexbox dalam WebAssembly, diselaraskan ke sel bilangan bulat.
 - **Turbolog**: satu panggilan `console.log` per frame yang berubah.

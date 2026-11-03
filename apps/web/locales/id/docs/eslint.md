@@ -23,7 +23,7 @@ Atau pilih aturan satu per satu:
 File konsol
 
 <!-- s:04573fe453 -->
-Sebagian besar aturan hanya berlaku untuk file yang melakukan rendering ke konsol: file yang mengimpor komponen atau hook (`Box`, `Text`, `useInput`, …) dari `@textjs/app` atau `@textjs/react`. File yang mengimpor `react-dom` atau `@textjs/react/dom` adalah kode halaman dan tidak diperiksa, sehingga situs web dapat menggabungkan halaman DOM dan aplikasi konsol dalam satu proyek. Mengimpor utilitas seperti `tokenize` atau `parseMarkdown` tidak menjadikan suatu file sebagai file konsol.
+Sebagian besar aturan hanya berlaku untuk file yang me-render ke konsol: file yang mengimpor komponen atau hook (`Box`, `Text`, `useInput`, …) dari `@textjs/app` atau `@textjs/react`. File yang mengimpor `react-dom` atau `@textjs/react/dom` adalah kode halaman dan tidak diperiksa, sehingga situs web dapat menggabungkan halaman DOM dan aplikasi konsol dalam satu proyek. Mengimpor utilitas seperti `tokenize` atau `parseMarkdown` tidak menjadikan suatu file sebagai file konsol.
 
 <!-- s:96e9c86b58 -->
 Aturan App Router mengikuti nama file (`page.tsx`, `layout.tsx`, `route.ts`, …) di dalam direktori `app/` mana pun, termasuk `src/app/`. Jika direktori Anda memiliki nama lain, teruskan `{ appDir: "routes" }` ke `valid-route-module`, `valid-metadata`, dan `route-handler-exports`.
@@ -96,7 +96,7 @@ Untuk animasi, `useAnimationFrame` mengikuti pengaturan interval frame renderer 
 `no-sub-frame-timers`
 
 <!-- s:a27426b886 -->
-Text.js mengeluarkan paling banyak satu frame setiap 66 ms (sekitar 15 fps). Interval 16 ms melakukan rendering empat kali per frame yang dikeluarkan; frame tambahan digabungkan dan hanya menghabiskan CPU. Aturan ini melaporkan jeda `setInterval`/`useInterval` di bawah `minInterval` (default `66`) dan `useAnimationFrame` dengan `fps` di atas 15.
+Text.js mengeluarkan paling banyak satu frame setiap 66 ms (sekitar 15 fps). Interval 16 ms me-render empat kali per frame yang dikeluarkan; frame tambahan digabungkan dan hanya menghabiskan CPU. Aturan ini melaporkan jeda `setInterval`/`useInterval` di bawah `minInterval` (default `66`) dan `useAnimationFrame` dengan `fps` di atas 15.
 
 <!-- s:bc8950c5dd -->
 `prefer-use-keymap`

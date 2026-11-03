@@ -20,7 +20,7 @@ I segmenti dinamici funzionano come in Next.js. `[id]` diventa un parametro, `[.
 I route handler si trovano in `app/api` e restituiscono una `Response` standard:
 
 <!-- s:fe0c29445c -->
-Il router mantiene sincronizzato `window.location` tramite `history.pushState`, quindi Indietro, Avanti e i link diretti funzionano, e scrive `metadata.title` in `document.title`. L’app disegna nella console e la pagina ospita un pannello del focus che raccoglie l’input.
+Il router mantiene sincronizzato `window.location` tramite `history.pushState`, quindi Indietro, Avanti e i deep link funzionano, e scrive `metadata.title` in `document.title`. L’app disegna nella console e la pagina ospita un pannello del focus che raccoglie l’input.
 
 <!-- s:6109f13d80 -->
 La CLI

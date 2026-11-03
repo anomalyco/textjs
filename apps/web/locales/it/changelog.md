@@ -7,10 +7,11 @@ Il formato si basa su [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) e
 <!-- s:2e16922cfc -->
 Aggiunte
 
-<!-- s:fd5b09c2ec -->
-- `@textjs/react`: `<FocusPad messages>` sostituisce qualsiasi stringa integrata nel pannello, per i siti tradotti. Copre ogni riga, le etichette per gli screen reader e il controllo delle dimensioni della console. Anche `<TextCanvas>` e `<ViewportControl>` accettano `messages`. `<ViewportControl>` usa solo le chiavi del controllo delle dimensioni. Le stringhe che contengono un valore, come «Poi fai clic qui e premi ↑ ↓.», sono funzioni che restituiscono l’intera frase. `defaultFocusPadMessages` contiene il testo inglese. Vedi [Tradurre il pannello del focus](https://textjs.org/docs/internationalization#translating-the-focus-pad).
-- `@textjs/react`: nelle pagine da destra a sinistra, il pannello del focus mantiene da sinistra a destra i tasti come ⌘ ⌥ J e le dimensioni della console come 120×36, e dispone specularmente il controllo delle dimensioni e la barra dei passaggi. Nelle pagine cinesi e giapponesi elimina lo spazio tra le due frasi; in coreano lo mantiene.
-- textjs.org: su textjs.org/ja, il pannello del focus è in giapponese in ogni pagina, incluse le etichette sotto i tasti di ciascuna demo.
+<!-- s:f71df9184f -->
+- `@textjs/react`: `<FocusPad messages>` sostituisce qualsiasi stringa predefinita del pannello, per i siti tradotti. Copre ogni riga, le etichette per gli screen reader e il controllo delle dimensioni della console. Anche `<TextCanvas>` e `<ViewportControl>` accettano `messages`. `<ViewportControl>` usa solo le chiavi del controllo delle dimensioni. Le stringhe che contengono un valore, come «Poi fai clic qui e premi ↑ ↓.», sono funzioni che restituiscono l’intera frase. `defaultFocusPadMessages` contiene il testo inglese. Vedi [Tradurre il pannello del focus](https://textjs.org/docs/internationalization#translating-the-focus-pad).
+- `@textjs/react`: nelle pagine da destra a sinistra, il pannello del focus mantiene da sinistra a destra i tasti come ⌘ ⌥ J e le dimensioni della console come 120×36, e rispecchia il controllo delle dimensioni e la barra dei passaggi. Nelle pagine in cinese e giapponese, elimina lo spazio tra le sue due frasi; in coreano lo mantiene.
+- textjs.org: textjs.org/ja non è più una bozza. Il selettore della lingua nel piè di pagina apre la stessa pagina in inglese o 日本語. Un browser impostato in giapponese mostra un pulsante 日本語で読む, mentre un browser in inglese su textjs.org/ja mostra Read in English. Il pulsante smette di apparire quando scegli una lingua o lo chiudi. I motori di ricerca indicizzano le pagine tradotte in giapponese e associano ciascuna alla sua versione inglese.
+- textjs.org: su textjs.org/ja, il pannello del focus è in giapponese in ogni pagina, comprese le etichette sotto i tasti di ogni demo.
 
 <!-- s:5b88618770 -->
 Modifiche

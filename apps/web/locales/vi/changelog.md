@@ -7,10 +7,11 @@ Tệp này ghi lại mọi thay đổi đáng chú ý của Text.js.
 <!-- s:2e16922cfc -->
 Đã thêm
 
-<!-- s:fd5b09c2ec -->
-- `@textjs/react`: `<FocusPad messages>` thay thế bất kỳ chuỗi tích hợp nào của vùng focus cho các trang đã dịch. Nó bao gồm mọi dòng, nhãn cho trình đọc màn hình và bộ điều khiển kích thước console. `<TextCanvas>` và `<ViewportControl>` cũng nhận `messages`. `<ViewportControl>` chỉ dùng các khóa của bộ điều khiển kích thước. Những chuỗi chứa giá trị, như “Sau đó nhấp vào đây và nhấn ↑ ↓.”, là các hàm trả về cả câu. `defaultFocusPadMessages` chứa văn bản tiếng Anh. Xem [Dịch vùng focus](https://textjs.org/docs/internationalization#translating-the-focus-pad).
-- `@textjs/react`: trên trang viết từ phải sang trái, vùng focus giữ các phím như ⌘ ⌥ J và kích thước console như 120×36 theo chiều trái sang phải, đồng thời đảo chiều bộ điều khiển kích thước và thanh bước. Trên trang tiếng Trung và tiếng Nhật, nó bỏ khoảng trắng giữa hai câu; tiếng Hàn giữ lại.
-- textjs.org: trên textjs.org/ja, vùng focus dùng tiếng Nhật trên mọi trang, bao gồm nhãn dưới các phím của từng bản demo.
+<!-- s:f71df9184f -->
+- `@textjs/react`: `<FocusPad messages>` thay thế bất kỳ chuỗi có sẵn nào của vùng focus cho các trang web đã dịch. Nó bao gồm mọi dòng, nhãn cho trình đọc màn hình và bộ điều chỉnh kích thước console. `<TextCanvas>` và `<ViewportControl>` cũng nhận `messages`. `<ViewportControl>` chỉ dùng các khóa của bộ điều chỉnh kích thước. Những chuỗi chứa một giá trị, chẳng hạn “Sau đó nhấp vào đây và nhấn ↑ ↓.”, là các hàm trả về cả câu. `defaultFocusPadMessages` chứa văn bản tiếng Anh. Xem [Dịch vùng focus](https://textjs.org/docs/internationalization#translating-the-focus-pad).
+- `@textjs/react`: trên các trang từ phải sang trái, vùng focus giữ các phím như ⌘ ⌥ J và kích thước console như 120×36 theo chiều từ trái sang phải, đồng thời phản chiếu bộ điều chỉnh kích thước và thanh bước. Trên các trang tiếng Trung và tiếng Nhật, nó bỏ khoảng trắng giữa hai câu; tiếng Hàn vẫn giữ khoảng trắng.
+- textjs.org: textjs.org/ja đã qua giai đoạn bản nháp. Bộ chọn ngôn ngữ ở chân trang mở cùng trang đó bằng tiếng Anh hoặc tiếng Nhật. Trình duyệt đặt ngôn ngữ tiếng Nhật có nút Đọc bằng tiếng Nhật, còn trình duyệt tiếng Anh trên textjs.org/ja có nút Đọc bằng tiếng Anh. Nút ngừng xuất hiện sau khi bạn chọn ngôn ngữ hoặc đóng nút. Công cụ tìm kiếm lập chỉ mục các trang đã dịch sang tiếng Nhật và ghép từng trang với phiên bản tiếng Anh tương ứng.
+- textjs.org: trên textjs.org/ja, vùng focus dùng tiếng Nhật trên mọi trang, bao gồm cả nhãn bên dưới các phím của từng bản demo.
 
 <!-- s:5b88618770 -->
 Đã thay đổi

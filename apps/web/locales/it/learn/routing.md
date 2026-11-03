@@ -1,5 +1,5 @@
 <!-- s:ce06f5c491 -->
-L’App Router associa i file in `app/` agli URL, seguendo le convenzioni dell’App Router di Next.js. La barra degli indirizzi e la cronologia del browser restano sincronizzate, quindi indietro, avanti e i link diretti funzionano mentre l’interfaccia viene renderizzata nella console.
+L’App Router associa i file in `app/` agli URL, seguendo le convenzioni dell’App Router di Next.js. La barra degli indirizzi e la cronologia del browser restano sincronizzate, quindi indietro, avanti e i deep link funzionano mentre l’interfaccia viene renderizzata nella console.
 
 <!-- s:00fe1aba85 -->
 I file sono route

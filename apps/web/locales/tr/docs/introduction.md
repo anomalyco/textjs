@@ -5,7 +5,7 @@ Text.js, DevTools konsolunda `console.log` ile render edilen uygulamalar için b
 Önizleme canlıdır. Üzerine tıklayın ve `↑` tuşuna basın.
 
 <!-- s:0bccbd98be -->
-İçerik
+Neler dahil
 
 <!-- s:d3708efc68 -->
 - **React 19**: eşzamanlı render etme, Suspense ve hata sınırları.

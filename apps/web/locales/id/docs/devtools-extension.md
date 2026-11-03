@@ -1,5 +1,5 @@
 <!-- s:263d7e4a86 -->
-Ekstensi Text.js DevTools menambahkan panel **Text.js** di sebelah Konsol. Ekstensi ini memeriksa aplikasi yang melakukan rendering di konsol.
+Ekstensi Text.js DevTools menambahkan panel **Text.js** di sebelah Konsol. Ekstensi ini memeriksa aplikasi yang me-render di konsol.
 
 <!-- s:becd3b25ff -->
 - **Komponen:** pohon React dari setiap root konsol, beserta prop, hook, key, dan node scene `tx-box` / `tx-text` di baliknya, yang ditata dalam sel.
@@ -54,7 +54,7 @@ Setiap batang mewakili satu frame renderer:
 Frame yang dilewati digambar redup: tidak ada perubahan, jadi tidak ada yang dicatat ke log. Grafik interval frame menunjukkan jeda antarframe yang dikeluarkan dibandingkan dengan interval minimum 66 ms.
 
 <!-- s:8abccb04ec -->
-Pengukuran waktu berhenti pada `console.log()`. Pemformatan dan penggambaran pesan berlangsung di dalam DevTools dan tidak bisa diamati dari halaman, sehingga linimasa tidak menampilkannya. Rendering konkuren yang melakukan commit di antara frame dihitung sebagai commit, tanpa pengukuran waktu.
+Pengukuran waktu berhenti pada `console.log()`. Pemformatan dan penggambaran pesan berlangsung di dalam DevTools dan tidak bisa diamati dari halaman, sehingga linimasa tidak menampilkannya. Concurrent rendering yang melakukan commit di antara frame dihitung sebagai commit, tanpa pengukuran waktu.
 
 <!-- s:5ae438610c -->
 Cara kerja

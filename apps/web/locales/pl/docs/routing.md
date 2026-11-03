@@ -23,7 +23,7 @@ Nawigacja
 `<Link>`
 
 <!-- s:d785ff2211 -->
-Komponent `<Link>` może otrzymać fokus i obsługuje jednoklawiszowe skróty klawiszowe.
+Komponent `<Link>` może otrzymać fokus i obsługuje skróty jednoklawiszowe.
 
 <!-- s:328e16abd4 -->
 | Prop | Opis |
