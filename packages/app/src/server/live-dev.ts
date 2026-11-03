@@ -206,6 +206,7 @@ export interface LiveDevOptions {
   basePath: string;
   title: string;
   viewport?: ViewportConfig;
+  focusHint?: boolean;
   live?: { maxSessions?: number; reconnectGraceMs?: number };
   logger?: { info(message: string): void; error(message: string): void };
 }
@@ -258,7 +259,7 @@ export function createLiveDevHandler(vite: ViteDevServer, o: LiveDevOptions): Li
     },
     createApp: async (init) => {
       const mod = await loadEntry();
-      return mod.createLiveApp({ ...init, routes: mod.routes, theme: o.viewport?.theme as ThemeName | undefined, defaultTitle: o.title || undefined });
+      return mod.createLiveApp({ ...init, routes: mod.routes, theme: o.viewport?.theme as ThemeName | undefined, defaultTitle: o.title || undefined, focusHint: o.focusHint });
     },
   });
 

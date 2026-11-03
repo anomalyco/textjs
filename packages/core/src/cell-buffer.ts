@@ -3,6 +3,7 @@
  */
 
 import { blendOver, type PackedColor } from "./color";
+import type { RowSnapshot } from "./internal";
 import {
   codePointWidth,
   graphemeWidth,
@@ -758,6 +759,45 @@ export class CellBuffer {
 
   toPlainString(trimEnd = false): string {
     return this.toPlainLines(trimEnd).join("\n");
+  }
+
+  /**
+   * @internal Draw `text` centered on row `y` over a full-width `bg` bar, for one encode. Returns
+   * what {@link _restoreRow} needs to put the row back without counting as a write, so incremental
+   * painting and mirrors never see the bar.
+   */
+  _overlayRow(y: number, text: string, fg: PackedColor, bg: PackedColor): RowSnapshot {
+    const W = this.width;
+    const i0 = y * W;
+    const snap: RowSnapshot = {
+      chars: this.chars.slice(i0, i0 + W),
+      fg: this.fg.slice(i0, i0 + W),
+      bg: this.bg.slice(i0, i0 + W),
+      attrs: this.attrs.slice(i0, i0 + W),
+      pool: this.graphemePool.length,
+      version: this._writeVersion,
+    };
+    this.resetScissor();
+    this.chars.fill(CHAR_SPACE, i0, i0 + W);
+    this.fg.fill(fg >>> 0, i0, i0 + W);
+    this.bg.fill(bg >>> 0, i0, i0 + W);
+    this.attrs.fill(0, i0, i0 + W);
+    this.rowHashValid[y] = 0;
+    this.drawText(Math.max(0, Math.floor((W - stringWidth(text)) / 2)), y, text, fg, bg, 0, W);
+    return snap;
+  }
+
+  /** @internal Undo {@link _overlayRow}. */
+  _restoreRow(y: number, snap: RowSnapshot): void {
+    const i0 = y * this.width;
+    this.chars.set(snap.chars, i0);
+    this.fg.set(snap.fg, i0);
+    this.bg.set(snap.bg, i0);
+    this.attrs.set(snap.attrs, i0);
+    for (let i = this.graphemePool.length - 1; i >= snap.pool; i--) this.poolLookup.delete(this.graphemePool[i] as string);
+    this.graphemePool.length = snap.pool;
+    this.rowHashValid[y] = 0;
+    this._writeVersion = snap.version;
   }
 
   /** Copy all cells from another buffer of the same size. */

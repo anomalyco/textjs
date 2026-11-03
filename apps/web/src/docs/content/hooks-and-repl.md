@@ -31,6 +31,20 @@ useWheel((e) => scrollBy(e.rows));
 const { cols, rows, focused, paused } = useViewport();
 ```
 
+## `usePageFocus`
+
+`usePageFocus()` returns whether the page has focus. Keystrokes reach the app only while it does. It's the same value as `useViewport().focused`, but it re-renders only when focus changes.
+
+```tsx
+const focused = usePageFocus();
+```
+
+While the page doesn't have focus and the app has a `useInput` or `usePaste` handler or a focus target, the console frame's last row reads "Click the page to use the keyboard". It doesn't appear in a terminal, in tests or in inline mirrors. To decide yourself when it shows, set `focusHint: false` in `text.config.ts` or `createConsoleRoot` and render `<FocusHint>`:
+
+```tsx
+<FocusHint active={editing} />
+```
+
 ## `useConsoleStats`
 
 ```tsx

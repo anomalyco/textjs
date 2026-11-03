@@ -66,6 +66,7 @@ export async function bootTextApp(options: BootOptions): Promise<TextApp> {
     height: vp.height ?? 36,
     responsive: vp.responsive ?? true,
     theme: vp.theme,
+    focusHint: config.focusHint ? undefined : false,
     // A prerendered shell (PPR) already cleared the console: append below it.
     initialClear: typeof window === "undefined" || (window as { __TEXTJS_SHELL__?: number }).__TEXTJS_SHELL__ !== 1,
     // …and its clear opened DevTools' post-clear pacing window.

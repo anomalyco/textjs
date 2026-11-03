@@ -9,6 +9,7 @@ const CONFIG_KEYS: Record<keyof TextConfig, true> = {
   viewport: true,
   devIndicators: true,
   showMirrorDefault: true,
+  focusHint: true,
   outDir: true,
   appDir: true,
   basePath: true,

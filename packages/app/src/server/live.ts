@@ -20,7 +20,7 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { isAppPath, LIVE_PATH, LIVE_PROTOCOL_VERSION, LIVE_SESSION_HEADER, LiveFrameEncoder, MAX_COLS, MAX_ROWS, parseLiveInput, sseEvent, type LiveInput, type LiveServerMessage } from "../live-protocol";
+import { isAppPath, LIVE_PATH, LIVE_PROTOCOL_VERSION, LIVE_SESSION_HEADER, LiveFrameEncoder, MAX_COLS, MAX_ROWS, parseLiveInput, sseEvent, type LiveBanner, type LiveInput, type LiveServerMessage } from "../live-protocol";
 import type { LiveApp, LiveAppOptions, RouteRuntime } from "./live-app";
 import { canonicalPathname, readRequestBody } from "./http";
 
@@ -146,6 +146,7 @@ export class LiveSession {
   private grace: ReturnType<typeof setTimeout> | null = null;
   private lastSent = -Infinity;
   private title: string | null = null;
+  private banner: LiveBanner | null = null;
   /** The last address-bar update and a pending document load, replayed to a reconnecting browser. */
   private lastUrl: LiveServerMessage | null = null;
   private pendingLoad: LiveServerMessage | null = null;
@@ -189,6 +190,7 @@ export class LiveSession {
     this.detachedAt = 0;
     this.write(sseEvent({ t: "hello", v: LIVE_PROTOCOL_VERSION, sid: this.id, resumed }, this.id));
     if (this.title !== null) this.write(sseEvent({ t: "title", title: this.title }));
+    if (this.banner !== null) this.write(sseEvent({ t: "banner", banner: this.banner }));
     // Messages a disconnected browser missed.
     if (resumed && this.lastUrl !== null) this.write(sseEvent({ ...(this.lastUrl as { t: "url"; href: string }), replace: true }));
     if (this.pendingLoad !== null) {
@@ -225,6 +227,7 @@ export class LiveSession {
   /** Send a non-frame message (written immediately, in order with frames). */
   send(message: LiveServerMessage): void {
     if (message.t === "title") this.title = message.title;
+    if (message.t === "banner") this.banner = message.banner;
     if (message.t === "url") this.lastUrl = message;
     if (message.t === "load") this.pendingLoad = message;
     if (this.stream !== null) this.write(sseEvent(message));
@@ -455,6 +458,7 @@ export class LiveServer {
           else session.send({ t: "url", href: this.basePath + to, replace: action === "replace" || action === "pop" });
         },
         onTitle: (title) => session.send({ t: "title", title }),
+        onBanner: (banner) => session.send({ t: "banner", banner }),
         onError: (error) => {
           this.options.onError?.(error);
           if (this.options.exposeErrors) session.send({ t: "error", message: error instanceof Error ? error.message : String(error) });

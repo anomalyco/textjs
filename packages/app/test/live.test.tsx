@@ -244,6 +244,60 @@ describe("live app", () => {
     await client.unmount();
   });
 
+  test("the focus hint travels to the player, which draws it in the console only", async () => {
+    await withoutActEnvironment(async () => {
+      const banners: unknown[] = [];
+      app = await createLiveApp({ routes: routes(), path: "/", cols: 60, rows: 14, focused: false, onBanner: (b) => banners.push(b) });
+      app.flush();
+      expect(banners.at(-1)).toMatchObject({ text: "Click the page to use the keyboard" });
+      expect(app.buffer.toPlainString()).not.toContain("Click the page");
+      const enc = new LiveFrameEncoder();
+      const con = new FakeConsole();
+      const player = new FramePlayerCore({ console: con, schedule: null });
+      player.applyFrame(JSON.parse(JSON.stringify(enc.encode(app.buffer))) as LiveFrame);
+      player.setBanner(JSON.parse(JSON.stringify(banners.at(-1))));
+      player.paint();
+      expect(String(con.logs.at(-1)?.[0])).toContain("Click the page to use the keyboard");
+      expect(player.buffer.toPlainString()).not.toContain("Click the page");
+      app.input({ type: "focus", focused: true });
+      app.flush();
+      expect(banners.at(-1)).toBeNull();
+      player.setBanner({ text: 1 });
+      player.paint();
+      expect(String(con.logs.at(-1)?.[0])).not.toContain("Click the page");
+    });
+  });
+
+  test("a passive server route never sends the hint; an interactive one sends it while blurred and clears it", async () => {
+    await withoutActEnvironment(async () => {
+      const banners: unknown[] = [];
+      app = await createLiveApp({ routes: routes(), path: "/other", cols: 60, rows: 14, focused: false, onBanner: (b) => banners.push(b) });
+      app.flush();
+      app.input({ type: "focus", focused: true });
+      app.input({ type: "focus", focused: false });
+      app.flush();
+      expect(app.buffer.toPlainString()).toContain("other server page");
+      expect(banners).toEqual([]);
+      // Client-side navigation to the interactive counter: it wants keys, so the blurred page gets the hint.
+      app.input({ type: "nav", href: "/" });
+      await until(() => banners.length > 0);
+      expect(banners.at(-1)).toMatchObject({ text: "Click the page to use the keyboard" });
+      // Back to the passive page: the handler goes away, and so does the hint.
+      app.input({ type: "nav", href: "/other" });
+      await until(() => banners.at(-1) === null);
+      expect(banners.at(-1)).toBeNull();
+    });
+  });
+
+  test("focusHint: false keeps server routes free of the hint", async () => {
+    await withoutActEnvironment(async () => {
+      const banners: unknown[] = [];
+      app = await createLiveApp({ routes: routes(), path: "/", cols: 60, rows: 14, focused: false, focusHint: false, onBanner: (b) => banners.push(b) });
+      app.flush();
+      expect(banners).toEqual([]);
+    });
+  });
+
   test("async server components stream into their Suspense holes", async () => {
     await withoutActEnvironment(async () => {
       probes = 0;
@@ -405,6 +459,44 @@ describe("live server (SSE + POST)", () => {
       s.close();
       await until(() => live?.sessions.size === 0);
       expect((await post(hello.sid, [])).status).toBe(410);
+    });
+  });
+
+  test("a stream that re-attaches after focus came back clears the player's banner", async () => {
+    await withoutActEnvironment(async () => {
+      await start();
+      const a = await openStream(base, "path=/&cols=50&rows=12&focused=0");
+      await until(() => a.messages.some((m) => m.t === "banner" && m.banner !== null) && frames(a).length > 0);
+      const sid = (a.messages[0] as { sid: string }).sid;
+      a.close();
+      await sleep(30);
+      // Focus returns while the stream is down; the browser reports it on the next POST.
+      expect((await post(sid, [{ type: "focus", focused: true }])).status).toBe(204);
+      const b = await openStream(base, "path=/&cols=50&rows=12&focused=1", { "Last-Event-ID": sid });
+      await until(() => frames(b).length > 0);
+      expect(b.messages.some((m) => m.t === "banner" && m.banner !== null)).toBe(false);
+
+      // The player as the browser runs it: `hello` starts a stream, then banners and frames apply in order.
+      const con = new FakeConsole();
+      const player = new FramePlayerCore({ console: con, schedule: null });
+      const play = (msgs: LiveServerMessage[]): void => {
+        for (const m of msgs) {
+          if (m.t === "hello") player.startStream();
+          else if (m.t === "banner") player.setBanner(m.banner);
+          else if (m.t === "f") player.applyFrame(m);
+        }
+        player.paint();
+      };
+      play(a.messages);
+      expect(String(con.logs.at(-1)?.[0])).toContain("Click the page to use the keyboard");
+      play(b.messages);
+      expect(String(con.logs.at(-1)?.[0])).not.toContain("Click the page to use the keyboard");
+      // An unchanged banner doesn't repaint.
+      const logged = con.logs.length;
+      player.setBanner(null);
+      player.paint();
+      expect(con.logs.length).toBe(logged);
+      b.close();
     });
   });
 

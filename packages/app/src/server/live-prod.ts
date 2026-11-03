@@ -74,7 +74,7 @@ export async function loadLiveProduction(outDir: string, options: LiveProduction
         options.authorize ??
         (options.middleware ? createLiveAuthorizer(() => options.middleware, { basePath: manifest.basePath, trustProxy: options.trustProxy, origin: options.origin }) : undefined),
       createApp: (init) =>
-        entry.createLiveApp({ ...init, routes: entry.routes, theme: manifest.viewport?.theme as ThemeName | undefined, defaultTitle: manifest.title || undefined }),
+        entry.createLiveApp({ ...init, routes: entry.routes, theme: manifest.viewport?.theme as ThemeName | undefined, defaultTitle: manifest.title || undefined, focusHint: manifest.focusHint }),
     });
   }
 

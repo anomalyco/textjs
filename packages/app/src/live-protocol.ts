@@ -27,6 +27,21 @@ export type LiveStyle = [fg: number, bg: number, attrs: number];
 /** `[y, runs, graphemes?]`: `runs` alternates style index and text. */
 export type LiveRow = [y: number, runs: Array<number | string>, graphemes?: string[]];
 
+/** A console-only bar over the last row of the frame, drawn by the player. */
+export interface LiveBanner {
+  text: string;
+  fg: string;
+  bg: string;
+}
+
+/** A banner from the server, or `null` when it is missing or malformed. */
+export function parseLiveBanner(value: unknown): LiveBanner | null {
+  if (typeof value !== "object" || value === null) return null;
+  const { text, fg, bg } = value as Record<string, unknown>;
+  if (typeof text !== "string" || typeof fg !== "string" || typeof bg !== "string" || text.length > 200 || fg.length > 64 || bg.length > 64) return null;
+  return { text, fg, bg };
+}
+
 export interface LiveFrame {
   t: "f";
   w: number;
@@ -46,6 +61,8 @@ export type LiveServerMessage =
   /** The app went back / forward (`router.back()`): move the browser's history by `delta`. */
   | { t: "go"; delta: number }
   | { t: "title"; title: string }
+  /** The bar over the console frame's last row (the focus hint), or `null` to remove it. */
+  | { t: "banner"; banner: LiveBanner | null }
   /** The next route renders on the client: load it as a document. */
   | { t: "load"; href: string }
   | { t: "error"; message: string };

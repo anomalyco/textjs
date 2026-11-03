@@ -6,6 +6,7 @@
 import { parseColor, type ColorInput } from "./color";
 import { CellBuffer } from "./cell-buffer";
 import { CssConsoleDriver, type ClearMode, type ConsoleTarget, type DriverRenderOptions } from "./drivers/css-console-driver";
+import type { ConsoleBanner } from "./internal";
 import type { ConsoleBrowser } from "./drivers/console-browser";
 import type { ConsoleTypographyOptions, StyleResolveOptions } from "./drivers/style";
 import { InputEngine, type FocusChangeEvent } from "./input";
@@ -193,6 +194,8 @@ export class ConsoleRenderer {
   private frameRingSize = 0;
   private readonly cleanup: Array<() => void> = [];
   private readonly focusListeners = new Set<(focused: boolean) => void>();
+  private readonly bannerListeners = new Set<(banner: ConsoleBanner | null) => void>();
+  private currentBanner: ConsoleBanner | null = null;
   private globalName: string | null = null;
   private lastSyncFlushAt = -Infinity;
   private telemetry: RendererStats;
@@ -310,6 +313,30 @@ export class ConsoleRenderer {
 
   get focused(): boolean {
     return this.telemetry.focused;
+  }
+
+  /** The bar drawn over the last row of logged frames (see {@link _setBanner}). @internal */
+  get _banner(): ConsoleBanner | null {
+    return this.currentBanner;
+  }
+
+  /**
+   * Draw a one-row bar over the last row of every frame logged to the console, or remove it with
+   * `null`. It never enters {@link buffer}, so `copyText()` and DOM mirrors don't show it. @internal
+   */
+  _setBanner(banner: ConsoleBanner | null): void {
+    const cur = this.currentBanner;
+    if (cur === banner || (cur !== null && banner !== null && cur.text === banner.text && cur.fg === banner.fg && cur.bg === banner.bg)) return;
+    this.currentBanner = banner;
+    this.driver._setBanner(banner);
+    for (const l of this.bannerListeners) l(banner);
+    this.requestRender();
+  }
+
+  /** @internal */
+  _onBannerChange(listener: (banner: ConsoleBanner | null) => void): () => void {
+    this.bannerListeners.add(listener);
+    return () => this.bannerListeners.delete(listener);
   }
 
   get paused(): boolean {
