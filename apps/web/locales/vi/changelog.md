@@ -7,8 +7,9 @@ Tệp này ghi lại mọi thay đổi đáng chú ý của Text.js.
 <!-- s:2e16922cfc -->
 Đã thêm
 
-<!-- s:892f5fce9a -->
+<!-- s:63133817e6 -->
 - textjs.org: các bản tiếng Tây Ban Nha, tiếng Pháp, tiếng Đức, tiếng Bồ Đào Nha Brazil, tiếng Hàn, tiếng Trung giản thể và phồn thể đã qua giai đoạn bản nháp tại textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn và /zh-tw. Bộ chọn ngôn ngữ ở chân trang và nút chọn theo ngôn ngữ trình duyệt cung cấp các ngôn ngữ này, như với tiếng Nhật. Công cụ tìm kiếm lập chỉ mục các trang đã dịch và liên kết từng trang với bản tiếng Anh tương ứng.
+- textjs.org: các bản tiếng Ý, tiếng Nga, tiếng Thổ Nhĩ Kỳ, tiếng Ba Lan, tiếng Indonesia, tiếng Việt và tiếng Hindi đã qua giai đoạn bản nháp tại textjs.org/it, /ru, /tr, /pl, /id, /vi và /hi. Bộ chọn ngôn ngữ ở chân trang và nút chọn theo ngôn ngữ trình duyệt cung cấp các ngôn ngữ này, như với các ngôn ngữ khác. Công cụ tìm kiếm lập chỉ mục các trang đã dịch và liên kết từng trang với bản tiếng Anh tương ứng.
 
 <!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>` thay thế bất kỳ chuỗi có sẵn nào của vùng focus cho các trang web đã dịch. Nó bao gồm mọi dòng, nhãn cho trình đọc màn hình và bộ điều chỉnh kích thước console. `<TextCanvas>` và `<ViewportControl>` cũng nhận `messages`. `<ViewportControl>` chỉ dùng các khóa của bộ điều chỉnh kích thước. Những chuỗi chứa một giá trị, chẳng hạn “Sau đó nhấp vào đây và nhấn ↑ ↓.”, là các hàm trả về cả câu. `defaultFocusPadMessages` chứa văn bản tiếng Anh. Xem [Dịch vùng focus](https://textjs.org/docs/internationalization#translating-the-focus-pad).

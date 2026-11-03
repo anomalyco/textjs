@@ -7,8 +7,9 @@ Format opiera się na [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), 
 <!-- s:2e16922cfc -->
 Dodano
 
-<!-- s:892f5fce9a -->
+<!-- s:63133817e6 -->
 - textjs.org: wersje hiszpańska, francuska, niemiecka, portugalska brazylijska, koreańska oraz chińska uproszczona i tradycyjna nie są już wersjami roboczymi pod adresami textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn i /zh-tw. Selektor języka w stopce i przycisk języka przeglądarki oferują je tak samo jak wersję japońską. Wyszukiwarki indeksują przetłumaczone strony i powiązują każdą z jej angielską wersją.
+- textjs.org: wersje włoska, rosyjska, turecka, polska, indonezyjska, wietnamska i hindi nie są już wersjami roboczymi pod adresami textjs.org/it, /ru, /tr, /pl, /id, /vi i /hi. Selektor języka w stopce i przycisk języka przeglądarki oferują je tak samo jak pozostałe wersje językowe. Wyszukiwarki indeksują przetłumaczone strony i powiązują każdą z jej angielską wersją.
 
 <!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>` zastępuje dowolne wbudowane teksty panelu na przetłumaczonych stronach. Obejmuje każdy wiersz, etykiety dla czytników ekranu i kontrolkę rozmiaru konsoli. `<TextCanvas>` i `<ViewportControl>` również przyjmują `messages`. `<ViewportControl>` używa tylko kluczy kontrolki rozmiaru. Teksty zawierające wartość, takie jak „Potem kliknij tutaj i naciśnij ↑ ↓.”, są funkcjami zwracającymi całe zdanie. `defaultFocusPadMessages` zawiera tekst w języku angielskim. Zobacz [Tłumaczenie panelu fokusu](https://textjs.org/docs/internationalization#translating-the-focus-pad).

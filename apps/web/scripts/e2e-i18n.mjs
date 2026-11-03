@@ -6,7 +6,7 @@
 //   BASE=http://localhost:4173 LOCALES=ja,de,zh-CN node scripts/e2e-i18n.mjs
 //
 // Each locale is checked as its status in src/i18n/locales.ts; `LOCALES=ja:draft` matches a build with that override.
-// A live locale is offered on English pages (picker and banner), a draft isn't.
+// A live locale is offered on English pages (picker and banner), a draft isn't. Without LOCALES, every live locale.
 //
 // Every other loopback port is blocked, so a local OpenCode server is never reached.
 import { readFileSync } from "node:fs";
@@ -18,7 +18,8 @@ const base = (process.env.BASE ?? "http://localhost:4173").replace(/\/$/, "");
 const port = new URL(base).port;
 const source = readFileSync(new URL("../src/i18n/locales.ts", import.meta.url), "utf8");
 const statusOf = (code) => new RegExp(`code: "${code}"[^}]*status: "(\\w+)"`).exec(source)?.[1] ?? "draft";
-const locales = (process.env.LOCALES ?? "ja").split(",").map((item) => {
+const allLive = [...source.matchAll(/code: "([^"]+)"[^}]*status: "live"/g)].map((m) => m[1]).join(",");
+const locales = (process.env.LOCALES || allLive).split(",").map((item) => {
   const [code, status] = item.split(":");
   return { code, path: code.toLowerCase(), live: (status ?? statusOf(code)) === "live" };
 });
@@ -217,8 +218,9 @@ try {
       const { page, context, errors } = await open(`/${p}${path}`, code);
       const leftover = async () => {
         const text = await padStrings(page);
-        // CJK: no English words at all; alphabetic locales: no English line verbatim.
-        return /^(ja|ko|zh)/.test(code) ? [...new Set(text.join(" ").match(/[A-Za-z]{2,}/g) ?? [])].filter((w) => !PAD_KEEP.has(w)) : text.filter((s) => s.length > 12 && english.open.concat(english.next).includes(s));
+        // Scripts without Latin letters (CJK, Cyrillic, Devanagari): no English words at all; Latin-script locales: no
+        // English line verbatim.
+        return /^(ja|ko|zh|ru|hi)/.test(code) ? [...new Set(text.join(" ").match(/[A-Za-z]{2,}/g) ?? [])].filter((w) => !PAD_KEEP.has(w)) : text.filter((s) => s.length > 12 && english.open.concat(english.next).includes(s));
       };
       const first = await leftover();
       check(first.length === 0, `/${p}${path}: the pad's first step is translated (${first.join(" | ")})`);
