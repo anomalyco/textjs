@@ -14,7 +14,7 @@ export const LAYOUTS: Record<"a" | "b" | "c", Layout> = {
   // 16:9: the whole window, DevTools docked on the right, so the picture is as large as the window allows.
   a: { dock: "side", page: { w: 560, h: 680 }, dt: { w: 719, h: 680 }, dpr: 2, filmPage: true },
   // 1:1: DevTools alone, square.
-  b: { dock: "side", page: { w: 560, h: 720 }, dt: { w: 720, h: 720 }, dpr: 3, filmPage: false },
+  b: { dock: "side", page: { w: 560, h: 640 }, dt: { w: 720, h: 640 }, dpr: 3, filmPage: false },
   // 9:16: a narrow window, DevTools docked below a short strip of the page.
   c: { dock: "bottom", page: { w: 600, h: 170 }, dt: { w: 600, h: 620 }, dpr: 3, filmPage: true },
 };

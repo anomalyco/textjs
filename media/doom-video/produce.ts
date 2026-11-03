@@ -128,8 +128,8 @@ sh([
 ]);
 console.error(`encoded in ${((performance.now() - t0) / 1000).toFixed(0)} s`);
 
-// 4. Poster (the shotgun pickup fight, 11.6 s into Doom's clock) and review frames.
-const posterAt = 11.62 - job.clip.from;
+// 4. Poster (an imp's fireballs coming down the corridor, 11.45 s into Doom's clock) and review frames.
+const posterAt = 11.45 - job.clip.from;
 sh(["ffmpeg", "-y", "-hide_banner", "-ss", posterAt.toFixed(3), "-i", out, "-frames:v", "1", "-q:v", "2", join(final, `doom-${cut}-${RATIO}-poster.jpg`)]);
 sh(["ffmpeg", "-y", "-hide_banner", "-i", out, "-vf", `fps=1,scale=${Math.round(comp.canvas.w / 4)}:-2,tile=6x5`, "-frames:v", "1", join(review, "sheet.jpg")]);
 for (const t of [0, 1, 2, 8.3, 15, D - 0.1, D + 1.5]) sh(["ffmpeg", "-y", "-hide_banner", "-ss", t.toFixed(2), "-i", out, "-frames:v", "1", "-q:v", "2", join(review, `t${t.toFixed(1)}.jpg`)]);

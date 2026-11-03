@@ -32,16 +32,16 @@ export const COMPOSITIONS: Record<"a" | "b" | "c", Composition> = {
     title: { y: 60, size: 46 },
     url: { size: 76 },
   },
-  // DevTools alone (720×636 CSS: tabs, console toolbar, the frame and the prompt), title above.
+  // DevTools alone (720×640 CSS: tabs, console toolbar, the frame and the prompt), title above.
   b: {
     canvas: { w: 1080, h: 1080 },
     scale: 1.375,
     x: Math.round((1080 - 720 * 1.375) / 2),
     y: 150,
     bar: 0,
-    dtCrop: { w: 720, h: 636 },
-    picture: { x: 44, y: 128, w: 550, h: 412 },
-    boxEdge: { x: 27, y: 150, w: 13, h: 300 },
+    dtCrop: { w: 720, h: 640 },
+    picture: { x: 50, y: 106, w: 613, h: 459 },
+    boxEdge: { x: 30, y: 150, w: 15, h: 300 },
     title: { y: 82, size: 44 },
     url: { size: 68 },
   },
