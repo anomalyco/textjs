@@ -128,7 +128,7 @@ describe("console companion (104×32)", () => {
     expect(h.frame()).toContain("explain the renderer");
     expect(h.frame().split("\n").length).toBe(rows);
     await h.key("return");
-    await h.wait(1200);
+    for (let i = 0; i < 100 && !/Thinking|Thought/.test(h.frame()); i++) await h.wait(50);
     f = h.frame();
     expect(f).toContain("explain the renderer");
     expect(f).toMatch(/Thinking|Thought/);
