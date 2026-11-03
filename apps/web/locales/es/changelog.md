@@ -7,8 +7,9 @@ El formato se basa en [Mantén un registro de cambios](https://keepachangelog.co
 <!-- s:2e16922cfc -->
 Novedades
 
-<!-- s:892f5fce9a -->
+<!-- s:63133817e6 -->
 - textjs.org: las versiones en español, francés, alemán, portugués de Brasil, coreano y chino simplificado y tradicional dejan de ser borradores en textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn y /zh-tw. El selector de idioma del pie de página y el botón de idioma del navegador las ofrecen, igual que el japonés. Los motores de búsqueda indexan las páginas traducidas y vinculan cada una con su versión en inglés.
+- textjs.org: las versiones en italiano, ruso, turco, polaco, indonesio, vietnamita e hindi dejan de ser borradores en textjs.org/it, /ru, /tr, /pl, /id, /vi y /hi. El selector de idioma del pie de página y el botón de idioma del navegador las ofrecen, igual que los demás idiomas. Los motores de búsqueda indexan las páginas traducidas y vinculan cada una con su versión en inglés.
 
 <!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>` sustituye cualquiera de las cadenas integradas del panel de foco para sitios traducidos. Abarca todas las líneas, las etiquetas para lectores de pantalla y el control de tamaño de la consola. `<TextCanvas>` y `<ViewportControl>` también aceptan `messages`. `<ViewportControl>` solo usa las claves del control de tamaño. Las cadenas que contienen un valor, como «Luego haz clic aquí y pulsa ↑ ↓.», son funciones que devuelven la frase completa. `defaultFocusPadMessages` contiene el texto en inglés. Consulta [Traducir el panel de foco](https://textjs.org/docs/internationalization#translating-the-focus-pad).
