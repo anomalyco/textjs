@@ -7,9 +7,13 @@ Text.js의 주요 변경 사항을 모두 이 파일에 기록해요.
 <!-- s:2e16922cfc -->
 추가
 
-<!-- s:fd5b09c2ec -->
+<!-- s:892f5fce9a -->
+- textjs.org: 스페인어, 프랑스어, 독일어, 브라질 포르투갈어, 한국어, 중국어 간체와 번체가 textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn, /zh-tw에서 초안 단계를 벗어났어요. 바닥글의 언어 선택기와 브라우저 언어 버튼은 일본어와 마찬가지로 이 언어들을 제공해요. 검색 엔진은 번역된 페이지를 색인에 등록하고 각 페이지를 영어 버전과 연결해요.
+
+<!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>`로 번역된 사이트에서 패드의 기본 문자열을 바꿀 수 있어요. 모든 줄, 스크린 리더 레이블, 콘솔 크기 컨트롤을 포함해요. `<TextCanvas>`와 `<ViewportControl>`도 `messages`를 받아요. `<ViewportControl>`은 크기 컨트롤의 키만 사용해요. “그다음 여기를 클릭하고 ↑ ↓를 누르세요.”처럼 값이 포함된 문자열은 문장 전체를 반환하는 함수예요. `defaultFocusPadMessages`에 영어 텍스트가 있어요. [포커스 패드 번역](https://textjs.org/docs/internationalization#translating-the-focus-pad)을 참고하세요.
 - `@textjs/react`: 오른쪽에서 왼쪽으로 쓰는 페이지에서 포커스 패드는 ⌘ ⌥ J 같은 키캡과 120×36 같은 콘솔 크기를 왼쪽에서 오른쪽으로 유지하고, 크기 컨트롤과 단계 표시줄을 좌우 반전해요. 중국어와 일본어 페이지에서는 두 문장 사이의 공백을 없애고, 한국어에서는 유지해요.
+- textjs.org: textjs.org/ja가 초안 단계를 벗어났어요. 바닥글의 언어 선택기는 같은 페이지를 영어 또는 日本語로 열어요. 일본어로 설정된 브라우저에는 日本語で読む 버튼이 표시되고, textjs.org/ja를 연 영어 브라우저에는 Read in English가 표시돼요. 언어를 선택하거나 버튼을 닫으면 더 이상 표시되지 않아요. 검색 엔진은 번역된 일본어 페이지를 색인에 등록하고 각 페이지를 영어 버전과 연결해요.
 - textjs.org: textjs.org/ja의 모든 페이지에서 포커스 패드를 일본어로 표시해요. 각 데모의 키 아래 레이블도 포함해요.
 
 <!-- s:5b88618770 -->
@@ -22,8 +26,9 @@ Text.js의 주요 변경 사항을 모두 이 파일에 기록해요.
 <!-- s:afe76b8d59 -->
 수정
 
-<!-- s:4290e90e78 -->
+<!-- s:b3d1adfa39 -->
 - textjs.org/ja: ⌘K 검색에 일본어 문서 제목이 표시되고 일본어 쿼리로 해당 제목을 검색해요. 이전에는 일본어 페이지 제목 아래에 영어 제목이 나열됐어요. 영어 이름으로도 여전히 페이지를 찾을 수 있어요: `routing`은 ルーティング을 찾고 `open the console`은 コンソールを開く를 찾아요.
+- textjs.org: textjs.org/ja와 textjs.org/docs/internationalization의 양방향 텍스트 예제에서, 콘솔에서 실행 중인 문서 예제의 변경 사항이 다시 페이지 미리보기에 표시돼요. 이제 콘솔에서 예제 위의 줄은 “▼ Docs › Introduction › Counter” 대신 “▼ Docs › Counter”로 표시돼요.
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom에서 Doom 자체의 스테레오 패닝과 거리 감쇠를 적용한 Doom 효과음을 재생해요. 페이지에서 처음 클릭하거나 키를 누르면 소리가 시작되고, 게임과 함께 일시 정지되며, Doom의 Options → Sound Volume 메뉴에 있는 Sfx Volume 설정을 따라요. 음악은 없어요.

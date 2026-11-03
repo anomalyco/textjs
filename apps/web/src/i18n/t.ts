@@ -4,6 +4,7 @@
  * and English keeps its plain strings. A string without a translation stays English.
  */
 
+import { datePatterns, formatWith, intlTag, type DatePatterns, type DateStyle } from "./intl";
 import { LOCALE } from "./locales";
 
 export type PluralCategory = "zero" | "one" | "two" | "few" | "many" | "other";
@@ -38,15 +39,26 @@ export function plural(count: number, forms: PluralForms, params?: Params): stri
 // Dates and numbers: always UTC and Latin digits, so prerendered and hydrated text agree in every browser
 // and numbers match the code samples and benchmarks.
 
-const TAG = `${LOCALE.code === "en" ? "en-US" : LOCALE.code}-u-nu-latn`;
+declare const __TEXTJS_LOCALE__: string | undefined;
+declare const __TEXTJS_DATES__: DatePatterns;
 
-/** `2026-10-31` or an ISO timestamp → `October 31, 2026` (English) / `2026年10月31日` (Japanese). */
-export function formatDate(iso: string, options: Intl.DateTimeFormatOptions = { year: "numeric", month: "long", day: "numeric" }): string {
-  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00Z` : iso);
-  return date.toLocaleDateString(TAG, { ...options, timeZone: "UTC" });
+const TAG = intlTag(LOCALE.code);
+/**
+ * The build's date patterns (`intl.ts`, defined next to `__TEXTJS_LOCALE__` in `vite.config.ts`); `bun test` and
+ * other unbuilt runs make their own. Testing the string lets the build drop `datePatterns` from the bundle.
+ */
+const DATES: DatePatterns = typeof __TEXTJS_LOCALE__ === "string" ? __TEXTJS_DATES__ : datePatterns(TAG);
+
+/** `2026-10-31` or an ISO timestamp → `October 31, 2026` (English) / `2026年10月31日` (Japanese), the same in every browser. */
+export function formatDate(iso: string, style: DateStyle = "long"): string {
+  return formatWith(DATES, iso, style);
 }
 
-/** `3200` → `3,200`; `0.9999, { style: "percent", maximumFractionDigits: 2 }` → `99.99%` (`99,99 %` in German). */
+/**
+ * `3200` → `3,200`; `0.9999, { style: "percent", maximumFractionDigits: 2 }` → `99.99%` (`99,99 %` in German).
+ * Calls with literal arguments are formatted by the build (`scripts/i18n/vite-plugin.ts`), so only numbers measured
+ * in the browser are formatted at runtime.
+ */
 export function formatNumber(n: number, options?: Intl.NumberFormatOptions): string {
   return n.toLocaleString(TAG, options);
 }

@@ -16,6 +16,7 @@ import { join } from "node:path";
 import type { Plugin } from "vite";
 import { assemble, blockId, parseTranslation } from "./document";
 import { headingsOf, type Heading } from "../../src/docs/outline";
+import { intlTag } from "../../src/i18n/intl";
 import { getLocale } from "../../src/i18n/locales";
 import { CALL, documentForFile, documentSources, errorPageDocs, LITERAL, parsePluralObject, PLURAL, readCatalog, readText, SRC_DIR, translationFile, USES_CATALOG, type Catalog, type DocumentSource } from "./sources";
 
@@ -41,6 +42,14 @@ const ENGLISH_ISLAND = [join(SRC_DIR, "docs") + "/", join(SRC_DIR, "blog") + "/"
 /** Modules with state the page and the console share; copying them would split it. */
 const SHARED_STATE = /\/learn\/(progress|captions)\.ts$/;
 const EN_QUERY = "lang=en";
+
+/** `formatNumber(3200)` or `formatNumber(0.9999, { style: "percent" })`: a number and options known at build time. */
+const STATIC_NUMBER = /(?<![.\w])formatNumber\(\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(\{[^{}()]*\}))?\s*\)/g;
+
+/** `{ style: "percent", maximumFractionDigits: 2 }` → its value; only string, number and boolean properties. */
+function literalOptions(source: string): Intl.NumberFormatOptions {
+  return JSON.parse(source.replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":').replace(/,\s*\}/, "}")) as Intl.NumberFormatOptions;
+}
 
 const clean = (id: string): string => id.split("?")[0] as string;
 const isEnglishCopy = (id: string): boolean => new RegExp(`[?&]${EN_QUERY}(&|$)`).test(id);
@@ -142,6 +151,8 @@ export function i18nPlugin(locale: string): Plugin {
         const value = !english && typeof catalog[key] === "object" ? catalog[key] : forms;
         return `plural(${count_}, ${JSON.stringify(value)}`;
       });
+      // Numbers known at build time ship formatted, like dates (src/i18n/intl.ts).
+      out = out.replace(STATIC_NUMBER, (_m, n: string, options?: string) => JSON.stringify(Number(n).toLocaleString(intlTag(english ? "en" : locale), options ? literalOptions(options) : undefined)));
       if (!english) moduleUnits.set(id, units);
       return out === code ? null : { code: out, map: null };
     },
