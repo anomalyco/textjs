@@ -95,6 +95,18 @@
 :is(h1, h2, h3):is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW)) {
   text-wrap: balance;
 }
+/* Chinese headings break only between phrases (spaces, punctuation, zero-width spaces in the catalog), and
+   anywhere only when one phrase is wider than the line. */
+:is(h1, h2, h3):is(:lang(zh-CN), :lang(zh-TW)) {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+/* A German compound wider than a phone (Konsolenanwendungen) hyphenates; shorter words never do. */
+:is(h1, h2, h3):lang(de) {
+  hyphens: auto;
+  hyphenate-limit-chars: 14 6 6;
+  overflow-wrap: break-word;
+}
 
 *,
 *::before,

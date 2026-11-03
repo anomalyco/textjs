@@ -83,7 +83,8 @@ function apiNames(): string[] {
     }
     for (const m of src.matchAll(/export\s+(?:async\s+)?(?:function|const|class)\s+(\w+)/g)) names.add(m[1] as string);
   }
-  return [...names];
+  // Exports that are plain words (`shared`, `themes`, `sparkline`) are translated in prose; in code they're in backticks.
+  return [...names].filter((n) => !/^[a-z]+$/.test(n));
 }
 const API = apiNames();
 

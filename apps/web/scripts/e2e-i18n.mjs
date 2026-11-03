@@ -75,7 +75,11 @@ try {
       const { page, context, errors } = await open(`/${p}/docs/routing`, code);
       check((await page.getAttribute("html", "lang")) === code, `/${p}/docs/routing has lang=${code}`);
       check((await page.getAttribute("html", "dir")) === "ltr", `/${p}/docs/routing has dir=ltr`);
-      check(!/^Routing$/.test(((await page.textContent("h1")) ?? "").trim()), `${code}: the title is translated`);
+      const lead = async (pg) => ((await pg.locator("article p, .prose p").first().textContent()) ?? "").trim();
+      const english = await context.newPage();
+      await english.goto(`${base}/docs/routing`, { waitUntil: "networkidle" });
+      check((await lead(page)) !== (await lead(english)), `${code}: the page is translated`);
+      await english.close();
       check((await page.locator(".locale-suggestion").count()) === 0, `${code}: no banner when the browser language matches`);
       // Client navigation keeps the prefix and stays in the SPA.
       await page.evaluate(() => (window.__spa = true));
