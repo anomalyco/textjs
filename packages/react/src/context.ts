@@ -4,6 +4,7 @@ import type { ConsoleContainer } from "./reconciler";
 import type { FocusManager } from "./focus";
 import type { InputManager } from "./input-manager";
 import type { StatsStore, ViewportStore } from "./stores";
+import type { TextTheme } from "./theme";
 
 /** A focus / input scope. Trapping scopes (open modals) confine Tab order and `useInput`. */
 export interface Scope {
@@ -46,6 +47,13 @@ export function createScope(parent: Scope, trap: boolean): Scope {
 export const ScopeContext = sharedContext<Scope>("scopeContext", ROOT_SCOPE, "TextScopeContext");
 
 /** Everything hooks need from the mounted console root. */
+/** The root's theme, shared by the root shell, the App Router and the focus hint. */
+export interface RootThemeStore {
+  get(): TextTheme;
+  set(theme: TextTheme): void;
+  subscribe(listener: () => void): () => void;
+}
+
 export interface RootRuntime {
   readonly renderer: ConsoleRenderer;
   readonly engine: InputEngine;
@@ -55,6 +63,7 @@ export interface RootRuntime {
   readonly focus: FocusManager;
   readonly viewport: ViewportStore;
   readonly stats: StatsStore;
+  readonly theme: RootThemeStore;
   exit(error?: unknown): void;
 }
 

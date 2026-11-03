@@ -23,7 +23,7 @@ import { StatsStore, ViewportStore } from "./stores";
 import { resolveTheme, ThemeProvider, type TextTheme, type ThemeName } from "./theme";
 import { TxBox } from "./host";
 import { connectDevTools, type DevToolsConnection } from "./devtools-hook";
-import { FocusHint } from "./components/FocusHint";
+import { RootFocusHint } from "./components/FocusHint";
 
 export interface ConsoleRootOptions extends Omit<ConsoleRendererOptions, "root" | "input" | "viewport"> {
   /** Fixed grid width in cells (shorthand for `viewport.width`). */
@@ -41,8 +41,10 @@ export interface ConsoleRootOptions extends Omit<ConsoleRendererOptions, "root" 
   /** Tab / Shift+Tab focus cycling (default `true`). */
   tabFocus?: boolean;
   /**
-   * Cover the bottom row with "Click the page to use the keyboard" while the page doesn't have focus
-   * and the input engine reads keys from it (default `true`). See `<FocusHint>`.
+   * "Click the page to use the keyboard" over the console frame's last row while the page doesn't
+   * have focus. By default it shows when the input engine reads keys from the page and the app has
+   * an input handler or focus target. `false` turns it off; `true` also shows it when frames reach a
+   * browser console from elsewhere (server-rendered routes). See `<FocusHint>`.
    */
   focusHint?: boolean;
   identifierPrefix?: string;
@@ -103,7 +105,7 @@ function RootShell({
   runtime: RootRuntime;
   themeStore: ThemeStore;
   transparent: boolean;
-  focusHint: boolean;
+  focusHint: boolean | undefined;
   children: ReactNode;
 }): ReactNode {
   const theme = useSyncExternalStore(themeStore.subscribe, themeStore.get, themeStore.get);
@@ -120,7 +122,7 @@ function RootShell({
             wireframeLabel="app"
           >
             {children}
-            {focusHint ? <FocusHint /> : null}
+            {focusHint === false ? null : <RootFocusHint pageInput={focusHint === true} />}
           </TxBox>
         </ThemeProvider>
       </ScopeContext>
@@ -147,7 +149,7 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
     theme,
     transparent = false,
     tabFocus = true,
-    focusHint = true,
+    focusHint,
     identifierPrefix = "tx",
     onUncaughtError = defaultErrorHandler,
     onRecoverableError = defaultErrorHandler,
@@ -242,6 +244,7 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
     focus,
     viewport: viewportStore,
     stats,
+    theme: themeStore,
     exit: (error?: unknown) => {
       // Defer so `exit()` is safe to call from render-phase handlers and effects.
       queueMicrotask(() => {

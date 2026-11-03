@@ -244,6 +244,39 @@ describe("live app", () => {
     await client.unmount();
   });
 
+  test("the focus hint travels to the player, which draws it in the console only", async () => {
+    await withoutActEnvironment(async () => {
+      const banners: unknown[] = [];
+      app = await createLiveApp({ routes: routes(), path: "/", cols: 60, rows: 14, focused: false, onBanner: (b) => banners.push(b) });
+      app.flush();
+      expect(banners.at(-1)).toMatchObject({ text: "Click the page to use the keyboard" });
+      expect(app.buffer.toPlainString()).not.toContain("Click the page");
+      const enc = new LiveFrameEncoder();
+      const con = new FakeConsole();
+      const player = new FramePlayerCore({ console: con, schedule: null });
+      player.applyFrame(JSON.parse(JSON.stringify(enc.encode(app.buffer))) as LiveFrame);
+      player.setBanner(JSON.parse(JSON.stringify(banners.at(-1))));
+      player.paint();
+      expect(String(con.logs.at(-1)?.[0])).toContain("Click the page to use the keyboard");
+      expect(player.buffer.toPlainString()).not.toContain("Click the page");
+      app.input({ type: "focus", focused: true });
+      app.flush();
+      expect(banners.at(-1)).toBeNull();
+      player.setBanner({ text: 1 });
+      player.paint();
+      expect(String(con.logs.at(-1)?.[0])).not.toContain("Click the page");
+    });
+  });
+
+  test("focusHint: false keeps server routes free of the hint", async () => {
+    await withoutActEnvironment(async () => {
+      const banners: unknown[] = [];
+      app = await createLiveApp({ routes: routes(), path: "/", cols: 60, rows: 14, focused: false, focusHint: false, onBanner: (b) => banners.push(b) });
+      app.flush();
+      expect(banners).toEqual([]);
+    });
+  });
+
   test("async server components stream into their Suspense holes", async () => {
     await withoutActEnvironment(async () => {
       probes = 0;

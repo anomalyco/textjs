@@ -49,7 +49,10 @@ export interface TextConfig {
   devIndicators?: boolean;
   /** Open the FocusPad's inline console preview by default (default `false`). */
   showMirrorDefault?: boolean;
-  /** Cover the console's bottom row with "Click the page to use the keyboard" while DevTools has focus (default `true`). */
+  /**
+   * "Click the page to use the keyboard" over the console frame's last row while the page doesn't
+   * have focus and the app has an input handler or focus target (default `true`).
+   */
   focusHint?: boolean;
   /** Build output directory (default `"dist"`). */
   outDir?: string;

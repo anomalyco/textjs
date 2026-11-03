@@ -14,8 +14,10 @@ import {
   COMPANION_ROWS,
   companionReady,
   ENGAGE_SELECTOR,
+  engagesConsole,
   getCompanion,
   LEARN_VIEWPORT_KEY,
+  noteWindowFocus,
   PLAYGROUND_VIEWPORT_KEY,
   registerBootedCompanion,
   setBootingCompanion,
@@ -159,16 +161,18 @@ export function bootCompanion(): Promise<Companion> {
       }
     });
 
-    // Only clicking an explicit console surface routes keys into the console;
-    // the page background stays a normal, selectable, scrollable document.
     document.addEventListener("mousedown", (e) => {
       const t = e.target as Element | null;
       if (!t || typeof t.closest !== "function") return;
-      if (t.closest(ENGAGE_SELECTOR) === null || t.closest(BYPASS_SELECTOR) !== null) return;
+      const snap = siteStore.getSnapshot();
+      if (!engagesConsole(t, snap.consoleInput, snap.pathname)) return;
       siteStore.set({ consoleInput: true });
       if (finePointer()) setTimeout(() => engine.focus(), 0);
     });
-    window.addEventListener("focus", () => engine.setFocused(true));
+    window.addEventListener("focus", (e) => {
+      noteWindowFocus(e.timeStamp);
+      engine.setFocused(true);
+    });
     window.addEventListener("blur", () => engine.setFocused(false));
 
     const listeners = new Set<FrameListener>();

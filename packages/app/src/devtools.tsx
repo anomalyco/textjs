@@ -88,7 +88,7 @@ export function TextDevOverlay({ initialOpen = false, redbox = true, store = dev
       e.stopPropagation();
       setOpen((v) => !v);
     },
-    { global: true, priority: 1000 },
+    { global: true, priority: 1000, ambient: true },
   );
 
   return (

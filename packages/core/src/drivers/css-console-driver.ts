@@ -1,4 +1,4 @@
-import { blendOver } from "../color";
+import { blendOver, parseColor, type ColorInput } from "../color";
 import {
   ATTR_ALLOW_LINK,
   ATTR_INVERSE,
@@ -66,6 +66,13 @@ export interface ConsoleFrame {
  * - `"never"` (or `false`): never clear.
  */
 export type ClearMode = "append" | "frame" | "never";
+
+/** A one-row bar over the last row of console frames (see `CssConsoleDriver.setBanner`). */
+export interface ConsoleBanner {
+  text: string;
+  fg: ColorInput;
+  bg: ColorInput;
+}
 
 export interface CssConsoleDriverOptions {
   console?: ConsoleTarget;
@@ -291,6 +298,7 @@ export class CssConsoleDriver {
   private preRows: PrecompiledRow[] = [];
   private readonly partsBuf: string[] = [];
   private rendered = false;
+  private banner: ConsoleBanner | null = null;
   private lastSpanCount = 0;
   /** Frames logged since the last `console.clear()`; 0 forces a clear on the next frame. */
   private appended = 0;
@@ -1049,6 +1057,27 @@ export class CssConsoleDriver {
    * string allocation) when nothing changed and `force` is not set.
    */
   encode(buffer: CellBuffer, options: DriverRenderOptions = {}): { frame: ConsoleFrame | null; dirtyRows: number } {
+    const banner = this.banner;
+    if (banner === null || buffer.height === 0) return this.encodeRows(buffer, options);
+    // Console-only: drawn over the last row for this frame, then put back, so the buffer never holds it.
+    const y = buffer.height - 1;
+    const saved = buffer._overlayRow(y, banner.text, parseColor(banner.fg), parseColor(banner.bg));
+    try {
+      return this.encodeRows(buffer, options);
+    } finally {
+      buffer._restoreRow(y, saved);
+    }
+  }
+
+  /**
+   * A one-row bar drawn over the last row of every logged frame, never into the buffer, so inline
+   * mirrors and editors that read the buffer don't show it. `null` removes it.
+   */
+  setBanner(banner: ConsoleBanner | null): void {
+    this.banner = banner;
+  }
+
+  private encodeRows(buffer: CellBuffer, options: DriverRenderOptions): { frame: ConsoleFrame | null; dirtyRows: number } {
     const W = buffer.width;
     const H = buffer.height;
     const resized = W !== this.width || H !== this.height;

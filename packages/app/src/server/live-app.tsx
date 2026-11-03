@@ -19,7 +19,7 @@ import {
 import { createConsoleRootSync, type ConsoleRoot, type ThemeName } from "@textjs/react";
 import { RouterContext } from "../context";
 import { createMemoryHistory, parseHref, type HistoryAction, type MemoryHistory } from "../history";
-import type { LiveInput } from "../live-protocol";
+import type { LiveBanner, LiveInput } from "../live-protocol";
 import { AppRouter } from "../router";
 import { resolveRoute, type RouteManifest, type RouteModule, type RouteModuleRef, type RouteSegmentNode } from "../routing";
 import { isAsyncComponent, serverComponent, ServerComponentCache, ServerComponentsProvider } from "./server-components";
@@ -52,6 +52,13 @@ export interface LiveAppOptions {
    */
   authorize?: (href: string) => Promise<boolean>;
   onTitle?: (title: string) => void;
+  /**
+   * Draw the "Click the page to use the keyboard" bar while the browser page doesn't have focus
+   * (default `true`). The player draws it; it never enters {@link LiveApp.buffer}.
+   */
+  focusHint?: boolean;
+  /** The focus hint appeared, changed or went away (`null`). */
+  onBanner?: (banner: LiveBanner | null) => void;
   onError?: (error: unknown) => void;
 }
 
@@ -142,6 +149,8 @@ export async function createLiveApp(options: LiveAppOptions): Promise<LiveApp> {
     responsive: false,
     theme: options.theme,
     input: engine,
+    // The engine reads keys from a browser page over the network.
+    focusHint: options.focusHint !== false,
     console: NULL_CONSOLE,
     clear: "never",
     scheduler: timeoutScheduler,
@@ -154,6 +163,10 @@ export async function createLiveApp(options: LiveAppOptions): Promise<LiveApp> {
     onUncaughtError: (error) => options.onError?.(error),
     onRecoverableError: () => undefined,
   });
+  if (options.onBanner) {
+    const onBanner = options.onBanner;
+    root.renderer.onBannerChange((b) => onBanner(b === null ? null : ({ text: b.text, fg: String(b.fg), bg: String(b.bg) } satisfies LiveBanner)));
+  }
   const inner = createMemoryHistory(options.path);
   const cache = new ServerComponentCache();
   let routes = prepareServerManifest(options.routes);

@@ -30,6 +30,7 @@ export class FocusManager {
   private readonly entries = new Map<string, FocusEntry>();
   private readonly traps: Trap[] = [];
   private readonly listeners = new Set<() => void>();
+  private readonly entryListeners = new Set<() => void>();
   private activeId: string | null = null;
   private enabled = true;
 
@@ -39,6 +40,21 @@ export class FocusManager {
   };
 
   readonly getActiveId = (): string | null => this.activeId;
+
+  /** Number of registered focus targets. */
+  get size(): number {
+    return this.entries.size;
+  }
+
+  /** Called when a focus target registers or unregisters. */
+  onEntriesChange(listener: () => void): () => void {
+    this.entryListeners.add(listener);
+    return () => this.entryListeners.delete(listener);
+  }
+
+  private emitEntries(): void {
+    for (const l of this.entryListeners) l();
+  }
 
   get isEnabled(): boolean {
     return this.enabled;
@@ -68,14 +84,16 @@ export class FocusManager {
 
   register(id: string, scope: Scope, options: { autoFocus?: boolean; active?: boolean } = {}): void {
     const entry: FocusEntry = { id, scope, active: options.active ?? true, autoFocus: options.autoFocus ?? false };
+    const added = !this.entries.has(id);
     this.entries.set(id, entry);
+    if (added) this.emitEntries();
     if (entry.autoFocus && this.eligible(entry) && !this.eligible(this.activeId === null ? undefined : this.entries.get(this.activeId))) {
       this.setActiveId(id);
     }
   }
 
   unregister(id: string): void {
-    this.entries.delete(id);
+    if (this.entries.delete(id)) this.emitEntries();
     for (const t of this.traps) if (t.restore === id) t.restore = null;
     if (this.activeId === id) this.setActiveId(null);
   }

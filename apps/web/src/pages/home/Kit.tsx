@@ -1,4 +1,5 @@
 import { createElement, useEffect, useMemo, useRef, useState, type ComponentType, type FocusEvent, type MouseEvent, type ReactNode } from "react";
+import { activateCompanion, isRefocusPress } from "../../console-companion/bridge";
 import { siteStore } from "../../console-companion/store";
 import { preloadCompanionTab } from "../../console-companion/tabs-loader";
 import { useSite } from "../../console-companion/useSite";
@@ -128,7 +129,10 @@ export function KitSection(): ReactNode {
     if (!inConsole) return;
     const onDown = (e: globalThis.MouseEvent): void => {
       const el = liveRef.current;
-      if (el && e.target instanceof Node && !el.contains(e.target)) siteStore.exitExample();
+      if (!el || !(e.target instanceof Node) || el.contains(e.target)) return;
+      // Coming back from DevTools only returns the keyboard to the example.
+      if (isRefocusPress(e)) setTimeout(activateCompanion, 0);
+      else siteStore.exitExample();
     };
     document.addEventListener("mousedown", onDown, true);
     return () => document.removeEventListener("mousedown", onDown, true);

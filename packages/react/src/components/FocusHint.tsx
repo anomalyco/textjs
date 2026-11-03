@@ -1,10 +1,7 @@
-import { useCallback, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useLayoutEffect, useSyncExternalStore, type ReactNode } from "react";
 import type { DockSide } from "@textjs/core";
 import { useRuntime } from "../context";
-import { usePageFocus } from "../hooks";
 import { useTheme } from "../theme";
-import { Box } from "./Box";
-import { Text } from "./Text";
 
 export const FOCUS_HINT_TEXT = "Click the page to use the keyboard";
 
@@ -15,32 +12,48 @@ export function focusHintLabel(dock: DockSide): string {
 
 export interface FocusHintProps {
   /**
-   * Whether the app wants the keyboard right now. Default: the root's input engine reads keys
-   * from this page, which is never the case when server rendering, in tests or in a terminal.
+   * Whether the app wants the keyboard right now. Default: a `useInput` or `usePaste` handler, or a
+   * focus target, is registered.
    */
   active?: boolean;
 }
 
+function Banner({ active, pageInput }: { active: boolean | undefined; pageInput: boolean }): null {
+  const rt = useRuntime();
+  const theme = useTheme();
+  const getLabel = useCallback(() => {
+    const vp = rt.viewport.getSnapshot();
+    return vp.focused ? null : focusHintLabel(vp.dock);
+  }, [rt]);
+  const label = useSyncExternalStore(rt.viewport.subscribe, getLabel, getLabel);
+  const wants = useSyncExternalStore(rt.input.subscribeWants, rt.input.wantsKeys, rt.input.wantsKeys);
+  const show = label !== null && (active ?? ((pageInput || rt.engine.element !== null) && wants));
+  const { fg, bg } = theme;
+  useLayoutEffect(() => {
+    if (!show || label === null) return;
+    rt.renderer.setBanner({ text: label, fg: bg, bg: fg });
+    return () => rt.renderer.setBanner(null);
+  }, [rt, show, label, fg, bg]);
+  return null;
+}
+
 /**
- * A one-row bar over the bottom of the console frame while the page doesn't have focus, so a visitor
- * who clicked into DevTools knows why keys stopped reaching the app. Renders nothing while focused.
- * It covers the last row because DevTools keeps the console scrolled to the bottom: when a frame is
- * taller than the console, its first rows are out of view.
- * Console roots draw one by default (`focusHint: false` turns it off); render it yourself with
- * `active` to show it only when your app wants the keyboard.
+ * "Click the page to use the keyboard" in reverse video over the console frame's last row while
+ * the page doesn't have focus, so a visitor who clicked into DevTools knows why keys stopped
+ * reaching the app. It covers the last row because DevTools keeps the console scrolled to the
+ * bottom, and it's drawn only into console frames, never into the buffer that mirrors and tests read.
+ *
+ * Console roots draw one by default (`focusHint: false` turns it off). Render it yourself with
+ * `active` to decide when the app wants the keyboard.
  */
 export function FocusHint({ active }: FocusHintProps): ReactNode {
-  const rt = useRuntime();
-  const focused = usePageFocus();
-  const getDock = useCallback(() => rt.viewport.getSnapshot().dock, [rt]);
-  const dock = useSyncExternalStore(rt.viewport.subscribe, getDock, getDock);
-  const theme = useTheme();
-  if (focused || !(active ?? rt.engine.element !== null)) return null;
-  return (
-    <Box position="absolute" bottom={0} left={0} right={0} height={1} zIndex={1000} justifyContent="center" bg={theme.fg} wireframeLabel="focus-hint">
-      <Text color={theme.bg} wrap="truncate-end">
-        {focusHintLabel(dock)}
-      </Text>
-    </Box>
-  );
+  return active === false ? null : <Banner active={active} pageInput={false} />;
+}
+
+/**
+ * The root's default hint. `pageInput` treats the engine as reading keys from a page even
+ * without a sink of its own (server-rendered routes). @internal
+ */
+export function RootFocusHint({ pageInput }: { pageInput: boolean }): ReactNode {
+  return <Banner active={undefined} pageInput={pageInput} />;
 }

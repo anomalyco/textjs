@@ -8,8 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Console roots cover the frame's last row with "Click the page to use the keyboard" while DevTools or another window has focus, so a visitor who clicks the app in the console knows why keys stopped working. It shows only when the input engine reads keys from the page, never during server rendering, in tests or in a terminal. Turn it off with `focusHint: false` in `createConsoleRoot` options or `text.config.ts`.
-- `@textjs/react`: `usePageFocus()` returns whether the page has focus. `<FocusHint active={…}>` draws the bar yourself, for apps that want the keyboard only some of the time.
+- `@textjs/react`, `@textjs/app`: while the page doesn't have focus, the console frame's last row reads "Click the page to use the keyboard", so a visitor who clicks the app in the console knows why keys stopped working. It shows when the app has a `useInput` or `usePaste` handler or a focus target, in the browser console only, including on server-rendered routes. Inline mirrors and the VS Code preview don't show it. Turn it off with `focusHint: false` in `text.config.ts` or `createConsoleRoot`.
+- `@textjs/react`: `usePageFocus()` returns whether the page has focus. To decide yourself when the app wants the keyboard, set `focusHint: false` and render `<FocusHint active={…}>`. `useInput(handler, { ambient: true })` marks an always-on shortcut that doesn't show the hint by itself.
 
 ## [1.2.0] - 2026-11-02
 

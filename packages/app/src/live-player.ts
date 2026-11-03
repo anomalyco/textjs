@@ -15,7 +15,7 @@ import {
   type ConsoleTarget,
   type InputEvent,
 } from "@textjs/core";
-import { isAppPath, LIVE_PATH, LIVE_SESSION_HEADER, LiveFrameDecoder, type LiveInput, type LiveServerMessage } from "./live-protocol";
+import { isAppPath, LIVE_PATH, LIVE_SESSION_HEADER, LiveFrameDecoder, parseLiveBanner, type LiveInput, type LiveServerMessage } from "./live-protocol";
 
 export interface FramePlayerConfig {
   /** Mount point (`""` or `"/console"`). */
@@ -84,6 +84,12 @@ export class FramePlayerCore {
     const ok = this.decoder.apply(this.buffer, msg);
     if (ok) this.requestPaint();
     return ok;
+  }
+
+  /** Draw the server's focus hint over the frame's last row in the console only (`null` removes it). */
+  setBanner(banner: unknown): void {
+    this.driver.setBanner(parseLiveBanner(banner));
+    this.requestPaint();
   }
 
   setHidden(hidden: boolean): void {
@@ -315,6 +321,9 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
         break;
       case "title":
         document.title = msg.title;
+        break;
+      case "banner":
+        core.setBanner(msg.banner);
         break;
       case "load": {
         const href = safeHref(msg.href, base);

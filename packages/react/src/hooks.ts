@@ -82,6 +82,11 @@ export interface UseInputOptions {
   priority?: number;
   /** Keep receiving input while a `<Modal>` outside this component is open. */
   global?: boolean;
+  /**
+   * An always-on shortcut that doesn't mean the app wants the keyboard. On its own it doesn't
+   * show the "Click the page to use the keyboard" hint.
+   */
+  ambient?: boolean;
 }
 
 function useInputRegistration<K extends InputEventType>(
@@ -96,11 +101,12 @@ function useInputRegistration<K extends InputEventType>(
   const isActive = options.isActive ?? true;
   const priority = options.priority ?? 0;
   const global = options.global ?? false;
+  const ambient = options.ambient ?? false;
   useLayoutEffect(() => {
     if (!isActive) return;
-    const opts: RegisterOptions = { priority, scope, global };
+    const opts: RegisterOptions = { priority, scope, global, ambient };
     return rt.input.register(type, ((e: never) => (ref.current as (e: never) => void)(e)) as never, opts);
-  }, [rt, type, isActive, priority, scope, global]);
+  }, [rt, type, isActive, priority, scope, global, ambient]);
 }
 
 /** Subscribe to keyboard input. Handlers run at React's discrete (sync) priority. */

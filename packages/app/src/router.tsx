@@ -11,6 +11,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -20,7 +21,7 @@ import {
   type LazyExoticComponent,
   type ReactNode,
 } from "react";
-import { Box, resolveTheme, Text, themes, ThemeProvider, useApp, useTheme, type TextTheme, type ThemeName } from "@textjs/react";
+import { Box, resolveTheme, Text, themes, ThemeProvider, useApp, useRuntime, useTheme, type TextTheme, type ThemeName } from "@textjs/react";
 import { txError } from "@textjs/core";
 import { AppShellContext, RouterContext, type AppRouterInstance, type AppShellState, type RouterState } from "./context";
 import { devErrors, type DevErrorStore } from "./dev-errors";
@@ -392,7 +393,16 @@ export function AppRouter({
   const [, setLoadTick] = useState(0);
   const onModuleLoad = useCallback(() => setLoadTick((n) => n + 1), []);
 
-  const [theme, setThemeState] = useState<TextTheme>(() => resolveTheme(themeProp));
+  // The root's theme store is the one source of truth, so the root shell and its focus hint follow theme changes.
+  const rt = useRuntime();
+  const rootTheme = useSyncExternalStore(rt.theme.subscribe, rt.theme.get, rt.theme.get);
+  const [initialTheme] = useState(() => (themeProp === undefined ? null : resolveTheme(themeProp)));
+  const themeApplied = useRef(initialTheme === null);
+  useLayoutEffect(() => {
+    if (initialTheme !== null) rt.theme.set(initialTheme);
+    themeApplied.current = true;
+  }, [rt, initialTheme]);
+  const theme = !themeApplied.current && initialTheme !== null ? initialTheme : rootTheme;
   const [wireframe, setWireframeState] = useState(false);
   const app = useApp();
 
@@ -442,14 +452,12 @@ export function AppRouter({
     document.title = title;
   }, [documentTitle, title]);
 
-  const setTheme = useCallback((t: TextTheme | ThemeName) => setThemeState(resolveTheme(t)), []);
+  const setTheme = useCallback((t: TextTheme | ThemeName) => rt.theme.set(resolveTheme(t)), [rt]);
   const cycleTheme = useCallback(() => {
-    setThemeState((cur) => {
-      const names = Object.keys(themes) as ThemeName[];
-      const idx = names.indexOf(themeKey(cur) as ThemeName);
-      return themes[names[(idx + 1) % names.length] as ThemeName];
-    });
-  }, []);
+    const names = Object.keys(themes) as ThemeName[];
+    const idx = names.indexOf(themeKey(rt.theme.get()) as ThemeName);
+    rt.theme.set(themes[names[(idx + 1) % names.length] as ThemeName]);
+  }, [rt]);
   const setWireframe = useCallback(
     (enabled: boolean) => {
       app.renderer.setWireframe(enabled);
