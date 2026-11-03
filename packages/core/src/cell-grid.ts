@@ -508,11 +508,11 @@ export class CellGrid {
   }
 
   /**
-   * @internal Draw `text` centered on row `y` over a full-width `bg` bar, for one encode. Returns
+   * @internal Draw `text` centered on row `y` over a full-width `bg` bar with `attrs`, for one encode. Returns
    * what {@link _restoreRow} needs to put the row back without counting as a write, so incremental
    * painting and mirrors never see the bar.
    */
-  _overlayRow(y: number, text: string, fg: PackedColor, bg: PackedColor): RowSnapshot {
+  _overlayRow(y: number, text: string, fg: PackedColor, bg: PackedColor, attrs = 0): RowSnapshot {
     const W = this.width;
     const i0 = y * W;
     const sprites = this._sprites.some((sp) => y >= sp.y && y < sp.y + sp.height)
@@ -532,9 +532,9 @@ export class CellGrid {
     this._chars.fill(CHAR_SPACE, i0, i0 + W);
     this._fg.fill(fg >>> 0, i0, i0 + W);
     this._bg.fill(bg >>> 0, i0, i0 + W);
-    this._attrs.fill(0, i0, i0 + W);
+    this._attrs.fill(attrs, i0, i0 + W);
     this.rowHashValid[y] = 0;
-    this.drawText(Math.max(0, Math.floor((W - stringWidth(text)) / 2)), y, text, fg, bg, 0, W);
+    this.drawText(Math.max(0, Math.floor((W - stringWidth(text)) / 2)), y, text, fg, bg, attrs, W);
     return snap;
   }
 

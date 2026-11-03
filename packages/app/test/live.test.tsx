@@ -1,6 +1,6 @@
 /** @jsxImportSource @textjs/app/server */
 // Like `text dev` / `text build`, route modules compile against the server JSX runtime (async components work).
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, jest, test } from "bun:test";
 import { createServer, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { EventEmitter } from "node:events";
@@ -292,6 +292,43 @@ describe("live app", () => {
       player.paint();
       expect(String(con.logs.at(-1)?.[0])).not.toContain("Click the page");
     });
+  });
+
+  test("the player blinks the hint, then holds it, and stops when it goes away", async () => {
+    const g = globalThis as { matchMedia?: (query: string) => { matches: boolean } };
+    jest.useFakeTimers();
+    try {
+      await withoutActEnvironment(async () => {
+        const banners: unknown[] = [];
+        app = await createLiveApp({ routes: routes(), path: "/", cols: 60, rows: 14, focused: false, onBanner: (b) => banners.push(b) });
+        app.flush();
+        const buffer = JSON.parse(JSON.stringify(new LiveFrameEncoder().encode(app.buffer))) as LiveFrame;
+        const hint = JSON.parse(JSON.stringify(banners.at(-1))) as unknown;
+        app.dispose();
+        app = null;
+        jest.clearAllTimers();
+        g.matchMedia = () => ({ matches: false });
+        const con = new FakeConsole();
+        const player = new FramePlayerCore({ console: con, schedule: (cb) => cb(), frameInterval: 0 });
+        player.applyFrame(buffer);
+        player.setBanner(hint);
+        expect(jest.getTimerCount()).toBe(1);
+        const frames = player.frames;
+        jest.advanceTimersByTime(8 * 700);
+        expect(player.frames - frames).toBe(8);
+        expect(String(con.logs.at(-1)?.slice(1).join("|"))).toContain("background-color:#ffc53d");
+        expect(jest.getTimerCount()).toBe(0);
+        player.setBanner(null);
+        player.setBanner(hint);
+        jest.advanceTimersByTime(700);
+        expect(String(con.logs.at(-1)?.slice(1).join("|"))).toContain("background-color:#000000");
+        player.setBanner(null);
+        expect(jest.getTimerCount()).toBe(0);
+      });
+    } finally {
+      jest.useRealTimers();
+      delete g.matchMedia;
+    }
   });
 
   test("a passive server route never sends the hint; an interactive one sends it while blurred and clears it", async () => {

@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- `@textjs/react`: the focus hint ("Click the page to use the keyboard") is an amber bar with bold black text in every theme. It used to be the theme's colors reversed. Each time the page loses focus, it blinks 4 times over about 6 seconds, then stays. It doesn't blink when reduced motion is on. Blinking logs 8 extra console frames.
 - textjs.org: Doom moved to textjs.org/doom. textjs.org/playground/doom redirects there.
 
 ### Fixed
