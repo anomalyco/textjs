@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { packRGBA, txError, type CellBuffer, type ComputedRect, type LayoutProps } from "@textjs/core";
-import { drawPixels, type PixelEncoding, type PixelFit, type PixelRect, type PixelSource } from "@textjs/core/experimental";
+import { drawPixels, type PixelEncoding, type PixelRenderMode, type PixelSource } from "@textjs/core/experimental";
 import { TxBox } from "../host";
 import { useTheme } from "../theme";
 import { Text } from "./Text";
@@ -84,45 +84,21 @@ export function loadImagePixels(src: string, maxWidth = 256, maxHeight = 256): P
   });
 }
 
-/** Sprite resolution cap per cell: about one source pixel per CSS pixel at the default console font. */
-const SPRITE_PX_PER_COL = 8;
-const SPRITE_PX_PER_ROW = 16;
+/** Indexed sprites (pixel art) keep up to 8 × 16 source pixels per cell; RGBA photos, which cost more bytes per pixel, 4 × 8. */
+const INDEXED_PX_PER_CELL = [8, 16] as const;
+const RGBA_PX_PER_CELL = [4, 8] as const;
 
 interface ImageSprite {
   source: PixelSource;
-  fit: PixelFit;
   encoding: PixelEncoding;
 }
 
-/**
- * The pixels a `cols × rows` sprite shows: `cover` crops to the box first (in the same two-pixels-per-row
- * space as the half-blocks), and large images shrink to the resolution cap. Images that fit a 256-color
- * palette with on/off alpha stay indexed (smallest, and they can batch when they animate); anything else is RGBA.
- */
-function spriteFor(img: PixelData, cols: number, rows: number, fit: "contain" | "cover" | "fill"): ImageSprite {
-  let sx = 0;
-  let sy = 0;
-  let sw = img.width;
-  let sh = img.height;
-  if (fit === "cover") {
-    const scale = Math.max(cols / img.width, (rows * 2) / img.height);
-    sw = Math.min(img.width, Math.max(1, Math.round(cols / scale)));
-    sh = Math.min(img.height, Math.max(1, Math.round((rows * 2) / scale)));
-    sx = Math.floor((img.width - sw) / 2);
-    sy = Math.floor((img.height - sh) / 2);
-  }
-  let crop: PixelData = img;
-  if (sx !== 0 || sy !== 0 || sw !== img.width || sh !== img.height) {
-    const data = new Uint8ClampedArray(sw * sh * 4);
-    for (let y = 0; y < sh; y++) {
-      for (let i = 0; i < sw * 4; i++) data[y * sw * 4 + i] = img.data[((sy + y) * img.width + sx) * 4 + i] as number;
-    }
-    crop = { width: sw, height: sh, data };
-  }
-  const shrink = Math.min(1, (cols * SPRITE_PX_PER_COL) / sw, (rows * SPRITE_PX_PER_ROW) / sh);
-  const tw = Math.max(1, Math.round(sw * shrink));
-  const th = Math.max(1, Math.round(sh * shrink));
-  const px = tw === sw && th === sh ? crop.data : resamplePixels(crop, tw, th);
+/** Resample `crop` to fit `cols × rows` cells at `perCell` pixels, as packed colors, noting whether it fits an indexed PNG. */
+function packSprite(crop: PixelData, cols: number, rows: number, perCell: readonly [number, number]): ImageSprite {
+  const shrink = Math.min(1, (cols * perCell[0]) / crop.width, (rows * perCell[1]) / crop.height);
+  const tw = Math.max(1, Math.round(crop.width * shrink));
+  const th = Math.max(1, Math.round(crop.height * shrink));
+  const px = tw === crop.width && th === crop.height ? crop.data : resamplePixels(crop, tw, th);
   const data = new Uint32Array(tw * th);
   const colors = new Set<number>();
   let indexed = true;
@@ -134,7 +110,48 @@ function spriteFor(img: PixelData, cols: number, rows: number, fit: "contain" | 
     data[i] = c;
     if (indexed && (a !== 255 || (colors.add(c), colors.size > 255))) indexed = false;
   }
-  return { source: { width: tw, height: th, data }, fit: fit === "contain" ? "contain" : "fill", encoding: indexed ? "indexed" : "rgba" };
+  return { source: { width: tw, height: th, data }, encoding: indexed ? "indexed" : "rgba" };
+}
+
+/**
+ * The pixels a `cols × rows` sprite stretches over: `cover` crops to the box first (in the same
+ * two-pixels-per-row space as the half-blocks), and large images shrink to the per-cell cap. Images
+ * that fit a 256-color palette with on/off alpha stay indexed (small, and they can batch when they
+ * animate); anything else is RGBA at the lower cap.
+ */
+function spriteFor(img: PixelData, cols: number, rows: number, fit: "contain" | "cover" | "fill"): ImageSprite {
+  let crop: PixelData = img;
+  if (fit === "cover") {
+    const scale = Math.max(cols / img.width, (rows * 2) / img.height);
+    const sw = Math.min(img.width, Math.max(1, Math.round(cols / scale)));
+    const sh = Math.min(img.height, Math.max(1, Math.round((rows * 2) / scale)));
+    const sx = Math.floor((img.width - sw) / 2);
+    const sy = Math.floor((img.height - sh) / 2);
+    if (sx !== 0 || sy !== 0 || sw !== img.width || sh !== img.height) {
+      const data = new Uint8ClampedArray(sw * sh * 4);
+      for (let y = 0; y < sh; y++) {
+        for (let i = 0; i < sw * 4; i++) data[y * sw * 4 + i] = img.data[((sy + y) * img.width + sx) * 4 + i] as number;
+      }
+      crop = { width: sw, height: sh, data };
+    }
+  }
+  const sprite = packSprite(crop, cols, rows, INDEXED_PX_PER_CELL);
+  return sprite.encoding === "indexed" ? sprite : packSprite(crop, cols, rows, RGBA_PX_PER_CELL);
+}
+
+/**
+ * Where `fit` puts the image in a `width × height` cell box, in half-block pixels (one per column,
+ * two per row): its size and its offset. Shared by the half-blocks and the sprite so both land on the same cells.
+ */
+function placement(img: PixelData, width: number, height: number, fit: "contain" | "cover" | "fill"): { tw: number; th: number; offX: number; offY: number } {
+  const boxW = width;
+  const boxH = height * 2;
+  if (fit === "fill") return { tw: boxW, th: boxH, offX: 0, offY: 0 };
+  const scale = fit === "contain" ? Math.min(boxW / img.width, boxH / img.height) : Math.max(boxW / img.width, boxH / img.height);
+  const tw = Math.max(1, Math.round(img.width * scale));
+  const th = Math.max(1, Math.round(img.height * scale));
+  if (fit === "cover") return { tw, th, offX: -Math.floor((tw - boxW) / 2), offY: -Math.floor((th - boxH) / 2) };
+  return { tw, th, offX: Math.floor((boxW - tw) / 2), offY: Math.floor((boxH - th) / 2) };
 }
 
 export interface ImageProps extends Omit<LayoutProps, "width" | "height"> {
@@ -150,13 +167,18 @@ export interface ImageProps extends Omit<LayoutProps, "width" | "height"> {
   fit?: "contain" | "cover" | "fill";
   /** Shown while loading or on error. */
   alt?: string;
+  /**
+   * `"auto"` (default) draws a pixel sprite in Chromium and Firefox consoles and `▀` half-blocks
+   * elsewhere. `"halfblock"` draws half-blocks everywhere, as `<Image>` did in 1.3.
+   */
+  renderMode?: PixelRenderMode;
 }
 
 /**
  * An image from a URL, canvas data or raw RGBA. Chromium and Firefox consoles show it as a crisp
  * pixel sprite; Safari, terminals and text exports get `▀` half-blocks (two pixels per cell).
  */
-export function Image({ src, pixels, width, height, fit = "contain", alt = "", ...layout }: ImageProps): ReactNode {
+export function Image({ src, pixels, width, height, fit = "contain", alt = "", renderMode = "auto", ...layout }: ImageProps): ReactNode {
   const theme = useTheme();
   const [loaded, setLoaded] = useState<PixelData | null>(null);
   const [failed, setFailed] = useState(false);
@@ -185,61 +207,54 @@ export function Image({ src, pixels, width, height, fit = "contain", alt = "", .
     h = Math.ceil(img.height / 2);
   }
 
-  const halfBlocks = useCallback(
-    (buf: CellBuffer, r: Readonly<PixelRect>) => {
-      if (!img) return;
-      const boxW = r.width;
-      const boxH = r.height * 2;
-      let tw = boxW;
-      let th = boxH;
-      let cropX = 0;
-      let cropY = 0;
-      if (fit !== "fill") {
-        const scale = fit === "contain" ? Math.min(boxW / img.width, boxH / img.height) : Math.max(boxW / img.width, boxH / img.height);
-        tw = Math.max(1, Math.round(img.width * scale));
-        th = Math.max(1, Math.round(img.height * scale));
-        if (fit === "cover") {
-          cropX = Math.floor((tw - boxW) / 2);
-          cropY = Math.floor((th - boxH) / 2);
-        }
+  // Paints the 1.3 half-blocks over the whole box. The sprite's fallback calls it with the sprite's
+  // cell rect, which covers every cell the half-blocks touch, so it ignores that rect.
+  const paintHalfBlocks = (buf: CellBuffer, r: Readonly<ComputedRect>, image: PixelData): void => {
+    const { tw, th, offX, offY } = placement(image, r.width, r.height, fit);
+    const key = `${tw}x${th}`;
+    if (cache.current?.key !== key || cache.current.img !== image) cache.current = { key, img: image, data: resamplePixels(image, tw, th) };
+    const px = cache.current.data;
+    const at = (x: number, y: number): number => {
+      const ix = x - offX;
+      const iy = y - offY;
+      if (ix < 0 || iy < 0 || ix >= tw || iy >= th) return 0;
+      const i = (iy * tw + ix) * 4;
+      const a = px[i + 3] as number;
+      return a < 16 ? 0 : packRGBA(px[i] as number, px[i + 1] as number, px[i + 2] as number, a);
+    };
+    for (let cy = 0; cy < r.height; cy++) {
+      for (let cx = 0; cx < r.width; cx++) {
+        const top = at(cx, cy * 2);
+        const bottom = at(cx, cy * 2 + 1);
+        if (top === 0 && bottom === 0) continue;
+        if (top === 0) buf.setCell(r.x + cx, r.y + cy, "▄", bottom, 0);
+        else buf.setCell(r.x + cx, r.y + cy, "▀", top, bottom);
       }
-      const key = `${tw}x${th}`;
-      if (cache.current?.key !== key || cache.current.img !== img) cache.current = { key, img, data: resamplePixels(img, tw, th) };
-      const px = cache.current.data;
-      const offX = fit === "contain" ? Math.floor((boxW - tw) / 2) : -cropX;
-      const offY = fit === "contain" ? Math.floor((boxH - th) / 2) : -cropY;
-      const at = (x: number, y: number): number => {
-        const ix = x - offX;
-        const iy = y - offY;
-        if (ix < 0 || iy < 0 || ix >= tw || iy >= th) return 0;
-        const i = (iy * tw + ix) * 4;
-        const a = px[i + 3] as number;
-        return a < 16 ? 0 : packRGBA(px[i] as number, px[i + 1] as number, px[i + 2] as number, a);
-      };
-      for (let cy = 0; cy < r.height; cy++) {
-        for (let cx = 0; cx < r.width; cx++) {
-          const top = at(cx, cy * 2);
-          const bottom = at(cx, cy * 2 + 1);
-          if (top === 0 && bottom === 0) continue;
-          if (top === 0) buf.setCell(r.x + cx, r.y + cy, "▄", bottom, 0);
-          else buf.setCell(r.x + cx, r.y + cy, "▀", top, bottom);
-        }
-      }
-    },
-    [img, fit],
-  );
+    }
+  };
 
   const paint = useCallback(
     (buf: CellBuffer, r: Readonly<ComputedRect>) => {
       if (!img || r.width <= 0 || r.height <= 0 || img.width <= 0 || img.height <= 0) return;
-      const key = `${r.width}x${r.height}:${fit}`;
+      const fallback = (b: CellBuffer): void => paintHalfBlocks(b, r, img);
+      // The sprite covers the whole cells the half-blocks touch and stretches over them.
+      const { tw, th, offX, offY } = placement(img, r.width, r.height, fit);
+      const x0 = Math.max(0, offX);
+      const x1 = Math.min(r.width, offX + tw);
+      const y0 = Math.max(0, Math.floor(offY / 2));
+      const y1 = Math.min(r.height, Math.ceil((offY + th) / 2));
+      const cols = x1 - x0;
+      const rows = y1 - y0;
+      if (cols <= 0 || rows <= 0) return;
+      const key = `${cols}x${rows}:${fit}`;
       if (spriteCache.current?.key !== key || spriteCache.current.img !== img) {
-        spriteCache.current = { key, img, sprite: spriteFor(img, r.width, r.height, fit) };
+        spriteCache.current = { key, img, sprite: spriteFor(img, cols, rows, fit) };
       }
-      const { source, fit: spriteFit, encoding } = spriteCache.current.sprite;
-      drawPixels(buf, { x: r.x, y: r.y, width: r.width, height: r.height, source, fit: spriteFit, encoding, fallback: halfBlocks });
+      const { source, encoding } = spriteCache.current.sprite;
+      drawPixels(buf, { x: r.x + x0, y: r.y + y0, width: cols, height: rows, source, fit: "fill", encoding, renderMode, fallback });
     },
-    [img, fit, halfBlocks],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [img, fit, renderMode],
   );
 
   if (!img) {

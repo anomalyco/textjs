@@ -375,6 +375,11 @@ export async function prerenderShell(options: PrerenderShellOptions): Promise<Sh
       throw new Error(`rendering ${options.path} threw: ${first instanceof Error ? first.message : String(first)}`, { cause: first });
     }
     if (history.location.href !== parseHref(options.path).href) throw new Error(`rendering ${options.path} navigated to ${history.location.href}`);
+    // The live stream sends cells (`readCells`), so pixel sprites draw as half-blocks once it takes
+    // over. Bake the same cells into the shell, so the first frame doesn't switch and the HTML
+    // doesn't carry each sprite's data URL twice.
+    const buffer = root.renderer.buffer;
+    buffer._materializeSpritesInRect(0, 0, buffer.width, buffer.height, true, false);
     const capture = (browser: "chromium" | "firefox"): ShellCall[] => {
       const calls: ShellCall[] = [];
       const target: ConsoleTarget = {

@@ -478,6 +478,12 @@ function getSpriteCodec(): SpriteCodec {
           }
         }
         const bandBg = resolveCleanBandBg(ctx, buffer, sp);
+        // Sliced rows each repeat the whole data URL. That's fine for small indexed pixel art; a
+        // photo beside text would resend hundreds of KB per frame, so it draws as half-blocks instead.
+        if (bandBg === null && sp.encoding === "rgba") {
+          buffer._materializeSpritesInRect(sp.x, sp.y, sp.x + sp.width, sp.y + sp.height, false, false);
+          continue;
+        }
         const boxX = sp.x * cellW;
         const boxW = sp.width * cellW;
         const boxH = sp.height * rowPitch;
@@ -557,6 +563,7 @@ function getSpriteCodec(): SpriteCodec {
           const sliceBg = sp.underBg;
           const dw = Math.round(drawW);
           const dh = Math.round(drawH);
+          const sliceW = sp.fit === "fill" ? "100%" : `${dw}px`;
 
           for (let y = sp.y; y < sp.y + sp.height; y++) {
             const out = [];
@@ -572,8 +579,15 @@ function getSpriteCodec(): SpriteCodec {
             }
             let css = rowTypo;
             if ((sliceBg & 255) !== 0) css += `background-color:${colorToCss(sliceBg)};`;
+            const rx0 = sp.x + sp.width;
+            // Chromium snaps each span to device pixels on its own, so at a fractional cell edge the
+            // console's background can show through between this slice and an opaque neighbour.
+            // Reach 1px under the neighbour, which paints over it.
+            const seal = !ctx._profile.inline && (sliceBg & 255) !== 0 && (rx0 >= W || ((buffer._bg[y * W + rx0] as number) & 255) === 255);
+            if (seal) css += "padding-right:1px;margin-right:-1px;";
             if (url) {
-              css += `background-image:url("${url}");background-repeat:no-repeat;background-size:${dw}px ${dh}px;background-position:${relX.toFixed(1)}px ${(baseRelY - (y - sp.y) * rowPitch).toFixed(1)}px;`;
+              const size = seal && sliceW === "100%" ? "calc(100% - 1px)" : sliceW;
+              css += `background-image:url("${url}");background-repeat:no-repeat;background-size:${size} ${dh}px;background-position:${relX.toFixed(1)}px ${(baseRelY - (y - sp.y) * rowPitch).toFixed(1)}px;`;
             }
             out.push({
               styleId: ctx._nextFitId(),
@@ -586,7 +600,6 @@ function getSpriteCodec(): SpriteCodec {
               deco: true,
               cells: sp.width,
             });
-            const rx0 = sp.x + sp.width;
             if (rx0 < W) {
               const rw = W - rx0;
               const rightBuf = new CellBuffer(rw, 1);
@@ -629,6 +642,22 @@ function getSpriteCodec(): SpriteCodec {
   return codecInstance;
 }
 
+/** Whether the freshly painted cells under `(x, y, w, h)` are blank and share one background. */
+function blankUniformUnder(buf: CellBuffer, x: number, y: number, w: number, h: number): boolean {
+  const x0 = Math.max(x, buf._clipX0);
+  const x1 = Math.min(x + w, buf._clipX1);
+  const y0 = Math.max(y, buf._clipY0);
+  const y1 = Math.min(y + h, buf._clipY1);
+  const W = buf.width;
+  const bg = x0 < x1 && y0 < y1 ? buf._bg[y0 * W + x0] : 0;
+  for (let yy = y0; yy < y1; yy++) {
+    for (let i = yy * W + x0, end = yy * W + x1; i < end; i++) {
+      if (buf._bg[i] !== bg || buf._chars[i] !== CHAR_SPACE) return false;
+    }
+  }
+  return true;
+}
+
 function registerSprite(
   buf: CellBuffer,
   x: number,
@@ -664,6 +693,7 @@ function registerSprite(
   const len = srcWidth * srcHeight;
   const pixels = acquirePool(spritePixelPool, len);
   let opaque = true;
+  let solid = true;
   let hash = (0x811c9dc5 ^ x ^ (y << 8) ^ (w << 16) ^ (h << 24) ^ srcWidth ^ (srcHeight << 16)) >>> 0;
   hash = Math.imul(hash ^ (fit === "fill" ? 1 : 2), 0x01000193);
   hash = Math.imul(hash ^ (sample === "average" ? 1 : 2), 0x01000193);
@@ -679,11 +709,20 @@ function registerSprite(
   for (let i = 0; i < len; i++) {
     const px = srcData[i] as number;
     pixels[i] = px;
-    if ((px & 255) < 128) opaque = false;
+    if ((px & 255) < 255) {
+      solid = false;
+      if ((px & 255) < 128) opaque = false;
+    }
     hash = Math.imul(hash ^ px, 0x01000193);
   }
   hash ^= hash >>> 16;
   hash = Math.imul(hash, 0x85ebca6b) >>> 0;
+  // Where the sprite shows what's under it (transparent pixels, letterboxing) it can only show one
+  // background color, so text or mixed backgrounds under it need the cells.
+  if ((!solid || fit === "contain") && !blankUniformUnder(buf, x, y, w, h)) {
+    releasePool(spritePixelPool, pixels);
+    return false;
+  }
 
   buf._sprites.push({
     x,

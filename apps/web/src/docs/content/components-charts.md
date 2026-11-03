@@ -75,7 +75,7 @@ Named gradients: `geist` `dusk` `ocean` `mono` `ember`.
 
 ## `<Image>`
 
-Chromium and Firefox consoles draw the image as a pixel sprite at up to 8 × 16 pixels per cell. Safari, terminals and plain-text copies get `▀` half-blocks: each cell holds two pixels, top in the foreground and bottom in the background.
+Chromium and Firefox consoles draw the image as a pixel sprite. Pixel art (256 colors or fewer, with no partly transparent pixels) keeps up to 8 × 16 pixels per cell, and photos up to 4 × 8. Safari, terminals and plain-text copies get `▀` half-blocks: each cell holds two pixels, top in the foreground and bottom in the background. Pass `renderMode="halfblock"` to draw half-blocks everywhere.
 
 ```tsx
 <Image src="/avatar.png" width={24} />
@@ -83,6 +83,13 @@ Chromium and Firefox consoles draw the image as a pixel sprite at up to 8 × 16 
 ```
 
 `src` loads through a canvas, so cross-origin images need CORS. `pixels` takes raw RGBA anywhere, including the terminal.
+
+An image also draws as half-blocks in Chromium and Firefox when it can't be one sprite:
+
+- Two images side by side on the same rows, as in a gallery.
+- A photo with text beside it. Pixel art beside text stays a sprite.
+- An image clipped by an `overflow="hidden"` box, or partly covered by another box.
+- Transparent pixels over text or over more than one background color.
 
 ## `<Pixels>` (experimental)
 

@@ -8,11 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `@textjs/react`: `<Image renderMode="halfblock">` draws `▀` half-blocks everywhere, as `<Image>` did in 1.3.
 - `@textjs/core/experimental`: `drawPixels` takes `encoding: "rgba"` for a lossless sprite with soft alpha and more than 256 colors, and a `fallback` function that paints the cells wherever the sprite can't be shown.
 
 ### Changed
 
-- `@textjs/react`: `<Image>` looks different in Chromium and Firefox consoles. It draws a pixel sprite at up to 8 × 16 source pixels per cell, where it used to draw two pixels per cell with `▀` half-blocks. `<ConsoleMirror>` shows the sprite too. Safari, terminals (including `text run`), ANSI and plain-text output keep the 1.3.0 half-blocks. The [support policy](https://textjs.org/docs/support-policy) says frames stay visually identical across minor releases, and this change is an exception to it.
+- `@textjs/react`: `<Image>` now draws a pixel sprite in Chromium and Firefox consoles, with up to 8 × 16 pixels per cell for pixel art and 4 × 8 for photos. This deliberately breaks the [support policy](https://textjs.org/docs/support-policy)'s promise that frames look the same between minor releases. Pass `renderMode="halfblock"` to keep the 1.3 half-blocks. Safari, terminals (including `text run`), ANSI and plain-text output, and the first frame of server-rendered live pages, still draw half-blocks.
 
 ### Fixed
 
