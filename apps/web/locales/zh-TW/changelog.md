@@ -15,8 +15,15 @@
 <!-- s:5b88618770 -->
 變更
 
-<!-- s:f7da7bb6d2 -->
-- `@textjs/core`：Chromium 和 Firefox 主控台會在動畫精靈輸出達 16 MB 時清除，而非 4 MB，因此 textjs.org/doom 約每 19 秒顯示「主控台已清除」，而非每 4.5 秒。Safari 以及以 `▀` 半區塊繪製的精靈仍維持 4 MB。textjs.org/doom 頁面的堆積記憶體峰值從 10.8 MB 增至約 12～13 MB。
+<!-- s:27b507a9de -->
+- `@textjs/core`：Chromium 和 Firefox 主控台會在動畫精靈輸出達到 16 MB 時清除，而非 4 MB，因此 textjs.org/doom 約每 19 秒顯示一次「主控台已清除」，而非每 4.5 秒。Safari 以及以 `▀` 半區塊繪製的精靈仍維持 4 MB。textjs.org/doom 頁面的堆積記憶體峰值從 10.8 MB 增至約 12～13 MB。
+- textjs.org：文件頁面只下載自己的 Markdown，而非全部 33 頁，因此英文文件頁面少載入 43～47 KB 的 JavaScript（gzip），/ja 文件頁面則少載入 60～64 KB。將游標停在其他文件頁面的連結上，或讓連結取得焦點時，會提前擷取該頁面，因此仍能立即開啟。
+
+<!-- s:afe76b8d59 -->
+修正
+
+<!-- s:4290e90e78 -->
+- textjs.org/ja：⌘K 搜尋會顯示日文文件標題，並以日文查詢比對這些標題。先前會在日文頁面標題下列出英文標題。英文名稱仍可找到頁面：`routing` 可找到「ルーティング」，`open the console` 可找到「コンソールを開く」。
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom 會播放 Doom 的音效，採用 Doom 本身的立體聲左右定位與距離衰減。音效會在你首次點擊頁面或按鍵時開始，隨遊戲暫停，並遵循 Doom 的「選項 → 音量」選單中的「音效音量」設定。沒有音樂。
@@ -24,9 +31,6 @@
 <!-- s:144aa59e73 -->
 - `@textjs/react`、`@textjs/app`：焦點提示（「點擊頁面以使用鍵盤」）在每個主題中都採用琥珀色橫條與粗黑字。先前使用主題的反轉配色。每次出現時，會在約 6 秒內閃爍 4 次，然後維持琥珀色。開啟減少動態效果時不會閃爍。每個閃爍週期最多額外記錄 8 個主控台影格。
 - textjs.org：Doom 已移至 textjs.org/doom。textjs.org/playground/doom 會重新導向該處。
-
-<!-- s:afe76b8d59 -->
-修正
 
 <!-- s:b91de36548 -->
 - `@textjs/core`、`@textjs/react`：Chrome 的「問題」面板不再於每個頁面回報「表單欄位元素應有 id 或 name 屬性」。隱藏的鍵盤 `<textarea>` 名稱為 `textjs-input`，而 `ViewportControl` 的主控台尺寸 `<select>`（也用於 `FocusPad` 的 `sizeControl`）具有 `id`，名稱為 `textjs-console-size`。鍵盤 `<textarea>` 也會排除 1Password、LastPass、Bitwarden 和 Dashlane。

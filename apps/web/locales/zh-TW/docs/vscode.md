@@ -120,7 +120,7 @@ Text.js 的 VS Code 擴充功能會在程式碼旁顯示主控台影格。它會
 | `textjs.preview.followEditor` | `false` | 即時模式：跟隨正在編輯的路由 |
 | `textjs.preview.fontSize` | `12` | 儲存格字型大小（DevTools 使用 12） |
 | `textjs.preview.runtime` | | 無介面預覽使用的 Node.js 二進位檔（預設：VS Code 隨附的版本） |
-| `textjs.devServer.url` | | 開發伺服器網址（預設：在連接埠 3000–3010 上探索）。僅使用 `http://` 回送位址 |
+| `textjs.devServer.url` | | 開發伺服器網址（預設：在連接埠 3000～3010 上探索）。僅使用 `http://` 回送位址 |
 | `textjs.devServer.command` | | Start Dev Server 使用的命令 |
 
 <!-- s:ea5e740ef1 -->
