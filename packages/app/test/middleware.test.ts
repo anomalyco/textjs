@@ -307,7 +307,7 @@ describe("middleware hardening", () => {
     const req = new Request("http://x.dev/upload", { method: "POST", body, duplex: "half" } as RequestInit);
     const out = await runMiddleware(mod(() => new Response("no", { status: 401 })), req);
     expect(out.type).toBe("response");
-    await new Promise((r) => setTimeout(r, 10));
+    for (let i = 0; i < 200 && !cancelled; i++) await new Promise((r) => setTimeout(r, 5));
     expect(cancelled).toBe(true);
   });
 });

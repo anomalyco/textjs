@@ -108,7 +108,10 @@ describe("@textjs/react/testing", () => {
         root.render(<Count />);
         scheduler.flush();
         bump();
-        await new Promise((r) => setTimeout(r, 10));
+        // React commits the update on its own scheduler; the commit requests a frame. Wait for that request.
+        const deadline = Date.now() + 2000;
+        while (scheduler.queue.length === 0 && Date.now() < deadline) await new Promise((r) => setTimeout(r, 1));
+        expect(scheduler.queue.length).toBe(1);
         scheduler.flush();
         expect(root.renderer.buffer.toPlainString(true).trim()).toBe("1");
         root.unmount();

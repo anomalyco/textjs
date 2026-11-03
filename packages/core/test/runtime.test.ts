@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, jest, test } from "bun:test";
 import {
   ConsoleRenderer,
   initYoga,
@@ -317,59 +317,78 @@ describe("zero-jump input", () => {
   });
 
   test("flushInputFrame renders synchronously, then coalesces key repeat at 120fps", () => {
-    const con = new FakeConsole();
-    const scheduler = new ManualScheduler();
-    const label = text({}, "a");
-    const root = box({ flexDirection: "column" }, label);
-    const r = new ConsoleRenderer({ root, console: con, scheduler, viewport: { width: 20, height: 2 }, input: false, registerGlobal: false });
-    r.requestRender();
-    const t0 = performance.now();
-    const frame = r.flushInputFrame();
-    const elapsed = performance.now() - t0;
-    expect(frame?.skipped).toBe(false);
-    expect(con.logs.length).toBe(1);
-    // Synchronous: the frame is logged before flushInputFrame returns, with nothing scheduled.
-    // Wall-clock time is reported, not asserted; a GC pause on a busy machine would fail a 1 ms bound.
-    expect(scheduler.queue.length).toBe(0);
-    console.info(`[bench] input → frame (sync flush): ${elapsed.toFixed(3)}ms`);
-    // A second flush within 8ms defers to the next animation frame.
-    (label.children[0] ?? label).setText("ab");
-    expect(r.flushInputFrame()).toBeNull();
-    expect(con.logs.length).toBe(1);
-    expect(scheduler.queue.length).toBe(1);
-    scheduler.flush();
-    expect(con.logs.length).toBe(2);
-    r.dispose();
+    // Fake timers freeze performance.now(), so "within 8ms" is exact rather than racing a busy runner.
+    jest.useFakeTimers();
+    try {
+      const con = new FakeConsole();
+      const scheduler = new ManualScheduler();
+      const label = text({}, "a");
+      const root = box({ flexDirection: "column" }, label);
+      const r = new ConsoleRenderer({ root, console: con, scheduler, viewport: { width: 20, height: 2 }, input: false, registerGlobal: false });
+      r.requestRender();
+      const frame = r.flushInputFrame();
+      expect(frame?.skipped).toBe(false);
+      expect(con.logs.length).toBe(1);
+      // Synchronous: the frame is logged before flushInputFrame returns, with nothing scheduled.
+      expect(scheduler.queue.length).toBe(0);
+      const raw = label.children[0] ?? label;
+      // A second flush within 8ms defers to the next animation frame.
+      jest.advanceTimersByTime(7);
+      raw.setText("ab");
+      expect(r.flushInputFrame()).toBeNull();
+      expect(con.logs.length).toBe(1);
+      expect(scheduler.queue.length).toBe(1);
+      scheduler.flush();
+      expect(con.logs.length).toBe(2);
+      // Once 8ms have passed since the last synchronous flush, input renders synchronously again.
+      jest.advanceTimersByTime(1);
+      raw.setText("abc");
+      expect(r.flushInputFrame()?.skipped).toBe(false);
+      expect(con.logs.length).toBe(3);
+      expect(scheduler.queue.length).toBe(0);
+      r.dispose();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
-  test("minFrameInterval paces emitted frames and coalesces updates in between", async () => {
-    const con = new FakeConsole();
-    const scheduler = new ManualScheduler();
-    const label = text({}, "a");
-    const root = box({ flexDirection: "column" }, label);
-    const r = new ConsoleRenderer({
-      root,
-      console: con,
-      scheduler,
-      minFrameInterval: 40,
-      viewport: { width: 20, height: 2 },
-      input: false,
-      registerGlobal: false,
-    });
-    r.renderNow();
-    expect(con.logs.length).toBe(1);
-    const raw = label.children[0] ?? label;
-    raw.setText("ab");
-    r.requestRender();
-    raw.setText("abc");
-    expect(r.flushInputFrame()).toBeNull();
-    r.requestRender();
-    // Within the interval nothing goes through the animation-frame scheduler.
-    expect(scheduler.queue.length).toBe(0);
-    expect(con.logs.length).toBe(1);
-    await Bun.sleep(60);
-    expect(con.logs.length).toBe(2);
-    expect(String(con.last.format)).toContain("abc");
-    r.dispose();
+  test("minFrameInterval paces emitted frames and coalesces updates in between", () => {
+    jest.useFakeTimers();
+    try {
+      const con = new FakeConsole();
+      const scheduler = new ManualScheduler();
+      const label = text({}, "a");
+      const root = box({ flexDirection: "column" }, label);
+      const r = new ConsoleRenderer({
+        root,
+        console: con,
+        scheduler,
+        minFrameInterval: 40,
+        viewport: { width: 20, height: 2 },
+        input: false,
+        registerGlobal: false,
+      });
+      r.renderNow();
+      expect(con.logs.length).toBe(1);
+      const raw = label.children[0] ?? label;
+      raw.setText("ab");
+      r.requestRender();
+      raw.setText("abc");
+      expect(r.flushInputFrame()).toBeNull();
+      r.requestRender();
+      // Within the interval nothing goes through the animation-frame scheduler.
+      expect(scheduler.queue.length).toBe(0);
+      expect(con.logs.length).toBe(1);
+      jest.advanceTimersByTime(39);
+      expect(con.logs.length).toBe(1);
+      // At the interval boundary the coalesced update goes out as one frame with the latest text.
+      jest.advanceTimersByTime(1);
+      expect(con.logs.length).toBe(2);
+      expect(String(con.last.format)).toContain("abc");
+      expect(scheduler.queue.length).toBe(0);
+      r.dispose();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

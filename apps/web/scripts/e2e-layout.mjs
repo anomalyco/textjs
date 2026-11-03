@@ -1,4 +1,4 @@
-// Pad layout parity: every Playground demo (Dashboard, Streaming, Snake at /playground[/<demo>],
+// Pad layout parity: every Playground demo (Dashboard, Streaming, Snake, Doom at /playground[/<demo>],
 // OpenCode at /opencode, Coffee at /coffee) shares one stage layout, so switching between them in
 // the picker must not move the picker, keycaps, subtitle, pad or its slots by a single pixel, before
 // the console is open or once the pad is live.
@@ -188,7 +188,7 @@ for (const vp of VIEWPORTS) {
   // Every demo in the picker lines up (their actions, keys and bottom panels differ), in both directions.
   if (!vp.touch) {
     const demos = await page.evaluate(() => [...document.querySelectorAll(".pad-picker a")].map((a) => [a.textContent, a.getAttribute("href")]));
-    check(`${vp.name} picker lists five demos`, demos.length === 5, JSON.stringify(demos));
+    check(`${vp.name} picker lists six demos`, demos.length === 6, JSON.stringify(demos));
     await page.evaluate(() => (window.__shifts = []));
     for (const [label, href] of [...demos, ...[...demos].reverse()]) {
       await page.evaluate((h) => document.querySelector(`.pad-picker a[href="${h}"]`).click(), href);

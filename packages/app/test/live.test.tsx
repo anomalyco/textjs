@@ -227,40 +227,46 @@ describe("live app", () => {
     // Client: the regular renderer + driver.
     const client = await createTestRoot({ width: 60, height: 14 });
     await client.render(<AppRouter routes={routes()} history={createMemoryHistory("/")} errorStore={null} documentTitle={false} />);
-    // Server: live app → encoder → (JSON) → frame player → driver.
+    // Server: live app → encoder → (JSON) → frame player → driver, outside act() like production.
+    let frames = 0;
+    const enc = new LiveFrameEncoder();
+    const con = new FakeConsole();
+    const player = new FramePlayerCore({ console: con, schedule: null });
+    const pump = (): void => {
+      const f = enc.encode((app as LiveApp).buffer);
+      if (f) player.applyFrame(JSON.parse(JSON.stringify(f)) as LiveFrame);
+      player.paint();
+    };
     await withoutActEnvironment(async () => {
-      let frames = 0;
       app = await createLiveApp({ routes: routes(), path: "/", cols: 60, rows: 14, onFrame: () => frames++ });
       app.flush();
-      const enc = new LiveFrameEncoder();
-      const con = new FakeConsole();
-      const player = new FramePlayerCore({ console: con, schedule: null });
-      const pump = (): void => {
-        const f = enc.encode((app as LiveApp).buffer);
-        if (f) player.applyFrame(JSON.parse(JSON.stringify(f)) as LiveFrame);
-        player.paint();
-      };
       pump();
-      expect(con.logs[0]).toEqual(client.console.logs[0] as unknown[]);
-      expect(con.clears).toBe(client.console.clears);
-      expect(frames).toBeGreaterThan(0);
-
-      // Input round-trip: the same key on both sides yields the same next frame.
-      await client.press("+");
-      client.frame();
-      app.input({ type: "key", key: "+", input: "+", code: "", repeat: false, ctrl: false, meta: false, shift: false, alt: false });
-      app.flush();
-      pump();
-      expect(client.root.renderer.buffer.toPlainString()).toContain("count 1");
-      expect(con.logs.at(-1)).toEqual(client.console.logs.at(-1) as unknown[]);
-
-      // Resize keyframes.
-      app.input({ type: "resize", cols: 40, rows: 10 });
-      app.flush();
-      pump();
-      expect(player.buffer.width).toBe(40);
-      expect(player.buffer.toPlainString()).toContain("count 1");
     });
+    expect(con.logs[0]).toEqual(client.console.logs[0] as unknown[]);
+    expect(con.clears).toBe(client.console.clears);
+    expect(frames).toBeGreaterThan(0);
+
+    // Input round-trip: the same key on both sides yields the same next frame.
+    await client.press("+");
+    client.frame();
+    await withoutActEnvironment(() => {
+      const live = app as LiveApp;
+      live.input({ type: "key", key: "+", input: "+", code: "", repeat: false, ctrl: false, meta: false, shift: false, alt: false });
+      live.flush();
+      pump();
+    });
+    expect(client.root.renderer.buffer.toPlainString()).toContain("count 1");
+    expect(con.logs.at(-1)).toEqual(client.console.logs.at(-1) as unknown[]);
+
+    // Resize keyframes.
+    await withoutActEnvironment(() => {
+      const live = app as LiveApp;
+      live.input({ type: "resize", cols: 40, rows: 10 });
+      live.flush();
+      pump();
+    });
+    expect(player.buffer.width).toBe(40);
+    expect(player.buffer.toPlainString()).toContain("count 1");
     await client.unmount();
   });
 
@@ -489,7 +495,7 @@ describe("live server (SSE + POST)", () => {
       await until(() => a.messages.some((m) => m.t === "banner" && m.banner !== null) && frames(a).length > 0);
       const sid = (a.messages[0] as { sid: string }).sid;
       a.close();
-      await sleep(30);
+      await until(() => live?.sessions.get(sid)?.connected === false);
       // Focus returns while the stream is down; the browser reports it on the next POST.
       expect((await post(sid, [{ type: "focus", focused: true }])).status).toBe(204);
       const b = await openStream(base, "path=/&cols=50&rows=12&focused=1", { "Last-Event-ID": sid });
@@ -529,7 +535,7 @@ describe("live server (SSE + POST)", () => {
       await post(sid, [{ type: "key", key: "+", input: "+" }]);
       await until(() => decode(a).toPlainString().includes("count 1"));
       a.close();
-      await sleep(30);
+      await until(() => live?.sessions.get(sid)?.connected === false);
       const b = await openStream(base, "path=/ignored&cols=50&rows=12", { "Last-Event-ID": sid });
       await until(() => frames(b).length > 0);
       expect(b.messages[0]).toMatchObject({ t: "hello", sid, resumed: true });
@@ -802,17 +808,16 @@ describe("live hardening", () => {
       });
       try {
         app.history.push("/other");
-        await sleep(10);
+        await until(() => navs.length === 1);
         app.input({ type: "nav", href: "/other" });
-        await sleep(10);
+        await until(() => navs.length === 2);
         expect(app.history.location.pathname).toBe("/");
         expect(navs).toEqual([
           ["/other", "client"],
           ["/other", "client"],
         ]);
         app.history.push("/async");
-        await sleep(10);
-        expect(app.history.location.pathname).toBe("/async");
+        await until(() => app.history.location.pathname === "/async");
       } finally {
         app.dispose();
       }
@@ -860,8 +865,9 @@ describe("prerendering errors", () => {
         },
       },
     };
-    await expect(prerenderShell({ routes: boom, path: "/", cols: 20, rows: 4 })).rejects.toThrow(/db down/);
-    const ok = await prerenderShell({ routes: routes(), path: "/other", cols: 30, rows: 4 });
+    // Like the build, prerender outside act().
+    await expect(withoutActEnvironment(() => prerenderShell({ routes: boom, path: "/", cols: 20, rows: 4 }))).rejects.toThrow(/db down/);
+    const ok = await withoutActEnvironment(() => prerenderShell({ routes: routes(), path: "/other", cols: 30, rows: 4 }));
     expect(ok.some((c) => c.args.join("").includes("other server page"))).toBe(true);
     expect(shellScript(ok, "/other")).toContain("__TEXTJS_SHELL_AT__=");
   });

@@ -50,7 +50,7 @@ const docsView = (f) => f.includes("/ Search") && !f.includes("Esc back to docs"
 const preview = (id) => page.locator(`[data-preview="${id}"]`);
 const liveLabel = (id) => preview(id).locator(".preview-head .live").innerText();
 
-/** The on-page mirror's painted rows (the overlay above the blank placeholder grid). */
+/** The on-page mirror's painted rows (the overlay above the size strut). */
 const pageRows = (id) =>
   preview(id).evaluate((el) => {
     const mirrors = el.querySelectorAll(".preview-stage [data-textjs-mirror]");

@@ -7,7 +7,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { txError } from "./errors";
 
-export const VERSION = "1.2.0";
+export const VERSION = "1.3.0";
 
 export const TEMPLATES = {
   starter: "Layout, keyboard counter and <Link> navigation",
