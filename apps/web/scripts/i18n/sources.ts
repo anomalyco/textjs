@@ -45,6 +45,34 @@ export function readText(file: string): string {
   return existsSync(file) ? readFileSync(file, "utf8") : "";
 }
 
+// Captions --------------------------------------------------------------------------------------
+
+/** Learn chapters' English captions (`src/learn/captions/<slug>.vtt`, copied from media/learn's output). */
+export function captionSources(): { slug: string; file: string }[] {
+  const dir = join(SRC_DIR, "learn", "captions");
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".vtt"))
+    .sort()
+    .map((f) => ({ slug: basename(f, ".vtt"), file: join(dir, f) }));
+}
+
+export function captionFile(locale: string, slug: string): string {
+  return join(LOCALES_DIR, locale, "captions", `${slug}.json`);
+}
+
+export function readCaptions(locale: string, slug: string): Record<string, string> {
+  const f = captionFile(locale, slug);
+  return existsSync(f) ? (JSON.parse(readFileSync(f, "utf8")) as Record<string, string>) : {};
+}
+
+/** Chapters with translated captions in a locale (any sentence translated). */
+export function translatedCaptions(locale: string): string[] {
+  return captionSources()
+    .map((c) => c.slug)
+    .filter((slug) => Object.keys(readCaptions(locale, slug)).length > 0);
+}
+
 // Catalog -----------------------------------------------------------------------------------------
 
 export type CatalogValue = string | Record<string, string>;

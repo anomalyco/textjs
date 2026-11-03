@@ -1,9 +1,14 @@
 /**
- * Whether chapter videos show captions. Off by default; the choice is kept in `localStorage` so it carries across
- * chapters. The server snapshot is always off, so prerendered pages hydrate cleanly.
+ * Whether chapter videos show captions. Off by default in English and on in other languages; the choice is kept in
+ * `localStorage` so it carries across chapters. The server snapshot is the default, so prerendered pages hydrate
+ * cleanly.
  */
 
 import { useSyncExternalStore } from "react";
+import { LOCALE, SOURCE_LOCALE } from "../i18n/locales";
+
+/** Captions start on for readers of a translated page. */
+const DEFAULT_ON = LOCALE !== SOURCE_LOCALE;
 
 export const CAPTIONS_KEY = "textjs:learn-captions";
 
@@ -17,8 +22,8 @@ function storage(): Storage | null {
   }
 }
 
-export function parseCaptions(raw: string | null): boolean {
-  return raw === "on";
+export function parseCaptions(raw: string | null, fallback = DEFAULT_ON): boolean {
+  return raw === null ? fallback : raw === "on";
 }
 
 /**
@@ -48,7 +53,7 @@ export class CaptionsStore {
     return this.state;
   };
 
-  readonly getServerSnapshot = (): boolean => false;
+  readonly getServerSnapshot = (): boolean => DEFAULT_ON;
 
   private readonly onStorage = (e: StorageEvent): void => {
     if (e.key !== CAPTIONS_KEY && e.key !== null) return;

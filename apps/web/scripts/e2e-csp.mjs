@@ -162,7 +162,7 @@ for (const path of pages) {
 }
 if (!only) check("the analytics beacon loads and reports on every page", beaconRan === pages.length, `${beaconRan} of ${pages.length}`);
 
-// ── Learn: video and captions from media.textjs.org ───────────────────────────
+// ── Learn: video from media.textjs.org, captions from this site ───────────────
 if (!only || only.test("/learn/getting-started")) {
   await page.goto(`${base}/learn/getting-started`);
   await settle(500);
@@ -187,13 +187,13 @@ if (!only || only.test("/learn/getting-started")) {
     }
     const track = v.querySelector("track");
     while (track && track.readyState < 2 && performance.now() - t0 < 15000) await new Promise((r) => setTimeout(r, 100));
-    const out = { h264, time: v.currentTime, src: v.currentSrc, track: track?.readyState, cues: v.textTracks[0]?.cues?.length ?? 0 };
+    const out = { h264, time: v.currentTime, src: v.currentSrc, track: track?.readyState, trackSrc: track?.src ?? "", cues: v.textTracks[0]?.cues?.length ?? 0 };
     v.pause();
     return out;
   });
   await settle(1000);
-  const ok = typeof played === "object" && played.src.startsWith("https://media.textjs.org/") && played.track === 2 && played.cues > 0 && (!played.h264 || played.time >= 1);
-  check(`learn: the chapter video ${played?.h264 ? "plays" : "loads"} from media.textjs.org with captions`, ok && media.some((m) => /\.mp4$/.test(m)), `${JSON.stringify(played)}\n${media.join("\n")}`);
+  const ok = typeof played === "object" && played.src.startsWith("https://media.textjs.org/") && played.track === 2 && played.trackSrc.includes("/captions/learn/") && played.cues > 0 && (!played.h264 || played.time >= 1);
+  check(`learn: the chapter video ${played?.h264 ? "plays" : "loads"} from media.textjs.org with same-origin captions`, ok && media.some((m) => /\.mp4$/.test(m)), `${JSON.stringify(played)}\n${media.join("\n")}`);
   // Scroll the playing video away so the mini player docks.
   await page.evaluate(() => document.querySelector("video")?.play());
   await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));

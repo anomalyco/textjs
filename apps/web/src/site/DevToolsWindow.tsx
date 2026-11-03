@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { StyledFrame } from "@textjs/core";
 import { ConsoleMirror } from "@textjs/react/dom";
+import { t } from "../i18n/t";
 import { ClearIcon, DeviceIcon, EyeIcon, GearIcon, InspectIcon, KebabIcon, SidebarIcon } from "./icons";
 
 /**
@@ -142,7 +143,7 @@ export function DevToolsWindow({
             type="button"
             className={`dt-icon dt-inspect${inspecting ? " active" : ""}`}
             aria-pressed={inspecting}
-            aria-label="Show layout wireframe"
+            aria-label={t("Show layout wireframe")}
             // Toggling the wireframe doesn't take over the keyboard (the companion engages on document mousedown).
             onMouseDown={(e) => e.stopPropagation()}
             onClick={onInspect}
@@ -159,9 +160,9 @@ export function DevToolsWindow({
           <DeviceIcon />
         </span>
         <span className="dt-sep" aria-hidden={decor} />
-        {TABS.map((t) => (
-          <span key={t} className={`dt-tab${t === "Console" ? " active" : ""}`} aria-hidden={decor}>
-            {t}
+        {TABS.map((tab) => (
+          <span key={tab} className={`dt-tab${tab === "Console" ? " active" : ""}`} aria-hidden={decor}>
+            {tab}
           </span>
         ))}
         <span className="spacer" aria-hidden={decor} />

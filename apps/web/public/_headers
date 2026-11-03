@@ -33,6 +33,11 @@
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
   Cross-Origin-Resource-Policy: same-origin
 
+# Learn captions: the file name carries the video's revision, but a retranslation keeps it.
+/captions/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+  Cross-Origin-Resource-Policy: same-origin
+
 /doom/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
   Cross-Origin-Resource-Policy: same-origin

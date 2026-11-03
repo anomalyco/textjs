@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { rich } from "../../i18n/rich";
+import { t } from "../../i18n/t";
 import { A } from "../../router";
 import { HighlightedCode } from "../../site/highlight";
 import { ArrowRight } from "../../site/icons";
@@ -30,37 +32,27 @@ export default function Page() {
 }
 `;
 
+const code = { c: (c: ReactNode) => <code>{c}</code> };
+
 const ITEMS: Array<{ title: string; body: ReactNode; href: string }> = [
   {
-    title: "Partial Prerendering",
-    body: <>Every static route’s first frame ships inside its HTML. The console paints before JavaScript loads.</>,
+    title: t("Partial Prerendering"),
+    body: t("Every static route’s first frame ships inside its HTML. The console paints before JavaScript loads."),
     href: "/docs/server-rendering",
   },
   {
-    title: "Middleware",
-    body: (
-      <>
-        <code>middleware.ts</code> runs before matched requests, with <code>NextRequest</code>, <code>NextResponse</code> and <code>config.matcher</code>.
-      </>
-    ),
+    title: t("Middleware"),
+    body: rich("<c>middleware.ts</c> runs before matched requests, with <c>NextRequest</c>, <c>NextResponse</c> and <c>config.matcher</c>.", code),
     href: "/docs/middleware",
   },
   {
-    title: "Caching",
-    body: (
-      <>
-        <code>revalidate</code>, <code>unstable_cache</code> and <code>revalidateTag</code> cache route handlers and data, with stale-while-revalidate.
-      </>
-    ),
+    title: t("Caching"),
+    body: rich("<c>revalidate</c>, <c>unstable_cache</c> and <c>revalidateTag</c> cache route handlers and data, with stale-while-revalidate.", code),
     href: "/docs/caching",
   },
   {
-    title: "Deploy adapters",
-    body: (
-      <>
-        <code>text build --adapter</code> targets <code>static</code>, <code>bun</code>, <code>vercel</code> or <code>cloudflare</code>. Server-rendered routes need <code>bun</code> or <code>text start</code>.
-      </>
-    ),
+    title: t("Deploy adapters"),
+    body: rich("<c>text build --adapter</c> targets <c>static</c>, <c>bun</c>, <c>vercel</c> or <c>cloudflare</c>. Server-rendered routes need <c>bun</c> or <c>text start</c>.", code),
     href: "/docs/deploying",
   },
 ];
@@ -70,19 +62,19 @@ function Stream({ play }: { play: boolean }): ReactNode {
   return (
     <div className={`sv-flow${play ? " play" : ""}`} dir="ltr" aria-hidden="true">
       <div className="sv-node">
-        <span className="sv-node-k">Server</span>
+        <span className="sv-node-k">{t("Server")}</span>
         <span className="sv-node-v">React + Yoga</span>
       </div>
       <div className="sv-wire">
         <span className="sv-wire-label">
-          SSE<span className="sv-wire-more"> · row deltas</span>
+          SSE<span className="sv-wire-more"> · {t("row deltas")}</span>
         </span>
         <span className="sv-bit" style={{ ["--d" as string]: "0s" }} />
         <span className="sv-bit" style={{ ["--d" as string]: "-0.6s" }} />
         <span className="sv-bit" style={{ ["--d" as string]: "-1.2s" }} />
       </div>
       <div className="sv-node">
-        <span className="sv-node-k">Frame player</span>
+        <span className="sv-node-k">{t("Frame player")}</span>
         <span className="sv-node-v">21 kB gzip</span>
       </div>
       <div className="sv-wire short">
@@ -103,10 +95,8 @@ export function ServerSection(): ReactNode {
     <section className="section home-section">
       <div className="container">
         <div className="section-head">
-          <h2>Render routes on the server</h2>
-          <p>
-            Export <code>runtime = "server"</code> to render a route and its async components on the server. The browser loads a 21 kB (gzip) frame player instead of your app.
-          </p>
+          <h2>{t("Render routes on the server")}</h2>
+          <p>{rich("Export <c>runtime = \"server\"</c> to render a route and its async components on the server. The browser loads a 21 kB (gzip) frame player instead of your app.", code)}</p>
         </div>
         <div className="frame sv-frame" ref={ref}>
           <Crosses />

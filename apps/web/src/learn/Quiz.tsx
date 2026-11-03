@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { plural, t } from "../i18n/t";
 import type { Chapter } from "./course";
 import { progressStore, useProgress } from "./progress";
 
@@ -22,10 +23,10 @@ export function Quiz({ chapter }: { chapter: Chapter }): ReactNode {
   return (
     <section className="learn-quiz" aria-labelledby="quiz">
       <div className="learn-quiz-head">
-        <h2 id="quiz">Quiz</h2>
-        <span className={`learn-status${done ? " done" : ""}`}>{done ? "✓ Chapter complete" : `${chapter.quiz.length} questions`}</span>
+        <h2 id="quiz">{t("Quiz")}</h2>
+        <span className={`learn-status${done ? " done" : ""}`}>{done ? t("✓ Chapter complete") : plural(chapter.quiz.length, { one: "{count} question", other: "{count} questions" })}</span>
       </div>
-      <p className="learn-quiz-lede">Answer every question to complete the chapter.</p>
+      <p className="learn-quiz-lede">{t("Answer every question to complete the chapter.")}</p>
       {chapter.quiz.map((q, qi) => {
         const picked = picks[qi];
         const answered = picked !== undefined;
@@ -54,7 +55,7 @@ export function Quiz({ chapter }: { chapter: Chapter }): ReactNode {
               })}
             </div>
             <p className={`learn-feedback${answered ? (right ? " right" : " wrong") : ""}`} aria-live="polite">
-              {answered ? (right ? `Correct. ${q.explanation}` : "Incorrect. Try another answer.") : "\u00a0"}
+              {answered ? (right ? t("Correct. {explanation}", { explanation: q.explanation }) : t("Incorrect. Try another answer.")) : "\u00a0"}
             </p>
           </fieldset>
         );

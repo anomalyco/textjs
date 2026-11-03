@@ -6,6 +6,7 @@ import dashboardSource from "../demos/Dashboard.tsx?raw";
 import streamingSource from "../demos/Streaming.tsx?raw";
 import snakeSource from "../demos/Snake.tsx?raw";
 import doomSource from "../demos/doom/Doom.tsx?raw";
+import { t } from "../i18n/t";
 import { A } from "../router";
 import { OpenCodeWordmark, TerminalWordmark } from "../site/brand-marks";
 import { CopyButton } from "../site/CodeBlock";
@@ -39,7 +40,7 @@ function Picker({ demo }: { demo: DemoId }): ReactNode {
     if (r.left < n.left || r.right > n.right) nav.scrollLeft += r.left - n.left - (n.width - r.width) / 2;
   }, [demo]);
   return (
-    <nav className="pad-picker" aria-label="Demos" ref={ref}>
+    <nav className="pad-picker" aria-label={t("Demos")} ref={ref}>
       {DEMOS.map((d) => {
         const current = d.id === demo;
         return (
@@ -82,18 +83,18 @@ export function PlaygroundPage({ demo }: { demo: DemoId }): ReactNode {
           demo === "doom" ? (
             <div className="pad-footer">
               <button type="button" className="text-link pad-source" onClick={() => setShowSource((s) => !s)} aria-expanded={showSource}>
-                {showSource ? "Hide source" : "View source"}
+                {showSource ? t("Hide source") : t("View source")}
               </button>
               <span className="pad-sep" aria-hidden="true">
                 ·
               </span>
               <a className="text-link pad-legal" href="/doom/LICENSE-DOOM1.TXT">
-                DOOM is a trademark of id Software. Text.js is not affiliated with or endorsed by id Software.
+                {t("DOOM is a trademark of id Software. Text.js is not affiliated with or endorsed by id Software.")}
               </a>
             </div>
           ) : (
             <button type="button" className="text-link pad-source" onClick={() => setShowSource((s) => !s)} aria-expanded={showSource}>
-              {showSource ? "Hide source" : "View source"}
+              {showSource ? t("Hide source") : t("View source")}
             </button>
           )
         ) : demo === "opencode" ? (

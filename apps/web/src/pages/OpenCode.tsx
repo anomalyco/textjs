@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { getCompanion } from "../console-companion/boot";
 import { siteStore, type OpenCodeConnection } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
-import { autoConnectTarget, BRIDGE_COMMAND, DEFAULT_SERVER_URL, discoverServer, normalizeServerUrl, pairBridge, PAIRING_PROMPT, PairingRequired, rememberBridgeToken, rememberServer, WrongCode } from "../demos/opencode/live";
+import { autoConnectTarget, BRIDGE_COMMAND, DEFAULT_SERVER_URL, discoverServer, normalizeServerUrl, pairBridge, PairingRequired, rememberBridgeToken, rememberServer, WrongCode } from "../demos/opencode/live";
+import { t } from "../i18n/t";
 import { CopyCommand } from "../site/CodeBlock";
 
 /** `quiet`: a reconnect on load, which stays in the sandbox on failure. `token`: fresh from pairing (the panel stays in pair mode meanwhile). */
@@ -19,8 +20,8 @@ async function connectTo(target: string, quiet: boolean, token?: string): Promis
       return;
     }
     if (quiet) return;
-    const message = err instanceof Error ? (err.name === "AbortError" || err.name === "TimeoutError" ? "Timed out" : err.message) : String(err);
-    siteStore.set({ opencode: { mode: "error", url: target, message: message === "Failed to fetch" || message === "Load failed" ? `Unreachable. Run ${BRIDGE_COMMAND}.` : message } });
+    const message = err instanceof Error ? (err.name === "AbortError" || err.name === "TimeoutError" ? t("Timed out") : err.message) : String(err);
+    siteStore.set({ opencode: { mode: "error", url: target, message: message === "Failed to fetch" || message === "Load failed" ? t("Unreachable. Run {command}.", { command: BRIDGE_COMMAND }) : message } });
   }
 }
 
@@ -129,44 +130,44 @@ export function ConnectPanel(): ReactNode {
     ) : status === "exited" ? (
       <>
         <span className="dot dot-idle" />
-        <span className="status-text">OpenCode exited.</span>
+        <span className="status-text">{t("OpenCode exited.")}</span>
         <button type="button" className="text-link status-action" onClick={() => getCompanion()?.activate()}>
-          Restart
+          {t("Restart")}
         </button>
       </>
     ) : status === "checking" ? (
       <>
         <span className="dot dot-idle pulse" />
-        <span className="status-text">{`Looking for OpenCode at ${host(url)}…`}</span>
+        <span className="status-text">{t("Looking for OpenCode at {host}…", { host: host(url) })}</span>
       </>
     ) : conn.mode === "sandbox" ? (
       <>
         <span className="dot dot-idle" />
-        <span className="status-text">Sandbox with a scripted agent. Connect your own server:</span>
+        <span className="status-text">{t("Sandbox with a scripted agent. Connect your own server:")}</span>
       </>
     ) : conn.mode === "pair" ? (
       <>
         <span className={`dot dot-amber${pairing ? " pulse" : ""}`} />
         <span className="status-text" id={STATUS_ID} title={conn.message}>
-          {pairing ? "Pairing…" : (conn.message ?? PAIRING_PROMPT)}
+          {pairing ? t("Pairing…") : (conn.message ?? t("Enter the code from your terminal."))}
         </span>
         <button type="button" className="text-link status-action" onClick={() => toSandbox(conn.url)}>
-          Cancel
+          {t("Cancel")}
         </button>
       </>
     ) : conn.mode === "connecting" ? (
       <>
         <span className="dot dot-amber pulse" />
-        <span className="status-text" id={STATUS_ID}>Connecting…</span>
+        <span className="status-text" id={STATUS_ID}>{t("Connecting…")}</span>
       </>
     ) : conn.mode === "live" ? (
       <>
         <span className="dot" />
         <span className="status-text" title={conn.url}>
-          {`Connected to ${host(conn.url)}${conn.version ? ` · ${conn.version}` : ""}`}
+          {`${t("Connected to {host}", { host: host(conn.url) })}${conn.version ? ` · ${conn.version}` : ""}`}
         </span>
         <button type="button" className="text-link status-action" onClick={() => toSandbox(conn.url)}>
-          Disconnect
+          {t("Disconnect")}
         </button>
       </>
     ) : (
@@ -216,17 +217,17 @@ export function ConnectPanel(): ReactNode {
                   }
                 }}
                 ref={codeInput}
-                placeholder="Pairing code"
+                placeholder={t("Pairing code")}
                 spellCheck={false}
                 autoComplete="one-time-code"
                 autoCapitalize="characters"
                 maxLength={16}
-                aria-label="Pairing code"
+                aria-label={t("Pairing code")}
                 aria-invalid={conn.wrong === true}
                 aria-describedby={STATUS_ID}
               />
               <button type="submit" className="btn btn-secondary btn-sm" disabled={pairing}>
-                Pair
+                {t("Pair")}
               </button>
             </form>
           ) : (
@@ -242,9 +243,9 @@ export function ConnectPanel(): ReactNode {
               }}
               className="connect-form"
             >
-              <input ref={urlInput} className="text-input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={DEFAULT_SERVER_URL} spellCheck={false} aria-label="OpenCode server URL" aria-describedby={STATUS_ID} />
+              <input ref={urlInput} className="text-input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={DEFAULT_SERVER_URL} spellCheck={false} aria-label={t("OpenCode server URL")} aria-describedby={STATUS_ID} />
               <button type="submit" className="btn btn-secondary btn-sm" disabled={conn.mode === "connecting"}>
-                Connect
+                {t("Connect")}
               </button>
             </form>
           )}

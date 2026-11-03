@@ -1,0 +1,237 @@
+WEBVTT
+
+1
+00:00:01.300 --> 00:00:03.570
+Welcome back to Learn Text.js.
+
+2
+00:00:03.620 --> 00:00:07.380
+This is chapter nine:
+Running in a Terminal.
+
+3
+00:00:08.380 --> 00:00:10.890
+The same app runs in a real terminal.
+
+4
+00:00:10.940 --> 00:00:14.700
+Layout, components, keymaps
+and route handlers are shared,
+
+5
+00:00:14.740 --> 00:00:17.290
+and they render into
+the same grid of cells.
+
+6
+00:00:17.340 --> 00:00:19.290
+Only the last step changes.
+
+7
+00:00:19.340 --> 00:00:24.970
+In the console, cells become
+%c-styled spans in a console.log call.
+
+8
+00:00:25.020 --> 00:00:29.500
+In a terminal, they become
+truecolor ANSI escape codes.
+
+9
+00:00:31.220 --> 00:00:33.700
+Let's run it in a terminal.
+
+10
+00:00:35.620 --> 00:00:39.730
+Add a script to package.json
+that runs text run.
+
+11
+00:00:39.780 --> 00:00:42.660
+This one is called tui.
+
+12
+00:00:43.980 --> 00:00:49.290
+bun run tui draws the app full-screen,
+starting at the root route.
+
+13
+00:00:49.340 --> 00:00:51.850
+text run imports every file in app,
+
+14
+00:00:51.900 --> 00:00:54.970
+and mounts the App Router
+with an in-memory history.
+
+15
+00:00:55.020 --> 00:00:59.530
+Link, useRouter, notFound
+and redirect work unchanged.
+
+16
+00:00:59.580 --> 00:01:02.890
+Press 2, and the link
+goes to /deployments.
+
+17
+00:01:02.940 --> 00:01:07.690
+Same-origin fetch calls to /api
+run your route handlers in-process,
+
+18
+00:01:07.740 --> 00:01:09.530
+so the table has its data.
+
+19
+00:01:09.580 --> 00:01:12.570
+Ctrl+C quits and restores your scrollback.
+
+20
+00:01:12.620 --> 00:01:15.020
+text run needs Bun.
+
+21
+00:01:16.940 --> 00:01:19.820
+Next, quit with Q.
+
+22
+00:01:21.340 --> 00:01:24.330
+Terminal users expect Q to quit.
+
+23
+00:01:24.380 --> 00:01:28.410
+Import useApp from @textjs/app.
+
+24
+00:01:28.460 --> 00:01:33.610
+Call it in the root layout, and when
+the input is Q, call app.exit().
+
+25
+00:01:33.660 --> 00:01:36.490
+exit unmounts the app and
+restores the terminal.
+
+26
+00:01:36.540 --> 00:01:39.980
+In the browser, it
+unmounts the console app.
+
+27
+00:01:41.500 --> 00:01:44.730
+On the lesson page, the
+console plays the terminal.
+
+28
+00:01:44.780 --> 00:01:47.690
+Click the pad first,
+so the page has focus.
+
+29
+00:01:47.740 --> 00:01:50.010
+Press Enter to start text run.
+
+30
+00:01:50.060 --> 00:01:54.780
+The arrow keys move the selection,
+and Q quits back to the shell.
+
+31
+00:01:57.300 --> 00:02:00.500
+You can also write your own CLI.
+
+32
+00:02:01.700 --> 00:02:05.170
+For a single component,
+use renderToTerminal.
+
+33
+00:02:05.220 --> 00:02:10.850
+Import it from @textjs/app/terminal,
+along with the component.
+
+34
+00:02:10.900 --> 00:02:13.650
+Pass it an element, and
+it draws full-screen.
+
+35
+00:02:13.700 --> 00:02:20.260
+waitUntilExit resolves when the app
+exits, for example after useApp().exit().
+
+36
+00:02:22.380 --> 00:02:25.900
+Finally, what's different in a terminal.
+
+37
+00:02:26.780 --> 00:02:30.250
+To start on another route, pass --path.
+
+38
+00:02:30.300 --> 00:02:36.170
+In a terminal, frames repaint at up to 60
+a second, where the console gets about 15.
+
+39
+00:02:36.220 --> 00:02:39.850
+The grid is sized to the window,
+instead of the docked console.
+
+40
+00:02:39.900 --> 00:02:43.050
+Images need pixel data instead of a URL.
+
+41
+00:02:43.100 --> 00:02:47.420
+Everything else, including this
+dashboard, is the same code.
+
+42
+00:02:49.540 --> 00:02:50.690
+Quick check.
+
+43
+00:02:50.740 --> 00:02:54.100
+What changes when the
+app runs in a terminal?
+
+44
+00:02:55.420 --> 00:02:59.690
+Only the output: ANSI instead of %c spans.
+
+45
+00:02:59.740 --> 00:03:03.650
+Layout, components, keymaps
+and route handlers are shared.
+
+46
+00:03:03.700 --> 00:03:06.460
+Only the final encoding differs.
+
+47
+00:03:07.580 --> 00:03:10.940
+And how does an app quit itself?
+
+48
+00:03:12.260 --> 00:03:14.510
+useApp().exit().
+
+49
+00:03:14.560 --> 00:03:18.480
+exit unmounts the app and
+restores the terminal.
+
+50
+00:03:20.200 --> 00:03:23.030
+Next, in chapter ten, the last one,
+
+51
+00:03:23.080 --> 00:03:27.110
+you'll build Acme Deploys,
+set its metadata and ship it.
+
+52
+00:03:27.160 --> 00:03:28.760
+See you there.

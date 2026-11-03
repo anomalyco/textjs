@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { rich } from "../../i18n/rich";
+import { formatNumber, t } from "../../i18n/t";
 import { A } from "../../router";
 import { TurbologLockup } from "../../site/brand-marks";
 import { ArrowRight } from "../../site/icons";
@@ -55,7 +57,7 @@ function GateGlyph(): ReactNode {
           {h}
         </span>
       ))}
-      <span className="tl-g-skip">0 calls · 0 B</span>
+      <span className="tl-g-skip">{t("0 calls · 0 B")}</span>
     </div>
   );
 }
@@ -97,12 +99,12 @@ function EmitGlyph(): ReactNode {
 }
 
 const STAGES: Array<{ step: string; title: ReactNode; body: ReactNode; glyph: ReactNode }> = [
-  { step: "React 19", title: "Commit", body: <>React commits through a custom reconciler.</>, glyph: <CommitGlyph /> },
-  { step: "Yoga", title: "Layout", body: <>Yoga lays out boxes on whole cells.</>, glyph: <LayoutGlyph /> },
-  { step: "CellBuffer", title: "Paint", body: <>Only damaged rows repaint.</>, glyph: <BufferGlyph /> },
-  { step: "Row hash", title: "Dirty gate", body: <>Unchanged frames stop here.</>, glyph: <GateGlyph /> },
-  { step: "RLE", title: "Encode", body: <>{(3200).toLocaleString("en-US")} cells become {pipeline.spans} <code>%c</code> spans.</>, glyph: <EncodeGlyph /> },
-  { step: "console.log", title: "Emit", body: <>Frames are appended at least 66ms apart.</>, glyph: <EmitGlyph /> },
+  { step: "React 19", title: t("Commit"), body: t("React commits through a custom reconciler."), glyph: <CommitGlyph /> },
+  { step: "Yoga", title: t("Layout"), body: t("Yoga lays out boxes on whole cells."), glyph: <LayoutGlyph /> },
+  { step: "CellBuffer", title: t("Paint"), body: t("Only damaged rows repaint."), glyph: <BufferGlyph /> },
+  { step: t("Row hash"), title: t("Dirty gate"), body: t("Unchanged frames stop here."), glyph: <GateGlyph /> },
+  { step: "RLE", title: t("Encode"), body: rich("{cells} cells become {spans} <c>%c</c> spans.", { c: (c) => <code>{c}</code> }, { cells: formatNumber(3200), spans: pipeline.spans }), glyph: <EncodeGlyph /> },
+  { step: "console.log", title: t("Emit"), body: t("Frames are appended at least 66ms apart."), glyph: <EmitGlyph /> },
 ];
 
 function Pipeline({ play }: { play: boolean }): ReactNode {
@@ -140,10 +142,10 @@ function Pipeline({ play }: { play: boolean }): ReactNode {
       </div>
       <div className="tl-legend">
         <span>
-          <i className="dot dirty" /> Changed frame
+          <i className="dot dirty" /> {t("Changed frame")}
         </span>
         <span>
-          <i className="dot idle" /> Unchanged frame, 0 calls
+          <i className="dot idle" /> {t("Unchanged frame, 0 calls")}
         </span>
       </div>
     </div>
@@ -159,7 +161,7 @@ function Lane({ kind, label, blankPct }: { kind: "clear" | "append"; label: stri
     <div className={`tl-lane ${kind}`}>
       <div className="tl-lane-head">
         <code>{label}</code>
-        <span>{`${blankPct.toFixed(1)}% blank`}</span>
+        <span>{t("{pct}% blank", { pct: blankPct.toFixed(1) })}</span>
       </div>
       <div className="tl-bar" aria-hidden="true">
         {Array.from({ length: LANE_FRAMES }, (_, i) => (
@@ -177,10 +179,10 @@ function Throttle({ play }: { play: boolean }): ReactNode {
   return (
     <div className={`tl-throttle${play ? " play" : ""}`}>
       <div className="tl-throttle-copy">
-        <h3>Appended frames</h3>
-        <p>Clearing the console before each frame leaves it blank until DevTools paints the next one. Turbolog appends each frame instead.</p>
+        <h3>{t("Appended frames")}</h3>
+        <p>{t("Clearing the console before each frame leaves it blank until DevTools paints the next one. Turbolog appends each frame instead.")}</p>
         <A href="/blog/turbolog-eliminating-the-flash" className="text-link">
-          Read the post <ArrowRight size={14} />
+          {t("Read the post")} <ArrowRight size={14} />
         </A>
       </div>
       <div className="tl-lanes" dir="ltr">
@@ -220,28 +222,26 @@ export function TurbologSection(): ReactNode {
           <div className="section-mark">
             <TurbologLockup />
           </div>
-          <h2>
-            Every changed frame is one <code>console.log</code> call
-          </h2>
-          <p>A commit that changes no cells never reaches the console.</p>
+          <h2>{rich("Every changed frame is one <c>console.log</c> call", { c: (c) => <code>{c}</code> })}</h2>
+          <p>{t("A commit that changes no cells never reaches the console.")}</p>
         </div>
         <div className="frame tl-frame">
           <Crosses />
           <Pipeline play={inView} />
           <Throttle play={inView} />
           <div className="tl-metrics">
-            <Metric value={pipeline.fullFrameMs} digits={3} unit="ms" label="Full repaint (layout, paint, encode)" />
-            <Metric value={pipeline.typingMs} digits={3} unit="ms" label="One-row edit, such as a keystroke" />
-            <Metric value={0} digits={0} unit=" calls" label="Idle frame" />
-            <Metric value={pipeline.spans} digits={0} unit=" spans" label={<><code>%c</code> arguments for 3,200 cells</>} />
+            <Metric value={pipeline.fullFrameMs} digits={3} unit="ms" label={t("Full repaint (layout, paint, encode)")} />
+            <Metric value={pipeline.typingMs} digits={3} unit="ms" label={t("One-row edit, such as a keystroke")} />
+            <Metric value={0} digits={0} unit={t(" calls")} label={t("Idle frame")} />
+            <Metric value={pipeline.spans} digits={0} unit={t(" spans")} label={rich("<c>%c</c> arguments for 3,200 cells", { c: (c) => <code>{c}</code> })} />
           </div>
         </div>
         <div className="section-foot">
           <span className="subtle">
-            100×32 dashboard, mean of 1,000 frames · {history.machine}
+            {t("100×32 dashboard, mean of 1,000 frames")} · {history.machine}
           </span>
           <A href="/docs/turbolog-engine" className="text-link">
-            Turbolog engine docs <ArrowRight size={14} />
+            {t("Turbolog engine docs")} <ArrowRight size={14} />
           </A>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { msg } from "../i18n/t";
 import type { Hint } from "../console-companion/store";
 
 export interface QuizQuestion {
@@ -21,14 +22,14 @@ export interface ChapterMeta {
   quiz: readonly QuizQuestion[];
 }
 
-export const COURSE_TITLE = "Learn Text.js";
+export const COURSE_TITLE = msg("Learn Text.js");
 export const COURSE_APP = "Acme Deploys";
 
 export const CHAPTERS_META: readonly ChapterMeta[] = [
   {
     slug: "getting-started",
-    title: "Getting Started",
-    summary: "Create an app, render your first page and respond to a key.",
+    title: msg("Getting Started"),
+    summary: msg("Create an app, render your first page and respond to a key."),
     minutes: 5,
     action: "press Enter",
     hints: [
@@ -37,23 +38,23 @@ export const CHAPTERS_META: readonly ChapterMeta[] = [
     ],
     quiz: [
       {
-        question: "Where does a Text.js app render its UI?",
-        options: ["In a <canvas> on the page", "In the DevTools console, via console.log", "In a hidden iframe"],
+        question: msg("Where does a Text.js app render its UI?"),
+        options: [msg("In a <canvas> on the page"), msg("In the DevTools console, via console.log"), msg("In a hidden iframe")],
         answer: 1,
-        explanation: "Every changed frame is a single console.log of %c-styled spans. The page shows no app UI.",
+        explanation: msg("Every changed frame is a single console.log of %c-styled spans. The page shows no app UI."),
       },
       {
-        question: "What does an idle app log?",
-        options: ["One frame per second", "One frame per animation frame", "Nothing"],
+        question: msg("What does an idle app log?"),
+        options: [msg("One frame per second"), msg("One frame per animation frame"), "Nothing"],
         answer: 2,
-        explanation: "If no cell changed, the renderer returns before it builds a string, so nothing is logged.",
+        explanation: msg("If no cell changed, the renderer returns before it builds a string, so nothing is logged."),
       },
     ],
   },
   {
     slug: "layout",
-    title: "Layout with Box",
-    summary: "Build the dashboard shell with Flexbox in cells: a top bar, a sidebar and cards.",
+    title: msg("Layout with Box"),
+    summary: msg("Build the dashboard shell with Flexbox in cells: a top bar, a sidebar and cards."),
     minutes: 7,
     action: "press s",
     hints: [
@@ -62,23 +63,23 @@ export const CHAPTERS_META: readonly ChapterMeta[] = [
     ],
     quiz: [
       {
-        question: "In className utilities, what does p-1 mean?",
-        options: ["1 pixel of padding", "1 cell of padding", "1rem of padding"],
+        question: msg("In className utilities, what does p-1 mean?"),
+        options: [msg("1 pixel of padding"), msg("1 cell of padding"), msg("1rem of padding")],
         answer: 1,
-        explanation: "Units are terminal cells: one column horizontally, one row vertically.",
+        explanation: msg("Units are terminal cells: one column horizontally, one row vertically."),
       },
       {
-        question: "Which class lets a box take the remaining space?",
+        question: msg("Which class lets a box take the remaining space?"),
         options: ["grow", "w-full", "flex-1-auto"],
         answer: 0,
-        explanation: "grow sets flexGrow: 1, exactly as in CSS Flexbox. Yoga does the layout.",
+        explanation: msg("grow sets flexGrow: 1, exactly as in CSS Flexbox. Yoga does the layout."),
       },
     ],
   },
   {
     slug: "styling",
-    title: "Text & Styling",
-    summary: "Style a deployment card with colors, text attributes and theme tokens.",
+    title: msg("Text & Styling"),
+    summary: msg("Style a deployment card with colors, text attributes and theme tokens."),
     minutes: 6,
     action: "press t",
     hints: [
@@ -88,22 +89,22 @@ export const CHAPTERS_META: readonly ChapterMeta[] = [
     quiz: [
       {
         question: 'Why use color="success" instead of a hex value?',
-        options: ["It renders faster", "Theme tokens follow the active theme", "Hex colors aren't supported"],
+        options: [msg("It renders faster"), msg("Theme tokens follow the active theme"), msg("Hex colors aren't supported")],
         answer: 1,
-        explanation: "Tokens resolve against the current theme, so switching themes recolors every token.",
+        explanation: msg("Tokens resolve against the current theme, so switching themes recolors every token."),
       },
       {
         question: 'What does wrap="truncate-end" do?',
-        options: ["Hides the text", "Ends overflowing text with …", "Wraps onto the next row"],
+        options: [msg("Hides the text"), msg("Ends overflowing text with …"), msg("Wraps onto the next row")],
         answer: 1,
-        explanation: "The line stays one row tall and ends with an ellipsis.",
+        explanation: msg("The line stays one row tall and ends with an ellipsis."),
       },
     ],
   },
   {
     slug: "input-and-keymaps",
-    title: "Input & Keymaps",
-    summary: "Navigate deployments with the keyboard and add a ? help overlay.",
+    title: msg("Input & Keymaps"),
+    summary: msg("Navigate deployments with the keyboard and add a ? help overlay."),
     minutes: 8,
     action: "press ↓",
     hints: [
@@ -114,22 +115,22 @@ export const CHAPTERS_META: readonly ChapterMeta[] = [
     quiz: [
       {
         question: 'In useKeymap, what does the binding "g g" mean?',
-        options: ["g or g", "g, then g again", "Shift+G"],
+        options: [msg("g or g"), msg("g, then g again"), "Shift+G"],
         answer: 1,
-        explanation: "Space-separated strokes are a sequence; commas separate alternatives.",
+        explanation: msg("Space-separated strokes are a sequence; commas separate alternatives."),
       },
       {
-        question: "Why do you click the page before typing?",
-        options: ["To unlock audio", "Keys typed into the DevTools prompt never reach the page", "To start the renderer"],
+        question: msg("Why do you click the page before typing?"),
+        options: [msg("To unlock audio"), msg("Keys typed into the DevTools prompt never reach the page"), msg("To start the renderer")],
         answer: 1,
-        explanation: "Keystrokes arrive through a hidden input on the page, so the page needs focus.",
+        explanation: msg("Keystrokes arrive through a hidden input on the page, so the page needs focus."),
       },
     ],
   },
   {
     slug: "routing",
-    title: "Routing",
-    summary: "Split the app into routes with a shared layout, links with shortcuts and history.",
+    title: msg("Routing"),
+    summary: msg("Split the app into routes with a shared layout, links with shortcuts and history."),
     minutes: 8,
     action: "press 2",
     hints: [
@@ -138,23 +139,23 @@ export const CHAPTERS_META: readonly ChapterMeta[] = [
     ],
     quiz: [
       {
-        question: "Which file renders at /deployments?",
+        question: msg("Which file renders at /deployments?"),
         options: ["app/deployments.tsx", "app/deployments/page.tsx", "pages/deployments/index.tsx"],
         answer: 1,
-        explanation: "Folders are segments and page.tsx makes a segment routable, as in the Next.js App Router.",
+        explanation: msg("Folders are segments and page.tsx makes a segment routable, as in the Next.js App Router."),
       },
       {
-        question: "What survives navigation between pages?",
-        options: ["Layout state", "Nothing", "Page state"],
+        question: msg("What survives navigation between pages?"),
+        options: [msg("Layout state"), "Nothing", msg("Page state")],
         answer: 0,
-        explanation: "Layouts stay mounted while their pages change.",
+        explanation: msg("Layouts stay mounted while their pages change."),
       },
     ],
   },
   {
     slug: "data-fetching",
-    title: "Data & Route Handlers",
-    summary: "Serve deployments from app/api, fetch them in a page and post new ones.",
+    title: msg("Data & Route Handlers"),
+    summary: msg("Serve deployments from app/api, fetch them in a page and post new ones."),
     minutes: 8,
     action: "press r",
     hints: [
@@ -163,23 +164,23 @@ export const CHAPTERS_META: readonly ChapterMeta[] = [
     ],
     quiz: [
       {
-        question: "What do route handlers return?",
-        options: ["A Web Response", "A React element", "A console.log call"],
+        question: msg("What do route handlers return?"),
+        options: [msg("A Web Response"), msg("A React element"), msg("A console.log call")],
         answer: 0,
-        explanation: "Handlers use the Web Request and Response APIs, including ReadableStream for streaming.",
+        explanation: msg("Handlers use the Web Request and Response APIs, including ReadableStream for streaming."),
       },
       {
-        question: "Which file is shown while a route suspends?",
+        question: msg("Which file is shown while a route suspends?"),
         options: ["error.tsx", "loading.tsx", "suspense.tsx"],
         answer: 1,
-        explanation: "loading.tsx wraps the page in a Suspense boundary; error.tsx catches throws.",
+        explanation: msg("loading.tsx wraps the page in a Suspense boundary; error.tsx catches throws."),
       },
     ],
   },
   {
     slug: "components",
-    title: "Table, List & Charts",
-    summary: "Replace hand-rolled rows with a sortable Table and a chart that never shifts the layout.",
+    title: msg("Table, List & Charts"),
+    summary: msg("Replace hand-rolled rows with a sortable Table and a chart that never shifts the layout."),
     minutes: 7,
     action: "press s",
     hints: [
@@ -189,23 +190,23 @@ export const CHAPTERS_META: readonly ChapterMeta[] = [
     ],
     quiz: [
       {
-        question: "With a sortable Table focused, what does s do?",
-        options: ["Selects the row", "Cycles the sort column", "Saves the table"],
+        question: msg("With a sortable Table focused, what does s do?"),
+        options: [msg("Selects the row"), msg("Cycles the sort column"), msg("Saves the table")],
         answer: 1,
-        explanation: "s cycles the sort column, S flips the direction, and digits pick a column.",
+        explanation: msg("s cycles the sort column, S flips the direction, and digits pick a column."),
       },
       {
-        question: "Why give the chart box a fixed height?",
-        options: ["Charts require it", "So switching charts doesn't move the table", "To enable color"],
+        question: msg("Why give the chart box a fixed height?"),
+        options: [msg("Charts require it"), msg("So switching charts doesn't move the table"), msg("To enable color")],
         answer: 1,
-        explanation: "A fixed height keeps the table in place, so its rows don't change and aren't re-encoded.",
+        explanation: msg("A fixed height keeps the table in place, so its rows don't change and aren't re-encoded."),
       },
     ],
   },
   {
     slug: "testing",
-    title: "Testing",
-    summary: "Render offscreen, press keys and assert on the frame as text.",
+    title: msg("Testing"),
+    summary: msg("Render offscreen, press keys and assert on the frame as text."),
     minutes: 6,
     action: "press Enter",
     hints: [
@@ -214,23 +215,23 @@ export const CHAPTERS_META: readonly ChapterMeta[] = [
     ],
     quiz: [
       {
-        question: "What does @textjs/app/testing need to run?",
-        options: ["Chrome with DevTools open", "Any test runner with async tests", "A real terminal"],
+        question: msg("What does @textjs/app/testing need to run?"),
+        options: [msg("Chrome with DevTools open"), msg("Any test runner with async tests"), msg("A real terminal")],
         answer: 1,
-        explanation: "It renders offscreen into a cell buffer, without a browser or DevTools.",
+        explanation: msg("It renders offscreen into a cell buffer, without a browser or DevTools."),
       },
       {
-        question: "What does app.lastFrame() return?",
-        options: ["The frame as plain text", "A screenshot", "The console.log arguments"],
+        question: msg("What does app.lastFrame() return?"),
+        options: [msg("The frame as plain text"), msg("A screenshot"), msg("The console.log arguments")],
         answer: 0,
-        explanation: "Frames are trimmed on the right and at the bottom, so they make stable assertions and snapshots.",
+        explanation: msg("Frames are trimmed on the right and at the bottom, so they make stable assertions and snapshots."),
       },
     ],
   },
   {
     slug: "terminal",
-    title: "Running in a Terminal",
-    summary: "Run the same dashboard full-screen in a terminal with text run.",
+    title: msg("Running in a Terminal"),
+    summary: msg("Run the same dashboard full-screen in a terminal with text run."),
     minutes: 5,
     action: "press Enter",
     hints: [
@@ -240,23 +241,23 @@ export const CHAPTERS_META: readonly ChapterMeta[] = [
     ],
     quiz: [
       {
-        question: "What changes when the app runs in a terminal?",
-        options: ["Your components", "Only the output: ANSI instead of %c spans", "The router"],
+        question: msg("What changes when the app runs in a terminal?"),
+        options: [msg("Your components"), msg("Only the output: ANSI instead of %c spans"), msg("The router")],
         answer: 1,
-        explanation: "Layout, components, keymaps and route handlers are shared. The terminal output is ANSI instead of %c spans.",
+        explanation: msg("Layout, components, keymaps and route handlers are shared. The terminal output is ANSI instead of %c spans."),
       },
       {
-        question: "How does an app quit itself?",
+        question: msg("How does an app quit itself?"),
         options: ["process.exit()", "useApp().exit()", "console.clear()"],
         answer: 1,
-        explanation: "exit() unmounts the app and restores the terminal.",
+        explanation: msg("exit() unmounts the app and restores the terminal."),
       },
     ],
   },
   {
     slug: "shipping",
-    title: "Shipping",
-    summary: "Build, set metadata and deploy Acme Deploys.",
+    title: msg("Shipping"),
+    summary: msg("Build, set metadata and deploy Acme Deploys."),
     minutes: 4,
     action: "press Enter",
     hints: [
@@ -265,16 +266,16 @@ export const CHAPTERS_META: readonly ChapterMeta[] = [
     ],
     quiz: [
       {
-        question: "What does a static host need for dynamic routes?",
-        options: ["Nothing", "A rewrite to index.html", "A route per page"],
+        question: msg("What does a static host need for dynamic routes?"),
+        options: ["Nothing", msg("A rewrite to index.html"), msg("A route per page")],
         answer: 1,
-        explanation: "Static routes are prerendered to their own HTML files. Dynamic segments fall back to the client app in index.html.",
+        explanation: msg("Static routes are prerendered to their own HTML files. Dynamic segments fall back to the client app in index.html."),
       },
       {
-        question: "Which console setting should be off?",
-        options: ["Preserve log", "Show timestamps", "Autocomplete"],
+        question: msg("Which console setting should be off?"),
+        options: [msg("Preserve log"), msg("Show timestamps"), "Autocomplete"],
         answer: 0,
-        explanation: "Text.js clears the console to release old frames. With Preserve log on, DevTools ignores the clear.",
+        explanation: msg("Text.js clears the console to release old frames. With Preserve log on, DevTools ignores the clear."),
       },
     ],
   },

@@ -1,3 +1,4 @@
+import { msg } from "../i18n/t";
 /**
  * Shared state between the react-dom website and the live console companion.
  * Both renderers subscribe with `useSyncExternalStore`, so navigating the site
@@ -29,10 +30,10 @@ export interface Preset {
 
 /** The demos that run in the Playground's own view. The first one opens at /playground. */
 export const PRESETS: readonly Preset[] = [
-  { id: "dashboard", label: "Dashboard", description: "Live metrics", action: "press ← →", hints: [{ keys: "← →", label: "switch region" }] },
-  { id: "streaming", label: "Streaming", description: "Streaming Markdown and diffs", action: "press r", hints: [{ keys: "r", label: "stream again" }] },
-  { id: "snake", label: "Snake", description: "A game loop", action: "press an arrow key", hints: [{ keys: "← ↑ → ↓", label: "steer" }, { keys: "Space", label: "pause" }] },
-  { id: "doom", label: "Doom", description: "The shareware episode", action: "press Enter", hints: [{ keys: "← ↑ → ↓", label: "move" }, { keys: "F", label: "fire" }, { keys: "Space", label: "open" }] },
+  { id: "dashboard", label: "Dashboard", description: msg("Live metrics"), action: "press ← →", hints: [{ keys: "← →", label: "switch region" }] },
+  { id: "streaming", label: "Streaming", description: msg("Streaming Markdown and diffs"), action: "press r", hints: [{ keys: "r", label: "stream again" }] },
+  { id: "snake", label: "Snake", description: msg("A game loop"), action: "press an arrow key", hints: [{ keys: "← ↑ → ↓", label: "steer" }, { keys: "Space", label: "pause" }] },
+  { id: "doom", label: "Doom", description: msg("The shareware episode"), action: "press Enter", hints: [{ keys: "← ↑ → ↓", label: "move" }, { keys: "F", label: "fire" }, { keys: "Space", label: "open" }] },
 ];
 
 const DEFAULT_PRESET = (PRESETS[0] as Preset).id;
@@ -61,8 +62,8 @@ export interface PickerDemo {
 
 export const DEMOS: readonly PickerDemo[] = [
   ...PRESETS.map((p) => ({ id: p.id, label: p.label, description: p.description, href: presetPath(p.id) })),
-  { id: "opencode", label: "OpenCode", description: "OpenCode Lite, a client for the OpenCode coding agent", href: "/opencode" },
-  { id: "coffee", label: "Coffee", description: "The terminal.shop storefront", href: "/coffee" },
+  { id: "opencode", label: "OpenCode", description: msg("OpenCode Lite, a client for the OpenCode coding agent"), href: "/opencode" },
+  { id: "coffee", label: "Coffee", description: msg("The terminal.shop storefront"), href: "/coffee" },
 ];
 
 /** Keys for the non-playground views. */

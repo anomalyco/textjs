@@ -1,3 +1,4 @@
+import { t } from "../i18n/t";
 import { getProductMeta, productPath, PRODUCTS_META } from "./meta";
 
 /** `/store` and `/store/<slug>`; `null` for anything else. */
@@ -11,13 +12,13 @@ export function merchRoute(path: string): { name: "merch"; slug: string } | { na
 
 export function merchTitle(slug: string): string {
   const p = getProductMeta(slug);
-  return p ? `${p.name} | Text.js Store` : "Store | Text.js";
+  return p ? t("{name} | Text.js Store", { name: p.name }) : t("Store | Text.js");
 }
 
-export const MERCH_DESCRIPTION = "The Text.js Store: tees, hoodies, caps and stickers with the ▼ and console.log, plus ⌘⌥J keycaps and a notebook.";
+export const MERCH_DESCRIPTION = t("The Text.js Store: tees, hoodies, caps and stickers with the ▼ and console.log, plus ⌘⌥J keycaps and a notebook.");
 
 /** Prerendered store pages. */
-export const MERCH_ROUTES: ReadonlyArray<{ path: string; title: string; description: string }> = [
-  { path: "/store", title: merchTitle(""), description: MERCH_DESCRIPTION },
-  ...PRODUCTS_META.map((p) => ({ path: productPath(p.slug), title: merchTitle(p.slug), description: p.summary })),
+export const MERCH_ROUTES: ReadonlyArray<{ path: string; title: string; description: string; cardTitle: string }> = [
+  { path: "/store", title: merchTitle(""), description: MERCH_DESCRIPTION, cardTitle: t("Store") },
+  ...PRODUCTS_META.map((p) => ({ path: productPath(p.slug), title: merchTitle(p.slug), description: p.summary, cardTitle: p.name })),
 ];

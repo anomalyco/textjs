@@ -5,7 +5,10 @@ import { cpSync } from "node:fs";
 import { localePath, parseLocaleSet, SOURCE_LOCALE, type Locale } from "../src/i18n/locales";
 import type { OgCard } from "../src/og";
 import type { Route } from "../src/router";
+import { captionsPath } from "../src/learn/video";
 import { inlineScriptHashes, withScriptHashes } from "./csp";
+import { assembleCaptions } from "./i18n/captions";
+import { captionSources, readCaptions, translatedCaptions } from "./i18n/sources";
 import type { UnitsManifest } from "./i18n/vite-plugin";
 import { renderOgImages, type OgImage } from "./og/render";
 
@@ -379,6 +382,21 @@ mkdirSync(join(distDir, "api", "v2"), { recursive: true });
 for (const [name, body] of Object.entries(server.statusApi())) writeFileSync(join(distDir, "api", "v2", name), body);
 // `curl textjs.org` (functions/index.ts).
 writeFileSync(join(distDir, "home.ansi"), await server.renderHomeAnsi());
+
+// Learn captions, same-origin: English as recorded, and each built locale's translation (src/learn/video.ts links them).
+for (const { slug, file } of captionSources()) {
+  const english = readFileSync(file, "utf8");
+  const write = (lang: string, vtt: string): void => {
+    const out = join(distDir, captionsPath(slug, lang).slice(1));
+    mkdirSync(dirname(out), { recursive: true });
+    writeFileSync(out, vtt);
+  };
+  write("en", english);
+  for (const build of builds) {
+    const { code } = build.locale;
+    if (build.locale !== SOURCE_LOCALE && translatedCaptions(code).includes(slug)) write(code, assembleCaptions(english, readCaptions(code, slug), code).vtt);
+  }
+}
 
 // Per-locale sitemaps (indexable, translated pages of live locales), listed in robots.txt next to the English one.
 if (sitemaps.size > 0) {

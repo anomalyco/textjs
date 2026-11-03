@@ -58,7 +58,7 @@ export async function ogCard(route: PrerenderRoute): Promise<OgCard> {
   const title = route.cardTitle ?? pageTitle(route.title);
   const base = { path, slug: ogSlug(path), template: "page" as const, section: "", title };
   const m = matchRoute(path);
-  const alt = (section: string, t: string): string => `Text.js${section ? ` ${section}` : ""}: ${t}`;
+  const alt = (section: string, page: string): string => (section ? t("Text.js {section}: {page}", { section, page }) : t("Text.js: {page}", { page }));
 
   switch (m.name) {
     case "home":
@@ -69,54 +69,47 @@ export async function ogCard(route: PrerenderRoute): Promise<OgCard> {
       const section = doc ? t("Docs · {category}", { category: CATEGORY_LABELS[doc.category] }) : t("Docs");
       return { ...base, section, alt: alt(t("Docs"), title) };
     }
-    case "playground": {
-      const preset = PRESETS.find((p) => p.id === m.preset) ?? PRESETS[0];
-      const label = preset?.label ?? "Playground";
-      return { ...base, section: "Playground", title: label, alt: alt("Playground", label) };
-    }
+    case "playground":
+      return { ...base, section: "Playground", alt: alt("Playground", title) };
     case "opencode":
-      return { ...base, section: "Playground", title: "OpenCode in the Console", wordmark: svg(<OpenCodeWordmark />), alt: alt("Playground", "OpenCode in the Console") };
+      return { ...base, section: "Playground", title: t("OpenCode in the Console"), wordmark: svg(<OpenCodeWordmark />), alt: alt("Playground", t("OpenCode in the Console")) };
     case "coffee":
       // The terminal wordmark names the shop; an all-lowercase title read a size smaller than its second line.
-      return { ...base, section: "Playground", title: "Coffee in the Console", wordmark: svg(<TerminalWordmark />), alt: alt("Playground", "Coffee from terminal.shop in the Console") };
+      return { ...base, section: "Playground", title: t("Coffee in the Console"), wordmark: svg(<TerminalWordmark />), alt: alt("Playground", t("Coffee from terminal.shop in the Console")) };
     case "learn": {
-      if (m.slug === "") {
-        const [section, rest] = title.split(": ");
-        return { ...base, section: section ?? "Learn", title: rest ?? title, alt: alt("Learn Text.js", rest ?? title) };
-      }
-      if (m.slug === COMPLETE_SLUG) return { ...base, section: "Learn Text.js", title: "Certificate", alt: alt("Learn Text.js", "Certificate") };
-      const section = `Learn · Chapter ${chapterNumber(m.slug)}`;
-      return { ...base, section, alt: alt(`Learn, chapter ${chapterNumber(m.slug)}`, title) };
+      if (m.slug === "" || m.slug === COMPLETE_SLUG) return { ...base, section: t("Learn Text.js"), alt: alt(t("Learn Text.js"), title) };
+      const n = chapterNumber(m.slug);
+      return { ...base, section: t("Learn · Chapter {n}", { n }), alt: alt(t("Learn, chapter {n}", { n }), title) };
     }
     case "errors":
-      return { ...base, title: "Error Codes", alt: alt("Errors", "Error Codes") };
+      return { ...base, title: t("Error Codes"), alt: alt(t("Errors"), t("Error Codes")) };
     case "error": {
       const doc = TX_ERRORS.find((e) => e.code === m.code);
-      const t = doc?.title ?? (m.code === "TX000" ? "Success" : title);
-      return { ...base, template: "error", section: "Errors", code: m.code, title: t, alt: alt(doc?.kind === "warning" ? "warning" : "error", `${m.code}, ${t}`) };
+      const name = doc?.title ?? (m.code === "TX000" ? "Success" : title);
+      return { ...base, template: "error", section: t("Errors"), code: m.code, title: name, alt: alt(doc?.kind === "warning" ? t("warning") : t("error"), `${m.code}, ${name}`) };
     }
     case "changelog":
-      return { ...base, alt: alt("", "Changelog") };
+      return { ...base, alt: alt("", t("Changelog")) };
     case "blog":
-      return { ...base, alt: alt("", "Blog") };
+      return { ...base, alt: alt("", t("Blog")) };
     case "blog-post":
-      return { ...base, section: "Blog", alt: alt("Blog", title) };
+      return { ...base, section: t("Blog"), alt: alt(t("Blog"), title) };
     case "enterprise":
-      return { ...base, title: "Text.js Enterprise", alt: alt("", "Text.js Enterprise") };
+      return { ...base, title: t("Text.js Enterprise"), alt: alt("", t("Text.js Enterprise")) };
     case "status":
-      return { ...base, section: "Status", title: "Turbolog Status", alt: alt("", "Turbolog Status") };
+      return { ...base, section: t("Status"), title: t("Turbolog Status"), alt: alt("", t("Turbolog Status")) };
     case "merch": {
       if (m.slug === "") {
-        return { ...base, template: "merch", photo: PRODUCTS[0]?.images[0]?.large, alt: alt("", "Text.js Store") };
+        return { ...base, template: "merch", photo: PRODUCTS[0]?.images[0]?.large, alt: alt("", t("Text.js Store")) };
       }
       const p = getProduct(m.slug);
-      if (!p) return { ...base, template: "merch", section: "Store", alt: alt("Store", title) };
+      if (!p) return { ...base, template: "merch", section: t("Store"), alt: alt(t("Store"), title) };
       return {
         ...base,
         template: "merch",
-        section: `Store · ${p.number}`,
+        section: t("Store · {number}", { number: p.number }),
         photo: p.images[0]?.large,
-        alt: `${title}, ${p.color}, from the Text.js Store`,
+        alt: t("{name}, {color}, from the Text.js Store", { name: title, color: p.color }),
       };
     }
     case "not-found":

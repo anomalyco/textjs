@@ -19,7 +19,8 @@ import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { getLocale } from "../../src/i18n/locales";
 import { formatTranslation, parseTranslation, segment } from "./document";
-import { catalogFile, documentSources, extractMessages, LOCALES_DIR, readCatalog, readText, translationFile, WEB_DIR, type Catalog, type CatalogValue } from "./sources";
+import { captionGroups, parseVtt } from "./captions";
+import { captionFile, captionSources, catalogFile, documentSources, extractMessages, LOCALES_DIR, readCaptions, readCatalog, readText, translationFile, WEB_DIR, type Catalog, type CatalogValue } from "./sources";
 import { validate, validatePlural } from "./validate";
 
 const { values } = parseArgs({
@@ -93,7 +94,7 @@ interface Job {
   locale: string;
   model: string;
   /** What the strings are, for the prompt. */
-  kind: "ui" | "document";
+  kind: "ui" | "document" | "captions";
   title: string;
   context?: string;
   items: Item[];
@@ -118,6 +119,7 @@ function systemPrompt(locale: string, job: Job): string {
     keep.length ? `- Keep these names exactly as written: ${keep.join(", ")}.` : "",
     terms.length ? `- Preferred terms:\n${terms.join("\n")}` : "",
     job.kind === "ui" ? "- These are interface strings (buttons, labels, titles, short descriptions). Keep them as short as the English." : "",
+    job.kind === "captions" ? "- These are subtitles for a narrated video. Translate each sentence naturally and concisely, so it can be read while it's spoken. Write words the narrator spells out (\"app folder\", \"page dot tsx\") as they'd be read in the target language, keeping code names as written." : "",
     "",
     "The site's English copy rules. Apply their intent to the translation (register, no filler, facts kept exact):",
     siteStyle,
@@ -302,6 +304,30 @@ for (const locale of locales) {
       const entries = [...new Set(blocks.map((b) => b.id))].filter((id) => result.has(id)).map((id) => [id, result.get(id) as string] as [string, string]);
       mkdirSync(dirname(file), { recursive: true });
       writeFileSync(file, formatTranslation(entries));
+    });
+  }
+
+  // Captions --------------------------------------------------------------------------------------
+  for (const { slug, file } of captionSources()) {
+    const id = `captions/${slug}`;
+    if (!selected(id)) continue;
+    const groups = captionGroups(parseVtt(readFileSync(file, "utf8")));
+    const existing = readCaptions(locale, slug);
+    const todo = [...new Map(groups.filter((g) => force.has(id) || !existing[g.id]).map((g) => [g.id, g])).values()];
+    planned += todo.length;
+    if (todo.length === 0 && Object.keys(existing).every((k) => groups.some((g) => g.id === k))) continue;
+    const transcript = groups.map((g) => g.text).join("\n");
+    tasks.push(async () => {
+      const result: Record<string, string> = { ...existing };
+      for (let i = 0; i < todo.length; i += 40) {
+        const items = todo.slice(i, i + 40).map((g) => ({ id: g.id, text: g.text }));
+        const { ok, failed } = await translate({ locale, model: TEXT_MODEL, kind: "captions", title: `Captions of the Learn Text.js video "${slug}" (narration, one sentence per item)`, context: transcript, items });
+        for (const [k, text] of ok) result[k] = text;
+        failures.push(...failed.map((f) => `${id}: ${f}`));
+      }
+      const out = Object.fromEntries(groups.filter((g) => result[g.id]).map((g) => [g.id, result[g.id] as string]));
+      mkdirSync(dirname(captionFile(locale, slug)), { recursive: true });
+      writeFileSync(captionFile(locale, slug), `${JSON.stringify(out, null, 2)}\n`);
     });
   }
 

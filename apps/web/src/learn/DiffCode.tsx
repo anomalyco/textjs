@@ -1,5 +1,6 @@
 import { memo, type ReactNode } from "react";
 import { tokenize } from "@textjs/react";
+import { t } from "../i18n/t";
 import { CopyButton } from "../site/CodeBlock";
 
 export type DiffKind = "add" | "del" | "ctx";
@@ -57,13 +58,13 @@ export const DiffCode = memo(function DiffCode({ source, language, file }: { sou
               <span className="mark" aria-hidden="true">
                 {MARK[l.kind]}
               </span>
-              {l.kind === "add" ? <span className="sr-only">Added: </span> : l.kind === "del" ? <span className="sr-only">Removed: </span> : null}
-              {(tokens[i] ?? []).map((t, j) =>
-                t.kind === "plain" ? (
-                  t.text
+              {l.kind === "add" ? <span className="sr-only">{t("Added: ")}</span> : l.kind === "del" ? <span className="sr-only">{t("Removed: ")}</span> : null}
+              {(tokens[i] ?? []).map((tk, j) =>
+                tk.kind === "plain" ? (
+                  tk.text
                 ) : (
-                  <span key={j} className={`tk-${t.kind}`}>
-                    {t.text}
+                  <span key={j} className={`tk-${tk.kind}`}>
+                    {tk.text}
                   </span>
                 ),
               )}

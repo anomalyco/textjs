@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { join } from "node:path";
 import { createElement } from "react";
+import { assembleCaptions, captionGroups, parseVtt } from "../scripts/i18n/captions";
 import { assemble, formatTranslation, parseTranslation, segment } from "../scripts/i18n/document";
 import { checkLocale, unreadableCalls } from "../scripts/i18n/check";
 import { CALL, extractMessages, PLURAL } from "../scripts/i18n/sources";
@@ -139,5 +140,26 @@ describe("documents", () => {
     expect(html).not.toContain("i18n:");
     expect(headingsOf(md)).toEqual([{ depth: 2, text: "コンソールを開く", id: "open-the-console" }]);
     expect(toConsoleMarkdown(md)).not.toMatch(/\{#|i18n:/);
+  });
+});
+
+describe("captions", () => {
+  const vtt = "WEBVTT\n\n1\n00:00:01.000 --> 00:00:03.000\nIn this chapter, you'll split Acme\nDeploys into routes\n\n2\n00:00:03.100 --> 00:00:05.000\nthat share one layout.\n\n3\n00:00:05.100 --> 00:00:07.000\nPress Enter.\n";
+
+  test("cues group into sentences, keyed like document blocks", () => {
+    const groups = captionGroups(parseVtt(vtt));
+    expect(groups.map((g) => g.cues.length)).toEqual([2, 1]);
+    expect(groups[0]!.text).toBe("In this chapter, you'll split Acme Deploys into routes that share one layout.");
+  });
+
+  test("a translated sentence keeps the English timings and spreads over its cues", () => {
+    const [first] = captionGroups(parseVtt(vtt));
+    const out = assembleCaptions(vtt, { [first!.id]: "この章では、Acme Deploysを1つのレイアウトを共有するルートに分割します。" }, "ja");
+    expect(out.translated).toBe(1);
+    expect(out.total).toBe(2);
+    const cues = parseVtt(out.vtt);
+    expect(cues.map((c) => c.start)).toEqual(["00:00:01.000", "00:00:03.100", "00:00:05.100"]);
+    expect(cues.slice(0, 2).map((c) => c.text.replace(/\n/g, "")).join("")).toBe("この章では、Acme Deploysを1つのレイアウトを共有するルートに分割します。");
+    expect(cues[2]!.text).toBe("Press Enter.");
   });
 });
