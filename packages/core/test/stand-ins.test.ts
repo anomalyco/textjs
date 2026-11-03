@@ -19,6 +19,8 @@ describe("glyph stand-ins", () => {
     expect(applyStandIns("▁▂▃▄▅▆▇█", s)).toBe("__▄▄▄███");
     expect(applyStandIns("████▋  ▏", s)).toBe("████▌   ");
     expect(applyStandIns("▶ ok ✓ no ✗ ▸◀", s)).toBe("► ok √ no × ►◄");
+    // <Spinner variant="pulse">
+    expect(applyStandIns("▽▼△▲", s)).toBe("▼▼▲▲");
     expect(applyStandIns("▖▗▘▝▙▚▞", s)).toBe("▄▄▀▀█▒▒");
     // Braille by quadrant: ⠋ (dots 1 2 4) fills the top, ⡇ the left column, ⣀ the bottom, ⣿ everything.
     expect(applyStandIns("⠋⡇⣀⣿⠀", s)).toBe("▀▌▄█ ");

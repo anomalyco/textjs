@@ -13,11 +13,12 @@ const MISS = 0.2;
  * it): lower eighths ▁▂▃▅▆▇ and left eighths ▉▊▋▍▎▏ to the nearest of _ ▄ ▌ █
  * or blank, quadrants to the nearest half block, then arrows, checks and crosses.
  */
-const PAIRS = "▁_▂_▃▄▅▄▆█▇█▉█▊█▋▌▍▌▎▌▏ ▔▀▕▐▖▄▗▄▘▀▙█▚▒▛█▜█▝▀▞▒▟█▶►▸►◀◄◂◄▾▼▴▲◆♦◇◊✓√✔√✕×✖×✗×✘×";
+const PAIRS = "▁_▂_▃▄▅▄▆█▇█▉█▊█▋▌▍▌▎▌▏ ▔▀▕▐▖▄▗▄▘▀▙█▚▒▛█▜█▝▀▞▒▟█▶►▸►◀◄◂◄▾▼▴▲▽▼△▲◆♦◇◊✓√✔√✕×✖×✗×✘×";
 
-function standIns(): Map<string, string> {
+function standIns(braille: boolean): Map<string, string> {
   const map = new Map<string, string>();
   for (let i = 0; i < PAIRS.length; i += 2) map.set(PAIRS[i] as string, PAIRS[i + 1] as string);
+  if (!braille) return map;
   // Braille (U+2800–28FF) by its 2×2 quadrants of dots: a quadrant is filled when either of its dots is.
   for (let bits = 0; bits < 256; bits++) {
     const ul = bits & 0x03 ? 1 : 0;
@@ -35,7 +36,8 @@ function standIns(): Map<string, string> {
 export interface GlyphStandIns {
   /** Glyphs replaced in this console font, as one character class. */
   pattern: RegExp;
-  map: ReadonlyMap<string, string>;
+  /** The stand-in for one matched glyph, bound once for `String.replace`. */
+  replace: (glyph: string) => string;
 }
 
 /**
@@ -43,13 +45,13 @@ export interface GlyphStandIns {
  * a cell (a fallback font: Consolas, the usual Windows 10 console font, has no
  * eighth blocks, quadrants, braille, ▶ or ✓) and returns their stand-ins, or
  * `null` when every glyph fits. A stand-in is used only when it fits itself.
- * Braille is measured once for the whole block, which fonts cover all or none of.
  */
 export function measureStandIns(measure: TextAdvanceMeasurer, cell: number): GlyphStandIns | null {
   const fits = (glyph: string): boolean => {
     const w = measure(glyph, false, false);
     return Number.isFinite(w) && Math.abs(w - cell) <= cell * MISS;
   };
+  // Fonts cover the braille block all or none, so one glyph speaks for it.
   const brailleFits = fits("⣿");
   const verdict = new Map<string, boolean>();
   const fitsOnce = (glyph: string): boolean => {
@@ -58,17 +60,17 @@ export function measureStandIns(measure: TextAdvanceMeasurer, cell: number): Gly
     return ok;
   };
   const used = new Map<string, string>();
-  for (const [glyph, standIn] of standIns()) {
+  for (const [glyph, standIn] of standIns(!brailleFits)) {
     const braille = glyph >= "\u2800" && glyph <= "\u28ff";
-    if ((braille ? brailleFits : fitsOnce(glyph)) || !fitsOnce(standIn)) continue;
+    if ((!braille && fitsOnce(glyph)) || !fitsOnce(standIn)) continue;
     used.set(glyph, standIn);
   }
   if (used.size === 0) return null;
   const chars = [...used.keys()].join("");
-  return { pattern: new RegExp(`[${chars}]`, "g"), map: used };
+  return { pattern: new RegExp(`[${chars}]`, "g"), replace: (g) => used.get(g) ?? g };
 }
 
 /** `text` with every misfitting glyph replaced by its stand-in. */
 export function applyStandIns(text: string, s: GlyphStandIns): string {
-  return text.replace(s.pattern, (g) => s.map.get(g) ?? g);
+  return text.replace(s.pattern, s.replace);
 }
