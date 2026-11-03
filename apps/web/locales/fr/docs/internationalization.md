@@ -82,6 +82,18 @@ Limites
 - **Terminaux.** Les terminaux qui ignorent à la fois BDSM et `LRO` et exécutent leur propre algorithme bidi (par exemple avec bidi activé dans iTerm2) peuvent réordonner à nouveau les lignes de droite à gauche.
 - **Miroirs DOM.** `<ConsoleMirror>` n’ajuste pas les largeurs, donc les séquences de droite à gauche peuvent y présenter un décalage allant jusqu’à 0,3 % de leur largeur.
 
+<!-- s:f4d4dadbf6 -->
+Traduire le pavé de focus
+
+<!-- s:7791d4db4e -->
+`<FocusPad>` de `@textjs/react/dom` (également rendu par `<TextCanvas>`) indique aux visiteurs d’ouvrir la console, de cliquer sur la page et d’appuyer sur une touche. Son texte est en anglais par défaut. Pour le traduire, passez `messages` avec les chaînes que vous souhaitez remplacer. Les clés omises conservent leur texte anglais, répertorié dans `defaultFocusPadMessages`.
+
+<!-- s:66c2b8e3e2 -->
+Une chaîne qui contient une valeur est une fonction qui renvoie la phrase entière, afin qu’une traduction puisse placer la valeur n’importe où dans celle-ci. `step`, `pressShortcut`, `then`, `defaultAction` et `shortcutOpens` sont des fonctions. `step` reçoit le numéro de l’étape et le nombre d’étapes. `then` reçoit la prop `action`, ou le texte de `defaultAction` en l’absence d’`action`. `defaultAction` reçoit les touches de la première indication, ou `null` en l’absence d’indications. `pressShortcut` reçoit les touches du raccourci pour les lecteurs d’écran, et `shortcutOpens` reçoit le raccourci sous forme d’éléments `<kbd>`.
+
+<!-- s:e9475554da -->
+`messages` couvre aussi les libellés annoncés par les lecteurs d’écran et le contrôle de taille de la console (`sizeControl`). `<TextCanvas>` accepte la même prop `messages`. `<ViewportControl>` l’accepte aussi et utilise les clés du contrôle de taille. Les touches affichées, comme ⌘⌥J, Ctrl+Shift+J et Enter, ne sont pas traduites.
+
 <!-- s:40caf66c4d -->
 API
 
