@@ -54,7 +54,7 @@ try {
     const banner = page.locator(".locale-suggestion");
     await banner.waitFor({ timeout: 5000 }).catch(() => {});
     check((await banner.count()) === 1, "an English browser on /ja is offered English");
-    check((await banner.getAttribute("lang")) === "en", "the offer is written in English");
+    check((await banner.locator(".locale-suggestion-body").getAttribute("lang")) === "en", "the offer is written in English");
     await banner.locator(".locale-suggestion-close").click();
     check((await banner.count()) === 0, "dismissing hides it");
     await page.reload({ waitUntil: "networkidle" });

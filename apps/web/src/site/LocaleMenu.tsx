@@ -96,22 +96,25 @@ export function LocaleSuggestion(): ReactNode {
   if (!offer) return null;
   const { locale, copy } = offer;
   return (
-    <div className="locale-suggestion" role="region" aria-label={copy.text} lang={locale.code} dir={locale.dir} data-console-bypass="">
-      <span>{copy.text}</span>
-      <button type="button" className="btn btn-secondary btn-sm" onClick={() => switchTo(locale)}>
-        {copy.action}
-      </button>
-      <button
-        type="button"
-        className="locale-suggestion-close"
-        aria-label={copy.dismiss}
-        onClick={() => {
-          remember(LOCALE.code);
-          setOffer(null);
-        }}
-      >
-        ×
-      </button>
+    // The corner follows the page's direction; the offer reads in its own.
+    <div className="locale-suggestion" role="region" aria-label={copy.text} data-console-bypass="">
+      <div className="locale-suggestion-body" lang={locale.code} dir={locale.dir}>
+        <span>{copy.text}</span>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => switchTo(locale)}>
+          {copy.action}
+        </button>
+        <button
+          type="button"
+          className="locale-suggestion-close"
+          aria-label={copy.dismiss}
+          onClick={() => {
+            remember(LOCALE.code);
+            setOffer(null);
+          }}
+        >
+          ×
+        </button>
+      </div>
     </div>
   );
 }

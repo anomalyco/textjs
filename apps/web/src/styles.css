@@ -1589,12 +1589,8 @@ kbd {
   inset-inline-start: 20px;
   bottom: 20px;
   z-index: 60;
-  display: flex;
-  align-items: center;
-  gap: 12px;
   max-width: calc(100vw - 40px);
-  padding-block: 6px;
-  padding-inline: 16px 6px;
+  padding: 6px;
   border: 1px solid var(--line-2);
   border-radius: 12px;
   background: rgba(10, 10, 10, 0.86);
@@ -1603,6 +1599,13 @@ kbd {
   box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.8);
   color: var(--muted);
   font-size: 13px;
+}
+
+.locale-suggestion-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-inline-start: 10px;
 }
 
 .locale-suggestion-close {
