@@ -59,7 +59,7 @@ const STRICT: Readonly<Record<RuleName, Severity>> = {
 };
 
 /** Mirrors package.json (bumped by `scripts/release-version.ts`). */
-export const VERSION = "1.4.1";
+export const VERSION = "1.5.0";
 
 const pkg = { name: "eslint-plugin-textjs", version: VERSION };
 
