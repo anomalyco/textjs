@@ -44,6 +44,13 @@ describe("locales", () => {
     expect(() => parseLocaleSet("xx")).toThrow();
   });
 
+  test("production builds Japanese live and every other started locale as a draft", () => {
+    // The deploy sets no TEXTJS_LOCALES, so these are the locales textjs.org indexes and offers in the picker and banner.
+    const built = parseLocaleSet(undefined);
+    expect(built.filter((l) => l.status === "live").map((l) => l.code)).toEqual(["ja"]);
+    expect(built.every((l) => ["source", "live", "draft"].includes(l.status))).toBe(true);
+  });
+
   test("the English build leaves links alone", () => {
     expect(localizeHref("/docs#x")).toBe("/docs#x");
   });

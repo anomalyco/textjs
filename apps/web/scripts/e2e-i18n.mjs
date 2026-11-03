@@ -5,14 +5,23 @@
 //   TEXTJS_LOCALES=ja,de,zh-CN bun run build && bun run preview -- --port 4173 --strictPort
 //   BASE=http://localhost:4173 LOCALES=ja,de,zh-CN node scripts/e2e-i18n.mjs
 //
+// Each locale is checked as its status in src/i18n/locales.ts; `LOCALES=ja:draft` matches a build with that override.
+// A live locale is offered on English pages (picker and banner), a draft isn't.
+//
 // Every other loopback port is blocked, so a local OpenCode server is never reached.
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const pw = process.env.PLAYWRIGHT ?? fileURLToPath(new URL("../../../bench/devtools/node_modules/playwright-core/index.mjs", import.meta.url));
 const { chromium } = await import(pw);
 const base = (process.env.BASE ?? "http://localhost:4173").replace(/\/$/, "");
 const port = new URL(base).port;
-const locales = (process.env.LOCALES ?? "ja").split(",").map((code) => ({ code, path: code.toLowerCase() }));
+const source = readFileSync(new URL("../src/i18n/locales.ts", import.meta.url), "utf8");
+const statusOf = (code) => new RegExp(`code: "${code}"[^}]*status: "(\\w+)"`).exec(source)?.[1] ?? "draft";
+const locales = (process.env.LOCALES ?? "ja").split(",").map((item) => {
+  const [code, status] = item.split(":");
+  return { code, path: code.toLowerCase(), live: (status ?? statusOf(code)) === "live" };
+});
 const browser = await chromium.launch({ headless: true });
 const failures = [];
 const check = (ok, what) => {
@@ -70,7 +79,7 @@ async function padText(path) {
 }
 
 try {
-  for (const { code, path: p } of locales) {
+  for (const { code, path: p, live } of locales) {
     {
       const { page, context, errors } = await open(`/${p}/docs/routing`, code);
       check((await page.getAttribute("html", "lang")) === code, `/${p}/docs/routing has lang=${code}`);
@@ -100,7 +109,12 @@ try {
       check((await select.count()) === 1, `${code}: the footer picker shows on a locale page`);
       await Promise.all([page.waitForURL(`${base}/docs/installation#open-the-console`), select.selectOption("en")]);
       check((await page.getAttribute("html", "lang")) === "en", `${code}: the picker loads the English page`);
-      check((await page.locator(".locale-menu").count()) === 0, `${code}: no picker on English pages while ${code} is a draft`);
+      const offered = await page.locator(`.locale-menu option[value="${code}"]`).count();
+      if (live) {
+        check(offered === 1, `${code}: the picker on English pages offers ${code}`);
+        await Promise.all([page.waitForURL(`${base}/${p}/docs/installation#open-the-console`), page.locator(".locale-menu select").selectOption(code)]);
+        check((await page.getAttribute("html", "lang")) === code, `${code}: and loads the ${code} page`);
+      } else check(offered === 0, `${code}: English pages don't offer ${code} while it's a draft`);
       check(errors.length === 0, `${code}: no console errors (${errors.join(" | ")})`);
       await context.close();
     }
@@ -116,6 +130,24 @@ try {
       await page.waitForTimeout(500);
       check((await page.locator(".locale-suggestion").count()) === 0, `${code}: and it stays dismissed`);
       check(errors.length === 0, `${code}: no console errors (${errors.join(" | ")})`);
+      await context.close();
+    }
+    {
+      // A browser in this language on an English page: offered the locale while it's live, never while it's a draft.
+      const { page, context, errors } = await open("/docs/routing", code);
+      const banner = page.locator(".locale-suggestion");
+      await banner.waitFor({ timeout: live ? 5000 : 1500 }).catch(() => {});
+      if (live) {
+        check((await banner.count()) === 1, `a ${code} browser on an English page is offered ${code}`);
+        check((await banner.locator(".locale-suggestion-body").getAttribute("lang")) === code, `${code}: the offer is written in ${code}`);
+        check((await banner.locator("button").count()) === 2 && (await banner.locator("p, span, a").count()) === 0, `${code}: the offer is one button and a close button`);
+        await banner.locator(".locale-suggestion-close").click();
+        await page.reload({ waitUntil: "networkidle" });
+        await page.waitForTimeout(500);
+        check((await page.locator(".locale-suggestion").count()) === 0, `${code}: dismissed on English, it stays dismissed`);
+        check((await page.getAttribute("html", "lang")) === "en", `${code}: and the page never redirects`);
+      } else check((await banner.count()) === 0, `English pages don't offer ${code} while it's a draft`);
+      check(errors.length === 0, `${code}: no console errors on English (${errors.join(" | ")})`);
       await context.close();
     }
     // The banner never covers the footer's picker, status line or copyright, even scrolled to the very end.
@@ -199,13 +231,6 @@ try {
       check(cls === 0, `CLS 0 on ${path} (${cls.toFixed(4)})`);
       await ctx.close();
     }
-  }
-  {
-    const { page, context, errors } = await open("/docs/routing", locales[0].code);
-    await page.waitForTimeout(800);
-    check((await page.locator(".locale-suggestion").count()) === 0, "English pages don't offer a draft locale");
-    check(errors.length === 0, `no console errors on English (${errors.join(" | ")})`);
-    await context.close();
   }
 } finally {
   await browser.close();
