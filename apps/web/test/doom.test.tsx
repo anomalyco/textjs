@@ -94,32 +94,50 @@ describe("Doom shareware & GPL engine assets", () => {
     const wad = new Uint8Array(readFileSync(join(WEB_ROOT, "public/doom/DOOM1.WAD")));
     // Doom's tics come only from the clock it reads (I_GetTime), so watch what the host hands it.
     let engineMs = 0;
+    let reads = 0;
     const instantiate = WebAssembly.instantiate;
     WebAssembly.instantiate = ((bytes: BufferSource, imports: { runtimeControl: { timeInMilliseconds: () => bigint } }) => {
       const read = imports.runtimeControl.timeInMilliseconds;
       imports.runtimeControl.timeInMilliseconds = () => {
         const ms = read();
         engineMs = Number(ms);
+        reads++;
         return ms;
       };
       return instantiate(bytes, imports as unknown as WebAssembly.Imports);
     }) as typeof WebAssembly.instantiate;
     try {
-      // Every 1ms, at 120Hz and 60Hz animation frames, at Doom's own 35Hz, and at the console's 51ms keyframes.
-      for (const pollMs of [1, 1000 / 120, 1000 / 60, 1000 / 35, 51]) {
-        let t = 0;
-        const doom = await createDoom({ wasm: wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength) as ArrayBuffer, wads: [wad], now: () => t });
-        const run = (ms: number): number => {
-          let frames = 0;
-          for (const end = t + ms; t < end; t += pollMs) if (doom.tick()) frames++;
-          return frames;
-        };
-        // The title screen gives way to the first demo, a level, after 170 tics.
-        run(6000);
-        const frames = run(10_000);
-        expect(frames).toBeLessThanOrEqual(351);
-        expect(frames).toBeGreaterThan(150);
-        expect(Math.abs(engineMs - t)).toBeLessThan(pollMs + 1000 / 35);
+      // From a clock at exactly 0 (Doom treats a first reading of 0 as unset) and from one 58 days in.
+      for (const start of [0, 5_000_000_000.25]) {
+        // Every 1ms, at 120Hz and 60Hz animation frames, at Doom's own 35Hz, and at the console's 51ms keyframes.
+        for (const pollMs of [1, 1000 / 120, 1000 / 60, 1000 / 35, 51]) {
+          let t = start;
+          reads = 0;
+          const doom = await createDoom({ wasm: wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength) as ArrayBuffer, wads: [wad], now: () => t });
+          // Startup busy-waits once for the first tic.
+          expect(reads).toBeLessThan(1100);
+          let mostReads = 0;
+          const run = (ms: number): number => {
+            let frames = 0;
+            for (const end = t + ms; t < end; t += pollMs) {
+              reads = 0;
+              if (doom.tick()) frames++;
+              mostReads = Math.max(mostReads, reads);
+            }
+            return frames;
+          };
+          // The title screen gives way to the first demo, a level, after 170 tics.
+          run(6000);
+          mostReads = 0;
+          const frames = run(10_000);
+          expect(frames).toBeLessThanOrEqual(351);
+          // Polled at least once a tic, every tic gets its own frame.
+          if (pollMs <= 1000 / 35 - 1) expect(frames).toBeGreaterThanOrEqual(349);
+          else expect(frames).toBeGreaterThan(150);
+          // A level frame reads the clock 8 times; only a busy-wait reads it more.
+          expect(mostReads).toBeLessThanOrEqual(12);
+          expect(Math.abs(engineMs - (t - start))).toBeLessThan(pollMs + 1000 / 35);
+        }
       }
     } finally {
       WebAssembly.instantiate = instantiate;

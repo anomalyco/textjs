@@ -52,14 +52,20 @@ export async function createDoom({ wasm, wads, now = () => performance.now(), lo
   let fh = 0;
   let drawn = false;
   let baseMs: number | null = null;
-  // The last time handed to the engine. It follows the wall clock and only runs ahead of it to end a busy-wait,
+  // Milliseconds since startup, read once per initGame() or tick() so a slow frame can't cross into the next tic.
+  let tickMs = 0;
+  // The last time handed to the engine. It follows tickMs and only runs ahead of it to end a busy-wait,
   // and the wall clock then catches up to it, so Doom stays at 35 tics per second.
   let engineMs = 0;
   let pollsInTick = 0;
 
-  const wallMs = (): number => Math.floor(now());
-  // Doom's I_GetTime(): whole tics since the first time it read.
-  const ticAt = (ms: number): number => Math.floor(((ms - (baseMs ?? ms)) * DOOM_TICRATE) / 1000);
+  const elapsedMs = (): number => {
+    const ms = Math.floor(now());
+    if (baseMs === null) baseMs = ms;
+    return Math.max(0, ms - baseMs);
+  };
+  // Doom's I_GetTime(): whole tics since startup.
+  const ticAt = (ms: number): number => Math.floor((ms * DOOM_TICRATE) / 1000);
 
   const imports = {
     console: {
@@ -90,15 +96,15 @@ export async function createDoom({ wasm, wads, now = () => performance.now(), lo
     },
     runtimeControl: {
       timeInMilliseconds: () => {
-        engineMs = Math.max(engineMs, wallMs());
-        if (baseMs === null) baseMs = engineMs;
-        // TryRunTics busy-waits for the next tic edge when it has none to run (at startup, say). Skip to the edge
+        engineMs = Math.max(engineMs, tickMs);
+        // TryRunTics busy-waits for the next tic edge when it has none to run (at startup). Skip to the edge
         // instead of spinning; tick() then waits for the wall clock to reach it.
         if (++pollsInTick > BUSY_WAIT_POLLS) {
-          engineMs = baseMs + Math.ceil(((ticAt(engineMs) + 1) * 1000) / DOOM_TICRATE);
+          engineMs = Math.ceil(((ticAt(engineMs) + 1) * 1000) / DOOM_TICRATE);
           pollsInTick = 0;
         }
-        return BigInt(engineMs);
+        // i_timer.c takes a first reading of 0 as "not read yet", which would put Doom's tic edges out of phase with ours.
+        return BigInt(engineMs + 1);
       },
     },
     ui: {
@@ -146,6 +152,7 @@ export async function createDoom({ wasm, wads, now = () => performance.now(), lo
     tab: g("KEY_TAB"),
     backspace: g("KEY_BACKSPACE"),
   };
+  tickMs = elapsedMs();
   pollsInTick = 0;
   ex.initGame();
 
@@ -158,7 +165,9 @@ export async function createDoom({ wasm, wads, now = () => performance.now(), lo
     keys,
     tick() {
       // The engine has built tics up to the last time it read, so it only has new work once the wall clock passes that tic.
-      if (ticAt(wallMs()) <= ticAt(engineMs)) return false;
+      const nowMs = elapsedMs();
+      if (ticAt(nowMs) <= ticAt(engineMs)) return false;
+      tickMs = nowMs;
       drawn = false;
       pollsInTick = 0;
       ex.tickGame();
