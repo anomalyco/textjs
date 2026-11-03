@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { activateCompanion } from "../console-companion/bridge";
 import { DEMOS, hintsFor, PAGE_HINTS, PRESETS, type DemoId, type PresetId } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
@@ -28,6 +28,9 @@ const WORDMARKS: Partial<Record<DemoId, () => ReactNode>> = { opencode: OpenCode
 /** Prevents a layout-effect warning while prerendering; the picker only scrolls in the browser. */
 const useBrowserLayoutEffect = typeof window === "undefined" ? () => undefined : useLayoutEffect;
 
+/** Width of the picker's edge fades, matching `.pad-picker-track` in styles.css. */
+const EDGE_FADE = 40;
+
 /** Fades whichever edge of the picker has demos scrolled out of view (physical sides, so RTL works too). */
 function markHiddenEdges(track: HTMLElement): void {
   const first = track.firstElementChild?.getBoundingClientRect();
@@ -48,9 +51,12 @@ function Picker({ demo }: { demo: DemoId }): ReactNode {
     if (!track || !item || track.scrollWidth <= track.clientWidth) return;
     const n = track.getBoundingClientRect();
     const r = item.getBoundingClientRect();
-    if (r.left < n.left || r.right > n.right) track.scrollLeft += r.left - n.left - (n.width - r.width) / 2;
+    // An edge with more demos beyond it is faded over EDGE_FADE px, so keep the current one clear of it.
+    const padL = item.previousElementSibling ? EDGE_FADE : 0;
+    const padR = item.nextElementSibling ? EDGE_FADE : 0;
+    if (r.left < n.left + padL || r.right > n.right - padR) track.scrollLeft += r.left - n.left - (n.width - r.width) / 2;
   }, [demo]);
-  useEffect(() => {
+  useBrowserLayoutEffect(() => {
     const track = ref.current;
     if (!track) return;
     const update = (): void => markHiddenEdges(track);
