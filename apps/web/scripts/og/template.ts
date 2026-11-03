@@ -111,7 +111,7 @@ body { font-family: ${SANS}; color: #ededed; -webkit-font-smoothing: antialiased
 .card:is(:lang(ar), :lang(fa), :lang(ur)) { font-family: "Geist", "OG Arabic", "Geist OG", "OG Symbols"; }
 .card:lang(hi) { font-family: "Geist", "OG Devanagari", "Geist OG", "OG Symbols"; }
 .card[lang]:not(:lang(en)) :is(.title, .label) { letter-spacing: 0; }
-.card:is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(hi)) .title { line-height: 1.2; }
+.card:is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(hi), :lang(vi)) .title { line-height: 1.2; }
 .card[dir="rtl"] .brand { left: auto; right: ${EDGE}px; }
 .card[dir="rtl"] .label { padding-left: 0; padding-right: 24px; border-left: 0; border-right: 2px solid #333; }
 .card[dir="rtl"] .title { left: auto; right: ${EDGE}px; }

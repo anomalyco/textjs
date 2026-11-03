@@ -3,8 +3,15 @@ import { getCompanion } from "../console-companion/boot";
 import { siteStore, type OpenCodeConnection } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
 import { autoConnectTarget, BRIDGE_COMMAND, DEFAULT_SERVER_URL, discoverServer, normalizeServerUrl, pairBridge, PAIRING_PROMPT, PairingRequired, rememberBridgeToken, rememberServer, WrongCode } from "../demos/opencode/live";
+import { LOCALE, SOURCE_LOCALE } from "../i18n/locales";
 import { t } from "../i18n/t";
 import { CopyCommand } from "../site/CodeBlock";
+
+/**
+ * Typed codes and URLs are Latin text whatever the page language: the code field's capitals follow `lang`, so a
+ * Turkish page would show a typed i as İ. Left off English pages, whose markup stays as it was.
+ */
+const LTR_ENGLISH: { lang?: "en"; dir?: "ltr" } = LOCALE === SOURCE_LOCALE ? {} : { lang: "en", dir: "ltr" };
 
 /** `quiet`: a reconnect on load, which stays in the sandbox on failure. `token`: fresh from pairing (the panel stays in pair mode meanwhile). */
 async function connectTo(target: string, quiet: boolean, token?: string): Promise<void> {
@@ -201,6 +208,7 @@ export function ConnectPanel(): ReactNode {
             >
               <input
                 className="text-input code-input"
+                {...LTR_ENGLISH}
                 name="pairing-code"
                 value={code}
                 onChange={(e) => {
@@ -244,7 +252,7 @@ export function ConnectPanel(): ReactNode {
               }}
               className="connect-form"
             >
-              <input ref={urlInput} className="text-input" name="server-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={DEFAULT_SERVER_URL} spellCheck={false} aria-label={t("OpenCode server URL")} aria-describedby={STATUS_ID} />
+              <input ref={urlInput} className="text-input" dir={LTR_ENGLISH.dir} name="server-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={DEFAULT_SERVER_URL} spellCheck={false} aria-label={t("OpenCode server URL")} aria-describedby={STATUS_ID} />
               <button type="submit" className="btn btn-secondary btn-sm" disabled={conn.mode === "connecting"}>
                 {t("Connect")}
               </button>

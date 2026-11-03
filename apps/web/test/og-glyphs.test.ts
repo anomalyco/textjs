@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { NOT_FOUND_PATH, ROUTES } from "../src/entry-server";
 import { LOCALES } from "../src/i18n/locales";
-import { ogCards } from "../src/og";
+import { ogCards, pageTitle } from "../src/og";
 import { woff2Cmap } from "../scripts/og/cmap";
 import { SCRIPT_FONTS } from "../scripts/og/render";
 import { drawn, OG_FONTS } from "../scripts/og/template";
@@ -30,19 +30,30 @@ const isDrawn = (ch: string): boolean => ch.trim() !== "" && !/[\u2066-\u2069]/.
  * translation. `bun scripts/og/subset-locale-fonts.ts` refreshes a subset.
  */
 describe("share-card fonts", async () => {
-  const english = new Set<string>();
-  for (const card of await ogCards(ROUTES, NOT_FOUND_PATH)) {
+  /**
+   * Each drawn string with the catalog key it comes from. A page title is drawn from its translated full `<title>`
+   * with the site suffix stripped (`Changelog | Text.js` → its translation, minus ` | Text.js`), which needn't match
+   * the translation of the bare title, so it's looked up the same way when the whole title is a catalog key.
+   */
+  const english = new Map<string, { key: string; full?: string }>();
+  const routes = [...ROUTES, { path: NOT_FOUND_PATH, title: "404", description: "" }];
+  (await ogCards(ROUTES, NOT_FOUND_PATH)).forEach((card, i) => {
     const d = drawn(card);
-    english.add(d.title);
-    if (d.label) english.add(d.label);
-  }
+    const route = routes[i] as (typeof routes)[number] & { cardTitle?: string };
+    const fromTitle = !route.cardTitle && d.title === pageTitle(route.title) && d.title !== route.title;
+    english.set(`title:${d.title}:${fromTitle}`, { key: d.title, full: fromTitle ? route.title : undefined });
+    if (d.label) english.set(`label:${d.label}`, { key: d.label });
+  });
   for (const locale of LOCALES.filter((l) => l.status !== "planned")) {
     test(`${locale.code}: the card fonts draw every character on its cards`, () => {
       const catalog = readCatalog(locale.code);
       const errors = parseTranslation(readText(translationFile(locale.code, "errors")));
-      const texts = [...english].map((t) => {
-        const v = catalog[t];
-        return typeof v === "string" ? v : (errors.get(blockId(t)) ?? t);
+      const texts = [...english.values()].map(({ key, full }) => {
+        // A whole translated title (`Changelog | Text.js`); interpolated ones (`{title} | Text.js Docs`) aren't keys.
+        const whole = full === undefined ? undefined : catalog[full];
+        if (typeof whole === "string") return pageTitle(whole);
+        const v = catalog[key];
+        return typeof v === "string" ? v : (errors.get(blockId(key)) ?? key);
       });
       const fonts = [...SHARED, ...(SCRIPT_FONTS[locale.code] ? [SCRIPT_FONTS[locale.code] as string] : [])].map(cmap);
       const missing = [...new Set(texts.join(""))].filter((ch) => isDrawn(ch) && !fonts.some((f) => f.has(ch.codePointAt(0) as number)));
