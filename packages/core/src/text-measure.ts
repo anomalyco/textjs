@@ -534,7 +534,7 @@ export function lineToString(gs: readonly Grapheme[], line: TextLine): string {
   return s;
 }
 
-const wrapCache = new LruCache<string, readonly string[]>(4096);
+const wrapCache = /* @__PURE__ */ new LruCache<string, readonly string[]>(4096);
 
 /** Wrap or truncate text into lines no wider than `maxWidth` cells. Results are cached and frozen. */
 export function wrapText(text: string, maxWidth: number, mode: WrapMode = "wrap"): readonly string[] {

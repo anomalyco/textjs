@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { parseColor } from "@textjs/core";
+import * as reactTopLevel from "../src/index";
 import {
   BarChart,
   Box,
@@ -26,6 +27,8 @@ import {
   Text,
   useTheme,
 } from "../src/index";
+import * as reactExperimental from "../src/experimental";
+import { Pixels, useKeyState } from "../src/experimental";
 import { cleanup, render } from "../src/testing";
 
 afterEach(cleanup);
@@ -138,14 +141,41 @@ describe("<Gradient>", () => {
 });
 
 describe("<Image>", () => {
-  test("half-block pixels keep aspect ratio and colors", async () => {
+  test("half-block pixels keep aspect ratio, colors, and modal overlays without using experimental sprites", async () => {
     // 2×2: red, green / blue, transparent
     const pixels = { width: 2, height: 2, data: [255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 0, 0, 0, 0] };
     const app = await render(<Image pixels={pixels} width={2} />, { cols: 4, rows: 2 });
+    expect(app.root.renderer.buffer._sprites.length).toBe(0);
     expect(app.lines()[0]).toBe("▀▀");
     expect(app.cell(0, 0)).toMatchObject({ fg: parseColor("#ff0000"), bg: parseColor("#0000ff") });
     expect(app.cell(1, 0)?.fg).toBe(parseColor("#00ff00"));
     expect(resamplePixels({ width: 2, height: 1, data: [0, 0, 0, 255, 255, 255, 255, 255] }, 1, 1)[0]).toBe(128);
+
+    // Modal overlay over <Image> keeps its interior background
+    const d = new Uint8ClampedArray(8 * 8 * 4);
+    for (let i = 0; i < 64; i++) {
+      d[i * 4] = 255;
+      d[i * 4 + 3] = 255;
+    }
+    await app.rerender(
+      <Box width={20} height={8}>
+        <Image pixels={{ width: 8, height: 8, data: d }} width={16} height={8} fit="fill" />
+        <Box position="absolute" left={4} top={2} width={8} height={3} bg="#222222">
+          <Text>hi</Text>
+        </Box>
+      </Box>,
+    );
+    const modalApp = await render(
+      <Box width={20} height={8}>
+        <Image pixels={{ width: 8, height: 8, data: d }} width={16} height={8} fit="fill" />
+        <Box position="absolute" left={4} top={2} width={8} height={3} bg="#222222">
+          <Text>hi</Text>
+        </Box>
+      </Box>,
+      { cols: 20, rows: 8 },
+    );
+    expect(modalApp.cell(10, 3)?.bg).toBe(parseColor("#222222"));
+    expect(modalApp.cell(5, 2)?.bg).toBe(parseColor("#222222"));
   });
 
   test("new pixels of the same size repaint", async () => {
@@ -160,6 +190,112 @@ describe("<Image>", () => {
   test("shows alt text without pixels", async () => {
     const app = await render(<Image alt="logo.png" width={12} />, { cols: 12, rows: 1 });
     expect(app.lastFrame()).toContain("logo.png");
+  });
+});
+
+describe("<Pixels> and @textjs/react/experimental", () => {
+  test("exposes Pixels and useKeyState only from @textjs/react/experimental", () => {
+    expect(typeof reactExperimental.Pixels).toBe("function");
+    expect(typeof reactExperimental.useKeyState).toBe("function");
+    expect("Pixels" in reactTopLevel).toBe(false);
+    expect("useKeyState" in reactTopLevel).toBe(false);
+    expect("paintHalfBlocks" in reactTopLevel).toBe(false);
+    expect("quantizer" in reactTopLevel).toBe(false);
+    expect("paintHalfBlocks" in reactExperimental).toBe(false);
+    expect("quantizer" in reactExperimental).toBe(false);
+  });
+
+  test("renders live framebuffers as sprites, preserves sprites across sibling text band updates, and supports useKeyState", async () => {
+    const red = parseColor("#ff0000");
+    const blue = parseColor("#0000ff");
+    const green = parseColor("#00ff00");
+    const data = new Uint32Array([red, red, blue, blue]);
+    const source = { width: 2, height: 2, data };
+    let seenDown: boolean | null = null;
+
+    function Scene({ n, frame, mode }: { n: number; frame: number; mode?: "auto" | "halfblock" }) {
+      const keys = useKeyState((e) => {
+        if (e.code === "KeyW") seenDown = e.down;
+      });
+      return (
+        <Box flexDirection="row">
+          <Pixels source={source} frame={frame} width={4} height={3} fit="fill" renderMode={mode} />
+          <Box flexDirection="column">
+            <Text>{keys.isDown("KeyW") ? "held" : "idle"}</Text>
+            <Text>{`count ${n}`}</Text>
+          </Box>
+        </Box>
+      );
+    }
+
+    const app = await render(<Scene n={0} frame={0} />, { cols: 20, rows: 6 });
+    expect(app.root.renderer.buffer._sprites.length).toBe(1);
+    expect(app.cell(0, 0)).toMatchObject({ fg: red, bg: red });
+
+    // Item 10: Sibling text update on row 1 (partial band repaint) keeps the 3-row sprite intact!
+    await app.rerender(<Scene n={1} frame={0} />);
+    expect(app.root.renderer.buffer._sprites.length).toBe(1);
+    expect(app.lines()[1]).toContain("count 1");
+
+    // Mutate data in place and bump `frame`
+    data[0] = green;
+    data[1] = green;
+    await app.rerender(<Scene n={1} frame={1} />);
+    expect(app.cell(0, 0)?.fg).toBe(green);
+
+    // Explicit halfblock mode skips sprite registration
+    await app.rerender(<Scene n={1} frame={2} mode="halfblock" />);
+    expect(app.root.renderer.buffer._sprites.length).toBe(0);
+    expect(app.cell(0, 0)?.fg).toBe(green);
+
+    // Verify useKeyState tracks press & release
+    app.root.renderer.input?.handleKeyDown({
+      key: "w",
+      code: "KeyW",
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+      altKey: false,
+      preventDefault() {},
+    });
+    expect(seenDown).toBe(true);
+    app.root.renderer.input?.handleKeyUp({
+      key: "w",
+      code: "KeyW",
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+      altKey: false,
+      preventDefault() {},
+    });
+    expect(seenDown).toBe(false);
+  });
+
+  test("overflow='hidden' parent clips Pixels via cell fallback, and ConsoleMirror paints underBg behind transparent sprites", async () => {
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { extractStyledFrame } = await import("@textjs/core");
+    const { ConsoleMirror } = await import("../src/dom/ConsoleMirror");
+
+    const red = parseColor("#ff0000");
+    const clippedApp = await render(
+      <Box width={3} height={2} overflow="hidden">
+        <Pixels source={{ width: 4, height: 4, data: new Uint32Array(16).fill(red) }} frame={0} width={8} height={2} fit="fill" />
+      </Box>,
+      { cols: 10, rows: 3 },
+    );
+    expect(clippedApp.root.renderer.buffer._sprites.length).toBe(0);
+    expect(clippedApp.cell(2, 0)?.fg).toBe(red);
+    expect(clippedApp.cell(3, 0)?.fg).not.toBe(red);
+
+    const transApp = await render(
+      <Box width={6} height={3} bg="#223344">
+        <Pixels source={{ width: 2, height: 2, data: new Uint32Array([0x00000000, red, red, 0x00000000]) }} frame={0} width={4} height={2} fit="fill" />
+      </Box>,
+      { cols: 6, rows: 3 },
+    );
+    const styled = extractStyledFrame(transApp.root.renderer.buffer);
+    const html = renderToStaticMarkup(<ConsoleMirror frame={styled} chrome={false} />);
+    expect(html).toContain("background:#223344");
   });
 });
 

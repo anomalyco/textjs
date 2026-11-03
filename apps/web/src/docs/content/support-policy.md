@@ -32,7 +32,7 @@ These only change in a major release, after a deprecation warning in at least on
 - File conventions in `app/`, `middleware.ts` and route segment config
 - Adapter output layouts (`.vercel/output`, `_worker.js`, `dist/server.js`)
 
-Not covered: APIs marked experimental or `unstable_` (they may change in a minor, with notes in the changelog), internals such as `x-middleware-*` headers and `.text/` build metadata, canary releases, and exact `console.log` format strings and CSS (frames stay visually identical; their encoding may get faster).
+Not covered: APIs marked experimental or `unstable_`, including everything under `@textjs/core/experimental` and `@textjs/react/experimental` (they may change in a minor release, with notes in the changelog), internals such as `x-middleware-*` headers and `.text/` build metadata, canary releases, and exact `console.log` format strings and CSS (frames stay visually identical; their encoding may get faster).
 
 ## Runtime support
 

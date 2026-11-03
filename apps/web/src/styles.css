@@ -2486,6 +2486,36 @@ kbd {
   color: var(--fg);
 }
 
+.pad-footer {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  column-gap: 10px;
+  row-gap: 4px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--subtle);
+  text-align: center;
+  text-wrap: pretty;
+}
+
+.pad-footer .pad-source {
+  margin-top: 0;
+}
+
+.pad-legal {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--subtle);
+  text-decoration: none;
+}
+
+.pad-legal:hover {
+  color: var(--fg);
+}
+
 .pad-code {
   padding-bottom: 96px;
 }
@@ -2617,8 +2647,15 @@ kbd {
 
 /* Wide screens: on the console size control's baseline (13px sans next to 12px mono). */
 @media (min-width: 901px) {
-  .pad-source {
+  .pad-source,
+  .pad-footer {
     margin-bottom: 1px;
+  }
+  .pad-footer {
+    padding-inline: 168px;
+  }
+  .pad-footer .pad-source {
+    margin-bottom: 0;
   }
 }
 
@@ -2688,6 +2725,7 @@ html[data-browser="safari"] .pad-stage {
   }
   .pad-picker,
   .pad-source,
+  .pad-footer,
   .pad-note,
   .pad-connect {
     display: none;

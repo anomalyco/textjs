@@ -17,7 +17,7 @@ const NOT_FOUND_HINTS: readonly Hint[] = [{ keys: "Enter", label: "home" }];
 /** One quiet row of keys at the bottom of every view. */
 function HintLine({ tab, hints: override }: { tab: CompanionTab; hints?: readonly Hint[] }): ReactNode {
   const site = useSite();
-  const hints = override ?? hintsFor(tab, site.preset).hints;
+  const hints = override ?? hintsFor(tab, site.preset, site.doomStatus).hints;
   return (
     <Box className="flex-row h-1 shrink-0 px-2 gap-3">
       {hints.map((h) => (
@@ -142,7 +142,7 @@ export function CompanionApp(): ReactNode {
       <Box className="flex-col grow overflow-hidden" paddingTop={1}>
         {notFound ? <NotFoundTab /> : tab === "home" && HomeTab ? <HomeTab /> : null}
         {route?.name === "blog-post" && BlogTab ? <BlogTab slug={route.slug} /> : null}
-        {tab === "playground" && PresetView ? <PresetView key={site.preset} preset={site.preset} reserveRows={6} /> : null}
+        {tab === "playground" && PresetView ? <PresetView key={site.preset} preset={site.preset} reserveRows={6} active={site.consoleInput} /> : null}
         {tab === "docs" && DocsTab ? <DocsTab /> : null}
       </Box>
       <HintLine tab={tab} hints={notFound ? NOT_FOUND_HINTS : tab === "docs" && site.docsPane === "content" ? DOCS_READING_HINTS : undefined} />

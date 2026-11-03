@@ -222,7 +222,7 @@ function parseCliArgs(argv: string[]): CliOptions {
 
   const scenarios = scenarioArg
     .split(",")
-    .map((s) => (s.trim() === "react-stream" ? "react-stream" : "dashboard") as BenchScenario);
+    .map((s) => (s.trim() === "react-stream" || s.trim() === "doom" ? s.trim() : "dashboard") as BenchScenario);
 
   return {
     scenarios,
@@ -344,7 +344,8 @@ async function runSingleBenchmark(
   const pageCtx = await browser.newContext({ viewport: { width: 800, height: 600 } });
   const page = await pageCtx.newPage();
 
-  const dtCtx = await browser.newContext({ viewport: { width: 1000, height: 600 } });
+  // Wide grids need a console wide enough not to wrap (~7.3px per cell at 12px, 14px per row).
+  const dtCtx = await browser.newContext({ viewport: { width: Math.max(1000, Math.ceil(opts.cols * 7.4) + 140), height: Math.max(600, opts.rows * 14 + 160) } });
   const dtPage = await dtCtx.newPage();
 
   try {
@@ -352,10 +353,11 @@ async function runSingleBenchmark(
     const testPageUrl =
       `${serverUrl}/?strategy=${encodeURIComponent(parsedStrategy.raw)}` +
       `&fps=${opts.fps}&seconds=${opts.seconds}&scheduler=${opts.scheduler}` +
-      `&dirty=${opts.dirtyMode}&cols=${opts.cols}&rows=${opts.rows}&runId=${runId}`;
+      `&dirty=${opts.dirtyMode}&cols=${opts.cols}&rows=${opts.rows}&runId=${runId}` +
+      `&scenario=${opts.scenario}${process.env.BENCH_QUERY ? `&${process.env.BENCH_QUERY}` : ""}`;
 
     await page.goto(testPageUrl, { waitUntil: "domcontentloaded" });
-    await page.waitForFunction(() => window.__benchReady === true, { timeout: 10_000 });
+    await page.waitForFunction(() => window.__benchReady === true, { timeout: 60_000 });
 
     // Locate the page's CDP target ID
     const targets = (await fetch(`http://127.0.0.1:${debugPort}/json/list`).then((r) => r.json())) as Array<{
@@ -428,6 +430,8 @@ async function runSingleBenchmark(
       });
     }
 
+    // GC first so heap deltas show retained memory, not garbage that hasn't been collected yet.
+    if (process.env.BENCH_GC) await dtCdp.send("HeapProfiler.collectGarbage").catch(() => {});
     const perfBefore = await dtCdp.send("Performance.getMetrics");
     const profileDir = process.env.BENCH_PROFILE_DIR;
     if (profileDir) {
@@ -469,6 +473,13 @@ async function runSingleBenchmark(
     ]);
 
     const runEndEpochMs = Date.now();
+    if (process.env.BENCH_GC) {
+      await dtCdp.send("HeapProfiler.collectGarbage").catch(() => {});
+      const pageCdp = await pageCtx.newCDPSession(page);
+      await pageCdp.send("HeapProfiler.collectGarbage").catch(() => {});
+      const heap = (await pageCdp.send("Runtime.getHeapUsage")) as { usedSize: number };
+      console.error(`[bench/devtools] page heap after GC: ${(heap.usedSize / 1048576).toFixed(1)}MB`);
+    }
     const perfAfter = await dtCdp.send("Performance.getMetrics");
     let paintDurationMs: number | undefined;
     if (browserCdp && traceDone) {
@@ -505,6 +516,8 @@ async function runSingleBenchmark(
           framesCaptured: 0,
           blankFrames: 0,
           renderedFrames: 0,
+          distinctVisualFrames: 0,
+          visualFps: 0,
           blankFramePct: 0,
           timeWeightedBlankPct: 0,
         };
@@ -687,7 +700,7 @@ function printComparisonTables(results: BenchmarkRunMetrics[], showScreencast: b
       : []),
     `${r.frontend.distinctFramesPainted} / ${r.page.emittedFrames}`,
     `${r.frontend.droppedFramePct.toFixed(1)}%`,
-    `${r.frontend.effectiveConsoleFps.toFixed(1)}`,
+    `${r.frontend.screencast.visualFps > r.frontend.effectiveConsoleFps ? `${r.frontend.screencast.visualFps.toFixed(1)} (${r.frontend.effectiveConsoleFps.toFixed(1)} dom)` : r.frontend.effectiveConsoleFps.toFixed(1)}`,
     `${r.frontend.lagFrames.p50.toFixed(0)} / ${r.frontend.lagFrames.p95.toFixed(0)}`,
     `${r.frontend.lagMs.p50.toFixed(1)} / ${r.frontend.lagMs.p95.toFixed(1)}ms`,
   ]);

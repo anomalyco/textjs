@@ -4,7 +4,7 @@ import type { CompanionTab, PresetId } from "./store";
 export interface LoadedCompanionTabs {
   home?: ComponentType;
   docs?: ComponentType;
-  playground?: ComponentType<{ preset: PresetId; reserveRows?: number }>;
+  playground?: ComponentType<{ preset: PresetId; reserveRows?: number; active?: boolean }>;
   opencode?: ComponentType;
   learn?: ComponentType;
   terminal?: ComponentType;

@@ -106,6 +106,17 @@ export class InputManager {
     for (const l of this.wantListeners) l();
   }
 
+  /** Count an external keyboard consumer (such as `useKeyState`) toward {@link wantsKeys}. */
+  claimKeys(): () => void {
+    if (++this.wanting === 1) this.emitWants();
+    let active = true;
+    return () => {
+      if (!active) return;
+      active = false;
+      if (--this.wanting === 0) this.emitWants();
+    };
+  }
+
   private flush(): void {
     if (this.renderer === null) return;
     reconciler.flushSyncWork();

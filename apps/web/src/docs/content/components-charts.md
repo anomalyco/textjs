@@ -83,3 +83,30 @@ Half-block pixels: each cell holds two, top in the foreground and bottom in the 
 ```
 
 `src` loads through a canvas, so cross-origin images need CORS. `pixels` takes raw RGBA anywhere, including the terminal.
+
+## `<Pixels>` (experimental)
+
+`@textjs/react/experimental` exports `<Pixels>` for live `0xRRGGBBAA` framebuffers such as games, emulators and video. Write packed pixels into `source.data` in place and increment `frame` to repaint.
+
+```tsx
+import { Pixels, type PixelSource } from "@textjs/react/experimental";
+
+const source: PixelSource = { width: 320, height: 200, data: new Uint32Array(320 * 200) };
+
+<Pixels source={source} frame={frame} width={80} height={25} pixelAspect={5 / 6} />
+```
+
+| Prop | Description |
+| :-- | :-- |
+| `source` | `{ width, height, data: Uint32Array }` in `0xRRGGBBAA` order |
+| `frame` | Frame counter; increment after mutating `source.data` |
+| `width` / `height` | Box size in cells and rows |
+| `fit` | `contain` (default) or `fill` |
+| `pixelAspect` | Displayed width divided by height of one source pixel (default `1`) |
+| `palette` | Optional `PackedColor[]` palette to quantize colors against |
+| `sample` | Half-block fallback filter: `nearest` (default) or `average` |
+| `renderMode` | `auto` (default: sprite where supported, `▀` half-blocks elsewhere) or `halfblock` |
+
+`renderMode="auto"` draws a pixelated sprite in Chromium, and Firefox per its console's style rules (not benchmarked), and falls back to `▀` half-blocks in Safari, terminals and plain-text copies. Pass `renderMode="halfblock"` to draw half-blocks everywhere.
+
+To draw pixels without React, import `drawPixels` from `@textjs/core/experimental` along with `DrawPixelsOptions`, `PixelSource`, `PixelFit`, `PixelSample` and `PixelRenderMode`. See [Breaking changes](/docs/support-policy#breaking-changes) for how experimental exports are versioned.

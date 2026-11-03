@@ -137,10 +137,10 @@ export const NAMED_COLORS: Readonly<Record<string, string>> = {
   whitebright: "#fafafa",
 };
 
-const parseCache = new Map<string, PackedColor>();
+const parseCache = /* @__PURE__ */ new Map<string, PackedColor>();
 const PARSE_CACHE_MAX = 2048;
 
-const HEX2: readonly string[] = Array.from({ length: 256 }, (_, i) => (i < 16 ? "0" : "") + i.toString(16));
+const HEX2: readonly string[] = /* @__PURE__ */ Array.from({ length: 256 }, (_, i) => (i < 16 ? "0" : "") + i.toString(16));
 
 function clampByte(n: number): number {
   return n < 0 ? 0 : n > 255 ? 255 : Math.round(n);
@@ -236,7 +236,7 @@ export function parseColor(input: ColorInput): PackedColor {
   return value;
 }
 
-const cssCache = new Map<number, string>();
+const cssCache = /* @__PURE__ */ new Map<number, string>();
 const CSS_CACHE_MAX = 8192;
 
 /** Convert a packed color to CSS hex (`#rrggbb` when opaque, `#rrggbbaa` otherwise). Interned. */

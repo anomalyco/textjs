@@ -1,9 +1,11 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { activateCompanion } from "../console-companion/bridge";
-import { DEMOS, PAGE_HINTS, PRESETS, type DemoId, type PresetId } from "../console-companion/store";
+import { DEMOS, hintsFor, PAGE_HINTS, PRESETS, type DemoId, type PresetId } from "../console-companion/store";
+import { useSite } from "../console-companion/useSite";
 import dashboardSource from "../demos/Dashboard.tsx?raw";
 import streamingSource from "../demos/Streaming.tsx?raw";
 import snakeSource from "../demos/Snake.tsx?raw";
+import doomSource from "../demos/doom/Doom.tsx?raw";
 import { A } from "../router";
 import { OpenCodeWordmark, TerminalWordmark } from "../site/brand-marks";
 import { CopyButton } from "../site/CodeBlock";
@@ -16,6 +18,7 @@ const SOURCES: Record<PresetId, string> = {
   dashboard: dashboardSource,
   streaming: streamingSource,
   snake: snakeSource,
+  doom: doomSource,
 };
 
 /** OpenCode and terminal.shop are apps of their own: their wordmarks lead the message. */
@@ -67,17 +70,32 @@ function Picker({ demo }: { demo: DemoId }): ReactNode {
  */
 export function PlaygroundPage({ demo }: { demo: DemoId }): ReactNode {
   const [showSource, setShowSource] = useState(false);
+  const site = useSite();
   const preset = PRESETS.find((p) => p.id === demo);
-  const { action, hints } = preset ?? PAGE_HINTS[demo === "coffee" ? "terminal" : "opencode"];
+  const { action, hints } = preset ? hintsFor("playground", preset.id, site.doomStatus) : PAGE_HINTS[demo === "coffee" ? "terminal" : "opencode"];
   const Wordmark = WORDMARKS[demo];
 
   return (
     <>
       <ConsolePad hints={hints} action={action} top={<Picker demo={demo} />} banner={Wordmark ? <Wordmark /> : null}>
         {preset ? (
-          <button type="button" className="text-link pad-source" onClick={() => setShowSource((s) => !s)} aria-expanded={showSource}>
-            {showSource ? "Hide source" : "View source"}
-          </button>
+          demo === "doom" ? (
+            <div className="pad-footer">
+              <button type="button" className="text-link pad-source" onClick={() => setShowSource((s) => !s)} aria-expanded={showSource}>
+                {showSource ? "Hide source" : "View source"}
+              </button>
+              <span className="pad-sep" aria-hidden="true">
+                ·
+              </span>
+              <a className="text-link pad-legal" href="/doom/LICENSE-DOOM1.TXT">
+                DOOM is a trademark of id Software. Text.js is not affiliated with or endorsed by id Software.
+              </a>
+            </div>
+          ) : (
+            <button type="button" className="text-link pad-source" onClick={() => setShowSource((s) => !s)} aria-expanded={showSource}>
+              {showSource ? "Hide source" : "View source"}
+            </button>
+          )
         ) : demo === "opencode" ? (
           <ConnectPanel />
         ) : (

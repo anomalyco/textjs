@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
@@ -97,8 +97,51 @@ function prerenderedPages(): Plugin {
   };
 }
 
+/**
+ * Cloudflare Pages does not compress `.WAD` (`application/octet-stream`). Emit `dist/doom/DOOM1.WAD.gz`
+ * at build time and serve `/doom/DOOM1.WAD.gz` in `vite dev` from the committed `public/doom/DOOM1.WAD`.
+ */
+function doomWadGzip(isSsrBuild: boolean): Plugin {
+  const wadPath = join(import.meta.dirname, "public/doom/DOOM1.WAD");
+  let cachedGz: Buffer | null = null;
+  const getGz = (): Buffer | null => {
+    if (cachedGz) return cachedGz;
+    if (!existsSync(wadPath)) return null;
+    cachedGz = gzipSync(readFileSync(wadPath), { level: 9 });
+    return cachedGz;
+  };
+  let outDir = "dist";
+  return {
+    name: "textjs-doom-wad-gzip",
+    configResolved(cfg) {
+      outDir = cfg.build.outDir;
+    },
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const path = (req.url ?? "").split("?")[0];
+        if ((req.method !== "GET" && req.method !== "HEAD") || path !== "/doom/DOOM1.WAD.gz") return next();
+        const gz = getGz();
+        if (!gz) return next();
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "application/gzip");
+        res.setHeader("Content-Length", String(gz.length));
+        res.setHeader("Cache-Control", "no-cache");
+        res.end(req.method === "HEAD" ? undefined : gz);
+      });
+    },
+    closeBundle() {
+      if (isSsrBuild) return;
+      const gz = getGz();
+      if (!gz) return;
+      const dest = join(outDir, "doom/DOOM1.WAD.gz");
+      mkdirSync(dirname(dest), { recursive: true });
+      writeFileSync(dest, gz);
+    },
+  };
+}
+
 export default defineConfig(({ isSsrBuild }) => ({
-  plugins: [react(), viewportScript(), terminalFunctions(), reportFunction(), prerenderedPages()],
+  plugins: [react(), viewportScript(), terminalFunctions(), reportFunction(), prerenderedPages(), doomWadGzip(Boolean(isSsrBuild))],
   define: { __TEXTJS_RELEASE__: JSON.stringify(release()) },
   build: {
     target: "es2022",

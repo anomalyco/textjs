@@ -16,7 +16,7 @@ export interface Hint {
   label: string;
 }
 
-export type PresetId = "dashboard" | "streaming" | "snake";
+export type PresetId = "dashboard" | "streaming" | "snake" | "doom";
 
 export interface Preset {
   id: PresetId;
@@ -32,6 +32,7 @@ export const PRESETS: readonly Preset[] = [
   { id: "dashboard", label: "Dashboard", description: "Live metrics", action: "press ← →", hints: [{ keys: "← →", label: "switch region" }] },
   { id: "streaming", label: "Streaming", description: "Streaming Markdown and diffs", action: "press r", hints: [{ keys: "r", label: "stream again" }] },
   { id: "snake", label: "Snake", description: "A game loop", action: "press an arrow key", hints: [{ keys: "← ↑ → ↓", label: "steer" }, { keys: "Space", label: "pause" }] },
+  { id: "doom", label: "Doom", description: "The shareware episode", action: "press Enter", hints: [{ keys: "← ↑ → ↓", label: "move" }, { keys: "F", label: "fire" }, { keys: "Space", label: "open" }] },
 ];
 
 const DEFAULT_PRESET = (PRESETS[0] as Preset).id;
@@ -86,8 +87,26 @@ export const DOCS_READING_HINTS: readonly Hint[] = [
   { keys: "/", label: "search" },
 ];
 
-export function hintsFor(tab: CompanionTab, preset: PresetId): { action: string; hints: readonly Hint[] } {
-  if (tab === "playground") return PRESETS.find((p) => p.id === preset) ?? (PRESETS[0] as Preset);
+export type DoomStatus = "idle" | "loading" | "failed" | "ready";
+
+export const DOOM_LOADING_HINTS: { action: string; hints: readonly Hint[] } = {
+  action: "press Esc to cancel",
+  hints: [{ keys: "Esc", label: "cancel" }],
+};
+
+export const DOOM_ERROR_HINTS: { action: string; hints: readonly Hint[] } = {
+  action: "press Enter to try again",
+  hints: [{ keys: "Enter", label: "try again" }],
+};
+
+export function hintsFor(tab: CompanionTab, preset: PresetId, doomStatus: DoomStatus = "ready"): { action: string; hints: readonly Hint[] } {
+  if (tab === "playground") {
+    if (preset === "doom") {
+      if (doomStatus === "loading") return DOOM_LOADING_HINTS;
+      if (doomStatus === "failed") return DOOM_ERROR_HINTS;
+    }
+    return PRESETS.find((p) => p.id === preset) ?? (PRESETS[0] as Preset);
+  }
   return PAGE_HINTS[tab];
 }
 
@@ -126,6 +145,8 @@ export interface SiteState {
   wireframe: boolean;
   /** A teammate's console view (console-companion/team), shown in DevTools only, or `null`. */
   teamEgg: string | null;
+  /** Current state of the Doom preset, so the hint row swaps to the single action while loading or on error. */
+  doomStatus: DoomStatus;
 }
 
 type Listener = () => void;
@@ -161,6 +182,7 @@ const DEFAULT_STATE: SiteState = {
   opencodeExited: false,
   wireframe: false,
   teamEgg: null,
+  doomStatus: "ready",
 };
 
 export class SiteStore {

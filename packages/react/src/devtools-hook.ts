@@ -922,6 +922,7 @@ export function paintOwners(root: SceneNode, cols: number, rows: number, out: In
 
 function snapshotFrame(rootId: number, fiberRoot: unknown, rootNode: SceneNode, renderer: ConsoleRenderer, ids: FiberIds): DevToolsFrameSnapshot {
   const buf = renderer.buffer;
+  const cells = buf.readCells();
   const cols = buf.width;
   const rows = buf.height;
   const n = cols * rows;
@@ -930,11 +931,11 @@ function snapshotFrame(rootId: number, fiberRoot: unknown, rootNode: SceneNode, 
   const bg: number[] = new Array(n);
   const attrs: number[] = new Array(n);
   for (let i = 0; i < n; i++) {
-    const code = buf.chars[i] as number;
+    const code = cells.chars[i] as number;
     chars[i] = code === 0 ? "" : buf.cellText(i);
-    fg[i] = buf.fg[i] as number;
-    bg[i] = buf.bg[i] as number;
-    attrs[i] = buf.attrs[i] as number;
+    fg[i] = cells.fg[i] as number;
+    bg[i] = cells.bg[i] as number;
+    attrs[i] = cells.attrs[i] as number;
   }
   const ownerIds = new Int32Array(n);
   paintOwners(rootNode, cols, rows, ownerIds);
