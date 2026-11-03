@@ -3,7 +3,7 @@
 - Address the reader as du, lowercase (du, dein, dir), in docs, UI and marketing. Never Sie. Instructions use the imperative: „Führe `bun dev` aus“, „Öffne die Konsole“.
 - Headings and labels are noun phrases or infinitives without a period: „Installation“, „Die Konsole öffnen“, „Routen gruppieren“. Sentence case: only nouns and the first word are capitalized.
 - Quotes are „…“ with ‚…‘ inside. Browser interface labels go in „…“ and match Chrome's German interface: „Log beibehalten“, „Einstellungen“. The Console panel is „Konsole“.
-- Decimal comma and a space before units and percent signs in prose: 0,163 ms, 70,6 %, 66 ms, 21 kB. Thousands take a dot from five digits: 3200 Zellen, 12.000 Frames. Never touch version numbers (Bun 1.2+, Node.js 22+, 1.4.1), numbers in code, paths or URLs.
+- Decimal comma and a no-break space (U+00A0) before units and percent signs in prose, so a number never wraps away from its unit: 0,163 ms, 70,6 %, 66 ms, 21 kB. Thousands take a dot from five digits: 3200 Zellen, 12.000 Frames. Never touch version numbers (Bun 1.2+, Node.js 22+, 1.4.1), numbers in code, paths or URLs.
 - Dates read 3. November 2026. Ranges use an en dash without spaces: 70–81 %.
 - Couple English terms to German words with a hyphen: Route-Handler, Edge-Middleware, Server-Rendering, React-Komponente, Text.js-App, `app/`-Ordner. Don't hyphenate established single words (Layout, Frame, Browser).
 - Genders: die Konsole, der Frame (die Frames), die Route, das Layout, der Hook, die Komponente, das Theme, der Span, die App.

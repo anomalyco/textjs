@@ -28,10 +28,10 @@ Für jede Zeile wird ein Hash berechnet. Wenn sich nichts geändert hat, kehrt d
 Frame-Wechsel
 
 <!-- s:3c7194b785 -->
-Turbolog hängt Frames an und leert die Konsole nur beim ersten Frame, nach `invalidate()`, im Leerlauf, sobald sich 100 Frames angesammelt haben, und bei 300. DevTools entfernt gelöschte Meldungen sofort, zeichnet neue aber gedrosselt in Abständen von 50 ms, sodass beim Leeren nach jedem Frame kurz eine leere Konsole aufblitzt. Angehängte Frames wechseln innerhalb eines einzigen Zeichenvorgangs, und ein verdeckender Span mit einer Breite von null hält den vorherigen Frame außerhalb des sichtbaren Bereichs. Scrolle nach oben, um frühere Frames zu sehen.
+Turbolog hängt Frames an und leert die Konsole nur beim ersten Frame, nach `invalidate()`, im Leerlauf, sobald sich 100 Frames angesammelt haben, und bei 300. DevTools entfernt gelöschte Meldungen sofort, zeichnet neue aber gedrosselt in Abständen von 50 ms, sodass beim Leeren nach jedem Frame kurz eine leere Konsole aufblitzt. Angehängte Frames wechseln innerhalb eines einzigen Zeichenvorgangs, und ein verdeckender Span mit einer Breite von null hält den vorherigen Frame außerhalb des sichtbaren Bereichs. Scrolle nach oben, um frühere Frames zu sehen.
 
 <!-- s:7845be2cbb -->
-Frames werden auf etwa 15 fps getaktet. Schnellere Frames setzen die DevTools-Drosselung zurück und werden verworfen.
+Frames werden auf etwa 15 fps getaktet. Schnellere Frames setzen die DevTools-Drosselung zurück und werden verworfen.
 
 <!-- s:a36177ad5b -->
 Lauflängenkodierung
@@ -52,7 +52,7 @@ Chromium-Details
 Firefox und Safari
 
 <!-- s:8b2f3136a1 -->
-Chromium stellt jede Zeile eines `%c`-Spans als Inline-Block dar. Firefox und Safari belassen Spans inline, ignorieren daher vertikale Außenabstände und brechen lange Zeilen um. `CssConsoleDriver` erkennt den Browser durch CSS-Funktionstests und setzt für diese beiden Konsolen eine Zeilenhöhe von 14 px ohne Außenabstände, schaltet den Zeilenumbruch mit `text-wrap-mode: nowrap` aus und schiebt frühere Frames mit einem verdeckenden `line-height: 100vh`-Span aus dem sichtbaren Bereich. Beim Einpassen in die Konsole bleibt Platz für die Spalte mit Quellverweisen in Firefox. Safari setzt Menlo an die erste Stelle der Schriftartenliste, weil seine Seiten eine vom Benutzer installierte SF Mono nicht verwenden können, mit der Web Inspector möglicherweise Text zeichnet. Übergib `browser` an `createConsoleRoot`, um selbst eine Konsole auszuwählen.
+Chromium stellt jede Zeile eines `%c`-Spans als Inline-Block dar. Firefox und Safari belassen Spans inline, ignorieren daher vertikale Außenabstände und brechen lange Zeilen um. `CssConsoleDriver` erkennt den Browser durch CSS-Funktionstests und setzt für diese beiden Konsolen eine Zeilenhöhe von 14 px ohne Außenabstände, schaltet den Zeilenumbruch mit `text-wrap-mode: nowrap` aus und schiebt frühere Frames mit einem verdeckenden `line-height: 100vh`-Span aus dem sichtbaren Bereich. Beim Einpassen in die Konsole bleibt Platz für die Spalte mit Quellverweisen in Firefox. Safari setzt Menlo an die erste Stelle der Schriftartenliste, weil seine Seiten eine vom Benutzer installierte SF Mono nicht verwenden können, mit der Web Inspector möglicherweise Text zeichnet. Übergib `browser` an `createConsoleRoot`, um selbst eine Konsole auszuwählen.
 
 <!-- s:66b07a5809 -->
 Benchmarks
@@ -63,9 +63,9 @@ Benchmarks
 <!-- s:342771dd1f -->
 | Frame | Zeit | `%c`-Spans |
 | :-- | --: | --: |
-| Vollständiges Neuzeichnen (Layout, Zeichnen, Kodieren) | **0,163 ms** | 149 |
-| Änderung einer Zeile | **0,011 ms** | 149 |
-| Leerlauf | **0,000 ms** | 0 |
+| Vollständiges Neuzeichnen (Layout, Zeichnen, Kodieren) | **0,163 ms** | 149 |
+| Änderung einer Zeile | **0,011 ms** | 149 |
+| Leerlauf | **0,000 ms** | 0 |
 
 <!-- s:8c3bf89160 -->
 Die [Statusseite](/status) führt dieselbe Pipeline in deinem Browser aus. Führe `text.stats()` in DevTools aus, während eine Demo aus dem [Playground](/playground) läuft.

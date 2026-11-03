@@ -43,24 +43,24 @@ Text ohne Rechts-nach-links-Zeichen überspringt all diese Schritte. Ein reines 
 Zellenbreiten
 
 <!-- s:552e751976 -->
-Der ausgelieferte Font-Stack ist `"SF Mono", Menlo, "Cascadia Mono", Consolas, monospace`. Keine dieser Schriftarten enthält hebräische oder arabische Glyphen, daher greifen Browser pro Zeichen auf eine Ersatzschrift zurück. Unter macOS ist das Courier New, eine nichtproportionale Schrift mit 0,6 em: 7,2012 px pro Glyphe bei 12 px gegenüber 7,2246 px bei Menlo. Sie ist 0,3 % schmaler, genug, um eine ganze Zeile Hebräisch um etwa eine halbe Zelle zu verschieben.
+Der ausgelieferte Font-Stack ist `"SF Mono", Menlo, "Cascadia Mono", Consolas, monospace`. Keine dieser Schriftarten enthält hebräische oder arabische Glyphen, daher greifen Browser pro Zeichen auf eine Ersatzschrift zurück. Unter macOS ist das Courier New, eine nichtproportionale Schrift mit 0,6 em: 7,2012 px pro Glyphe bei 12 px gegenüber 7,2246 px bei Menlo. Sie ist 0,3 % schmaler, genug, um eine ganze Zeile Hebräisch um etwa eine halbe Zelle zu verschieben.
 
 <!-- s:851f84e769 -->
-`CssConsoleDriver` misst jeden Rechts-nach-links-Span mit einem Canvas in der Konsolenschrift (mit derselben Blink-Zeichenformung und Ersatzschriftauswahl wie DevTools) und ergänzt dann den exakten Unterschied in LayoutUnits (1/64 px) als Innenabstand. Der Span ist dadurch so breit wie die Rasterzellen, die er abdeckt (ein breites Graphem wie ein Emoji zählt als zwei). Ein Span wird höchstens um eine halbe Zelle zusammengezogen, sodass eine proportionale Ersatzschrift (Times New Roman neben Cascadia Mono unter Windows) überläuft, statt dass der nächste Span ihre Glyphen überlappt. Gemessen im echten DevTools-Frontend (Chromium 151) mit einem 64×21-Frame aus hebräischen, arabischen, gemischten und hebräischen Zeilen mit Emojis sowie RTL-Box-Titeln (`bun bench/devtools/bidi-shot.ts`):
+`CssConsoleDriver` misst jeden Rechts-nach-links-Span mit einem Canvas in der Konsolenschrift (mit derselben Blink-Zeichenformung und Ersatzschriftauswahl wie DevTools) und ergänzt dann den exakten Unterschied in LayoutUnits (1/64 px) als Innenabstand. Der Span ist dadurch so breit wie die Rasterzellen, die er abdeckt (ein breites Graphem wie ein Emoji zählt als zwei). Ein Span wird höchstens um eine halbe Zelle zusammengezogen, sodass eine proportionale Ersatzschrift (Times New Roman neben Cascadia Mono unter Windows) überläuft, statt dass der nächste Span ihre Glyphen überlappt. Gemessen im echten DevTools-Frontend (Chromium 151) mit einem 64×21-Frame aus hebräischen, arabischen, gemischten und hebräischen Zeilen mit Emojis sowie RTL-Box-Titeln (`bun bench/devtools/bidi-shot.ts`):
 
 <!-- s:45d1be4db4 -->
 | Frame | Abweichung am rechten Rand zwischen den Zeilen |
 | :-- | --: |
-| Ohne Fixierung ausgegebene Zellen | 14,5 px (DevTools ordnet um und formt erneut) |
-| Fixiert, ohne Breitenanpassung | 2,22 px |
-| Ausgelieferter Treiber | 0,156 px |
-| Kontrolle: gleiche Zellen, jede RTL-Glyphe durch `x` ersetzt | 1,67 px |
+| Ohne Fixierung ausgegebene Zellen | 14,5 px (DevTools ordnet um und formt erneut) |
+| Fixiert, ohne Breitenanpassung | 2,22 px |
+| Ausgelieferter Treiber | 0,156 px |
+| Kontrolle: gleiche Zellen, jede RTL-Glyphe durch `x` ersetzt | 1,67 px |
 
 <!-- s:a7ec844aae -->
-Der ausgelieferte Frame entspricht in jeder Zeile der rein lateinischen Kontrolle, außer in der Emoji-Zeile, wo er besser abschneidet: Emojis werden zusammen mit dem umgebenden Rechts-nach-links-Span angepasst (0,03 px), während die Links-nach-rechts-Emoji-Zeile der Kontrolle nicht angepasst wird (1,66 px).
+Der ausgelieferte Frame entspricht in jeder Zeile der rein lateinischen Kontrolle, außer in der Emoji-Zeile, wo er besser abschneidet: Emojis werden zusammen mit dem umgebenden Rechts-nach-links-Span angepasst (0,03 px), während die Links-nach-rechts-Emoji-Zeile der Kontrolle nicht angepasst wird (1,66 px).
 
 <!-- s:318b8b5f4c -->
-DevTools zeichnet jeden `%c`-Span mit `contain: paint` und richtet jeden einzeln an Gerätepixeln aus, sodass dort, wo zwei Hintergründe an einer gebrochenen Pixelposition aufeinandertreffen, das Pixel dazwischen keinem von beiden zugeordnet werden kann und eine 1 px breite Haarlinie bleibt. In Chrome und Edge verlängert ein Span mit Hintergrund diesen um 1 px unter einen undurchsichtigen rechten Nachbarn, und ein angepasster Span fügt dieses Pixel seinem Innenabstand hinzu. Keiner der vier Frames oben zeigt eine Haarlinie.
+DevTools zeichnet jeden `%c`-Span mit `contain: paint` und richtet jeden einzeln an Gerätepixeln aus, sodass dort, wo zwei Hintergründe an einer gebrochenen Pixelposition aufeinandertreffen, das Pixel dazwischen keinem von beiden zugeordnet werden kann und eine 1 px breite Haarlinie bleibt. In Chrome und Edge verlängert ein Span mit Hintergrund diesen um 1 px unter einen undurchsichtigen rechten Nachbarn, und ein angepasster Span fügt dieses Pixel seinem Innenabstand hinzu. Keiner der vier Frames oben zeigt eine Haarlinie.
 
 <!-- s:7deafc8e74 -->
 Übergib `measureText: false`, um die Anpassung auszuschalten, oder stelle eine eigene Messfunktion `(text, bold, italic) => px` bereit.
@@ -80,7 +80,7 @@ Einschränkungen
 - **Zeichenformung.** Nur Buchstaben mit Präsentationsformen werden geformt: Arabisch, Persisch, Urdu und die anderen Buchstaben in U+FB50–U+FDFF und U+FE70–U+FEFF. Lam-Alef bleibt als zwei verbundene Buchstaben in zwei Zellen erhalten, statt eine Ligatur aus einer Glyphe zu bilden. Syrisch, N'Ko und andere verbindende Schriften behalten ihre Nominalformen.
 - **Kopieren.** Aus der Konsole kopierter Text steht in Anzeigereihenfolge (mit den `LRO`/`PDF`-Markierungen), nicht in logischer Reihenfolge.
 - **Terminals.** Terminals, die sowohl BDSM als auch `LRO` ignorieren und ihre eigene Bidi-Verarbeitung ausführen (zum Beispiel mit aktiviertem Bidi in iTerm2), ordnen Rechts-nach-links-Zeilen möglicherweise erneut um.
-- **DOM-Spiegel.** `<ConsoleMirror>` passt keine Breiten an, sodass Rechts-nach-links-Abschnitte dort um bis zu 0,3 % ihrer Breite abweichen können.
+- **DOM-Spiegel.** `<ConsoleMirror>` passt keine Breiten an, sodass Rechts-nach-links-Abschnitte dort um bis zu 0,3 % ihrer Breite abweichen können.
 
 <!-- s:40caf66c4d -->
 API

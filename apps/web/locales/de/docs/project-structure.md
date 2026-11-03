@@ -9,7 +9,7 @@ Ordner
 | :-- | :-- |
 | `app` | Routen, Layouts und Route-Handler |
 | `lib` | Gemeinsam genutzte Module ohne Routing |
-| `public` | Statische Assets |
+| `public` | Statische Ressourcen |
 
 <!-- s:25756fa68d -->
 Routing-Dateien
@@ -17,9 +17,9 @@ Routing-Dateien
 <!-- s:8d1e739d99 -->
 | Datei | Zweck |
 | :-- | :-- |
-| `layout.tsx` | Gemeinsam genutzte UI für ein Segment |
-| `page.tsx` | Ein über eine Route erreichbarer Bildschirm |
-| `loading.tsx` | Suspense-Fallback |
+| `layout.tsx` | Gemeinsame UI für ein Segment |
+| `page.tsx` | Über eine Route erreichbare Ansicht |
+| `loading.tsx` | Fallback für Suspense |
 | `error.tsx` | Fehlergrenze |
 | `not-found.tsx` | URLs ohne passende Route |
 | `route.ts` | API-Endpunkt |

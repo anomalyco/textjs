@@ -50,4 +50,4 @@ Die Konsole empfängt keine Tastenanschläge, deshalb erfasst die Seite sie. Ein
 Ausblick
 
 <!-- s:cb5f6bd294 -->
-Die `@textjs/core`-Prototypen der Version 0.0.x auf npm enthalten alles in einem Paket. Text.js 0.1 verschiebt den hier beschriebenen Renderer nach `@textjs/core`, den React-reconciler nach `@textjs/react` und fügt einen App Router hinzu.
+Die Prototypen von `@textjs/core` 0.0.x auf npm bündeln alles in einem Paket. Text.js 0.1 verschiebt den hier beschriebenen Renderer nach `@textjs/core`, den React-Reconciler nach `@textjs/react` und ergänzt einen App Router.

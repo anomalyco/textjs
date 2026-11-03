@@ -34,7 +34,7 @@ Gecachte Antworten enthalten:
 | `Cache-Control` | `s-maxage=N, stale-while-revalidate=<1 year − N>` oder `s-maxage=31536000` für `force-static` |
 
 <!-- s:c1fb73c64a -->
-Wenn [Middleware](/docs/middleware) Cookies setzt, Rewrites ausführt oder Anfrage-Header überschreibt, lautet der generierte Header `private, no-cache, no-store, max-age=0, must-revalidate`, damit gemeinsam genutzte Caches nie eine besucherspezifische Entscheidung erneut ausliefern. Ein vom Handler gesetzter `Cache-Control`-Header bleibt erhalten.
+Wenn [Middleware](/docs/middleware) für die Anfrage Cookies setzt, die Anfrage umschreibt oder Anfrage-Header überschreibt, lautet der generierte Header `private, no-cache, no-store, max-age=0, must-revalidate`, damit gemeinsam genutzte Caches nie eine besucherspezifische Entscheidung erneut ausliefern. Ein vom Handler gesetzter `Cache-Control`-Header bleibt erhalten.
 
 <!-- s:ae27ba22c7 -->
 In `text dev` gilt die Segmentkonfiguration, aber es wird nichts gespeichert, sodass jede Anfrage den Handler ausführt.
@@ -84,7 +84,7 @@ Beide geben ein Promise zurück. Beim In-Memory-Store erfolgt die Invalidierung 
 Benutzerdefinierte Cache-Stores
 
 <!-- s:7bee24a364 -->
-Der Standard-Store ist ein In-Memory-LRU pro Serverinstanz (1000 Einträge, etwa 50 MB). Um einen Cache über mehrere Instanzen hinweg zu nutzen, verweise mit `cacheHandler` auf ein Modul, das einen `CacheStore` als Standardexport bereitstellt:
+Der Standard-Store ist ein In-Memory-LRU pro Serverinstanz (1000 Einträge, etwa 50 MB). Um einen Cache über mehrere Instanzen hinweg zu nutzen, verweise mit `cacheHandler` auf ein Modul, das einen `CacheStore` als Standardexport bereitstellt:
 
 <!-- s:593c57fca5 -->
 Einträge bestehen aus reinem JSON. `setCacheStore(store)` richtet stattdessen einen Store zur Laufzeit ein.
@@ -93,5 +93,5 @@ Einträge bestehen aus reinem JSON. `setCacheStore(store)` richtet stattdessen e
 Plattformhinweise
 
 <!-- s:5418a08901 -->
-- Jede Serverless-Instanz (Vercel Functions, Cloudflare Isolates) hat ihren eigenen In-Memory-Cache. Mit `Cache-Control: s-maxage` kann auch das CDN der Plattform Antworten cachen; eine Revalidierung bei Bedarf leert kein CDN. Verwende einen gemeinsam genutzten `cacheHandler`, wenn `revalidateTag` jede Instanz erreichen muss.
-- Cloudflare benötigt das Flag `nodejs_compat` (der Cache verwendet `AsyncLocalStorage`). Siehe [Deployen](/docs/deploying).
+- Jede Serverless-Instanz (Vercel-Funktionen, Cloudflare-Isolates) hat ihren eigenen In-Memory-Cache. Mit `Cache-Control: s-maxage` kann auch das CDN der Plattform Antworten zwischenspeichern; eine Revalidierung bei Bedarf leert kein CDN. Verwende einen gemeinsam genutzten `cacheHandler`, wenn `revalidateTag` jede Instanz erreichen muss.
+- Cloudflare erfordert das Flag `nodejs_compat` (der Cache verwendet `AsyncLocalStorage`). Siehe [Deployen](/docs/deploying).

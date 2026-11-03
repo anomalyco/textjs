@@ -30,7 +30,7 @@ Der Frame ist das erste Rendering der Seite, wie bei einer [vorgerenderten Shell
 - **Status:** `200` oder `404` mit der Nicht-gefunden-Seite der App, wenn keine Seite passt oder die Seite `notFound()` aufruft. Eine Seite, die beim Rendern `redirect()` aufruft, liefert HTML aus.
 
 <!-- s:1125803eb1 -->
-Antworten haben den Typ `text/plain; charset=utf-8` mit `Vary: User-Agent, Accept` und `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`, damit gemeinsam genutzte Caches niemals einen Frame speichern und an einen Browser ausliefern. Die HTML-Seite unter einem Pfad, an dem curl einen Frame erhält, trägt denselben `Vary`-Header.
+Antworten haben den Typ `text/plain; charset=utf-8` mit `Vary: User-Agent, Accept` und `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`, damit gemeinsam genutzte Caches niemals einen Frame speichern und an einen Browser ausliefern. Die HTML-Seite unter einem Pfad, an dem curl einen Frame erhält, enthält denselben `Vary`-Header.
 
 <!-- s:0e2aba0a67 -->
 Unterstützte Umgebungen

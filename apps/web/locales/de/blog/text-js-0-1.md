@@ -43,7 +43,7 @@ Drücke in einer laufenden App `` Ctrl+` `` oder `F2`, um den `[▼]`-Inspektor 
 Außerdem in 0.1
 
 <!-- s:289b0a9973 -->
-`@textjs/react` enthält PascalCase-Komponenten (`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner`), `className`-Hilfsklassen im Tailwind-Stil, die in Zellen arbeiten, und themes. Das Layout läuft auf Yoga in WebAssembly.
+`@textjs/react` enthält PascalCase-Komponenten (`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner`), `className`-Hilfsklassen im Tailwind-Stil, die in Zellen arbeiten, und Themes. Das Layout läuft auf Yoga in WebAssembly.
 
 <!-- s:8ad0f2154c -->
 Die vollständige Liste steht im [Änderungsprotokoll](/changelog#v0-1-0).

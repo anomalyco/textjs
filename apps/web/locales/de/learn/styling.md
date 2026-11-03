@@ -26,4 +26,4 @@ Eine Deployment-Karte
 Themes
 
 <!-- s:8f993e0ab8 -->
-Text.js enthält fünf themes: Geist Dark, OpenCode Dark, Tokyo Night, Amber CRT und Geist Light. Drücke `t` in der Konsole, um sie durchzuschalten. Der gesamte Frame wird mit der neuen Palette neu gezeichnet, weil jede Farbe oben ein Token ist.
+Text.js bringt fünf Themes mit: Geist Dark, OpenCode Dark, Tokyo Night, Amber CRT und Geist Light. Drücke `t` in der Konsole, um sie durchzuschalten. Der gesamte Frame wird mit der neuen Palette neu gezeichnet, weil jede Farbe oben ein Token ist.

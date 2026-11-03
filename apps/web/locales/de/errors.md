@@ -38,7 +38,7 @@ Um dieselbe Oberfläche auf der Seite anzuzeigen, verwende `<TextCanvas>` aus `@
 Unbekanntes Host-Element
 
 <!-- s:a8bb5bc9a5 -->
-Der reconciler versteht nur zwei intrinsische Elemente: `tx-box` und `tx-text`. Ein kleingeschriebenes Element wie `<div>` oder `<span>` hat ihn erreicht.
+Der Reconciler versteht nur zwei intrinsische Elemente: `tx-box` und `tx-text`. Er hat ein kleingeschriebenes Element wie `<div>` oder `<span>` erhalten.
 
 <!-- s:407e421c11 -->
 Verwende stattdessen die exportierten Komponenten:

@@ -49,7 +49,7 @@ Regeln
 `no-dom-elements`
 
 <!-- s:deb9e3c0ec -->
-`<div>`, `<span>`, benutzerdefinierte Elemente und andere DOM-Tags existieren in der Konsole nicht. Der reconciler kennt nur seine eigenen Host-Knoten und löst bei allem anderen `TX003` aus.
+`<div>`, `<span>`, benutzerdefinierte Elemente und andere DOM-Tags gibt es in der Konsole nicht. Der Reconciler kennt nur seine eigenen Host-Knoten und löst bei allem anderen `TX003` aus.
 
 <!-- s:bd7c3e0318 -->
 Der Vorschlag ersetzt das Tag durch die passendste Komponente (`div` → `Box`, `span`/`p` → `Text`, `strong` → `Text bold`, `a` → `Link`, `input` → `Input`, `hr` → `Divider`, …) und fügt den Import hinzu.
@@ -132,4 +132,4 @@ Metadata wird aus den Layouts und anschließend aus der Seite (oder `not-found`)
 `route-handler-exports`
 
 <!-- s:877bcc12b1 -->
-`route.ts`-Dateien beantworten nur die HTTP-Methoden, die sie exportieren: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` und `OPTIONS`. Kleingeschriebenes `get` oder `Post` wird nie aufgerufen (Anfragen erhalten `405`); der Vorschlag benennt es um. Standardexporte, Handler, die keine Funktionen sind, und andere Exporte werden gemeldet, ausgenommen `dynamic` und `revalidate` aus der [Routensegment-Konfiguration](/docs/caching). Verschiebe gemeinsam genutzten Code nach `lib/`, oder liste zusätzliche Namen mit `{ allow: [...] }` auf.
+`route.ts`-Dateien beantworten nur die HTTP-Methoden, die sie exportieren: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` und `OPTIONS`. Kleingeschriebenes `get` oder `Post` wird nie aufgerufen (Anfragen erhalten `405`); der Vorschlag benennt es um. Gemeldet werden Standardexporte, Handler, die keine Funktionen sind, und andere Exporte, mit Ausnahme der [Routensegment-Konfiguration](/docs/caching) `dynamic` und `revalidate`. Verschiebe gemeinsam genutzten Code nach `lib/` oder liste zusätzliche Namen mit `{ allow: [...] }` auf.

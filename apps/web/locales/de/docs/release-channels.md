@@ -52,7 +52,7 @@ Ein Release erstellen
 Maintainer erhöhen die Versionen aller Workspace-Pakete im Gleichschritt mit den Release-Skripten:
 
 <!-- s:614a1ea872 -->
-`release:version` schreibt jede `package.json` und die zugehörigen Versionskonstanten (`VERSION`, `rendererVersion` des reconciler) neu, verweigert die Ausführung bei auseinanderlaufenden Paketversionen, und `--dry-run` gibt den Plan aus. `release:publish` erstellt Builds, packt sie (und löst dabei `workspace:*` auf), wendet `publishConfig` an, verweigert Vorabversionen auf `latest` sowie stabile Versionen auf `canary` und überspringt Versionen, die bereits auf npm existieren.
+`release:version` schreibt jede `package.json` und die zugehörigen Versionskonstanten (`VERSION`, `rendererVersion` des Reconcilers) neu, verweigert die Ausführung bei abweichenden Paketversionen und gibt mit `--dry-run` den Plan aus. `release:publish` baut und packt die Pakete (und löst dabei `workspace:*` auf), wendet `publishConfig` an, verweigert die Veröffentlichung einer Vorabversion unter `latest` oder einer stabilen Version unter `canary` und überspringt Versionen, die bereits auf npm existieren.
 
 <!-- s:ec6955472a -->
 In der [Support-Richtlinie](/docs/support-policy) erfährst du, wie lange jede Release-Linie gepflegt wird.

@@ -8,10 +8,10 @@ Die Pipeline
 Jede Stufe existiert, weil die Konsole eine ungewöhnliche Anzeige ist. Sie verwendet eine Festbreitenschrift und ist zeilenorientiert, wird mit `%c` gestaltet, und DevTools entscheidet, wann sie neu gezeichnet wird.
 
 <!-- s:db7daa7cf2 -->
-reconciler
+Reconciler
 
 <!-- s:f3cdc101e1 -->
-`@textjs/react` ist ein React 19 reconciler (`react-reconciler@0.34.0`) mit zwei Host-Elementen, `tx-box` und `tx-text`, sowie Textinstanzen für String-Kindelemente. Alles, was du importierst, von `<Box>` bis `<Markdown>`, baut darauf auf. Commits werden über `requestAnimationFrame` eingeplant, und ein Tastendruck oder Einfügen rendert synchron im selben Task.
+`@textjs/react` ist ein Reconciler für React 19 (`react-reconciler@0.34.0`) mit zwei Host-Elementen, `tx-box` und `tx-text`, sowie Textinstanzen für String-Kindelemente. Alles, was du importierst, von `<Box>` bis `<Markdown>`, baut darauf auf. Commits werden über `requestAnimationFrame` eingeplant, und ein Tastendruck oder Einfügen löst synchron im selben Task das Rendering aus.
 
 <!-- s:1ab8b509e0 -->
 Layout
@@ -59,4 +59,4 @@ Die Konsole kann keine Tastendrücke empfangen, also übernimmt das die Seite. E
 Die Sicht der Seite
 
 <!-- s:03e00f4b44 -->
-Die Seite kann die Größe der Konsole nicht auslesen, nur die ihres eigenen Fensters, also leitet Text.js sie ab: Ein angedocktes Panel verkleinert `innerWidth` oder `innerHeight`, während `outer*` gleich bleibt, und jede Annahme zur Andockposition wird für die Zoomstufen von Chrome durchgerechnet. Die beste Übereinstimmung gewinnt. Die Konstanten (56 px horizontaler Innenabstand, 104 px für die Bedienoberfläche der Konsole, 14 px Zeilenabstand) wurden im tatsächlichen DevTools-Frontend gemessen.
+Die Seite kann die Größe der Konsole nicht auslesen, nur die ihres eigenen Fensters, also leitet Text.js sie ab: Ein angedocktes Panel verkleinert `innerWidth` oder `innerHeight`, während `outer*` gleich bleibt, und jede Annahme zur Andockposition wird für die Zoomstufen von Chrome durchgerechnet. Die beste Übereinstimmung gewinnt. Die Konstanten (56 px horizontaler Innenabstand, 104 px für die Bedienoberfläche der Konsole, 14 px Zeilenabstand) wurden im tatsächlichen DevTools-Frontend gemessen.

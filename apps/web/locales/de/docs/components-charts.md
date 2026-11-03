@@ -74,7 +74,7 @@ Die Konsolen von Chromium und Firefox zeichnen das Bild als Pixel-Sprite. Pixel-
 | :-- | :-- |
 | `src` | Bild-URL (nur im Browser) |
 | `pixels` | RGBA-Rohdaten als `{ width, height, data }`, 4 Bytes pro Pixel in Zeilenreihenfolge |
-| `width` / `height` | Breite in Zellen, Höhe in Zeilen. Übergib einen Wert, um das Seitenverhältnis beizubehalten, oder keinen für 1 × 2 Pixel pro Zelle (`src` skaliert auf höchstens 256 × 256 px) |
+| `width` / `height` | Breite in Zellen, Höhe in Zeilen. Übergib einen Wert, um das Seitenverhältnis beizubehalten, oder keinen für 1 × 2 Pixel pro Zelle (`src` skaliert auf höchstens 256 × 256 px) |
 | `fit` | `contain` (Standard), `cover` oder `fill` |
 | `alt` | Text, der angezeigt wird, während `src` lädt oder wenn das Laden fehlschlägt |
 | `renderMode` | `auto` (Standard: Sprite, wo unterstützt, sonst `▀`-Halbblöcke) oder `halfblock` |

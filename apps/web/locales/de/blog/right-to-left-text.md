@@ -36,10 +36,10 @@ Der letzte Schritt ist nötig, weil DevTools den Bidi-Algorithmus ein zweites Ma
 Eine halbe Zelle Versatz
 
 <!-- s:1109446b98 -->
-Weder SF Mono noch Menlo enthält hebräische oder arabische Glyphen, deshalb verwendet der Browser für jedes Zeichen eine Ersatzschrift. Unter macOS ist das Courier New, ebenfalls eine nichtproportionale Schrift, mit 7,2012 px pro Glyphe bei 12 px gegenüber 7,2246 px bei Menlo. Sie ist 0,3 % schmaler, genug, um eine volle Zeile Hebräisch um etwa eine halbe Zelle zu verschieben.
+Weder SF Mono noch Menlo enthält hebräische oder arabische Glyphen, deshalb verwendet der Browser für jedes Zeichen eine Ersatzschrift. Unter macOS ist das Courier New, ebenfalls eine nichtproportionale Schrift, mit 7,2012 px pro Glyphe bei 12 px gegenüber 7,2246 px bei Menlo. Sie ist 0,3 % schmaler, genug, um eine volle Zeile Hebräisch um etwa eine halbe Zelle zu verschieben.
 
 <!-- s:dc26e96bdd -->
-`CssConsoleDriver` misst jeden Rechts-nach-links-Span mit einem Canvas in der Konsolenschrift, der denselben Blink-Schrift-Fallback wie DevTools verwendet, und ergänzt den Span um die exakte Differenz in LayoutUnits (1/64 px). Jeder Span ist am Ende genauso breit wie die Rasterzellen, die er abdeckt. Ein Span wird um höchstens eine halbe Zelle zusammengezogen, sodass eine deutlich breitere Ersatzschrift überläuft, statt den nächsten Span zu überlappen.
+`CssConsoleDriver` misst jeden Rechts-nach-links-Span mit einem Canvas in der Konsolenschrift, der denselben Blink-Schrift-Fallback wie DevTools verwendet, und ergänzt den Span um die exakte Differenz in LayoutUnits (1/64 px). Jeder Span ist am Ende genauso breit wie die Rasterzellen, die er abdeckt. Ein Span wird um höchstens eine halbe Zelle zusammengezogen, sodass eine deutlich breitere Ersatzschrift überläuft, statt den nächsten Span zu überlappen.
 
 <!-- s:b0d2e5e9d2 -->
 `bun bench/devtools/bidi-shot.ts` misst das Ergebnis im echten DevTools-Frontend auf einem 64×21-Frame mit hebräischen, arabischen, gemischten und hebräischen Zeilen mit Emojis:
@@ -47,10 +47,10 @@ Weder SF Mono noch Menlo enthält hebräische oder arabische Glyphen, deshalb ve
 <!-- s:e6a33dfaa2 -->
 | Frame | Versatz am rechten Rand über die Zeilen hinweg |
 | :-- | --: |
-| Zellen ohne fixierte Reihenfolge ausgegeben | 14,5 px |
-| Reihenfolge fixiert, ohne Breitenanpassung | 2,22 px |
-| Ausgelieferter Treiber | 0,156 px |
-| Kontrollmessung: jede RTL-Glyphe durch `x` ersetzt | 1,67 px |
+| Zellen ohne fixierte Reihenfolge ausgegeben | 14,5 px |
+| Reihenfolge fixiert, ohne Breitenanpassung | 2,22 px |
+| Ausgelieferter Treiber | 0,156 px |
+| Kontrollmessung: jede RTL-Glyphe durch `x` ersetzt | 1,67 px |
 
 <!-- s:d03d5a84a3 -->
 Die Kontrollmessung verwendet denselben Frame mit lateinischem Text. Der ausgelieferte Treiber richtet die Zeilen besser aus als die Kontrollmessung, weil Emojis innerhalb von Rechts-nach-links-Spans zusammen mit diesen angepasst werden.

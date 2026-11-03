@@ -35,12 +35,12 @@ Auf einem dicht gefüllten `100×32`-Dashboard (46 Textknoten, 149 `%c`-Spans), 
 <!-- s:9729def172 -->
 | Frame | Mittelwert |
 | :-- | --: |
-| Vollständiges Neuzeichnen (Layout, Zeichnen, Kodieren) | 0,163 ms |
-| Änderung einer Zeile (Tippen) | 0,011 ms |
-| Leerlauf | 0,000 ms, 0 Konsolenaufrufe |
+| Vollständiges Neuzeichnen (Layout, Zeichnen, Kodieren) | 0,163 ms |
+| Änderung einer Zeile (Tippen) | 0,011 ms |
+| Leerlauf | 0,000 ms, 0 Konsolenaufrufe |
 
 <!-- s:2fee8c4c3d -->
-Bei einem unveränderten Frame kehrt die Funktion zurück, bevor sie einen String alloziert, daher messen Frames im Leerlauf 0,000 ms.
+Bei einem unveränderten Frame kehrt die Funktion zurück, bevor sie einen String alloziert, daher messen Frames im Leerlauf 0,000 ms.
 
 <!-- s:a0fa47c98f -->
 Ausprobieren

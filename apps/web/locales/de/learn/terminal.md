@@ -29,4 +29,4 @@ Führe es mit `bun cli.tsx` aus. `DeploymentsPage` ruft seine Zeilen ab und ben�
 Die Unterschiede
 
 <!-- s:505bd1bfa2 -->
-Terminals zeichnen schneller neu (bis zu 60 fps statt ~15) und passen das Raster an das Fenster statt an die angedockte Konsole an. Bilder benötigen Pixeldaten statt einer URL. Alles andere, einschließlich dieses Dashboards, verwendet denselben Code.
+Terminals zeichnen schneller neu (bis zu 60 fps statt ~15) und passen das Raster an das Fenster statt an die angedockte Konsole an. Bilder benötigen Pixeldaten statt einer URL. Alles andere, einschließlich dieses Dashboards, verwendet denselben Code.

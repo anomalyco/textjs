@@ -8,7 +8,7 @@ Text.js 0.4 hat einen zweiten Ort zum Rendern einer Seite hinzugefügt. Standard
 Downloads des Browsers
 
 <!-- s:6764f4bb25 -->
-Eine serverseitig gerenderte Seite liefert weder React noch Yoga noch deine Routen aus. Der Browser lädt einen Frame-Player mit etwa 21 kB gzip, der einen `CellBuffer` und denselben `CssConsoleDriver` wie der Client-Renderer enthält. Er gibt Frames mit denselben 15 fps aus, sodass ein serverseitig gerenderter Frame denselben `console.log`-Aufruf erzeugt wie der Client.
+Eine serverseitig gerenderte Seite liefert weder React noch Yoga noch deine Routen aus. Der Browser lädt einen Frame-Player mit etwa 21 kB gzip, der einen `CellBuffer` und denselben `CssConsoleDriver` wie der Client-Renderer enthält. Er gibt Frames mit denselben 15 fps aus, sodass ein serverseitig gerenderter Frame denselben `console.log`-Aufruf erzeugt wie der Client.
 
 <!-- s:c1c4090983 -->
 Das Protokoll
@@ -20,7 +20,7 @@ Jeder Tab öffnet eine eigene Sitzung auf dem Server: eine React-Root, einen Rou
 Der Server sendet nur die Zeilen, deren Hash sich seit dem letzten über diese Verbindung empfangenen Frame geändert hat. Jede Zeile wird als Folge von Textabschnitten mit Verweisen auf eine ausschließlich durch Anhängen erweiterte Stiltabelle übertragen. Breite Grapheme, Emoji-Cluster und durchscheinende Farben kommen unverändert an.
 
 <!-- s:bff22f361e -->
-Zwischen Frames liegen mindestens 66 ms, und jeder wird mit dem verglichen, was der Socket zuletzt angenommen hat. Wenn eine langsame Verbindung keine Daten mehr abnimmt, werden Zwischenzustände übersprungen, und der nächste Frame springt zum neuesten Zustand.
+Zwischen Frames liegen mindestens 66 ms, und jeder wird mit dem verglichen, was der Socket zuletzt angenommen hat. Wenn eine langsame Verbindung keine Daten mehr abnimmt, werden Zwischenzustände übersprungen, und der nächste Frame springt zum neuesten Zustand.
 
 <!-- s:f0809ea8c7 -->
 Wenn der Stream abbricht, verbindet sich der Player mit seiner Sitzungs-ID im `x-textjs-live`-Header erneut und setzt dieselbe Sitzung mit einem neuen Keyframe und unverändertem Zustand fort. Sitzungs-IDs sind zufällige 192-Bit-Werte, die im Arbeitsspeicher liegen, niemals in der URL. Eine Sitzung ohne Verbindung hört auf zu rendern und wird nach 30 Sekunden ausgehängt.

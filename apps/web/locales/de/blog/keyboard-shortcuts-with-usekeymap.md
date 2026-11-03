@@ -27,7 +27,7 @@ Routing
 Jede Keymap registriert einen `useInput`-Handler, daher gelten die bestehenden Eingaberegeln. Ein fokussiertes `<Input>` verarbeitet Tasten zuerst, weil Editoren mit Priorität 10 und Keymaps mit Priorität 0 lauschen. Eine übereinstimmende Taste stoppt die Weiterleitung. Ein geöffnetes `<Modal>` deaktiviert Tastenbelegungen außerhalb davon, sofern die Keymap nicht `global: true` übergibt.
 
 <!-- s:a6076c8127 -->
-Sequenzen werden innerhalb dieses Handlers abgeglichen. Eine Taste, die eine Sequenz beginnt, bleibt ausstehend und stoppt die Weiterleitung, und die Sequenz wird zurückgesetzt, wenn die nächste Taste erst nach mehr als `sequenceTimeout` (standardmäßig 1000 ms) eintrifft:
+Sequenzen werden innerhalb dieses Handlers abgeglichen. Eine Taste, die eine Sequenz beginnt, bleibt ausstehend und stoppt die Weiterleitung, und die Sequenz wird zurückgesetzt, wenn die nächste Taste erst nach mehr als `sequenceTimeout` (standardmäßig 1000 ms) eintrifft:
 
 <!-- s:aa0a9c8615 -->
 Eine Registry pro Root

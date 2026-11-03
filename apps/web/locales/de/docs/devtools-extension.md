@@ -51,7 +51,7 @@ Jeder Balken entspricht einem Renderer-Frame:
 | Kodieren | Erstellen der `%c`-Formatzeichenfolge und Aufrufen von `console.log()` |
 
 <!-- s:9b988f3cfb -->
-Übersprungene Frames erscheinen blasser: Es hat sich nichts geändert, also wurde nichts ausgegeben. Das Diagramm der Frame-Abstände zeigt den Abstand zwischen ausgegebenen Frames im Vergleich zum Mindestintervall von 66 ms.
+Übersprungene Frames erscheinen blasser: Es hat sich nichts geändert, also wurde nichts ausgegeben. Das Diagramm der Frame-Abstände zeigt den Abstand zwischen ausgegebenen Frames im Vergleich zum Mindestintervall von 66 ms.
 
 <!-- s:8abccb04ec -->
 Die Zeitmessung endet bei `console.log()`. Formatierung und Zeichnen der Nachricht finden in DevTools statt und lassen sich von der Seite aus nicht beobachten, daher zeigt die Zeitleiste sie nicht an. Nebenläufige Render-Vorgänge, die zwischen Frames committen, werden als Commits gezählt, aber nicht zeitlich erfasst.
@@ -81,4 +81,4 @@ Einschränkungen
 - Chrome und Chromium-basierte Browser ab Version 111.
 - Apps, die vor der Installation der Erweiterung gestartet wurden, müssen neu geladen werden.
 - Nur der oberste Frame eines Tabs wird untersucht.
-- Zeiten stammen aus `performance.now()`, dessen Auflösung Browser auf etwa 0,1 ms vergröbern.
+- Zeiten stammen aus `performance.now()`, dessen Auflösung Browser auf etwa 0,1 ms vergröbern.

@@ -59,10 +59,10 @@ Ein typischer Austausch:
 Frames und Ruhezustand
 
 <!-- s:f2e8fe0f06 -->
-Bevor ein Tool einen Frame liest, wartet es auf den Ruhezustand der App: kein Frame geplant, kein laufender `fetch` und seit 50 ms kein Commit oder Frame. So sieht der Agent das Ergebnis seiner Eingabe und keinen Frame mitten in einer Aktualisierung.
+Bevor ein Tool einen Frame liest, wartet es auf den Ruhezustand der App: kein Frame geplant, kein laufender `fetch` und seit 50 ms kein Commit oder Frame. So sieht der Agent das Ergebnis seiner Eingabe und keinen Frame mitten in einer Aktualisierung.
 
 <!-- s:fbad6f5c1a -->
-Ein `<Spinner>` oder ein Diagramm, das sich einmal pro Sekunde aktualisiert, gilt zwischen den Aktualisierungen weiterhin als im Ruhezustand, sodass Seiten mit Animationen lesbar bleiben. Eine App, die häufiger als alle 50 ms rendert, erreicht nie den Ruhezustand. Lesevorgänge geben nach 1,5 Sekunden auf (`settleMs` ändert dies), geben den neuesten Frame aus und markieren ihn als `busy`. `wait_for` ohne Text wartet mit einem eigenen `quietMs` auf den Ruhezustand und gibt einen Fehler zurück, wenn dieser nie eintritt.
+Ein `<Spinner>` oder ein Diagramm, das sich einmal pro Sekunde aktualisiert, gilt zwischen den Aktualisierungen weiterhin als im Ruhezustand, sodass Seiten mit Animationen lesbar bleiben. Eine App, die häufiger als alle 50 ms rendert, erreicht nie den Ruhezustand. Lesevorgänge geben nach 1,5 Sekunden auf (`settleMs` ändert dies), geben den neuesten Frame aus und markieren ihn als `busy`. `wait_for` ohne Text wartet mit einem eigenen `quietMs` auf den Ruhezustand und gibt einen Fehler zurück, wenn dieser nie eintritt.
 
 <!-- s:c5250c2f7a -->
 Koordinaten sind nullbasierte Zellen: `x` ist die Spalte, `y` die Zeile. Breite Zeichen wie CJK-Zeichen und Emojis belegen zwei Spalten.

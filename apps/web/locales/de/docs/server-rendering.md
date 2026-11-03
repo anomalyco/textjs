@@ -11,14 +11,14 @@ Jede Seite rendert an einem von zwei Orten:
 | | Client (Standard) | Server (`runtime = "server"`) |
 | --- | --- | --- |
 | React-Baum läuft in | Dem Browser-Tab | `text dev` / `text start` / dem `bun`-Adapter (Bun oder Node) |
-| Browser lädt herunter | Die gesamte App: React, Yoga WASM, deine Routen | Den Frame-Player, etwa 21 kB mit gzip |
+| Browser lädt herunter | Die gesamte App: React, Yoga WASM, deine Routen | Den Frame-Player, etwa 21 kB mit gzip |
 | Datenzugriff | `fetch()` an Route-Handler | Direkt: Datenbanken, Dateien, `node:*`, Geheimnisse |
 | Asynchrone Komponenten | `use()` oder Effekte verwenden | `async function`-Komponenten werden unterstützt |
 | Latenz bei Tasteneingaben | Derselbe Task, synchron | Ein Roundtrip zum Server |
 | Funktioniert auf einem statischen Host | Ja | Nein, erfordert `text start` oder `bun dist/server.js` |
 
 <!-- s:7b06d151a6 -->
-Beide Laufzeitumgebungen erzeugen dieselben Frames. Der Frame-Player kodiert Zellen mit demselben `CssConsoleDriver` und gibt sie mit denselben etwa 15 fps aus, sodass ein serverseitig gerenderter Frame Byte für Byte dem `console.log`-Aufruf des Clients entspricht.
+Beide Laufzeitumgebungen erzeugen dieselben Frames. Der Frame-Player kodiert Zellen mit demselben `CssConsoleDriver` und gibt sie mit denselben etwa 15 fps aus, sodass ein serverseitig gerenderter Frame Byte für Byte dem `console.log`-Aufruf des Clients entspricht.
 
 <!-- s:70a0b18bdd -->
 Aktivieren
@@ -27,7 +27,7 @@ Aktivieren
 Exportiere `runtime` aus einer Seite:
 
 <!-- s:567f4b3d2b -->
-`runtime` wird pro Seite als statischer String-Export gelesen (eine Typannotation, `as const` oder ein Re-Export sind zulässig; ein berechneter Wert nicht). Layouts, `loading.tsx`, `error.tsx` und `not-found.tsx` rendern dort, wo ihre Seite rendert: Ein von Client- und Server-Seiten gemeinsam genutztes Layout läuft an beiden Orten und wird an den Browser ausgeliefert, während die Layouts und Boundaries eines Segments, das nur Server-Seiten enthält, auf dem Server bleiben. Hooks, Fokus, `useInput`, `<Link>` und `useRouter()` verhalten sich wie auf dem Client.
+`runtime` wird pro Seite als statischer String-Export gelesen (eine Typannotation, `as const` oder ein Re-Export sind erlaubt; ein berechneter Wert nicht). Layouts, `loading.tsx`, `error.tsx` und `not-found.tsx` werden dort gerendert, wo ihre Seite gerendert wird: Ein Layout, das Client- und Serverseiten gemeinsam nutzen, läuft an beiden Orten und wird an den Browser ausgeliefert, während die Layouts und Boundaries eines Segments, das nur Serverseiten enthält, auf dem Server bleiben. Hooks, Fokus, `useInput`, `<Link>` und `useRouter()` verhalten sich genauso wie auf dem Client.
 
 <!-- s:43c4fa1dac -->
 Die passende Laufzeitumgebung wählen
@@ -46,7 +46,7 @@ Verwende die **Server**-Laufzeitumgebung für:
 <!-- s:bb8a20e6e2 -->
 - Dashboards und Administrationsansichten, die Datenbanken, Dateien, Queues oder private APIs lesen. Zugangsdaten bleiben auf dem Server.
 - Routen mit umfangreichen Abhängigkeiten (SDKs, Parser, Syntaxtabellen), die du nicht im Browser-Bundle haben möchtest.
-- Seiten, die auch in langsamen Netzwerken schnell laden sollen. Der Browser lädt den 21 kB großen Player (gzip) statt der gesamten App herunter.
+- Seiten, die auch in langsamen Netzwerken schnell laden sollen. Der Browser lädt den 21 kB großen Player (gzip) statt der gesamten App herunter.
 
 <!-- s:920f4ad7e8 -->
 Du kannst Laufzeitumgebungen in einer App mischen. Beim Navigieren zwischen ihnen wird die Ziel-URL als neues Dokument geladen. Das Browser-Bundle ersetzt jede Server-Seite durch einen Platzhalter, sodass Server-Module und alle ihre Importe nie an den Client ausgeliefert werden.
@@ -78,7 +78,7 @@ Funktionsweise
 <!-- s:ec3e56dbc6 -->
 - **Eine Sitzung pro Tab.** Jeder Seitenaufruf öffnet eine eigene Sitzung: einen React-Root, einen Router-Verlauf im Arbeitsspeicher und einen Zellenpuffer auf dem Server. Sitzungs-IDs sind 192-Bit-Zufallswerte, die der Browser ausschließlich im Arbeitsspeicher hält.
 - **Zellendeltas.** Der Server sendet nur Zeilen, deren Hash sich seit dem letzten über diese Verbindung empfangenen Frame geändert hat. Jede Zeile wird als Textabschnitte mit Verweisen auf eine nur erweiterbare Stiltabelle gesendet, und breite Grapheme, Emoji-Cluster und halbtransparente Farben bleiben exakt erhalten.
-- **Rückstau.** Frames liegen mindestens 66 ms auseinander, und jeder wird mit dem verglichen, was der Socket zuletzt angenommen hat. Wenn eine langsame Verbindung keine Daten mehr abnimmt, werden Zwischenzustände übersprungen, und der nächste Frame springt direkt zum neuesten Zustand.
+- **Rückstau.** Frames liegen mindestens 66 ms auseinander, und jeder wird mit dem verglichen, was der Socket zuletzt angenommen hat. Wenn eine langsame Verbindung keine Daten mehr abnimmt, werden Zwischenzustände übersprungen, und der nächste Frame springt direkt zum neuesten Zustand.
 - **Wiederverbindungen.** Wenn der Stream abbricht, verbindet sich der Player mit seiner Sitzungs-ID im `x-textjs-live`-Header (nie in der URL) erneut und setzt dieselbe Sitzung mit unverändertem Zustand ab einem neuen Keyframe fort. Verpasste Aktualisierungen der Adressleiste werden nachgeholt. Eine Sitzung ohne Verbindung hört auf zu rendern und wird nach 30 Sekunden ausgehängt; hat der Server sie vergessen, öffnet der Player eine neue.
 - **Verlauf.** Zurück und Vorwärts bewegen beide Verläufe um dieselbe Anzahl von Einträgen, und `router.back()` auf dem Server bewegt auch den Browser-Verlauf.
 - **Sicherheit.** Beide Endpunkte lehnen Cross-Site-Anfragen ab (`Sec-Fetch-Site` und `Origin`; `X-Forwarded-Host` zählt nur mit `server.trustProxy`). Eingabe-POSTs benötigen einen JSON-Body und den `x-textjs-live`-Header. Jedes Ereignis wird gegen ein festes Schema validiert, und Navigationsziele müssen Pfade auf deiner Origin sein. Nur Seiten in deinem `app/`-Manifest können gerendert werden. Sitzungen sind an die Cookies gebunden, mit denen sie geöffnet wurden.

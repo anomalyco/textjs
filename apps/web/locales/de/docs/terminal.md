@@ -52,7 +52,7 @@ Unterschiede
 <!-- s:56ed51fed3 -->
 | Funktion | DevTools | Terminal |
 | :-- | :-- | :-- |
-| Frame-Taktung | ~15 fps | Bis zu `fps` |
+| Frame-Taktung | ~15 fps | Bis zu `fps` |
 | Rastergröße | Angedockte Konsole | Terminalfenster |
 | `<Image src>` | Laden über Canvas | `pixels` verwenden |
 | `console.log` | Deine Frames | Bis zum Beenden zurückgehalten |
