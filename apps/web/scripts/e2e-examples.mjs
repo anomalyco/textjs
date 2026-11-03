@@ -66,9 +66,12 @@ async function consoleRows(cols, rows) {
     .map((l) => [...l].slice(0, cols).join("").trimEnd());
 }
 
+/** Bidi controls the console's text carries for DevTools' own layout; the page's mirror lays out without them. */
+const visible = (l) => l.replace(/[\u202a-\u202e\u2066-\u2069]/g, "");
+
 async function samePicture(id, cols, rows, name) {
-  const c = await consoleRows(cols, rows);
-  const p = lines(await pageRows(id)).slice(0, rows);
+  const c = (await consoleRows(cols, rows)).map(visible);
+  const p = lines(await pageRows(id)).slice(0, rows).map(visible);
   const same = c.length === p.length && c.every((l, i) => l === p[i]);
   check(name, same, `console:\n${c.join("\n")}\npage:\n${p.join("\n")}`);
 }
@@ -108,7 +111,7 @@ const clsBefore = await modal.boundingBox();
 await modal.locator(".preview-stage").click();
 await settle(500);
 let f = await last();
-check("click: the real console runs the example", lines(f)[0]?.includes("▼ Docs › Layout › Modal") && f.includes("Switch theme"), f);
+check("click: the real console runs the example", lines(f)[0]?.includes("▼ Docs › Modal") && f.includes("Switch theme"), f);
 check("console grid is the example's 72×(14+1)", lines(f).length === 15 && Math.max(...f.split("\n").map((l) => [...l].length)) === 72, `${lines(f).length} rows, ${Math.max(...f.split("\n").map((l) => [...l].length))} cols`);
 check("preview says it's live in your console", (await liveLabel("modal")).includes("Live in your console"), await liveLabel("modal"));
 await samePicture("modal", 72, 14, "page preview shows the same frame as DevTools");
@@ -140,14 +143,14 @@ await settle(400);
 await page.keyboard.press("Escape");
 await settle(250);
 f = await last();
-check("Esc the example handles (closing its modal) keeps the example", f.includes("Docs › Layout › Modal") && !f.includes("Switch theme"), f);
+check("Esc the example handles (closing its modal) keeps the example", f.includes("Docs › Modal") && !f.includes("Switch theme"), f);
 
 // Activating another example switches the console to it.
 const scroll = preview("scrollbox");
 await scroll.locator(".preview-stage").click();
 await settle(400);
 f = await last();
-check("clicking another example switches the console", lines(f)[0]?.includes("Docs › Layout › ScrollBox"), f);
+check("clicking another example switches the console", lines(f)[0]?.includes("Docs › ScrollBox"), f);
 check("only one preview is live in the console", (await page.locator(".preview.in-console").count()) === 1 && (await liveLabel("modal")).trim() === "Live");
 
 // Clicking elsewhere on the page hands the console back to the docs.
@@ -161,7 +164,7 @@ await run.focus();
 await page.keyboard.press("Enter");
 await settle(400);
 f = await last();
-check("Run in console (keyboard) runs the example", lines(f)[0]?.includes("Docs › Layout › Layout"), f);
+check("Run in console (keyboard) runs the example", lines(f)[0]?.includes("▼ Docs › Layout "), f);
 await preview("layout").getByRole("button", { name: "Back to docs" }).click();
 await settle(300);
 check("Back to docs button returns the console to the Docs view", docsView(await last()), await last());
@@ -187,12 +190,34 @@ await page.keyboard.press("ArrowUp");
 await page.keyboard.press("ArrowUp");
 await settle(300);
 const c1 = await last();
-check("counter example responds to ↑ in the real console", c1.includes("Docs › Introduction › Counter") && c1 !== c0, c1);
+check("counter example responds to ↑ in the real console", c1.includes("Docs › Counter") && c1 !== c0, c1);
 await samePicture("counter", 72, 16, "counter: page mirror matches DevTools");
 if (out) {
   await preview("counter").screenshot({ path: join(out, "page-counter.png") });
   await shootConsole(join(out, "console-counter.png"));
 }
+// A translated page mirrors the console too: the console stays English, and the header names only the example.
+await page.goto(`${base}/ja/docs`);
+await settle(1200);
+await preview("counter").locator(".preview-stage").click();
+await settle(400);
+const j0 = await pageRows("counter");
+await page.keyboard.press("ArrowUp");
+await page.keyboard.press("ArrowUp");
+await settle(300);
+const j1 = await pageRows("counter");
+check("/ja: the page's counter follows ↑ in the real console", j1 !== j0 && (await last()).includes("▼ Docs › Counter"), `${j0}\n---\n${j1}`);
+await samePicture("counter", 72, 16, "/ja: counter: page mirror matches DevTools");
+
+// The narrowest example: its whole header fits its 48 columns, so the page finds its frames.
+await page.goto(`${base}/docs/internationalization`);
+await settle(1200);
+await preview("bidi").locator(".preview-stage").click();
+await settle(400);
+f = await last();
+check("bidi: the console's header fits", lines(f)[0]?.includes("▼ Docs › Bidirectional text") && !lines(f)[0]?.includes("…"), lines(f)[0]);
+await samePicture("bidi", 48, 6, "bidi: page mirror matches DevTools");
+
 await page.goto(`${base}/opencode`);
 await settle(800);await page.mouse.click(640,600);
 await page.keyboard.type("/demo-tools");await settle();await page.keyboard.press("Enter");await page.keyboard.press("Enter");

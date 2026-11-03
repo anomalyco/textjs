@@ -52,7 +52,7 @@ Canary版は、すべてのプルリクエストのマージ先である `dev` �
 メンテナーはリリーススクリプトを使い、すべてのワークスペースパッケージのバージョンを同期して更新します。
 
 <!-- s:614a1ea872 -->
-`release:version` は各 `package.json` とそれを反映するバージョン定数（`VERSION`、reconcilerの `rendererVersion`）を書き換え、パッケージ間でバージョンがずれている場合は実行を拒否し、`--dry-run` では実行計画を表示します。`release:publish` はビルド、パック（`workspace:*` を解決）、`publishConfig` の適用を実施し、プレリリースを `latest` に、または安定版を `canary` に公開することを拒否し、npmにすでに存在するバージョンをスキップします。
+`release:version` は各 `package.json` とそのバージョンを反映する定数（`VERSION`、リコンサイラーの `rendererVersion`）を書き換え、パッケージ間でバージョンが一致しない場合は実行を拒否し、`--dry-run` を指定すると実行計画を表示します。`release:publish` はビルド、パック（`workspace:*` の解決を含む）、`publishConfig` の適用を実施し、プレリリースの `latest` への公開や安定版の `canary` への公開を拒否し、npmにすでに存在するバージョンをスキップします。
 
 <!-- s:ec6955472a -->
 各リリース系列のメンテナンス期間については、[サポートポリシー](/docs/support-policy)を参照してください。

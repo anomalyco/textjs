@@ -30,6 +30,9 @@ export const OG_FONTS: Record<string, string> = withExisting({
   "/fonts/geist-mono-og.woff2": "scripts/og/fonts/geist-mono-og.woff2",
   "/fonts/noto-symbols-og.woff2": "scripts/og/fonts/noto-symbols-og.woff2",
   "/fonts/noto-sans-jp-og.woff2": "scripts/og/fonts/noto-sans-jp-og.woff2",
+  "/fonts/noto-sans-kr-og.woff2": "scripts/og/fonts/noto-sans-kr-og.woff2",
+  "/fonts/noto-sans-sc-og.woff2": "scripts/og/fonts/noto-sans-sc-og.woff2",
+  "/fonts/noto-sans-tc-og.woff2": "scripts/og/fonts/noto-sans-tc-og.woff2",
   "/fonts/noto-sans-arabic-og.woff2": "scripts/og/fonts/noto-sans-arabic-og.woff2",
 });
 
@@ -50,6 +53,9 @@ const FONT_CSS = `
 @font-face { font-family: "Geist Mono OG"; font-weight: 100 900; src: url(/fonts/geist-mono-og.woff2) format("woff2"); }
 @font-face { font-family: "OG Symbols"; src: url(/fonts/noto-symbols-og.woff2) format("woff2"); }
 @font-face { font-family: "OG Japanese"; font-weight: 100 900; src: url(/fonts/noto-sans-jp-og.woff2) format("woff2"); }
+@font-face { font-family: "OG Korean"; font-weight: 100 900; src: url(/fonts/noto-sans-kr-og.woff2) format("woff2"); }
+@font-face { font-family: "OG Simplified Chinese"; font-weight: 100 900; src: url(/fonts/noto-sans-sc-og.woff2) format("woff2"); }
+@font-face { font-family: "OG Traditional Chinese"; font-weight: 100 900; src: url(/fonts/noto-sans-tc-og.woff2) format("woff2"); }
 @font-face { font-family: "OG Arabic"; font-weight: 100 900; src: url(/fonts/noto-sans-arabic-og.woff2) format("woff2"); }
 `;
 
@@ -89,6 +95,9 @@ body { font-family: ${SANS}; color: #ededed; -webkit-font-smoothing: antialiased
 
 /* Translated cards: the script's own font after Geist, no negative tracking, and room for taller glyphs. */
 .card:lang(ja) { font-family: "Geist", "OG Japanese", "Geist OG", "OG Symbols"; }
+.card:lang(ko) { font-family: "Geist", "OG Korean", "Geist OG", "OG Symbols"; }
+.card:lang(zh-CN) { font-family: "Geist", "OG Simplified Chinese", "Geist OG", "OG Symbols"; }
+.card:lang(zh-TW) { font-family: "Geist", "OG Traditional Chinese", "Geist OG", "OG Symbols"; }
 .card:is(:lang(ar), :lang(fa), :lang(ur)) { font-family: "Geist", "OG Arabic", "Geist OG", "OG Symbols"; }
 .card[lang]:not(:lang(en)) :is(.title, .label) { letter-spacing: 0; }
 .card:is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(hi)) .title { line-height: 1.2; }

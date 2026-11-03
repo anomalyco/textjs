@@ -83,7 +83,8 @@ function apiNames(): string[] {
     }
     for (const m of src.matchAll(/export\s+(?:async\s+)?(?:function|const|class)\s+(\w+)/g)) names.add(m[1] as string);
   }
-  return [...names];
+  // Exports that are plain words (`shared`, `themes`, `sparkline`) are translated in prose; in code they're in backticks.
+  return [...names].filter((n) => !/^[a-z]+$/.test(n));
 }
 const API = apiNames();
 
@@ -118,14 +119,14 @@ function systemPrompt(locale: string, job: Job): string {
     "Rules:",
     "- Translate every item's text. Return exactly one item per input id, with the same id.",
     "- Keep Markdown structure: list markers, table pipes and row count, emphasis, heading text only (no # marks).",
-    "- Never translate or change inline code (`…`), URLs and link targets in (…), `{placeholders}`, `<tag>…</tag>` names, file paths, CLI commands, keyboard shortcuts (⌘⌥J, Ctrl+Shift+J) or numbers.",
+    "- Never translate or change inline code (`…`), URLs and link targets in (…), `{placeholders}`, `<tag>…</tag>` names, file paths, CLI commands or keyboard shortcuts (⌘⌥J, Ctrl+Shift+J). Keep every number's value; in prose, the locale style guide sets the decimal and thousands separators. Version numbers never change.",
     "- Link text inside […] is translated; the (target) is kept exactly.",
     "- Don't add, drop or reorder sentences. Don't explain jokes; keep the deadpan tone.",
     keep.length ? `- Keep these names exactly as written: ${keep.join(", ")}.` : "",
     terms.length ? `- Preferred terms:\n${terms.join("\n")}` : "",
     notes.length ? `- Context for these strings:\n${notes.join("\n")}` : "",
     job.kind === "ui" ? "- These are interface strings (buttons, labels, titles, short descriptions). Keep them as short as the English." : "",
-    job.kind === "captions" ? "- These are subtitles for a narrated video, not a transcript. Condense each sentence to subtitle style so it can be read while it's spoken: aim for the item's character budget (listed after the page; letters, digits and code count as half a character), drop filler, repetition and asides, and keep every fact, number and code name. A subtitle is about 60% the length of a full translation. End sentences in the locale's register (Japanese: short です・ます endings such as 〜します, never 体言止め or a bare noun), and make them fit by cutting words, not endings: drop subjects the viewer can see, connectives, examples, restatements and minor detail. Go over the budget only when even the shortest such sentence can't fit. Subtitles are plain text without Markdown or backticks; write code names (console.log, page.tsx, useInput) as written in code, even where the narrator spells them out." : "",
+    job.kind === "captions" ? "- These are subtitles for a narrated video, not a transcript. Condense each sentence to subtitle style so it can be read while it's spoken: aim for the item's character budget (listed after the page; letters, digits and code count as half a character), drop filler, repetition and asides, and keep every fact, number and code name. A Japanese subtitle is about 60% the length of a full translation; alphabetic languages need less cutting. End sentences in the locale's register (Japanese: short です・ます endings such as 〜します, never 体言止め or a bare noun), and make them fit by cutting words, not endings: drop subjects the viewer can see, connectives, examples, restatements and minor detail. Go over the budget only when even the shortest such sentence can't fit. Subtitles are plain text without Markdown or backticks; write code names (console.log, page.tsx, useInput) as written in code, even where the narrator spells them out." : "",
     "",
     "The site's English copy rules. Apply their intent to the translation (register, no filler, facts kept exact):",
     siteStyle,

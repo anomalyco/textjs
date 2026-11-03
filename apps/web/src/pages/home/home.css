@@ -1534,11 +1534,15 @@
   .sv-flow {
     padding: 32px 16px 24px;
   }
+  /* A long translated label wraps inside its node instead of widening the page. */
   .sv-node {
+    flex: 0 1 auto;
+    min-width: 0;
     padding: 8px 9px;
   }
   .sv-node-k {
     font-size: 11.5px;
+    white-space: normal;
   }
   .sv-node-v {
     font-size: 9.5px;

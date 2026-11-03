@@ -41,9 +41,16 @@ export function groupSeconds(g: CaptionGroup): number {
   return seconds((g.cues[g.cues.length - 1] as Cue).end) - seconds((g.cues[0] as Cue).start);
 }
 
-/** Characters a reader takes in per second: about 4 for Chinese and Japanese, 15 for alphabetic scripts. */
+/**
+ * Characters a reader takes in per second, in `captionLength` units (spaces dropped, half-width characters count
+ * half): 4 for Japanese, 7 for Chinese, 8 for Korean, and 7.5 for alphabetic scripts (about 17 characters a second
+ * with spaces, the usual subtitle limit).
+ */
 export function readingSpeed(locale: string): number {
-  return /^(ja|zh|ko)/.test(locale) ? 4 : 15;
+  if (locale.startsWith("ja")) return 4;
+  if (locale.startsWith("zh")) return 7;
+  if (locale.startsWith("ko")) return 8;
+  return 7.5;
 }
 
 /** Subtitle length as read: half-width letters, digits and code count half (the Japanese subtitle convention). */

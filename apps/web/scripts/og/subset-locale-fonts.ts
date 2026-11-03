@@ -19,6 +19,9 @@ import { readCatalog, readText, translationFile } from "../i18n/sources";
 /** Locale → the OG font file it fills (scripts/og/fonts/), and the locales that share it. */
 const FONTS: Record<string, { file: string; locales: string[] }> = {
   ja: { file: "noto-sans-jp-og.woff2", locales: ["ja"] },
+  ko: { file: "noto-sans-kr-og.woff2", locales: ["ko"] },
+  "zh-CN": { file: "noto-sans-sc-og.woff2", locales: ["zh-CN"] },
+  "zh-TW": { file: "noto-sans-tc-og.woff2", locales: ["zh-TW"] },
   ar: { file: "noto-sans-arabic-og.woff2", locales: ["ar", "fa", "ur"] },
 };
 
