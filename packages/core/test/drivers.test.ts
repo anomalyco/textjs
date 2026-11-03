@@ -314,7 +314,36 @@ describe("CssConsoleDriver", () => {
     // Latin cells are 7px and Hebrew glyphs 6.9px: 4 cells pad by 25/64px (27.6px rounds up to 1767 LayoutUnits of 1792).
     const measure = (t: string): number => (t.startsWith("M") ? 7 : 6.9) * [...t].filter((ch) => ch !== "\u202D" && ch !== "\u202C").length;
     const [span] = new CssConsoleDriver({ console: new FakeConsole(), measureText: measure }).compileRow(b, 0);
-    expect(span?.css).toEndWith("padding-right:1px;margin-right:-1px;padding-right:1.390625px;margin-right:-1px;");
+    expect(span?.css).toEndWith("background-color:#18181b;padding-right:1.390625px;margin-right:-1px;");
+  });
+
+  test("an unsealed blank never joins the previous row's sealed span", () => {
+    const SEAL = "padding-right:1px;margin-right:-1px;";
+    const b = new CellBuffer(6, 2);
+    b.drawText(0, 0, "hello ", 0xffffffff, BG);
+    b.drawText(0, 1, "  ", 0xffffffff, BG);
+    b.drawText(2, 1, "fade", 0xffffffff, 0x33415580);
+    const con = new FakeConsole();
+    new CssConsoleDriver({ console: con }).render(b);
+    const { format, args } = con.last;
+    // Each %c run's text and CSS: the blanks before "fade" must not carry the seal.
+    const runs = format.split("%c").slice(1).map((text, i) => ({ text, css: args[i] ?? "" }));
+    const blanks = runs.find((r) => r.text.endsWith("\n  ") || r.text === "  ");
+    expect(blanks?.css.endsWith(SEAL)).toBe(false);
+    expect(runs.find((r) => r.text.includes("hello"))?.css.endsWith(SEAL)).toBe(true);
+    expect(chromiumFormat(format, args).text).toBe("hello \n  fade");
+  });
+
+  test("sealed variants stay within the style cache's 4,096 entries", () => {
+    const d = new CssConsoleDriver({ console: new FakeConsole() });
+    const b = new CellBuffer(2, 1);
+    for (let i = 0; i < 10_000; i++) {
+      b.drawText(0, 0, "ab", 0xffffffff, ((i << 8) | 0xff) >>> 0);
+      d.render(b);
+    }
+    // Sealed variants live on their base style, so they're evicted with it.
+    expect(d.internedStyles).toBe(4096);
+    expect((d as unknown as { styleById: Map<number, unknown> }).styleById.size).toBe(4096);
   });
 
   test("sealed rows still merge across row boundaries", () => {
