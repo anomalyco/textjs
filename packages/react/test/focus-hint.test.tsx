@@ -163,6 +163,8 @@ describe("the root's default focus hint", () => {
     const headless = new InputEngine({ document: null });
     expect(await blurredBanner(<Interactive />, { input: headless })).toBeNull();
     expect(await blurredBanner(<Interactive />, { input: new InputEngine({ document: null }), focusHint: true })).toBe(HINT);
+    // `true` still needs an app that wants keys.
+    expect(await blurredBanner(<Passive />, { input: new InputEngine({ document: null }), focusHint: true })).toBeNull();
   });
 
   test("shows from the first frame when the page loads without focus (reloaded from DevTools)", async () => {

@@ -42,9 +42,10 @@ export interface ConsoleRootOptions extends Omit<ConsoleRendererOptions, "root" 
   tabFocus?: boolean;
   /**
    * "Click the page to use the keyboard" over the console frame's last row while the page doesn't
-   * have focus. By default it shows when the input engine reads keys from the page and the app has
-   * an input handler or focus target. `false` turns it off; `true` also shows it when frames reach a
-   * browser console from elsewhere (server-rendered routes). See `<FocusHint>`.
+   * have focus and the app wants keys (an active `useInput` or `usePaste` handler, or a focus
+   * target). By default that needs an input engine that reads keys from this page; `true` also
+   * covers engines fed from a browser page elsewhere (server-rendered routes). `false` turns it off.
+   * See `<FocusHint>`.
    */
   focusHint?: boolean;
   identifierPrefix?: string;

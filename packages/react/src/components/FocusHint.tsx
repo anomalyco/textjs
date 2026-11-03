@@ -52,7 +52,7 @@ export function FocusHint({ active }: FocusHintProps): ReactNode {
 
 /**
  * The root's default hint. `pageInput` treats the engine as reading keys from a page even
- * without a sink of its own (server-rendered routes). @internal
+ * without a sink of its own (server-rendered routes); the app must still want keys. @internal
  */
 export function RootFocusHint({ pageInput }: { pageInput: boolean }): ReactNode {
   return <Banner active={undefined} pageInput={pageInput} />;

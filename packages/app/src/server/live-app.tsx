@@ -54,7 +54,7 @@ export interface LiveAppOptions {
   onTitle?: (title: string) => void;
   /**
    * Draw the "Click the page to use the keyboard" bar while the browser page doesn't have focus
-   * (default `true`). The player draws it; it never enters {@link LiveApp.buffer}.
+   * and the app wants keys (default `true`). The player draws it; it never enters {@link LiveApp.buffer}.
    */
   focusHint?: boolean;
   /** The focus hint appeared, changed or went away (`null`). */

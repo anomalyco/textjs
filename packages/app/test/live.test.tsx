@@ -268,6 +268,27 @@ describe("live app", () => {
     });
   });
 
+  test("a passive server route never sends the hint; an interactive one sends it while blurred and clears it", async () => {
+    await withoutActEnvironment(async () => {
+      const banners: unknown[] = [];
+      app = await createLiveApp({ routes: routes(), path: "/other", cols: 60, rows: 14, focused: false, onBanner: (b) => banners.push(b) });
+      app.flush();
+      app.input({ type: "focus", focused: true });
+      app.input({ type: "focus", focused: false });
+      app.flush();
+      expect(app.buffer.toPlainString()).toContain("other server page");
+      expect(banners).toEqual([]);
+      // Client-side navigation to the interactive counter: it wants keys, so the blurred page gets the hint.
+      app.input({ type: "nav", href: "/" });
+      await until(() => banners.length > 0);
+      expect(banners.at(-1)).toMatchObject({ text: "Click the page to use the keyboard" });
+      // Back to the passive page: the handler goes away, and so does the hint.
+      app.input({ type: "nav", href: "/other" });
+      await until(() => banners.at(-1) === null);
+      expect(banners.at(-1)).toBeNull();
+    });
+  });
+
   test("focusHint: false keeps server routes free of the hint", async () => {
     await withoutActEnvironment(async () => {
       const banners: unknown[] = [];
