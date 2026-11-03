@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { DOCS } from "../src/docs/registry";
+import { DOCS_META } from "../src/docs/registry";
 import { NOT_FOUND_PATH, PREFIT_MIRRORS_SCRIPT, render, ROUTES } from "../src/entry-server";
 import { resetLocation } from "../src/router";
 
@@ -9,12 +9,12 @@ describe("build-time prerender", () => {
   test("covers every page, including /docs/<slug> for each doc", () => {
     const paths = ROUTES.map((r) => r.path);
     for (const p of ["/", "/docs", "/playground", "/opencode"]) expect(paths).toContain(p);
-    for (const d of DOCS) expect(paths).toContain(`/docs/${d.slug}`);
+    for (const d of DOCS_META) expect(paths).toContain(`/docs/${d.slug}`);
     expect(ROUTES.find((r) => r.path === "/docs/introduction")?.canonical).toBe("/docs");
   });
 
   test("docs pages render their final content with live previews inline", async () => {
-    for (const d of DOCS) {
+    for (const d of DOCS_META) {
       const html = await render(`/docs/${d.slug}`);
       expect(html).toContain(`class="docs-title">${d.title.replace(/&/g, "&amp;")}</h1>`);
       expect(html).toContain('class="docs-sidebar"');

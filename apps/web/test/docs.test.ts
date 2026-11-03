@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { parseMarkdown } from "@textjs/react";
-import { DOC_CATEGORIES, DOCS, docPath, getDoc, headingsOf, neighbors, searchDocs, toConsoleMarkdown } from "../src/docs/registry";
+import { DOC_CATEGORIES, DOCS_META, docPath, getDoc, headingsOf, neighbors, preloadDoc, toConsoleMarkdown, type DocPage } from "../src/docs/registry";
 import { POSTS, POSTS_META } from "../src/blog";
 import { PREVIEW_META } from "../src/docs/preview-meta";
 import { DOC_HEADINGS } from "../src/docs/search-index";
+import { searchDocsMeta } from "../src/docs/search";
+import { routeManifestSources } from "../src/route-loader";
+import { aliasResults } from "../src/site/search-aliases";
 import { PREVIEWS } from "../src/docs/previews";
 import { PRODUCTS } from "../src/merch/products";
 import { PRODUCTS_META } from "../src/merch/meta";
@@ -11,6 +14,9 @@ import { parseFence } from "../src/site/Markdown";
 import { REPO_URL, docEditUrl } from "../src/site/links";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+
+// test/setup.ts loads every page's Markdown.
+const DOCS: DocPage[] = DOCS_META.map((m) => getDoc(m.slug) as DocPage);
 
 const REQUIRED = [
   "introduction",
@@ -152,9 +158,34 @@ describe("documentation registry", () => {
     expect(neighbors("introduction").prev).toBeUndefined();
     expect(neighbors("introduction").next?.slug).toBe("installation");
     expect(neighbors("opencode").next).toBeUndefined();
-    expect(searchDocs("turbolog")[0]?.doc.slug).toBe("turbolog-engine");
-    expect(searchDocs("usePathname").some((h) => h.doc.slug === "routing")).toBe(true);
-    expect(searchDocs("rdbx").some((h) => h.doc.slug === "loading-and-errors")).toBe(true);
-    expect(searchDocs("").length).toBe(DOCS.length);
+    expect(searchDocsMeta("turbolog")[0]?.doc.slug).toBe("turbolog-engine");
+    expect(searchDocsMeta("usePathname").some((h) => h.doc.slug === "routing")).toBe(true);
+    expect(searchDocsMeta("rdbx").some((h) => h.doc.slug === "loading-and-errors")).toBe(true);
+    expect(searchDocsMeta("").length).toBe(DOCS.length);
+  });
+
+  test("every page's Markdown loads on its own, once", async () => {
+    for (const d of DOCS) {
+      expect(d.markdown.length).toBeGreaterThan(0);
+      await preloadDoc(d.slug);
+      expect(getDoc(d.slug)).toBe(d);
+    }
+    expect(getDoc(undefined)).toBe(getDoc("introduction"));
+    await expect(preloadDoc("nope")).rejects.toThrow();
+  });
+
+  test("a docs page's chunks are its page module and its Markdown", () => {
+    expect(routeManifestSources({ name: "docs", slug: "routing" })).toEqual(["src/pages/Docs.tsx", "src/docs/content/routing.md?raw"]);
+    expect(routeManifestSources({ name: "home" })).toEqual(["src/pages/Home.tsx"]);
+    expect(routeManifestSources({ name: "not-found" })).toEqual([]);
+  });
+
+  test("search also matches the English slug and heading ids", () => {
+    // In English these equal the titles; in a locale build they find a translated page by its English name.
+    expect(searchDocsMeta("open the console").find((h) => h.heading)?.heading?.id).toBe("open-the-console");
+    expect(searchDocsMeta("project structure")[0]?.doc.slug).toBe("project-structure");
+    const safari = aliasResults("safari")[0];
+    expect(safari?.href).toBe("/docs/turbolog-engine#firefox-and-safari");
+    expect(safari?.label).toBe("Firefox and Safari");
   });
 });
