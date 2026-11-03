@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { cleanup, render } from "@textjs/react/testing";
 import { DOOM_CREDIT, DoomDemo, fetchVerifiedWad, WAD_BYTES, WAD_SHA256 } from "../src/demos/doom/Doom";
 import { LICENSE_HEADER, TRADEMARK_NOTICE, verifyDoomAssets, WAD } from "../src/demos/doom/fetch-wad";
+import { createDoom } from "../src/demos/doom/host";
 import { DOOM_ERROR_HINTS, DOOM_LOADING_HINTS, hintsFor, PRESETS, siteStore } from "../src/console-companion/store";
 import { PlaygroundPage } from "../src/pages/Playground";
 
@@ -86,6 +87,43 @@ describe("Doom shareware & GPL engine assets", () => {
         async () => new Response(new Uint8Array(tamperedGz), { status: 200 }),
       ),
     ).rejects.toThrow("SHA-256");
+  });
+
+  test("Doom runs at 35 tics per second however often the page polls it", async () => {
+    const wasm = readFileSync(join(WEB_ROOT, "src/demos/doom/engine/out/doom.wasm"));
+    const wad = new Uint8Array(readFileSync(join(WEB_ROOT, "public/doom/DOOM1.WAD")));
+    // Doom's tics come only from the clock it reads (I_GetTime), so watch what the host hands it.
+    let engineMs = 0;
+    const instantiate = WebAssembly.instantiate;
+    WebAssembly.instantiate = ((bytes: BufferSource, imports: { runtimeControl: { timeInMilliseconds: () => bigint } }) => {
+      const read = imports.runtimeControl.timeInMilliseconds;
+      imports.runtimeControl.timeInMilliseconds = () => {
+        const ms = read();
+        engineMs = Number(ms);
+        return ms;
+      };
+      return instantiate(bytes, imports as unknown as WebAssembly.Imports);
+    }) as typeof WebAssembly.instantiate;
+    try {
+      // Every 1ms, at 120Hz and 60Hz animation frames, at Doom's own 35Hz, and at the console's 51ms keyframes.
+      for (const pollMs of [1, 1000 / 120, 1000 / 60, 1000 / 35, 51]) {
+        let t = 0;
+        const doom = await createDoom({ wasm: wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength) as ArrayBuffer, wads: [wad], now: () => t });
+        const run = (ms: number): number => {
+          let frames = 0;
+          for (const end = t + ms; t < end; t += pollMs) if (doom.tick()) frames++;
+          return frames;
+        };
+        // The title screen gives way to the first demo, a level, after 170 tics.
+        run(6000);
+        const frames = run(10_000);
+        expect(frames).toBeLessThanOrEqual(351);
+        expect(frames).toBeGreaterThan(150);
+        expect(Math.abs(engineMs - t)).toBeLessThan(pollMs + 1000 / 35);
+      }
+    } finally {
+      WebAssembly.instantiate = instantiate;
+    }
   });
 
   test("DoomDemo skips download on mobile touch fallback and while inactive, shows 4:3 loading progress, and retries on Enter after error", async () => {
