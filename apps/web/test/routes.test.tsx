@@ -18,8 +18,12 @@ describe("router", () => {
     expect(matchRoute("/playground/snake/")).toEqual({ name: "playground", preset: "snake" });
     expect(matchRoute("/opencode/")).toEqual({ name: "opencode" });
     expect(matchRoute("/coffee")).toEqual({ name: "coffee" });
+    expect(matchRoute("/doom")).toEqual({ name: "playground", preset: "doom" });
+    expect(matchRoute("/ja/doom/")).toEqual({ name: "playground", preset: "doom" });
     // The site hasn't launched: paths that never shipped are plain 404s, with no redirects.
     for (const gone of ["/showcase", "/playground/dashboard", "/playground/counter", "/playground/form", "/playground/nope", "/terminal"]) expect(matchRoute(gone)).toEqual({ name: "not-found" });
+    // Doom moved to /doom; _redirects sends the old URL there.
+    for (const gone of ["/playground/doom", "/doom/DOOM1.WAD"]) expect(matchRoute(gone)).toEqual({ name: "not-found" });
     expect(matchRoute("/nope")).toEqual({ name: "not-found" });
     expect(matchRoute("/docs/does-not-exist")).toEqual({ name: "not-found" });
     for (const d of DOCS) expect(matchRoute(docPath(d.slug))).toEqual({ name: "docs", slug: d.slug });
@@ -43,6 +47,7 @@ describe("router", () => {
     expect(tabForPath("/docs/routing")).toBe("docs");
     expect(tabForPath("/playground")).toBe("playground");
     expect(tabForPath("/playground/snake")).toBe("playground");
+    expect(tabForPath("/doom")).toBe("playground");
     expect(tabForPath("/opencode")).toBe("opencode");
     expect(tabForPath("/")).toBe("home");
     expect(tabForPath("/nope/404")).toBe("home");
@@ -57,6 +62,9 @@ describe("router", () => {
     expect(siteStore.getSnapshot().consoleInput).toBe(true);
     // The URL picks the demo: /playground opens the first one.
     expect(siteStore.getSnapshot().preset).toBe("snake");
+    siteStore.syncRoute("/doom");
+    expect(siteStore.getSnapshot().preset).toBe("doom");
+    expect(siteStore.getSnapshot().consoleInput).toBe(true);
     siteStore.syncRoute("/playground");
     expect(siteStore.getSnapshot().preset).toBe("dashboard");
     siteStore.syncRoute("/docs/styling");
@@ -126,7 +134,7 @@ describe("page rendering", () => {
     // Six demos, each a link: the Playground's own four, then OpenCode and terminal.shop at their own URLs.
     // Pills are words only; the wordmarks live in the message.
     const picker = [...pg.matchAll(/<a href="([^"]+)"[^>]*>([^<]+)<\/a>/g)].map((m) => `${m[2]} ${m[1]}`);
-    expect(picker).toEqual(["Dashboard /playground", "Streaming /playground/streaming", "Snake /playground/snake", "Doom /playground/doom", "OpenCode /opencode", "Coffee /coffee"]);
+    expect(picker).toEqual(["Dashboard /playground", "Streaming /playground/streaming", "Snake /playground/snake", "Doom /doom", "OpenCode /opencode", "Coffee /coffee"]);
     // Every demo reserves the banner row (empty here, before the steps), so the wordmarks never move the rest.
     expect(pg).toContain('<div class="tx-pad-banner"><div class="pad-slot pad-slot-banner"></div></div>');
     expect(pg).not.toContain("wordmark-");

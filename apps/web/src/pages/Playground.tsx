@@ -65,7 +65,7 @@ function Picker({ demo }: { demo: DemoId }): ReactNode {
 
 /**
  * The Playground: one focus pad with a demo picker. Its own demos live at /playground and
- * /playground/<demo>; OpenCode and terminal.shop are at /opencode and /coffee. Every option renders
+ * /playground/<demo>; Doom, OpenCode and terminal.shop are at /doom, /opencode and /coffee. Every option renders
  * this same component, so switching between them keeps the pad mounted and moves nothing.
  */
 export function PlaygroundPage({ demo }: { demo: DemoId }): ReactNode {

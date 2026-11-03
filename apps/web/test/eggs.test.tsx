@@ -168,6 +168,17 @@ describe("nextjs.org paths redirect", () => {
     }
     expect(rules.some((r) => r.from.startsWith("/terminal/") || r.from === "/terminal/*" || r.from === "/*")).toBe(false);
   });
+
+  test("Doom moved to /doom, with or without a locale prefix", () => {
+    const doom = rules.filter((r) => r.from.includes("/playground/doom"));
+    expect(doom).toEqual([
+      { from: "/playground/doom", to: "/doom", status: 301 },
+      { from: "/playground/doom/", to: "/doom", status: 301 },
+      { from: "/:locale/playground/doom", to: "/:locale/doom", status: 301 },
+      { from: "/:locale/playground/doom/", to: "/:locale/doom", status: 301 },
+    ]);
+    expect(matchRoute("/doom")).toEqual({ name: "playground", preset: "doom" });
+  });
 });
 
 describe("enterprise", () => {

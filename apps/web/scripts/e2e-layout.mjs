@@ -1,5 +1,5 @@
-// Pad layout parity: every Playground demo (Dashboard, Streaming, Snake, Doom at /playground[/<demo>],
-// OpenCode at /opencode, Coffee at /coffee) shares one stage layout, so switching between them in
+// Pad layout parity: every Playground demo (Dashboard, Streaming, Snake at /playground[/<demo>], Doom
+// at /doom, OpenCode at /opencode, Coffee at /coffee) shares one stage layout, so switching between them in
 // the picker must not move the picker, keycaps, subtitle, pad or its slots by a single pixel, before
 // the console is open or once the pad is live.
 // Loads each route directly and via client navigation at several viewports, measures the bounding

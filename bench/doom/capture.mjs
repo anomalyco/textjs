@@ -1,4 +1,4 @@
-// Play the /playground/doom preset in the real DevTools frontend (two-context protocol, like
+// Play the /doom preset in the real DevTools frontend (two-context protocol, like
 // apps/web/scripts/capture-opencode.mjs): boot, start E1M1 from the menu, walk, turn, shoot, open a door.
 // Saves console screenshots, a WebM of the console and per-frame stats to OUT.
 // Usage: BASE=http://127.0.0.1:5391 OUT=/tmp/doom node bench/doom/capture.mjs
@@ -40,7 +40,7 @@ try {
       log(...args);
     };
   });
-  await page.goto(new URL("/playground/doom", base).href);
+  await page.goto(new URL("/doom", base).href);
   const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json());
   const target = targets.find((t) => t.url === page.url() && t.type === "page");
   const dtCtx = await browser.newContext({ viewport: { width: Math.ceil(cols * 7.4) + 120, height: rows * 14 + 140 }, recordVideo: { dir: out, size: { width: Math.ceil(cols * 7.4) + 120, height: rows * 14 + 140 } } });

@@ -32,6 +32,8 @@
     { "source": "/merch/cap", "destination": "/store", "permanent": true },
     { "source": "/merch/sticker-sheet", "destination": "/store", "permanent": true },
     { "source": "/merch/:path*", "destination": "/store/:path*", "permanent": true },
+    { "source": "/playground/doom", "destination": "/doom", "permanent": true },
+    { "source": "/:locale/playground/doom", "destination": "/:locale/doom", "permanent": true },
     { "source": "/pt-BR", "destination": "/pt-br", "permanent": true },
     { "source": "/pt-BR/:path*", "destination": "/pt-br/:path*", "permanent": true },
     { "source": "/zh-CN", "destination": "/zh-cn", "permanent": true },
