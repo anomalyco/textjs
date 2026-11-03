@@ -108,6 +108,20 @@ describe("documentation registry", () => {
     }
   });
 
+  test("same-page #anchor links point at a heading on that page", () => {
+    let count = 0;
+    const missing: string[] = [];
+    for (const d of DOCS) {
+      const ids = headingsOf(d.markdown).map((h) => h.id);
+      for (const m of d.markdown.matchAll(/\]\(#([^)\s]+)\)/g)) {
+        count++;
+        if (!ids.includes(m[1] as string)) missing.push(`${d.slug}#${m[1]}`);
+      }
+    }
+    expect(missing).toEqual([]);
+    expect(count).toBeGreaterThan(0);
+  });
+
   test("live preview fences reference registered previews", () => {
     let count = 0;
     for (const d of DOCS) {

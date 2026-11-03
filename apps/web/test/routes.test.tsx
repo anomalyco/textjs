@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { RouteView } from "../src/App";
 import { BRIDGE_COMMAND } from "../src/demos/opencode/live";
 import { DOCS, docPath } from "../src/docs/registry";
-import { matchRoute, normalizePath, resetLocation, titleFor } from "../src/router";
+import { A, matchRoute, normalizePath, resetLocation, titleFor } from "../src/router";
 import { Footer, Header } from "../src/site/Chrome";
 import { REPO_URL, docEditUrl } from "../src/site/links";
 import { siteStore, tabForPath } from "../src/console-companion/store";
@@ -92,6 +92,16 @@ describe("page rendering", () => {
       expect(html).toContain("On this page");
       expect(html).toContain('class="prose"');
     }
+  });
+
+  test("same-page #anchor links stay in the tab, and other links keep their behavior", () => {
+    expect(renderToStaticMarkup(<A href="#usepagefocus">x</A>)).toBe('<a href="#usepagefocus">x</a>');
+    expect(renderToStaticMarkup(<A href="/docs/routing">x</A>)).not.toContain("target=");
+    expect(renderToStaticMarkup(<A href="https://example.com">x</A>)).toContain('target="_blank"');
+    const html = renderToStaticMarkup(<RouteView route={{ name: "docs", slug: "eslint" }} />);
+    const anchors = [...html.matchAll(/<a [^>]*href="#[^"]*"[^>]*>/g)].map((m) => m[0]);
+    expect(anchors.length).toBeGreaterThan(10);
+    for (const a of anchors) expect(a).not.toContain("target=");
   });
 
   test("the Turbolog lockup appears once on each Turbolog page", () => {

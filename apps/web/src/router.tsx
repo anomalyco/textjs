@@ -194,6 +194,11 @@ export function isInternalHref(href: string): boolean {
   return href.startsWith("/") && !href.startsWith("//");
 }
 
+/** A link to an id on the current page (`#foo`). The browser scrolls to it, as the docs TOC does. */
+export function isFragmentHref(href: string): boolean {
+  return href.startsWith("#");
+}
+
 /** Adds this build's locale prefix to links to site pages (`/docs` → `/ja/docs`); assets and APIs keep their paths. */
 export function localizeHref(href: string): string {
   if (!LOCALE.path || !isInternalHref(href)) return href;
@@ -209,8 +214,15 @@ export interface AProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
   children?: ReactNode;
 }
 
-/** An `<a>` that performs client-side navigation for internal links. */
+/** An `<a>` that performs client-side navigation for internal links and opens external ones in a new tab. */
 export function A({ href: source, onClick, onMouseEnter, onFocus, onPointerDown, children, ...rest }: AProps): ReactNode {
+  if (isFragmentHref(source)) {
+    return (
+      <a href={source} onClick={onClick} onMouseEnter={onMouseEnter} onFocus={onFocus} onPointerDown={onPointerDown} {...rest}>
+        {children}
+      </a>
+    );
+  }
   const href = localizeHref(source);
   const internal = isInternalHref(href);
   const handle = (e: MouseEvent<HTMLAnchorElement>): void => {
