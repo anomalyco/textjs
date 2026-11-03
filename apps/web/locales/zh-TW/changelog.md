@@ -7,9 +7,13 @@
 <!-- s:2e16922cfc -->
 新增
 
-<!-- s:fd5b09c2ec -->
+<!-- s:892f5fce9a -->
+- textjs.org：西班牙文、法文、德文、巴西葡萄牙文、韓文、簡體中文和繁體中文版已結束草稿階段，分別位於 textjs.org/es、/fr、/de、/pt-br、/ko、/zh-cn 和 /zh-tw。頁尾的語言選單和瀏覽器語言按鈕會像日文一樣列出這些語言。搜尋引擎會索引翻譯後的頁面，並將各頁與對應的英文版配對。
+
+<!-- s:f71df9184f -->
 - `@textjs/react`：`<FocusPad messages>` 可替換面板的任何內建字串，供翻譯網站使用。涵蓋每一行文字、螢幕閱讀器標籤和主控台尺寸控制項。`<TextCanvas>` 和 `<ViewportControl>` 也接受 `messages`。`<ViewportControl>` 只使用尺寸控制項的鍵。包含值的字串，例如「接著點擊這裡並按 ↑ ↓。」，是回傳完整句子的函式。`defaultFocusPadMessages` 提供英文文字。請參閱[翻譯焦點面板](https://textjs.org/docs/internationalization#translating-the-focus-pad)。
 - `@textjs/react`：在由右至左的頁面中，焦點面板會讓 ⌘ ⌥ J 等按鍵圖示和 120×36 等主控台尺寸維持由左至右顯示，並將尺寸控制項和步驟列鏡像排列。在中文和日文頁面中，會移除兩個句子之間的空格；韓文則保留空格。
+- textjs.org：textjs.org/ja 已結束草稿階段。頁尾的語言選單可開啟同一頁面的英文版或日文版。設為日文的瀏覽器會顯示「日本語で読む」按鈕，英文瀏覽器在 textjs.org/ja 則會顯示「Read in English」。選擇語言或關閉按鈕後，按鈕就不再出現。搜尋引擎會索引翻譯後的日文頁面，並將各頁與對應的英文版配對。
 - textjs.org：在 textjs.org/ja 上，每個頁面的焦點面板都以日文顯示，包括各個示範的按鍵下方標籤。
 
 <!-- s:5b88618770 -->
@@ -22,8 +26,9 @@
 <!-- s:afe76b8d59 -->
 修正
 
-<!-- s:4290e90e78 -->
+<!-- s:b3d1adfa39 -->
 - textjs.org/ja：⌘K 搜尋會顯示日文文件標題，並以日文查詢比對這些標題。先前會在日文頁面標題下列出英文標題。英文名稱仍可找到頁面：`routing` 可找到「ルーティング」，`open the console` 可找到「コンソールを開く」。
+- textjs.org：在 textjs.org/ja 上，以及 textjs.org/docs/internationalization 的雙向文字範例中，主控台內執行的文件範例，其變更現在會再次顯示於頁面預覽。主控台中範例上方的文字現在是「▼ Docs › Counter」，不再是「▼ Docs › Introduction › Counter」。
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom 會播放 Doom 的音效，採用 Doom 本身的立體聲左右定位與距離衰減。音效會在你首次點擊頁面或按鍵時開始，隨遊戲暫停，並遵循 Doom 的「選項 → 音量」選單中的「音效音量」設定。沒有音樂。

@@ -23,23 +23,27 @@ export interface Locale {
   status: LocaleStatus;
 }
 
+/**
+ * The order here is the order everywhere (the picker, hreflang, sitemaps, builds): English, then Latin-script names
+ * alphabetized by their native spelling, then Cyrillic, Devanagari and CJK, then right-to-left scripts.
+ */
 export const LOCALES: readonly Locale[] = [
   { code: "en", path: "", name: "English", dir: "ltr", status: "source" },
-  { code: "es", path: "es", name: "Español", dir: "ltr", status: "draft" },
-  { code: "fr", path: "fr", name: "Français", dir: "ltr", status: "draft" },
-  { code: "de", path: "de", name: "Deutsch", dir: "ltr", status: "draft" },
-  { code: "it", path: "it", name: "Italiano", dir: "ltr", status: "planned" },
-  { code: "pt-BR", path: "pt-br", name: "Português (Brasil)", dir: "ltr", status: "draft" },
-  { code: "ja", path: "ja", name: "日本語", dir: "ltr", status: "live" },
-  { code: "ko", path: "ko", name: "한국어", dir: "ltr", status: "draft" },
-  { code: "zh-CN", path: "zh-cn", name: "简体中文", dir: "ltr", status: "draft" },
-  { code: "zh-TW", path: "zh-tw", name: "繁體中文", dir: "ltr", status: "draft" },
-  { code: "ru", path: "ru", name: "Русский", dir: "ltr", status: "planned" },
-  { code: "tr", path: "tr", name: "Türkçe", dir: "ltr", status: "planned" },
-  { code: "pl", path: "pl", name: "Polski", dir: "ltr", status: "planned" },
   { code: "id", path: "id", name: "Bahasa Indonesia", dir: "ltr", status: "planned" },
+  { code: "de", path: "de", name: "Deutsch", dir: "ltr", status: "live" },
+  { code: "es", path: "es", name: "Español", dir: "ltr", status: "live" },
+  { code: "fr", path: "fr", name: "Français", dir: "ltr", status: "live" },
+  { code: "it", path: "it", name: "Italiano", dir: "ltr", status: "planned" },
+  { code: "pl", path: "pl", name: "Polski", dir: "ltr", status: "planned" },
+  { code: "pt-BR", path: "pt-br", name: "Português (Brasil)", dir: "ltr", status: "live" },
   { code: "vi", path: "vi", name: "Tiếng Việt", dir: "ltr", status: "planned" },
+  { code: "tr", path: "tr", name: "Türkçe", dir: "ltr", status: "planned" },
+  { code: "ru", path: "ru", name: "Русский", dir: "ltr", status: "planned" },
   { code: "hi", path: "hi", name: "हिन्दी", dir: "ltr", status: "planned" },
+  { code: "ja", path: "ja", name: "日本語", dir: "ltr", status: "live" },
+  { code: "ko", path: "ko", name: "한국어", dir: "ltr", status: "live" },
+  { code: "zh-CN", path: "zh-cn", name: "简体中文", dir: "ltr", status: "live" },
+  { code: "zh-TW", path: "zh-tw", name: "繁體中文", dir: "ltr", status: "live" },
   { code: "ar", path: "ar", name: "العربية", dir: "rtl", status: "planned" },
   { code: "he", path: "he", name: "עברית", dir: "rtl", status: "planned" },
   { code: "fa", path: "fa", name: "فارسی", dir: "rtl", status: "planned" },
@@ -53,12 +57,12 @@ export function getLocale(code: string): Locale | undefined {
 }
 
 /**
- * `ja,ar:live` → those locales (English always first), each with its status or an override. With no list, every
- * locale that isn't planned.
+ * `ja,ar:live` → those locales (English always first, then in `LOCALES` order), each with its status or an
+ * override. With no list, every locale that isn't planned.
  */
 export function parseLocaleSet(spec: string | undefined): Locale[] {
   if (!spec) return LOCALES.filter((l) => l.status !== "planned");
-  const out: Locale[] = [SOURCE_LOCALE];
+  const picked = new Map<string, Locale>([[SOURCE_LOCALE.code, SOURCE_LOCALE]]);
   for (const item of spec.split(",").map((s) => s.trim()).filter(Boolean)) {
     const [code = "", status] = item.split(":");
     const locale = getLocale(code);
@@ -67,9 +71,9 @@ export function parseLocaleSet(spec: string | undefined): Locale[] {
     if (status && !["live", "draft"].includes(status)) throw new Error(`${code}: status must be live or draft`);
     const resolved = status ? { ...locale, status: status as LocaleStatus } : locale;
     // A planned locale named on the command line is built as a draft.
-    out.push(resolved.status === "planned" ? { ...resolved, status: "draft" } : resolved);
+    picked.set(code, resolved.status === "planned" ? { ...resolved, status: "draft" } : resolved);
   }
-  return out;
+  return LOCALES.flatMap((l) => picked.get(l.code) ?? []);
 }
 
 /** The locales built into this deploy. Links, the picker and the banner only know these. */

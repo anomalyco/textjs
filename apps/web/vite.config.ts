@@ -6,6 +6,7 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { translatedCaptions } from "./scripts/i18n/sources";
 import { i18nPlugin } from "./scripts/i18n/vite-plugin";
+import { datePatterns, intlTag } from "./src/i18n/intl";
 import { reportsDevMiddleware } from "./server/reports-dev";
 import { terminalDevMiddleware } from "./server/terminal-dev";
 import { VIEWPORT_SOURCE } from "./src/console-companion/viewport-console";
@@ -163,6 +164,8 @@ export default defineConfig(({ isSsrBuild }) => ({
     __TEXTJS_RELEASE__: JSON.stringify(release()),
     __TEXTJS_LOCALE__: JSON.stringify(LOCALE),
     __TEXTJS_LOCALES__: JSON.stringify(process.env.TEXTJS_LOCALES ?? ""),
+    // Dates are formatted here, once, so the prerendered page and the browser show the same text (src/i18n/intl.ts).
+    __TEXTJS_DATES__: JSON.stringify(datePatterns(intlTag(LOCALE))),
     // Chapters whose captions this locale has translated (scripts/postbuild-pages.ts writes their tracks).
     __TEXTJS_CAPTIONS__: JSON.stringify(SOURCE ? [] : translatedCaptions(LOCALE)),
   },

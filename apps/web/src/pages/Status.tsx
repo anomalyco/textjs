@@ -124,7 +124,7 @@ function LiveBenchmark(): ReactNode {
     { label: t("Full frame"), value: cell(result?.fullFrame), sub: result ? t("mean {mean} · p95 {p95}", { mean: fmtMs(result.fullFrame.mean), p95: fmtMs(result.fullFrame.p95) }) : t("layout + paint + encode") },
     { label: t("Typing"), value: cell(result?.typing), sub: result ? t("mean {mean} · p95 {p95}", { mean: fmtMs(result.typing.mean), p95: fmtMs(result.typing.p95) }) : t("one-row edit") },
     { label: t("Idle frame"), value: cell(result?.idle), sub: result ? t("{calls} console calls", { calls: result.idleConsoleCalls }) : t("nothing changed") },
-    { label: t("%c spans"), value: result ? String(result.spans) : dash, sub: t("{cells} cells", { cells: formatNumber(100 * 32) }) },
+    { label: t("%c spans"), value: result ? String(result.spans) : dash, sub: t("{cells} cells", { cells: formatNumber(3200) }) },
   ];
 
   return (
@@ -165,7 +165,7 @@ const RUNS = history.pipeline.runs;
 
 /** `2025-03-25` → `Mar 2025`. */
 function formatMonth(date: string): string {
-  return formatDate(date, { month: "short", year: "numeric" });
+  return formatDate(date, "shortMonth");
 }
 const MAX_TYPING = Math.max(...RUNS.map((r) => r.typingMs));
 
@@ -262,12 +262,12 @@ const code = { c: (c: ReactNode) => <code>{c}</code> };
 /** `2026-10-27T15:42:00Z` → `Oct 27, 2026 · 15:42 UTC`. */
 function formatUpdateTime(iso: string): string {
   const d = new Date(iso);
-  const date = formatDate(iso, { month: "short", day: "numeric", year: "numeric" });
+  const date = formatDate(iso, "short");
   return `${date} · ${iso.slice(11, 16)} UTC`;
 }
 
 function shortDay(iso: string, year: boolean): string {
-  return formatDate(iso, { month: "short", day: "numeric", year: year ? "numeric" : undefined });
+  return formatDate(iso, year ? "short" : "shortDay");
 }
 
 /** `Oct 27, 2026` or `Oct 27 – Oct 28, 2026`. */
@@ -279,7 +279,7 @@ function incidentSpan(i: Incident): string {
 }
 
 function monthOf(i: Incident): string {
-  return formatDate(i.updates[0]!.at, { month: "long", year: "numeric" });
+  return formatDate(i.updates[0]!.at, "month");
 }
 
 function IncidentItem({ incident: i }: { incident: Incident }): ReactNode {

@@ -7,9 +7,13 @@ El formato se basa en [Mantén un registro de cambios](https://keepachangelog.co
 <!-- s:2e16922cfc -->
 Novedades
 
-<!-- s:fd5b09c2ec -->
+<!-- s:892f5fce9a -->
+- textjs.org: las versiones en español, francés, alemán, portugués de Brasil, coreano y chino simplificado y tradicional dejan de ser borradores en textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn y /zh-tw. El selector de idioma del pie de página y el botón de idioma del navegador las ofrecen, igual que el japonés. Los motores de búsqueda indexan las páginas traducidas y vinculan cada una con su versión en inglés.
+
+<!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>` sustituye cualquiera de las cadenas integradas del panel de foco para sitios traducidos. Abarca todas las líneas, las etiquetas para lectores de pantalla y el control de tamaño de la consola. `<TextCanvas>` y `<ViewportControl>` también aceptan `messages`. `<ViewportControl>` solo usa las claves del control de tamaño. Las cadenas que contienen un valor, como «Luego haz clic aquí y pulsa ↑ ↓.», son funciones que devuelven la frase completa. `defaultFocusPadMessages` contiene el texto en inglés. Consulta [Traducir el panel de foco](https://textjs.org/docs/internationalization#translating-the-focus-pad).
 - `@textjs/react`: en páginas de derecha a izquierda, el panel de foco mantiene de izquierda a derecha las teclas, como ⌘ ⌥ J, y los tamaños de consola, como 120×36, e invierte su control de tamaño y su barra de pasos. En páginas en chino y japonés, elimina el espacio entre sus dos frases; en coreano lo conserva.
+- textjs.org: textjs.org/ja deja de ser un borrador. El selector de idioma del pie de página abre la misma página en inglés o 日本語. Un navegador configurado en japonés muestra un botón «日本語で読む», y un navegador en inglés en textjs.org/ja muestra «Read in English». El botón deja de aparecer cuando eliges un idioma o lo cierras. Los motores de búsqueda indexan las páginas traducidas al japonés y vinculan cada una con su versión en inglés.
 - textjs.org: en textjs.org/ja, el panel de foco está en japonés en todas las páginas, incluidas las etiquetas bajo las teclas de cada demo.
 
 <!-- s:5b88618770 -->
@@ -22,8 +26,9 @@ Cambios
 <!-- s:afe76b8d59 -->
 Correcciones
 
-<!-- s:4290e90e78 -->
+<!-- s:b3d1adfa39 -->
 - textjs.org/ja: la búsqueda con ⌘K muestra los encabezados de la documentación en japonés y busca coincidencias con las consultas en japonés. Antes mostraba encabezados en inglés bajo los títulos de las páginas en japonés. Los nombres en inglés siguen encontrando páginas: `routing` encuentra ルーティング y `open the console` encuentra コンソールを開く.
+- textjs.org: los cambios de un ejemplo de la documentación que se ejecuta en tu consola vuelven a mostrarse en la vista previa de la página en textjs.org/ja, y también para el ejemplo de texto bidireccional en textjs.org/docs/internationalization. La línea sobre un ejemplo en la consola ahora dice «▼ Docs › Counter» en lugar de «▼ Docs › Introduction › Counter».
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom reproduce los efectos de sonido de Doom, con su propio balance estéreo y atenuación por distancia. El sonido empieza con tu primer clic o pulsación de tecla en la página, se pausa con el juego y sigue el ajuste Sfx Volume del menú Options → Sound Volume de Doom. No hay música.

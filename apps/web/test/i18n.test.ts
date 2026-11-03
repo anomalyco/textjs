@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
 import { assembleCaptions, captionGroups, parseVtt, segments } from "../scripts/i18n/captions";
@@ -12,7 +13,8 @@ import { headingsOf, toConsoleMarkdown } from "../src/docs/registry";
 import { DOC_HEADINGS, type Heading } from "../src/docs/search-index";
 import { LOCALES, localePath, parseLocaleSet, splitLocale } from "../src/i18n/locales";
 import { rich } from "../src/i18n/rich";
-import { interpolate, plural } from "../src/i18n/t";
+import { DATE_STYLES, datePatterns, formatWith, intlTag, type DateStyle } from "../src/i18n/intl";
+import { formatDate, interpolate, plural } from "../src/i18n/t";
 import { localizeHref, matchRoute } from "../src/router";
 import { suggestedLocale } from "../src/site/LocaleMenu";
 import { MarkdownDoc } from "../src/site/Markdown";
@@ -42,12 +44,24 @@ describe("locales", () => {
     expect(parseLocaleSet("ja:live").map((l) => `${l.code}:${l.status}`)).toEqual(["en:source", "ja:live"]);
     expect(parseLocaleSet("ar").find((l) => l.code === "ar")?.status).toBe("draft");
     expect(() => parseLocaleSet("xx")).toThrow();
+    // Listed in any order, built in LOCALES order.
+    expect(parseLocaleSet("zh-TW,ja,de:live").map((l) => l.code)).toEqual(["en", "de", "ja", "zh-TW"]);
   });
 
-  test("production builds Japanese live and every other started locale as a draft", () => {
+  test("LOCALES is ordered English, Latin by native name, Cyrillic, Devanagari, CJK, then right-to-left", () => {
+    const script = (l: (typeof LOCALES)[number]): number =>
+      l.code === "en" ? 0 : l.dir === "rtl" ? 5 : /\p{Script=Cyrillic}/u.test(l.name) ? 2 : /\p{Script=Devanagari}/u.test(l.name) ? 3 : /[\p{Script=Han}\p{Script=Hangul}\p{Script=Hiragana}]/u.test(l.name) ? 4 : 1;
+    const groups = LOCALES.map(script);
+    expect(groups).toEqual([...groups].sort((a, b) => a - b));
+    const latin = LOCALES.filter((l) => script(l) === 1).map((l) => l.name);
+    expect(latin).toEqual([...latin].sort(new Intl.Collator("und").compare));
+    expect(LOCALES.filter((l) => l.status === "live" || l.status === "source").map((l) => l.name)).toEqual(["English", "Deutsch", "Español", "Français", "Português (Brasil)", "日本語", "한국어", "简体中文", "繁體中文"]);
+  });
+
+  test("production builds the eight reviewed locales live", () => {
     // The deploy sets no TEXTJS_LOCALES, so these are the locales textjs.org indexes and offers in the picker and banner.
     const built = parseLocaleSet(undefined);
-    expect(built.filter((l) => l.status === "live").map((l) => l.code)).toEqual(["ja"]);
+    expect(built.filter((l) => l.status === "live").map((l) => l.code)).toEqual(["de", "es", "fr", "pt-BR", "ja", "ko", "zh-CN", "zh-TW"]);
     expect(built.every((l) => ["source", "live", "draft"].includes(l.status))).toBe(true);
   });
 
@@ -60,6 +74,39 @@ describe("locales", () => {
     expect(suggestedLocale(["ja-JP", "en"], offered)?.code).toBe("ja");
     expect(suggestedLocale(["en-GB"], offered)?.code).toBe("en");
     expect(suggestedLocale(["fr"], offered)).toBeNull();
+  });
+
+  test("the banner's match doesn't depend on the order locales are listed in", () => {
+    const offered = LOCALES.filter((l) => l.status !== "planned");
+    for (const langs of [["de-AT", "en"], ["zh-Hans"], ["zh-HK"], ["zh-Hant-TW"], ["ko-KR"], ["pt-PT"], ["es-MX"], ["it", "fr"], ["en-GB", "de"], ["ru"]]) {
+      expect(suggestedLocale(langs, [...offered].reverse())?.code, langs.join()).toBe(suggestedLocale(langs, offered)?.code as string);
+    }
+  });
+});
+
+describe("dates", () => {
+  test("the build's date patterns reproduce Intl for every locale, style and month", () => {
+    const dates = ["2026-01-01", "2026-02-28", "2025-03-25", "2024-04-09", "2026-05-31", "2026-06-15", "2026-07-04", "2026-08-10", "2026-09-30", "2026-10-31", "2026-11-03", "2026-12-25", "2027-10-27T23:42:00Z"];
+    for (const l of LOCALES) {
+      const tag = intlTag(l.code);
+      const patterns = datePatterns(tag);
+      for (const [style, options] of Object.entries(DATE_STYLES) as [DateStyle, Intl.DateTimeFormatOptions][]) {
+        for (const iso of dates) {
+          const date = new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso);
+          expect(formatWith(patterns, iso, style), `${l.code} ${style} ${iso}`).toBe(date.toLocaleDateString(tag, { ...options, timeZone: "UTC" }));
+        }
+      }
+    }
+  });
+
+  test("a build ships its date patterns, so the page and the browser never call Intl for a date", () => {
+    const config = readFileSync(join(import.meta.dir, "..", "vite.config.ts"), "utf8");
+    expect(config).toContain("__TEXTJS_DATES__: JSON.stringify(datePatterns(intlTag(LOCALE)))");
+    expect(formatDate("2026-10-31")).toBe("October 31, 2026");
+    expect(formatDate("2026-10-27T15:42:00Z", "short")).toBe("Oct 27, 2026");
+    expect(formatDate("2026-10-27", "shortDay")).toBe("Oct 27");
+    expect(formatDate("2026-10-27", "month")).toBe("October 2026");
+    expect(formatDate("2025-03-25", "shortMonth")).toBe("Mar 2025");
   });
 });
 
@@ -96,6 +143,18 @@ describe("catalog", () => {
     expect(unwrapped).not.toContain("<span");
     const en = i18nPlugin("en") as typeof plugin;
     expect(en.transform.call({}, 'import { t } from "../i18n/t";\nconst a = <p>{t("Docs")}</p>;', file)!.code).toContain('<p>{"Docs"}</p>');
+  });
+
+  test("numbers known at build time ship formatted; measured ones stay runtime calls", () => {
+    const file = join(import.meta.dir, "..", "src", "pages", "Example.tsx");
+    const code = 'import { formatNumber } from "../i18n/t";\nconst a = formatNumber(3200);\nconst b = formatNumber(0.9999, { style: "percent", maximumFractionDigits: 2 });\nconst c = formatNumber(frames);';
+    const out = (code_: string): string => (i18nPlugin("de") as { transform: (c: string, id: string) => { code: string } | null }).transform.call({}, code_, file)!.code;
+    expect(out(code)).toContain('const a = "3.200";');
+    expect(out(code)).toContain('const b = "99,99\u00a0%";');
+    expect(out(code)).toContain("const c = formatNumber(frames);");
+    const en = (i18nPlugin("en") as { transform: (c: string, id: string) => { code: string } | null }).transform.call({}, code, file)!.code;
+    expect(en).toContain('const a = "3,200";');
+    expect(en).toContain('const b = "99.99%";');
   });
 
   test("a locale build's search index and error titles come from its translations", () => {
