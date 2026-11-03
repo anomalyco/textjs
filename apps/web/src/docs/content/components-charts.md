@@ -86,7 +86,7 @@ Chromium and Firefox consoles draw the image as a pixel sprite. Pixel art (256 c
 | :-- | :-- |
 | `src` | Image URL (browser only) |
 | `pixels` | Raw RGBA as `{ width, height, data }`, 4 bytes per pixel in row order |
-| `width` / `height` | Width in cells, height in rows. Pass one to keep the aspect ratio, or neither to draw one cell per pixel column |
+| `width` / `height` | Width in cells, height in rows. Pass one to keep the aspect ratio, or neither for 1 × 2 pixels per cell (`src` scales to at most 256 × 256 px) |
 | `fit` | `contain` (default), `cover` or `fill` |
 | `alt` | Text shown while `src` loads or if it fails |
 | `renderMode` | `auto` (default: sprite where supported, `▀` half-blocks elsewhere) or `halfblock` |
