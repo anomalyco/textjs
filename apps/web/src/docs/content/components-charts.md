@@ -85,11 +85,13 @@ Chromium and Firefox consoles draw the image as a pixel sprite. Pixel art (256 c
 | Prop | Description |
 | :-- | :-- |
 | `src` | Image URL (browser only) |
-| `pixels` | `{ width, height, data }` raw RGBA, row by row |
-| `width` / `height` | Box size in cells and rows. Pass one to keep the aspect ratio |
+| `pixels` | Raw RGBA as `{ width, height, data }`, 4 bytes per pixel in row order |
+| `width` / `height` | Width in cells, height in rows. Pass one to keep the aspect ratio, or neither to draw one cell per pixel column |
 | `fit` | `contain` (default), `cover` or `fill` |
 | `alt` | Text shown while `src` loads or if it fails |
 | `renderMode` | `auto` (default: sprite where supported, `▀` half-blocks elsewhere) or `halfblock` |
+
+`<Image>` also takes layout props.
 
 `src` loads through a canvas, so cross-origin images need CORS. `pixels` takes raw RGBA anywhere, including the terminal.
 
@@ -123,6 +125,6 @@ const source: PixelSource = { width: 320, height: 200, data: new Uint32Array(320
 | `sample` | Half-block fallback filter: `nearest` (default) or `average` |
 | `renderMode` | `auto` (default: sprite where supported, `▀` half-blocks elsewhere) or `halfblock` |
 
-`renderMode="auto"` draws a pixelated sprite in Chromium, and Firefox per its console's style rules (not benchmarked), and falls back to `▀` half-blocks in Safari, terminals, plain-text copies and pages with `runtime = "server"`. Pass `renderMode="halfblock"` to draw half-blocks everywhere.
+`renderMode="auto"` draws a pixelated sprite in Chromium, and Firefox per its console's style rules (not benchmarked), and falls back to `▀` half-blocks in Safari, terminals, plain-text copies and pages with [`runtime = "server"`](/docs/server-rendering). Pass `renderMode="halfblock"` to draw half-blocks everywhere.
 
 To draw pixels without React, import `drawPixels` from `@textjs/core/experimental` along with `DrawPixelsOptions`, `PixelSource`, `PixelFit`, `PixelSample`, `PixelRenderMode`, `PixelEncoding` and `PixelRect`. Its `encoding: "rgba"` option keeps more than 256 colors and soft alpha for still images, and `fallback` paints your own cells wherever the sprite can't be shown. See [Breaking changes](/docs/support-policy#breaking-changes) for how experimental exports are versioned.

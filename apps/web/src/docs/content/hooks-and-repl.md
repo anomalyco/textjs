@@ -18,16 +18,16 @@ useInput((e) => {
 
 Browser shortcuts like `⌘⌥J` and `⌘R` always pass through.
 
-The second argument takes options. `usePaste` and `useWheel` take the same ones.
+`usePaste` and `useWheel` take the same options. `ambient` has no effect on `useWheel`.
 
 | Option | Description |
 | :-- | :-- |
 | `isActive` | `false` turns the handler off without unmounting (default `true`) |
-| `priority` | Higher priorities run first (default `0`). Focused inputs use `10` |
-| `global` | Keep receiving input while a `<Modal>` outside this component is open |
-| `ambient` | An always-on shortcut that doesn't make the app want the keyboard |
+| `priority` | Higher priorities run first (default `0`). Focused components use `FOCUSED_INPUT_PRIORITY` (`10`) |
+| `global` | Keep receiving input while a `<Modal>` outside this component is open (default `false`) |
+| `ambient` | Don't count this handler toward the [focus hint](#usepagefocus) (default `false`) |
 
-An `ambient` handler doesn't show the [focus hint](#usepagefocus) by itself. The Dev Overlay's `F2` shortcut uses it, so pages with no other keyboard input don't ask for a click.
+The Dev Overlay's shortcut (`F2` or `` Ctrl+` ``) is ambient, so a page with no other keyboard input doesn't show the hint.
 
 ```tsx
 useInput((e) => {
@@ -70,7 +70,7 @@ const { cols, rows, focused, paused } = useViewport();
 const focused = usePageFocus();
 ```
 
-While the page doesn't have focus and the app has a `useInput` or `usePaste` handler, `useKeyState` or a focus target, the console frame's last row reads "Click the page to use the keyboard". Handlers marked [`ambient`](#useinput) don't count. The hint doesn't appear in a terminal, in tests or in inline mirrors. To decide yourself when it shows, set `focusHint: false` in `text.config.ts` or `createConsoleRoot` and render `<FocusHint>`:
+While the page doesn't have focus and the app has a `useInput` or `usePaste` handler, a `useKeyState` hook or a focus target that Tab can reach, the console frame's last row reads "Click the page to use the keyboard". Handlers marked [`ambient`](#useinput) don't count. The hint doesn't appear in a terminal, in tests or in inline mirrors. To decide yourself when it shows, set `focusHint: false` in `text.config.ts` or `createConsoleRoot` and render `<FocusHint>`:
 
 ```tsx
 <FocusHint active={editing} />
