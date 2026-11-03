@@ -99,7 +99,8 @@ describe("OpenCode Lite console app (live V2 server)", () => {
     await t.press("Escape");
     expect(t.frame()).not.toContain("Switch agent");
     await t.type("rvw");
-    expect(t.frame()).toContain("Review changes");
+    // Custom commands come from GET /api/command, which mount() doesn't wait for.
+    await t.waitFor(() => t.frame().includes("Review changes"), "custom /review command");
     await t.press("Tab");
     expect(t.frame()).toContain("/review");
     expect(requested("POST", "/api/session")).toBe(false);
@@ -272,6 +273,8 @@ describe("OpenCode Lite console app (live V2 server)", () => {
   test("Ctrl+P opens the command palette over a dimmed backdrop and switches sessions", async () => {
     const { t, history } = await mount("/session/ses_alpha");
     await t.waitFor(() => t.frame().includes("It lives in src/middleware.ts."), "session timeline");
+    // /view is fire-and-forget after the timeline loads, so it can reach the server after the frame paints.
+    await t.waitFor(() => requested("POST", "/api/session/ses_alpha/view"), "POST /view");
     expect(mock.requests.find((r) => r.path === "/api/session/ses_alpha/view")?.body).toMatchObject({ idle: (mock.sessions[0]?.time as { idle: number }).idle });
     const frame = t.frame();
     expect(frame).toContain("Where is the auth middleware?");
