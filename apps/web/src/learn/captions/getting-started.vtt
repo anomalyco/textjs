@@ -1,272 +1,276 @@
 WEBVTT
 
 1
-00:00:01.300 --> 00:00:03.570
+00:00:01.300 --> 00:00:03.490
 Welcome to Learn Text.js.
 
 2
-00:00:03.620 --> 00:00:06.820
+00:00:03.540 --> 00:00:06.740
 This is chapter one: Getting Started.
 
 3
-00:00:07.740 --> 00:00:11.100
+00:00:07.660 --> 00:00:11.100
 Over ten chapters, you'll
 build Acme Deploys:
 
 4
-00:00:11.140 --> 00:00:14.650
+00:00:11.140 --> 00:00:14.730
 a deploy dashboard that renders
 in the DevTools console.
 
 5
-00:00:14.700 --> 00:00:18.170
+00:00:14.780 --> 00:00:18.250
 Each chapter ends with the app
 exactly as your code leaves it,
 
 6
-00:00:18.220 --> 00:00:20.970
+00:00:18.300 --> 00:00:21.210
 running live in the
 console on the lesson page.
 
 7
-00:00:21.020 --> 00:00:23.450
+00:00:21.260 --> 00:00:23.450
 In this first one, you'll create the app,
 
 8
-00:00:23.500 --> 00:00:26.940
+00:00:23.500 --> 00:00:27.100
 render your first page,
 and respond to a key.
 
 9
-00:00:27.560 --> 00:00:30.150
+00:00:27.720 --> 00:00:30.310
 First, a quick look at how it works.
 
 10
-00:00:30.200 --> 00:00:32.710
+00:00:30.360 --> 00:00:33.030
 A Text.js app is a React app.
 
 11
-00:00:32.760 --> 00:00:37.030
+00:00:33.080 --> 00:00:37.350
 Your components lay out with Flexbox,
 into a grid of character cells.
 
 12
-00:00:37.080 --> 00:00:43.350
+00:00:37.400 --> 00:00:43.870
 Each frame that changes becomes a single
 console.log call, made of %c-styled spans.
 
 13
-00:00:43.400 --> 00:00:48.280
+00:00:43.920 --> 00:00:48.680
 DevTools draws it in the console,
 and the page only shows a focus pad.
 
 14
-00:00:49.800 --> 00:00:52.040
+00:00:50.200 --> 00:00:52.440
 Let's create the app.
 
 15
-00:00:54.200 --> 00:00:58.790
+00:00:54.600 --> 00:00:59.270
 Scaffold a new project with
 create-text-app, using the starter template.
 
 16
-00:00:58.840 --> 00:01:04.070
+00:00:59.320 --> 00:01:04.630
 You get the App Router, TypeScript, and
 the text CLI, in a handful of files.
 
 17
-00:01:04.120 --> 00:01:09.160
+00:01:04.680 --> 00:01:09.640
 Move into the folder and install
 dependencies, then start the dev server.
 
 18
-00:01:10.480 --> 00:01:12.990
+00:01:10.960 --> 00:01:13.470
 Open localhost:3000.
 
 19
-00:01:13.040 --> 00:01:19.230
-Then open the console with ⌘⌥J, or
-Ctrl+Shift+J on Windows and Linux.
+00:01:13.520 --> 00:01:15.230
+Then open the console.
 
 20
-00:01:19.280 --> 00:01:21.550
-The page only shows a focus pad.
+00:01:15.280 --> 00:01:20.830
+In Chrome that's ⌘⌥J, or
+Ctrl+Shift+J on Windows and Linux.
 
 21
-00:01:21.600 --> 00:01:24.000
-Your app is in the console.
+00:01:20.880 --> 00:01:23.270
+The page only shows a focus pad.
 
 22
-00:01:26.520 --> 00:01:29.240
-Now, your first page.
+00:01:23.320 --> 00:01:25.760
+Your app is in the console.
 
 23
-00:01:30.920 --> 00:01:34.870
+00:01:28.280 --> 00:01:31.000
+Now, your first page.
+
+24
+00:01:32.680 --> 00:01:36.630
 Every route is a page.tsx
 file in the app folder.
 
-24
-00:01:34.920 --> 00:01:38.390
+25
+00:01:36.680 --> 00:01:40.070
 Replace the starter page with
 the dashboard's title card.
 
-25
-00:01:38.440 --> 00:01:42.550
+26
+00:01:40.120 --> 00:01:44.150
 Box and Text come from @textjs/app.
 
-26
-00:01:42.600 --> 00:01:44.550
+27
+00:01:44.200 --> 00:01:46.150
 Box is a layout container.
 
-27
-00:01:44.600 --> 00:01:48.870
+28
+00:01:46.200 --> 00:01:50.150
 Its class names are Flexbox
 utilities, measured in cells:
 
-28
-00:01:48.920 --> 00:01:53.670
+29
+00:01:50.200 --> 00:01:55.030
 a column with a rounded border, and
 padding of two cells across and one down.
 
-29
-00:01:53.720 --> 00:01:57.910
+30
+00:01:55.080 --> 00:01:59.190
 Inside, a bold title, and a
 line in the theme's muted color.
 
-30
-00:01:57.960 --> 00:01:59.110
+31
+00:01:59.240 --> 00:02:00.390
 Save the file.
 
-31
-00:01:59.160 --> 00:02:03.480
+32
+00:02:00.440 --> 00:02:04.840
 Fast Refresh redraws the frame,
 and keeps your component state.
 
-32
-00:02:05.600 --> 00:02:08.720
+33
+00:02:06.960 --> 00:02:10.080
 Next, respond to a key.
 
-33
-00:02:10.000 --> 00:02:14.110
+34
+00:02:11.360 --> 00:02:15.630
 useInput receives every keystroke
 while the page has focus.
 
-34
-00:02:14.160 --> 00:02:15.710
+35
+00:02:15.680 --> 00:02:17.230
 Let's count the hellos.
 
-35
-00:02:15.760 --> 00:02:21.310
+36
+00:02:17.280 --> 00:02:22.830
 Import useState from React, and
 useInput alongside Box and Text.
 
-36
-00:02:21.360 --> 00:02:23.070
+37
+00:02:22.880 --> 00:02:24.670
 Keep the count in state.
 
-37
-00:02:23.120 --> 00:02:25.470
+38
+00:02:24.720 --> 00:02:26.990
 When the key is return, add one.
 
-38
-00:02:25.520 --> 00:02:28.350
+39
+00:02:27.040 --> 00:02:29.790
 When the input is r, reset to zero.
 
-39
-00:02:28.400 --> 00:02:31.440
+40
+00:02:29.840 --> 00:02:32.960
 Then show the count next to the greeting.
 
-40
-00:02:32.960 --> 00:02:36.830
+41
+00:02:34.480 --> 00:02:38.350
 Here it is, running in real
 DevTools, on the lesson page.
 
-41
-00:02:36.880 --> 00:02:39.870
+42
+00:02:38.400 --> 00:02:41.390
 Click the pad first,
 so the page has focus:
 
-42
-00:02:39.920 --> 00:02:43.470
+43
+00:02:41.440 --> 00:02:44.910
 keys typed into the DevTools
 prompt never reach the page.
 
-43
-00:02:43.520 --> 00:02:46.510
+44
+00:02:44.960 --> 00:02:47.870
 Press Enter, and again, and again.
 
-44
-00:02:46.560 --> 00:02:48.790
+45
+00:02:47.920 --> 00:02:50.110
 Each press redraws the frame.
 
-45
-00:02:48.840 --> 00:02:51.760
+46
+00:02:50.160 --> 00:02:53.200
 Press r, and the count resets.
 
-46
-00:02:53.680 --> 00:02:57.040
+47
+00:02:55.120 --> 00:02:58.480
 That's a complete
 Text.js app: React state,
 
-47
-00:02:57.080 --> 00:03:01.070
+48
+00:02:58.520 --> 00:03:02.510
 a layout box, and one
 console.log per changed frame.
 
-48
-00:03:01.120 --> 00:03:06.430
+49
+00:03:02.560 --> 00:03:07.870
 Each key press changed a few cells, so
 each one logged exactly one new frame.
 
-49
-00:03:06.480 --> 00:03:11.440
+50
+00:03:07.920 --> 00:03:12.960
 And while the app sits idle, nothing
 changes, so nothing is logged at all.
 
-50
-00:03:12.760 --> 00:03:13.830
+51
+00:03:14.280 --> 00:03:15.350
 Quick check.
 
-51
-00:03:13.880 --> 00:03:17.560
+52
+00:03:15.400 --> 00:03:19.080
 Where does a Text.js app render its UI?
 
-52
-00:03:18.880 --> 00:03:22.510
+53
+00:03:20.400 --> 00:03:24.030
 In the DevTools console,
 through console.log.
 
-53
-00:03:22.560 --> 00:03:27.040
+54
+00:03:24.080 --> 00:03:28.400
 Every changed frame is a
 single log of styled spans.
 
-54
-00:03:28.160 --> 00:03:31.440
+55
+00:03:29.520 --> 00:03:32.800
 And what does an idle app log?
 
-55
-00:03:32.760 --> 00:03:33.890
+56
+00:03:34.120 --> 00:03:35.250
 Nothing.
 
-56
-00:03:33.940 --> 00:03:38.290
+57
+00:03:35.300 --> 00:03:39.570
 If no cell changed, the renderer
 returns before it builds a string,
 
-57
-00:03:38.340 --> 00:03:40.500
+58
+00:03:39.620 --> 00:03:41.780
 so nothing is logged.
 
-58
-00:03:42.220 --> 00:03:47.450
+59
+00:03:43.500 --> 00:03:48.380
 Next, in chapter two, you'll build the
 dashboard shell with Flexbox in cells:
 
-59
-00:03:47.500 --> 00:03:50.410
+60
+00:03:48.420 --> 00:03:51.290
 a top bar, a sidebar, and cards.
 
-60
-00:03:50.460 --> 00:03:51.980
+61
+00:03:51.340 --> 00:03:52.940
 See you there.
