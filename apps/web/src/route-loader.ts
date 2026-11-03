@@ -40,8 +40,8 @@ const ROUTE_MANIFEST_SRC: Record<Exclude<Route["name"], "not-found">, string> = 
   merch: "src/merch/Merch.tsx",
 };
 
-/** Docs pages whose Markdown has loaded (`docs/registry.ts`). */
-const loadedDocs = new Set<string>();
+/** `docs/registry.ts` once it has loaded: it holds each docs page's Markdown. */
+let docs: typeof import("./docs/registry") | undefined;
 
 /** Vite manifest source keys of the chunks a route renders with: its page and, for a docs page, its Markdown (`postbuild-pages.ts`). */
 export function routeManifestSources(route: Route): string[] {
@@ -60,7 +60,7 @@ export function isRouteLoaded(route: Route): boolean {
     case "home":
       return loaded.HomePage !== undefined;
     case "docs":
-      return loaded.DocsPage !== undefined && loadedDocs.has(route.slug);
+      return loaded.DocsPage !== undefined && docs?.getDoc(route.slug) !== undefined;
     case "playground":
     case "opencode":
     case "coffee":
@@ -117,13 +117,10 @@ export function preloadRoute(route: Route): Promise<void> {
             loaded.DocsPage = m.DocsPage;
           }),
         ),
-        loadOnce(`doc:${slug}`, () =>
-          import("./docs/registry")
-            .then((m) => m.preloadDoc(slug))
-            .then(() => {
-              loadedDocs.add(slug);
-            }),
-        ),
+        import("./docs/registry").then((m) => {
+          docs = m;
+          return m.preloadDoc(slug);
+        }),
       ]).then(() => undefined);
     }
     case "playground":
