@@ -76,9 +76,6 @@
 .prose:is(:lang(ja), :lang(zh-CN), :lang(zh-TW)) {
   overflow-wrap: anywhere;
 }
-.prose:is(:lang(zh-CN), :lang(zh-TW)) {
-  line-break: strict;
-}
 /* No line starts with ー, small kana or closing punctuation; headings break at phrases into even lines. */
 :root:lang(ja) body {
   word-break: auto-phrase;
@@ -86,11 +83,17 @@
   text-autospace: normal;
   text-spacing-trim: trim-start;
 }
-:is(h1, h2, h3):lang(ja) {
-  text-wrap: balance;
+:root:is(:lang(zh-CN), :lang(zh-TW)) body {
+  line-break: strict;
+  text-spacing-trim: trim-start;
 }
+/* Korean breaks between words, as it's written; a word wider than the line still wraps. */
 :root:lang(ko) body {
   word-break: keep-all;
+  overflow-wrap: break-word;
+}
+:is(h1, h2, h3):is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW)) {
+  text-wrap: balance;
 }
 
 *,

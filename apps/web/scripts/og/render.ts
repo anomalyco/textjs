@@ -39,6 +39,9 @@ const sha = (data: string | Buffer): string => createHash("sha256").update(data)
 /** A locale's own card font (`template.ts`), which only that locale's cards draw with. */
 const SCRIPT_FONTS: Readonly<Record<string, string>> = {
   ja: "/fonts/noto-sans-jp-og.woff2",
+  ko: "/fonts/noto-sans-kr-og.woff2",
+  "zh-CN": "/fonts/noto-sans-sc-og.woff2",
+  "zh-TW": "/fonts/noto-sans-tc-og.woff2",
   ar: "/fonts/noto-sans-arabic-og.woff2",
   fa: "/fonts/noto-sans-arabic-og.woff2",
   ur: "/fonts/noto-sans-arabic-og.woff2",
