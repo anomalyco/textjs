@@ -72,38 +72,37 @@ export function matchRoute(pathname: string): Route {
 }
 
 export function titleFor(route: Route): string {
-  const suffix = "Text.js";
   switch (route.name) {
     case "home":
-      return "Text.js | The Console Framework";
+      return t("Text.js | The Console Framework");
     case "docs": {
       const doc = getDocMeta(route.slug);
       return t("{title} | Text.js Docs", { title: doc?.title ?? t("Docs") });
     }
     case "playground": {
       const preset = route.preset === PRESETS[0]?.id ? undefined : PRESETS.find((p) => p.id === route.preset);
-      return preset ? `${preset.label} | Text.js Playground` : `Playground | ${suffix}`;
+      return preset ? t("{demo} | Text.js Playground", { demo: preset.label }) : t("Playground | Text.js");
     }
     case "opencode":
-      return `OpenCode in the Console | ${suffix}`;
+      return t("OpenCode in the Console | Text.js");
     case "coffee":
-      return `terminal.shop in the Console | ${suffix}`;
+      return t("terminal.shop in the Console | Text.js");
     case "learn":
       return learnTitle(route.slug);
     case "errors":
-      return `Error Codes | ${suffix}`;
+      return t("Error Codes | Text.js");
     case "error":
-      return `${route.code}: ${getErrorPageDoc(route.code)?.title ?? "Error"} | ${suffix}`;
+      return t("{code}: {title} | Text.js", { code: route.code, title: getErrorPageDoc(route.code)?.title ?? t("Error") });
     case "changelog":
-      return `Changelog | ${suffix}`;
+      return t("Changelog | Text.js");
     case "blog":
-      return `Blog | ${suffix}`;
+      return t("Blog | Text.js");
     case "blog-post":
-      return `${getPostMeta(route.slug)?.title ?? "Blog"} | ${suffix}`;
+      return t("{title} | Text.js", { title: getPostMeta(route.slug)?.title ?? t("Blog") });
     case "enterprise":
-      return `Enterprise | ${suffix}`;
+      return t("Enterprise | Text.js");
     case "status":
-      return `Status | ${suffix}`;
+      return t("Status | Text.js");
     case "merch":
       return merchTitle(route.slug);
     case "not-found":

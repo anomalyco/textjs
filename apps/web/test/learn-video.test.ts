@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
-import { CAPTIONS_KEY, captionsMode, CaptionsStore, parseCaptions } from "../src/learn/captions";
+import { CAPTIONS_KEY, CaptionsStore, parseCaptions, pickedLanguage, trackModes, type TrackState } from "../src/learn/captions";
 import { escClosesMiniPlayer, miniPlayer, MINI_PLAYER_IDLE, type MiniPlayerEvent, type MiniPlayerState } from "../src/learn/miniPlayer";
 
 const run = (...events: MiniPlayerEvent[]): MiniPlayerState => events.reduce(miniPlayer, MINI_PLAYER_IDLE);
@@ -98,13 +98,19 @@ describe("captions", () => {
     off();
   });
 
-  test("toggle the text track between showing and hidden", () => {
-    expect(captionsMode(true, "disabled")).toBe("showing");
-    expect(captionsMode(true, "hidden")).toBe("showing");
-    expect(captionsMode(true, "showing")).toBeNull();
-    expect(captionsMode(false, "showing")).toBe("hidden");
-    // A track that was never shown stays disabled, so the .vtt isn't fetched for nothing.
-    expect(captionsMode(false, "disabled")).toBeNull();
-    expect(captionsMode(false, "hidden")).toBeNull();
+  test("one caption track shows at a time, and off hides it", () => {
+    const tracks = (...modes: TextTrackMode[]): TrackState[] => modes.map((mode, i) => ({ mode, language: ["ja", "en"][i]! }));
+    // On: the page's language first, or the language picked last; never two at once.
+    expect(trackModes(tracks("disabled", "disabled"), true, null)).toEqual(["showing", "disabled"]);
+    expect(trackModes(tracks("hidden", "hidden"), true, "en")).toEqual(["hidden", "showing"]);
+    expect(trackModes(tracks("showing", "showing"), true, null)).toEqual(["showing", "hidden"]);
+    expect(trackModes(tracks("hidden", "showing"), true, "ja")).toEqual(["hidden", "showing"]);
+    // Off hides whatever shows; a track that was never shown stays disabled, so its .vtt isn't fetched for nothing.
+    expect(trackModes(tracks("showing", "disabled"), false, null)).toEqual(["hidden", "disabled"]);
+    expect(trackModes(tracks("hidden", "showing"), false, null)).toEqual(["hidden", "hidden"]);
+    // The native menu: picking English while Japanese shows makes English the pick.
+    expect(pickedLanguage(tracks("showing", "showing"), "ja")).toBe("en");
+    expect(pickedLanguage(tracks("hidden", "showing"), "ja")).toBe("en");
+    expect(pickedLanguage(tracks("hidden", "hidden"), "ja")).toBeNull();
   });
 });

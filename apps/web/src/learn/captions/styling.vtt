@@ -1,0 +1,229 @@
+WEBVTT
+
+1
+00:00:01.300 --> 00:00:06.580
+This is chapter three of Learn
+Text.js: Text and Styling.
+
+2
+00:00:07.500 --> 00:00:13.210
+Every cell has a character, a foreground,
+a background and a handful of attributes.
+
+3
+00:00:13.260 --> 00:00:16.490
+You set them with Text props,
+and they land in the cells.
+
+4
+00:00:16.540 --> 00:00:17.740
+When the frame is logged,
+
+5
+00:00:17.780 --> 00:00:23.180
+Text.js compiles each run of
+styled cells into a %c CSS span,
+
+6
+00:00:23.220 --> 00:00:27.500
+so the console shows real
+colors, bold and italics.
+
+7
+00:00:29.220 --> 00:00:32.260
+First, text attributes.
+
+8
+00:00:33.620 --> 00:00:40.130
+Text takes five attributes: bold, dim,
+italic, underline and strikethrough.
+
+9
+00:00:40.180 --> 00:00:44.370
+Nested Text elements become
+styled spans inside one line.
+
+10
+00:00:44.420 --> 00:00:50.340
+Here, acme-web is bold, and
+iad1 takes the accent color.
+
+11
+00:00:52.460 --> 00:00:55.340
+Next, theme tokens.
+
+12
+00:00:56.860 --> 00:01:01.290
+Add a status component in app/status.tsx.
+
+13
+00:01:01.340 --> 00:01:05.210
+A deployment is ready,
+building, error or queued.
+
+14
+00:01:05.260 --> 00:01:08.570
+STATUS gives each one a
+label and a theme token:
+
+15
+00:01:08.620 --> 00:01:11.690
+success, warning, danger and subtle.
+
+16
+00:01:11.740 --> 00:01:17.850
+A color can also be a hex value, or a
+Tailwind palette class like text-emerald-400.
+
+17
+00:01:17.900 --> 00:01:22.170
+Tokens follow the active theme,
+so use them for anything semantic.
+
+18
+00:01:22.220 --> 00:01:25.130
+Status draws a dot and
+the label in that color,
+
+19
+00:01:25.180 --> 00:01:28.540
+and wrap="nowrap" keeps it on one row.
+
+20
+00:01:30.740 --> 00:01:33.540
+Now, a deployment card.
+
+21
+00:01:35.140 --> 00:01:39.250
+In the page, import
+useAppTheme, and Status,
+
+22
+00:01:39.300 --> 00:01:42.290
+STATUS and DeployStatus from the new file.
+
+23
+00:01:42.340 --> 00:01:44.850
+ORDER is the sequence s steps through.
+
+24
+00:01:44.900 --> 00:01:48.690
+useAppTheme returns the
+current theme and cycleTheme.
+
+25
+00:01:48.740 --> 00:01:52.850
+t cycles the theme, and s
+moves to the next status.
+
+26
+00:01:52.900 --> 00:01:56.450
+bg-surface raises the
+card off the background.
+
+27
+00:01:56.500 --> 00:01:59.540
+wrap="truncate-end" ends
+a long commit message with
+
+28
+00:01:59.580 --> 00:02:02.450
+an ellipsis instead of
+wrapping onto a second row.
+
+29
+00:02:02.500 --> 00:02:05.410
+And the deployment id
+takes the status color,
+
+30
+00:02:05.460 --> 00:02:09.620
+goes italic while building,
+and is struck through on error.
+
+31
+00:02:11.340 --> 00:02:13.930
+Here's the card, live on the lesson page.
+
+32
+00:02:13.980 --> 00:02:15.530
+Click the pad first.
+
+33
+00:02:15.580 --> 00:02:18.330
+Press s, and the deployment is building.
+
+34
+00:02:18.380 --> 00:02:20.810
+The id turns amber and italic.
+
+35
+00:02:20.860 --> 00:02:24.410
+Again, and it's an error,
+struck through in red.
+
+36
+00:02:24.460 --> 00:02:26.890
+Then queued, and back to ready.
+
+37
+00:02:26.940 --> 00:02:28.330
+Now press t.
+
+38
+00:02:28.380 --> 00:02:30.650
+Five themes ship with Text.js.
+
+39
+00:02:30.700 --> 00:02:37.210
+OpenCode Dark, Tokyo Night, Amber CRT,
+Geist Light, and back to Geist Dark.
+
+40
+00:02:37.260 --> 00:02:42.380
+The whole frame repaints in each palette,
+because every color in it is a token.
+
+41
+00:02:44.300 --> 00:02:45.370
+Quick check.
+
+42
+00:02:45.420 --> 00:02:49.420
+Why use color="success"
+instead of a hex value?
+
+43
+00:02:50.740 --> 00:02:53.410
+Theme tokens follow the active theme.
+
+44
+00:02:53.460 --> 00:02:59.700
+Tokens resolve against the current theme,
+so switching themes recolors every token.
+
+45
+00:03:00.820 --> 00:03:04.340
+What does wrap="truncate-end" do?
+
+46
+00:03:05.660 --> 00:03:08.650
+It ends overflowing text with an ellipsis.
+
+47
+00:03:08.700 --> 00:03:11.500
+The line stays one row tall.
+
+48
+00:03:13.220 --> 00:03:17.290
+Next, in chapter four, you'll move
+through deployments with the keyboard,
+
+49
+00:03:17.340 --> 00:03:20.450
+and add a help overlay
+that lists every shortcut.
+
+50
+00:03:20.500 --> 00:03:22.100
+See you there.

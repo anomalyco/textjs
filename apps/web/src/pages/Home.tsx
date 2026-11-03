@@ -5,6 +5,7 @@ import { isHomeExampleFrame } from "../docs/preview-meta";
 import { useSite } from "../console-companion/useSite";
 import { A } from "../router";
 import { rich } from "../i18n/rich";
+import { t } from "../i18n/t";
 import { CONSOLE_TAGS } from "../site/Chrome";
 import { CopyCommand } from "../site/CodeBlock";
 import { DevToolsWindow } from "../site/DevToolsWindow";
@@ -64,14 +65,12 @@ function Hero(): ReactNode {
         <div className="frame" style={{ background: "rgba(0,0,0,0.4)" }}>
           <Crosses />
           <div className="hero-body">
-            <h1>The Console Framework</h1>
-            <p className="lede">
-              Build full-stack React apps that render inside <code>console.log</code>.
-            </p>
+            <h1>{t("The Console Framework")}</h1>
+            <p className="lede">{rich("Build full-stack React apps that render inside <c>console.log</c>.", code)}</p>
             <div className="hero-actions">
               <div className="hero-ctas">
                 <A href="/docs" className="btn btn-primary btn-lg">
-                  Get started
+                  {t("Get started")}
                 </A>
                 <CopyCommand command="bunx create-text-app" />
               </div>
@@ -90,7 +89,7 @@ function Hero(): ReactNode {
           </div>
           <div className="split">
             <div className="split-code">
-              <div className="file-tabs" role="tablist" aria-label="Example files">
+              <div className="file-tabs" role="tablist" aria-label={t("Example files")}>
                 {HERO_FILES.map((f, i) => (
                   <button key={f.name} type="button" role="tab" aria-selected={i === file} onClick={() => setFile(i)}>
                     {f.name}
@@ -109,18 +108,13 @@ function Hero(): ReactNode {
   );
 }
 
+const code = { c: (c: ReactNode) => <code>{c}</code> };
+
 const FEATURES: Array<{ title: ReactNode; body: ReactNode }> = [
-  { title: "React 19", body: <>Text.js supports concurrent rendering, Suspense and error boundaries.</> },
-  { title: "App Router", body: <>Folders in <code>app/</code> become routes and layouts, and Back, Forward and deep links work.</> },
-  { title: "Responsive grid", body: <>The grid fits the docked DevTools panel at any page zoom.</> },
-  {
-    title: "Keyboard input",
-    body: (
-      <>
-        Keys, paste and IME composition reach the app through one hidden <code>&lt;textarea&gt;</code>.
-      </>
-    ),
-  },
+  { title: "React 19", body: t("Text.js supports concurrent rendering, Suspense and error boundaries.") },
+  { title: "App Router", body: rich("Folders in <c>app/</c> become routes and layouts, and Back, Forward and deep links work.", code) },
+  { title: t("Responsive grid"), body: t("The grid fits the docked DevTools panel at any page zoom.") },
+  { title: t("Keyboard input"), body: rich("Keys, paste and IME composition reach the app through one hidden <textarea></textarea>.", { ...code, textarea: () => <code>&lt;textarea&gt;</code> }) },
 ];
 
 function Features(): ReactNode {

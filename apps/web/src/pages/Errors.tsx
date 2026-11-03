@@ -1,10 +1,12 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { TX_ERRORS, TX_PACKAGES, txMessage, type TxCode, type TxErrorDoc } from "@textjs/core";
+import { TX_PACKAGES, txMessage, type TxCode, type TxErrorDoc } from "@textjs/core";
+import { rich } from "../i18n/rich";
+import { t } from "../i18n/t";
 import { A } from "../router";
 import { CopyButton } from "../site/CodeBlock";
 import { SearchIcon } from "../site/icons";
 import { MarkdownDoc } from "../site/Markdown";
-import { getErrorPageDoc, TX000 } from "./tx000";
+import { ERROR_DOCS as TX_ERRORS, getErrorPageDoc, TX000 } from "./tx000";
 
 export function errorPath(code: string): string {
   return `/errors/${code}`;
@@ -39,22 +41,20 @@ export function ErrorsIndexPage(): ReactNode {
   return (
     <div className="tx-errors">
       <div className="breadcrumbs">
-        <A href="/docs">Docs</A>
+        <A href="/docs">{t("Docs")}</A>
         <span>/</span>
-        <span>Reference</span>
+        <span>{t("Reference")}</span>
       </div>
-      <h1 className="docs-title">Error Codes</h1>
-      <p className="docs-desc">
-        Each <code>TX</code> code is stable and has a page with its cause and fix. Codes are never renumbered or reused.
-      </p>
+      <h1 className="docs-title">{t("Error Codes")}</h1>
+      <p className="docs-desc">{rich("Each <c>TX</c> code is stable and has a page with its cause and fix. Codes are never renumbered or reused.", { c: (c) => <code>{c}</code> })}</p>
       <label className="tx-errors-search">
         <SearchIcon size={16} />
-        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by code, message or package…" aria-label="Search error codes" spellCheck={false} autoComplete="off" />
+        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Search by code, message or package…")} aria-label={t("Search error codes")} spellCheck={false} autoComplete="off" />
         <span className="tx-errors-count" aria-live="polite">
-          {hits.length} of {TX_ERRORS.length}
+          {t("{count} of {total}", { count: hits.length, total: TX_ERRORS.length })}
         </span>
       </label>
-      {hits.length === 0 ? <p className="tx-errors-empty">No error codes match “{query.trim()}”.</p> : null}
+      {hits.length === 0 ? <p className="tx-errors-empty">{t("No error codes match “{query}”.", { query: query.trim() })}</p> : null}
       {TX_PACKAGES.map((pkg) => {
         const rows = hits.filter((e) => e.package === pkg);
         if (rows.length === 0) return null;
@@ -68,7 +68,7 @@ export function ErrorsIndexPage(): ReactNode {
                     <code className="tx-code">{e.code}</code>
                     <span className="tx-errors-title">
                       {e.title}
-                      {e.kind === "warning" ? <span className="badge tx-warning-badge">Warning</span> : null}
+                      {e.kind === "warning" ? <span className="badge tx-warning-badge">{t("Warning")}</span> : null}
                     </span>
                     <span className="tx-errors-msg">
                       <Template text={e.message} />
@@ -91,22 +91,22 @@ export function ErrorPage({ code }: { code: string }): ReactNode {
   const prev = i > 0 ? TX_ERRORS[i - 1] : undefined;
   const next = TX_ERRORS[i + 1];
   const example =
-    e === TX000 ? `Text.js error ${e.code}: ${e.message}` : txMessage(e.code as TxCode).replace(/^Text\.js error/, e.kind === "warning" ? "Text.js warning" : "Text.js error");
+    e.code === TX000.code ? `Text.js error ${e.code}: ${e.message}` : txMessage(e.code as TxCode).replace(/^Text\.js error/, e.kind === "warning" ? "Text.js warning" : "Text.js error");
   return (
     <article className="tx-errors">
       <div className="breadcrumbs">
-        <A href="/errors">Error Codes</A>
+        <A href="/errors">{t("Error Codes")}</A>
         <span>/</span>
         <span>{e.package}</span>
       </div>
       <p className="tx-error-code">
         <code className="tx-code">{e.code}</code>
-        {e.kind === "warning" ? <span className="badge tx-warning-badge">Warning</span> : null}
+        {e.kind === "warning" ? <span className="badge tx-warning-badge">{t("Warning")}</span> : null}
       </p>
       <h1 className="docs-title">{e.title}</h1>
       <div className={`tx-error-message${e.kind === "warning" ? " warning" : ""}`}>
         <div className="tx-error-message-head">
-          <span>Console</span>
+          <span>{t("Console")}</span>
           <CopyButton text={example} />
         </div>
         <p>
@@ -114,34 +114,34 @@ export function ErrorPage({ code }: { code: string }): ReactNode {
         </p>
       </div>
       <section className="tx-error-section">
-        <h2 id="why">Why this happens</h2>
+        <h2 id="why">{t("Why this happens")}</h2>
         <MarkdownDoc source={e.cause} />
       </section>
       <section className="tx-error-section">
-        <h2 id="fix">How to fix it</h2>
+        <h2 id="fix">{t("How to fix it")}</h2>
         <MarkdownDoc source={e.fix} />
       </section>
-      <nav className="docs-nav" aria-label="Error codes">
+      <nav className="docs-nav" aria-label={t("Error codes")}>
         {prev ? (
           <A href={errorPath(prev.code)}>
-            <small>Previous</small>
+            <small>{t("Previous")}</small>
             <span>
-              <span className="rtl-flip">←</span> {prev.code} {prev.title}
+              <span className="rtl-flip">←</span>&nbsp;{prev.code} {prev.title}
             </span>
           </A>
         ) : (
           <A href="/errors">
-            <small>Index</small>
+            <small>{t("Index")}</small>
             <span>
-              <span className="rtl-flip">←</span> All error codes
+              <span className="rtl-flip">←</span>&nbsp;{t("All error codes")}
             </span>
           </A>
         )}
         {next ? (
           <A href={errorPath(next.code)} className="next">
-            <small>Next</small>
+            <small>{t("Next")}</small>
             <span>
-              {next.code} {next.title} <span className="rtl-flip">→</span>
+              {next.code} {next.title}&nbsp;<span className="rtl-flip">→</span>
             </span>
           </A>
         ) : null}

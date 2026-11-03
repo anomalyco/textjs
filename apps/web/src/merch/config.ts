@@ -1,3 +1,4 @@
+import { msg } from "../i18n/t";
 /**
  * Where the store sends buyers. Checkout isn't connected yet, so `provider` is null and every product
  * shows "Coming soon". To open the store, set `provider`; a product goes on sale as soon as the provider
@@ -110,7 +111,7 @@ export const MERCH: MerchConfig = {
     ...Object.fromEntries(
       ["logo-tee", "block-tee", "console-tee", "console-hoodie", "mark-hoodie", "console-cap", "mark-cap", "sticker-mark", "sticker-wordmark", "sticker-console", "sticker-keys", "sticker-percent-c", "psa-tee", "psa-sticker"].map((slug) => [
         slug,
-        { shipping: "Made to order in 2 to 5 business days." } satisfies Sale,
+        { shipping: msg("Made to order in 2 to 5 business days.") } satisfies Sale,
       ]),
     ),
     // The Keycap Set and Notebook aren't in Fourthwall's on-demand catalog; they come from separate makers

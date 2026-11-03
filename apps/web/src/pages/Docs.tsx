@@ -120,7 +120,7 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
                 <A href={docPath(prev.slug)}>
                   <small>{t("Previous")}</small>
                   <span>
-                    <span className="rtl-flip">←</span> {prev.title}
+                    <span className="rtl-flip">←</span>&nbsp;{prev.title}
                   </span>
                 </A>
               ) : null}
@@ -128,7 +128,7 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
                 <A href={docPath(next.slug)} className="next">
                   <small>{t("Next")}</small>
                   <span>
-                    {next.title} <span className="rtl-flip">→</span>
+                    {next.title}&nbsp;<span className="rtl-flip">→</span>
                   </span>
                 </A>
               ) : null}

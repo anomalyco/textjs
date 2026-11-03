@@ -8,7 +8,9 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { learnVideo, PUBLISHED } from "../src/learn/video";
+import { LOCALES } from "../src/i18n/locales";
+import { captionsPath, learnVideo, PUBLISHED } from "../src/learn/video";
+import { translatedCaptions } from "./i18n/sources";
 
 const SITE_HOST = "textjs.org";
 const MEDIA_HOST = "media.textjs.org";
@@ -368,13 +370,26 @@ export async function checkSite(options: CheckOptions = {}): Promise<Report> {
     }
   }
 
+  // Learn caption tracks render on the client too, from this site: English, and each built locale's translation.
+  for (const slug of Object.keys(PUBLISHED)) {
+    const langs = [
+      ...(isFile(join(dist, "learn", `${slug}.html`)) ? ["en"] : []),
+      ...LOCALES.filter((l) => l.path && isFile(join(dist, l.path, "learn", `${slug}.html`)) && translatedCaptions(l.code).includes(slug)).map((l) => l.code),
+    ];
+    for (const lang of langs) {
+      internalRefs++;
+      const path = captionsPath(slug, lang);
+      if (!isFile(join(dist, path.slice(1)))) report("asset", path, "not found", `src/learn/video.ts PUBLISHED.${slug}`);
+    }
+  }
+
   const externalChecked = options.external === true;
   if (externalChecked) {
     // Learn videos render on the client, so the player's files never reach the HTML. Probe what it would request.
     for (const slug of Object.keys(PUBLISHED)) {
       const video = learnVideo(slug);
       if (!video) continue;
-      for (const url of [video.src, video.srcSmall, video.poster, video.captions]) {
+      for (const url of [video.src, video.srcSmall, video.poster]) {
         const entry = externals.get(url) ?? { media: true, sources: [] };
         const source = `src/learn/video.ts PUBLISHED.${slug}`;
         if (!entry.sources.includes(source)) entry.sources.push(source);

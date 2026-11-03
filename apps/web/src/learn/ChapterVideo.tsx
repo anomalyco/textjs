@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { BYPASS_SELECTOR, shouldRouteToConsole } from "../console-companion/bridge";
 import { siteStore } from "../console-companion/store";
+import { t } from "../i18n/t";
 import { CloseIcon, PauseIcon, PipIcon, PlayIcon, ReturnIcon } from "../site/icons";
 import { useInView } from "../site/useInView";
-import { captionsMode, captionsStore, useCaptions } from "./captions";
+import { captionsStore, pickedLanguage, trackModes, useCaptions } from "./captions";
 import { escClosesMiniPlayer, miniPlayer, MINI_PLAYER_IDLE, type MiniPlayerEvent, type MiniPlayerState } from "./miniPlayer";
 import { formatDuration, learnVideo, type LearnVideo } from "./video";
 
@@ -58,25 +59,25 @@ export function ChapterVideo({ slug, title, video = learnVideo(slug) }: { slug: 
           <div
             className={`learn-video-player${floating ? ` floating${compact ? " compact" : ""}` : dock ? ` ${dock}` : ""}`}
             role={floating ? "region" : undefined}
-            aria-label={floating ? "Mini player" : undefined}
+            aria-label={floating ? t("Mini player") : undefined}
             data-console-bypass=""
           >
             {floating ? (
               <div className="learn-mini-bar" ref={barRef}>
-                <button type="button" className="learn-mini-back" onClick={backToVideo} aria-label={`${title}, back to video`} title="Back to video">
+                <button type="button" className="learn-mini-back" onClick={backToVideo} aria-label={t("{title}, back to video", { title })} title={t("Back to video")}>
                   <ReturnIcon size={13} />
                   <span>{title}</span>
                 </button>
-                <button type="button" className="learn-mini-btn" onClick={togglePlay} aria-label={mini.playing ? "Pause" : "Play"} title={mini.playing ? "Pause" : "Play"}>
+                <button type="button" className="learn-mini-btn" onClick={togglePlay} aria-label={mini.playing ? t("Pause") : t("Play")} title={mini.playing ? t("Pause") : t("Play")}>
                   {mini.playing ? <PauseIcon size={13} /> : <PlayIcon size={13} />}
                 </button>
                 <CaptionsToggle on={captions} className="learn-mini-btn learn-mini-cc" label="CC" />
                 {pip ? (
-                  <button type="button" className="learn-mini-btn" onClick={() => void el.requestPictureInPicture().catch(() => undefined)} aria-label="Picture-in-Picture" title="Picture-in-Picture">
+                  <button type="button" className="learn-mini-btn" onClick={() => void el.requestPictureInPicture().catch(() => undefined)} aria-label={t("Picture-in-Picture")} title={t("Picture-in-Picture")}>
                     <PipIcon size={14} />
                   </button>
                 ) : null}
-                <button type="button" className="learn-mini-btn" onClick={close} aria-label="Close mini player" title="Close (Esc)">
+                <button type="button" className="learn-mini-btn" onClick={close} aria-label={t("Close mini player")} title={t("Close (Esc)")}>
                   <CloseIcon size={14} />
                 </button>
               </div>
@@ -86,23 +87,24 @@ export function ChapterVideo({ slug, title, video = learnVideo(slug) }: { slug: 
               controls={!(floating && compact)}
               preload="none"
               playsInline
-              crossOrigin="anonymous"
               poster={video.poster}
-              aria-label={`${title}, narrated video`}
+              aria-label={t("{title}, narrated video", { title })}
               onClick={floating && compact ? backToVideo : undefined}
             >
               <source src={video.srcSmall} type="video/mp4" media="(max-width: 720px)" />
               <source src={video.src} type="video/mp4" />
-              <track kind="captions" src={video.captions} srcLang="en" label="English" />
+              {video.captions.map((c) => (
+                <track key={c.lang} kind="captions" src={c.src} srcLang={c.lang} label={c.label} />
+              ))}
             </video>
           </div>
         ) : null}
       </div>
       <figcaption>
-        <span>Watch the chapter</span>
+        <span>{t("Watch the chapter")}</span>
         <span className="learn-video-meta">
           <span>{formatDuration(video.duration)}</span>
-          <CaptionsToggle on={captions} className="learn-video-cc" label="Captions" />
+          <CaptionsToggle on={captions} className="learn-video-cc" label={t("Captions")} />
         </span>
       </figcaption>
     </figure>
@@ -111,7 +113,7 @@ export function ChapterVideo({ slug, title, video = learnVideo(slug) }: { slug: 
 
 function CaptionsToggle({ on, className, label }: { on: boolean; className: string; label: string }): ReactNode {
   return (
-    <button type="button" className={className} aria-pressed={on} onClick={() => captionsStore.set(!on)} title={on ? "Hide captions" : "Show captions"}>
+    <button type="button" className={className} aria-pressed={on} onClick={() => captionsStore.set(!on)} title={on ? t("Hide captions") : t("Show captions")}>
       {label}
     </button>
   );
@@ -161,23 +163,32 @@ function useMedia(query: string): boolean {
   return matches;
 }
 
-/** Applies the captions choice to the video's track, and follows changes made from the native controls. */
+/** The caption language picked last, so turning captions back on brings it back (on this page and the next). */
+let lastLanguage: string | null = null;
+
+/** Applies the captions choice to the video's tracks, one showing at most, and follows the native captions menu. */
 function useCaptionTrack(video: HTMLVideoElement | null, on: boolean): void {
   useEffect(() => {
-    const track = video?.textTracks[0];
-    if (!track) return;
-    const mode = captionsMode(on, track.mode);
-    if (mode) track.mode = mode;
+    if (!video) return;
+    const tracks = [...video.textTracks];
+    trackModes(tracks, on, lastLanguage).forEach((mode, i) => {
+      if (tracks[i]!.mode !== mode) tracks[i]!.mode = mode;
+    });
   }, [video, on]);
   useEffect(() => {
     if (!video) return;
-    const tracks = video.textTracks;
+    const list = video.textTracks;
     const sync = (): void => {
-      const track = tracks[0];
-      if (track) captionsStore.set(track.mode === "showing");
+      const tracks = [...list];
+      const picked = pickedLanguage(tracks, lastLanguage);
+      if (picked) {
+        lastLanguage = picked;
+        for (const t of tracks) if (t.mode === "showing" && t.language !== picked) t.mode = "hidden";
+      }
+      captionsStore.set(picked !== null);
     };
-    tracks.addEventListener("change", sync);
-    return () => tracks.removeEventListener("change", sync);
+    list.addEventListener("change", sync);
+    return () => list.removeEventListener("change", sync);
   }, [video]);
 }
 

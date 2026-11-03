@@ -14,7 +14,7 @@ import { optimizePng } from "./png";
 import { CHROMIUM_ARGS, cardHtml, documentHtml, drawn, LOCKUP_SVG, OG_FONTS, OG_ORIGIN } from "./template";
 
 export interface OgImage {
-  /** Site path of the image, with a content version (`/og/docs-routing.png?v=…`). */
+  /** Site path of the image, with a version from its bytes (`/og/docs-routing.png?v=…`). */
   url: string;
   width: number;
   height: number;
@@ -36,10 +36,22 @@ const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
 const sha = (data: string | Buffer): string => createHash("sha256").update(data).digest("hex");
 
-/** Hash of the renderer itself: these scripts, every font file, the lockup (it lives in the site's logo menu) and the card size. */
+/** A locale's own card font (`template.ts`), which only that locale's cards draw with. */
+const SCRIPT_FONTS: Readonly<Record<string, string>> = {
+  ja: "/fonts/noto-sans-jp-og.woff2",
+  ar: "/fonts/noto-sans-arabic-og.woff2",
+  fa: "/fonts/noto-sans-arabic-og.woff2",
+  ur: "/fonts/noto-sans-arabic-og.woff2",
+};
+const isScriptFont = (url: string): boolean => Object.values(SCRIPT_FONTS).includes(url);
+
+/**
+ * Hash of the renderer itself: these scripts, the shared fonts, the lockup (it lives in the site's logo menu) and the
+ * card size. A locale's script font goes into its own cards' keys only, so re-subsetting it leaves other cards alone.
+ */
 function rendererHash(): string {
   const parts = ["template.ts", "render.ts", "png.ts"].map((f) => readFileSync(join(import.meta.dirname, f)));
-  for (const file of Object.values(OG_FONTS)) parts.push(readFileSync(join(WEB_DIR, file)));
+  for (const [url, file] of Object.entries(OG_FONTS)) if (!isScriptFont(url)) parts.push(readFileSync(join(WEB_DIR, file)));
   parts.push(Buffer.from(`${OG_WIDTH}x${OG_HEIGHT}\n${LOCKUP_SVG}`));
   return sha(Buffer.concat(parts));
 }
@@ -182,8 +194,10 @@ export async function renderOgImages(cards: readonly OgCard[], distDir: string, 
       files.set(url, file);
       card = { ...card, photo: url.slice(1) };
     }
+    const scriptFont = card.lang ? OG_FONTS[SCRIPT_FONTS[card.lang] ?? ""] : undefined;
+    const scriptHash = scriptFont ? sha(readFileSync(join(WEB_DIR, scriptFont))) : "";
     // Only what's drawn: the alt text, the route and fields the template leaves out don't change a pixel.
-    const key = sha(`${renderer}\n${photoHash}\n${JSON.stringify(drawn(card))}`).slice(0, 20);
+    const key = sha(`${renderer}\n${scriptHash}${photoHash}\n${JSON.stringify(drawn(card))}`).slice(0, 20);
     const ext = card.photo ? "jpg" : "png";
     return { card, key, ext, cacheFile: join(cacheDir, `${key}.${ext}`), files };
   });
@@ -237,7 +251,8 @@ export async function renderOgImages(cards: readonly OgCard[], distDir: string, 
     copyFileSync(j.cacheFile, join(outDir, name));
     utimesSync(j.cacheFile, now, now);
     bytes += statSync(j.cacheFile).size;
-    images.set(j.card.path, { url: `/og/${name}?v=${j.key.slice(0, 8)}`, width: OG_WIDTH, height: OG_HEIGHT, alt: j.card.alt });
+    // The version is the image's own bytes: it changes only when the card looks different.
+    images.set(j.card.path, { url: `/og/${name}?v=${sha(readFileSync(j.cacheFile)).slice(0, 8)}`, width: OG_WIDTH, height: OG_HEIGHT, alt: j.card.alt });
   }
 
   const used = new Set(jobs.map((j) => j.cacheFile));

@@ -82,7 +82,7 @@ describe("/errors", () => {
     expect(html).toContain("TX000<!-- -->:</span> <span>Success.</span>");
     expect(html).toContain("No error occurred.");
     expect(html).toContain("No action is needed.");
-    expect(html).toContain(`<span class="rtl-flip">←</span> All error codes`);
+    expect(html).toContain(`<span class="rtl-flip">←</span>\u00a0<!-- -->All error codes`);
     expect(html).toContain('href="/errors/TX001" class="next"');
     expect(await render("/errors")).not.toContain("TX000");
     expect(await render("/errors/TX001")).not.toContain("TX000");

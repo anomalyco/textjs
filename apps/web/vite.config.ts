@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { translatedCaptions } from "./scripts/i18n/sources";
 import { i18nPlugin } from "./scripts/i18n/vite-plugin";
 import { reportsDevMiddleware } from "./server/reports-dev";
 import { terminalDevMiddleware } from "./server/terminal-dev";
@@ -162,6 +163,8 @@ export default defineConfig(({ isSsrBuild }) => ({
     __TEXTJS_RELEASE__: JSON.stringify(release()),
     __TEXTJS_LOCALE__: JSON.stringify(LOCALE),
     __TEXTJS_LOCALES__: JSON.stringify(process.env.TEXTJS_LOCALES ?? ""),
+    // Chapters whose captions this locale has translated (scripts/postbuild-pages.ts writes their tracks).
+    __TEXTJS_CAPTIONS__: JSON.stringify(SOURCE ? [] : translatedCaptions(LOCALE)),
   },
   publicDir: SOURCE ? "public" : false,
   build: {

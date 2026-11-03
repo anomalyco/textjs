@@ -76,7 +76,7 @@ export function Header(): ReactNode {
           <span>Text.js</span>
         </A>
         {logoMenu ? <LogoMenu state={logoMenu} onClose={closeLogoMenu} /> : null}
-        <nav className="nav" aria-label="Main">
+        <nav className="nav" aria-label={t("Main")}>
           {NAV.map((n) => (
             <A key={n.href} href={n.href} aria-current={isActive(pathname, n.href) ? "page" : undefined}>
               {n.label}

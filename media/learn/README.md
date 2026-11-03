@@ -29,7 +29,7 @@ Output (`out/` is gitignored; the folder layout matches the R2 bucket at `media.
 | `out/learn/<slug>/<slug>-1080p.mp4` | 1920×1080, 60 fps, H.264 High (CRF 17) + AAC 192k, `+faststart` |
 | `out/learn/<slug>/<slug>-720p.mp4` | Smaller variant for narrow screens |
 | `out/learn/<slug>/<slug>-poster.jpg` | The cover, fully revealed |
-| `out/learn/<slug>/<slug>.vtt` | WebVTT captions, timed to the narration's words |
+| `out/learn/<slug>/<slug>.vtt` | WebVTT captions, timed to the narration's words. textjs.org serves captions itself: copy this file to `apps/web/src/learn/captions/<slug>.vtt` and run `bun run --cwd apps/web i18n:translate` for the translated tracks |
 | `out/learn/<slug>/manifest.json` | Duration, scenes, voice/model, loudness |
 | `out/review/<slug>/` | Contact sheet, settled frames for every scene and cue, transition strips, last frame |
 | `out/job/<slug>/` | The job bundle produce.ts reads (timeline, filmed footage + its cache key, clips, fonts) |

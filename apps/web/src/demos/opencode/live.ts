@@ -1,13 +1,15 @@
+import { msg, plural } from "../../i18n/t";
+
 /** Connection discovery for the HTML focus pad. All session traffic and SSE
  * are owned by the embedded app, never by the page or its prerenderer. */
 export const DEFAULT_SERVER_URL = "http://127.0.0.1:4096";
 export const BRIDGE_COMMAND = "bunx @textjs/opencode@latest proxy";
 export const BRIDGE_TOKEN_HEADER = "x-textjs-bridge-token";
 /** Followed on the page by the copyable {@link BRIDGE_COMMAND}. */
-export const OUTDATED_BRIDGE = "This bridge is out of date. Stop it and run:";
+export const OUTDATED_BRIDGE = msg("This bridge is out of date. Stop it and run:");
 /** The same words as the bridge's own replies (`@textjs/opencode`). */
-export const PAIRING_PROMPT = "Enter the code from your terminal.";
-export const PAIRING_LOCKED = "Too many wrong codes. Restart the bridge.";
+export const PAIRING_PROMPT = msg("Enter the code from your terminal.");
+export const PAIRING_LOCKED = msg("Too many wrong codes. Restart the bridge.");
 const REMEMBER_KEY = "textjs:opencode-server";
 const TOKEN_KEY = "textjs:opencode-bridge-token:";
 const loopback = () => typeof location !== "undefined" && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
@@ -25,7 +27,7 @@ export class PairingRequired extends Error {
 /** The bridge refused a code; `attemptsLeft` more before it locks. */
 export class WrongCode extends Error {
   constructor(readonly attemptsLeft: number) {
-    super(`Wrong code. ${attemptsLeft} ${attemptsLeft === 1 ? "try" : "tries"} left.`);
+    super(plural(attemptsLeft, { one: "Wrong code. {count} try left.", other: "Wrong code. {count} tries left." }));
     this.name = "WrongCode";
   }
 }

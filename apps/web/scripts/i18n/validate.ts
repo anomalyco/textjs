@@ -22,10 +22,13 @@ const sameMultiset = (a: Iterable<string>, b: Iterable<string>): boolean => {
 
 const all = (re: RegExp, s: string, group = 0): string[] => [...s.matchAll(re)].map((m) => m[group] as string);
 
-const placeholders = (s: string): string[] => all(/\{(\w+)\}/g, s.replace(/`[^`]*`/g, ""));
-const tags = (s: string): string[] => all(/<\/?(\w+)>/g, s.replace(/`[^`]*`/g, ""));
+/** Inline code, including double-backtick spans that contain a backtick (`` Ctrl+` ``). */
+const CODE = /(`+)(?!`)(.+?)(?<!`)\1(?!`)/g;
+const noCode = (s: string): string => s.replace(CODE, "");
+const placeholders = (s: string): string[] => all(/\{(\w+)\}/g, noCode(s));
+const tags = (s: string): string[] => all(/<\/?(\w+)>/g, noCode(s));
 const hrefs = (s: string): string[] => all(/\]\(([^)\s]+)\)/g, s, 1);
-const codeSpans = (s: string): string[] => all(/`([^`\n]+)`/g, s, 1);
+const codeSpans = (s: string): string[] => all(CODE, s, 2).map((c) => c.trim());
 const tableRows = (s: string): number => s.split("\n").filter((l) => /^\s*\|/.test(l)).length;
 const listItems = (s: string): number => s.split("\n").filter((l) => /^\s*([-*+]|\d+[.)])\s/.test(l)).length;
 
@@ -61,7 +64,7 @@ export function validate(locale: string, source: string, target: string, keep: r
     if (n(source) !== n(target)) warnings.push(`"${term}" appears ${n(source)}× in English, ${n(target)}× here`);
   }
   const script = SCRIPT[locale];
-  const prose = source.replace(/`[^`]*`/g, "").replace(/\]\([^)]*\)/g, "](");
+  const prose = noCode(source).replace(/\]\([^)]*\)/g, "](");
   const keptOnly = keep.reduce((s, k) => s.split(k).join(""), prose);
   if (script && /[A-Za-z]{3,}\s+[A-Za-z]{3,}/.test(keptOnly) && !script.test(target)) warnings.push("no characters of the target script");
   return { errors, warnings };

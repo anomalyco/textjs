@@ -7,6 +7,7 @@ import { exampleFrame, exampleHeader, PREVIEW_META } from "../docs/preview-meta"
 import type { PreviewSpec } from "../docs/previews";
 import { SandboxConsole } from "../sandbox/SandboxConsole";
 import { useSandbox } from "../sandbox/useSandbox";
+import { t } from "../i18n/t";
 import { CopyButton } from "./CodeBlock";
 import { DevToolsWindow } from "./DevToolsWindow";
 import { HighlightedCode } from "./highlight";
@@ -133,24 +134,24 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
     <div className={`preview${active ? " in-console" : ""}`} ref={ref} dir="ltr" data-preview={id}>
       <div className="preview-head">
         <span className="live">
-          <span className="dot" /> {active ? "Live in your console" : "Live"}
+          <span className="dot" /> {active ? t("Live in your console") : t("Live")}
         </span>
         <span className="preview-stats">{stats}</span>
         <span style={{ marginInlineStart: "auto" }}>{language}</span>
         {meta ? (
           active ? (
-            <button type="button" className="preview-run desktop-only" onClick={() => siteStore.exitExample(id)} title="Show the docs in the console again">
-              Back to docs
+            <button type="button" className="preview-run desktop-only" onClick={() => siteStore.exitExample(id)} title={t("Show the docs in the console again")}>
+              {t("Back to docs")}
             </button>
           ) : (
-            <button type="button" className="preview-run desktop-only" onClick={() => runInConsole(id)} title="Runs this example in your DevTools console">
-              Run in console
+            <button type="button" className="preview-run desktop-only" onClick={() => runInConsole(id)} title={t("Runs this example in your DevTools console")}>
+              {t("Run in console")}
             </button>
           )
         ) : null}
         <CopyButton text={code} />
       </div>
-      <div className="preview-stage" onMouseDownCapture={available && meta && !active ? onStageMouseDown : undefined} title={available && !active ? "Click to run in your console" : undefined}>
+      <div className="preview-stage" onMouseDownCapture={available && meta && !active ? onStageMouseDown : undefined} title={available && !active ? t("Click to run in your console") : undefined}>
         {active ? (
           <div className="sandbox">
             <DevToolsWindow
@@ -158,7 +159,7 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
               engage
               engaged={site.consoleInput}
               onActivate={() => runInConsole(id)}
-              activateLabel="Click to type"
+              activateLabel={t("Click to type")}
               cols={meta?.cols}
               rows={meta?.rows}
             />
@@ -171,7 +172,7 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
             filter={`-url:preview://${id}`}
             cols={meta?.cols}
             rows={meta?.rows}
-            activateLabel={available ? "Click to run in console" : undefined}
+            activateLabel={available ? t("Click to run in console") : undefined}
             onInspect={() => setWireframe((w) => !w)}
             inspecting={wireframe}
           />

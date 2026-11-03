@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import type { StyledFrame, StyledSpan } from "@textjs/core";
+import { rich } from "../../i18n/rich";
+import { t } from "../../i18n/t";
 import { A } from "../../router";
 import { OpenCodeWordmark } from "../../site/brand-marks";
 import { DevToolsWindow } from "../../site/DevToolsWindow";
@@ -43,22 +45,14 @@ const FRAME: StyledFrame = {
 };
 
 const FACTS: Array<{ title: string; body: ReactNode }> = [
-  { title: "Sandbox", body: <>A scripted agent answers any prompt, with nothing to install.</> },
+  { title: t("Sandbox"), body: t("A scripted agent answers any prompt, with nothing to install.") },
   {
-    title: "One command",
-    body: (
-      <>
-        Run <code className="oc-cmd">bunx @textjs/opencode@latest proxy</code> and enter the code it prints. The page connects to OpenCode on your machine.
-      </>
-    ),
+    title: t("One command"),
+    body: rich("Run <cmd>bunx @textjs/opencode@latest proxy</cmd> and enter the code it prints. The page connects to OpenCode on your machine.", { cmd: (c) => <code className="oc-cmd">{c}</code> }),
   },
   {
-    title: "Your models and sessions",
-    body: (
-      <>
-        Pick any model your server has configured with <code>/models</code>. Sessions, agents and models come from your OpenCode server.
-      </>
-    ),
+    title: t("Your models and sessions"),
+    body: rich("Pick any model your server has configured with <c>/models</c>. Sessions, agents and models come from your OpenCode server.", { c: (c) => <code>{c}</code> }),
   },
 ];
 
@@ -70,14 +64,14 @@ export function OpenCodeBand(): ReactNode {
           <div className="section-mark">
             <OpenCodeWordmark />
           </div>
-          <h2>Code with OpenCode in DevTools</h2>
-          <p className="oc-lede">OpenCode Lite is the OpenCode TUI rebuilt with Text.js to run in your browser console.</p>
+          <h2>{t("Code with OpenCode in DevTools")}</h2>
+          <p className="oc-lede">{t("OpenCode Lite is the OpenCode TUI rebuilt with Text.js to run in your browser console.")}</p>
           <div className="oc-ctas">
             <A href="/opencode" className="btn btn-primary">
-              Try the sandbox
+              {t("Try the sandbox")}
             </A>
             <A href="/docs/opencode#connect-a-local-server" className="btn btn-secondary">
-              Connect your server
+              {t("Connect your server")}
             </A>
           </div>
         </div>

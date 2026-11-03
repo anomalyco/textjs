@@ -1,0 +1,251 @@
+WEBVTT
+
+1
+00:00:01.300 --> 00:00:06.660
+This is chapter two of Learn
+Text.js: Layout with Box.
+
+2
+00:00:07.580 --> 00:00:10.010
+The console is a grid of cells.
+
+3
+00:00:10.060 --> 00:00:13.930
+You describe a layout with Box
+and Tailwind-style class names.
+
+4
+00:00:13.980 --> 00:00:18.140
+Text.js turns them into Flexbox
+properties and lays them out with Yoga,
+
+5
+00:00:18.180 --> 00:00:22.970
+the engine React Native uses, so Box
+behaves the way you already expect.
+
+6
+00:00:23.020 --> 00:00:24.650
+Units are cells.
+
+7
+00:00:24.700 --> 00:00:28.540
+p-1 is one column and one row of padding.
+
+8
+00:00:30.260 --> 00:00:32.740
+Start with a top bar.
+
+9
+00:00:34.660 --> 00:00:39.970
+Most screens are a column, with a one-row
+bar on top and everything else below it.
+
+10
+00:00:40.020 --> 00:00:44.690
+Import Spacer alongside
+Box, Text and useInput.
+
+11
+00:00:44.740 --> 00:00:48.850
+Then replace the title card with a
+column that grows to fill the console.
+
+12
+00:00:48.900 --> 00:00:50.610
+The bar is a row.
+
+13
+00:00:50.660 --> 00:00:56.210
+h-1 makes it exactly one cell tall, and
+shrink-0 keeps it from being squeezed.
+
+14
+00:00:56.260 --> 00:01:01.170
+Spacer is a box that grows, so anything
+after it is pushed to the right edge.
+
+15
+00:01:01.220 --> 00:01:04.900
+The row below takes the rest
+of the height with grow.
+
+16
+00:01:06.820 --> 00:01:10.180
+Next, a sidebar and cards.
+
+17
+00:01:11.220 --> 00:01:13.810
+Add a Card component above the page.
+
+18
+00:01:13.860 --> 00:01:18.210
+Each card is a bordered column with
+one cell of padding on either side.
+
+19
+00:01:18.260 --> 00:01:22.850
+grow, shrink and basis-0 give every
+card an equal share of the row,
+
+20
+00:01:22.900 --> 00:01:24.210
+whatever its content.
+
+21
+00:01:24.260 --> 00:01:28.130
+minWidth and minHeight set
+a floor, also in cells.
+
+22
+00:01:28.180 --> 00:01:31.620
+NAV lists the sidebar's three items.
+
+23
+00:01:32.940 --> 00:01:36.130
+In the page, keep two flags in state.
+
+24
+00:01:36.180 --> 00:01:39.770
+One shows the sidebar, and
+the other stacks the cards.
+
+25
+00:01:39.820 --> 00:01:44.010
+Press s to toggle the sidebar,
+and d to flip the direction.
+
+26
+00:01:44.060 --> 00:01:45.690
+Then fill the row.
+
+27
+00:01:45.740 --> 00:01:50.570
+The sidebar is 18 cells wide, with
+a border on its right edge only.
+
+28
+00:01:50.620 --> 00:01:53.970
+The cards sit in a row, or
+in a column when stacked,
+
+29
+00:01:54.020 --> 00:01:56.250
+with one cell of gap between them.
+
+30
+00:01:56.300 --> 00:02:00.940
+In the row, items-start keeps them
+from stretching to the full height.
+
+31
+00:02:02.460 --> 00:02:05.930
+Here's the dashboard shell,
+live on the lesson page.
+
+32
+00:02:05.980 --> 00:02:08.490
+Click the pad so the page has focus.
+
+33
+00:02:08.540 --> 00:02:11.210
+Press s, and the sidebar closes.
+
+34
+00:02:11.260 --> 00:02:13.210
+Press it again to bring it back.
+
+35
+00:02:13.260 --> 00:02:16.570
+Press d, and the cards
+stack into a column.
+
+36
+00:02:16.620 --> 00:02:19.210
+Press d again to put them back in a row.
+
+37
+00:02:19.260 --> 00:02:21.730
+Each time, Yoga recomputes the layout
+
+38
+00:02:21.780 --> 00:02:24.610
+and only the rows that
+changed are encoded again,
+
+39
+00:02:24.660 --> 00:02:28.300
+so every toggle is a single console.log.
+
+40
+00:02:30.420 --> 00:02:33.540
+Finally, responsive layout.
+
+41
+00:02:34.820 --> 00:02:37.730
+The grid follows the
+docked DevTools panel.
+
+42
+00:02:37.780 --> 00:02:42.210
+Drag the console narrower, and the cards
+shrink to share the space that's left.
+
+43
+00:02:42.260 --> 00:02:44.690
+Drag it wider, and they grow back.
+
+44
+00:02:44.740 --> 00:02:48.370
+When you need breakpoints,
+useBreakpoint returns the current one,
+
+45
+00:02:48.420 --> 00:02:56.500
+measured in columns: sm from
+60, md from 80, and lg from 110.
+
+46
+00:02:58.220 --> 00:02:59.290
+Quick check.
+
+47
+00:02:59.340 --> 00:03:03.820
+In className utilities,
+what does p-1 mean?
+
+48
+00:03:05.140 --> 00:03:05.970
+One cell.
+
+49
+00:03:06.020 --> 00:03:11.940
+Units are terminal cells: one
+column across, and one row down.
+
+50
+00:03:13.060 --> 00:03:17.060
+Which class lets a box
+take the remaining space?
+
+51
+00:03:18.380 --> 00:03:19.510
+grow.
+
+52
+00:03:19.560 --> 00:03:26.520
+It sets flexGrow to 1, exactly as in
+CSS Flexbox, and Yoga does the layout.
+
+53
+00:03:28.240 --> 00:03:32.510
+Next, in chapter three, you'll
+style a deployment card with colors,
+
+54
+00:03:32.560 --> 00:03:34.750
+text attributes and theme tokens.
+
+55
+00:03:34.800 --> 00:03:36.400
+See you there.

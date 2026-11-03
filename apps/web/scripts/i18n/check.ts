@@ -7,8 +7,9 @@
 
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { LOCALES } from "../../src/i18n/locales";
+import { captionGroups, parseVtt } from "./captions";
 import { parseTranslation, segment } from "./document";
-import { ANY_CALL, CALL, documentSources, extractMessages, LOCALES_DIR, PLURAL, readCatalog, readText, SRC_DIR, translationFile, USES_CATALOG } from "./sources";
+import { ANY_CALL, CALL, captionSources, documentSources, englishText, extractMessages, LOCALES_DIR, PLURAL, readCaptions, readCatalog, readText, SRC_DIR, translationFile, USES_CATALOG } from "./sources";
 import { validate, validatePlural } from "./validate";
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -42,12 +43,13 @@ export interface LocaleReport {
   warnings: string[];
   messages: { total: number; translated: number };
   documents: { total: number; translated: number; stale: number };
+  captions: { total: number; translated: number };
 }
 
 const keep = (JSON.parse(readFileSync(join(LOCALES_DIR, "glossary.json"), "utf8")) as { keep: string[] }).keep;
 
 export function checkLocale(locale: string): LocaleReport {
-  const report: LocaleReport = { locale, errors: [], warnings: [], messages: { total: 0, translated: 0 }, documents: { total: 0, translated: 0, stale: 0 } };
+  const report: LocaleReport = { locale, errors: [], warnings: [], messages: { total: 0, translated: 0 }, documents: { total: 0, translated: 0, stale: 0 }, captions: { total: 0, translated: 0 } };
   const messages = extractMessages();
   const catalog = readCatalog(locale);
   for (const m of messages.values()) {
@@ -66,7 +68,7 @@ export function checkLocale(locale: string): LocaleReport {
   }
   for (const doc of documentSources()) {
     const file = translationFile(locale, doc.id);
-    const blocks = segment(readFileSync(doc.file, "utf8")).filter((b) => b.kind !== "verbatim");
+    const blocks = segment(englishText(doc)).filter((b) => b.kind !== "verbatim");
     report.documents.total += blocks.length;
     if (!existsSync(file)) continue;
     const translations = parseTranslation(readText(file));
@@ -81,6 +83,19 @@ export function checkLocale(locale: string): LocaleReport {
     }
     report.documents.stale += [...translations.keys()].filter((id) => !ids.has(id)).length;
   }
+  for (const { slug, file } of captionSources()) {
+    const groups = captionGroups(parseVtt(readFileSync(file, "utf8")));
+    const translations = readCaptions(locale, slug);
+    report.captions.total += groups.length;
+    for (const g of groups) {
+      const target = translations[g.id];
+      if (target === undefined) continue;
+      report.captions.translated++;
+      const verdict = validate(locale, g.text, target, keep);
+      for (const e of verdict.errors) report.errors.push(`captions/${slug} ${g.id}: ${e}`);
+      for (const w of verdict.warnings) report.warnings.push(`captions/${slug} ${g.id}: ${w}`);
+    }
+  }
   return report;
 }
 
@@ -90,9 +105,9 @@ if (import.meta.main) {
   for (const u of unreadable) console.log(`error ${u}: the first argument must be one double-quoted string`);
   const pct = (a: number, b: number): string => (b === 0 ? "–" : `${Math.round((100 * a) / b)}%`);
   const lines = [
-    "| Locale | UI strings | Document blocks | Stale blocks | Errors | Warnings |",
-    "| --- | --- | --- | --- | --- | --- |",
-    ...reports.map((r) => `| ${r.locale} | ${r.messages.translated}/${r.messages.total} (${pct(r.messages.translated, r.messages.total)}) | ${r.documents.translated}/${r.documents.total} (${pct(r.documents.translated, r.documents.total)}) | ${r.documents.stale} | ${r.errors.length} | ${r.warnings.length} |`),
+    "| Locale | UI strings | Document blocks | Stale blocks | Caption sentences | Errors | Warnings |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
+    ...reports.map((r) => `| ${r.locale} | ${r.messages.translated}/${r.messages.total} (${pct(r.messages.translated, r.messages.total)}) | ${r.documents.translated}/${r.documents.total} (${pct(r.documents.translated, r.documents.total)}) | ${r.documents.stale} | ${r.captions.translated}/${r.captions.total} (${pct(r.captions.translated, r.captions.total)}) | ${r.errors.length} | ${r.warnings.length} |`),
   ];
   console.log(lines.join("\n"));
   for (const r of reports) {

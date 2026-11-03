@@ -1,0 +1,218 @@
+WEBVTT
+
+1
+00:00:01.300 --> 00:00:07.380
+This is Learn Text.js, chapter
+seven: Table, List & Charts.
+
+2
+00:00:08.300 --> 00:00:11.260
+Hand-rolled rows got
+Acme Deploys this far.
+
+3
+00:00:11.300 --> 00:00:13.450
+The component kit does the rest.
+
+4
+00:00:13.500 --> 00:00:16.490
+Table brings keyboard
+navigation and sorting.
+
+5
+00:00:16.540 --> 00:00:20.490
+List scrolls long lists, and
+only paints the rows you can see.
+
+6
+00:00:20.540 --> 00:00:24.460
+And charts are drawn with
+eighth blocks and quadrant dots.
+
+7
+00:00:26.180 --> 00:00:29.060
+First, a sortable table.
+
+8
+00:00:30.580 --> 00:00:34.930
+Import Table, along with the
+SortState and TableColumn types.
+
+9
+00:00:34.980 --> 00:00:37.330
+Each column has a key and a header.
+
+10
+00:00:37.380 --> 00:00:40.850
+Status has a fixed width,
+and renders the status dot.
+
+11
+00:00:40.900 --> 00:00:44.930
+Commit has no width, so it shares
+the remaining space by grow.
+
+12
+00:00:44.980 --> 00:00:49.650
+For Build, value is what sorting
+compares, and render is what you see.
+
+13
+00:00:49.700 --> 00:00:53.380
+Keep the sort in state, then
+return a Table with the columns,
+
+14
+00:00:53.420 --> 00:00:56.730
+the rows, a key for
+each row, and the sort.
+
+15
+00:00:56.780 --> 00:00:59.460
+autoFocus gives it the keyboard.
+
+16
+00:01:00.980 --> 00:01:03.090
+Here's the table on the lesson page.
+
+17
+00:01:03.140 --> 00:01:06.210
+Click the pad first, so
+the table gets your keys.
+
+18
+00:01:06.260 --> 00:01:08.450
+The arrow keys move the highlight.
+
+19
+00:01:08.500 --> 00:01:11.410
+s sorts by the first column, Status.
+
+20
+00:01:11.460 --> 00:01:13.330
+Press it again for the next one.
+
+21
+00:01:13.380 --> 00:01:17.730
+Shift+S flips the direction, and
+the top bar shows the current sort.
+
+22
+00:01:17.780 --> 00:01:22.980
+Enter calls onSelect, and long tables
+only paint the rows you can see.
+
+23
+00:01:24.900 --> 00:01:27.780
+Next, a chart above it.
+
+24
+00:01:29.300 --> 00:01:32.410
+Sparkline fills its box
+with the most recent points,
+
+25
+00:01:32.460 --> 00:01:35.650
+and BarChart aligns
+labels and values for you.
+
+26
+00:01:35.700 --> 00:01:36.930
+Import both.
+
+27
+00:01:36.980 --> 00:01:41.010
+Keep the chart kind in state,
+and switch it when you press c.
+
+28
+00:01:41.060 --> 00:01:44.930
+Above the table, add a box with
+a fixed height of four rows.
+
+29
+00:01:44.980 --> 00:01:50.420
+It holds a label, and either a Sparkline
+three rows tall, or the BarChart.
+
+30
+00:01:52.140 --> 00:01:56.890
+Back on the lesson page, click the
+pad, and press c for the bar chart.
+
+31
+00:01:56.940 --> 00:01:58.890
+Press it again to switch back.
+
+32
+00:01:58.940 --> 00:02:03.580
+The table stays where it is, because
+the chart box has a fixed height.
+
+33
+00:02:05.300 --> 00:02:06.690
+The kit has more.
+
+34
+00:02:06.740 --> 00:02:11.010
+List, Tabs, ProgressBar,
+and LineChart, plus Tree,
+
+35
+00:02:11.060 --> 00:02:15.220
+Select, Input, Modal,
+Toaster and CommandPalette.
+
+36
+00:02:15.260 --> 00:02:18.420
+They're all documented under Components.
+
+37
+00:02:19.740 --> 00:02:20.810
+Quick check.
+
+38
+00:02:20.860 --> 00:02:25.100
+With a sortable Table
+focused, what does s do?
+
+39
+00:02:26.420 --> 00:02:27.970
+It cycles the sort column.
+
+40
+00:02:28.020 --> 00:02:35.060
+s cycles the sort column, Shift+S flips
+the direction, and digits pick a column.
+
+41
+00:02:36.260 --> 00:02:39.780
+And why give the chart box a fixed height?
+
+42
+00:02:41.100 --> 00:02:44.230
+So switching charts
+doesn't move the table.
+
+43
+00:02:44.280 --> 00:02:46.710
+A fixed height keeps the table in place,
+
+44
+00:02:46.760 --> 00:02:50.520
+so its rows don't change
+and aren't re-encoded.
+
+45
+00:02:52.440 --> 00:02:56.310
+Next, in chapter eight,
+you'll test Acme Deploys:
+
+46
+00:02:56.360 --> 00:03:00.870
+render it offscreen, press keys,
+and assert on the frame as text.
+
+47
+00:03:00.920 --> 00:03:02.520
+See you there.

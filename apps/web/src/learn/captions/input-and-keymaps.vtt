@@ -1,0 +1,234 @@
+WEBVTT
+
+1
+00:00:01.300 --> 00:00:06.740
+This is chapter four of Learn
+Text.js: Input and Keymaps.
+
+2
+00:00:07.660 --> 00:00:10.810
+First, how a key press reaches your app.
+
+3
+00:00:10.860 --> 00:00:12.410
+While the page has focus,
+
+4
+00:00:12.460 --> 00:00:16.620
+keys land in a hidden textarea
+that Text.js adds to the page.
+
+5
+00:00:16.660 --> 00:00:21.770
+Text.js turns each one into a KeyEvent,
+with a normalized key name like up,
+
+6
+00:00:21.820 --> 00:00:25.260
+return or escape, the
+typed character in input,
+
+7
+00:00:25.300 --> 00:00:28.650
+and the ctrl, alt, shift and meta flags.
+
+8
+00:00:28.700 --> 00:00:32.890
+useInput, the low-level hook
+you've used so far, receives it.
+
+9
+00:00:32.940 --> 00:00:37.770
+Call e.stopPropagation to keep the
+key from reaching other handlers.
+
+10
+00:00:37.820 --> 00:00:43.180
+Keys typed into the DevTools prompt go
+to DevTools, so click the page first.
+
+11
+00:00:45.100 --> 00:00:47.740
+Next, keymaps.
+
+12
+00:00:49.500 --> 00:00:54.490
+Once a screen has more than a couple
+of keys, describe them with useKeymap.
+
+13
+00:00:54.540 --> 00:00:58.730
+Create app/deployments/page.tsx.
+
+14
+00:00:58.780 --> 00:01:03.530
+DEPLOYMENTS is a plain array
+in lib/deployments.ts for now.
+
+15
+00:01:03.580 --> 00:01:06.330
+Chapter six moves it
+behind a route handler.
+
+16
+00:01:06.380 --> 00:01:10.010
+Keep the selected index, and
+whether the details are open.
+
+17
+00:01:10.060 --> 00:01:12.810
+move keeps the index inside the list.
+
+18
+00:01:12.860 --> 00:01:14.650
+Bindings are strings.
+
+19
+00:01:14.700 --> 00:01:17.370
+"up, k" means either key.
+
+20
+00:01:17.420 --> 00:01:19.450
+enter toggles the details.
+
+21
+00:01:19.500 --> 00:01:23.370
+And "g g" is a sequence: g, then g again.
+
+22
+00:01:23.420 --> 00:01:26.010
+A chord like ctrl+k works too.
+
+23
+00:01:26.060 --> 00:01:30.250
+Every binding here has a label, and
+labeled bindings show up in KeyHelp,
+
+24
+00:01:30.300 --> 00:01:32.330
+KeyHints and the command palette.
+
+25
+00:01:32.380 --> 00:01:37.420
+The selected row gets the selection
+background, and KeyHelp goes at the end.
+
+26
+00:01:39.540 --> 00:01:42.740
+Let's try it, with the help overlay.
+
+27
+00:01:43.940 --> 00:01:46.690
+Here's the list, live on the lesson page.
+
+28
+00:01:46.740 --> 00:01:48.210
+Click the pad first.
+
+29
+00:01:48.260 --> 00:01:50.530
+Press down, and down again.
+
+30
+00:01:50.580 --> 00:01:51.970
+j works too.
+
+31
+00:01:52.020 --> 00:01:53.890
+Enter opens the details.
+
+32
+00:01:53.940 --> 00:01:55.650
+Now press the question mark.
+
+33
+00:01:55.700 --> 00:01:59.570
+KeyHelp lists every labeled
+binding that's live right now.
+
+34
+00:01:59.620 --> 00:02:03.170
+Press down while it's open, and
+the list underneath doesn't move.
+
+35
+00:02:03.220 --> 00:02:05.890
+Bindings inside a modal trap focus.
+
+36
+00:02:05.940 --> 00:02:08.610
+Press question mark or q to close it.
+
+37
+00:02:08.660 --> 00:02:13.460
+Finally, g g jumps back
+to the first deployment.
+
+38
+00:02:15.780 --> 00:02:18.500
+Last, focus.
+
+39
+00:02:20.180 --> 00:02:25.570
+Components like Input, Select and Table
+only take keys while they're focused.
+
+40
+00:02:25.620 --> 00:02:29.250
+Here the input has focus,
+so typing goes into it.
+
+41
+00:02:29.300 --> 00:02:33.970
+Tab moves focus to the Select, and
+now the arrow keys move its highlight.
+
+42
+00:02:34.020 --> 00:02:39.540
+To move focus yourself, use
+useFocus and useFocusManager.
+
+43
+00:02:41.260 --> 00:02:42.250
+Quick check.
+
+44
+00:02:42.300 --> 00:02:47.020
+In useKeymap, what does
+the binding "g g" mean?
+
+45
+00:02:48.340 --> 00:02:50.850
+g, then g again.
+
+46
+00:02:50.900 --> 00:02:56.580
+Space-separated strokes are a sequence,
+and commas separate alternatives.
+
+47
+00:02:57.700 --> 00:03:00.980
+Why do you click the page before typing?
+
+48
+00:03:02.380 --> 00:03:06.170
+Keys typed into the DevTools
+prompt never reach the page.
+
+49
+00:03:06.220 --> 00:03:11.900
+Keystrokes arrive through a hidden input
+on the page, so the page needs focus.
+
+50
+00:03:13.620 --> 00:03:18.370
+Next, in chapter five, you'll split the
+app into routes with a shared layout,
+
+51
+00:03:18.420 --> 00:03:21.090
+and add links with shortcuts and history.
+
+52
+00:03:21.140 --> 00:03:22.740
+See you there.
