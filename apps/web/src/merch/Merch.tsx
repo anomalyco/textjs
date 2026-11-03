@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { LOCALE, SOURCE_LOCALE } from "../i18n/locales";
 import { plural, t } from "../i18n/t";
 import { A } from "../router";
 import { CloseIcon } from "../site/icons";
@@ -136,7 +137,10 @@ function ProductView({ product: p, provider, bag, onAdded }: { product: Product;
             <nav aria-label={t("Breadcrumb")} className="merch-crumbs">
               <A href="/store">{t("Store")}</A>
               <span aria-hidden="true">/</span>
-              <span aria-current="page">{p.name}</span>
+              {/* Product names stay English; marked so a Turkish page's capitals don't turn Hoodie into HOODİE. */}
+              <span aria-current="page" lang={LOCALE === SOURCE_LOCALE ? undefined : "en"}>
+                {p.name}
+              </span>
             </nav>
             {bag}
           </div>
