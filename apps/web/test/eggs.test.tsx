@@ -7,7 +7,8 @@ import { SALES_HREF } from "../src/pages/Enterprise";
 import { linkedInAddUrl } from "../src/learn/certificate";
 import { consoleLogDown, mayForward } from "../src/console-health";
 import { Footer } from "../src/site/Chrome";
-import { onRequest, wantsAnsi } from "../functions/index";
+import { wantsAnsi } from "@textjs/app/ansi";
+import { onRequest } from "../functions/index";
 import curlHttp, { isTerminalHttp } from "../workers/curl-http/index";
 import { renderHomeAnsi } from "../src/home-ansi";
 import { encodeLogoConsoleLog } from "../src/site/logo-console-gen";
@@ -307,6 +308,8 @@ describe("curl textjs.org", () => {
     expect(await res.text()).toBe("FRAME");
     expect(res.headers.get("Content-Type")).toBe("text/plain; charset=utf-8");
     expect(res.headers.get("Vary")).toBe("User-Agent, Accept");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-cache, no-store, max-age=0, must-revalidate");
+    expect(res.headers.get("Content-Length")).toBe("5");
     expect(await (await onRequest({ request: req(curl, "HEAD"), env: env("FRAME"), next })).text()).toBe("");
     expect(await (await onRequest({ request: req({ "User-Agent": "curl/8.7.1", Accept: "text/html" }), env: env("FRAME"), next })).text()).toBe("<!doctype html>");
     expect(await (await onRequest({ request: req(curl), env: env(null, false), next })).text()).toBe("<!doctype html>");
