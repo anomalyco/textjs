@@ -1,5 +1,5 @@
 import { useCallback, useContext, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
-import type { ConsoleRenderer } from "@textjs/core";
+import type { ConsoleRenderer, KeyStateEvent } from "@textjs/core";
 import { ScopeContext, useRuntime } from "./context";
 import type { InputEventType, KeyEvent, PasteEvent, RegisterOptions, WheelEvent } from "./input-manager";
 import type { ConsoleStats, ViewportState } from "./stores";
@@ -122,4 +122,31 @@ export function usePaste(handler: (event: PasteEvent) => void, options: UseInput
 /** Subscribe to mouse wheel / trackpad scrolling. */
 export function useWheel(handler: (event: WheelEvent) => void, options: UseInputOptions = {}): void {
   useInputRegistration("wheel", handler, options);
+}
+
+export interface KeyState {
+  /** `true` while the physical key (`KeyboardEvent.code`, e.g. `"KeyW"`, `"ArrowUp"`, `"ControlLeft"`) is held. */
+  isDown(code: string): boolean;
+  readonly pressed: ReadonlySet<string>;
+}
+
+/**
+ * Held keys, for game loops that poll movement each tick. Doesn't re-render; pass `onChange`
+ * to react to each press and release. Every key is released when the page loses focus.
+ */
+export function useKeyState(onChange?: (event: KeyStateEvent) => void): KeyState {
+  const rt = useRuntime();
+  const engine = rt.input.engine;
+  const ref = useRef(onChange);
+  ref.current = onChange;
+  useLayoutEffect(() => engine.on("keystate", (e) => ref.current?.(e)), [engine]);
+  return useMemo(
+    () => ({
+      isDown: (code: string) => engine.isDown(code),
+      get pressed() {
+        return engine.pressed;
+      },
+    }),
+    [engine],
+  );
 }

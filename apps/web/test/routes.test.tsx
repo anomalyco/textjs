@@ -113,10 +113,10 @@ describe("page rendering", () => {
 
   test("playground and opencode are one big focus pad, with no TUI on the page", () => {
     const pg = renderToStaticMarkup(<RouteView route={{ name: "playground", preset: "dashboard" }} />);
-    // Five demos, each a link: the Playground's own three, then OpenCode and terminal.shop at their own URLs.
+    // Six demos, each a link: the Playground's own four, then OpenCode and terminal.shop at their own URLs.
     // Pills are words only; the wordmarks live in the message.
     const picker = [...pg.matchAll(/<a href="([^"]+)"[^>]*>([^<]+)<\/a>/g)].map((m) => `${m[2]} ${m[1]}`);
-    expect(picker).toEqual(["Dashboard /playground", "Streaming /playground/streaming", "Snake /playground/snake", "OpenCode /opencode", "Coffee /coffee"]);
+    expect(picker).toEqual(["Dashboard /playground", "Streaming /playground/streaming", "Snake /playground/snake", "Doom /playground/doom", "OpenCode /opencode", "Coffee /coffee"]);
     // Every demo reserves the banner row (empty here, before the steps), so the wordmarks never move the rest.
     expect(pg).toContain('<div class="tx-pad-banner"><div class="pad-slot pad-slot-banner"></div></div>');
     expect(pg).not.toContain("wordmark-");

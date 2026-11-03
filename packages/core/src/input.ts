@@ -60,13 +60,24 @@ export interface FocusChangeEvent {
   focused: boolean;
 }
 
-export type InputEvent = KeyInputEvent | PasteInputEvent | WheelInputEvent | FocusChangeEvent;
+/** A physical key went down or up. Unlike `key`, it reports modifiers alone, releases and no repeats. */
+export interface KeyStateEvent {
+  type: "keystate";
+  /** Physical `KeyboardEvent.code` (`"KeyW"`, `"ArrowUp"`, `"ControlLeft"`), or `key` when the browser gives none. */
+  code: string;
+  /** `KeyboardEvent.key` as reported when the key went down. */
+  key: string;
+  down: boolean;
+}
+
+export type InputEvent = KeyInputEvent | PasteInputEvent | WheelInputEvent | FocusChangeEvent | KeyStateEvent;
 
 export interface InputEventMap {
   key: KeyInputEvent;
   paste: PasteInputEvent;
   wheel: WheelInputEvent;
   focus: FocusChangeEvent;
+  keystate: KeyStateEvent;
 }
 
 /** The subset of `KeyboardEvent` the engine reads (makes it testable without a DOM). */
@@ -302,7 +313,9 @@ export class InputEngine {
     paste: new Set(),
     wheel: new Set(),
     focus: new Set(),
+    keystate: new Set(),
   };
+  private readonly held = new Map<string, string>();
   private readonly anyListeners = new Set<Listener<InputEvent>>();
   private readonly doc: Document | null;
   private readonly options: Required<Omit<InputEngineOptions, "document" | "shouldCapture">>;
@@ -337,6 +350,42 @@ export class InputEngine {
     return this.sink;
   }
 
+  /** Physical keys held right now, by `KeyboardEvent.code`. Cleared when the page loses focus. */
+  get pressed(): ReadonlySet<string> {
+    return new Set(this.held.keys());
+  }
+
+  isDown(code: string): boolean {
+    return this.held.has(code);
+  }
+
+  private trackKey(e: KeyboardEventLike, down: boolean): void {
+    if (e.isComposing || e.keyCode === 229) return;
+    const code = e.code || e.key;
+    if (!code || code === "Unidentified") return;
+    if (down) {
+      if (this.held.has(code)) return;
+      this.held.set(code, e.key);
+      this.emit("keystate", { type: "keystate", code, key: e.key, down: true });
+      return;
+    }
+    // macOS sends no keyup for keys released while ⌘ is held, so ⌘'s release ends them all.
+    if (e.key === "Meta") this.releaseAll();
+    else if (this.held.has(code)) {
+      const key = this.held.get(code) as string;
+      this.held.delete(code);
+      this.emit("keystate", { type: "keystate", code, key, down: false });
+    }
+  }
+
+  /** Release every held key (blur, hidden tab, detach), emitting `keystate` ups. */
+  releaseAll(): void {
+    for (const [code, key] of [...this.held]) {
+      this.held.delete(code);
+      this.emit("keystate", { type: "keystate", code, key, down: false });
+    }
+  }
+
   on<K extends keyof InputEventMap>(type: K, listener: Listener<InputEventMap[K]>): () => void {
     const set = this.listeners[type] as Set<Listener<InputEventMap[K]>>;
     set.add(listener);
@@ -358,7 +407,9 @@ export class InputEngine {
    * default prevented). Browser and DevTools shortcuts always pass through.
    */
   handleKeyDown(e: KeyboardEventLike): boolean {
-    if (!this.enabled || isPassthroughShortcut(e) || this.deadKeys.owns(e)) return false;
+    if (!this.enabled || isPassthroughShortcut(e)) return false;
+    this.trackKey(e, true);
+    if (this.deadKeys.owns(e)) return false;
     const event = normalizeKeyEvent(e);
     if (event === null) return false;
     let prevent = false;
@@ -379,6 +430,11 @@ export class InputEngine {
     }
     this.emit("key", event);
     return prevent;
+  }
+
+  /** Process a keyup: ends the key's `keystate`. Releases are never filtered, so no key sticks. */
+  handleKeyUp(e: KeyboardEventLike): void {
+    this.trackKey(e, false);
   }
 
   /** Text committed by the sink (IME, dead keys, autocorrect). */
@@ -430,7 +486,10 @@ export class InputEngine {
   }
 
   setFocused(focused: boolean): void {
-    if (!focused) this.deadKeys.reset();
+    if (!focused) {
+      this.deadKeys.reset();
+      this.releaseAll();
+    }
     if (focused === this.isFocused) return;
     this.isFocused = focused;
     this.emit("focus", { type: "focus", focused });
@@ -478,6 +537,7 @@ export class InputEngine {
       },
       { capture: true },
     );
+    listen<KeyboardEvent>(doc, "keyup", (e) => this.handleKeyUp(e), { capture: true });
     this.cleanup.push(this.bindTextSink(sink));
     listen<ClipboardEvent>(
       doc,
@@ -508,6 +568,7 @@ export class InputEngine {
   }
 
   detach(): void {
+    this.releaseAll();
     for (const fn of this.cleanup) fn();
     this.cleanup = [];
     this.sink?.remove();

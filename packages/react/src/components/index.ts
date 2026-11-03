@@ -37,5 +37,6 @@ export { CommandPalette, type CommandPaletteProps, type Command } from "./Comman
 export { KeyHelp, KeyHints, Kbd, StatusBar, type KeyHelpProps, type KeyHintsProps, type KeyHintItem, type KbdProps, type StatusBarProps } from "./KeyHelp";
 export { Gradient, GRADIENTS, sampleGradient, type GradientProps, type GradientName } from "./Gradient";
 export { Image, loadImagePixels, resamplePixels, type ImageProps, type PixelData } from "./Image";
+export { Pixels, paintHalfBlocks, quantizer, type PixelsProps, type PixelSource } from "./Pixels";
 export { Center, Stack, Grid, SplitPane, FocusScope, type StackProps, type GridProps, type SplitPaneProps, type FocusScopeProps } from "./layout";
 export { FocusHint, type FocusHintProps } from "./FocusHint";

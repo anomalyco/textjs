@@ -4,6 +4,7 @@ import { DEMOS, PAGE_HINTS, PRESETS, type DemoId, type PresetId } from "../conso
 import dashboardSource from "../demos/Dashboard.tsx?raw";
 import streamingSource from "../demos/Streaming.tsx?raw";
 import snakeSource from "../demos/Snake.tsx?raw";
+import doomSource from "../demos/doom/Doom.tsx?raw";
 import { A } from "../router";
 import { OpenCodeWordmark, TerminalWordmark } from "../site/brand-marks";
 import { CopyButton } from "../site/CodeBlock";
@@ -16,6 +17,7 @@ const SOURCES: Record<PresetId, string> = {
   dashboard: dashboardSource,
   streaming: streamingSource,
   snake: snakeSource,
+  doom: doomSource,
 };
 
 /** OpenCode and terminal.shop are apps of their own: their wordmarks lead the message. */
