@@ -159,7 +159,7 @@ const script: ChapterScript = {
         url: "localhost:3000",
         open: "keys+0.6",
         keys: [{ at: "keys", label: "⌘ ⌥ J" }],
-        badges: [{ at: "chrome", until: "end", text: "Other browsers: textjs.org/docs/installation" }],
+        badges: [{ at: "chrome", until: "app", text: "Other browsers: textjs.org/docs/installation" }],
         shots: [{ at: "app-0.3", target: "devtools" }],
       },
     },
