@@ -4,14 +4,19 @@
 <!-- s:1ab5f276ed -->
 格式基于[维护更新日志](https://keepachangelog.com/en/1.1.0/)，本项目遵循[语义化版本](https://semver.org/spec/v2.0.0.html)。0.1.0 至 0.4.0 版本仅在 git 中打了标签，未发布到 npm。
 
+<!-- s:2e16922cfc -->
+新增
+
+<!-- s:fd5b09c2ec -->
+- `@textjs/react`：`<FocusPad messages>` 可替换焦点面板的任意内置字符串，用于翻译后的网站。它涵盖每一行文字、屏幕阅读器标签和控制台尺寸控件。`<TextCanvas>` 和 `<ViewportControl>` 也接受 `messages`。`<ViewportControl>` 仅使用尺寸控件的键。包含变量值的字符串（例如“然后点击这里并按 ↑ ↓。”）是返回完整句子的函数。`defaultFocusPadMessages` 包含英文文本。参见[翻译焦点面板](https://textjs.org/docs/internationalization#translating-the-focus-pad)。
+- `@textjs/react`：在从右到左的页面上，焦点面板让 ⌘ ⌥ J 等键帽和 120×36 等控制台尺寸保持从左到右显示，并镜像显示尺寸控件和步骤栏。在中文和日文页面上，两句话之间不留空格；韩文页面则保留空格。
+- textjs.org：在 textjs.org/ja 上，每个页面的焦点面板均使用日文，包括各个演示的按键下方标签。
+
 <!-- s:5b88618770 -->
 变更
 
 <!-- s:f7da7bb6d2 -->
 - `@textjs/core`：Chromium 和 Firefox 控制台在动画精灵输出达到 16 MB 时清空，不再是 4 MB，因此 textjs.org/doom 约每 19 秒显示一次“控制台已清空”，而非每 4.5 秒。Safari 和以 `▀` 半块绘制的精灵仍保留 4 MB 限制。textjs.org/doom 页面的堆内存峰值从 10.8 MB 增至约 12–13 MB。
-
-<!-- s:2e16922cfc -->
-新增
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom 播放 Doom 音效，使用 Doom 自带的立体声声像和距离衰减。首次在页面上点击或按键后开始播放声音，随游戏暂停，音量遵循 Doom 的 Options → Sound Volume 菜单中的 Sfx Volume 设置。没有音乐。
