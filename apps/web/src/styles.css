@@ -1626,6 +1626,8 @@ kbd {
 
 .locale-menu select {
   appearance: none;
+  /* As wide as the chosen name, not the longest one (Firefox keeps the longest). */
+  field-sizing: content;
   padding-block: 2px;
   padding-inline: 0 18px;
   border: 0;
