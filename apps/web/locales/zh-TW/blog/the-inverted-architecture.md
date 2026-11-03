@@ -8,10 +8,10 @@
 每個階段的存在，都是因為主控台是個不尋常的顯示介面。主控台使用等寬字型、以列為單位，透過 `%c` 設定樣式，並由 DevTools 決定何時重繪。
 
 <!-- s:db7daa7cf2 -->
-reconciler
+協調器
 
 <!-- s:f3cdc101e1 -->
-`@textjs/react` 是 React 19 的 reconciler（`react-reconciler@0.34.0`），提供 `tx-box` 和 `tx-text` 兩種宿主元素，以及字串子項的文字實例。從 `<Box>` 到 `<Markdown>`，你匯入的一切都建構在這些基礎之上。提交作業透過 `requestAnimationFrame` 排程，按鍵或貼上操作則會在同一個任務中同步渲染。
+`@textjs/react` 是 React 19 協調器（`react-reconciler@0.34.0`），提供 `tx-box` 和 `tx-text` 兩種宿主元素，以及用於字串子節點的文字實例。你匯入的所有元件，從 `<Box>` 到 `<Markdown>`，都以這些元素和實例為基礎建構。提交作業透過 `requestAnimationFrame` 排程，按鍵或貼上操作則在同一個任務中同步渲染。
 
 <!-- s:1ab8b509e0 -->
 版面配置

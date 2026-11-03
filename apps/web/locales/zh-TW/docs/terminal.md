@@ -1,5 +1,5 @@
 <!-- s:e9f791b208 -->
-`text run` 在終端機中渲染 App Router 應用程式。版面配置、元件、按鍵對應和路由處理常式與瀏覽器共用。輸出採用真彩色 ANSI，而非 `%c` span。
+`text run` 在終端機中渲染 App Router 應用程式。版面配置、元件、按鍵對應與路由處理常式皆與瀏覽器共用。輸出採用全彩 ANSI，而非 `%c` span。
 
 <!-- s:7d8aa376e3 -->
 按 `Ctrl+C` 結束。`text run` 需要 Bun。

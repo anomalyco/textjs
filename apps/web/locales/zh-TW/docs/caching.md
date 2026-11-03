@@ -34,7 +34,7 @@
 | `Cache-Control` | `s-maxage=N, stale-while-revalidate=<1 year − N>`，或在 `force-static` 時使用 `s-maxage=31536000` |
 
 <!-- s:c1fb73c64a -->
-當[中介軟體](/docs/middleware) 為請求設定 Cookie、改寫或覆寫請求標頭時，產生的標頭會變成 `private, no-cache, no-store, max-age=0, must-revalidate`，確保共用快取不會重複套用針對個別訪客的決策。處理常式設定的 `Cache-Control` 標頭會保留。
+當[中介軟體](/docs/middleware)為請求設定 cookie、重寫或覆寫請求標頭時，產生的標頭會變成 `private, no-cache, no-store, max-age=0, must-revalidate`，因此共用快取不會重複使用針對個別訪客做出的決定。處理常式設定的 `Cache-Control` 標頭會保留。
 
 <!-- s:ae27ba22c7 -->
 在 `text dev` 中，區段設定仍然生效，但不會儲存任何內容，因此每次請求都會執行處理常式。
@@ -93,5 +93,5 @@
 平台注意事項
 
 <!-- s:5418a08901 -->
-- 每個無伺服器執行個體（Vercel 函式、Cloudflare 隔離環境）都有自己的記憶體快取。`Cache-Control: s-maxage` 也能讓平台 CDN 快取回應；依需求重新驗證不會清除 CDN 快取。當 `revalidateTag` 必須作用於每個執行個體時，請使用共用的 `cacheHandler`。
-- Cloudflare 需要 `nodejs_compat` 旗標（快取使用 `AsyncLocalStorage`）。請參閱[部署](/docs/deploying)。
+- 每個無伺服器執行個體（Vercel functions、Cloudflare isolates）都有自己的記憶體內快取。`Cache-Control: s-maxage` 也能讓平台 CDN 快取回應；隨需重新驗證不會清除 CDN 快取。當 `revalidateTag` 必須涵蓋每個執行個體時，請使用共用的 `cacheHandler`。
+- Cloudflare 需要啟用 `nodejs_compat` 旗標（快取使用 `AsyncLocalStorage`）。請參閱[部署](/docs/deploying)。

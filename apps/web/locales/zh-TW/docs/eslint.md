@@ -49,7 +49,7 @@ App Router 規則依據任何 `app/` 目錄中的檔名（`page.tsx`、`layout.t
 `no-dom-elements`
 
 <!-- s:deb9e3c0ec -->
-主控台中不存在 `<div>`、`<span>`、自訂元素和其他 DOM 標籤。reconciler 只認得自己的宿主節點，遇到其他節點就會拋出 `TX003`。
+主控台中不存在 `<div>`、`<span>`、自訂元素及其他 DOM 標籤。協調器只辨識自己的宿主節點，遇到其他節點就會拋出 `TX003`。
 
 <!-- s:bd7c3e0318 -->
 建議修正會將標籤替換成最接近的元件（`div` → `Box`、`span`/`p` → `Text`、`strong` → `Text bold`、`a` → `Link`、`input` → `Input`、`hr` → `Divider` 等），並加入匯入陳述式。
@@ -132,4 +132,4 @@ Metadata 會先從版面配置合併，再合併頁面（或 `not-found`）的�
 `route-handler-exports`
 
 <!-- s:877bcc12b1 -->
-`route.ts` 檔案只回應其匯出的 HTTP 方法：`GET`、`HEAD`、`POST`、`PUT`、`PATCH`、`DELETE` 和 `OPTIONS`。小寫的 `get` 或 `Post` 永遠不會被呼叫（請求會收到 `405`）；建議修正會重新命名。預設匯出、非函式的處理常式和其他匯出都會回報，但 `dynamic` 和 `revalidate` [路由區段設定](/docs/caching) 除外。將共用程式碼移至 `lib/`，或使用 `{ allow: [...] }` 列出額外允許的名稱。
+`route.ts` 檔案只回應其匯出的 HTTP 方法：`GET`、`HEAD`、`POST`、`PUT`、`PATCH`、`DELETE` 和 `OPTIONS`。小寫的 `get` 或 `Post` 永遠不會被呼叫（請求會收到 `405`）；修正建議會將其重新命名。預設匯出、非函式的處理常式及其他匯出都會被回報，但 `dynamic` 和 `revalidate` [路由區段設定](/docs/caching) 除外。將共用程式碼移至 `lib/`，或使用 `{ allow: [...] }` 列出額外允許的名稱。

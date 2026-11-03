@@ -52,7 +52,7 @@ Canary 是 `dev` 的建置版本，所有提取請求都會合併至這個分支
 維護者使用發布指令碼同步提升所有工作區套件的版本：
 
 <!-- s:614a1ea872 -->
-`release:version` 會重寫每個 `package.json` 及與其對應的版本常數（`VERSION`、reconciler 的 `rendererVersion`），並在套件版本不一致時拒絕執行，`--dry-run` 則會印出執行計畫。`release:publish` 會建置、打包（解析 `workspace:*`）、套用 `publishConfig`，拒絕將預先發布版本放上 `latest` 或將穩定版放上 `canary`，並略過 npm 上已存在的版本。
+`release:version` 會重寫每個 `package.json` 及其對應的版本常數（`VERSION`、reconciler 的 `rendererVersion`），在套件版本不一致時拒絕執行，並以 `--dry-run` 印出執行計畫。`release:publish` 會建置、打包（解析 `workspace:*`）、套用 `publishConfig`，拒絕將預發行版本發布至 `latest` 或將穩定版本發布至 `canary`，並略過 npm 上已存在的版本。
 
 <!-- s:ec6955472a -->
 各版本線的維護期限請參閱[支援政策](/docs/support-policy)。

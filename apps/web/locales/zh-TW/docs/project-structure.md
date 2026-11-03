@@ -8,7 +8,7 @@
 | 資料夾 | 用途 |
 | :-- | :-- |
 | `app` | 路由、版面配置與路由處理常式 |
-| `lib` | 共用模組，不對應路由 |
+| `lib` | 共用模組，不參與路由 |
 | `public` | 靜態資源 |
 
 <!-- s:25756fa68d -->
@@ -19,7 +19,7 @@
 | :-- | :-- |
 | `layout.tsx` | 路由區段的共用 UI |
 | `page.tsx` | 可透過路由存取的畫面 |
-| `loading.tsx` | Suspense 備援內容 |
+| `loading.tsx` | Suspense 後備畫面 |
 | `error.tsx` | 錯誤邊界 |
 | `not-found.tsx` | 未匹配的網址 |
 | `route.ts` | API 端點 |

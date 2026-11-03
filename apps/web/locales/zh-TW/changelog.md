@@ -124,9 +124,9 @@
 效能
 
 <!-- s:f59d215740 -->
-- `@textjs/react`：`Box` 和 `Text` 將預先剔除屬性的場景 props 傳入 reconciler，不再於掛載和更新時複製 props 物件。
-- `@textjs/core`：`SceneNode.getTextModel()` 會略過單一字串 `<Text>` 葉節點的行內樹狀走訪，並重複使用已快取且歸零的 `Uint16Array` `runOf` 緩衝區。`CssConsoleDriver` 在內層迴圈掃描樣式相同的連續 BMP 儲存格，`ConsoleRenderer` 則在影格未變更時略過 `countYogaNodes()`。
-- textjs.org：路由與主控台伴隨面板分頁拆分為各路由的 JS 和 CSS 區塊。商店照片從 `photos/final` 原始檔重新編碼，次要商品照片則在游標停留或切換投影片時載入。
+- `@textjs/react`：`Box` 和 `Text` 將預先移除多餘屬性的場景 props 傳給協調器，不再於掛載和更新時複製 props 物件。
+- `@textjs/core`：`SceneNode.getTextModel()` 對只有單一字串的 `<Text>` 葉節點略過行內樹狀結構走訪，並重複使用已快取且歸零的 `Uint16Array` `runOf` 緩衝區。`CssConsoleDriver` 在內層迴圈中掃描樣式相同的連續 BMP 儲存格，`ConsoleRenderer` 則在影格未變更時略過 `countYogaNodes()`。
+- textjs.org：路由和主控台伴隨面板的分頁拆分為各路由獨立的 JS 和 CSS 區塊。商店照片從 `photos/final` 原始檔重新編碼，次要商品照則在游標停留或切換投影片時載入。
 
 <!-- s:6909c337fb -->
 - `<ViewportControl>` 使用像素值的 `minWidth` 取代 `20ch`，並與 `<FocusPad>` 一樣列出度量相符的替代字型，因此尺寸選擇器會在 `Geist Mono` 載入時維持寬度。
@@ -250,7 +250,7 @@
 第一個里程碑。
 
 <!-- s:67e64392c2 -->
-- `@textjs/core`：以平面型別陣列實作的 `CellBuffer`、Yoga WASM 版面配置、`Intl.Segmenter` 文字測量，以及 `%c` 遊程編碼驅動程式。每個有變更的影格呼叫一次 `console.log`，閒置時不呼叫。
-- `@textjs/react`：React 19 reconciler、PascalCase 元件（`Box`、`Text`、`ScrollBox`、`Input`、`Textarea`、`Select`、`Tabs`、`Code`、`Markdown`、`Diff`、`Modal`、`Spinner` 等）、儲存格層級的 Tailwind 風格 `className` 工具、themes 和 DOM `FocusPad`。
-- `textjs`：以檔案系統為基礎的 App Router（`layout`、`page`、`loading`、`error`、`not-found`、動態區段、路由處理常式）、`text dev`、`text build`、`text start` 和主控台內的 `[▼]` 檢查器。
-- 附有 `starter` 和 `dashboard` 範本的 `create-text-app`。
+- `@textjs/core`：以扁平型別陣列實作的 `CellBuffer`、Yoga WASM 版面配置、`Intl.Segmenter` 文字測量，以及 `%c` 遊程編碼驅動程式。每個有變更的影格呼叫一次 `console.log`，閒置時不呼叫。
+- `@textjs/react`：React 19 協調器、PascalCase 元件（`Box`、`Text`、`ScrollBox`、`Input`、`Textarea`、`Select`、`Tabs`、`Code`、`Markdown`、`Diff`、`Modal`、`Spinner` 等）、儲存格層級的 Tailwind 風格 `className` 工具、主題和 DOM `FocusPad`。
+- `textjs`：以檔案系統為基礎的 App Router（`layout`、`page`、`loading`、`error`、`not-found`、動態區段、路由處理常式）、`text dev`、`text build`、`text start`，以及主控台內的 `[▼]` 檢查器。
+- `create-text-app`，含 `starter` 和 `dashboard` 範本。

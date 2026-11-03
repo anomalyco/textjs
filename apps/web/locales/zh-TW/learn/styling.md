@@ -26,4 +26,4 @@
 主題
 
 <!-- s:8f993e0ab8 -->
-Text.js 內附 5 個主題：Geist Dark、OpenCode Dark、Tokyo Night、Amber CRT 和 Geist Light。在主控台按 `t` 即可循環切換。整個影格會以新的調色盤重新繪製，因為上方每個色彩都使用 token。
+Text.js 內建五種主題：Geist Dark、OpenCode Dark、Tokyo Night、Amber CRT 和 Geist Light。在主控台按 `t` 即可依序切換。整個影格會以新的調色盤重繪，因為上方每個顏色都使用主題 token。

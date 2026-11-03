@@ -30,7 +30,7 @@
 - **狀態：**`200`，或在沒有符合的頁面或頁面呼叫 `notFound()` 時，回傳 `404` 並顯示應用程式的找不到頁面。渲染時呼叫 `redirect()` 的頁面會提供 HTML。
 
 <!-- s:1125803eb1 -->
-回應格式為 `text/plain; charset=utf-8`，並附上 `Vary: User-Agent, Accept` 和 `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`，因此共用快取不會儲存影格再提供給瀏覽器。curl 會取得影格的路徑，其 HTML 頁面也會帶有相同的 `Vary` 標頭。
+回應的類型為 `text/plain; charset=utf-8`，並帶有 `Vary: User-Agent, Accept` 和 `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`，因此共用快取不會儲存影格後再提供給瀏覽器。在 curl 會取得影格的路徑上，HTML 頁面也帶有相同的 `Vary` 標頭。
 
 <!-- s:0e2aba0a67 -->
 適用環境

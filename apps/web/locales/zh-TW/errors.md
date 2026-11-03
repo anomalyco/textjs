@@ -38,7 +38,7 @@ Text.js Hook 或元件（`useInput`、`<ScrollBox>` 等）在非主控台根節�
 未知的宿主元素
 
 <!-- s:a8bb5bc9a5 -->
-reconciler 只辨識兩種內建元素：`tx-box` 和 `tx-text`。它收到了 `<div>` 或 `<span>` 之類的小寫元素。
+協調器只支援 `tx-box` 和 `tx-text` 這兩種內建元素。它收到了 `<div>` 或 `<span>` 這類小寫元素。
 
 <!-- s:407e421c11 -->
 改用匯出的元件：
