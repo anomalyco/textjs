@@ -82,6 +82,18 @@ DevTools는 모든 `%c` 스팬을 `contain: paint`로 그리고 각각을 기기
 - **터미널.** BDSM과 `LRO`를 모두 무시하고 자체 양방향 처리를 실행하는 터미널(예: iTerm2에서 양방향 처리를 활성화한 경우)은 오른쪽에서 왼쪽으로 쓰는 행의 순서를 다시 바꿀 수 있어요.
 - **DOM 미러.** `<ConsoleMirror>`는 너비를 맞추지 않으므로, 오른쪽에서 왼쪽으로 쓰는 구간은 너비의 최대 0.3%만큼 어긋날 수 있어요.
 
+<!-- s:f4d4dadbf6 -->
+포커스 패드 번역
+
+<!-- s:7791d4db4e -->
+`@textjs/react/dom`의 `<FocusPad>`는 방문자에게 콘솔을 열고 페이지를 클릭한 다음 키를 누르도록 안내해요(`<TextCanvas>`도 이를 렌더링해요). 기본 텍스트는 영어예요. 번역하려면 바꾸려는 문자열을 담은 `messages`를 전달하세요. 생략한 키는 `defaultFocusPadMessages`에 나열된 영어 텍스트를 유지해요.
+
+<!-- s:66c2b8e3e2 -->
+값이 포함된 문자열은 문장 전체를 반환하는 함수이므로, 번역문에서 값을 원하는 위치에 놓을 수 있어요. `step`, `pressShortcut`, `then`, `defaultAction`, `shortcutOpens`는 함수예요. `step`은 단계 번호와 전체 단계 수를 받아요. `then`은 `action` prop을 받고, `action`이 없으면 `defaultAction`의 텍스트를 받아요. `defaultAction`은 첫 번째 힌트의 키를 받고, 힌트가 없으면 `null`을 받아요. `pressShortcut`은 스크린 리더용 단축키를 받고, `shortcutOpens`는 단축키를 `<kbd>` 요소로 받아요.
+
+<!-- s:e9475554da -->
+`messages`에는 스크린 리더가 읽는 레이블과 콘솔 크기 조절 컨트롤(`sizeControl`)의 텍스트도 포함돼요. `<TextCanvas>`도 같은 `messages` prop을 받아요. `<ViewportControl>`도 이 prop을 받아 크기 조절 컨트롤의 키를 사용해요. ⌘⌥J, Ctrl+Shift+J, Enter 같은 키캡은 번역하지 않아요.
+
 <!-- s:40caf66c4d -->
 API
 

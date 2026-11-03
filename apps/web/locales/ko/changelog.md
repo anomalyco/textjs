@@ -4,14 +4,19 @@ Text.js의 주요 변경 사항을 모두 이 파일에 기록해요.
 <!-- s:1ab5f276ed -->
 형식은 [변경 이력 유지하기](https://keepachangelog.com/en/1.1.0/)를 기반으로 하며, 이 프로젝트는 [유의적 버전](https://semver.org/spec/v2.0.0.html)을 따라요. 0.1.0부터 0.4.0까지의 릴리스는 git에 태그만 지정했으며 npm에 게시하지 않았어요.
 
+<!-- s:2e16922cfc -->
+추가
+
+<!-- s:fd5b09c2ec -->
+- `@textjs/react`: `<FocusPad messages>`로 번역된 사이트에서 패드의 기본 문자열을 바꿀 수 있어요. 모든 줄, 스크린 리더 레이블, 콘솔 크기 컨트롤을 포함해요. `<TextCanvas>`와 `<ViewportControl>`도 `messages`를 받아요. `<ViewportControl>`은 크기 컨트롤의 키만 사용해요. “그다음 여기를 클릭하고 ↑ ↓를 누르세요.”처럼 값이 포함된 문자열은 문장 전체를 반환하는 함수예요. `defaultFocusPadMessages`에 영어 텍스트가 있어요. [포커스 패드 번역](https://textjs.org/docs/internationalization#translating-the-focus-pad)을 참고하세요.
+- `@textjs/react`: 오른쪽에서 왼쪽으로 쓰는 페이지에서 포커스 패드는 ⌘ ⌥ J 같은 키캡과 120×36 같은 콘솔 크기를 왼쪽에서 오른쪽으로 유지하고, 크기 컨트롤과 단계 표시줄을 좌우 반전해요. 중국어와 일본어 페이지에서는 두 문장 사이의 공백을 없애고, 한국어에서는 유지해요.
+- textjs.org: textjs.org/ja의 모든 페이지에서 포커스 패드를 일본어로 표시해요. 각 데모의 키 아래 레이블도 포함해요.
+
 <!-- s:5b88618770 -->
 변경
 
 <!-- s:f7da7bb6d2 -->
 - `@textjs/core`: Chromium과 Firefox 콘솔은 애니메이션 스프라이트 출력을 4MB 대신 16MB에서 지워요. 따라서 textjs.org/doom에서 “콘솔이 지워졌어요”가 약 4.5초마다 표시되던 대신 약 19초마다 표시돼요. Safari와 `▀` 반 블록으로 그리는 스프라이트는 4MB를 유지해요. textjs.org/doom 페이지의 최대 힙 사용량은 10.8MB에서 약 12~13MB로 늘어나요.
-
-<!-- s:2e16922cfc -->
-추가
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom에서 Doom 자체의 스테레오 패닝과 거리 감쇠를 적용한 Doom 효과음을 재생해요. 페이지에서 처음 클릭하거나 키를 누르면 소리가 시작되고, 게임과 함께 일시 정지되며, Doom의 Options → Sound Volume 메뉴에 있는 Sfx Volume 설정을 따라요. 음악은 없어요.
