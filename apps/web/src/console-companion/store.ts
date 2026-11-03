@@ -45,6 +45,12 @@ export function presetPath(id: PresetId): string {
   return OWN_PATHS[id] ?? (id === DEFAULT_PRESET ? "/playground" : `/playground/${id}`);
 }
 
+/** The console header's breadcrumb for a demo, from its URL: `/doom` → "doom", `/playground/snake` → "playground / snake", `/playground` → "playground / dashboard". */
+export function presetCrumb(id: PresetId): string {
+  const path = presetPath(id);
+  return (path === "/playground" ? `${path}/${id}` : path).slice(1).split("/").join(" / ");
+}
+
 /** `/playground` → the first demo, `/playground/snake` → Snake, `/doom` → Doom, anything else → `null`. */
 export function presetForPath(pathname: string): PresetId | null {
   return PRESETS.find((p) => presetPath(p.id) === pathname)?.id ?? null;

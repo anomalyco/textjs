@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import type { ConsoleRoot } from "../root";
 
 /** `"fit"` follows the docked DevTools console; a size pins the grid. */
@@ -116,6 +116,7 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
   const [hover, setHover] = useState(false);
   const [draft, setDraft] = useState({ cols: "", rows: "" });
   const colsRef = useRef<HTMLInputElement>(null);
+  const id = useId();
 
   useEffect(() => {
     if (custom) colsRef.current?.select();
@@ -175,9 +176,9 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) commitCustom();
         }}
       >
-        <input ref={colsRef} aria-label="Columns" inputMode="numeric" value={draft.cols} onChange={(e) => setDraft((d) => ({ ...d, cols: e.target.value.replace(/\D/g, "") }))} onKeyDown={onKey} style={field} />
+        <input ref={colsRef} id={`${id}-cols`} name="textjs-console-cols" aria-label="Columns" inputMode="numeric" value={draft.cols} onChange={(e) => setDraft((d) => ({ ...d, cols: e.target.value.replace(/\D/g, "") }))} onKeyDown={onKey} style={field} />
         ×
-        <input aria-label="Rows" inputMode="numeric" value={draft.rows} onChange={(e) => setDraft((d) => ({ ...d, rows: e.target.value.replace(/\D/g, "") }))} onKeyDown={onKey} style={field} />
+        <input id={`${id}-rows`} name="textjs-console-rows" aria-label="Rows" inputMode="numeric" value={draft.rows} onChange={(e) => setDraft((d) => ({ ...d, rows: e.target.value.replace(/\D/g, "") }))} onKeyDown={onKey} style={field} />
       </span>
     );
   }
@@ -200,6 +201,8 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
         <path d="M1.5 3 4 5.5 6.5 3" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
       <select
+        id={id}
+        name="textjs-console-size"
         aria-label="Console size"
         value={value}
         disabled={!root}

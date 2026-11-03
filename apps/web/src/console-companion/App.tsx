@@ -3,7 +3,7 @@ import { Box, FocusHint, KeyHint, Text, useApp, useFocusManager, useInput } from
 import { exampleGrid, runsExamples } from "../docs/preview-meta";
 import { matchRoute } from "../router";
 import { SiteDevTools } from "./DevTools";
-import { DOCS_READING_HINTS, hintsFor, isPadRoute, PRESETS, siteStore, type CompanionTab, type Hint } from "./store";
+import { DOCS_READING_HINTS, hintsFor, isPadRoute, presetCrumb, siteStore, type CompanionTab, type Hint } from "./store";
 import { NotFoundTab } from "./tabs/NotFoundTab";
 import { getLoadedCompanionTabs, preloadCompanionTab, subscribeCompanionTabs } from "./tabs-loader";
 import { teamModule, useTeamGate } from "./team-gate";
@@ -29,7 +29,7 @@ function HintLine({ tab, hints: override }: { tab: CompanionTab; hints?: readonl
 
 function Header({ tab, notFound = false }: { tab: CompanionTab; notFound?: boolean }): ReactNode {
   const site = useSite();
-  const label = notFound ? "" : tab === "playground" ? `playground / ${(PRESETS.find((p) => p.id === site.preset) ?? PRESETS[0])?.label.toLowerCase()}` : PAGE_LABEL[tab];
+  const label = notFound ? "" : tab === "playground" ? presetCrumb(site.preset) : PAGE_LABEL[tab];
   return (
     <Box className="flex-row h-1 shrink-0 px-2 gap-1">
       <Text bold color="fg" wrap="nowrap">

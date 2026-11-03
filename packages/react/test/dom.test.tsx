@@ -193,6 +193,20 @@ describe("DOM companion", () => {
     expect(renderToStaticMarkup(<ViewportControl root={null} />)).toContain("Fit console");
   });
 
+  test("the size select has an id and a name, so Chrome's Issues panel doesn't flag it", () => {
+    const html = renderToStaticMarkup(
+      <>
+        <FocusPad root={null} sizeControl />
+        <ViewportControl root={null} />
+      </>,
+    );
+    const fields = html.match(/<(select|input|textarea)\b[^>]*>/g) ?? [];
+    expect(fields.length).toBe(2);
+    for (const f of fields) expect(f).toMatch(/ id="[^"]+".* name="textjs-console-size"/);
+    const ids = fields.map((f) => / id="([^"]+)"/.exec(f)?.[1]);
+    expect(new Set(ids).size).toBe(2);
+  });
+
   test("FocusPad gives each browser's console shortcut", () => {
     expect(focusPadConsole("chromium", true)).toBe("chromium-mac");
     expect(focusPadConsole(null, false)).toBe("chromium-other");

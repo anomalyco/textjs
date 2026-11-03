@@ -153,6 +153,7 @@ export function SearchModal(): ReactNode {
           <SearchIcon size={16} />
           <input
             ref={input}
+            name="q"
             value={query}
             placeholder={t("Search documentation…")}
             aria-label={t("Search")}
