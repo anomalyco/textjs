@@ -150,7 +150,7 @@ export interface LiveBuildResult {
   skipped: Array<{ pattern: string; reason: string }>;
   player: { bytes: number; gzip: number } | null;
   /** ANSI frames for terminal clients, when on. */
-  ansi: { frames: number; routes: number; bytes: number; skipped: Array<{ pattern: string; reason: string }> } | null;
+  ansi: { frames: number; routes: number; skipped: Array<{ pattern: string; reason: string }> } | null;
 }
 
 const META = ".text";
@@ -282,7 +282,7 @@ export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildRes
 
   let ansi: LiveBuildResult["ansi"] = null;
   if (ansiSize) {
-    ansi = { frames: 0, routes: ansiPages.length, bytes: 0, skipped: [] };
+    ansi = { frames: 0, routes: ansiPages.length, skipped: [] };
     const frames: Record<string, string> = {};
     for (const page of ansiPages) {
       const result = prerendered.routes[page.pattern];
@@ -299,7 +299,6 @@ export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildRes
       write(rel, result.ansi.ansi);
       frames[page.pattern] = rel;
       ansi.frames++;
-      ansi.bytes += Buffer.byteLength(result.ansi.ansi);
     }
     manifest.ansi = { ...ansiSize, frames, onRequest: prerendered.importError === null };
   }

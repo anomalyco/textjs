@@ -46,7 +46,7 @@ Static hosts can't answer one client differently from another, so the `static` a
 `text build` reports the prerendered frames:
 
 ```
- ✓ Prerendering curl frames (1/1), 2.5 kB
+ ✓ Prerendering curl frames (5/5)
 ```
 
 ## Configuration

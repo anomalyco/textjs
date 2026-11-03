@@ -15,6 +15,7 @@ bun run build
  ✓ Collecting route data
  ✓ Generating static console cells (3/4)
  ✓ Prerendering console shells (3/3)
+ ✓ Prerendering curl frames (3/3)
  ✓ Finalizing console optimization
 
 Route (app)                              Type       Target
