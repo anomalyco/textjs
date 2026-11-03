@@ -7,6 +7,9 @@ Biçim, [Değişiklik günlüğü tutma](https://keepachangelog.com/en/1.1.0/) t
 <!-- s:2e16922cfc -->
 Eklenenler
 
+<!-- s:892f5fce9a -->
+- textjs.org: İspanyolca, Fransızca, Almanca, Brezilya Portekizcesi, Korece, Basitleştirilmiş ve Geleneksel Çince sürümleri textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn ve /zh-tw adreslerinde taslak aşamasından çıktı. Alt bilgideki dil seçici ve tarayıcı dili düğmesi, Japoncanın yanı sıra bu dilleri de sunuyor. Arama motorları çevrilmiş sayfaları dizine ekliyor ve her birini İngilizce sürümüyle eşleştiriyor.
+
 <!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>`, çevrilmiş siteler için odak alanının yerleşik metinlerinden herhangi birini değiştirir. Her satırı, ekran okuyucu etiketlerini ve konsol boyutu denetimini kapsar. `<TextCanvas>` ve `<ViewportControl>` da `messages` alır. `<ViewportControl>` yalnızca boyut denetiminin anahtarlarını kullanır. “Sonra buraya tıklayın ve ↑ ↓ tuşlarına basın.” gibi bir değer içeren metinler, cümlenin tamamını döndüren işlevlerdir. `defaultFocusPadMessages` İngilizce metni içerir. [Odak alanını çevirme](https://textjs.org/docs/internationalization#translating-the-focus-pad) bölümüne bakın.
 - `@textjs/react`: sağdan sola yazılan sayfalarda odak alanı, ⌘ ⌥ J gibi tuş etiketlerini ve 120×36 gibi konsol boyutlarını soldan sağa tutar; boyut denetimini ve adım çubuğunu aynalar. Çince ve Japonca sayfalarda iki cümlesi arasındaki boşluğu kaldırır; Korecede korur.

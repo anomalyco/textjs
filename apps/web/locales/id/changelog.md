@@ -7,6 +7,9 @@ Formatnya didasarkan pada [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 <!-- s:2e16922cfc -->
 Ditambahkan
 
+<!-- s:892f5fce9a -->
+- textjs.org: versi bahasa Spanyol, Prancis, Jerman, Portugis Brasil, Korea, serta Mandarin Sederhana dan Tradisional telah keluar dari status draf di textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn dan /zh-tw. Pemilih bahasa di footer dan tombol bahasa browser menawarkan bahasa tersebut, seperti halnya bahasa Jepang. Mesin pencari mengindeks halaman terjemahan dan mencocokkan masing-masing dengan versi bahasa Inggrisnya.
+
 <!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>` mengganti string bawaan mana pun pada pad untuk situs terjemahan. Ini mencakup setiap baris, label pembaca layar, dan kontrol ukuran konsol. `<TextCanvas>` dan `<ViewportControl>` juga menerima `messages`. `<ViewportControl>` hanya menggunakan kunci kontrol ukuran. String yang memuat nilai, seperti “Lalu klik di sini dan tekan ↑ ↓.”, berupa fungsi yang mengembalikan seluruh kalimat. `defaultFocusPadMessages` memuat teks bahasa Inggris. Lihat [Menerjemahkan focus pad](https://textjs.org/docs/internationalization#translating-the-focus-pad).
 - `@textjs/react`: pada halaman kanan-ke-kiri, focus pad tetap menampilkan label tombol seperti ⌘ ⌥ J dan ukuran konsol seperti 120×36 dari kiri ke kanan, serta mencerminkan kontrol ukuran dan bilah langkahnya. Pada halaman berbahasa Mandarin dan Jepang, spasi di antara kedua kalimatnya dihilangkan; bahasa Korea tetap mempertahankannya.

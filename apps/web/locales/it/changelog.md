@@ -7,6 +7,9 @@ Il formato si basa su [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) e
 <!-- s:2e16922cfc -->
 Aggiunte
 
+<!-- s:892f5fce9a -->
+- textjs.org: le versioni in spagnolo, francese, tedesco, portoghese brasiliano, coreano e cinese semplificato e tradizionale non sono più in bozza su textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn e /zh-tw. Il selettore della lingua nel piè di pagina e il pulsante della lingua del browser le propongono, come già fanno per il giapponese. I motori di ricerca indicizzano le pagine tradotte e associano ciascuna alla sua versione inglese.
+
 <!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>` sostituisce qualsiasi stringa predefinita del pannello, per i siti tradotti. Copre ogni riga, le etichette per gli screen reader e il controllo delle dimensioni della console. Anche `<TextCanvas>` e `<ViewportControl>` accettano `messages`. `<ViewportControl>` usa solo le chiavi del controllo delle dimensioni. Le stringhe che contengono un valore, come «Poi fai clic qui e premi ↑ ↓.», sono funzioni che restituiscono l’intera frase. `defaultFocusPadMessages` contiene il testo inglese. Vedi [Tradurre il pannello del focus](https://textjs.org/docs/internationalization#translating-the-focus-pad).
 - `@textjs/react`: nelle pagine da destra a sinistra, il pannello del focus mantiene da sinistra a destra i tasti come ⌘ ⌥ J e le dimensioni della console come 120×36, e rispecchia il controllo delle dimensioni e la barra dei passaggi. Nelle pagine in cinese e giapponese, elimina lo spazio tra le sue due frasi; in coreano lo mantiene.
