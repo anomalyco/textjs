@@ -414,7 +414,7 @@ export class ConsoleRenderer {
     let sig = sprites.length;
     for (let i = 0; i < sprites.length; i++) {
       const sp = sprites[i]!;
-      if (!sp.opaque) return null;
+      if (!sp.batchable) return null;
       sig = Math.imul(sig ^ sp.hash, 0x01000193);
     }
     return sig >>> 0;

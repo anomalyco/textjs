@@ -4,6 +4,7 @@ import {
   bytesToBase64,
   deflateZlib,
   encodeIndexedPng,
+  encodeRgbaPng,
   encodeSpriteSvgDataUrl,
   isPngWorkspaceAllocated,
 } from "../src/drivers/png";
@@ -309,6 +310,49 @@ describe("deflateZlib & encodeIndexedPng", () => {
             throw new Error(`delta mismatch it=${it} i=${i} got ${comp[i]} exp ${exp} prev ${px[i]} delta=${dp.delta}`);
           }
         }
+      }
+    }
+  });
+});
+
+describe("encodeRgbaPng", () => {
+  test("is lossless for any number of colors and soft alpha, and zeroes fully transparent pixels", () => {
+    const w = 37;
+    const h = 23;
+    const px = new Uint32Array(w * h);
+    let seed = 7;
+    for (let i = 0; i < px.length; i++) {
+      seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
+      px[i] = seed;
+    }
+    px[0] = 0x12345600;
+    const png = encodeRgbaPng(px, w, h)!;
+    expect(png).toMatchObject({ y0: 0, width: w, height: h, delta: false });
+    const bytes = Uint8Array.from(Buffer.from(png.base64, "base64"));
+    expect(Array.from(bytes.slice(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    expect(dv.getUint32(16, false)).toBe(w);
+    expect(dv.getUint32(20, false)).toBe(h);
+    expect(bytes[24]).toBe(8);
+    expect(bytes[25]).toBe(6);
+    const idat: Uint8Array[] = [];
+    for (let p = 8; p < bytes.length; ) {
+      const len = dv.getUint32(p, false);
+      const type = String.fromCharCode(bytes[p + 4]!, bytes[p + 5]!, bytes[p + 6]!, bytes[p + 7]!);
+      if (type === "IDAT") idat.push(bytes.subarray(p + 8, p + 8 + len));
+      p += 12 + len;
+    }
+    const raw = new Uint8Array(inflateSync(Buffer.concat(idat)));
+    const stride = w * 4 + 1;
+    expect(raw.length).toBe(h * stride);
+    for (let y = 0; y < h; y++) {
+      expect(raw[y * stride]).toBe(1);
+      const prev = [0, 0, 0, 0];
+      for (let x = 0; x < w; x++) {
+        const c = [0, 1, 2, 3].map((k) => (prev[k]! + raw[y * stride + 1 + x * 4 + k]!) & 255);
+        for (let k = 0; k < 4; k++) prev[k] = c[k]!;
+        const expected = px[y * w + x]! & 255 ? px[y * w + x]! : 0;
+        expect((((c[0]! << 24) | (c[1]! << 16) | (c[2]! << 8) | c[3]!) >>> 0)).toBe(expected);
       }
     }
   });

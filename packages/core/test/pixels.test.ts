@@ -349,6 +349,44 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
     expect(new Set(pool).size).toBe(pool.length);
   });
 
+  test("a custom fallback paints every cell fallback, and RGBA sprites never batch", () => {
+    const calls: string[] = [];
+    const fallback = (b: CellBuffer, r: { x: number; y: number; width: number; height: number }) => {
+      calls.push(`${r.x},${r.y},${r.width}x${r.height}`);
+      for (let y = r.y; y < r.y + r.height; y++) for (let x = r.x; x < r.x + r.width; x++) b.setCell(x, y, "#", GREEN, 0);
+    };
+    const src = { width: 4, height: 4, data: new Uint32Array(16).fill(RED) };
+
+    // Pinned half-block mode, and a clip that cuts the sprite, both paint the fallback right away.
+    const buf = new CellBuffer(10, 4);
+    drawPixels(buf, { x: 1, y: 0, width: 4, height: 2, source: src, renderMode: "halfblock", fallback });
+    expect(calls).toEqual(["1,0,4x2"]);
+    expect(buf._sprites.length).toBe(0);
+    buf.clear(DARK_BG);
+    buf.pushScissor(0, 0, 3, 4);
+    drawPixels(buf, { x: 1, y: 0, width: 4, height: 2, source: src, fallback });
+    buf.popScissor();
+    expect(calls.length).toBe(2);
+    expect(buf.rowText(0)).toBe(" ##       ");
+
+    // A registered sprite materializes through the fallback for plain text, ANSI and Safari.
+    buf.clear(DARK_BG);
+    drawPixels(buf, { x: 2, y: 1, width: 3, height: 2, source: src, fallback, encoding: "rgba" });
+    expect(buf._sprites[0]).toMatchObject({ encoding: "rgba", batchable: false });
+    expect(buf.rowText(1)).toBe("  ###     ");
+    expect(calls.at(-1)).toBe("2,1,3x2");
+    expect(renderToAnsi(buf)).toContain("###");
+
+    // RGBA sprites encode as RGBA PNGs and don't stage keyframes even when opaque and changing.
+    const driver = new CssConsoleDriver({ console: new FakeConsole(), browser: "chromium" });
+    driver.render(buf);
+    src.data.fill(BLUE);
+    buf.clear(DARK_BG);
+    drawPixels(buf, { x: 2, y: 1, width: 3, height: 2, source: src, fallback, encoding: "rgba" });
+    expect(driver._stageKeyframe(buf, 100)).toBe(false);
+    expect(extractStyledFrame(buf)._sprites?.[0]?.dataUrl).toMatch(/^data:image\/png;base64,/);
+  });
+
   test("sprites with transparent pixels skip temporal staging and multi-keyframe SVG stacking", () => {
     const con = new FakeConsole();
     const driver = new CssConsoleDriver({ console: con, browser: "chromium" });

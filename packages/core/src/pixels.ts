@@ -8,7 +8,7 @@ import {
   CellBuffer,
 } from "./cell-buffer";
 import { blendOver, colorToCss, type PackedColor } from "./color";
-import { encodeIndexedPng, encodeSpriteSvgDataUrl, hasTransparentPixels, type SpriteKeyframe } from "./drivers/png";
+import { encodeIndexedPng, encodeRgbaPng, encodeSpriteSvgDataUrl, hasTransparentPixels, type EncodedPng, type SpriteKeyframe } from "./drivers/png";
 import { DEFAULT_TYPOGRAPHY } from "./drivers/style";
 import type { BufferSprite, SpriteCodec, SpriteDriverContext } from "./sprite-types";
 
@@ -22,6 +22,7 @@ export interface PixelSource {
 export type PixelFit = "contain" | "fill";
 export type PixelSample = "nearest" | "average";
 export type PixelRenderMode = "auto" | "halfblock";
+export type PixelEncoding = "indexed" | "rgba";
 
 export interface PixelRect {
   x: number;
@@ -200,6 +201,16 @@ export interface DrawPixelsOptions {
   sample?: PixelSample;
   /** `"auto"` (default: sprite in Chromium, and Firefox per its console's style rules (not benchmarked); half-blocks elsewhere) or `"halfblock"`. */
   renderMode?: PixelRenderMode;
+  /**
+   * Sprite PNG format: `"indexed"` (default) is a 256-color palette, the fastest for live frames;
+   * `"rgba"` is lossless with smooth alpha, for still images. RGBA sprites never batch into keyframes.
+   */
+  encoding?: PixelEncoding;
+  /**
+   * Paints the cells wherever the sprite can't be shown (Safari, ANSI, plain text, clipped or
+   * overlapped sprites), in place of `▀` half-blocks of `source`. Called with the sprite's cell rect.
+   */
+  fallback?: (buf: CellBuffer, rect: Readonly<PixelRect>) => void;
 }
 
 function sharesRowWithSibling(sprites: readonly BufferSprite[], sp: BufferSprite): boolean {
@@ -306,6 +317,7 @@ function buildSpriteSvgUrl(
   if (staged !== undefined && staged.length > 0) {
     stagedMap.delete(slotKey);
     try {
+      if (sp.encoding === "rgba") return encodeSingleSpriteUrl(sp, slotKey, dw, dh, svgCache);
       // Stacked SVG <image> keyframes require opaque frames so earlier frames cannot bleed through transparent pixels.
       let anyTransparent = hasTransparentPixels(sp.pixels, pxCount);
       if (!anyTransparent) {
@@ -353,11 +365,27 @@ function buildSpriteSvgUrl(
     }
   }
 
+  return encodeSingleSpriteUrl(sp, slotKey, dw, dh, svgCache);
+}
+
+function encodeSpritePng(sp: BufferSprite): EncodedPng | null {
+  return sp.encoding === "rgba"
+    ? encodeRgbaPng(sp.pixels, sp.sourceWidth, sp.sourceHeight)
+    : encodeIndexedPng(sp.pixels, sp.sourceWidth, sp.sourceHeight, { palette: sp.palette });
+}
+
+function encodeSingleSpriteUrl(
+  sp: BufferSprite,
+  slotKey: string,
+  dw: number,
+  dh: number,
+  svgCache: Map<string, { hash: number; drawW: number; drawH: number; url: string }>,
+): { url: string; visualFrames: number } {
   const cached = svgCache.get(slotKey);
   if (cached !== undefined && cached.hash === sp.hash && cached.drawW === dw && cached.drawH === dh) {
     return { url: cached.url, visualFrames: 1 };
   }
-  const png = encodeIndexedPng(sp.pixels, sp.sourceWidth, sp.sourceHeight, { palette: sp.palette });
+  const png = encodeSpritePng(sp);
   const url = png ? encodeSpriteSvgDataUrl([{ png, delayMs: 0 }], sp.sourceWidth, sp.sourceHeight, dw, dh) : "";
   if (svgCache.size >= 16) svgCache.clear();
   svgCache.set(slotKey, { hash: sp.hash, drawW: dw, drawH: dh, url });
@@ -375,6 +403,10 @@ function getSpriteCodec(): SpriteCodec {
       releasePool(spritePixelPool, buf);
     },
     materialize(buf: CellBuffer, sp: BufferSprite): void {
+      if (sp.fallback) {
+        sp.fallback(buf, { x: sp.x, y: sp.y, width: sp.width, height: sp.height });
+        return;
+      }
       paintHalfBlocks(
         buf,
         sp,
@@ -386,15 +418,14 @@ function getSpriteCodec(): SpriteCodec {
       );
     },
     encodePngDataUrl(sp: BufferSprite): string {
-      const png = encodeIndexedPng(sp.pixels, sp.sourceWidth, sp.sourceHeight, { palette: sp.palette });
+      const png = encodeSpritePng(sp);
       return png ? `data:image/png;base64,${png.base64}` : "";
     },
     stageKeyframe(staged, pool, buffer, atMs): boolean {
       let added = false;
       const sprites = buffer._sprites;
       for (const sp of sprites) {
-        if (sharesRowWithSibling(sprites, sp)) continue;
-        if (hasTransparentPixels(sp.pixels, sp.sourceWidth * sp.sourceHeight)) continue;
+        if (sharesRowWithSibling(sprites, sp) || !sp.batchable) continue;
         const key = slotKeyOf(sp);
         let list = staged.get(key);
         if (list === undefined) {
@@ -447,6 +478,12 @@ function getSpriteCodec(): SpriteCodec {
           }
         }
         const bandBg = resolveCleanBandBg(ctx, buffer, sp);
+        // Sliced rows each repeat the whole data URL. That's fine for small indexed pixel art; a
+        // photo beside text would resend hundreds of KB per frame, so it draws as half-blocks instead.
+        if (bandBg === null && sp.encoding === "rgba") {
+          buffer._materializeSpritesInRect(sp.x, sp.y, sp.x + sp.width, sp.y + sp.height, false, false);
+          continue;
+        }
         const boxX = sp.x * cellW;
         const boxW = sp.width * cellW;
         const boxH = sp.height * rowPitch;
@@ -526,6 +563,7 @@ function getSpriteCodec(): SpriteCodec {
           const sliceBg = sp.underBg;
           const dw = Math.round(drawW);
           const dh = Math.round(drawH);
+          const sliceW = sp.fit === "fill" ? "100%" : `${dw}px`;
 
           for (let y = sp.y; y < sp.y + sp.height; y++) {
             const out = [];
@@ -541,8 +579,15 @@ function getSpriteCodec(): SpriteCodec {
             }
             let css = rowTypo;
             if ((sliceBg & 255) !== 0) css += `background-color:${colorToCss(sliceBg)};`;
+            const rx0 = sp.x + sp.width;
+            // Chromium snaps each span to device pixels on its own, so at a fractional cell edge the
+            // console's background can show through between this slice and an opaque neighbour.
+            // Reach 1px under the neighbour, which paints over it.
+            const seal = !ctx._profile.inline && (sliceBg & 255) !== 0 && (rx0 >= W || ((buffer._bg[y * W + rx0] as number) & 255) === 255);
+            if (seal) css += "padding-right:1px;margin-right:-1px;";
             if (url) {
-              css += `background-image:url("${url}");background-repeat:no-repeat;background-size:${dw}px ${dh}px;background-position:${relX.toFixed(1)}px ${(baseRelY - (y - sp.y) * rowPitch).toFixed(1)}px;`;
+              const size = seal && sliceW === "100%" ? "calc(100% - 1px)" : sliceW;
+              css += `background-image:url("${url}");background-repeat:no-repeat;background-size:${size} ${dh}px;background-position:${relX.toFixed(1)}px ${(baseRelY - (y - sp.y) * rowPitch).toFixed(1)}px;`;
             }
             out.push({
               styleId: ctx._nextFitId(),
@@ -555,7 +600,6 @@ function getSpriteCodec(): SpriteCodec {
               deco: true,
               cells: sp.width,
             });
-            const rx0 = sp.x + sp.width;
             if (rx0 < W) {
               const rw = W - rx0;
               const rightBuf = new CellBuffer(rw, 1);
@@ -598,6 +642,22 @@ function getSpriteCodec(): SpriteCodec {
   return codecInstance;
 }
 
+/** Whether the freshly painted cells under `(x, y, w, h)` are blank and share one background. */
+function blankUniformUnder(buf: CellBuffer, x: number, y: number, w: number, h: number): boolean {
+  const x0 = Math.max(x, buf._clipX0);
+  const x1 = Math.min(x + w, buf._clipX1);
+  const y0 = Math.max(y, buf._clipY0);
+  const y1 = Math.min(y + h, buf._clipY1);
+  const W = buf.width;
+  const bg = x0 < x1 && y0 < y1 ? buf._bg[y0 * W + x0] : 0;
+  for (let yy = y0; yy < y1; yy++) {
+    for (let i = yy * W + x0, end = yy * W + x1; i < end; i++) {
+      if (buf._bg[i] !== bg || buf._chars[i] !== CHAR_SPACE) return false;
+    }
+  }
+  return true;
+}
+
 function registerSprite(
   buf: CellBuffer,
   x: number,
@@ -611,6 +671,8 @@ function registerSprite(
   pixelAspect: number,
   palette: readonly PackedColor[] | undefined,
   sample: "nearest" | "average",
+  encoding: PixelEncoding,
+  fallback: DrawPixelsOptions["fallback"],
 ): boolean {
   if (!buf.intersectsScissor(x, y, w, h)) return false;
   if (x < buf._sClipX0 || y < buf._sClipY0 || x + w > buf._sClipX1 || y + h > buf._sClipY1) return false;
@@ -631,9 +693,11 @@ function registerSprite(
   const len = srcWidth * srcHeight;
   const pixels = acquirePool(spritePixelPool, len);
   let opaque = true;
+  let solid = true;
   let hash = (0x811c9dc5 ^ x ^ (y << 8) ^ (w << 16) ^ (h << 24) ^ srcWidth ^ (srcHeight << 16)) >>> 0;
   hash = Math.imul(hash ^ (fit === "fill" ? 1 : 2), 0x01000193);
   hash = Math.imul(hash ^ (sample === "average" ? 1 : 2), 0x01000193);
+  hash = Math.imul(hash ^ (encoding === "rgba" ? 1 : 2), 0x01000193);
   hash = Math.imul(hash ^ Math.round(pixelAspect * 4096), 0x01000193);
   hash = Math.imul(hash ^ underBg, 0x01000193);
   if (palette !== undefined) {
@@ -645,11 +709,20 @@ function registerSprite(
   for (let i = 0; i < len; i++) {
     const px = srcData[i] as number;
     pixels[i] = px;
-    if ((px & 255) < 128) opaque = false;
+    if ((px & 255) < 255) {
+      solid = false;
+      if ((px & 255) < 128) opaque = false;
+    }
     hash = Math.imul(hash ^ px, 0x01000193);
   }
   hash ^= hash >>> 16;
   hash = Math.imul(hash, 0x85ebca6b) >>> 0;
+  // Where the sprite shows what's under it (transparent pixels, letterboxing) it can only show one
+  // background color, so text or mixed backgrounds under it need the cells.
+  if ((!solid || fit === "contain") && !blankUniformUnder(buf, x, y, w, h)) {
+    releasePool(spritePixelPool, pixels);
+    return false;
+  }
 
   buf._sprites.push({
     x,
@@ -664,7 +737,9 @@ function registerSprite(
     palette,
     sample,
     hash,
-    opaque,
+    batchable: opaque && encoding === "indexed",
+    encoding,
+    fallback,
     underBg,
     materialized: false,
     cellsDirty: inheritedDirty,
@@ -691,7 +766,13 @@ export function drawPixels(buf: CellBuffer, options: DrawPixelsOptions): void {
   const pixelAspect = options.pixelAspect ?? 1;
   const sample = options.sample ?? "nearest";
   const mode = options.renderMode ?? "auto";
-  if (mode === "halfblock" || !registerSprite(buf, x, y, w, h, src.width, src.height, src.data, fit, pixelAspect, options.palette, sample)) {
-    paintHalfBlocks(buf, { x: 0 + x, y: 0 + y, width: w, height: h }, src, fit, pixelAspect, options.palette, sample);
+  const encoding = options.encoding ?? "indexed";
+  const fallback = options.fallback;
+  if (
+    mode === "halfblock" ||
+    !registerSprite(buf, x, y, w, h, src.width, src.height, src.data, fit, pixelAspect, options.palette, sample, encoding, fallback)
+  ) {
+    if (fallback) fallback(buf, { x, y, width: w, height: h });
+    else paintHalfBlocks(buf, { x, y, width: w, height: h }, src, fit, pixelAspect, options.palette, sample);
   }
 }

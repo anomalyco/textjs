@@ -75,7 +75,7 @@ Named gradients: `geist` `dusk` `ocean` `mono` `ember`.
 
 ## `<Image>`
 
-Half-block pixels: each cell holds two, top in the foreground and bottom in the background.
+Chromium and Firefox consoles draw the image as a pixel sprite. Pixel art (256 colors or fewer, with no partly transparent pixels) keeps up to 8 × 16 pixels per cell, and photos up to 4 × 8. Safari, terminals and plain-text copies get `▀` half-blocks: each cell holds two pixels, top in the foreground and bottom in the background. Pass `renderMode="halfblock"` to draw half-blocks everywhere.
 
 ```tsx
 <Image src="/avatar.png" width={24} />
@@ -83,6 +83,13 @@ Half-block pixels: each cell holds two, top in the foreground and bottom in the 
 ```
 
 `src` loads through a canvas, so cross-origin images need CORS. `pixels` takes raw RGBA anywhere, including the terminal.
+
+An image also draws as half-blocks in Chromium and Firefox when it can't be one sprite:
+
+- Two images side by side on the same rows, as in a gallery.
+- A photo with text beside it. Pixel art beside text stays a sprite.
+- An image clipped by an `overflow="hidden"` box, or partly covered by another box.
+- Transparent pixels over text or over more than one background color.
 
 ## `<Pixels>` (experimental)
 
@@ -109,4 +116,4 @@ const source: PixelSource = { width: 320, height: 200, data: new Uint32Array(320
 
 `renderMode="auto"` draws a pixelated sprite in Chromium, and Firefox per its console's style rules (not benchmarked), and falls back to `▀` half-blocks in Safari, terminals and plain-text copies. Pass `renderMode="halfblock"` to draw half-blocks everywhere.
 
-To draw pixels without React, import `drawPixels` from `@textjs/core/experimental` along with `DrawPixelsOptions`, `PixelSource`, `PixelFit`, `PixelSample` and `PixelRenderMode`. See [Breaking changes](/docs/support-policy#breaking-changes) for how experimental exports are versioned.
+To draw pixels without React, import `drawPixels` from `@textjs/core/experimental` along with `DrawPixelsOptions`, `PixelSource`, `PixelFit`, `PixelSample`, `PixelRenderMode`, `PixelEncoding` and `PixelRect`. Its `encoding: "rgba"` option keeps more than 256 colors and soft alpha for still images, and `fallback` paints your own cells wherever the sprite can't be shown. See [Breaking changes](/docs/support-policy#breaking-changes) for how experimental exports are versioned.

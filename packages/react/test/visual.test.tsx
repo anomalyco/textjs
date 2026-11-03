@@ -141,11 +141,11 @@ describe("<Gradient>", () => {
 });
 
 describe("<Image>", () => {
-  test("half-block pixels keep aspect ratio, colors, and modal overlays without using experimental sprites", async () => {
+  test("draws a sprite whose half-block cells keep aspect ratio, colors, and modal overlays", async () => {
     // 2×2: red, green / blue, transparent
     const pixels = { width: 2, height: 2, data: [255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 0, 0, 0, 0] };
     const app = await render(<Image pixels={pixels} width={2} />, { cols: 4, rows: 2 });
-    expect(app.root.renderer.buffer._sprites.length).toBe(0);
+    expect(app.root.renderer.buffer._sprites.length).toBe(1);
     expect(app.lines()[0]).toBe("▀▀");
     expect(app.cell(0, 0)).toMatchObject({ fg: parseColor("#ff0000"), bg: parseColor("#0000ff") });
     expect(app.cell(1, 0)?.fg).toBe(parseColor("#00ff00"));
