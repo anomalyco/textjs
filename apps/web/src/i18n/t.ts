@@ -46,7 +46,7 @@ export function formatDate(iso: string, options: Intl.DateTimeFormatOptions = { 
   return date.toLocaleDateString(TAG, { ...options, timeZone: "UTC" });
 }
 
-/** `3200` → `3,200`. */
-export function formatNumber(n: number): string {
-  return n.toLocaleString(TAG);
+/** `3200` → `3,200`; `0.9999, { style: "percent", maximumFractionDigits: 2 }` → `99.99%` (`99,99 %` in German). */
+export function formatNumber(n: number, options?: Intl.NumberFormatOptions): string {
+  return n.toLocaleString(TAG, options);
 }

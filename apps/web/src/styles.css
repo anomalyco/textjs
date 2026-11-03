@@ -101,6 +101,14 @@
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
+/* Hero subtitles in Chinese, Japanese and Korean wrap into even lines instead of leaving a word or two alone. */
+:is(.hero .lede, .rs-lede):is(:lang(ja), :lang(ko), :lang(zh)) {
+  text-wrap: balance;
+}
+/* Translated card titles don't end on a single short word (CJK headings are balanced above). */
+:root:not(:lang(en), :lang(ja), :lang(ko), :lang(zh)) :is(h3, h4) {
+  text-wrap: pretty;
+}
 /* A German compound wider than a phone (Konsolenanwendungen) hyphenates; shorter words never do. */
 :is(h1, h2, h3):lang(de) {
   hyphens: auto;
