@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { CATEGORY_LABELS } from "../docs/meta";
 import { DOC_CATEGORIES, DOCS, docPath, getDoc, headingsOf, neighbors } from "../docs/registry";
+import { t } from "../i18n/t";
 import { A, useLocation } from "../router";
 import { TurbologLockup } from "../site/brand-marks";
 import { Footer } from "../site/Chrome";
@@ -13,7 +15,7 @@ function DocLinks({ slug }: { slug: string }): ReactNode {
     <>
       {DOC_CATEGORIES.map((cat) => (
         <div key={cat}>
-          <h5>{cat}</h5>
+          <h5>{CATEGORY_LABELS[cat]}</h5>
           {DOCS.filter((d) => d.category === cat).map((d) => (
             <A key={d.slug} href={docPath(d.slug)} aria-current={d.slug === slug ? "page" : undefined}>
               {d.nav ?? d.title}
@@ -57,7 +59,7 @@ function useActiveHeading(ids: readonly string[]): string | null {
 
 export function DocsPage({ slug }: { slug: string }): ReactNode {
   const doc = getDoc(slug) ?? DOCS[0];
-  const { pathname } = useLocation();
+  const { path: pathname } = useLocation();
   const [menu, setMenu] = useState(false);
   const close = (): void => setMenu(false);
   useEffect(close, [pathname]);
@@ -71,22 +73,22 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
   return (
     <>
       <div className="docs-mobile-bar">
-        <button type="button" onClick={() => setMenu(true)} aria-label="Open docs navigation" aria-expanded={menu} aria-controls="docs-drawer">
+        <button type="button" onClick={() => setMenu(true)} aria-label={t("Open docs navigation")} aria-expanded={menu} aria-controls="docs-drawer">
           <MenuIcon size={16} />
           <span key={doc.slug} className="docs-mobile-crumb">
-            {doc.category} <span className="subtle">/</span> <span className="docs-mobile-current">{doc.nav ?? doc.title}</span>
+            {CATEGORY_LABELS[doc.category]} <span className="subtle">/</span> <span className="docs-mobile-current">{doc.nav ?? doc.title}</span>
           </span>
           <ChevronDown size={14} />
         </button>
       </div>
-      <Sheet open={menu} onClose={close} id="docs-drawer" label="Documentation" side="left" className="docs-drawer">
+      <Sheet open={menu} onClose={close} id="docs-drawer" label={t("Documentation")} side="left" className="docs-drawer">
         <div className="docs-drawer-head">
-          <span>Documentation</span>
-          <button type="button" className="icon-btn" onClick={close} aria-label="Close docs navigation">
+          <span>{t("Documentation")}</span>
+          <button type="button" className="icon-btn" onClick={close} aria-label={t("Close docs navigation")}>
             <CloseIcon />
           </button>
         </div>
-        <nav className="docs-drawer-body" aria-label="Documentation" onClick={(e) => (e.target as Element).closest("a") && close()}>
+        <nav className="docs-drawer-body" aria-label={t("Documentation")} onClick={(e) => (e.target as Element).closest("a") && close()}>
           <DocLinks slug={doc.slug} />
         </nav>
       </Sheet>
@@ -96,9 +98,9 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
         <div className="docs-body">
           <article className="docs-main">
             <div className="breadcrumbs">
-              <A href="/docs">Docs</A>
+              <A href="/docs">{t("Docs")}</A>
               <span>/</span>
-              <span>{doc.category}</span>
+              <span>{CATEGORY_LABELS[doc.category]}</span>
             </div>
             {/* Keyed so a page with a lockup mounts a new title instead of shifting the previous one down.
                 The key must differ from MarkdownDoc's: duplicate sibling keys left old titles stacked up. */}
@@ -110,12 +112,12 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
             <MarkdownDoc key={doc.slug} source={doc.markdown} />
             <A href={docEditUrl(doc.slug)} className="docs-edit">
               <GitHubIcon size={14} />
-              Edit this page on GitHub
+              {t("Edit this page on GitHub")}
             </A>
-            <nav className="docs-nav" aria-label="Pagination">
+            <nav className="docs-nav" aria-label={t("Pagination")}>
               {prev ? (
                 <A href={docPath(prev.slug)}>
-                  <small>Previous</small>
+                  <small>{t("Previous")}</small>
                   <span>
                     <span className="rtl-flip">←</span> {prev.title}
                   </span>
@@ -123,7 +125,7 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
               ) : null}
               {next ? (
                 <A href={docPath(next.slug)} className="next">
-                  <small>Next</small>
+                  <small>{t("Next")}</small>
                   <span>
                     {next.title} <span className="rtl-flip">→</span>
                   </span>
@@ -133,8 +135,8 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
           </article>
           <Footer />
         </div>
-        <aside className="docs-toc" aria-label="On this page">
-          <h6>On this page</h6>
+        <aside className="docs-toc" aria-label={t("On this page")}>
+          <h6>{t("On this page")}</h6>
           {headings.map((h) => (
             <a key={h.id} href={`#${h.id}`} className={`d${h.depth}${active === h.id ? " active" : ""}`}>
               {h.text}

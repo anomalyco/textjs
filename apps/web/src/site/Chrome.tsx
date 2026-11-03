@@ -3,11 +3,14 @@ import { useConsoleLogDown } from "../console-health";
 import { activateCompanion } from "../console-companion/bridge";
 import { isPadRoute, siteStore } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
+import { rich } from "../i18n/rich";
+import { msg, t } from "../i18n/t";
 import { A, useLocation } from "../router";
 import { ArrowUpRight, ChevronRight, CloseIcon, GitHubIcon, Logo, MenuIcon, SearchIcon } from "./icons";
 import { REPO_URL } from "./links";
 import { LogoMenu, useLogoMenu } from "./LogoMenu";
 import { openSearch, preloadSearchDialog } from "./SearchModal";
+import { LocaleMenu } from "./LocaleMenu";
 import { Sheet, useCloseOnMedia } from "./Sheet";
 
 /**
@@ -35,16 +38,16 @@ export function SafariConsoleNote(): ReactNode {
   return (
     <span className="br-safari">
       {" ("}
-      <A href="/docs/installation#open-the-console">turn on developer features</A>
-      {" first)"}
+      <A href="/docs/installation#open-the-console">{t("turn on developer features")}</A>
+      {t(" first)")}
     </span>
   );
 }
 
 const NAV = [
-  { href: "/docs", label: "Docs" },
-  { href: "/learn", label: "Learn" },
-  { href: "/playground", label: "Playground" },
+  { href: "/docs", label: msg("Docs") },
+  { href: "/learn", label: msg("Learn") },
+  { href: "/playground", label: msg("Playground") },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -54,7 +57,7 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 export function Header(): ReactNode {
-  const { pathname } = useLocation();
+  const { path: pathname } = useLocation();
   const [menu, setMenu] = useState(false);
   const [logoMenu, openLogoMenu, closeLogoMenu] = useLogoMenu();
   const close = (): void => setMenu(false);
@@ -67,7 +70,7 @@ export function Header(): ReactNode {
   return (
     <header className="header">
       <div className="container header-inner" style={{ maxWidth: 1440 }}>
-        <A href="/" className="wordmark" aria-label="Text.js home" dir="ltr" lang="en" onContextMenu={openLogoMenu}>
+        <A href="/" className="wordmark" aria-label={t("Text.js home")} dir="ltr" lang="en" onContextMenu={openLogoMenu}>
           <Logo size={20} />
           <span>Text.js</span>
         </A>
@@ -89,7 +92,7 @@ export function Header(): ReactNode {
             onPointerDown={() => void preloadSearchDialog()}
           >
             <SearchIcon />
-            <span>Search</span>
+            <span>{t("Search")}</span>
             <kbd>
               <span className="os-mac">⌘K</span>
               <span className="os-other">Ctrl+K</span>
@@ -102,18 +105,18 @@ export function Header(): ReactNode {
             onMouseEnter={() => void preloadSearchDialog()}
             onFocus={() => void preloadSearchDialog()}
             onPointerDown={() => void preloadSearchDialog()}
-            aria-label="Search documentation"
+            aria-label={t("Search documentation")}
           >
             <SearchIcon size={18} />
           </button>
-          <A href={REPO_URL} className="icon-btn github-btn" aria-label="Text.js on GitHub">
+          <A href={REPO_URL} className="icon-btn github-btn" aria-label={t("Text.js on GitHub")}>
             <GitHubIcon size={18} />
           </A>
           <button
             type="button"
             className="icon-btn menu-btn"
             onClick={() => setMenu((m) => !m)}
-            aria-label={menu ? "Close menu" : "Open menu"}
+            aria-label={menu ? t("Close menu") : t("Open menu")}
             aria-expanded={menu}
             aria-controls="mobile-nav"
           >
@@ -121,14 +124,14 @@ export function Header(): ReactNode {
           </button>
         </div>
       </div>
-      <Sheet open={menu} onClose={close} id="mobile-nav" label="Site navigation" side="top" className="mobile-nav">
+      <Sheet open={menu} onClose={close} id="mobile-nav" label={t("Site navigation")} side="top" className="mobile-nav">
         <button type="button" className="mobile-search" onClick={search}>
           <SearchIcon size={16} />
-          <span>Search documentation…</span>
+          <span>{t("Search documentation…")}</span>
         </button>
-        <nav aria-label="Mobile" onClick={(e) => (e.target as Element).closest("a") && close()}>
+        <nav aria-label={t("Mobile")} onClick={(e) => (e.target as Element).closest("a") && close()}>
           <A href="/" aria-current={pathname === "/" ? "page" : undefined}>
-            Home
+            {t("Home")}
             <ChevronRight />
           </A>
           {NAV.map((n) => (
@@ -154,8 +157,8 @@ function FooterStatus(): ReactNode {
     <A href="/status" className="footer-status">
       <span className={`dot${down ? " dot-red" : ""}`} />
       <span className="footer-status-label">
-        <span style={down ? { visibility: "hidden" } : undefined}>All systems operational</span>
-        <span style={down ? undefined : { visibility: "hidden" }}>Major outage</span>
+        <span style={down ? { visibility: "hidden" } : undefined}>{t("All systems operational")}</span>
+        <span style={down ? undefined : { visibility: "hidden" }}>{t("Major outage")}</span>
       </span>
     </A>
   );
@@ -168,22 +171,23 @@ export function Footer(): ReactNode {
         <div className="tx-copyright">
           <img src="/anomaly-signature.svg" alt="" aria-hidden="true" width="163" height="64" loading="lazy" decoding="async" />
           <p>
-            © 2026 <a href="https://anoma.ly">Anomaly</a>. All rights reserved.
+            {rich("© 2026 <link>Anomaly</link>. All rights reserved.", { link: (c) => <a href="https://anoma.ly">{c}</a> })}
           </p>
         </div>
-        <nav aria-label="Footer">
+        <nav aria-label={t("Footer")}>
           {NAV.map((l) => (
             <A key={l.href} href={l.href}>
               {l.label}
             </A>
           ))}
-          <A href="/errors">Errors</A>
-          <A href="/changelog">Changelog</A>
-          <A href="/blog">Blog</A>
-          <A href="/enterprise">Enterprise</A>
-          <A href="/store">Store</A>
-          <A href="/status">Status</A>
+          <A href="/errors">{t("Errors")}</A>
+          <A href="/changelog">{t("Changelog")}</A>
+          <A href="/blog">{t("Blog")}</A>
+          <A href="/enterprise">{t("Enterprise")}</A>
+          <A href="/store">{t("Store")}</A>
+          <A href="/status">{t("Status")}</A>
           <A href={REPO_URL}>GitHub</A>
+          <LocaleMenu />
         </nav>
         <FooterStatus />
       </div>
@@ -207,13 +211,13 @@ export function ConsolePill(): ReactNode {
         else activateCompanion();
       }}
       aria-pressed={on}
-      title={on ? "Keystrokes outside form fields are sent to the console app. Click to pause." : "Click to send keystrokes into the console app."}
+      title={on ? t("Keystrokes outside form fields are sent to the console app. Click to pause.") : t("Click to send keystrokes into the console app.")}
     >
       <span className={`dot${on ? "" : " dot-idle"}`} />
       <kbd className="pill-detail">
         <DevtoolsShortcut />
       </kbd>
-      <span>Console</span>
+      <span>{t("Console")}</span>
     </button>
   );
 }

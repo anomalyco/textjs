@@ -121,26 +121,39 @@ async function checkGlyphs(page: Page, glyphs: Map<string, Set<string>>): Promis
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("DOM.enable");
   await cdp.send("CSS.enable");
+  /** Whether every character in `text` is drawn from a bundled font when set in `family`. */
+  const bundled = async (family: string, text: string): Promise<{ ok: boolean; fonts: string[] }> => {
+    await page.evaluate(
+      ({ text, family }) => {
+        const span = document.createElement("span");
+        span.id = "g";
+        span.style.fontFamily = family;
+        span.textContent = text;
+        document.body.replaceChildren(span);
+        return document.fonts.ready;
+      },
+      { text, family },
+    );
+    const { root } = await cdp.send("DOM.getDocument");
+    const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector: "#g" });
+    const { fonts } = await cdp.send("CSS.getPlatformFontsForNode", { nodeId });
+    return { ok: !fonts.some((f) => !f.isCustomFont), fonts: fonts.map((f) => f.familyName) };
+  };
   const bad: string[] = [];
-  for (const [family, chars] of glyphs) {
-    for (const ch of chars) {
-      await page.evaluate(
-        ({ ch, family }) => {
-          const span = document.createElement("span");
-          span.id = "g";
-          span.style.fontFamily = family;
-          span.textContent = ch;
-          document.body.replaceChildren(span);
-          return document.fonts.ready;
-        },
-        { ch, family },
-      );
-      const { root } = await cdp.send("DOM.getDocument");
-      const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector: "#g" });
-      const { fonts } = await cdp.send("CSS.getPlatformFontsForNode", { nodeId });
-      if (fonts.some((f) => !f.isCustomFont)) bad.push(`${ch} U+${ch.codePointAt(0)?.toString(16).toUpperCase()} in ${family} → ${fonts.map((f) => f.familyName).join(", ")}`);
+  // One span per family; only a failing set is split in halves to find the characters at fault.
+  const find = async (family: string, chars: string[]): Promise<void> => {
+    const result = await bundled(family, chars.join(""));
+    if (result.ok) return;
+    if (chars.length === 1) {
+      const ch = chars[0] as string;
+      bad.push(`${ch} U+${ch.codePointAt(0)?.toString(16).toUpperCase()} in ${family} → ${result.fonts.join(", ")}`);
+      return;
     }
-  }
+    const half = Math.ceil(chars.length / 2);
+    await find(family, chars.slice(0, half));
+    await find(family, chars.slice(half));
+  };
+  for (const [family, chars] of glyphs) await find(family, [...chars]);
   await cdp.detach();
   if (bad.length) throw new Error(`og: these characters fall back to system fonts; add them to scripts/og/fonts:\n  ${bad.join("\n  ")}`);
 }

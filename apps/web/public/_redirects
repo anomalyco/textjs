@@ -31,3 +31,11 @@
 /merch/cap /store 301
 /merch/sticker-sheet /store 301
 /merch/* /store/:splat 301
+
+# Locale paths are lowercase (src/i18n/locales.ts); the BCP 47 spelling redirects.
+/pt-BR /pt-br 301
+/pt-BR/* /pt-br/:splat 301
+/zh-CN /zh-cn 301
+/zh-CN/* /zh-cn/:splat 301
+/zh-TW /zh-tw 301
+/zh-TW/* /zh-tw/:splat 301

@@ -1,0 +1,22 @@
+{
+  "en": { "text": "This page is available in English.", "action": "Read in English", "dismiss": "Dismiss" },
+  "es": { "text": "Esta página está disponible en español.", "action": "Leer en español", "dismiss": "Cerrar" },
+  "fr": { "text": "Cette page est disponible en français.", "action": "Lire en français", "dismiss": "Fermer" },
+  "de": { "text": "Diese Seite gibt es auch auf Deutsch.", "action": "Auf Deutsch lesen", "dismiss": "Schließen" },
+  "it": { "text": "Questa pagina è disponibile in italiano.", "action": "Leggi in italiano", "dismiss": "Chiudi" },
+  "pt-BR": { "text": "Esta página está disponível em português.", "action": "Ler em português", "dismiss": "Fechar" },
+  "ja": { "text": "このページは日本語でもご覧いただけます。", "action": "日本語で読む", "dismiss": "閉じる" },
+  "ko": { "text": "이 페이지는 한국어로도 볼 수 있어요.", "action": "한국어로 보기", "dismiss": "닫기" },
+  "zh-CN": { "text": "此页面有简体中文版本。", "action": "阅读中文版", "dismiss": "关闭" },
+  "zh-TW": { "text": "此頁面有繁體中文版本。", "action": "閱讀中文版", "dismiss": "關閉" },
+  "ru": { "text": "Эта страница доступна на русском языке.", "action": "Читать на русском", "dismiss": "Закрыть" },
+  "tr": { "text": "Bu sayfa Türkçe olarak da mevcut.", "action": "Türkçe oku", "dismiss": "Kapat" },
+  "pl": { "text": "Ta strona jest dostępna po polsku.", "action": "Czytaj po polsku", "dismiss": "Zamknij" },
+  "id": { "text": "Halaman ini tersedia dalam bahasa Indonesia.", "action": "Baca dalam bahasa Indonesia", "dismiss": "Tutup" },
+  "vi": { "text": "Trang này có bản tiếng Việt.", "action": "Đọc bằng tiếng Việt", "dismiss": "Đóng" },
+  "hi": { "text": "यह पेज हिन्दी में भी उपलब्ध है।", "action": "हिन्दी में पढ़ें", "dismiss": "बंद करें" },
+  "ar": { "text": "هذه الصفحة متوفرة باللغة العربية.", "action": "اقرأ بالعربية", "dismiss": "إغلاق" },
+  "he": { "text": "הדף הזה זמין גם בעברית.", "action": "לקריאה בעברית", "dismiss": "סגירה" },
+  "fa": { "text": "این صفحه به فارسی هم در دسترس است.", "action": "خواندن به فارسی", "dismiss": "بستن" },
+  "ur": { "text": "یہ صفحہ اردو میں بھی دستیاب ہے۔", "action": "اردو میں پڑھیں", "dismiss": "بند کریں" }
+}

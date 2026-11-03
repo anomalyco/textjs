@@ -1,0 +1,75 @@
+/**
+ * The site's languages. English is the source and lives at the root; every other locale is a separate
+ * build (`scripts/build.ts`) served under `/<path>/…`, with its strings and Markdown compiled in.
+ *
+ * `status`: `live` locales are indexed and offered in the picker and banner; `draft` locales are built and
+ * reachable by URL but `noindex`; `planned` locales aren't built.
+ */
+
+declare const __TEXTJS_LOCALE__: string | undefined;
+
+export type LocaleStatus = "source" | "live" | "draft" | "planned";
+
+export interface Locale {
+  /** BCP 47 tag for `lang` and `hreflang`: `pt-BR`. */
+  code: string;
+  /** URL segment, lowercase: `pt-br` (`""` for English). */
+  path: string;
+  /** Native name for the picker: `Português (Brasil)`. */
+  name: string;
+  dir: "ltr" | "rtl";
+  status: LocaleStatus;
+}
+
+export const LOCALES: readonly Locale[] = [
+  { code: "en", path: "", name: "English", dir: "ltr", status: "source" },
+  { code: "es", path: "es", name: "Español", dir: "ltr", status: "planned" },
+  { code: "fr", path: "fr", name: "Français", dir: "ltr", status: "planned" },
+  { code: "de", path: "de", name: "Deutsch", dir: "ltr", status: "planned" },
+  { code: "it", path: "it", name: "Italiano", dir: "ltr", status: "planned" },
+  { code: "pt-BR", path: "pt-br", name: "Português (Brasil)", dir: "ltr", status: "planned" },
+  { code: "ja", path: "ja", name: "日本語", dir: "ltr", status: "draft" },
+  { code: "ko", path: "ko", name: "한국어", dir: "ltr", status: "planned" },
+  { code: "zh-CN", path: "zh-cn", name: "简体中文", dir: "ltr", status: "planned" },
+  { code: "zh-TW", path: "zh-tw", name: "繁體中文", dir: "ltr", status: "planned" },
+  { code: "ru", path: "ru", name: "Русский", dir: "ltr", status: "planned" },
+  { code: "tr", path: "tr", name: "Türkçe", dir: "ltr", status: "planned" },
+  { code: "pl", path: "pl", name: "Polski", dir: "ltr", status: "planned" },
+  { code: "id", path: "id", name: "Bahasa Indonesia", dir: "ltr", status: "planned" },
+  { code: "vi", path: "vi", name: "Tiếng Việt", dir: "ltr", status: "planned" },
+  { code: "hi", path: "hi", name: "हिन्दी", dir: "ltr", status: "planned" },
+  { code: "ar", path: "ar", name: "العربية", dir: "rtl", status: "planned" },
+  { code: "he", path: "he", name: "עברית", dir: "rtl", status: "planned" },
+  { code: "fa", path: "fa", name: "فارسی", dir: "rtl", status: "planned" },
+  { code: "ur", path: "ur", name: "اردو", dir: "rtl", status: "planned" },
+];
+
+export const SOURCE_LOCALE = LOCALES[0] as Locale;
+
+export function getLocale(code: string): Locale | undefined {
+  return LOCALES.find((l) => l.code === code);
+}
+
+/** The locale this bundle was built for (English under `bun test` and the default build). */
+export const LOCALE: Locale = getLocale(typeof __TEXTJS_LOCALE__ === "string" ? __TEXTJS_LOCALE__ : "en") ?? SOURCE_LOCALE;
+
+/** Locales offered to visitors: the picker and the suggestion banner. */
+export function offeredLocales(): Locale[] {
+  return LOCALES.filter((l) => l.status === "source" || l.status === "live" || l === LOCALE);
+}
+
+/** `/ja/docs/routing` → ja and `/docs/routing`; any other path belongs to English. */
+export function splitLocale(pathname: string): { locale: Locale; path: string } {
+  const m = /^\/([a-z]{2}(?:-[a-z]{2})?)(?=\/|$)(.*)$/.exec(pathname);
+  if (m) {
+    const locale = LOCALES.find((l) => l.path === m[1] && l !== SOURCE_LOCALE);
+    if (locale) return { locale, path: m[2] || "/" };
+  }
+  return { locale: SOURCE_LOCALE, path: pathname };
+}
+
+/** `ja` + `/docs/routing` → `/ja/docs/routing`; English stays at the root. */
+export function localePath(locale: Locale, path: string): string {
+  if (!locale.path) return path;
+  return path === "/" ? `/${locale.path}` : `/${locale.path}${path}`;
+}

@@ -37,6 +37,47 @@
   color-scheme: dark;
 }
 
+/* Scripts Geist doesn't cover use system fonts (no web font to wait for, so no layout shift). Geist stays first
+   for the Latin text and code inside them. */
+:root:lang(ja) {
+  --sans: "Geist", "Geist Fallback", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, "Noto Sans JP", sans-serif;
+}
+:root:lang(ko) {
+  --sans: "Geist", "Geist Fallback", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+}
+:root:lang(zh-CN) {
+  --sans: "Geist", "Geist Fallback", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+}
+:root:lang(zh-TW) {
+  --sans: "Geist", "Geist Fallback", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+}
+:root:is(:lang(ar), :lang(fa), :lang(ur)) {
+  --sans: "Geist", "Geist Fallback", "SF Arabic", "Geeza Pro", "Segoe UI", "Noto Sans Arabic", Tahoma, sans-serif;
+}
+:root:lang(he) {
+  --sans: "Geist", "Geist Fallback", "SF Hebrew", "Arial Hebrew", "Segoe UI", "Noto Sans Hebrew", sans-serif;
+}
+:root:lang(hi) {
+  --sans: "Geist", "Geist Fallback", "Kohinoor Devanagari", "Devanagari Sangam MN", "Nirmala UI", "Noto Sans Devanagari", sans-serif;
+}
+/* Negative tracking breaks Arabic joining and crowds CJK and Devanagari. */
+:root:is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(hi)) :is(h1, h2, h3, h4, h5, h6, p, li, a, button, small, strong, td, th) {
+  letter-spacing: 0 !important;
+}
+:root:is(:lang(ar), :lang(fa), :lang(ur), :lang(hi)) .prose {
+  line-height: 1.8;
+}
+:root:is(:lang(ja), :lang(zh-CN), :lang(zh-TW)) body {
+  line-break: strict;
+  overflow-wrap: anywhere;
+}
+:root:lang(ja) body {
+  word-break: auto-phrase;
+}
+:root:lang(ko) body {
+  word-break: keep-all;
+}
+
 *,
 *::before,
 *::after {
@@ -1522,6 +1563,69 @@ kbd {
 
 .footer nav a:hover {
   color: var(--fg);
+}
+
+.locale-menu select {
+  appearance: none;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--subtle);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.locale-menu select:hover,
+.locale-menu select:focus-visible {
+  color: var(--fg);
+}
+
+/* Bottom start corner, across from the console pill; fixed, so it never moves the page. */
+.locale-suggestion {
+  position: fixed;
+  inset-inline-start: 20px;
+  bottom: 20px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 40px);
+  padding-block: 6px;
+  padding-inline: 16px 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: rgba(10, 10, 10, 0.86);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.8);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.locale-suggestion-close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--subtle);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.locale-suggestion-close:hover {
+  color: var(--fg);
+}
+
+@media (max-width: 640px) {
+  /* Above the console pill on narrow screens. */
+  .locale-suggestion {
+    bottom: 72px;
+  }
 }
 
 .footer-status {

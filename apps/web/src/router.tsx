@@ -4,6 +4,8 @@ import { PRESETS, presetForPath, siteStore, type PresetId } from "./console-comp
 import { getDocMeta } from "./docs/meta";
 import { learnRoute, learnTitle } from "./learn/routes";
 import { merchRoute, merchTitle } from "./merch/routes";
+import { LOCALE, localePath, SOURCE_LOCALE, splitLocale } from "./i18n/locales";
+import { t } from "./i18n/t";
 import { getErrorPageDoc } from "./pages/tx000";
 import { safeDecode } from "./url";
 
@@ -29,8 +31,13 @@ export function normalizePath(pathname: string): string {
   return p.length > 1 ? p.replace(/\/+$/, "") : p;
 }
 
+/** The route path without its locale prefix: `/ja/docs` → `/docs`. */
+export function routePath(pathname: string): string {
+  return splitLocale(normalizePath(pathname)).path;
+}
+
 export function matchRoute(pathname: string): Route {
-  const p = normalizePath(pathname);
+  const p = routePath(pathname);
   if (p === "/" || p === "/index.html") return { name: "home" };
   if (p === "/docs") return { name: "docs", slug: "introduction" };
   const docs = /^\/docs\/([^/]+)$/.exec(p);
@@ -71,7 +78,7 @@ export function titleFor(route: Route): string {
       return "Text.js | The Console Framework";
     case "docs": {
       const doc = getDocMeta(route.slug);
-      return `${doc?.title ?? "Docs"} | Text.js Docs`;
+      return t("{title} | Text.js Docs", { title: doc?.title ?? t("Docs") });
     }
     case "playground": {
       const preset = route.preset === PRESETS[0]?.id ? undefined : PRESETS.find((p) => p.id === route.preset);
@@ -100,23 +107,27 @@ export function titleFor(route: Route): string {
     case "merch":
       return merchTitle(route.slug);
     case "not-found":
-      return `404: This page could not be found | ${suffix}`;
+      return t("404: This page could not be found | Text.js");
   }
 }
 
 export interface LocationState {
+  /** The full URL path, locale prefix included. */
   pathname: string;
+  /** `pathname` without the locale prefix, for route checks. */
+  path: string;
   hash: string;
   /** Bumped on every navigation (also for same-path hash changes). */
   key: number;
 }
 
 const hasWindow = typeof window !== "undefined";
-let current: LocationState = {
-  pathname: hasWindow ? normalizePath(window.location.pathname) : "/",
-  hash: hasWindow ? window.location.hash : "",
-  key: 0,
-};
+function locationState(pathname: string, hash: string, key: number): LocationState {
+  const p = normalizePath(pathname);
+  return { pathname: p, path: routePath(p), hash, key };
+}
+
+let current: LocationState = locationState(hasWindow ? window.location.pathname : "/", hasWindow ? window.location.hash : "", 0);
 const listeners = new Set<() => void>();
 let hrefPrefetcher: ((pathname: string) => void) | null = null;
 
@@ -128,7 +139,7 @@ export function registerHrefPrefetcher(fn: (pathname: string) => void): void {
 function prefetchHref(href: string): void {
   if (!hrefPrefetcher || !isInternalHref(href)) return;
   const pathname = (href.split(/[?#]/)[0] ?? "/").trim() || "/";
-  hrefPrefetcher(normalizePath(pathname));
+  hrefPrefetcher(routePath(pathname));
 }
 
 function emit(): void {
@@ -136,13 +147,13 @@ function emit(): void {
 }
 
 function setLocation(pathname: string, hash: string): void {
-  current = { pathname: normalizePath(pathname), hash, key: current.key + 1 };
-  siteStore.syncRoute(current.pathname);
+  current = locationState(pathname, hash, current.key + 1);
+  siteStore.syncRoute(current.path);
   emit();
 }
 
 if (hasWindow) {
-  siteStore.syncRoute(current.pathname);
+  siteStore.syncRoute(current.path);
   window.addEventListener("popstate", () => setLocation(window.location.pathname, window.location.hash));
 }
 
@@ -157,8 +168,8 @@ export function getLocation(): LocationState {
 
 /** Point the router at `pathname` without touching history (build-time prerendering). */
 export function resetLocation(pathname: string): void {
-  current = { pathname: normalizePath(pathname), hash: "", key: 0 };
-  siteStore.syncRoute(current.pathname);
+  current = locationState(pathname, "", 0);
+  siteStore.syncRoute(current.path);
 }
 
 export function useLocation(): LocationState {
@@ -166,8 +177,9 @@ export function useLocation(): LocationState {
 }
 
 export function navigate(href: string, options: { replace?: boolean } = {}): void {
-  const url = new URL(href, window.location.href);
-  if (url.origin !== window.location.origin) {
+  const url = new URL(localizeHref(href), window.location.href);
+  // Another locale is another build: load it.
+  if (url.origin !== window.location.origin || splitLocale(url.pathname).locale !== LOCALE) {
     window.location.assign(href);
     return;
   }
@@ -182,13 +194,24 @@ export function isInternalHref(href: string): boolean {
   return href.startsWith("/") && !href.startsWith("//");
 }
 
+/** Adds this build's locale prefix to links to site pages (`/docs` → `/ja/docs`); assets and APIs keep their paths. */
+export function localizeHref(href: string): string {
+  if (!LOCALE.path || !isInternalHref(href)) return href;
+  const at = href.search(/[?#]/);
+  const path = at < 0 ? href : href.slice(0, at);
+  if (splitLocale(path).locale !== SOURCE_LOCALE || matchRoute(path).name === "not-found") return href;
+  const rest = at < 0 ? "" : href.slice(at);
+  return `${localePath(LOCALE, normalizePath(path))}${rest}`;
+}
+
 export interface AProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
   href: string;
   children?: ReactNode;
 }
 
 /** An `<a>` that performs client-side navigation for internal links. */
-export function A({ href, onClick, onMouseEnter, onFocus, onPointerDown, children, ...rest }: AProps): ReactNode {
+export function A({ href: source, onClick, onMouseEnter, onFocus, onPointerDown, children, ...rest }: AProps): ReactNode {
+  const href = localizeHref(source);
   const internal = isInternalHref(href);
   const handle = (e: MouseEvent<HTMLAnchorElement>): void => {
     onClick?.(e);

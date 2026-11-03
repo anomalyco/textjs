@@ -1,0 +1,42 @@
+{
+  "keep": [
+    "Text.js",
+    "OpenCode",
+    "OpenCode Lite",
+    "DevTools",
+    "console.log",
+    "App Router",
+    "Turbolog",
+    "Yoga",
+    "Flexbox",
+    "React",
+    "Bun",
+    "Node.js",
+    "Chrome",
+    "Edge",
+    "Firefox",
+    "Safari",
+    "Chromium",
+    "WebKit",
+    "Vite",
+    "npm",
+    "GitHub",
+    "terminal.shop",
+    "Acme Deploys",
+    "Anomaly",
+    "MCP",
+    "ESLint",
+    "VS Code",
+    "TypeScript",
+    "▼"
+  ],
+  "terms": {
+    "console": { "ja": "コンソール", "ar": "وحدة التحكم" },
+    "frame": { "ja": "フレーム", "ar": "إطار" },
+    "cell": { "ja": "セル", "ar": "خلية" },
+    "route": { "ja": "ルート", "ar": "مسار" },
+    "layout": { "ja": "レイアウト", "ar": "تخطيط" },
+    "Playground": { "ja": "Playground", "ar": "Playground" },
+    "Docs": { "ja": "ドキュメント", "ar": "التوثيق" }
+  }
+}
