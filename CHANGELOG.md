@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-03
+
 ### Added
 
 - textjs.org/doom plays Doom's sound effects, with Doom's own stereo panning and distance falloff. Sound starts with your first click or keypress on the page, pauses with the game, and follows Sfx Volume in Doom's Options → Sound Volume menu. There's no music.
