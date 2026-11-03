@@ -8,7 +8,7 @@ logged by `CssConsoleDriver` (append mode, curtain).
   `BENCH_QUERY`: `mode=auto|halfblock`, `palette=32|64|256`, `sample=average`, `maxFrames=N`, `levels=N`.
   `BENCH_GC=1` forces GC before heap readings.
 - `matrix.sh`, `heap.sh`: the same on an exe.dev VM under Xvfb (software rendering, so slower than a Mac).
-- `capture.mjs`: plays `/playground/doom` in DevTools (menu, new game, walk, turn, fire, use, run, automap) and saves screenshots, a WebM and stats.
+- `capture.mjs`: plays `/doom` in DevTools (menu, new game, walk, turn, fire, use, run, automap) and saves screenshots, a WebM and stats.
 - `palette.ts <iwad> <K>`: median-cut K colors from the WAD's PLAYPAL into `apps/web/src/demos/doom/palette.ts`.
 
 ## Sprite mode (`mode=auto`, v2 default) vs half-blocks on an M5 Pro Mac (Chrome for Testing 151, headed, 10 s runs)

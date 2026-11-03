@@ -44,9 +44,11 @@ describe("production build", () => {
     const rewrite = cfg.rewrites.find((r) => r.destination === "/index.html");
     expect(rewrite).toBeDefined();
     const re = new RegExp(`^${rewrite?.source ?? ""}$`);
-    for (const p of ["/", "/docs/routing", "/playground", "/opencode", "/nope"]) expect(re.test(p)).toBe(true);
-    for (const p of ["/assets/index-abc.js", "/assets/missing.js", "/favicon.svg", "/og.png", "/og.svg", "/robots.txt", "/sitemap.xml", "/humans.txt", "/llms.txt", "/home.ansi", "/api/v2/status.json", "/api/v2/components.json", "/api/v2/summary.json", "/enterprise/sample-invoice.pdf"]) expect(re.test(p)).toBe(false);
+    for (const p of ["/", "/docs/routing", "/playground", "/opencode", "/doom", "/nope"]) expect(re.test(p)).toBe(true);
+    for (const p of ["/assets/index-abc.js", "/assets/missing.js", "/doom/DOOM1.WAD.gz", "/doom/missing.bin", "/favicon.svg", "/og.png", "/og.svg", "/robots.txt", "/sitemap.xml", "/humans.txt", "/llms.txt", "/home.ansi", "/api/v2/status.json", "/api/v2/components.json", "/api/v2/summary.json", "/enterprise/sample-invoice.pdf"]) expect(re.test(p)).toBe(false);
     expect(re.test("/enterprise")).toBe(true);
+    // Doom's WAD gets the same day-long cache as on Cloudflare Pages (_headers).
+    expect(cfg.headers.find((h) => h.source === "/doom/(.*)")?.headers).toEqual([{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }]);
     const all = cfg.headers.find((h) => h.source === "/(.*)")?.headers ?? [];
     expect(all).toContainEqual({ key: "X-Content-Type-Options", value: "nosniff" });
     expect(all).toContainEqual({ key: "X-Powered-By", value: "Text.js" });

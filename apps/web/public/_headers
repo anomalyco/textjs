@@ -78,6 +78,11 @@
   Cache-Control: public, max-age=0, must-revalidate
   Cross-Origin-Resource-Policy: same-origin
 
+# The Doom page. Its WAD and license files are under /doom/*.
+/doom
+  Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
+
 /store
   Cache-Control: public, max-age=0, must-revalidate
   Cross-Origin-Resource-Policy: same-origin

@@ -6,9 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- textjs.org: Doom moved to textjs.org/doom. textjs.org/playground/doom redirects there.
+
 ### Fixed
 
-- textjs.org/playground/doom runs at Doom's 35 tics per second. In a level it ran 3.8× fast on a 60Hz display (131 tics per second) and 5.5× at 120Hz (192), because the page mistook the extra clock reads Doom makes while drawing a level for a busy-wait, and moved Doom's clock a tic ahead on every animation frame and timer callback.
+- textjs.org/doom runs at Doom's 35 tics per second. In a level it ran 3.8× fast on a 60Hz display (131 tics per second) and 5.5× at 120Hz (192), because the page mistook the extra clock reads Doom makes while drawing a level for a busy-wait, and moved Doom's clock a tic ahead on every animation frame and timer callback.
 
 ## [1.4.0] - 2026-11-03
 

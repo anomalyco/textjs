@@ -37,16 +37,16 @@ export const PRESETS: readonly Preset[] = [
 
 const DEFAULT_PRESET = (PRESETS[0] as Preset).id;
 
+/** Demos with a top-level URL, like /opencode and /coffee. */
+const OWN_PATHS: Partial<Record<PresetId, string>> = { doom: "/doom" };
+
 export function presetPath(id: PresetId): string {
-  return id === DEFAULT_PRESET ? "/playground" : `/playground/${id}`;
+  return OWN_PATHS[id] ?? (id === DEFAULT_PRESET ? "/playground" : `/playground/${id}`);
 }
 
-/** `/playground` → the first demo, `/playground/snake` → Snake, anything else → `null`. */
+/** `/playground` → the first demo, `/playground/snake` → Snake, `/doom` → Doom, anything else → `null`. */
 export function presetForPath(pathname: string): PresetId | null {
-  if (pathname === "/playground") return DEFAULT_PRESET;
-  const m = /^\/playground\/([^/]+)$/.exec(pathname);
-  const id = m ? PRESETS.find((p) => p.id === m[1] && p.id !== DEFAULT_PRESET)?.id : undefined;
-  return id ?? null;
+  return PRESETS.find((p) => presetPath(p.id) === pathname)?.id ?? null;
 }
 
 /** Every option in the Playground picker: its own demos, then the two full apps with their own routes. */
@@ -112,7 +112,7 @@ export function hintsFor(tab: CompanionTab, preset: PresetId, doomStatus: DoomSt
 
 /** Routes whose page is one big focus pad: console input stays engaged while moving between them. */
 export function isPadRoute(pathname: string): boolean {
-  return pathname.startsWith("/playground") || pathname.startsWith("/opencode") || pathname === "/coffee";
+  return pathname.startsWith("/playground") || presetForPath(pathname) !== null || pathname.startsWith("/opencode") || pathname === "/coffee";
 }
 
 export const THEME_ORDER: readonly ThemeName[] = ["geistDark", "opencodeDark", "tokyoNight", "amberCrt", "geistLight"];
@@ -154,7 +154,7 @@ type Listener = () => void;
 /** Unknown routes (404s) map to Home so demos like Snake never keep running off-route. */
 function tabForPath(pathname: string): CompanionTab {
   if (pathname.startsWith("/docs")) return "docs";
-  if (pathname.startsWith("/playground")) return "playground";
+  if (pathname.startsWith("/playground") || presetForPath(pathname)) return "playground";
   if (pathname.startsWith("/opencode")) return "opencode";
   // terminal.shop's storefront, at /coffee.
   if (pathname === "/coffee") return "terminal";
