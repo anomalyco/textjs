@@ -18,8 +18,8 @@
 | 文件 | 用途 |
 | :-- | :-- |
 | `layout.tsx` | 路由段的共享 UI |
-| `page.tsx` | 可通过路由访问的界面 |
-| `loading.tsx` | Suspense 后备 UI |
+| `page.tsx` | 可通过路由访问的页面 |
+| `loading.tsx` | Suspense 后备界面 |
 | `error.tsx` | 错误边界 |
 | `not-found.tsx` | 未匹配的 URL |
 | `route.ts` | API 端点 |

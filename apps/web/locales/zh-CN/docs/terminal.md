@@ -1,5 +1,5 @@
 <!-- s:e9f791b208 -->
-`text run` 在终端中渲染 App Router 应用。布局、组件、按键映射和路由处理程序与浏览器共用。输出使用真彩色 ANSI，而非 `%c` span。
+`text run` 在终端中渲染 App Router 应用。布局、组件、按键映射和路由处理程序与浏览器共用。输出采用真彩色 ANSI，而非 `%c` span。
 
 <!-- s:7d8aa376e3 -->
 按 `Ctrl+C` 退出。`text run` 需要 Bun。

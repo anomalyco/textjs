@@ -43,7 +43,7 @@ CLI
 0.1 的其他内容
 
 <!-- s:289b0a9973 -->
-`@textjs/react` 提供 PascalCase 组件（`Box`、`Text`、`ScrollBox`、`Input`、`Textarea`、`Select`、`Tabs`、`Code`、`Markdown`、`Diff`、`Modal`、`Spinner`）、以单元格为单位的 Tailwind 风格 `className` 工具类，以及 themes。布局由 WebAssembly 中的 Yoga 计算。
+`@textjs/react` 提供 PascalCase 命名的组件（`Box`、`Text`、`ScrollBox`、`Input`、`Textarea`、`Select`、`Tabs`、`Code`、`Markdown`、`Diff`、`Modal`、`Spinner`）、以单元格为单位的 Tailwind 风格 `className` 工具类和主题。布局由 WebAssembly 中的 Yoga 处理。
 
 <!-- s:8ad0f2154c -->
 完整列表见[更新日志](/changelog#v0-1-0)。

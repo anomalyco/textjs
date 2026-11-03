@@ -34,7 +34,7 @@
 | `Cache-Control` | `s-maxage=N, stale-while-revalidate=<1 year − N>`，或在使用 `force-static` 时为 `s-maxage=31536000` |
 
 <!-- s:c1fb73c64a -->
-当[中间件](/docs/middleware)为请求设置 Cookie、执行重写或覆盖请求头时，生成的响应头变为 `private, no-cache, no-store, max-age=0, must-revalidate`，因此 shared 缓存绝不会重放针对特定访客的处理结果。处理程序设置的 `Cache-Control` 响应头会保留。
+当[中间件](/docs/middleware)为请求设置 cookie、执行重写或覆盖请求头时，生成的响应头会变为 `private, no-cache, no-store, max-age=0, must-revalidate`，因此共享缓存不会复用针对单个访客的处理结果。处理程序设置的 `Cache-Control` 响应头会保留。
 
 <!-- s:ae27ba22c7 -->
 在 `text dev` 中，路由段配置生效，但不存储任何内容，因此每次请求都会运行处理程序。
@@ -93,5 +93,5 @@
 平台说明
 
 <!-- s:5418a08901 -->
-- 每个无服务器实例（Vercel 函数、Cloudflare 隔离实例）都有独立的内存缓存。`Cache-Control: s-maxage` 也允许平台 CDN 缓存响应；按需重新验证不会清除 CDN 缓存。当 `revalidateTag` 必须作用于每个实例时，使用共享的 `cacheHandler`。
-- Cloudflare 需要启用 `nodejs_compat` 标志（缓存使用 `AsyncLocalStorage`）。参见[部署](/docs/deploying)。
+- 每个 serverless 实例（Vercel 函数、Cloudflare 隔离实例）都有自己的内存缓存。`Cache-Control: s-maxage` 也允许平台 CDN 缓存响应；按需重新验证不会清除 CDN 缓存。当 `revalidateTag` 必须作用于每个实例时，使用共享的 `cacheHandler`。
+- Cloudflare 需要启用 `nodejs_compat` 标志（缓存使用了 `AsyncLocalStorage`）。参见[部署](/docs/deploying)。

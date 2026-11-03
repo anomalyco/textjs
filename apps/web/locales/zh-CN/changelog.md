@@ -124,9 +124,9 @@
 性能
 
 <!-- s:f59d215740 -->
-- `@textjs/react`：`Box` 和 `Text` 向 reconciler 传递预先剔除无关属性的场景 props，不再在挂载和更新时复制 props 对象。
-- `@textjs/core`：`SceneNode.getTextModel()` 跳过单字符串 `<Text>` 叶节点的行内树遍历，并复用缓存的已清零 `Uint16Array` `runOf` 缓冲区。`CssConsoleDriver` 在内层循环中扫描样式相同的连续 BMP 单元格，`ConsoleRenderer` 在帧未变化时跳过 `countYogaNodes()`。
-- textjs.org：路由和控制台伴侣标签页拆分为按路由划分的 JS 和 CSS 分块。商店照片从 `photos/final` 原图重新编码，次要商品照片在悬停或切换幻灯片时加载。
+- `@textjs/react`：`Box` 和 `Text` 向协调器传递预先精简的场景 props，不再在挂载和更新时复制 props 对象。
+- `@textjs/core`：`SceneNode.getTextModel()` 跳过单字符串 `<Text>` 叶节点的内联树遍历，并复用已缓存且已清零的 `Uint16Array` `runOf` 缓冲区。`CssConsoleDriver` 在内层循环中扫描样式相同的连续 BMP 单元格，`ConsoleRenderer` 则在帧未变化时跳过 `countYogaNodes()`。
+- textjs.org：路由和控制台伴随面板标签页按路由拆分为 JS 和 CSS 分块。商店照片从 `photos/final` 原片重新编码，次要商品照片在悬停或切换幻灯片时加载。
 
 <!-- s:6909c337fb -->
 - `<ViewportControl>` 使用像素单位的 `minWidth` 代替 `20ch`，并与 `<FocusPad>` 一样列出度量匹配的后备字体，使尺寸选择器在 `Geist Mono` 加载后仍保持宽度。
@@ -250,7 +250,7 @@
 第一个里程碑。
 
 <!-- s:67e64392c2 -->
-- `@textjs/core`：基于扁平类型化数组的 `CellBuffer`、Yoga WASM 布局、`Intl.Segmenter` 文本测量，以及 `%c` 游程编码驱动。每个脏帧调用一次 `console.log`，空闲时不调用。
-- `@textjs/react`：React 19 reconciler、PascalCase 组件（`Box`、`Text`、`ScrollBox`、`Input`、`Textarea`、`Select`、`Tabs`、`Code`、`Markdown`、`Diff`、`Modal`、`Spinner` 等）、单元格级 Tailwind 风格 `className` 工具、themes 和 DOM `FocusPad`。
+- `@textjs/core`：基于扁平类型化数组的 `CellBuffer`、Yoga WASM 布局、`Intl.Segmenter` 文本测量，以及 `%c` 游程编码驱动程序。每个脏帧调用一次 `console.log`，空闲时不调用。
+- `@textjs/react`：React 19 协调器、PascalCase 组件（`Box`、`Text`、`ScrollBox`、`Input`、`Textarea`、`Select`、`Tabs`、`Code`、`Markdown`、`Diff`、`Modal`、`Spinner` 等）、单元格级 Tailwind 风格的 `className` 工具类、主题和 DOM `FocusPad`。
 - `textjs`：基于文件系统的 App Router（`layout`、`page`、`loading`、`error`、`not-found`、动态段、路由处理程序）、`text dev`、`text build`、`text start` 和控制台内的 `[▼]` 检查器。
-- `create-text-app`，提供 `starter` 和 `dashboard` 模板。
+- `create-text-app`，附带 `starter` 和 `dashboard` 模板。

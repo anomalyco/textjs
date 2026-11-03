@@ -50,4 +50,4 @@ Text.js 在 Chrome DevTools 控制台中渲染 React 应用。除了一个隐藏
 后续
 
 <!-- s:cb5f6bd294 -->
-npm 上的 `@textjs/core` 0.0.x 原型将所有内容放在一个包中。Text.js 0.1 将本文介绍的渲染器移入 `@textjs/core`，将 React reconciler 移入 `@textjs/react`，并添加了 App Router。
+npm 上的 `@textjs/core` 0.0.x 原型将所有功能放在一个包中。Text.js 0.1 将本文介绍的渲染器移至 `@textjs/core`，将 React 协调器移至 `@textjs/react`，并添加了 App Router。

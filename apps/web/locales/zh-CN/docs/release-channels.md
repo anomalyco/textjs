@@ -52,7 +52,7 @@ Text.js 通过三个 npm dist-tag 发布。所有包（`@textjs/app`、`@textjs/
 维护者使用发布脚本同步更新所有工作区包的版本：
 
 <!-- s:614a1ea872 -->
-`release:version` 会重写每个 `package.json` 及其对应的版本常量（`VERSION`、reconciler 的 `rendererVersion`），在各包版本不一致时拒绝运行，使用 `--dry-run` 可打印执行计划。`release:publish` 会构建、打包（解析 `workspace:*`）、应用 `publishConfig`，拒绝将预发布版本发布到 `latest` 或将稳定版发布到 `canary`，并跳过 npm 上已存在的版本。
+`release:version` 会重写每个 `package.json` 及与其保持一致的版本常量（`VERSION`、协调器的 `rendererVersion`），在各包版本不一致时拒绝运行，使用 `--dry-run` 可打印执行计划。`release:publish` 会构建、打包（解析 `workspace:*`）、应用 `publishConfig`，拒绝将预发布版本发布到 `latest` 或将稳定版本发布到 `canary`，并跳过 npm 上已存在的版本。
 
 <!-- s:ec6955472a -->
 各版本线的维护期限见[支持政策](/docs/support-policy)。

@@ -8,10 +8,10 @@
 每个阶段的存在，都是因为控制台是一种特殊的显示界面。它使用等宽字体、按行组织内容，通过 `%c` 设置样式，并由 DevTools 决定何时重绘。
 
 <!-- s:db7daa7cf2 -->
-reconciler
+协调器
 
 <!-- s:f3cdc101e1 -->
-`@textjs/react` 是一个 React 19 reconciler（`react-reconciler@0.34.0`），包含 `tx-box` 和 `tx-text` 两种宿主元素，以及用于字符串子节点的文本实例。你导入的所有组件，从 `<Box>` 到 `<Markdown>`，都基于这些元素和实例构建。提交通过 `requestAnimationFrame` 调度，按键或粘贴则在同一任务中同步渲染。
+`@textjs/react` 是一个 React 19 协调器（`react-reconciler@0.34.0`），提供 `tx-box` 和 `tx-text` 两种宿主元素，以及用于字符串子节点的文本实例。你导入的所有组件，从 `<Box>` 到 `<Markdown>`，都基于这些元素和实例构建。提交通过 `requestAnimationFrame` 调度，按键或粘贴操作会在同一任务中同步渲染。
 
 <!-- s:1ab8b509e0 -->
 布局

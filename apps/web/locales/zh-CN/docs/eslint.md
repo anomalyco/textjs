@@ -49,7 +49,7 @@ App Router 规则根据任意 `app/` 目录中的文件名（`page.tsx`、`layou
 `no-dom-elements`
 
 <!-- s:deb9e3c0ec -->
-控制台中不存在 `<div>`、`<span>`、自定义元素及其他 DOM 标签。reconciler 只识别自身的宿主节点，遇到其他节点就会抛出 `TX003`。
+控制台中不存在 `<div>`、`<span>`、自定义元素及其他 DOM 标签。协调器只识别自身的宿主节点，遇到其他节点时会抛出 `TX003`。
 
 <!-- s:bd7c3e0318 -->
 修复建议会将标签替换为最接近的组件（`div` → `Box`、`span`/`p` → `Text`、`strong` → `Text bold`、`a` → `Link`、`input` → `Input`、`hr` → `Divider` 等），并添加导入。
@@ -132,4 +132,4 @@ Metadata 先从布局合并，再从页面（或 `not-found`）合并。此规�
 `route-handler-exports`
 
 <!-- s:877bcc12b1 -->
-`route.ts` 文件只响应其导出的 HTTP 方法：`GET`、`HEAD`、`POST`、`PUT`、`PATCH`、`DELETE` 和 `OPTIONS`。小写的 `get` 或 `Post` 永远不会被调用（请求会收到 `405`）；修复建议会将其重命名。默认导出、非函数处理程序和其他导出都会被报告，但 `dynamic` 和 `revalidate` [路由段配置](/docs/caching)除外。将共享代码移至 `lib/`，或使用 `{ allow: [...] }` 列出额外允许的名称。
+`route.ts` 文件只响应其导出的 HTTP 方法：`GET`、`HEAD`、`POST`、`PUT`、`PATCH`、`DELETE` 和 `OPTIONS`。小写的 `get` 或 `Post` 永远不会被调用（请求会收到 `405`）；修复建议会将其重命名。默认导出、非函数处理程序及其他导出都会被报告，但 `dynamic` 和 `revalidate` [路由段配置](/docs/caching)除外。将共享代码移至 `lib/`，或使用 `{ allow: [...] }` 列出额外允许的名称。

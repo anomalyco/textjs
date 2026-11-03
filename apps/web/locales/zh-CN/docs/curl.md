@@ -30,7 +30,7 @@
 - **状态：**`200`，或在没有匹配页面或页面调用 `notFound()` 时返回 `404` 及应用的未找到页面。渲染时调用 `redirect()` 的页面会提供 HTML。
 
 <!-- s:1125803eb1 -->
-响应类型为 `text/plain; charset=utf-8`，并附带 `Vary: User-Agent, Accept` 和 `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`，因此共享缓存不会存储帧并将其提供给浏览器。在 curl 获取帧的路径上，HTML 页面也带有相同的 `Vary` 标头。
+响应的类型为 `text/plain; charset=utf-8`，并带有 `Vary: User-Agent, Accept` 和 `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`，因此共享缓存不会存储帧并将其提供给浏览器。对于 curl 获取帧的路径，其 HTML 页面也带有相同的 `Vary` 标头。
 
 <!-- s:0e2aba0a67 -->
 支持的运行环境

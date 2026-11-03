@@ -37,7 +37,7 @@
 用最新的数据点填满宽度。`height` 大于 `1` 时渲染填充区域。
 
 <!-- s:9b515e6ed1 -->
-`sparkline(values)` 以字符串形式返回相同的 sparkline。
+`sparkline(values)` 以字符串形式返回相同的迷你图。
 
 <!-- s:ddc43709d7 -->
 `<ProgressBar>`
