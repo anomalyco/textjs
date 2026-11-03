@@ -7,8 +7,8 @@
 <!-- s:2e16922cfc -->
 新增
 
-<!-- s:c5e3c4b381 -->
-- textjs.org：西班牙语、法语、德语、巴西葡萄牙语、韩语、简体中文和繁体中文版已结束草稿阶段，分别位于 textjs.org/es、/fr、/de、/pt-br、/ko、/zh-cn 和 /zh-tw。语言选择器和浏览器语言按钮会像提供日语一样提供这些语言，搜索引擎也会索引翻译后的页面。
+<!-- s:892f5fce9a -->
+- textjs.org：西班牙语、法语、德语、巴西葡萄牙语、韩语、简体中文和繁体中文版已结束草稿阶段，分别位于 textjs.org/es、/fr、/de、/pt-br、/ko、/zh-cn 和 /zh-tw。页脚的语言选择器和浏览器语言按钮会像日语一样列出这些语言。搜索引擎会索引翻译后的页面，并将各页与对应的英文版关联。
 
 <!-- s:f71df9184f -->
 - `@textjs/react`：`<FocusPad messages>` 可替换焦点区的任意内置字符串，用于翻译后的网站。它涵盖每一行文字、屏幕阅读器标签和控制台尺寸控件。`<TextCanvas>` 和 `<ViewportControl>` 也接受 `messages`。`<ViewportControl>` 仅使用尺寸控件的键。包含变量值的字符串（例如“然后点击这里并按 ↑ ↓。”）是返回完整句子的函数。`defaultFocusPadMessages` 包含英文文本。参见[翻译焦点区](https://textjs.org/docs/internationalization#translating-the-focus-pad)。

@@ -7,8 +7,8 @@ Text.js의 주요 변경 사항을 모두 이 파일에 기록해요.
 <!-- s:2e16922cfc -->
 추가
 
-<!-- s:c5e3c4b381 -->
-- textjs.org: 스페인어, 프랑스어, 독일어, 브라질 포르투갈어, 한국어, 중국어 간체와 번체가 textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn, /zh-tw에서 초안 단계를 벗어났어요. 언어 선택기와 브라우저 언어 버튼은 일본어와 마찬가지로 이 언어들을 제공하고, 검색 엔진은 번역된 페이지를 색인에 등록해요.
+<!-- s:892f5fce9a -->
+- textjs.org: 스페인어, 프랑스어, 독일어, 브라질 포르투갈어, 한국어, 중국어 간체와 번체가 textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn, /zh-tw에서 초안 단계를 벗어났어요. 바닥글의 언어 선택기와 브라우저 언어 버튼은 일본어와 마찬가지로 이 언어들을 제공해요. 검색 엔진은 번역된 페이지를 색인에 등록하고 각 페이지를 영어 버전과 연결해요.
 
 <!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>`로 번역된 사이트에서 패드의 기본 문자열을 바꿀 수 있어요. 모든 줄, 스크린 리더 레이블, 콘솔 크기 컨트롤을 포함해요. `<TextCanvas>`와 `<ViewportControl>`도 `messages`를 받아요. `<ViewportControl>`은 크기 컨트롤의 키만 사용해요. “그다음 여기를 클릭하고 ↑ ↓를 누르세요.”처럼 값이 포함된 문자열은 문장 전체를 반환하는 함수예요. `defaultFocusPadMessages`에 영어 텍스트가 있어요. [포커스 패드 번역](https://textjs.org/docs/internationalization#translating-the-focus-pad)을 참고하세요.

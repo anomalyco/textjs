@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- textjs.org: Spanish, French, German, Brazilian Portuguese, Korean, and Simplified and Traditional Chinese are out of draft at textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn and /zh-tw. The picker and the browser-language button offer them as they do Japanese, and search engines index their translated pages.
+- textjs.org: Spanish, French, German, Brazilian Portuguese, Korean, and Simplified and Traditional Chinese are out of draft at textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn and /zh-tw. The footer's language picker and the browser-language button offer them, as they do Japanese. Search engines index the translated pages and match each to its English version.
 
 ## [1.5.0] - 2026-11-03
 

@@ -7,8 +7,8 @@ O formato é baseado em [Mantenha um Changelog](https://keepachangelog.com/en/1.
 <!-- s:2e16922cfc -->
 Adições
 
-<!-- s:c5e3c4b381 -->
-- textjs.org: espanhol, francês, alemão, português brasileiro, coreano e chinês simplificado e tradicional saíram do rascunho em textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn e /zh-tw. O seletor e o botão de idioma do navegador oferecem esses idiomas como já oferecem japonês, e os mecanismos de busca indexam suas páginas traduzidas.
+<!-- s:892f5fce9a -->
+- textjs.org: espanhol, francês, alemão, português brasileiro, coreano e chinês simplificado e tradicional saíram do rascunho em textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn e /zh-tw. O seletor de idioma no rodapé e o botão de idioma do navegador oferecem esses idiomas, como já fazem com o japonês. Os mecanismos de busca indexam as páginas traduzidas e associam cada uma à sua versão em inglês.
 
 <!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>` substitui qualquer string integrada do painel de foco, para sites traduzidos. Ele abrange todas as linhas, os rótulos para leitores de tela e o controle de tamanho do console. `<TextCanvas>` e `<ViewportControl>` também aceitam `messages`. `<ViewportControl>` usa apenas as chaves do controle de tamanho. Strings que contêm um valor, como “Depois clique aqui e pressione ↑ ↓.”, são funções que retornam a frase inteira. `defaultFocusPadMessages` contém o texto em inglês. Veja [Traduzir o painel de foco](https://textjs.org/docs/internationalization#translating-the-focus-pad).

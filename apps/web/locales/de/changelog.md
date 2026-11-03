@@ -7,8 +7,8 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 <!-- s:2e16922cfc -->
 Hinzugefügt
 
-<!-- s:c5e3c4b381 -->
-- textjs.org: Spanisch, Französisch, Deutsch, brasilianisches Portugiesisch, Koreanisch sowie vereinfachtes und traditionelles Chinesisch sind unter textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn und /zh-tw nicht mehr im Entwurfsstadium. Die Auswahl und die Schaltfläche zur Browsersprache bieten sie wie Japanisch an, und Suchmaschinen indexieren ihre übersetzten Seiten.
+<!-- s:892f5fce9a -->
+- textjs.org: Spanisch, Französisch, Deutsch, brasilianisches Portugiesisch, Koreanisch sowie vereinfachtes und traditionelles Chinesisch sind unter textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn und /zh-tw nicht mehr im Entwurfsstadium. Die Sprachauswahl im Footer und die Schaltfläche zur Browsersprache bieten sie an, wie schon Japanisch. Suchmaschinen indexieren die übersetzten Seiten und ordnen jede ihrer englischen Version zu.
 
 <!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>` ersetzt für übersetzte Websites beliebige integrierte Zeichenfolgen des Pads. Es deckt jede Zeile, die Screenreader-Beschriftungen und die Steuerung der Konsolengröße ab. `<TextCanvas>` und `<ViewportControl>` akzeptieren ebenfalls `messages`. `<ViewportControl>` verwendet nur die Schlüssel der Größensteuerung. Zeichenfolgen, die einen Wert enthalten, etwa „Klicke dann hier und drücke ↑ ↓.“, sind Funktionen, die den ganzen Satz zurückgeben. `defaultFocusPadMessages` enthält den englischen Text. Siehe [Das Fokus-Pad übersetzen](https://textjs.org/docs/internationalization#translating-the-focus-pad).
