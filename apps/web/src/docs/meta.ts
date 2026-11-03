@@ -251,12 +251,6 @@ export function getDocMeta(slug: string | undefined): DocMeta | undefined {
   return DOCS_META.find((d) => d.slug === s);
 }
 
-/** A doc's short label, as in the sidebar (the first doc's for an unknown slug). */
-export function docLabel(slug: string | undefined): string {
-  const doc = getDocMeta(slug) ?? (DOCS_META[0] as DocMeta);
-  return doc.nav ?? doc.title;
-}
-
 /** Strip inline markdown for plain-text labels. */
 export function plainInline(text: string): string {
   return text
