@@ -7,7 +7,7 @@
  * No Node imports: this file also runs in the Cloudflare worker.
  */
 
-import { ANSI_VARY, ansiResponse, wantsAnsi, type HeaderRecord } from "../ansi";
+import { ANSI_CACHE_CONTROL, ANSI_VARY, ansiResponse, wantsAnsi, type HeaderRecord } from "../ansi";
 import { canonicalPathname } from "./http";
 import type { AnsiFrame } from "./live-app";
 
@@ -64,17 +64,37 @@ export function appendVary(existing: string | null | undefined): string {
   return current.join(", ");
 }
 
-/** `response` with {@link appendVary} applied (a copy when its headers are immutable). */
-export function withAnsiVary(response: Response): Response {
-  const vary = appendVary(response.headers.get("vary"));
+/**
+ * The HTML served at a negotiated URL: {@link appendVary} applied and, when a terminal asked
+ * (`terminal`: it got HTML because the render budget ran out, the page skipped or the render
+ * failed), {@link ANSI_CACHE_CONTROL}, so no shared cache stores that HTML under a terminal's key.
+ * A copy when the response's headers are immutable.
+ */
+export function withAnsiVary(response: Response, terminal = false): Response {
+  const apply = (headers: Headers): void => {
+    headers.set("vary", appendVary(headers.get("vary")));
+    if (terminal) headers.set("cache-control", ANSI_CACHE_CONTROL);
+  };
   try {
-    response.headers.set("vary", vary);
+    apply(response.headers);
     return response;
   } catch {
     const copy = new Response(response.body, response);
-    copy.headers.set("vary", vary);
+    apply(copy.headers);
     return copy;
   }
+}
+
+const fallthroughs = new WeakSet<object>();
+
+/** Mark a Node response as a terminal's HTML fallback (see {@link withAnsiVary}). */
+export function markAnsiFallthrough(res: object): void {
+  fallthroughs.add(res);
+}
+
+/** The `Cache-Control` for an HTML page on `res`: {@link ANSI_CACHE_CONTROL} for a terminal's fallback. */
+export function pageCacheControl(res: object): string {
+  return fallthroughs.has(res) ? ANSI_CACHE_CONTROL : "public, max-age=0, must-revalidate";
 }
 
 /** The ANSI-capable handler that never answers (frames off). */
@@ -107,13 +127,16 @@ export function createAnsiHandler(options: AnsiHandlerOptions): AnsiHandler {
   const takeToken = (): boolean => {
     if (!budget) return true;
     const now = Date.now();
-    tokens = Math.min(budget.limit, tokens + ((now - refilledAt) * budget.limit) / budget.windowMs);
+    // A clock that steps back never drains the bucket.
+    tokens = Math.min(budget.limit, tokens + (Math.max(0, now - refilledAt) * budget.limit) / budget.windowMs);
     refilledAt = now;
     if (tokens < 1) return false;
     tokens--;
     return true;
   };
 
+  // Concurrent requests for one href share a render (and one token).
+  const inflight = new Map<string, Promise<AnsiFrame | null>>();
   const render = async (href: string): Promise<AnsiFrame | null> => {
     const hit = cache.get(href);
     if (hit && Date.now() - hit.at < ttl) {
@@ -121,8 +144,15 @@ export function createAnsiHandler(options: AnsiHandlerOptions): AnsiHandler {
       cache.set(href, hit);
       return hit.frame;
     }
+    const pending = inflight.get(href);
+    if (pending) return pending;
     // Over budget: HTML this time, and nothing cached, so the page renders once the budget refills.
     if (!takeToken()) return null;
+    const started = renderCold(href).finally(() => inflight.delete(href));
+    inflight.set(href, started);
+    return started;
+  };
+  const renderCold = async (href: string): Promise<AnsiFrame | null> => {
     let frame: AnsiFrame | null = null;
     try {
       frame = (await options.render?.(href)) ?? null;

@@ -139,6 +139,15 @@ async function exerciseFrames(base: string, options: { dev?: boolean } = {}): Pr
 
 /** `text start` and bun: every page path is negotiated, and `public/` directory indexes are files. */
 async function exerciseServerVary(base: string, options: { directoryIndexes: boolean }): Promise<void> {
+  // curl getting HTML at a negotiated URL (here the page opted out; also: over budget, failed): never in a shared cache.
+  for (const path of ["/quiet", "/moved"]) {
+    const curl = await get(base, path);
+    expect({ path, type: curl.headers.get("content-type"), cache: curl.headers.get("cache-control") }).toEqual({ path, type: "text/html; charset=utf-8", cache: "private, no-cache, no-store, max-age=0, must-revalidate" });
+    await curl.arrayBuffer();
+    const browser = await get(base, path, CHROME);
+    expect({ path, cache: browser.headers.get("cache-control") }).toEqual({ path, cache: "public, max-age=0, must-revalidate" });
+    await browser.arrayBuffer();
+  }
   const post = await get(base, "/posts/42", CHROME);
   expect(post.headers.get("content-type")).toContain("text/html");
   expect(post.headers.get("vary") ?? "").toContain("User-Agent, Accept");

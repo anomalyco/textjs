@@ -6,7 +6,8 @@ import { render } from "@textjs/react/testing";
 import { ANSI_CACHE_CONTROL, ansiResponse, TERMINAL_UA, wantsAnsi } from "../src/ansi";
 import { MAX_ANSI_CELLS, pageAnsiSize, resolveAnsiSize } from "../src/config";
 import { cloudflareWorkerNote, CLOUDFLARE_WORKER_NOTE_BYTES } from "../src/server/adapters/cloudflare";
-import { VERCEL_ROUTES_NOTE, vercelRouteNote } from "../src/server/adapters/vercel";
+import { VERCEL_ANSI_DIR, VERCEL_ROUTES_NOTE, vercelConfig, vercelRouteNote } from "../src/server/adapters/vercel";
+import type { AdapterContext } from "../src/server/adapters/shared";
 import { ANSI_COLD_RENDERS, ansiPagePath, appendVary, createAnsiHandler, withAnsiVary } from "../src/server/ansi-server";
 import { PRIVATE_CACHE_CONTROL } from "../src/server/http";
 import { ServerComponentCache } from "../src/server/server-components";
@@ -223,6 +224,42 @@ describe("createAnsiHandler", () => {
     expect(ANSI_COLD_RENDERS).toEqual({ limit: 20, windowMs: 10_000 });
   });
 
+  test("concurrent requests for one URL share one render and one token", async () => {
+    let renders = 0;
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    const handler = createAnsiHandler({
+      coldRenders: { limit: 1, windowMs: 60_000 },
+      render: async () => {
+        renders++;
+        await gate;
+        return { ansi: "x\n", status: 200 };
+      },
+    });
+    const pending = Array.from({ length: 20 }, () => handler(curl, "/same"));
+    release?.();
+    const results = await Promise.all(pending);
+    expect(results.map((r) => r?.status)).toEqual(Array(20).fill(200));
+    expect(renders).toBe(1);
+  });
+
+  test("a clock that steps back doesn't drain the budget", async () => {
+    let now = 10_000;
+    const realNow = Date.now;
+    Date.now = () => now;
+    try {
+      const handler = createAnsiHandler({ coldRenders: { limit: 2, windowMs: 3000 }, render: async () => ({ ansi: "x\n", status: 200 }) });
+      await handler(curl, "/a");
+      await handler(curl, "/b");
+      now = 0;
+      expect(await handler(curl, "/c")).toBeNull();
+      now = 1500;
+      expect((await handler(curl, "/c"))?.status).toBe(200);
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
   test("varies(): the URLs whose HTML depends on User-Agent and Accept", () => {
     const prebuilt = createAnsiHandler({ frames: { "/": "home\n" }, isFile: (p) => p === "/notes" });
     expect(prebuilt.varies("/")).toBe(true);
@@ -287,6 +324,29 @@ describe("platform limits", () => {
   test("Vercel: a note past 1,800 routes", () => {
     expect(vercelRouteNote(VERCEL_ROUTES_NOTE)).toBeNull();
     expect(vercelRouteNote(1900)).toContain("config.json has 1900 routes. Vercel allows 2,048 per deployment");
+  });
+
+  test("Vercel: 500 pages' Vary routes fit the 4,096-character src limit, in order", () => {
+    const pages = Array.from({ length: 500 }, (_, i) => `/docs/section-${i}/page-with-a-long-name-${i}`);
+    const ctx = { basePath: "/console", api: [], rewrites: [] } as unknown as AdapterContext;
+    const routes = vercelConfig(ctx, null, ["/", ...pages]).routes;
+    for (const r of routes) expect((r.src ?? "").length).toBeLessThanOrEqual(4096);
+    const isFrame = (r: (typeof routes)[number]) => (r.dest ?? "").startsWith(`/${VERCEL_ANSI_DIR}/`);
+    const varyAt = routes.flatMap((r, i) => (r.headers?.vary && !r.dest ? [i] : []));
+    expect(varyAt.length).toBeGreaterThan(1);
+    const lastFrame = routes.map(isFrame).lastIndexOf(true);
+    const filesystem = routes.findIndex((r) => r.handle === "filesystem");
+    for (const i of varyAt) {
+      expect(i).toBeGreaterThan(lastFrame);
+      expect(i).toBeLessThan(filesystem);
+      expect(routes[i]).toMatchObject({ continue: true, caseSensitive: true, methods: ["GET", "HEAD"], headers: { vary: "User-Agent, Accept" } });
+    }
+    const vary = varyAt.map((i) => new RegExp(routes[i]?.src as string));
+    for (const p of ["/console", "/console/", ...pages.map((p) => `/console${p}`), `/console${pages[499]}/`]) expect(vary.filter((re) => re.test(p))).toHaveLength(1);
+    for (const p of ["/console/docs/section-1", "/docs/section-0/page-with-a-long-name-0", `/console${pages[0]}x`]) expect(vary.some((re) => re.test(p))).toBe(false);
+    // The 1,800-route note counts them.
+    expect(vercelRouteNote(routes.length)).toBeNull();
+    expect(routes.length).toBe(501 + varyAt.length + vercelConfig(ctx, null).routes.length);
   });
 
   test("Cloudflare: a note past 20 MiB of _worker.js", () => {

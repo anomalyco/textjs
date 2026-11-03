@@ -13,7 +13,8 @@ import { loadServerRuntime } from "../server/adapters/runtime-node";
 import { runRouteHandlerWithCache } from "../server/cache-route";
 import { runNodeMiddleware } from "../server/middleware-node";
 import { staticFile } from "../server/static-file";
-import { appendVary } from "../server/ansi-server";
+import { wantsAnsi } from "../ansi";
+import { appendVary, markAnsiFallthrough, pageCacheControl } from "../server/ansi-server";
 import { META_DIR } from "./build";
 import { loadTextConfig } from "./config";
 import { banner, color, fail, ok } from "./ui";
@@ -149,7 +150,11 @@ export async function startProductionServer(options: StartOptions): Promise<Star
         const frame = await live.ansi(req, url);
         if (frame) return sendWebResponse(res, frame, req.method);
         // Terminals could get a frame here, so the HTML page served instead depends on User-Agent and Accept.
-        if ((req.method === "GET" || req.method === "HEAD") && live.ansi.varies(url)) res.setHeader("Vary", appendVary(res.getHeader("vary")?.toString()));
+        if ((req.method === "GET" || req.method === "HEAD") && live.ansi.varies(url)) {
+          res.setHeader("Vary", appendVary(res.getHeader("vary")?.toString()));
+          // A terminal getting HTML here (over budget, skipped, failed): never cached under its key.
+          if (wantsAnsi(req.method, req.headers)) markAnsiFallthrough(res);
+        }
       }
       if (live && (await live.handle(req, res, url))) return;
       if (api) {
@@ -176,7 +181,7 @@ export async function startProductionServer(options: StartOptions): Promise<Star
       if (last.includes(".") || hidden) return notFound(res);
       res.statusCode = 200;
       res.setHeader("Content-Type", MIME[".html"] as string);
-      res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+      res.setHeader("Cache-Control", pageCacheControl(res));
       res.end(req.method === "HEAD" ? undefined : indexHtml);
     })()
       .catch((error: unknown) => {

@@ -10,6 +10,7 @@ import type { Rewrite } from "../../config";
 import { matchAppRoutes, type RouteManifest, type RouteSegmentNode } from "../../routing";
 import { runRouteHandlerWithCache } from "../cache-route";
 import { setCacheStore, type CacheStore } from "../cache";
+import { wantsAnsi } from "../../ansi";
 import { withAnsiVary } from "../ansi-server";
 import { applyRewrites, badRequest, canonicalPathname, compileRewrite, isLoopbackUrl, proxyFetch, type RouteHandlerModule } from "../http";
 import type { MiddlewareModule } from "../middleware";
@@ -96,9 +97,10 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
     let merge: MiddlewareMerge = {};
     // Set once the page at this URL is negotiated (terminals could get a frame): its HTML must say so.
     let vary = false;
+    let terminal = false;
     const finish = (response: Response): Response => {
       const out = extra ? withMiddlewareHeaders(response, extra, merge) : response;
-      return vary ? withAnsiVary(out) : out;
+      return vary ? withAnsiVary(out, terminal) : out;
     };
 
     if (options.middleware && !options.skipMiddleware) {
@@ -135,6 +137,7 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
       if (frame) return finish(frame);
       const method = request.method.toUpperCase();
       vary = (method === "GET" || method === "HEAD") && (options.ansi.varies?.(pathname + search) ?? false);
+      terminal = vary && wantsAnsi(request);
     }
 
     if (options.live) {

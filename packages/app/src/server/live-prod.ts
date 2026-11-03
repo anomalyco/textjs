@@ -15,7 +15,7 @@ import { LiveServer, type LiveServerOptions } from "./live";
 import type { MiddlewareModule } from "./middleware";
 import { createLiveAuthorizer } from "./middleware-runtime";
 import { LIVE_MANIFEST, type LiveManifest } from "./live-manifest";
-import { createAnsiHandler, NO_ANSI, type AnsiHandler } from "./ansi-server";
+import { createAnsiHandler, NO_ANSI, pageCacheControl, type AnsiHandler } from "./ansi-server";
 import { staticFile } from "./static-file";
 import type { LiveEntryModule } from "./live-dev";
 
@@ -138,7 +138,7 @@ export async function loadLiveProduction(outDir: string, options: LiveProduction
   const send = (req: IncomingMessage, res: ServerResponse, body: Buffer): true => {
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+    res.setHeader("Cache-Control", pageCacheControl(res));
     res.end(req.method === "HEAD" ? undefined : body);
     return true;
   };

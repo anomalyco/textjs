@@ -50,6 +50,30 @@ export function vercelRouteNote(count: number): string | null {
 /** `text/html` in any case, for an `Accept` condition (route `has` values have no flags). */
 const ACCEPT_HTML = "text/html".replace(/[a-z]/g, (c) => `[${c.toUpperCase()}${c}]`);
 
+/** The Build Output API rejects a route `src` longer than 4,096 characters: header routes stay under this. */
+export const VERCEL_MAX_SRC = 4000;
+
+/**
+ * `src` patterns matching every page in `patterns`, as few as fit: alternations of
+ * {@link patternRegex} bodies, each at most {@link VERCEL_MAX_SRC} characters.
+ */
+export function vercelVarySources(patterns: readonly string[], basePath = ""): string[] {
+  const out: string[] = [];
+  let bodies: string[] = [];
+  const src = (list: readonly string[]): string => `^(?:${list.join("|")})\\/?$`;
+  for (const pattern of patterns) {
+    // `^(BODY)\/?$`: drop the anchors, the capture and the trailing slash, which the chunk adds once.
+    const body = patternRegex(pattern, basePath).slice(2, -5);
+    if (bodies.length > 0 && src([...bodies, body]).length > VERCEL_MAX_SRC) {
+      out.push(src(bodies));
+      bodies = [];
+    }
+    bodies.push(body);
+  }
+  if (bodies.length > 0) out.push(src(bodies));
+  return out;
+}
+
 /** A frame's path below {@link VERCEL_ANSI_DIR} (decoded segments, `/` → `index.txt`). */
 export function vercelAnsiFile(pattern: string): string[] {
   return [...pattern.split("/").filter(Boolean), "index.txt"];
@@ -199,11 +223,8 @@ export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule |
   for (const a of ctx.api) routes.push({ src: patternRegex(a.pattern, base), dest: `/${VERCEL_FUNCTION}`, transforms: routed, caseSensitive: true });
   // Pages, after route handlers and before files: a frame never shadows either (the build skips frames that collide with a file).
   for (const pattern of ansi) routes.push(vercelAnsiRoute(pattern, base));
-  // The HTML at those paths depends on User-Agent and Accept too (one route for all of them).
-  if (ansi.length > 0) {
-    const src = ansi.map((p) => patternRegex(p, base).slice(1, -1)).join("|");
-    routes.push({ src: `^(?:${src})$`, methods: ["GET", "HEAD"], headers: { vary: ANSI_VARY }, continue: true, caseSensitive: true });
-  }
+  // The HTML at those paths depends on User-Agent and Accept too.
+  for (const src of vercelVarySources(ansi, base)) routes.push({ src, methods: ["GET", "HEAD"], headers: { vary: ANSI_VARY }, continue: true, caseSensitive: true });
   routes.push({ handle: "filesystem" });
   // Extensionless paths are console pages: serve the SPA document.
   routes.push({ src: `^${escapeRegex(base)}(?:\\/(?:[^/]+\\/)*[^/.]*)?$`, dest: `${base}/index.html`, caseSensitive: true });
