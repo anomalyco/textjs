@@ -1,20 +1,20 @@
 /**
  * The frame player: the entire browser bundle of a server-rendered console
  * route (`export const runtime = "server"`). No React, no Yoga, no route
- * modules: it applies cell deltas streamed from the server to a `CellBuffer`,
+ * modules: it applies cell deltas streamed from the server to a `CellGrid`,
  * logs them with the same `CssConsoleDriver` (and the same ~15fps pacing) as
  * the client renderer, and forwards keyboard, paste, wheel, focus, resize and
  * Back / Forward to the server.
  */
 
 import {
-  CellBuffer,
   CssConsoleDriver,
   InputEngine,
   ViewportController,
   type ConsoleTarget,
   type InputEvent,
 } from "@textjs/core";
+import { CellGrid } from "@textjs/core/internal";
 import { isAppPath, LIVE_PATH, LIVE_SESSION_HEADER, LiveFrameDecoder, parseLiveBanner, type LiveBanner, type LiveInput, type LiveServerMessage } from "./live-protocol";
 
 export interface FramePlayerConfig {
@@ -48,7 +48,7 @@ const POST_CLEAR_INTERVAL = 110;
 
 /** Decode + paint, independent of the network (tests drive it directly). */
 export class FramePlayerCore {
-  readonly buffer = new CellBuffer(0, 0);
+  readonly buffer = new CellGrid(0, 0);
   readonly driver: CssConsoleDriver;
   private readonly decoder = new LiveFrameDecoder();
   private readonly interval: number;

@@ -9,8 +9,8 @@ import {
   ATTR_STYLE_MASK,
   ATTR_UNDERLINE,
   ATTR_WIDE_CONT,
-  type CellBuffer,
-} from "../cell-buffer";
+  type CellGrid,
+} from "../cell-grid";
 import { DEFAULT_STYLE_RESOLVE, resolveStyle, type EffectiveStyle, type StyleResolveOptions } from "./style";
 
 export interface StyledSpan {
@@ -68,10 +68,10 @@ interface BufferSnapshotCache {
   spriteUrls: Map<number, string>;
 }
 
-const snapshotCache = new WeakMap<CellBuffer, BufferSnapshotCache>();
+const snapshotCache = new WeakMap<CellGrid, BufferSnapshotCache>();
 
 /** Extract a serializable styled snapshot of a buffer for DOM mirrors and docs playgrounds. */
-export function extractStyledFrame(buffer: CellBuffer, style: Partial<StyleResolveOptions> = {}): StyledFrame {
+export function extractStyledFrame(buffer: CellGrid, style: Partial<StyleResolveOptions> = {}): StyledFrame {
   const cells = buffer.readCells();
   const hasCustomStyle =
     style.inverseFg !== undefined ||

@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `@textjs/react`: `<Image>` now draws a pixel sprite in Chromium and Firefox consoles, with up to 8 × 16 pixels per cell for pixel art and 4 × 8 for photos. This deliberately breaks the [support policy](https://textjs.org/docs/support-policy)'s promise that frames look the same between minor releases. Pass `renderMode="halfblock"` to keep the 1.3 half-blocks. Safari, terminals (including `text run`), ANSI and plain-text output, and the first frame of server-rendered live pages, still draw half-blocks.
 - `@textjs/app`: scripts and uptime checks that fetch pages with curl, Wget, HTTPie or xh now get ANSI text. To keep getting HTML, send `Accept: text/html`, or set `ansi: false` in `text.config.ts`.
 - `@textjs/app`: async server components no longer run while `text build` prerenders a page's shell. They show their `<Suspense>` fallback, as before, without starting their data requests at build time.
+- `@textjs/app`: the frame player for server-rendered pages is 3 KB smaller, 22.4 KB gzip instead of 25.4 KB for `examples/dashboard`. It no longer ships `CellBuffer`'s drawing methods, box borders or text truncation.
 
 ### Fixed
 

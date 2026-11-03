@@ -240,13 +240,16 @@ describe.skipIf(!enabled)("server rendering + PPR in Chromium (text start)", () 
     };
     const player = files.filter((f) => f.startsWith("player-")).map(size)[0] as { raw: number; gzip: number };
     const client = files.filter((f) => !f.startsWith("player-")).map(size).reduce((a, b) => ({ raw: a.raw + b.raw, gzip: a.gzip + b.gzip }), { raw: 0, gzip: 0 });
-    expect(player.gzip).toBeLessThan(25 * 1024);
+    expect(player.gzip).toBeLessThan(23 * 1024);
     expect(player.gzip * 8).toBeLessThan(client.gzip);
     const playerJs = readFileSync(join(assets, files.find((f) => f.startsWith("player-")) as string), "utf8");
     // No React, no Yoga, no route modules or their server-only imports.
     expect(playerJs).not.toContain("react.transitional.element");
     expect(playerJs).not.toContain("yoga");
     expect(playerJs).not.toContain("loadavg");
+    // A `CellGrid`, not a `CellBuffer`: no drawing API (box borders, truncation).
+    expect(playerJs).not.toContain("╭");
+    expect(playerJs).not.toContain("truncate-");
     const clientJs = files.filter((f) => !f.startsWith("player-")).map((f) => readFileSync(join(assets, f), "utf8")).join("\n");
     expect(clientJs).not.toContain("loadavg");
     expect(clientJs).not.toContain("probing…");

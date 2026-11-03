@@ -1,9 +1,13 @@
 /**
- * Types and helpers for `@internal` APIs shared across Text.js packages. Not exported from `@textjs/core`.
+ * Types and helpers for `@internal` APIs shared across Text.js packages, as `@textjs/core/internal`.
+ * Not exported from `@textjs/core` and not covered by the support policy.
  */
 
 import { COLOR_DEFAULT, packRGBA, type ColorInput, type PackedColor } from "./color";
 import type { BufferSprite } from "./sprite-types";
+
+/** @internal Cell storage without the drawing API: what drivers and the frame player need. */
+export { CellGrid } from "./cell-grid";
 
 /** A one-row bar over the last row of console frames (the focus hint). */
 export interface ConsoleBanner {
@@ -12,7 +16,7 @@ export interface ConsoleBanner {
   bg: ColorInput;
 }
 
-/** A saved buffer row (see `CellBuffer._overlayRow`). */
+/** A saved buffer row (see `CellGrid._overlayRow`). */
 export interface RowSnapshot {
   chars: Uint32Array;
   fg: Uint32Array;
