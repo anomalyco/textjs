@@ -52,7 +52,7 @@ Text.js는 npm dist-tag 3개로 배포해요. 모든 패키지(`@textjs/app`, `@
 유지 관리자는 릴리스 스크립트로 모든 워크스페이스 패키지의 버전을 함께 올려요:
 
 <!-- s:614a1ea872 -->
-`release:version`은 각 `package.json`과 해당 버전을 반영하는 상수(`VERSION`, reconciler의 `rendererVersion`)를 다시 쓰고, 패키지 간 버전이 어긋나면 실행을 거부하며, `--dry-run`은 실행 계획을 출력해요. `release:publish`는 빌드와 패키징(`workspace:*` 해석)을 수행하고, `publishConfig`를 적용하며, 사전 릴리스를 `latest`에 배포하거나 안정 버전을 `canary`에 배포하는 것을 거부하고, npm에 이미 있는 버전은 건너뛰어요.
+`release:version`은 각 `package.json`과 해당 버전을 반영하는 상수(`VERSION`, 리컨실러의 `rendererVersion`)를 다시 쓰고, 패키지 간 버전이 달라지면 실행을 거부하며, `--dry-run`은 실행 계획을 출력해요. `release:publish`는 빌드하고, 패키징하고(`workspace:*` 해석), `publishConfig`를 적용하고, 프리릴리스를 `latest`에 게시하거나 안정 버전을 `canary`에 게시하는 것을 거부하고, npm에 이미 있는 버전은 건너뛰어요.
 
 <!-- s:ec6955472a -->
 각 릴리스 계열의 유지 관리 기간은 [지원 정책](/docs/support-policy)을 참고하세요.

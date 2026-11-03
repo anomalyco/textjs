@@ -37,7 +37,7 @@ y축과 범례가 있는 점 행렬 선 그래프예요.
 최신 데이터 포인트로 너비를 채워요. `height`가 `1`보다 크면 채워진 영역을 렌더링해요.
 
 <!-- s:9b515e6ed1 -->
-`sparkline(values)`는 같은 sparkline을 문자열로 반환해요.
+`sparkline(values)`는 같은 스파크라인을 문자열로 반환해요.
 
 <!-- s:ddc43709d7 -->
 `<ProgressBar>`

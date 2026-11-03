@@ -34,7 +34,7 @@
 | `Cache-Control` | `s-maxage=N, stale-while-revalidate=<1 year − N>`, `force-static`의 경우 `s-maxage=31536000` |
 
 <!-- s:c1fb73c64a -->
-[미들웨어](/docs/middleware)가 요청에 쿠키를 설정하거나, 재작성하거나, 요청 헤더를 덮어쓰면 생성되는 헤더는 `private, no-cache, no-store, max-age=0, must-revalidate`가 되어 shared 캐시가 방문자별 결정을 재사용하지 않아요. 핸들러가 설정한 `Cache-Control` 헤더는 유지돼요.
+[미들웨어](/docs/middleware)가 요청에 쿠키를 설정하거나, 요청을 재작성하거나, 요청 헤더를 덮어쓰면 생성되는 헤더는 `private, no-cache, no-store, max-age=0, must-revalidate`가 되므로 공유 캐시는 방문자별 결정을 재사용하지 않아요. 핸들러가 설정한 `Cache-Control` 헤더는 유지돼요.
 
 <!-- s:ae27ba22c7 -->
 `text dev`에서는 세그먼트 설정이 적용되지만 아무것도 저장하지 않으므로 요청마다 핸들러가 실행돼요.
@@ -93,5 +93,5 @@ Vercel과 Cloudflare에서는 백그라운드 갱신을 `waitUntil()`으로 등�
 플랫폼 참고 사항
 
 <!-- s:5418a08901 -->
-- 각 서버리스 인스턴스(Vercel 함수, Cloudflare 격리 환경)는 자체 인메모리 캐시를 가져요. `Cache-Control: s-maxage`를 사용하면 플랫폼 CDN도 응답을 캐시할 수 있어요. 필요할 때 재검증해도 CDN 캐시는 삭제되지 않아요. `revalidateTag`가 모든 인스턴스에 적용되어야 한다면 shared `cacheHandler`를 사용하세요.
+- 각 서버리스 인스턴스(Vercel 함수, Cloudflare isolate)에는 자체 인메모리 캐시가 있어요. `Cache-Control: s-maxage`를 사용하면 플랫폼 CDN도 응답을 캐시할 수 있어요. 주문형 재검증은 CDN 캐시를 비우지 않아요. `revalidateTag`가 모든 인스턴스에 적용되어야 한다면 공유 `cacheHandler`를 사용하세요.
 - Cloudflare에는 `nodejs_compat` 플래그가 필요해요(캐시가 `AsyncLocalStorage`를 사용해요). [배포](/docs/deploying)를 참고하세요.

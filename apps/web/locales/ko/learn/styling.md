@@ -26,4 +26,4 @@
 테마
 
 <!-- s:8f993e0ab8 -->
-Text.js에는 Geist Dark, OpenCode Dark, Tokyo Night, Amber CRT, Geist Light의 5가지 테마가 포함돼 있어요. 콘솔에서 `t`를 눌러 순서대로 전환하세요. 위의 모든 색상이 토큰이므로 프레임 전체가 새 팔레트로 다시 그려져요.
+Text.js에는 Geist Dark, OpenCode Dark, Tokyo Night, Amber CRT, Geist Light의 5가지 테마가 포함돼요. 콘솔에서 `t`를 눌러 차례로 전환하세요. 위의 모든 색상이 토큰이므로 프레임 전체가 새 팔레트로 다시 그려져요.

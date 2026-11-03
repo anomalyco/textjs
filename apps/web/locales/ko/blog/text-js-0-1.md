@@ -43,7 +43,7 @@ CLI
 0.1의 추가 기능
 
 <!-- s:289b0a9973 -->
-`@textjs/react`에는 PascalCase 컴포넌트(`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner`), 셀 단위로 작동하는 Tailwind 스타일의 `className` 유틸리티, themes가 포함돼요. 레이아웃은 WebAssembly의 Yoga에서 실행돼요.
+`@textjs/react`는 PascalCase 컴포넌트(`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner`), 셀 단위로 작동하는 Tailwind 스타일의 `className` 유틸리티, 테마를 제공해요. 레이아웃은 WebAssembly의 Yoga에서 실행돼요.
 
 <!-- s:8ad0f2154c -->
 전체 목록은 [변경 기록](/changelog#v0-1-0)에 있어요.

@@ -124,9 +124,9 @@ Text.js의 주요 변경 사항을 모두 이 파일에 기록해요.
 성능
 
 <!-- s:f59d215740 -->
-- `@textjs/react`: `Box`와 `Text`가 마운트와 업데이트 시 prop 객체를 복사하는 대신, 불필요한 항목을 미리 제거한 장면 props를 reconciler에 전달해요.
-- `@textjs/core`: `SceneNode.getTextModel()`이 단일 문자열 `<Text>` 리프에서 인라인 트리 순회를 건너뛰고, 캐시된 0으로 초기화된 `Uint16Array` `runOf` 버퍼를 재사용해요. `CssConsoleDriver`는 내부 루프에서 스타일이 같은 연속 BMP 셀을 스캔하고, `ConsoleRenderer`는 바뀌지 않은 프레임에서 `countYogaNodes()`를 건너뛰어요.
-- textjs.org: 라우트와 콘솔 도우미 탭을 라우트별 JS 및 CSS 청크로 분리해요. 스토어 사진은 `photos/final` 원본에서 다시 인코딩하고, 보조 제품 사진은 포인터를 올리거나 슬라이드를 바꿀 때 로드해요.
+- `@textjs/react`: `Box`와 `Text`는 마운트와 업데이트 시 prop 객체를 복사하는 대신, 불필요한 속성을 미리 제거한 장면 props를 리컨실러에 전달해요.
+- `@textjs/core`: `SceneNode.getTextModel()`은 단일 문자열 `<Text>` 리프에서 인라인 트리 순회를 건너뛰고, 0으로 초기화해 캐시한 `Uint16Array` `runOf` 버퍼를 재사용해요. `CssConsoleDriver`는 내부 루프에서 스타일이 같은 연속 BMP 셀을 스캔하고, `ConsoleRenderer`는 변경되지 않은 프레임에서 `countYogaNodes()`를 건너뛰어요.
+- textjs.org: 라우트와 콘솔 컴패니언 탭을 라우트별 JS 및 CSS 청크로 분리해요. 스토어 사진은 `photos/final` 원본에서 다시 인코딩하고, 보조 상품 사진은 마우스를 올리거나 슬라이드가 바뀔 때 로드해요.
 
 <!-- s:6909c337fb -->
 - `<ViewportControl>`이 `20ch` 대신 픽셀 단위 `minWidth`를 사용하고 `<FocusPad>`와 함께 치수가 일치하는 대체 글꼴을 나열해서, `Geist Mono`가 로드돼도 크기 선택기의 너비가 유지돼요.
@@ -250,7 +250,7 @@ Text.js의 주요 변경 사항을 모두 이 파일에 기록해요.
 첫 번째 마일스톤이에요.
 
 <!-- s:67e64392c2 -->
-- `@textjs/core`: 평면 타입 배열 기반 `CellBuffer`, Yoga WASM 레이아웃, `Intl.Segmenter` 텍스트 측정, `%c` 런 길이 인코딩 드라이버. 변경된 프레임마다 `console.log`를 1번 호출하고 유휴 상태에서는 호출하지 않아요.
-- `@textjs/react`: React 19 reconciler, PascalCase 컴포넌트(`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner` 등), 셀 단위 Tailwind 스타일 `className` 유틸리티, themes 및 DOM `FocusPad`.
-- `textjs`: 파일 시스템 기반 App Router (`layout`, `page`, `loading`, `error`, `not-found`, 동적 세그먼트, 라우트 핸들러), `text dev`, `text build`, `text start` 및 콘솔 내 `[▼]` 검사기.
-- `starter` 및 `dashboard` 템플릿을 포함한 `create-text-app`.
+- `@textjs/core`: 평면 타입 배열 기반 `CellBuffer`, Yoga WASM 레이아웃, `Intl.Segmenter` 텍스트 측정, `%c` 런 길이 인코딩 드라이버를 제공해요. 변경된 프레임마다 `console.log`를 1번 호출하고 유휴 상태에서는 호출하지 않아요.
+- `@textjs/react`: React 19 리컨실러, PascalCase 컴포넌트(`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner` 등), 셀 단위 Tailwind 스타일 `className` 유틸리티, 테마, DOM `FocusPad`를 제공해요.
+- `textjs`: 파일 시스템 기반 App Router(`layout`, `page`, `loading`, `error`, `not-found`, 동적 세그먼트, 라우트 핸들러), `text dev`, `text build`, `text start`, 콘솔 내 `[▼]` 인스펙터를 제공해요.
+- `starter` 및 `dashboard` 템플릿을 갖춘 `create-text-app`을 제공해요.

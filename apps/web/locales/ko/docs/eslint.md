@@ -49,7 +49,7 @@ App Router 규칙은 `src/app/`을 포함한 모든 `app/` 디렉터리 안에�
 `no-dom-elements`
 
 <!-- s:deb9e3c0ec -->
-`<div>`, `<span>`, 사용자 정의 요소와 그 밖의 DOM 태그는 콘솔에 존재하지 않아요. reconciler는 자체 호스트 노드만 인식하며, 다른 노드를 만나면 `TX003`을 발생시켜요.
+콘솔에는 `<div>`, `<span>`, 사용자 정의 요소와 그 밖의 DOM 태그가 없어요. 리컨실러는 자체 호스트 노드만 인식하며, 그 외에는 `TX003`을 발생시켜요.
 
 <!-- s:bd7c3e0318 -->
 수정 제안은 태그를 가장 가까운 컴포넌트로 바꾸고(`div` → `Box`, `span`/`p` → `Text`, `strong` → `Text bold`, `a` → `Link`, `input` → `Input`, `hr` → `Divider`, …) 가져오기 구문을 추가해요.
@@ -132,4 +132,4 @@ Metadata는 레이아웃부터 병합하고, 그다음 페이지(또는 `not-fou
 `route-handler-exports`
 
 <!-- s:877bcc12b1 -->
-`route.ts` 파일은 내보낸 HTTP 메서드에만 응답해요: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`예요. 소문자 `get`이나 `Post`는 호출되지 않으며(요청에 `405` 응답), 수정 제안이 이름을 바꿔요. 기본 내보내기, 함수가 아닌 핸들러, 그 밖의 내보내기는 보고하지만, [라우트 세그먼트 설정](/docs/caching)인 `dynamic`과 `revalidate`는 제외해요. 공통 코드는 `lib/`로 옮기거나, `{ allow: [...] }`에 추가 이름을 나열하세요.
+`route.ts` 파일은 내보낸 HTTP 메서드에만 응답해요: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`. 소문자가 포함된 `get`이나 `Post`는 호출되지 않아요(요청에 `405`가 반환돼요). 제안된 수정은 이름을 바꿔요. `dynamic`과 `revalidate` [라우트 세그먼트 설정](/docs/caching)을 제외한 기본 내보내기, 함수가 아닌 핸들러, 그 밖의 내보내기는 문제로 보고해요. 공유 코드는 `lib/`로 옮기거나, `{ allow: [...] }`에 추가 이름을 나열하세요.

@@ -30,7 +30,7 @@
 - **상태:** `200`, 또는 일치하는 페이지가 없거나 페이지가 `notFound()`를 호출하면 앱의 찾을 수 없음 페이지와 함께 `404`. 렌더링 중에 `redirect()`를 호출하는 페이지는 HTML을 제공해요.
 
 <!-- s:1125803eb1 -->
-응답은 `text/plain; charset=utf-8` 형식이며 `Vary: User-Agent, Accept`와 `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`를 포함하므로, 공유 캐시가 프레임을 저장해 브라우저에 제공하는 일은 없어요. curl이 프레임을 받는 경로의 HTML 페이지에도 같은 `Vary` 헤더가 포함돼요.
+응답은 `text/plain; charset=utf-8` 형식이며 `Vary: User-Agent, Accept`와 `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`를 포함하므로, 공유 캐시가 프레임을 저장해서 브라우저에 제공하는 일은 없어요. curl에 프레임을 제공하는 경로의 HTML 페이지에도 같은 `Vary` 헤더가 포함돼요.
 
 <!-- s:0e2aba0a67 -->
 지원 환경

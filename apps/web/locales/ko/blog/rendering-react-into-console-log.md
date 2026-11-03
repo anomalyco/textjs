@@ -50,4 +50,4 @@ Text.js는 Chrome DevTools 콘솔에 React 앱을 렌더링해요. 숨겨진 입
 다음 단계
 
 <!-- s:cb5f6bd294 -->
-npm의 `@textjs/core` 0.0.x 프로토타입은 모든 기능을 하나의 패키지에 담고 있어요. Text.js 0.1은 여기서 설명한 렌더러를 `@textjs/core`로, React reconciler를 `@textjs/react`로 옮기고 App Router를 추가해요.
+npm에 있는 `@textjs/core` 0.0.x 프로토타입은 모든 기능을 하나의 패키지에 담고 있어요. Text.js 0.1은 여기서 설명한 렌더러를 `@textjs/core`로, React 리컨실러를 `@textjs/react`로 옮기고 App Router를 추가해요.

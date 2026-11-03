@@ -8,10 +8,10 @@ DOM 프레임워크에서는 컴포넌트가 DOM 노드가 되고, 브라우저�
 콘솔은 일반적이지 않은 디스플레이라서 각 단계가 필요해요. 고정폭 글꼴을 쓰고 행 단위로 구성되며, `%c`로 스타일을 지정하고, 다시 그리는 시점은 DevTools가 결정해요.
 
 <!-- s:db7daa7cf2 -->
-reconciler
+리컨실러
 
 <!-- s:f3cdc101e1 -->
-`@textjs/react`는 React 19 reconciler(`react-reconciler@0.34.0`)로, 두 호스트 요소 `tx-box`와 `tx-text`, 문자열 자식을 위한 텍스트 인스턴스를 제공해요. `<Box>`부터 `<Markdown>`까지 임포트하는 모든 요소는 이를 바탕으로 만들어져요. 커밋은 `requestAnimationFrame`에 예약되고, 키 입력이나 붙여넣기는 같은 태스크에서 동기적으로 렌더링돼요.
+`@textjs/react`는 React 19 리컨실러(`react-reconciler@0.34.0`)로, 두 호스트 요소인 `tx-box`와 `tx-text`, 문자열 자식을 위한 텍스트 인스턴스를 제공해요. `<Box>`부터 `<Markdown>`까지 가져오는 모든 컴포넌트는 이를 기반으로 만들었어요. 커밋은 `requestAnimationFrame`에 예약되고, 키 입력이나 붙여넣기는 같은 태스크 안에서 동기적으로 렌더링돼요.
 
 <!-- s:1ab8b509e0 -->
 레이아웃
