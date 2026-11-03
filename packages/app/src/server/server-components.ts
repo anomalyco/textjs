@@ -30,11 +30,23 @@ export class ServerComponentCache {
   private settledAt = 0;
   private readonly maxEntries: number;
   private readonly onActivity: (() => void) | undefined;
+  private readonly suspendOnly: boolean;
+  /**
+   * What `suspendOnly` reads return. Per cache, never module-wide: React attaches a ping
+   * listener to the thrown promise that holds the root, so a shared never-settling promise
+   * would keep every rendered root (and its cell buffer) alive.
+   */
+  private readonly never = new Promise<never>(() => undefined);
 
-  /** `onActivity` runs whenever a component's promise starts or settles (idle tracking). */
-  constructor(options: { maxEntries?: number; onActivity?: () => void } = {}) {
+  /**
+   * `onActivity` runs whenever a component's promise starts or settles (idle tracking).
+   * With `suspendOnly`, async components never run: each one suspends to its
+   * `<Suspense>` fallback (prerendered shells and ANSI frames, which capture the first frame).
+   */
+  constructor(options: { maxEntries?: number; onActivity?: () => void; suspendOnly?: boolean } = {}) {
     this.maxEntries = options.maxEntries ?? SERVER_COMPONENT_CACHE_SIZE;
     this.onActivity = options.onActivity;
+    this.suspendOnly = options.suspendOnly ?? false;
   }
 
   get size(): number {
@@ -66,6 +78,7 @@ export class ServerComponentCache {
   }
 
   read(component: AnyComponent, props: object, generation: string): Promise<ReactNode> {
+    if (this.suspendOnly) return this.never;
     if (generation !== this.generation) {
       this.generation = generation;
       this.entries.clear();

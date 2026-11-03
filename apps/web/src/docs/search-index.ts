@@ -332,6 +332,38 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
       "id": "caveats"
     }
   ],
+  "curl": [
+    {
+      "depth": 2,
+      "text": "Which requests get a frame",
+      "id": "which-requests-get-a-frame"
+    },
+    {
+      "depth": 2,
+      "text": "What's in the frame",
+      "id": "whats-in-the-frame"
+    },
+    {
+      "depth": 2,
+      "text": "Where it works",
+      "id": "where-it-works"
+    },
+    {
+      "depth": 2,
+      "text": "Configuration",
+      "id": "configuration"
+    },
+    {
+      "depth": 2,
+      "text": "Plain HTTP",
+      "id": "plain-http"
+    },
+    {
+      "depth": 2,
+      "text": "Custom servers",
+      "id": "custom-servers"
+    }
+  ],
   "styling": [
     {
       "depth": 2,

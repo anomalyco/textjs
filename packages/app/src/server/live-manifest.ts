@@ -24,4 +24,15 @@ export interface LiveManifest {
   /** Player document for dynamic server routes (relative to the output directory). */
   liveHtml: string | null;
   live?: TextConfig["live"];
+  /** Frames for terminal clients (curl): absent when `ansi: false`. */
+  ansi?: LiveAnsiManifest;
+}
+
+export interface LiveAnsiManifest {
+  cols: number;
+  rows: number;
+  /** Prerendered frames: decoded route pattern → file (relative to the output directory). */
+  frames: Record<string, string>;
+  /** Whether `.text/server/live.mjs` imports, so routes without a frame can render on request. */
+  onRequest: boolean;
 }

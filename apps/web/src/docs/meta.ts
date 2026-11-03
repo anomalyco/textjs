@@ -88,6 +88,13 @@ export const DOCS_META: readonly DocMeta[] = [
     category: "Building Your Application",
   },
   {
+    slug: "curl",
+    title: "curl and Terminal Clients",
+    nav: "curl",
+    description: "curl, Wget, HTTPie and xh get a page's first frame as truecolor ANSI text. Configure its size or turn it off.",
+    category: "Building Your Application",
+  },
+  {
     slug: "styling",
     title: msg("Styling"),
     description: msg("Cell-grid className utilities, typed props, responsive viewports and themes."),

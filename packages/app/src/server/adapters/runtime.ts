@@ -10,6 +10,8 @@ import type { Rewrite } from "../../config";
 import { matchAppRoutes, type RouteManifest, type RouteSegmentNode } from "../../routing";
 import { runRouteHandlerWithCache } from "../cache-route";
 import { setCacheStore, type CacheStore } from "../cache";
+import { wantsAnsi } from "../../ansi";
+import { withAnsiVary } from "../ansi-server";
 import { applyRewrites, badRequest, canonicalPathname, compileRewrite, isLoopbackUrl, proxyFetch, type RouteHandlerModule } from "../http";
 import type { MiddlewareModule } from "../middleware";
 import { canonicalRequest, rebuild, runMiddleware, withMiddlewareHeaders, type MiddlewareMerge } from "../middleware-runtime";
@@ -45,6 +47,15 @@ export interface RequestHandlerOptions {
    * middleware and rewrites. `url` is the path and query without basePath.
    */
   live?: (request: Request, url: string, context: RequestContext) => Promise<Response | null> | Response | null;
+  /**
+   * The ANSI frame for a terminal client (curl), or `null`. Runs at the
+   * page-serving step: after middleware, rewrites and route handlers, before
+   * `live`, assets and the document. `url` is the path and query without basePath.
+   */
+  ansi?: ((request: Request, url: string, context: RequestContext) => Promise<Response | null> | Response | null) & {
+    /** Whether the page at `url` is negotiated, so its HTML gets `Vary: User-Agent, Accept`. */
+    varies?(url: string): boolean;
+  };
 }
 
 export type TextRequestHandler = (request: Request, context?: RequestContext) => Promise<Response>;
@@ -84,7 +95,13 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
     let request = incoming;
     let extra: Headers | null = null;
     let merge: MiddlewareMerge = {};
-    const finish = (response: Response): Response => (extra ? withMiddlewareHeaders(response, extra, merge) : response);
+    // Set once the page at this URL is negotiated (terminals could get a frame): its HTML must say so.
+    let vary = false;
+    let terminal = false;
+    const finish = (response: Response): Response => {
+      const out = extra ? withMiddlewareHeaders(response, extra, merge) : response;
+      return vary ? withAnsiVary(out, terminal) : out;
+    };
 
     if (options.middleware && !options.skipMiddleware) {
       const outcome = await runMiddleware(options.middleware, request, { basePath, waitUntil: context.waitUntil });
@@ -113,6 +130,16 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
       }
     }
 
+    const api = matchApi(options.manifest, pathname);
+    const mod = api ? options.handlers[api.id] : undefined;
+    if (options.ansi && !mod) {
+      const frame = await options.ansi(request, pathname + search, context);
+      if (frame) return finish(frame);
+      const method = request.method.toUpperCase();
+      vary = (method === "GET" || method === "HEAD") && (options.ansi.varies?.(pathname + search) ?? false);
+      terminal = vary && wantsAnsi(request);
+    }
+
     if (options.live) {
       const live = await options.live(request, pathname + search, context);
       if (live) return finish(live);
@@ -120,8 +147,6 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
 
     // `pathname` is canonical: route matching decodes it once, file lookups use the decoded form.
     const decoded = decodeURIComponent(pathname);
-    const api = matchApi(options.manifest, pathname);
-    const mod = api ? options.handlers[api.id] : undefined;
     if (api && mod) {
       const target = new URL(pathname + search, url.origin);
       const req = target.href === request.url ? request : rebuild(request, new Headers(request.headers), target);

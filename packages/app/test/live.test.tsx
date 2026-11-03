@@ -13,7 +13,7 @@ import { AppRouter, createMemoryHistory, type RouteManifest } from "../src/route
 import { FramePlayerCore, safeHref } from "../src/live-player";
 import { LiveFrameDecoder, LiveFrameEncoder, LIVE_PATH, LIVE_SESSION_HEADER, parseLiveInput, type LiveFrame, type LiveServerMessage } from "../src/live-protocol";
 import { LiveServer, LiveSession, isSameOriginRequest } from "../src/server/live";
-import { createLiveApp, isServerPage, prerenderShell, routeRuntime, type LiveApp } from "../src/server/live-app";
+import { createLiveApp, isServerPage, prerenderAnsi, prerenderShell, routeRuntime, type LiveApp } from "../src/server/live-app";
 import { injectShell, shellPath, shellScript } from "../src/server/ppr";
 import { serverComponent, stableKey, ServerComponentCache } from "../src/server/server-components";
 import { createTestRoot, FakeConsole, withoutActEnvironment } from "./helpers";
@@ -739,6 +739,39 @@ describe("partial prerendering", () => {
     expect(replayIn(["-moz-appearance"]).logs).toEqual([[calls[1]?.args[0], ...(calls[1]?.inlineArgs ?? [])]]);
     expect(replayIn(["-webkit-hyphens"]).logs).toEqual([[calls[1]?.args[0], ...(calls[1]?.inlineArgs ?? [])]]);
     expect(replayIn([]).logs).toEqual([calls[1]?.args as unknown[]]);
+  });
+
+  test("rendered roots are released: no promise collects listeners across renders", async () => {
+    // React attaches ping and retry listeners, which hold the root and its cell buffer, to the promise a
+    // suspended component throws. A promise shared by every render (and never settled) would keep every root alive.
+    async function Slow(): Promise<ReactNode> {
+      return <Text>data</Text>;
+    }
+    const manifest: RouteManifest = {
+      segment: "",
+      page: {
+        default: () => (
+          <Suspense fallback={<Text>wait</Text>}>
+            <Slow />
+          </Suspense>
+        ),
+      },
+    };
+    const listeners = new Map<Promise<unknown>, number>();
+    const then = Promise.prototype.then;
+    Promise.prototype.then = function (this: Promise<unknown>, ...args: Parameters<typeof then>) {
+      listeners.set(this, (listeners.get(this) ?? 0) + 1);
+      return then.apply(this, args) as never;
+    } as typeof then;
+    try {
+      for (let i = 0; i < 20; i++) {
+        const frame = await withoutActEnvironment(() => prerenderAnsi({ routes: manifest, path: "/", cols: 20, rows: 3 }));
+        expect(frame?.ansi).toContain("wait");
+      }
+    } finally {
+      Promise.prototype.then = then;
+    }
+    expect(Math.max(...listeners.values())).toBeLessThan(10);
   });
 
   test("the client's first frame after a shell appends below it and matches the shell", async () => {

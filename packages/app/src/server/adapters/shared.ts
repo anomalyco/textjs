@@ -3,7 +3,7 @@
  * route-pattern → regular-expression helpers.
  */
 
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { Rewrite, TextConfig } from "../../config";
 import { encodePathSegment } from "../../path-text";
@@ -13,6 +13,7 @@ import type { ApiRoute, AppScan } from "../scan";
 import { txError } from "@textjs/core";
 import { compileMatcherSource, matcherKeys } from "../middleware-runtime";
 import { listServerPages } from "../live-routes";
+import { LIVE_MANIFEST, type LiveManifest } from "../live-manifest";
 import { frameworkFile } from "./bundle";
 
 export const ADAPTERS = ["static", "bun", "vercel", "cloudflare"] as const;
@@ -157,4 +158,17 @@ export function serverRoutePatterns(ctx: Pick<AdapterContext, "scan">): string[]
 export function assertNoServerRoutes(ctx: Pick<AdapterContext, "scan">, adapter: AdapterName): void {
   const routes = serverRoutePatterns(ctx);
   if (routes.length > 0) throw txError("TX030", routes.join(", "), adapter);
+}
+
+/** The ANSI frames `text build` prerendered for terminal clients: decoded route pattern → frame. */
+export function readAnsiFrames(outDir: string): Record<string, string> {
+  const file = join(outDir, ".text", LIVE_MANIFEST);
+  if (!existsSync(file)) return {};
+  const manifest = JSON.parse(readFileSync(file, "utf8")) as LiveManifest;
+  const out: Record<string, string> = {};
+  for (const [pattern, rel] of Object.entries(manifest.ansi?.frames ?? {})) {
+    const p = join(outDir, rel);
+    if (existsSync(p)) out[pattern] = readFileSync(p, "utf8");
+  }
+  return out;
 }

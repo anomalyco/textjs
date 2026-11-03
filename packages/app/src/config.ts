@@ -86,6 +86,47 @@ export interface TextConfig {
   live?: LiveConfig;
   /** `text start` request handling: public origin, reverse proxies and allowed hosts. */
   server?: ServerConfig;
+  /**
+   * Answer curl, Wget, HTTPie and xh with the page's first frame as truecolor
+   * ANSI instead of HTML (default on, 80×24). `false` turns it off for the
+   * whole app; a page can opt out or change its size with `export const ansi`.
+   */
+  ansi?: false | AnsiConfig;
+}
+
+/** Frame size for terminal clients (`text.config.ts` `ansi`, or a page's `export const ansi`). */
+export interface AnsiConfig {
+  /** Columns (default `80`, or `viewport.width` when the viewport is fixed). */
+  cols?: number;
+  /** Rows (default `24`, or `viewport.height` when the viewport is fixed). */
+  rows?: number;
+}
+
+/** Largest ANSI frame side, in cells. */
+export const MAX_ANSI_CELLS = 500;
+
+function clampCells(n: unknown, fallback: number): number {
+  return typeof n === "number" && Number.isFinite(n) ? Math.max(1, Math.min(MAX_ANSI_CELLS, Math.floor(n))) : fallback;
+}
+
+/**
+ * The app's ANSI frame size, or `null` when `ansi: false`. A fixed viewport
+ * (`responsive: false`) is the app's own grid, so it's the default there.
+ */
+export function resolveAnsiSize(config: Pick<TextConfig, "ansi" | "viewport">): { cols: number; rows: number } | null {
+  if (config.ansi === false) return null;
+  const fixed = config.viewport?.responsive === false;
+  const cols = clampCells(fixed ? (config.viewport?.width ?? 120) : 80, 80);
+  const rows = clampCells(fixed ? (config.viewport?.height ?? 36) : 24, 24);
+  return { cols: clampCells(config.ansi?.cols, cols), rows: clampCells(config.ansi?.rows, rows) };
+}
+
+/** A page's `export const ansi` applied to the app's size: `null` when the page opts out. */
+export function pageAnsiSize(size: { cols: number; rows: number }, page: unknown): { cols: number; rows: number } | null {
+  if (page === false) return null;
+  if (typeof page !== "object" || page === null) return size;
+  const p = page as AnsiConfig;
+  return { cols: clampCells(p.cols, size.cols), rows: clampCells(p.rows, size.rows) };
 }
 
 export interface ServerConfig {

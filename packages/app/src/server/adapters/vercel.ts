@@ -12,10 +12,12 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { VERSION } from "@textjs/core";
+import { ANSI_CACHE_CONTROL, ANSI_VARY, TERMINAL_UA } from "../../ansi";
+import { encodePathSegment } from "../../path-text";
 import type { MiddlewareModule } from "../middleware";
 import { middlewareMatchers } from "../middleware-runtime";
 import { bundleServerEntry, frameworkFile } from "./bundle";
-import { assertNoServerRoutes, copyStatic, escapeRegex, matcherRegex, patternRegex, rewriteRoute, serverEntry, type AdapterContext, type AdapterResult } from "./shared";
+import { assertNoServerRoutes, copyStatic, escapeRegex, matcherRegex, patternRegex, readAnsiFrames, rewriteRoute, serverEntry, type AdapterContext, type AdapterResult } from "./shared";
 
 export const VERCEL_FUNCTION = "_textjs/server";
 export const VERCEL_MIDDLEWARE = "_middleware";
@@ -27,6 +29,72 @@ export const VERCEL_MIDDLEWARE = "_middleware";
  */
 export const ROUTED_HEADER = "x-textjs-path";
 export const VERCEL_NODE_RUNTIME = "nodejs22.x";
+
+/**
+ * Where ANSI frames live in `static/`: always at the root (never under
+ * basePath) and under `/_textjs/`, which the `internal` route answers with a
+ * 404, so a frame is only reachable through its page's route, after middleware.
+ */
+export const VERCEL_ANSI_DIR = "_textjs/ansi";
+
+/** Vercel accepts 2,048 routes per deployment: past this many, the build warns (each prerendered frame adds one). */
+export const VERCEL_ROUTES_NOTE = 1800;
+export const VERCEL_MAX_ROUTES = 2048;
+
+/** The build note for a `config.json` with `count` routes, or `null` while it's well under Vercel's limit. */
+export function vercelRouteNote(count: number): string | null {
+  if (count <= VERCEL_ROUTES_NOTE) return null;
+  return `config.json has ${count} routes. Vercel allows ${VERCEL_MAX_ROUTES.toLocaleString("en-US")} per deployment, and each curl frame adds one. Add \`export const ansi = false\` to pages that don't need a frame, or set \`ansi: false\` in text.config.ts.`;
+}
+
+/** `text/html` in any case, for an `Accept` condition (route `has` values have no flags). */
+const ACCEPT_HTML = "text/html".replace(/[a-z]/g, (c) => `[${c.toUpperCase()}${c}]`);
+
+/** The Build Output API rejects a route `src` longer than 4,096 characters: header routes stay under this. */
+export const VERCEL_MAX_SRC = 4000;
+
+/**
+ * `src` patterns matching every page in `patterns`, as few as fit: alternations of
+ * {@link patternRegex} bodies, each at most {@link VERCEL_MAX_SRC} characters.
+ */
+export function vercelVarySources(patterns: readonly string[], basePath = ""): string[] {
+  const out: string[] = [];
+  let bodies: string[] = [];
+  const src = (list: readonly string[]): string => `^(?:${list.join("|")})\\/?$`;
+  for (const pattern of patterns) {
+    // `^(BODY)\/?$`: drop the anchors, the capture and the trailing slash, which the chunk adds once.
+    const body = patternRegex(pattern, basePath).slice(2, -5);
+    if (bodies.length > 0 && src([...bodies, body]).length > VERCEL_MAX_SRC) {
+      out.push(src(bodies));
+      bodies = [];
+    }
+    bodies.push(body);
+  }
+  if (bodies.length > 0) out.push(src(bodies));
+  return out;
+}
+
+/** A frame's path below {@link VERCEL_ANSI_DIR} (decoded segments, `/` → `index.txt`). */
+export function vercelAnsiFile(pattern: string): string[] {
+  return [...pattern.split("/").filter(Boolean), "index.txt"];
+}
+
+/**
+ * Terminal clients requesting a page with a prerendered frame get the frame:
+ * case-sensitive (`/ADMIN` is another path, which middleware guarding `/admin`
+ * never saw), `GET` and `HEAD` only.
+ */
+export function vercelAnsiRoute(pattern: string, basePath = ""): VercelRoute {
+  return {
+    src: patternRegex(pattern, basePath),
+    dest: `/${VERCEL_ANSI_DIR}/${vercelAnsiFile(pattern).map(encodePathSegment).join("/")}`,
+    methods: ["GET", "HEAD"],
+    caseSensitive: true,
+    has: [{ type: "header", key: "user-agent", value: { re: TERMINAL_UA.source } }],
+    missing: [{ type: "header", key: "accept", value: { re: ACCEPT_HTML } }],
+    headers: { "content-type": "text/plain; charset=utf-8", vary: ANSI_VARY, "cache-control": ANSI_CACHE_CONTROL, "x-content-type-options": "nosniff" },
+  };
+}
 
 /**
  * Paths that may not be in canonical form, as sent on the wire: escapes,
@@ -95,6 +163,7 @@ export default async function textjsMiddleware(request, context) {
 
 export interface VercelRoute {
   src?: string;
+  methods?: string[];
   dest?: string;
   headers?: Record<string, string>;
   continue?: boolean;
@@ -116,7 +185,8 @@ export interface VercelConfig {
   framework: { version: string };
 }
 
-export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule | null): VercelConfig {
+/** `ansi`: route patterns with a prerendered frame (see {@link vercelAnsiRoute}). */
+export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule | null, ansi: readonly string[] = []): VercelConfig {
   const base = ctx.basePath;
   // The handler function is internal. A `status` route doesn't stop Vercel from
   // running a function at that path, so what keeps it internal is the header:
@@ -151,6 +221,10 @@ export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule |
   routes.push(internal, dropRouted);
   const routed = [{ type: "request.headers" as const, op: "set" as const, target: { key: ROUTED_HEADER }, args: "$1" }];
   for (const a of ctx.api) routes.push({ src: patternRegex(a.pattern, base), dest: `/${VERCEL_FUNCTION}`, transforms: routed, caseSensitive: true });
+  // Pages, after route handlers and before files: a frame never shadows either (the build skips frames that collide with a file).
+  for (const pattern of ansi) routes.push(vercelAnsiRoute(pattern, base));
+  // The HTML at those paths depends on User-Agent and Accept too.
+  for (const src of vercelVarySources(ansi, base)) routes.push({ src, methods: ["GET", "HEAD"], headers: { vary: ANSI_VARY }, continue: true, caseSensitive: true });
   routes.push({ handle: "filesystem" });
   // Extensionless paths are console pages: serve the SPA document.
   routes.push({ src: `^${escapeRegex(base)}(?:\\/(?:[^/]+\\/)*[^/.]*)?$`, dest: `${base}/index.html`, caseSensitive: true });
@@ -162,6 +236,12 @@ export async function adaptVercel(ctx: AdapterContext, middleware: MiddlewareMod
   const out = join(ctx.root, ".vercel", "output");
   if (existsSync(out)) rmSync(out, { recursive: true, force: true });
   copyStatic(ctx.outDir, join(out, "static", ...ctx.basePath.split("/").filter(Boolean).map(decodeURIComponent)));
+  const frames = readAnsiFrames(ctx.outDir);
+  for (const [pattern, frame] of Object.entries(frames)) {
+    const file = join(out, "static", ...VERCEL_ANSI_DIR.split("/"), ...vercelAnsiFile(pattern));
+    mkdirSync(join(file, ".."), { recursive: true });
+    writeFileSync(file, frame);
+  }
 
   if (ctx.api.length > 0) {
     const dir = join(out, "functions", `${VERCEL_FUNCTION}.func`);
@@ -177,6 +257,8 @@ export async function adaptVercel(ctx: AdapterContext, middleware: MiddlewareMod
   mkdirSync(mwDir, { recursive: true });
   await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: MIDDLEWARE_BODY, handlers: false, runtime: false }), outFile: join(mwDir, "index.js"), target: "edge" });
   writeFileSync(join(mwDir, ".vc-config.json"), `${JSON.stringify({ runtime: "edge", entrypoint: "index.js" }, null, 2)}\n`);
-  writeFileSync(join(out, "config.json"), `${JSON.stringify(vercelConfig(ctx, middleware), null, 2)}\n`);
-  return { adapter: "vercel", output: out, notes: ["Deploy: vercel deploy --prebuilt (or push: Vercel runs `text build` and picks up .vercel/output)"] };
+  const config = vercelConfig(ctx, middleware, Object.keys(frames));
+  writeFileSync(join(out, "config.json"), `${JSON.stringify(config, null, 2)}\n`);
+  const routeNote = vercelRouteNote(config.routes.length);
+  return { adapter: "vercel", output: out, notes: [...(routeNote ? [routeNote] : []), "Deploy: vercel deploy --prebuilt (or push: Vercel runs `text build` and picks up .vercel/output)"] };
 }

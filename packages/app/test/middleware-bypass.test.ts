@@ -128,6 +128,7 @@ interface Row {
 
 const rows: Row[] = [];
 
+/** Every variant as a browser and as curl (which gets ANSI frames of pages: the page's text is a leak too). */
 async function probe(host: string, base: string, list: Variant[]): Promise<Row[]> {
   const out: Row[] = [];
   for (const v of list) {
@@ -135,6 +136,10 @@ async function probe(host: string, base: string, list: Variant[]): Promise<Row[]
     const leaked = res.body.includes("admin-only");
     const ok = v.protected ? (res.status === 401 || res.status === 400) && !leaked : !leaked;
     out.push({ host, path: v.path, status: res.status, ok });
+    const curl = await rawRequest(base, v.path, { headers: { "user-agent": "curl/8.7.1", accept: "*/*" } });
+    const curlLeaked = curl.body.includes("admin-only") || curl.body.includes("admin page") || curl.body.includes("ops secret") || curl.body.includes("restricted secret");
+    const curlOk = v.protected ? (curl.status === 401 || curl.status === 400) && !curlLeaked : !curlLeaked;
+    out.push({ host: `${host} (curl)`, path: v.path, status: curl.status, ok: curlOk });
   }
   rows.push(...out);
   return out;

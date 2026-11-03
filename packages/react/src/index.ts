@@ -34,6 +34,7 @@ export {
   type ThemeProviderProps,
   type SyntaxPalette,
 } from "./theme";
+export { frameToAnsi } from "./ansi-frame";
 export { parseClassName, resolveUtilityColor, clearClassNameCache, classNameCacheSize, type ClassNameProps } from "./classname";
 export { TAILWIND_COLORS, paletteColor } from "./palette";
 export { mergeStyleProps } from "./host";
