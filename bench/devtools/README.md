@@ -54,6 +54,12 @@ Chart glyphs (eighth blocks, quadrants, braille, ▶, ✓) in the real DevTools 
 bun bench/devtools/glyph-shot.ts --out=/tmp/glyph-shots [--browser=chrome|edge] [--check]
 ```
 
+Any page's console frame in the real DevTools frontend, at several device pixel ratios, with the rows where console background shows through between spans:
+
+```bash
+bun bench/devtools/page-shot.ts --url=http://localhost:4173/coffee --dpr=1,1.25,1.5,2
+```
+
 > The results matrix below was recorded before the driver switched to append mode and longhand CSS; `clear` rows there use the old shorthand CSS.
 
 ---
