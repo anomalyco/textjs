@@ -47,7 +47,7 @@ Dukungan host
 Halaman yang di-render di server memerlukan `text start` atau `bun` (lihat [Deploy](/docs/deploying#server-rendered-routes)).
 
 <!-- s:2cdc6d454b -->
-Host statis tidak bisa memberikan respons berbeda untuk setiap klien, sehingga adapter `static` tidak mendukung frame. Di Vercel dan Cloudflare, frame untuk halaman statis disertakan dalam build. Halaman dinamis (`[id]`, `force-dynamic`) menyajikan HTML di sana, karena adapter `vercel` dan `cloudflare` tidak men-deploy renderer.
+Host statis tidak bisa memberikan respons berbeda untuk setiap klien, sehingga adapter `static` tidak mendukung frame. Di Vercel dan Cloudflare, frame untuk halaman statis disertakan dalam build. Halaman dinamis (`[id]`, `force-dynamic`) menyajikan HTML di sana, karena adapter `vercel` dan `cloudflare` tidak me-deploy renderer.
 
 <!-- s:022d3d5541 -->
 `text start` dan `bun dist/server.js` me-render halaman yang tersisa saat diminta dengan `.text/server/live.mjs`, dan menyimpan 128 frame terakhir selama 10 detik. Setiap server me-render paling banyak 20 halaman yang belum di-cache per 10 detik. Setelah batas itu, curl menerima halaman HTML hingga kuota terisi kembali. Jika `live.mjs` tidak bisa dimuat di server, misalnya karena modul halaman membaca `window` pada tingkat teratas, halaman tersebut menyajikan HTML.

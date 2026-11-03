@@ -34,7 +34,7 @@ Pohon diperbarui setelah commit selama panel terbuka. Nilai merupakan ringkasan 
 Frame
 
 <!-- s:2cceea6000 -->
-Inspektur frame menggambar buffer sel milik renderer: setiap glif, warna latar depan, latar belakang, dan atribut. Mengarahkan kursor ke sel akan menampilkan karakter dan warnanya, node scene teratas pada sel tersebut menurut urutan paint (dengan memperhitungkan `overflow`, offset gulir, dan `zIndex`), serta komponen yang merender node itu. Mengeklik akan memilih node di **Komponen** dan menyorotnya di konsol yang sedang berjalan dengan overlay sorotan milik renderer itu sendiri.
+Inspektur frame menggambar buffer sel milik renderer: setiap glif, warna latar depan, latar belakang, dan atribut. Mengarahkan kursor ke sel akan menampilkan karakter dan warnanya, node scene teratas pada sel tersebut menurut urutan paint (dengan memperhitungkan `overflow`, offset gulir, dan `zIndex`), serta komponen yang me-render node itu. Mengeklik akan memilih node di **Komponen** dan menyorotnya di konsol yang sedang berjalan dengan overlay sorotan milik renderer itu sendiri.
 
 <!-- s:57a8990372 -->
 Linimasa

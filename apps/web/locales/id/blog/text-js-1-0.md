@@ -2,7 +2,7 @@
 Hari ini kami merilis Text.js 1.0, framework konsol untuk web.
 
 <!-- s:e4787165f5 -->
-Text.js merender aplikasi React 19 di dalam konsol Chrome DevTools, dengan layout, routing, fokus, input, formulir, grafik, dan streaming Markdown yang digambar menggunakan `console.log`.
+Text.js me-render aplikasi React 19 di dalam konsol Chrome DevTools, dengan layout, routing, fokus, input, formulir, grafik, dan streaming Markdown yang digambar menggunakan `console.log`.
 
 <!-- s:48b184a262 -->
 Isi versi 1.0
@@ -12,9 +12,9 @@ Isi versi 1.0
 - **Turbolog.** Yoga flexbox menata kisi sel, `CellBuffer` berbasis typed array menampungnya, dan encoder run-length mengubahnya menjadi satu panggilan `console.log(format, ...css)`. Frame idle tidak membuat panggilan konsol.
 - **Kit komponen.** `Box`, `Text`, `ScrollBox`, `Input`, `Select`, `Tabs`, `Markdown`, `Diff`, `List` tervirtualisasi, `Table`, `Tree`, grafik, dialog, toast, dan palet perintah `Ctrl+K` dari `useKeymap`.
 - **Frame yang ditambahkan di akhir.** Frame ditambahkan di bawah frame sebelumnya, sehingga konsol tidak berkedip kosong di antara frame. Selengkapnya di [Turbolog: menghilangkan kedipan](/blog/turbolog-eliminating-the-flash).
-- **Teks kanan ke kiri.** Teks Ibrani dan Arab dirender dalam urutan visual dengan pembentukan huruf Arab, dari implementasi UAX #9 yang lolos seluruh 770.241 kasus `BidiTest.txt`. Lihat [Teks kanan ke kiri di konsol](/blog/right-to-left-text).
+- **Teks kanan ke kiri.** Teks Ibrani dan Arab di-render dalam urutan visual dengan pembentukan huruf Arab, dari implementasi UAX #9 yang lolos seluruh 770.241 kasus `BidiTest.txt`. Lihat [Teks kanan ke kiri di konsol](/blog/right-to-left-text).
 - **Konsol responsif.** Text.js menyesuaikan ukuran panel DevTools yang ditambatkan, termasuk zoom halaman dan toolbar yang berganti baris. Saat dilepas, ukurannya kembali ke `120×36`.
-- **`text run`.** Aplikasi App Router yang sama dirender di terminal sungguhan.
+- **`text run`.** Aplikasi App Router yang sama di-render di terminal sungguhan.
 - **Alat untuk agen dan editor.** `text mcp` menyajikan aplikasi Anda ke agen pemrograman melalui Model Context Protocol, dan ekstensi Text.js DevTools menambahkan panel di sebelah Konsol. `eslint-plugin-textjs` dan ekstensi VS Code juga menjadi bagian dari 1.0.
 
 <!-- s:b71c4a16bc -->

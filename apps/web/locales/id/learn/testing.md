@@ -1,5 +1,5 @@
 <!-- s:329a4263b5 -->
-`@textjs/app/testing` merender aplikasi Anda di luar layar, menekan tombol, dan mengembalikan frame sebagai teks biasa. Pengujian berjalan tanpa browser atau DevTools.
+`@textjs/app/testing` me-render aplikasi Anda di luar layar, menekan tombol, dan mengembalikan frame sebagai teks biasa. Pengujian berjalan tanpa browser atau DevTools.
 
 <!-- s:22ea22bed4 -->
 Pengujian pertama Anda

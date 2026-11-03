@@ -1,5 +1,5 @@
 <!-- s:b7512b6ff1 -->
-Dalam sepuluh bab, Anda akan membangun **Acme Deploys**, dasbor deploy yang dirender di konsol DevTools. Setiap bab diakhiri dengan aplikasi yang persis sesuai hasil kode Anda, berjalan langsung di konsol pada halaman ini.
+Dalam sepuluh bab, Anda akan membangun **Acme Deploys**, dasbor deploy yang di-render di konsol DevTools. Setiap bab diakhiri dengan aplikasi yang persis sesuai hasil kode Anda, berjalan langsung di konsol pada halaman ini.
 
 <!-- s:630c586fd9 -->
 Membuat aplikasi
@@ -8,7 +8,7 @@ Membuat aplikasi
 `create-text-app` menyiapkan kerangka proyek dengan App Router, TypeScript, dan CLI `text`.
 
 <!-- s:9eee556b8f -->
-Buka `http://localhost:3000`, lalu [buka konsol browser](/docs/installation#open-the-console). Halaman menampilkan focus pad. Aplikasi Anda dirender di konsol.
+Buka `http://localhost:3000`, lalu [buka konsol browser](/docs/installation#open-the-console). Halaman menampilkan focus pad. Aplikasi Anda di-render di konsol.
 
 <!-- s:7d69bcfbda -->
 Halaman pertama Anda

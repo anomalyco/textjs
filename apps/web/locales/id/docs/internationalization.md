@@ -1,5 +1,5 @@
 <!-- s:43751f7845 -->
-Text.js merender aksara Ibrani, Arab, Persia, dan aksara kanan-ke-kiri lainnya dalam urutan yang benar, sejajar dengan kisi sel, di DevTools, terminal, dan cermin DOM. Text.js mengimplementasikan Unicode Bidirectional Algorithm (UAX #9, Unicode 18.0) dan lulus rangkaian uji kesesuaian resmi: seluruh 770.241 kasus `BidiTest.txt` (setiap input dalam setiap arah paragraf) dan seluruh 91.707 kasus `BidiCharacterTest.txt`.
+Text.js me-render aksara Ibrani, Arab, Persia, dan aksara kanan-ke-kiri lainnya dalam urutan yang benar, sejajar dengan kisi sel, di DevTools, terminal, dan cermin DOM. Text.js mengimplementasikan Unicode Bidirectional Algorithm (UAX #9, Unicode 18.0) dan lulus rangkaian uji kesesuaian resmi: seluruh 770.241 kasus `BidiTest.txt` (setiap input dalam setiap arah paragraf) dan seluruh 91.707 kasus `BidiCharacterTest.txt`.
 
 <!-- s:7c0d8f9883 -->
 Arah
@@ -86,7 +86,7 @@ Batasan
 Menerjemahkan focus pad
 
 <!-- s:7791d4db4e -->
-`<FocusPad>` dari `@textjs/react/dom` (juga dirender oleh `<TextCanvas>`) meminta pengunjung membuka konsol, mengeklik halaman, dan menekan tombol. Teksnya menggunakan bahasa Inggris secara default. Untuk menerjemahkannya, berikan `messages` dengan string yang ingin Anda ganti. Kunci yang tidak disertakan tetap menggunakan teks bahasa Inggrisnya, yang tercantum dalam `defaultFocusPadMessages`.
+`<FocusPad>` dari `@textjs/react/dom` (juga di-render oleh `<TextCanvas>`) meminta pengunjung membuka konsol, mengeklik halaman, dan menekan tombol. Teksnya menggunakan bahasa Inggris secara default. Untuk menerjemahkannya, berikan `messages` dengan string yang ingin Anda ganti. Kunci yang tidak disertakan tetap menggunakan teks bahasa Inggrisnya, yang tercantum dalam `defaultFocusPadMessages`.
 
 <!-- s:66c2b8e3e2 -->
 String yang mengandung nilai berupa fungsi yang mengembalikan seluruh kalimat, sehingga terjemahan dapat menempatkan nilai tersebut di bagian mana pun dalam kalimat. `step`, `pressShortcut`, `then`, `defaultAction`, dan `shortcutOpens` adalah fungsi. `step` menerima nomor langkah dan jumlah langkah. `then` menerima prop `action`, atau teks `defaultAction` jika tidak ada `action`. `defaultAction` menerima tombol petunjuk pertama, atau `null` jika tidak ada petunjuk. `pressShortcut` menerima tombol pintasan untuk pembaca layar, dan `shortcutOpens` menerima pintasan sebagai elemen `<kbd>`.

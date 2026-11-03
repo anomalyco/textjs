@@ -51,7 +51,7 @@ Layar bantuan dan palet
 `<CommandPalette>` terbuka saat `Ctrl+K` atau `Ctrl+P` ditekan. Komponen ini melakukan pencocokan samar pada `commands` Anda dan setiap binding berlabel, serta menyoroti huruf yang cocok. Palet menutup sebelum menjalankan perintah, sehingga perintah dapat membuka modalnya sendiri.
 
 <!-- s:bea7ebdffb -->
-`formatKeys` merender binding untuk ditampilkan. `formatKeys("ctrl+shift+p")` mengembalikan `⌃⇧P` di macOS dan `ctrl+shift+P` di platform lain, dan `<Kbd>` merender satu tombol dengan format yang sama.
+`formatKeys` me-render binding untuk ditampilkan. `formatKeys("ctrl+shift+p")` mengembalikan `⌃⇧P` di macOS dan `ctrl+shift+P` di platform lain, dan `<Kbd>` me-render satu tombol dengan format yang sama.
 
 <!-- s:d068dd2764 -->
 `useKeymap`, `<KeyHelp>`, `<KeyHints>`, `<StatusBar>` dan `<CommandPalette>` disertakan dalam Text.js 1.0. Referensinya ada di [Keyboard](/docs/keyboard).

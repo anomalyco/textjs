@@ -1,5 +1,5 @@
 <!-- s:16c98cd381 -->
-Text.js merender aplikasi React di konsol Chrome DevTools. Selain input tersembunyi, halaman ini tidak memiliki UI. Setiap frame aplikasi berupa satu panggilan `console.log`.
+Text.js me-render aplikasi React di konsol Chrome DevTools. Selain input tersembunyi, halaman ini tidak memiliki UI. Setiap frame aplikasi berupa satu panggilan `console.log`.
 
 <!-- s:fe9cd991d4 -->
 Konsol sebagai layar

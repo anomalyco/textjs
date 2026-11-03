@@ -1,5 +1,5 @@
 <!-- s:8f3fd7167d -->
-Ekstensi Text.js untuk VS Code menampilkan frame konsol di samping kode. Ekstensi ini mencerminkan aplikasi yang berjalan dengan `text dev`, atau merender file yang terbuka saat tidak ada aplikasi yang berjalan. Ekstensi ini juga menambahkan scaffolding App Router, snippet, dan tautan untuk kode kesalahan `TX###`.
+Ekstensi Text.js untuk VS Code menampilkan frame konsol di samping kode. Ekstensi ini mencerminkan aplikasi yang berjalan dengan `text dev`, atau me-render file yang terbuka saat tidak ada aplikasi yang berjalan. Ekstensi ini juga menambahkan scaffolding App Router, snippet, dan tautan untuk kode kesalahan `TX###`.
 
 <!-- s:98304b8243 -->
 Instalasi
@@ -23,7 +23,7 @@ Pratinjau mendapatkan frame dari salah satu dari dua sumber. Lencana di bilah al
 | Sumber | Kapan | Yang Anda lihat |
 | :-- | :-- | :-- |
 | **Live** | `text dev` berjalan dan sebuah tab browser membuka aplikasi | Aplikasi sebenarnya, dengan state, data, dan ukuran kisi |
-| **Headless** | Tidak ada server pengembangan, atau tidak ada tab yang terbuka | File yang terbuka, dirender oleh ekstensi sesuai ukuran panel |
+| **Headless** | Tidak ada server pengembangan, atau tidak ada tab yang terbuka | File yang terbuka, di-render oleh ekstensi sesuai ukuran panel |
 
 <!-- s:f40888c2bb -->
 `auto` (bawaan) menggunakan Live jika memungkinkan dan Headless jika tidak. Tetapkan salah satunya melalui lencana atau dengan `textjs.preview.mode`.

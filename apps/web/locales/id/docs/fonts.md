@@ -73,7 +73,7 @@ Font kustom
 Semua FIGfont dapat digunakan. Ambil font, lalu uraikan:
 
 <!-- s:c2f4ef471e -->
-Parser membaca header, baris komentar, hardblank, penanda akhir, 102 karakter wajib dan karakter bertanda kode dalam desimal, oktal atau heksadesimal. Font TOIlet `.tlf` dirender sebagai teks biasa. Utamakan font yang digambar dengan ASCII atau karakter pembentuk kotak; braille dan emoji tidak selebar satu sel dalam Menlo.
+Parser membaca header, baris komentar, hardblank, penanda akhir, 102 karakter wajib dan karakter bertanda kode dalam desimal, oktal atau heksadesimal. Font TOIlet `.tlf` di-render sebagai teks biasa. Utamakan font yang digambar dengan ASCII atau karakter pembentuk kotak; braille dan emoji tidak selebar satu sel dalam Menlo.
 
 <!-- s:f64649f401 -->
 Lisensi

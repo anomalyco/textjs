@@ -1,5 +1,5 @@
 <!-- s:510651334f -->
-Status pemuatan dan batas penanganan error dirender di konsol. Tentukan keduanya per segmen route dengan `loading.tsx` dan `error.tsx`.
+Status pemuatan dan batas penanganan error di-render di konsol. Tentukan keduanya per segmen route dengan `loading.tsx` dan `error.tsx`.
 
 <!-- s:28d65d04f2 -->
 UI pemuatan
@@ -17,7 +17,7 @@ Tambahkan `error.tsx` untuk menangkap error rendering. Komponen ini menerima err
 Tidak ditemukan
 
 <!-- s:c01c20f824 -->
-Panggil `notFound()` untuk merender `not-found.tsx` terdekat.
+Panggil `notFound()` untuk me-render `not-found.tsx` terdekat.
 
 <!-- s:dc40d65e00 -->
 Redbox di dalam konsol

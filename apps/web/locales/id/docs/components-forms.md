@@ -49,4 +49,4 @@ Render satu `<Toaster />`, lalu panggil `useToast()` di mana saja dalam root yan
 | `max` | Pada `<Toaster>`: jumlah yang terlihat sekaligus (default `3`) |
 
 <!-- s:476f42f2b3 -->
-Toast dirender di atas modal dan tidak pernah mengambil fokus.
+Toast di-render di atas modal dan tidak pernah mengambil fokus.

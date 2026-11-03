@@ -41,7 +41,7 @@ Konsol tetap harus dikosongkan pada akhirnya. Pengosongan hanya terjadi pada fra
 Menyesuaikan laju dengan throttler
 
 <!-- s:14c65af87d -->
-Mengirim frame lebih cepat daripada kemampuan DevTools menggambarnya tidak mempercepat apa pun. Log yang tiba saat throttler masih menunggu akan memulainya ulang, sehingga frame terbuang: pada 60 fps DevTools menggambar 67 dari 295 frame yang dikirim. Turbolog mengatur jarak antarframe setidaknya **66 ms**, sekitar 15 fps, dan tetap merender input diskret secara sinkron saat intervalnya memungkinkan.
+Mengirim frame lebih cepat daripada kemampuan DevTools menggambarnya tidak mempercepat apa pun. Log yang tiba saat throttler masih menunggu akan memulainya ulang, sehingga frame terbuang: pada 60 fps DevTools menggambar 67 dari 295 frame yang dikirim. Turbolog mengatur jarak antarframe setidaknya **66 ms**, sekitar 15 fps, dan tetap me-render input diskret secara sinkron saat intervalnya memungkinkan.
 
 <!-- s:8a90fd55c3 -->
 Memutus penguncian fase

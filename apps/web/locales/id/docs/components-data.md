@@ -1,5 +1,5 @@
 <!-- s:d3c8cb679e -->
-`<List>`, `<Table>`, dan `<Tree>` menampilkan kumpulan data besar. Hanya baris yang terlihat yang dirender.
+`<List>`, `<Table>`, dan `<Tree>` menampilkan kumpulan data besar. Hanya baris yang terlihat yang di-render.
 
 <!-- s:44ffd1d0a7 -->
 Navigasi

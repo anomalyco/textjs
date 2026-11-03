@@ -2,7 +2,7 @@
   "2914436371": "Tekan bawah, sorotan harus pindah ke deployment kedua.",
   "9441b5fb9c": "Selamat datang kembali di Learn Text.js.",
   "833bd7db6d": "Ini bab delapan: Pengujian.",
-  "316e758a9f": "@textjs/app/testing merender aplikasi di luar layar ke kisi sel dalam memori dan menekan tombol.",
+  "316e758a9f": "@textjs/app/testing me-render aplikasi di luar layar ke kisi sel dalam memori dan menekan tombol.",
   "2338f9aedf": "Baca frame sebagai teks biasa: lastFrame memberi seluruhnya, lines per baris, dan cell memberi karakter serta warna satu sel.",
   "eb374c2f12": "Berjalan di Bun, Vitest atau Jest, tanpa browser.",
   "d7b709a853": "Tulis pengujian pertama.",

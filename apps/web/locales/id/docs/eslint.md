@@ -64,7 +64,7 @@ Saran ini mengganti tag dengan komponen terdekat (`div` → `Box`, `span`/`p` �
 `no-unsupported-glyphs`
 
 <!-- s:bf8fe52c9e -->
-Text.js menata setiap karakter dalam kisi sel tetap. Glif yang tidak tersedia di Menlo, font konsol DevTools di macOS, dirender menggunakan font cadangan yang lebih lebar dari satu sel, sehingga setiap sel setelahnya bergeser.
+Text.js menata setiap karakter dalam kisi sel tetap. Glif yang tidak tersedia di Menlo, font konsol DevTools di macOS, di-render menggunakan font cadangan yang lebih lebar dari satu sel, sehingga setiap sel setelahnya bergeser.
 
 <!-- s:a58a59c2f8 -->
 - **Braille** (U+2800–U+28FF, frame spinner terminal klasik): gunakan karakter blok atau kuadran (`▘▝▗▖`), `<Spinner variant="dots">` atau `marker="quadrant"` pada grafik. Tetapkan `{ allowBraille: true }` untuk aplikasi yang hanya berjalan dengan `text run` di terminal.

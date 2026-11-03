@@ -36,7 +36,7 @@ Tekan `?` untuk melihat semua binding berlabel, dalam kelompok. Daftar ini menam
 `<KeyHints />` menampilkan binding bertanda `hint: true`, atau `items` yang ditentukan secara eksplisit. `<StatusBar>` adalah footer satu baris dengan slot `right`.
 
 <!-- s:b9ded39a0a -->
-`<Kbd>mod+k</Kbd>` merender satu tombol. `formatKeys("ctrl+shift+p")` menghasilkan `⌃⇧P` di macOS dan `ctrl+shift+P` di platform lain.
+`<Kbd>mod+k</Kbd>` me-render satu tombol. `formatKeys("ctrl+shift+p")` menghasilkan `⌃⇧P` di macOS dan `ctrl+shift+P` di platform lain.
 
 <!-- s:8b6afd6178 -->
 `<CommandPalette>`

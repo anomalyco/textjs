@@ -1,5 +1,5 @@
 <!-- s:e580113c76 -->
-Komponen ini merender Markdown, kode, diff, dan huruf berukuran besar pada kisi sel.
+Komponen ini me-render Markdown, kode, diff, dan huruf berukuran besar pada kisi sel.
 
 <!-- s:10d1e663ca -->
 `<Markdown>`

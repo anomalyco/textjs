@@ -1,5 +1,5 @@
 <!-- s:bd59ce7974 -->
-Text.js kini merender aksara Ibrani, Arab, Persia, dan aksara kanan-ke-kiri lainnya dalam urutan yang benar, dengan huruf Arab tersambung, pada kisi sel yang sama dengan konten lainnya.
+Text.js kini me-render aksara Ibrani, Arab, Persia, dan aksara kanan-ke-kiri lainnya dalam urutan yang benar, dengan huruf Arab tersambung, pada kisi sel yang sama dengan konten lainnya.
 
 <!-- s:4673b00c8b -->
 Setiap paragraf menentukan arah dasarnya dari karakter kuat pertamanya, seperti `dir="auto"` dalam HTML, dan paragraf kanan-ke-kiri diratakan ke kanan. Pada `<Text>` bersarang, `dir` mengisolasi span seperti `<bdi>`, sehingga nama pengguna yang arahnya tidak diketahui tidak dapat mengubah urutan teks di sekitarnya.
@@ -59,7 +59,7 @@ Kontrol menggunakan frame yang sama dengan teks Latin. Driver yang dirilis mengh
 Teks kiri-ke-kanan tidak berubah
 
 <!-- s:41ce31b66a -->
-Teks tanpa karakter kanan-ke-kiri melewati seluruh proses ini. Pemeriksaan berlangsung saat segmentasi grafem, satu perbandingan per grafem, dan teks yang sepenuhnya kiri-ke-kanan dirender melalui jalur yang sama seperti sebelumnya, sehingga frame konsolnya identik hingga tingkat byte.
+Teks tanpa karakter kanan-ke-kiri melewati seluruh proses ini. Pemeriksaan berlangsung saat segmentasi grafem, satu perbandingan per grafem, dan teks yang sepenuhnya kiri-ke-kanan di-render melalui jalur yang sama seperti sebelumnya, sehingga frame konsolnya identik hingga tingkat byte.
 
 <!-- s:a8fff567e6 -->
 Teks kanan-ke-kiri hadir di Text.js 1.0. [Internasionalisasi](/docs/internationalization) membahas input, penyuntingan, terminal, dan API.

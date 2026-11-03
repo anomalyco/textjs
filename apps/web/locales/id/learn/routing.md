@@ -1,5 +1,5 @@
 <!-- s:ce06f5c491 -->
-App Router memetakan file di `app/` ke URL, mengikuti konvensi App Router Next.js. Bilah alamat dan riwayat browser tetap sinkron, sehingga navigasi kembali, maju, dan tautan langsung berfungsi saat UI dirender di konsol.
+App Router memetakan file di `app/` ke URL, mengikuti konvensi App Router Next.js. Bilah alamat dan riwayat browser tetap sinkron, sehingga navigasi kembali, maju, dan tautan langsung berfungsi saat UI di-render di konsol.
 
 <!-- s:00fe1aba85 -->
 File sebagai route

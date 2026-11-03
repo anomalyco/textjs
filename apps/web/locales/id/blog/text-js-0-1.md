@@ -1,5 +1,5 @@
 <!-- s:00c66df67a -->
-Text.js 0.1 telah diberi tag. Ini versi pertama dengan ketiga lapisan: `@textjs/core` menggambar frame ke konsol, `@textjs/react` merender React 19 ke dalam frame tersebut, dan `textjs` menambahkan App Router serta CLI.
+Text.js 0.1 telah diberi tag. Ini versi pertama dengan ketiga lapisan: `@textjs/core` menggambar frame ke konsol, `@textjs/react` me-render React 19 ke dalam frame tersebut, dan `textjs` menambahkan App Router serta CLI.
 
 <!-- s:1aa5bba86a -->
 App Router

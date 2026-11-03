@@ -84,7 +84,7 @@ Argumen kedua memiliki `waitUntil()`, yang menjaga runtime serverless tetap akti
 Catatan
 
 <!-- s:971c06c875 -->
-- Halaman yang dirender di sisi klien dirender di browser, sehingga rewrite ke halaman lain mengubah file yang disajikan, bukan route yang dirender aplikasi konsol. Rewrite ke route handler, file statis dan origin eksternal berperilaku sesuai harapan.
+- Halaman yang di-render di sisi klien di-render di browser, sehingga rewrite ke halaman lain mengubah file yang disajikan, bukan route yang di-render aplikasi konsol. Rewrite ke route handler, file statis dan origin eksternal berperilaku sesuai harapan.
 - Middleware dapat membaca body permintaan; route handler tetap menerimanya. Body permintaan yang dikecualikan oleh matcher tidak pernah disentuh.
 - `request.url` selalu memiliki origin server: target permintaan seperti `//other.host/x` dinormalisasi menjadi satu garis miring di awal.
 - [Adapter statis](/docs/deploying#static) tidak dapat menjalankan middleware.

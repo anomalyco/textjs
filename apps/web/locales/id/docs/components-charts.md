@@ -34,7 +34,7 @@ Batang horizontal dengan label dan nilai yang sejajar, dengan presisi seperdelap
 `<Sparkline>`
 
 <!-- s:4bb495c66f -->
-Mengisi lebarnya dengan titik terbaru. `height` di atas `1` merender area terisi.
+Mengisi lebarnya dengan titik terbaru. `height` di atas `1` me-render area terisi.
 
 <!-- s:9b515e6ed1 -->
 `sparkline(values)` mengembalikan sparkline yang sama sebagai string.
