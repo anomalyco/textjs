@@ -203,6 +203,15 @@ function pinVisualOrder(text: string): string {
 const LAYOUT_UNIT = 64;
 
 /**
+ * Chromium pixel-snaps each `contain: paint` span on its own, so where two
+ * backgrounds meet at a fractional x the device pixel between them can be left
+ * to neither span and the console background shows through as a hairline.
+ * Extending a span's background 1px under its right neighbour (which paints
+ * over it) closes the seam without moving anything.
+ */
+const SEAL_CSS = "padding-right:1px;margin-right:-1px;";
+
+/**
  * DOM text of an escaped span (`%%` → `%`). The pins stay in the text so a
  * measurer sees the same (overridden) runs DevTools lays out: without them it
  * would reorder the visual-order glyphs and form ligatures (lam-alef) that
@@ -791,6 +800,7 @@ export class CssConsoleDriver {
     }
     const standIns = this.standIns === undefined ? this.measureStandIns() : this.standIns;
     if (standIns !== null) for (const span of spans) if (!span.blank) span.text = applyStandIns(span.text, standIns);
+    if (!this.profile.inline) this.sealSpans(spans);
     if (rowRtl) this.fitRtlSpans(spans);
     return spans;
   }
@@ -801,6 +811,25 @@ export class CssConsoleDriver {
     const measure = this.measurer;
     this.standIns = measure && this.cellAdvance > 0 ? measureStandIns(measure, this.cellAdvance) : null;
     return this.standIns;
+  }
+
+  /**
+   * Seal each span with a background unless its right neighbour's is missing
+   * or translucent, which would show the overlap (see `SEAL_CSS`). The last
+   * span of a row is sealed too, so rows still merge with the next.
+   */
+  private sealSpans(spans: CompiledSpan[]): void {
+    for (let i = 0; i < spans.length; i++) {
+      const s = spans[i] as CompiledSpan;
+      const next = spans[i + 1];
+      if ((s.bg & 255) === 0 || (next !== undefined && (next.bg & 255) !== 255)) continue;
+      // Style keys are never negative.
+      const key = -1n - s.styleKey;
+      let sealed = this.cssCache.get(key);
+      if (sealed === undefined) this.cssCache.set(key, (sealed = { id: this.nextStyleId++, css: s.css + SEAL_CSS }));
+      s.styleId = sealed.id;
+      s.css = sealed.css;
+    }
   }
 
   /**
@@ -832,7 +861,8 @@ export class CssConsoleDriver {
       if (span.blank || span.text.charCodeAt(0) !== 0x202d) continue;
       const bold = span.css.includes("font-weight:700");
       const italic = span.css.includes("font-style:italic");
-      const key = `${bold ? 1 : 0}${italic ? 1 : 0}${span.cells}:${span.text}`;
+      const sealed = span.css.endsWith(SEAL_CSS);
+      const key = `${bold ? 1 : 0}${italic ? 1 : 0}${sealed ? 1 : 0}${span.cells}:${span.text}`;
       let fit = this.fitCache.get(key);
       if (fit === undefined) {
         const target = Math.ceil(span.cells * this.cellAdvance * LAYOUT_UNIT);
@@ -841,7 +871,12 @@ export class CssConsoleDriver {
         // Pull in by at most half a cell: a proportional fallback font (Times New Roman next to
         // Cascadia Mono on Windows) would otherwise drag the following spans over these glyphs.
         const delta = Math.max(target - natural, -Math.floor((this.cellAdvance * LAYOUT_UNIT) / 2));
-        fit = delta > 0 ? `padding-right:${delta / LAYOUT_UNIT}px;` : delta < 0 ? `margin-right:${delta / LAYOUT_UNIT}px;` : "";
+        if (delta !== 0 && sealed) {
+          // Overrides both of the seal's properties, with its 1px folded in.
+          fit = `padding-right:${Math.max(delta, 0) / LAYOUT_UNIT + 1}px;margin-right:${Math.min(delta, 0) / LAYOUT_UNIT - 1}px;`;
+        } else {
+          fit = delta > 0 ? `padding-right:${delta / LAYOUT_UNIT}px;` : delta < 0 ? `margin-right:${delta / LAYOUT_UNIT}px;` : "";
+        }
         this.fitCache.set(key, fit);
       }
       if (fit === "") continue;

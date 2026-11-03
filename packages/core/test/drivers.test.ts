@@ -288,6 +288,49 @@ describe("CssConsoleDriver", () => {
     expect(con.last.args[3]).toContain("background-color:#22c55e;");
   });
 
+  test("Chromium spans extend their background 1px under an opaque right neighbour", () => {
+    const SEAL = "padding-right:1px;margin-right:-1px;";
+    const b = new CellBuffer(9, 1);
+    b.drawText(0, 0, "ab", GREEN, BG, ATTR_BOLD);
+    b.drawText(2, 0, "cd", 0xffffffff, BG);
+    b.drawText(4, 0, "ef", 0xffffffff, 0x33415580);
+    b.drawText(6, 0, "gh", 0xffffffff, 0);
+    b.drawText(8, 0, "i", 0xffffffff, BG);
+    const con = new FakeConsole();
+    new CssConsoleDriver({ console: con }).render(b);
+    const sealed = con.last.args.map((css) => css.endsWith(SEAL));
+    // A translucent or missing neighbour would show the overlap; the row's last span seals so rows still merge.
+    expect(sealed).toEqual([true, false, false, false, true]);
+    expect(chromiumFormat(con.last.format, con.last.args).text).toBe("abcdefghi");
+
+    const ff = new FakeConsole();
+    new CssConsoleDriver({ console: ff, browser: "firefox" }).render(b);
+    expect(ff.last.args.some((css) => css.includes(SEAL))).toBe(false);
+  });
+
+  test("a fitted right-to-left span folds the seal into its fit", () => {
+    const b = new CellBuffer(4, 1);
+    b.drawText(0, 0, "שלום", 0xffffffff, BG);
+    // Latin cells are 7px and Hebrew glyphs 6.9px: 4 cells pad by 25/64px (27.6px rounds up to 1767 LayoutUnits of 1792).
+    const measure = (t: string): number => (t.startsWith("M") ? 7 : 6.9) * [...t].filter((ch) => ch !== "\u202D" && ch !== "\u202C").length;
+    const [span] = new CssConsoleDriver({ console: new FakeConsole(), measureText: measure }).compileRow(b, 0);
+    expect(span?.css).toEndWith("padding-right:1px;margin-right:-1px;padding-right:1.390625px;margin-right:-1px;");
+  });
+
+  test("sealed rows still merge across row boundaries", () => {
+    const con = new FakeConsole();
+    const b = new CellBuffer(6, 3);
+    b.clear(BG);
+    for (let y = 0; y < 3; y++) {
+      b.drawText(0, y, "ab", 0xffffffff, BG);
+      b.drawText(3, y, "x", GREEN, BG, ATTR_BOLD);
+      b.drawText(4, y, "yz", 0xffffffff, BG);
+    }
+    new CssConsoleDriver({ console: con }).render(b);
+    // white | bold | white (row end + next row start) | bold | white | bold | white
+    expect(con.last.args.length).toBe(7);
+  });
+
   test("wide chars emit once, continuation cells are skipped", () => {
     const con = new FakeConsole();
     const d = new CssConsoleDriver({ console: con });

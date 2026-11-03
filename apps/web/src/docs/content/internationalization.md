@@ -59,18 +59,20 @@ Text without right-to-left characters skips all of this. A pure left-to-right te
 
 ## Cell widths
 
-The shipping font stack is `"SF Mono", Menlo, "Cascadia Mono", Consolas, monospace`. None of these fonts has Hebrew or Arabic glyphs, so browsers fall back per character. On macOS that is Courier New, which is monospaced at 0.6 em: 7.2012 px per glyph at 12 px against Menlo's 7.2246 px. It's 0.3% narrower, enough to drift a full row of Hebrew by about half a cell. DevTools also paints every `%c` span with `contain: paint`, which shows a 1 px hairline when a span edge leaves the grid's sub-pixel pattern.
+The shipping font stack is `"SF Mono", Menlo, "Cascadia Mono", Consolas, monospace`. None of these fonts has Hebrew or Arabic glyphs, so browsers fall back per character. On macOS that is Courier New, which is monospaced at 0.6 em: 7.2012 px per glyph at 12 px against Menlo's 7.2246 px. It's 0.3% narrower, enough to drift a full row of Hebrew by about half a cell.
 
 `CssConsoleDriver` measures each right-to-left span with a canvas in the console font (the same Blink shaping and font fallback DevTools uses), then pads it by the exact LayoutUnit (1/64 px) difference. The span ends up as wide as the grid cells it covers (a wide grapheme such as an emoji counts two). A span is pulled in by at most half a cell, so a proportional fallback font (Times New Roman next to Cascadia Mono on Windows) overflows instead of letting the next span overlap its glyphs. Measured in the real DevTools frontend (Chromium 151) on a 64×21 frame of Hebrew, Arabic, mixed and emoji-in-Hebrew lines and RTL box titles (`bun bench/devtools/bidi-shot.ts`):
 
-| Frame | Right-edge drift across rows | Rows with hairlines |
-| :-- | --: | --: |
-| Cells logged without pinning | 14.5 px (DevTools reorders and re-shapes) | 2 |
-| Pinned, no width fitting | 2.22 px | 5 |
-| Shipping driver | 0.156 px | 2 |
-| Control: same cells, every RTL glyph replaced by `x` | 1.67 px | 2 |
+| Frame | Right-edge drift across rows |
+| :-- | --: |
+| Cells logged without pinning | 14.5 px (DevTools reorders and re-shapes) |
+| Pinned, no width fitting | 2.22 px |
+| Shipping driver | 0.156 px |
+| Control: same cells, every RTL glyph replaced by `x` | 1.67 px |
 
-The shipping frame matches the all-Latin control on every row except the emoji one, where it does better: emoji are fitted with the right-to-left span around them (0.03 px), while the control's left-to-right emoji row isn't fitted (1.66 px). The two remaining hairline rows come from DevTools' span painting and appear with Latin text in the same positions.
+The shipping frame matches the all-Latin control on every row except the emoji one, where it does better: emoji are fitted with the right-to-left span around them (0.03 px), while the control's left-to-right emoji row isn't fitted (1.66 px).
+
+DevTools paints every `%c` span with `contain: paint` and snaps each one to device pixels separately, so where two backgrounds meet at a fractional position the pixel between them can go to neither, leaving a 1 px hairline. In Chrome and Edge, a span with a background extends it 1 px under an opaque right neighbour, and a fitted span adds that pixel to its padding. None of the four frames above shows a hairline.
 
 Pass `measureText: false` to turn fitting off, or supply your own `(text, bold, italic) => px` measurer.
 
