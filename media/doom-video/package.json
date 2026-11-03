@@ -1,0 +1,9 @@
+{
+  "name": "@textjs/doom-video",
+  "private": true,
+  "type": "module",
+  "description": "The Doom social clip: `bun media/doom-video/capture.ts`, then `bun media/doom-video/produce.ts --vm`.",
+  "dependencies": {
+    "playwright-core": "1.62.1"
+  }
+}
