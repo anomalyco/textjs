@@ -202,28 +202,22 @@ export function DoomDemo({ reserveRows = 4, active = true, loadAssets }: DoomDem
     };
   }, [started, attempt, loadAssets]);
 
-  // Browsers only start audio from a user gesture, so the page's first click or keypress turns sound on.
+  const running = status === "ready" && vp.focused && !vp.paused;
+
+  // Browsers only start audio from a user gesture, so a click or keypress on the page turns sound on. Keep
+  // listening: the first key may be ⌘⌥J or Escape, which don't count, and Safari can suspend audio later.
   useEffect(() => {
     if (typeof window === "undefined" || isMobileTouchFallback()) return;
-    const stopListening = (): void => {
-      window.removeEventListener("mousedown", unlock, true);
-      window.removeEventListener("keydown", unlock, true);
-    };
-    const unlock = (e: Event): void => {
-      // Synthetic events don't count as a gesture, so the browser would keep the context suspended.
-      if (!e.isTrusted) return;
-      sound.unlock();
-      stopListening();
-    };
-    window.addEventListener("mousedown", unlock, true);
-    window.addEventListener("keydown", unlock, true);
+    const onGesture = (e: MouseEvent | KeyboardEvent): void => sound.gesture(e, navigator.userActivation);
+    window.addEventListener("mousedown", onGesture, true);
+    window.addEventListener("keydown", onGesture, true);
     return () => {
-      stopListening();
+      window.removeEventListener("mousedown", onGesture, true);
+      window.removeEventListener("keydown", onGesture, true);
       sound.dispose();
     };
   }, [sound]);
 
-  const running = status === "ready" && vp.focused && !vp.paused;
   useEffect(() => {
     sound.setRunning(running);
     const c = clock.current;

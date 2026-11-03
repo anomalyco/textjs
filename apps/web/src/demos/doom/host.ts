@@ -45,6 +45,21 @@ export interface DoomOptions {
   sound?: DoomSoundSink;
 }
 
+/** The engine's 4 `sound` imports. A lump pointer or length outside wasm memory is ignored. */
+export function soundImports(mem: () => ArrayBuffer, sound: DoomSoundSink | undefined) {
+  return {
+    startSound: (lump: number, p: number, n: number, channel: number, vol: number, sep: number) => {
+      const buf = mem();
+      const ptr = p >>> 0;
+      if (!sound || n <= 0 || ptr + n > buf.byteLength) return;
+      sound.start(lump, new Uint8Array(buf, ptr, n), channel, vol, sep);
+    },
+    updateSound: (channel: number, vol: number, sep: number) => sound?.update(channel, vol, sep),
+    stopSound: (channel: number) => sound?.stop(channel),
+    isPlaying: (channel: number) => (sound?.isPlaying(channel) ? 1 : 0),
+  };
+}
+
 export async function createDoom({ wasm, wads, now = () => performance.now(), log, sound }: DoomOptions): Promise<DoomHost> {
   const total = wads.reduce((n, w) => n + w.length, 0);
   let memory: WebAssembly.Memory | null = null;
@@ -97,13 +112,7 @@ export async function createDoom({ wasm, wads, now = () => performance.now(), lo
         });
       },
     },
-    sound: {
-      startSound: (lump: number, p: number, n: number, channel: number, vol: number, sep: number) =>
-        sound?.start(lump, new Uint8Array(mem(), p, n), channel, vol, sep),
-      updateSound: (channel: number, vol: number, sep: number) => sound?.update(channel, vol, sep),
-      stopSound: (channel: number) => sound?.stop(channel),
-      isPlaying: (channel: number) => (sound?.isPlaying(channel) ? 1 : 0),
-    },
+    sound: soundImports(mem, sound),
     runtimeControl: {
       timeInMilliseconds: () => {
         engineMs = Math.max(engineMs, tickMs);
