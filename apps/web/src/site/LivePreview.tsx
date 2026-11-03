@@ -3,7 +3,6 @@ import { activateCompanion, companionReady, getCompanion, isInteractivePress, is
 import { PRESETS, siteStore } from "../console-companion/store";
 import { preloadCompanionTab } from "../console-companion/tabs-loader";
 import { useSite } from "../console-companion/useSite";
-import { docLabel } from "../docs/meta";
 import { exampleFrame, exampleHeader, PREVIEW_META } from "../docs/preview-meta";
 import type { PreviewSpec } from "../docs/previews";
 import { SandboxConsole } from "../sandbox/SandboxConsole";
@@ -101,7 +100,7 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
     wireframe,
   });
   const companionFrame = useCompanionFrame(active);
-  const mirrored = active ? exampleFrame(companionFrame, exampleHeader(docLabel(site.docSlug), id), id) : null;
+  const mirrored = active ? exampleFrame(companionFrame, exampleHeader(id), id) : null;
 
   // Clicking anywhere outside this example hands the console back to the docs.
   useEffect(() => {

@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { act } from "react";
 import { renderToString } from "react-dom/server";
 import { extractStyledFrame, type StyledFrame } from "@textjs/core";
@@ -6,7 +8,7 @@ import { CompanionApp } from "../src/console-companion/App";
 import { viewportLimitsFor } from "../src/console-companion/boot";
 import { SiteStore, siteStore } from "../src/console-companion/store";
 import { exampleFrame, exampleGrid, exampleHeader, HOME_EXAMPLE_GRID, homeExampleHeader, isHomeExampleFrame } from "../src/console-companion/tabs/ExampleTab";
-import { docLabel } from "../src/docs/meta";
+import { PREVIEW_META, previewLabel } from "../src/docs/preview-meta";
 import { PREVIEWS } from "../src/docs/previews";
 import { LivePreview } from "../src/site/LivePreview";
 import { KitSection } from "../src/pages/home/Kit";
@@ -69,7 +71,7 @@ describe("docs examples in the console: companion", () => {
     expect(h.frame()).toContain("Layout");
     await site(() => siteStore.activateExample("modal"));
     const f = h.frame();
-    expect(f.split("\n")[0]).toContain("▼ Docs › Layout › Modal");
+    expect(f.split("\n")[0]).toContain("▼ Docs › Modal");
     expect(f.split("\n")[0]).toContain("Esc back to docs");
     expect(f).toContain("Commands");
     expect(f).toContain("Switch theme");
@@ -96,6 +98,44 @@ describe("docs examples in the console: companion", () => {
     expect(h.frame()).toContain("/ Search");
   });
 
+  /** Every live example in the docs, with the page it's on (`tsx#id` fences). */
+  const DOC_EXAMPLES = readdirSync(join(import.meta.dir, "../src/docs/content")).flatMap((f) =>
+    [...readFileSync(join(import.meta.dir, "../src/docs/content", f), "utf8").matchAll(/```tsx#([\w-]+)/g)].map((m) => ({ slug: f.replace(/\.md$/, ""), id: m[1] as string })),
+  );
+
+  /** The console's header row while `id` runs from `/docs/<slug>`, at exactly the example's grid. */
+  async function consoleHeader(slug: string, id: string): Promise<{ row: string; frame: StyledFrame }> {
+    await site(() => siteStore.syncRoute(`/docs/${slug}`));
+    await site(() => siteStore.activateExample(id));
+    const grid = exampleGrid(id) as { cols: number; rows: number };
+    h = await mount(<CompanionApp />, { cols: grid.cols, rows: grid.rows, tabFocus: false });
+    h.frame();
+    const frame = extractStyledFrame(h.root.renderer.buffer);
+    await h.unmount();
+    h = undefined;
+    await site(() => siteStore.reset());
+    return { row: (frame.rows[0] ?? []).map((s) => s.text).join(""), frame };
+  }
+
+  test("no example's header is cut off at the example's width", async () => {
+    expect(DOC_EXAMPLES.length).toBeGreaterThanOrEqual(15);
+    const cut: string[] = [];
+    for (const { slug, id } of DOC_EXAMPLES) {
+      const { row } = await consoleHeader(slug, id);
+      if (!row.includes(exampleHeader(id)) || row.includes("…")) cut.push(`${slug}#${id}: ${row.trimEnd()}`);
+    }
+    expect(cut).toEqual([]);
+  });
+
+  test("the page finds the console's header for every example, in every language", async () => {
+    // The header names only the example, so the English console and a translated page agree.
+    for (const id of Object.keys(PREVIEW_META)) expect(exampleHeader(id)).toBe(`▼ Docs › ${previewLabel(id)}`);
+    for (const { slug, id } of DOC_EXAMPLES) {
+      const { frame } = await consoleHeader(slug, id);
+      expect({ example: `${slug}#${id}`, mirrored: exampleFrame(frame, exampleHeader(id), id)?.height }).toEqual({ example: `${slug}#${id}`, mirrored: PREVIEW_META[id]?.rows });
+    }
+  });
+
   test("the page mirror shows exactly the example's cells, the same as a standalone preview", async () => {
     const spec = PREVIEWS.layout as { cols: number; rows: number; render: () => React.ReactNode };
     await site(() => siteStore.syncRoute("/docs/components-layout"));
@@ -103,12 +143,12 @@ describe("docs examples in the console: companion", () => {
     h = await mount(<CompanionApp />, { cols: spec.cols + 20, rows: spec.rows + 6, tabFocus: false });
     h.frame();
     const companion = extractStyledFrame(h.root.renderer.buffer);
-    const header = exampleHeader(docLabel("components-layout"), "layout");
+    const header = exampleHeader("layout");
     const mirrored = exampleFrame(companion, header, "layout");
     expect(mirrored).not.toBeNull();
     expect(mirrored?.height).toBe(spec.rows);
     // A frame that isn't showing this example yet (e.g. the docs view) is never mirrored.
-    expect(exampleFrame(companion, exampleHeader(docLabel("components-layout"), "modal"), "modal")).toBeNull();
+    expect(exampleFrame(companion, exampleHeader("modal"), "modal")).toBeNull();
     await h.unmount();
 
     h = await mount(spec.render(), { cols: spec.cols, rows: spec.rows, tabFocus: false });

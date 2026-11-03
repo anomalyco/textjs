@@ -60,9 +60,12 @@ export function exampleGrid(id: string, tab: CompanionTab = "docs"): { cols: num
   return size ? { cols: size.cols, rows: size.rows + EXAMPLE_HEADER_ROWS } : null;
 }
 
-/** The line above a docs example running in the console. `page` is the doc's label (`docLabel` in `meta.ts`). */
-export function exampleHeader(page: string, id: string): string {
-  return `▼ Docs › ${page} › ${previewLabel(id)}`;
+/**
+ * The line above a docs example running in the console. The page finds its example's frames by this line, so it
+ * uses only the example's label: the console stays English on translated pages, and it must fit the example's width.
+ */
+export function exampleHeader(id: string): string {
+  return `▼ Docs › ${previewLabel(id)}`;
 }
 
 export const HOME_EXAMPLE_PREFIX = "▼ Text.js › Components › ";

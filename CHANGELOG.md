@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - textjs.org/ja: ⌘K search shows the Japanese docs headings and matches Japanese queries against them. It used to list English headings under Japanese page titles. English names still find pages: `routing` finds ルーティング and `open the console` finds コンソールを開く.
+- textjs.org: a docs example running in your console shows its changes in the page's preview again on textjs.org/ja, and for the Bidirectional text example on textjs.org/docs/internationalization. The line above an example in the console now reads "▼ Docs › Counter" instead of "▼ Docs › Introduction › Counter".
 
 ## [1.4.1] - 2026-11-03
 
