@@ -38,7 +38,7 @@ Para mostrar a mesma interface na página, use `<TextCanvas>` de `@textjs/react/
 Elemento hospedeiro desconhecido
 
 <!-- s:a8bb5bc9a5 -->
-O reconciler só reconhece dois elementos intrínsecos, `tx-box` e `tx-text`. Um elemento em minúsculas, como `<div>` ou `<span>`, chegou até ele.
+O reconciliador só reconhece dois elementos intrínsecos, `tx-box` e `tx-text`. Ele recebeu um elemento com nome em minúsculas, como `<div>` ou `<span>`.
 
 <!-- s:407e421c11 -->
 Use os componentes exportados:

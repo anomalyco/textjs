@@ -8,7 +8,7 @@ Arquivos são rotas
 Mova a lista para uma rota própria e adicione uma página de configurações:
 
 <!-- s:141a7c73d4 -->
-Um layout shared
+Um layout compartilhado
 
 <!-- s:cffa0eef2d -->
 `layout.tsx` envolve todas as páginas e mantém seu estado durante a navegação. Coloque a barra superior e a navegação nele.

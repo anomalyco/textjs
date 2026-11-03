@@ -11,14 +11,14 @@ Cada página é renderizada em um de dois lugares:
 | | Cliente (padrão) | Servidor (`runtime = "server"`) |
 | --- | --- | --- |
 | A árvore React é executada em | A aba do navegador | `text dev` / `text start` / o adaptador `bun` (Bun ou Node) |
-| O navegador baixa | O app completo: React, Yoga WASM, suas rotas | O reprodutor de quadros, cerca de 21 kB gzip |
+| O navegador baixa | O app completo: React, Yoga WASM, suas rotas | O reprodutor de quadros, cerca de 21 kB gzip |
 | Acesso a dados | `fetch()` para manipuladores de rota | Direto: bancos de dados, arquivos, `node:*`, segredos |
 | Componentes assíncronos | Use `use()` ou efeitos | Componentes `async function` são compatíveis |
 | Latência das teclas | Mesma tarefa, síncrona | Uma ida e volta ao servidor |
 | Funciona em hospedagem estática | Sim | Não, precisa de `text start` ou `bun dist/server.js` |
 
 <!-- s:7b06d151a6 -->
-Os dois ambientes de execução produzem os mesmos quadros. O reprodutor de quadros codifica as células com o mesmo `CssConsoleDriver` e mantém o mesmo ritmo de ~15 fps, então um quadro renderizado no servidor corresponde à chamada `console.log` do cliente byte a byte.
+Os dois ambientes de execução produzem os mesmos quadros. O reprodutor de quadros codifica as células com o mesmo `CssConsoleDriver` e mantém o mesmo ritmo de ~15 fps, então um quadro renderizado no servidor corresponde à chamada `console.log` do cliente byte a byte.
 
 <!-- s:70a0b18bdd -->
 Ativar
@@ -27,7 +27,7 @@ Ativar
 Exporte `runtime` de uma página:
 
 <!-- s:567f4b3d2b -->
-`runtime` é lido por página, como uma exportação de string estática (uma anotação de tipo, `as const` ou uma reexportação são aceitos; um valor calculado, não). Layouts, `loading.tsx`, `error.tsx` e `not-found.tsx` são renderizados onde sua página é renderizada: um layout compartilhado por páginas de cliente e servidor é executado nos dois lugares e enviado ao navegador, enquanto os layouts e limites de um segmento que contém apenas páginas de servidor ficam no servidor. Hooks, foco, `useInput`, `<Link>` e `useRouter()` se comportam como no cliente.
+`runtime` é lido por página, como uma exportação de string estática (uma anotação de tipo, `as const` ou uma reexportação são aceitos; um valor calculado não). Layouts, `loading.tsx`, `error.tsx` e `not-found.tsx` são renderizados onde sua página é renderizada: um layout compartilhado por páginas do cliente e do servidor é executado nos dois lugares e enviado ao navegador, enquanto os layouts e limites de um segmento que contém apenas páginas do servidor permanecem no servidor. Hooks, foco, `useInput`, `<Link>` e `useRouter()` se comportam da mesma forma que no cliente.
 
 <!-- s:43c4fa1dac -->
 Quando usar cada um
@@ -46,7 +46,7 @@ Use o ambiente de execução do **servidor** para:
 <!-- s:bb8a20e6e2 -->
 - Painéis e telas administrativas que leem bancos de dados, arquivos, filas ou APIs privadas. As credenciais ficam no servidor.
 - Rotas com dependências pesadas (SDKs, analisadores, tabelas de sintaxe) que você não quer no bundle do navegador.
-- Páginas que devem carregar rápido em redes lentas. O navegador baixa o reprodutor de 21 kB (gzip) em vez do app completo.
+- Páginas que devem carregar rápido em redes lentas. O navegador baixa o reprodutor de 21 kB (gzip) em vez do app completo.
 
 <!-- s:920f4ad7e8 -->
 Você pode misturar ambientes de execução em um app. Navegar entre eles carrega a URL de destino como um novo documento. O bundle do navegador substitui cada página de servidor por um stub, então os módulos de servidor e tudo que eles importam nunca são enviados ao cliente.
@@ -78,7 +78,7 @@ Como funciona
 <!-- s:ec3e56dbc6 -->
 - **Uma sessão por aba.** Cada carregamento de página abre sua própria sessão: uma raiz React, um histórico do roteador em memória e um buffer de células no servidor. Os IDs de sessão são valores aleatórios de 192 bits que o navegador mantém apenas na memória.
 - **Deltas de células.** O servidor envia apenas as linhas cujo hash mudou desde o último quadro recebido por aquela conexão. Cada linha é enviada como sequências de texto com referência a uma tabela de estilos que só permite anexar entradas, e grafemas largos, agrupamentos de emojis e cores translúcidas são preservados exatamente.
-- **Contrapressão.** Os quadros têm um intervalo de pelo menos 66 ms, e cada um é comparado ao último que o socket aceitou. Quando uma conexão lenta para de escoar dados, os estados intermediários são ignorados, e o próximo quadro salta direto para o mais recente.
+- **Contrapressão.** Os quadros têm um intervalo de pelo menos 66 ms, e cada um é comparado ao último que o socket aceitou. Quando uma conexão lenta para de escoar dados, os estados intermediários são ignorados, e o próximo quadro salta direto para o mais recente.
 - **Reconexões.** Se o fluxo cair, o reprodutor se reconecta com seu ID de sessão no cabeçalho `x-textjs-live` (nunca na URL) e retoma a mesma sessão, com seu estado intacto, a partir de um novo quadro-chave. As atualizações perdidas da barra de endereços são reproduzidas. Uma sessão sem conexão para de renderizar e é desmontada após 30 segundos; se o servidor a esqueceu, o reprodutor abre uma nova.
 - **Histórico.** Voltar e Avançar movem os dois históricos pelo mesmo número de entradas, e `router.back()` no servidor também move o histórico do navegador.
 - **Segurança.** Os dois endpoints rejeitam requisições entre sites (`Sec-Fetch-Site` e `Origin`; `X-Forwarded-Host` só conta com `server.trustProxy`). POSTs de entrada precisam de um corpo JSON e do cabeçalho `x-textjs-live`. Cada evento é validado contra um esquema fixo, e os destinos de navegação devem ser caminhos na sua origem. Apenas páginas no seu manifesto `app/` podem ser renderizadas. As sessões são vinculadas aos cookies com que foram abertas.

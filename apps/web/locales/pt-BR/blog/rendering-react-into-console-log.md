@@ -50,4 +50,4 @@ O console não recebe eventos de teclado, então a página os coleta. Um `<texta
 Próximos passos
 
 <!-- s:cb5f6bd294 -->
-Os protótipos 0.0.x de `@textjs/core` no npm mantêm tudo em um único pacote. Text.js 0.1 move o renderizador descrito aqui para `@textjs/core`, o reconciler do React para `@textjs/react` e adiciona um App Router.
+Os protótipos 0.0.x de `@textjs/core` no npm reúnem tudo em um único pacote. O Text.js 0.1 move o renderizador descrito aqui para `@textjs/core`, o reconciliador do React para `@textjs/react` e adiciona um App Router.

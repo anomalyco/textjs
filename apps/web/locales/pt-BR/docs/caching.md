@@ -34,7 +34,7 @@ Respostas em cache incluem:
 | `Cache-Control` | `s-maxage=N, stale-while-revalidate=<1 year − N>`, ou `s-maxage=31536000` para `force-static` |
 
 <!-- s:c1fb73c64a -->
-Quando um [middleware](/docs/middleware) define cookies, faz reescritas ou sobrescreve cabeçalhos da requisição, o cabeçalho gerado passa a ser `private, no-cache, no-store, max-age=0, must-revalidate`, para que caches compartilhados nunca reutilizem uma decisão específica de um visitante. Um cabeçalho `Cache-Control` definido pelo manipulador é mantido.
+Quando o [middleware](/docs/middleware) define cookies, reescreve a requisição ou substitui seus cabeçalhos, o cabeçalho gerado passa a ser `private, no-cache, no-store, max-age=0, must-revalidate`, para que caches compartilhados nunca reutilizem uma decisão específica de um visitante. Um cabeçalho `Cache-Control` definido pelo manipulador é mantido.
 
 <!-- s:ae27ba22c7 -->
 Em `text dev`, a configuração do segmento se aplica, mas nada é armazenado, então toda requisição executa o manipulador.
@@ -84,7 +84,7 @@ Ambas retornam uma promise. Com o armazenamento em memória, a invalidação é 
 Armazenamentos de cache personalizados
 
 <!-- s:7bee24a364 -->
-O armazenamento padrão é um LRU em memória (1.000 entradas, cerca de 50 MB) por instância do servidor. Para compartilhar um cache entre instâncias, aponte `cacheHandler` para um módulo que exporte um `CacheStore` como padrão:
+O armazenamento padrão é um LRU em memória (1.000 entradas, cerca de 50 MB) por instância do servidor. Para compartilhar um cache entre instâncias, aponte `cacheHandler` para um módulo que exporte um `CacheStore` como padrão:
 
 <!-- s:593c57fca5 -->
 As entradas são JSON puro. Como alternativa, `setCacheStore(store)` instala um armazenamento em tempo de execução.
@@ -93,5 +93,5 @@ As entradas são JSON puro. Como alternativa, `setCacheStore(store)` instala um 
 Notas sobre plataformas
 
 <!-- s:5418a08901 -->
-- Cada instância serverless (funções da Vercel, isolates da Cloudflare) tem seu próprio cache em memória. `Cache-Control: s-maxage` permite que a CDN da plataforma também armazene respostas em cache; a revalidação sob demanda não limpa uma CDN. Use um `cacheHandler` compartilhado quando `revalidateTag` precisar alcançar todas as instâncias.
+- Cada instância serverless (funções da Vercel, isolates da Cloudflare) tem seu próprio cache em memória. `Cache-Control: s-maxage` permite que a CDN da plataforma também armazene respostas em cache; a revalidação sob demanda não limpa o cache de uma CDN. Use um `cacheHandler` compartilhado quando `revalidateTag` precisar alcançar todas as instâncias.
 - A Cloudflare exige a flag `nodejs_compat` (o cache usa `AsyncLocalStorage`). Consulte [Fazer deploy](/docs/deploying).

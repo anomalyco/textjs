@@ -51,7 +51,7 @@ Cada barra é um quadro do renderizador:
 | Codificação | Construção da string de formato `%c` e chamada a `console.log()` |
 
 <!-- s:9b988f3cfb -->
-Os quadros ignorados aparecem esmaecidos: nada mudou, então nada foi registrado. O gráfico de cadência mostra o intervalo entre os quadros emitidos em relação ao intervalo mínimo de 66 ms.
+Os quadros ignorados aparecem esmaecidos: nada mudou, então nada foi registrado. O gráfico de cadência mostra o intervalo entre os quadros emitidos em relação ao intervalo mínimo de 66 ms.
 
 <!-- s:8abccb04ec -->
 A medição dos tempos termina em `console.log()`. A formatação e a pintura da mensagem acontecem dentro do DevTools e não podem ser observadas pela página, por isso a linha do tempo não as mostra. Renderizações concorrentes que fazem commit entre quadros são contadas como commits, sem medição de tempo.
@@ -81,4 +81,4 @@ Limitações
 - Chrome e navegadores baseados em Chromium, versão 111 ou posterior.
 - Apps iniciados antes da instalação da extensão precisam ser recarregados.
 - Apenas o quadro de nível superior de uma aba é inspecionado.
-- Os tempos vêm de `performance.now()`, cuja precisão os navegadores reduzem para cerca de 0,1 ms.
+- Os tempos vêm de `performance.now()`, cuja precisão os navegadores reduzem para cerca de 0,1 ms.

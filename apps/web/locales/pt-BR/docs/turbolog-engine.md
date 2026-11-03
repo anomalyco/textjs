@@ -28,10 +28,10 @@ Cada linha recebe um hash. Se nada mudou, o driver retorna antecipadamente:
 Troca de quadros
 
 <!-- s:3c7194b785 -->
-Turbolog anexa quadros e limpa o console apenas no primeiro quadro, após `invalidate()`, quando ocioso depois de acumular 100 quadros, e aos 300. DevTools remove as mensagens apagadas de imediato, mas limita a pintura de novas mensagens a intervalos de 50 ms, então limpar a cada quadro faz o console vazio piscar. Os quadros anexados são trocados em uma única pintura, e um span de largura zero que funciona como cortina mantém o quadro anterior fora de vista. Role para cima para ver os quadros anteriores.
+Turbolog anexa quadros e limpa o console apenas no primeiro quadro, após `invalidate()`, quando ocioso depois de acumular 100 quadros, e aos 300. DevTools remove as mensagens apagadas de imediato, mas limita a pintura de novas mensagens a intervalos de 50 ms, então limpar a cada quadro faz o console vazio piscar. Os quadros anexados são trocados em uma única pintura, e um span de largura zero que funciona como cortina mantém o quadro anterior fora de vista. Role para cima para ver os quadros anteriores.
 
 <!-- s:7845be2cbb -->
-Os quadros são cadenciados a cerca de 15 fps. Quadros mais rápidos reiniciam o intervalo de limitação do DevTools e são descartados.
+Os quadros são cadenciados a cerca de 15 fps. Quadros mais rápidos reiniciam o intervalo de limitação do DevTools e são descartados.
 
 <!-- s:a36177ad5b -->
 Codificação por comprimento de sequência
@@ -52,7 +52,7 @@ Detalhes do Chromium
 Firefox e Safari
 
 <!-- s:8b2f3136a1 -->
-Chromium dispõe cada linha de um span `%c` como um bloco inline. Firefox e Safari mantêm os spans inline, então ignoram margens verticais e quebram linhas longas. `CssConsoleDriver` detecta o navegador com testes de recursos CSS e, para esses dois consoles, define uma altura de linha de 14 px sem margens, desativa a quebra de linha com `text-wrap-mode: nowrap` e empurra quadros anteriores para fora de vista com uma cortina `line-height: 100vh`. O ajuste ao console reserva espaço para a coluna de links de origem do Firefox. Safari coloca Menlo em primeiro lugar na lista de fontes, porque suas páginas não podem usar uma SF Mono instalada pelo usuário que o Web Inspector pode usar para desenhar o texto. Passe `browser` para `createConsoleRoot` para escolher um console por conta própria.
+Chromium dispõe cada linha de um span `%c` como um bloco inline. Firefox e Safari mantêm os spans inline, então ignoram margens verticais e quebram linhas longas. `CssConsoleDriver` detecta o navegador com testes de recursos CSS e, para esses dois consoles, define uma altura de linha de 14 px sem margens, desativa a quebra de linha com `text-wrap-mode: nowrap` e empurra quadros anteriores para fora de vista com uma cortina `line-height: 100vh`. O ajuste ao console reserva espaço para a coluna de links de origem do Firefox. Safari coloca Menlo em primeiro lugar na lista de fontes, porque suas páginas não podem usar uma SF Mono instalada pelo usuário que o Web Inspector pode usar para desenhar o texto. Passe `browser` para `createConsoleRoot` para escolher um console por conta própria.
 
 <!-- s:66b07a5809 -->
 Benchmarks
@@ -63,9 +63,9 @@ Benchmarks
 <!-- s:342771dd1f -->
 | Quadro | Tempo | Spans `%c` |
 | :-- | --: | --: |
-| Repintura completa (layout, pintura, codificação) | **0,163 ms** | 149 |
-| Edição de uma linha | **0,011 ms** | 149 |
-| Ocioso | **0,000 ms** | 0 |
+| Repintura completa (layout, pintura, codificação) | **0,163 ms** | 149 |
+| Edição de uma linha | **0,011 ms** | 149 |
+| Ocioso | **0,000 ms** | 0 |
 
 <!-- s:8c3bf89160 -->
 A página [Status](/status) executa o mesmo pipeline no seu navegador. Execute `text.stats()` no DevTools enquanto uma demonstração do [Playground](/playground) estiver em execução.

@@ -29,4 +29,4 @@ Execute com `bun cli.tsx`. `DeploymentsPage` busca suas linhas, por isso precisa
 O que muda
 
 <!-- s:505bd1bfa2 -->
-Terminais repintam mais rápido (até 60 fps em vez de ~15) e dimensionam a grade pela janela em vez do console acoplado. Imagens precisam de dados de pixels em vez de uma URL. Todo o resto, incluindo este painel, usa o mesmo código.
+Terminais repintam mais rápido (até 60 fps em vez de ~15) e dimensionam a grade pela janela em vez do console acoplado. Imagens precisam de dados de pixels em vez de uma URL. Todo o resto, incluindo este painel, usa o mesmo código.

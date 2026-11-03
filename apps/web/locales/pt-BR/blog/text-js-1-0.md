@@ -35,12 +35,12 @@ Em um dashboard denso de `100×32` (46 nós de texto, 149 spans `%c`), medido co
 <!-- s:9729def172 -->
 | Quadro | Média |
 | :-- | --: |
-| Repintura completa (layout, pintura, codificação) | 0,163 ms |
-| Edição de uma linha (digitação) | 0,011 ms |
-| Ocioso | 0,000 ms, 0 chamadas ao console |
+| Repintura completa (layout, pintura, codificação) | 0,163 ms |
+| Edição de uma linha (digitação) | 0,011 ms |
+| Ocioso | 0,000 ms, 0 chamadas ao console |
 
 <!-- s:2fee8c4c3d -->
-Um quadro sem alterações retorna antes de alocar uma string, então quadros ociosos medem 0,000 ms.
+Um quadro sem alterações retorna antes de alocar uma string, então quadros ociosos medem 0,000 ms.
 
 <!-- s:a0fa47c98f -->
 Experimentar

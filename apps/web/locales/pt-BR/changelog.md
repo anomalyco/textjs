@@ -8,7 +8,7 @@ O formato é baseado em [Mantenha um Changelog](https://keepachangelog.com/en/1.
 Alterações
 
 <!-- s:f7da7bb6d2 -->
-- `@textjs/core`: os consoles do Chromium e do Firefox limpam a saída de sprites animados ao atingir 16 MB em vez de 4 MB, então textjs.org/doom mostra “O console foi limpo” a cada 19 segundos, aproximadamente, em vez de a cada 4,5. O Safari e os sprites desenhados como meios blocos `▀` mantêm 4 MB. O pico de heap da página em textjs.org/doom passa de 10,8 MB para cerca de 12–13 MB.
+- `@textjs/core`: os consoles do Chromium e do Firefox limpam a saída de sprites animados ao atingir 16 MB em vez de 4 MB, então textjs.org/doom mostra “O console foi limpo” a cada 19 segundos, aproximadamente, em vez de a cada 4,5. O Safari e os sprites desenhados como meios blocos `▀` mantêm 4 MB. O pico de heap da página em textjs.org/doom passa de 10,8 MB para cerca de 12–13 MB.
 
 <!-- s:2e16922cfc -->
 Adições
@@ -28,7 +28,7 @@ Correções
 - textjs.org: o cabeçalho do console em textjs.org/doom mostra “Text.js / doom” em vez de “Text.js / playground / doom”.
 - textjs.org/doom: uma janela estreita não deixa mais um “·” solto depois de “Ver código-fonte”.
 - textjs.org: em uma janela estreita, o seletor de demos do Playground desaparece gradualmente na borda onde há mais demos para rolar, em vez de cortar a última no meio da palavra.
-- textjs.org/doom executa nos 35 tics por segundo do Doom. Em uma fase, ele rodava 3,8× mais rápido em uma tela de 60 Hz (131 tics por segundo) e 5,5× em 120 Hz (192), porque a página confundia as leituras extras do relógio que o Doom faz ao desenhar uma fase com uma espera ocupada e adiantava o relógio do Doom em um tic a cada quadro de animação e callback de temporizador.
+- textjs.org/doom executa nos 35 tics por segundo do Doom. Em uma fase, ele rodava 3,8× mais rápido em uma tela de 60 Hz (131 tics por segundo) e 5,5× em 120 Hz (192), porque a página confundia as leituras extras do relógio que o Doom faz ao desenhar uma fase com uma espera ocupada e adiantava o relógio do Doom em um tic a cada quadro de animação e callback de temporizador.
 
 <!-- s:14d523690c -->
 - `@textjs/react`: `<Image renderMode="halfblock">` desenha meios blocos `▀` em todos os ambientes, como `<Image>` fazia na versão 1.3.
@@ -41,12 +41,12 @@ Correções
 - `@textjs/react`: `<Image>` agora desenha um sprite de pixels nos consoles do Chromium e do Firefox, com até 8 × 16 pixels por célula para pixel art e 4 × 8 para fotos. Isso quebra deliberadamente a promessa da [política de suporte](https://textjs.org/docs/support-policy) de que os quadros mantêm a mesma aparência entre versões menores. Passe `renderMode="halfblock"` para manter os meios blocos da versão 1.3. Safari, terminais (incluindo `text run`), saídas ANSI e de texto simples e páginas renderizadas no servidor (`runtime = "server"`) continuam desenhando meios blocos.
 - `@textjs/app`: scripts e verificações de disponibilidade que buscam páginas com curl, Wget, HTTPie ou xh agora recebem texto ANSI. Para continuar recebendo HTML, envie `Accept: text/html` ou defina `ansi: false` em `text.config.ts`.
 - `@textjs/app`: componentes de servidor assíncronos não executam mais enquanto `text build` faz a pré-renderização da estrutura de uma página. Eles mostram o fallback de `<Suspense>`, como antes, sem iniciar suas requisições de dados durante o build.
-- `@textjs/app`: o reprodutor de quadros de páginas renderizadas no servidor está 3 KB menor, 22,4 KB com gzip em vez de 25,4 KB para `examples/dashboard`. Ele não inclui mais os métodos de desenho de `CellBuffer`, bordas de caixas ou truncamento de texto.
+- `@textjs/app`: o reprodutor de quadros de páginas renderizadas no servidor está 3 KB menor, 22,4 KB com gzip em vez de 25,4 KB para `examples/dashboard`. Ele não inclui mais os métodos de desenho de `CellBuffer`, bordas de caixas ou truncamento de texto.
 
 <!-- s:ba0b1ea778 -->
 - `@textjs/core`: gráficos e indicadores de carregamento mantêm sua grade no Windows 10. A fonte do console é Consolas, que não tem blocos de oitavos ▁▂▃▅▆▇, quadrantes, braille, ▶ ou ✓, e seus glifos substitutos faziam as linhas ultrapassarem a borda direita do quadro. `CssConsoleDriver` agora mede, uma vez, quais desses glifos a fonte do console desenha com desvio de mais de um quinto de célula e os desenha como o glifo mais próximo disponível em Consolas: `_` `▄` `▌` `█` para oitavos, meios blocos para quadrantes e braille, `►` `◄` `√` `×` para setas, marcas de seleção e cruzes. Fontes que os acomodam, como Cascadia Mono no Windows 11 e Menlo no macOS, desenham os originais. `measureText: false` desativa isso.
-- `@textjs/core`: não há mais linhas verticais finas de 1 px entre fundos vizinhos no DevTools do Chrome e do Edge, como ao lado de “account” e “qty” em textjs.org/coffee. O Chromium alinha cada span `%c` aos pixels do dispositivo separadamente e podia deixar o pixel no encontro de dois spans sem pertencer a nenhum deles. `CssConsoleDriver` agora estende o fundo de um span em 1 px sob um vizinho opaco à direita (`padding-right:1px;margin-right:-1px`). Os quadros do Firefox e do Safari não mudam.
-- `@textjs/core`: sprites de `<Image>` no Chrome e no Edge seguem a mesma regra de 1 px do texto. O texto à esquerda de um sprite transparente não pinta mais uma faixa de 1 px de seu fundo sobre a borda esquerda do sprite, e um sprite se une sem frestas ao texto opaco à direita, incluindo texto invertido. Um sprite sozinho em suas linhas agora alcança a borda direita do quadro, como as linhas de texto acima e abaixo dele.
+- `@textjs/core`: não há mais linhas verticais finas de 1 px entre fundos vizinhos no DevTools do Chrome e do Edge, como ao lado de “account” e “qty” em textjs.org/coffee. O Chromium alinha cada span `%c` aos pixels do dispositivo separadamente e podia deixar o pixel no encontro de dois spans sem pertencer a nenhum deles. `CssConsoleDriver` agora estende o fundo de um span em 1 px sob um vizinho opaco à direita (`padding-right:1px;margin-right:-1px`). Os quadros do Firefox e do Safari não mudam.
+- `@textjs/core`: sprites de `<Image>` no Chrome e no Edge seguem a mesma regra de 1 px do texto. O texto à esquerda de um sprite transparente não pinta mais uma faixa de 1 px de seu fundo sobre a borda esquerda do sprite, e um sprite se une sem frestas ao texto opaco à direita, incluindo texto invertido. Um sprite sozinho em suas linhas agora alcança a borda direita do quadro, como as linhas de texto acima e abaixo dele.
 - `@textjs/react`: `<ConsoleMirror>` desenha uma foto ao lado do texto como meios blocos, como o console faz, em vez de como a imagem.
 
 <!-- s:757b866128 -->
@@ -56,7 +56,7 @@ Correções
 - `@textjs/react`: `usePageFocus()` retorna se a página está com foco. Para decidir quando o app quer usar o teclado, defina `focusHint: false` e renderize `<FocusHint active={…}>`. `useInput(handler, { ambient: true })` marca um atalho sempre ativo que não mostra a dica por si só.
 
 <!-- s:c96685f5e0 -->
-- `@textjs/core`: enquanto um sprite de `<Pixels>` é animado, `ConsoleRenderer` agrupa quadros-chave a cada 51 ms no Chromium, estabelece intervalos de 33 ms entre quadros no Safari e limpa a saída anexada em `CssConsoleDriver` ao atingir 4 MB (`SPRITE_MAX_BYTES`). Sprites estáticos e apps somente de texto mantêm o ritmo existente e o limite de limpeza de 300 quadros.
+- `@textjs/core`: enquanto um sprite de `<Pixels>` é animado, `ConsoleRenderer` agrupa quadros-chave a cada 51 ms no Chromium, estabelece intervalos de 33 ms entre quadros no Safari e limpa a saída anexada em `CssConsoleDriver` ao atingir 4 MB (`SPRITE_MAX_BYTES`). Sprites estáticos e apps somente de texto mantêm o ritmo existente e o limite de limpeza de 300 quadros.
 
 <!-- s:34e1835d0a -->
 - `@textjs/core`: `bindTextSink(element, onText)` lê o texto confirmado por um IME ou uma tecla morta de um textarea ou input oculto, uma vez por confirmação e nunca durante a composição. `engine.bindTextSink(element)` conecta um textarea que você renderiza a um `InputEngine`. Ambos retornam uma função que remove os listeners.
@@ -97,7 +97,7 @@ Segurança
 - `text dev` não serve arquivos de `public/` em `/public/…` ou `/@fs/…`, arquivos-fonte exclusivos do servidor como `middleware.ts` e `text.config.ts` com outra capitalização, sob um caminho `/@fs/` codificado, como requisições de módulos sem extensão (`/text.config?import`) ou por meio de uma reescrita de configuração, nem manipuladores de rota fora de `basePath`.
 
 <!-- s:a0125c854e -->
-- Text.js renderiza nos consoles do Firefox e do Safari. `CssConsoleDriver` detecta o navegador com verificações de recursos CSS. Onde os spans `%c` permanecem inline, ele define alturas de linha de 14 px sem margens, desativa a quebra automática de linha e usa uma cortina `line-height: 100vh`.
+- Text.js renderiza nos consoles do Firefox e do Safari. `CssConsoleDriver` detecta o navegador com verificações de recursos CSS. Onde os spans `%c` permanecem inline, ele define alturas de linha de 14 px sem margens, desativa a quebra automática de linha e usa uma cortina `line-height: 100vh`.
 - O dimensionamento responsivo deixa espaço para a coluna de links de código-fonte do Firefox. O Safari coloca Menlo primeiro na pilha de fontes: suas páginas não podem usar uma SF Mono instalada pelo usuário, com a qual o Web Inspector pode desenhar.
 - Passe `browser: "chromium" | "firefox" | "safari"` para `createConsoleRoot`, `ConsoleRenderer` ou `CssConsoleDriver` para escolher um console.
 - Estruturas pré-renderizadas incluem o CSS para os dois tipos de console.
@@ -106,7 +106,7 @@ Segurança
 
 <!-- s:74de7c87f7 -->
 - ⌘⌥K e Ctrl+Shift+K (atalho do console do Firefox) passam para o navegador em vez de chegar ao app.
-- O dimensionamento responsivo aprende a altura de barras de ferramentas do navegador com menos de 60 px (as do Safari e do Firefox) enquanto o DevTools está fechado, para que um console encaixado na parte inferior receba todas as linhas que comporta. `<FocusPad>` usa a altura aprendida para saber se o DevTools está encaixado.
+- O dimensionamento responsivo aprende a altura de barras de ferramentas do navegador com menos de 60 px (as do Safari e do Firefox) enquanto o DevTools está fechado, para que um console encaixado na parte inferior receba todas as linhas que comporta. `<FocusPad>` usa a altura aprendida para saber se o DevTools está encaixado.
 - `<FocusPad>` escreve os atalhos do Windows e do Linux em seu estado de clique como `Ctrl+Shift+J`.
 
 <!-- s:0e572baad1 -->
@@ -124,9 +124,9 @@ Segurança
 Desempenho
 
 <!-- s:f59d215740 -->
-- `@textjs/react`: `Box` e `Text` passam props de cena já filtradas ao reconciler em vez de copiar objetos de props na montagem e na atualização.
-- `@textjs/core`: `SceneNode.getTextModel()` pula percursos da árvore inline em folhas `<Text>` com uma única string e reutiliza buffers `runOf` de `Uint16Array` zerados em cache. `CssConsoleDriver` percorre células BMP consecutivas com estilo correspondente em um loop interno, e `ConsoleRenderer` pula `countYogaNodes()` em quadros sem alterações.
-- textjs.org: rotas e abas do painel auxiliar do console são divididas em chunks de JS e CSS por rota. As fotos da loja são recodificadas a partir dos originais de `photos/final`, e fotos secundárias dos produtos carregam ao passar o mouse ou trocar de slide.
+- `@textjs/react`: `Box` e `Text` passam props da cena já filtradas ao reconciliador em vez de copiar objetos de props na montagem e na atualização.
+- `@textjs/core`: `SceneNode.getTextModel()` pula percursos da árvore inline em folhas `<Text>` com uma única string e reutiliza buffers `runOf` de `Uint16Array` zerados em cache. `CssConsoleDriver` percorre células BMP consecutivas com o mesmo estilo em um laço interno, e `ConsoleRenderer` pula `countYogaNodes()` em quadros sem alterações.
+- textjs.org: rotas e abas do assistente do console são divididas em chunks de JS e CSS por rota. As fotos da loja são recodificadas a partir dos originais de `photos/final`, e as fotos secundárias dos produtos carregam ao passar o mouse ou trocar de slide.
 
 <!-- s:6909c337fb -->
 - `<ViewportControl>` usa um `minWidth` em pixels em vez de `20ch` e lista as fontes substitutas com métricas equivalentes junto de `<FocusPad>`, para que o seletor de tamanho mantenha sua largura quando `Geist Mono` carrega.
@@ -190,7 +190,7 @@ A primeira versão estável. `▼ Text.js 1.0.0 (Turbolog)`.
 - textjs.org: Aprender, um curso de 10 capítulos que roda no console. Pré-renderização durante o build com hidratação, fontes auto-hospedadas com métricas equivalentes, rotas `.html` sem barra e novas páginas de documentação com prévias ao vivo.
 
 <!-- s:25c8658848 -->
-- Eliminado o travamento de fase da limitação de frequência do DevTools após a limpeza. Após um quadro que limpa o console, o renderizador espera 110 ms uma única vez para que os quadros seguintes entrem no caminho imediato do DevTools. O atraso de exibição p50 passou de 63 ms para 10 ms.
+- Eliminado o travamento de fase da limitação de frequência do DevTools após a limpeza. Após um quadro que limpa o console, o renderizador espera 110 ms uma única vez para que os quadros seguintes entrem no caminho imediato do DevTools. O atraso de exibição p50 passou de 63 ms para 10 ms.
 - Pintura parcial por faixas alteradas: somente as faixas de linhas afetadas por uma mutação são repintadas.
 - Hashes por linha em cache, IDs de estilo inteiros e quadros ociosos sem alocação.
 - Nenhum temporizador ocioso enquanto a página está oculta ou sem foco.
@@ -210,18 +210,18 @@ A primeira versão estável. `▼ Text.js 1.0.0 (Turbolog)`.
 Quadros sem flashes e renderização no servidor.
 
 <!-- s:f92fe85dce -->
-- Os quadros são anexados em vez de usar `console.clear()` + `console.log()` por quadro. O DevTools aplica a limpeza de forma síncrona, mas pinta novas mensagens com uma limitação de 50 ms, então a limpeza deixava o console em branco em 70,6% das pinturas do DevTools a 15 fps e 81,1% a 60 fps. Um span de cortina inicial com largura zero oculta os quadros anteriores. O console é limpo somente no primeiro quadro, após `invalidate()`, em estado ocioso quando 100 quadros estão empilhados ou aos 300.
-- Os quadros emitidos têm intervalos de pelo menos 66 ms (cerca de 15 fps). Quadros mais rápidos reiniciam a limitação de frequência do DevTools e são descartados: a 60 fps, o DevTools pintou 67 dos 295 quadros emitidos.
+- Os quadros são anexados em vez de usar `console.clear()` + `console.log()` por quadro. O DevTools aplica a limpeza de forma síncrona, mas pinta novas mensagens com uma limitação de 50 ms, então a limpeza deixava o console em branco em 70,6% das pinturas do DevTools a 15 fps e 81,1% a 60 fps. Um span de cortina inicial com largura zero oculta os quadros anteriores. O console é limpo somente no primeiro quadro, após `invalidate()`, em estado ocioso quando 100 quadros estão empilhados ou aos 300.
+- Os quadros emitidos têm intervalos de pelo menos 66 ms (cerca de 15 fps). Quadros mais rápidos reiniciam a limitação de frequência do DevTools e são descartados: a 60 fps, o DevTools pintou 67 dos 295 quadros emitidos.
 - Playground e OpenCode são painéis de foco em tela cheia.
 
 <!-- s:79bc055b31 -->
 - CSS de spans somente com propriedades explícitas, o que reduz as propriedades que o DevTools copia para cada linha de cerca de 33 para cerca de 7. Cores hexadecimais e sequências de células vazias identificadas somente pelo fundo.
 - Análise incremental de Markdown e linhas de `Markdown`, `Code` e `Diff` memoizadas.
 - Props do host em passagem única, atualizações esparsas de props e nenhum recálculo de layout do Yoga quando o tamanho do texto não pode mudar.
-- Um quadro de streaming passou de 0,79 ms para 0,14 ms, e um passo do indicador de carregamento de 0,90 ms para 0,056 ms. A saída é idêntica bit a bit.
+- Um quadro de streaming passou de 0,79 ms para 0,14 ms, e um passo do indicador de carregamento de 0,90 ms para 0,056 ms. A saída é idêntica bit a bit.
 
 <!-- s:52e989e27d -->
-- Renderização no servidor. Uma página que exporta `runtime = "server"` é renderizada no servidor, incluindo componentes `async function`, e transmite deltas de células por linha via eventos enviados pelo servidor para um reprodutor de quadros de cerca de 19 kB gzip.
+- Renderização no servidor. Uma página que exporta `runtime = "server"` é renderizada no servidor, incluindo componentes `async function`, e transmite deltas de células por linha via eventos enviados pelo servidor para um reprodutor de quadros de cerca de 19 kB gzip.
 - Pré-renderização parcial. `text build` insere o primeiro quadro de cada rota estática no HTML dela, para que o console pinte antes de qualquer módulo carregar.
 - `middleware.ts`, configuração de segmento de rota (`dynamic`, `revalidate`) e `textjs/cache` (`unstable_cache`, `revalidateTag`, `revalidatePath`).
 - `text build --adapter static|bun|vercel|cloudflare`.
@@ -250,7 +250,7 @@ Quadros sem flashes e renderização no servidor.
 O primeiro marco.
 
 <!-- s:67e64392c2 -->
-- `@textjs/core`: `CellBuffer` em arrays tipados planos, layout Yoga WASM, medição de texto com `Intl.Segmenter` e o driver de codificação por comprimento de sequência `%c`. Um `console.log` por quadro alterado e nenhum quando ocioso.
-- `@textjs/react`: um reconciler React 19, componentes PascalCase (`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner` e mais), utilitários `className` no estilo Tailwind em nível de célula, themes e o `FocusPad` do DOM.
+- `@textjs/core`: `CellBuffer` em arrays tipados planos, layout Yoga WASM, medição de texto com `Intl.Segmenter` e o driver de codificação por comprimento de sequência `%c`. Um `console.log` por quadro alterado e nenhum em repouso.
+- `@textjs/react`: um reconciliador React 19, componentes PascalCase (`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner` e outros), utilitários `className` no estilo Tailwind em nível de célula, temas e o `FocusPad` do DOM.
 - `textjs`: o App Router baseado no sistema de arquivos (`layout`, `page`, `loading`, `error`, `not-found`, segmentos dinâmicos, manipuladores de rota), `text dev`, `text build`, `text start` e o inspetor `[▼]` no console.
 - `create-text-app` com templates `starter` e `dashboard`.

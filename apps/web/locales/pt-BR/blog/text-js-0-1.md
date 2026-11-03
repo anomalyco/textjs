@@ -43,7 +43,7 @@ Pressione `` Ctrl+` `` ou `F2` em um app em execução para abrir o inspetor `[�
 Também na versão 0.1
 
 <!-- s:289b0a9973 -->
-`@textjs/react` inclui componentes em PascalCase (`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner`), utilitários de `className` no estilo Tailwind que funcionam em células, e themes. O layout roda no Yoga em WebAssembly.
+`@textjs/react` inclui componentes em PascalCase (`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner`), utilitários de `className` no estilo Tailwind que funcionam em células e temas. O layout usa Yoga em WebAssembly.
 
 <!-- s:8ad0f2154c -->
 A lista completa está no [registro de alterações](/changelog#v0-1-0).

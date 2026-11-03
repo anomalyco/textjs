@@ -8,7 +8,7 @@ O Text.js 0.4 adicionou um segundo lugar para renderizar uma página. Por padrã
 O que o navegador baixa
 
 <!-- s:6764f4bb25 -->
-Uma página renderizada no servidor não envia React, Yoga nem suas rotas. O navegador carrega um reprodutor de quadros de cerca de 21 kB em gzip, que mantém um `CellBuffer` e o mesmo `CssConsoleDriver` usado pelo renderizador do cliente. Ele cadencia os quadros nos mesmos 15 fps, de modo que um quadro renderizado no servidor produz a mesma chamada a `console.log` que o cliente produziria.
+Uma página renderizada no servidor não envia React, Yoga nem suas rotas. O navegador carrega um reprodutor de quadros de cerca de 21 kB em gzip, que mantém um `CellBuffer` e o mesmo `CssConsoleDriver` usado pelo renderizador do cliente. Ele cadencia os quadros nos mesmos 15 fps, de modo que um quadro renderizado no servidor produz a mesma chamada a `console.log` que o cliente produziria.
 
 <!-- s:c1c4090983 -->
 O protocolo
@@ -20,7 +20,7 @@ Cada aba abre sua própria sessão no servidor: uma raiz React, um histórico do
 O servidor envia apenas as linhas cujo hash mudou desde o último quadro recebido por aquela conexão. Cada linha é enviada como sequências de texto associadas a uma tabela de estilos que só permite anexar entradas. Grafemas largos, agrupamentos de emojis e cores translúcidas chegam intactos.
 
 <!-- s:bff22f361e -->
-Os quadros têm um intervalo mínimo de 66 ms, e cada um é comparado com o último estado aceito pelo socket. Quando uma conexão lenta para de escoar os dados, os estados intermediários são ignorados, e o próximo quadro salta para o estado mais recente.
+Os quadros têm um intervalo mínimo de 66 ms, e cada um é comparado com o último estado aceito pelo socket. Quando uma conexão lenta para de escoar os dados, os estados intermediários são ignorados, e o próximo quadro salta para o estado mais recente.
 
 <!-- s:f0809ea8c7 -->
 Se o fluxo cair, o reprodutor se reconecta com o ID da sessão no cabeçalho `x-textjs-live` e retoma a mesma sessão a partir de um novo quadro-chave, com seu estado intacto. Os IDs de sessão são valores aleatórios de 192 bits mantidos em memória, nunca na URL. Uma sessão sem conexão para de renderizar e é desmontada após 30 segundos.

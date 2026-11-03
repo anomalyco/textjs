@@ -37,7 +37,7 @@ Barras horizontais com rótulos e valores alinhados, com precisão de um oitavo 
 Preenche sua largura com os pontos mais recentes. `height` acima de `1` renderiza uma área preenchida.
 
 <!-- s:9b515e6ed1 -->
-`sparkline(values)` retorna a mesma sparkline como string.
+`sparkline(values)` retorna a mesma sparkline como uma string.
 
 <!-- s:ddc43709d7 -->
 `<ProgressBar>`
@@ -74,7 +74,7 @@ Os consoles do Chromium e do Firefox desenham a imagem como um sprite de pixels.
 | :-- | :-- |
 | `src` | URL da imagem (somente no navegador) |
 | `pixels` | RGBA bruto como `{ width, height, data }`, 4 bytes por pixel em ordem de linhas |
-| `width` / `height` | Largura em células, altura em linhas. Passe uma delas para manter a proporção, ou nenhuma para 1 × 2 pixels por célula (`src` redimensiona para no máximo 256 × 256 px) |
+| `width` / `height` | Largura em células, altura em linhas. Passe uma delas para manter a proporção, ou nenhuma para 1 × 2 pixels por célula (`src` redimensiona para no máximo 256 × 256 px) |
 | `fit` | `contain` (padrão), `cover` ou `fill` |
 | `alt` | Texto exibido enquanto `src` carrega ou se falhar |
 | `renderMode` | `auto` (padrão: sprite onde houver suporte, meios-blocos `▀` nos demais casos) ou `halfblock` |

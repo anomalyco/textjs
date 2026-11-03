@@ -36,10 +36,10 @@ A última etapa existe porque o DevTools executaria o bidi sobre o texto uma seg
 Desvio de meia célula
 
 <!-- s:1109446b98 -->
-Nem SF Mono nem Menlo têm glifos hebraicos ou árabes, então o navegador usa uma fonte alternativa para cada caractere. No macOS, essa fonte é Courier New, também monoespaçada, com 7,2012 px por glifo no tamanho de 12 px, contra 7,2246 px da Menlo. Ela é 0,3% mais estreita, o suficiente para deslocar uma linha inteira de hebraico em cerca de meia célula.
+Nem SF Mono nem Menlo têm glifos hebraicos ou árabes, então o navegador usa uma fonte alternativa para cada caractere. No macOS, essa fonte é Courier New, também monoespaçada, com 7,2012 px por glifo no tamanho de 12 px, contra 7,2246 px da Menlo. Ela é 0,3% mais estreita, o suficiente para deslocar uma linha inteira de hebraico em cerca de meia célula.
 
 <!-- s:dc26e96bdd -->
-`CssConsoleDriver` mede cada span da direita para a esquerda com um canvas na fonte do console, que usa a mesma substituição de fontes do Blink que o DevTools, e acrescenta ao span a diferença exata em LayoutUnits (1/64 px). Cada span fica com a mesma largura das células da grade que ocupa. Um span é reduzido em no máximo meia célula, então uma fonte alternativa muito mais larga transborda em vez de se sobrepor ao próximo span.
+`CssConsoleDriver` mede cada span da direita para a esquerda com um canvas na fonte do console, que usa a mesma substituição de fontes do Blink que o DevTools, e acrescenta ao span a diferença exata em LayoutUnits (1/64 px). Cada span fica com a mesma largura das células da grade que ocupa. Um span é reduzido em no máximo meia célula, então uma fonte alternativa muito mais larga transborda em vez de se sobrepor ao próximo span.
 
 <!-- s:b0d2e5e9d2 -->
 `bun bench/devtools/bidi-shot.ts` mede o resultado no frontend real do DevTools, em um quadro de 64×21 com linhas em hebraico, árabe, mistas e com emojis em hebraico:
@@ -47,10 +47,10 @@ Nem SF Mono nem Menlo têm glifos hebraicos ou árabes, então o navegador usa u
 <!-- s:e6a33dfaa2 -->
 | Quadro | Desvio da borda direita entre linhas |
 | :-- | --: |
-| Células registradas sem fixar a ordem | 14,5 px |
-| Ordem fixada, sem ajuste de largura | 2,22 px |
-| Driver em produção | 0,156 px |
-| Controle: cada glifo RTL substituído por `x` | 1,67 px |
+| Células registradas sem fixar a ordem | 14,5 px |
+| Ordem fixada, sem ajuste de largura | 2,22 px |
+| Driver em produção | 0,156 px |
+| Controle: cada glifo RTL substituído por `x` | 1,67 px |
 
 <!-- s:d03d5a84a3 -->
 O controle é o mesmo quadro com texto latino. O driver em produção alinha melhor que o controle porque os emojis dentro dos spans da direita para a esquerda têm sua largura ajustada junto com eles.

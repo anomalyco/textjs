@@ -30,7 +30,7 @@ O quadro é a primeira renderização da página, como em uma [estrutura pré-re
 - **Status:** `200`, ou `404` com a página de não encontrado do app quando nenhuma página corresponde ou a página chama `notFound()`. Uma página que chama `redirect()` durante a renderização serve HTML.
 
 <!-- s:1125803eb1 -->
-As respostas são `text/plain; charset=utf-8` com `Vary: User-Agent, Accept` e `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`, para que caches compartilhados nunca armazenem um quadro e o sirvam a um navegador. A página HTML em um caminho no qual o curl recebe um quadro inclui o mesmo cabeçalho `Vary`.
+As respostas são `text/plain; charset=utf-8` com `Vary: User-Agent, Accept` e `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`, para que caches compartilhados nunca armazenem um quadro e o sirvam a um navegador. A página HTML em um caminho onde curl recebe um quadro inclui o mesmo cabeçalho `Vary`.
 
 <!-- s:0e2aba0a67 -->
 Onde funciona

@@ -43,24 +43,24 @@ Textos sem caracteres da direita para a esquerda pulam todas essas etapas. Um mo
 Larguras das células
 
 <!-- s:552e751976 -->
-A pilha de fontes distribuída é `"SF Mono", Menlo, "Cascadia Mono", Consolas, monospace`. Nenhuma dessas fontes tem glifos hebraicos ou árabes, então os navegadores recorrem a fontes alternativas por caractere. No macOS, essa fonte é Courier New, monoespaçada a 0,6 em: 7,2012 px por glifo a 12 px contra 7,2246 px da Menlo. Ela é 0,3% mais estreita, o suficiente para deslocar uma linha inteira de hebraico em cerca de meia célula.
+A pilha de fontes distribuída é `"SF Mono", Menlo, "Cascadia Mono", Consolas, monospace`. Nenhuma dessas fontes tem glifos hebraicos ou árabes, então os navegadores recorrem a fontes alternativas por caractere. No macOS, essa fonte é Courier New, monoespaçada a 0,6 em: 7,2012 px por glifo a 12 px contra 7,2246 px da Menlo. Ela é 0,3% mais estreita, o suficiente para deslocar uma linha inteira de hebraico em cerca de meia célula.
 
 <!-- s:851f84e769 -->
-`CssConsoleDriver` mede cada span da direita para a esquerda com um canvas na fonte do console (a mesma modelagem de glifos e seleção de fontes alternativas do Blink que o DevTools usa), depois acrescenta espaçamento interno pela diferença exata em LayoutUnit (1/64 px). O span fica com a mesma largura das células da grade que cobre (um grafema largo, como um emoji, conta como duas). Um span é contraído em no máximo meia célula, então uma fonte alternativa proporcional (Times New Roman ao lado de Cascadia Mono no Windows) transborda em vez de deixar o próximo span sobrepor seus glifos. Medições no frontend real do DevTools (Chromium 151), em um quadro de 64×21 com linhas em hebraico, árabe, mistas e com emoji em hebraico, além de títulos RTL de caixas (`bun bench/devtools/bidi-shot.ts`):
+`CssConsoleDriver` mede cada span da direita para a esquerda com um canvas na fonte do console (a mesma modelagem de glifos e seleção de fontes alternativas do Blink que o DevTools usa), depois acrescenta espaçamento interno pela diferença exata em LayoutUnit (1/64 px). O span fica com a mesma largura das células da grade que cobre (um grafema largo, como um emoji, conta como duas). Um span é contraído em no máximo meia célula, então uma fonte alternativa proporcional (Times New Roman ao lado de Cascadia Mono no Windows) transborda em vez de deixar o próximo span sobrepor seus glifos. Medições no frontend real do DevTools (Chromium 151), em um quadro de 64×21 com linhas em hebraico, árabe, mistas e com emoji em hebraico, além de títulos RTL de caixas (`bun bench/devtools/bidi-shot.ts`):
 
 <!-- s:45d1be4db4 -->
 | Quadro | Desvio da borda direita entre linhas |
 | :-- | --: |
-| Células registradas sem fixação | 14,5 px (o DevTools reordena e remodela os glifos) |
-| Ordem fixada, sem ajuste de largura | 2,22 px |
-| Driver distribuído | 0,156 px |
-| Controle: mesmas células, cada glifo RTL substituído por `x` | 1,67 px |
+| Células registradas sem fixação | 14,5 px (o DevTools reordena e remodela os glifos) |
+| Ordem fixada, sem ajuste de largura | 2,22 px |
+| Driver distribuído | 0,156 px |
+| Controle: mesmas células, cada glifo RTL substituído por `x` | 1,67 px |
 
 <!-- s:a7ec844aae -->
-O quadro distribuído corresponde ao controle inteiramente latino em todas as linhas, exceto na de emoji, em que se sai melhor: os emojis são ajustados junto com o span da direita para a esquerda ao redor deles (0,03 px), enquanto a linha de emoji da esquerda para a direita do controle não é ajustada (1,66 px).
+O quadro distribuído corresponde ao controle inteiramente latino em todas as linhas, exceto na de emoji, em que se sai melhor: os emojis são ajustados junto com o span da direita para a esquerda ao redor deles (0,03 px), enquanto a linha de emoji da esquerda para a direita do controle não é ajustada (1,66 px).
 
 <!-- s:318b8b5f4c -->
-O DevTools pinta cada span de `%c` com `contain: paint` e alinha cada um aos pixels do dispositivo separadamente, então, onde dois fundos se encontram em uma posição fracionária, o pixel entre eles pode não pertencer a nenhum dos dois, deixando uma linha fina de 1 px. No Chrome e no Edge, um span com fundo o estende em 1 px sob um vizinho opaco à direita, e um span ajustado adiciona esse pixel ao seu espaçamento interno. Nenhum dos quatro quadros acima apresenta uma linha fina.
+O DevTools pinta cada span de `%c` com `contain: paint` e alinha cada um aos pixels do dispositivo separadamente, então, onde dois fundos se encontram em uma posição fracionária, o pixel entre eles pode não pertencer a nenhum dos dois, deixando uma linha fina de 1 px. No Chrome e no Edge, um span com fundo o estende em 1 px sob um vizinho opaco à direita, e um span ajustado adiciona esse pixel ao seu espaçamento interno. Nenhum dos quatro quadros acima apresenta uma linha fina.
 
 <!-- s:7deafc8e74 -->
 Passe `measureText: false` para desativar o ajuste ou forneça seu próprio medidor `(text, bold, italic) => px`.

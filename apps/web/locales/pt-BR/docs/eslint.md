@@ -49,7 +49,7 @@ Regras
 `no-dom-elements`
 
 <!-- s:deb9e3c0ec -->
-`<div>`, `<span>`, elementos personalizados e outras tags DOM não existem no console. O reconciler só conhece seus próprios nós hospedeiros e lança `TX003` para qualquer outra coisa.
+`<div>`, `<span>`, elementos personalizados e outras tags DOM não existem no console. O reconciliador só reconhece seus próprios nós hospedeiros e lança `TX003` para qualquer outra coisa.
 
 <!-- s:bd7c3e0318 -->
 A sugestão troca a tag pelo componente mais próximo (`div` → `Box`, `span`/`p` → `Text`, `strong` → `Text bold`, `a` → `Link`, `input` → `Input`, `hr` → `Divider`, …) e adiciona o import.
@@ -132,4 +132,4 @@ Metadata é mesclado a partir dos layouts e depois da página (ou de `not-found`
 `route-handler-exports`
 
 <!-- s:877bcc12b1 -->
-Arquivos `route.ts` só respondem aos métodos HTTP que exportam: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` e `OPTIONS`. `get` em minúsculas ou `Post` nunca é chamado (as requisições recebem `405`); a sugestão renomeia a função. Exports padrão, manipuladores que não são funções e outros exports são sinalizados, exceto `dynamic` e `revalidate` da [configuração do segmento de rota](/docs/caching). Mova o código compartilhado para `lib/`, ou liste nomes extras com `{ allow: [...] }`.
+Arquivos `route.ts` só respondem aos métodos HTTP que exportam: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` e `OPTIONS`. `get` em minúsculas ou `Post` nunca são chamados (as requisições recebem `405`); a sugestão renomeia o método. Exportações padrão, manipuladores que não são funções e outras exportações são sinalizados, exceto as [configurações de segmento de rota](/docs/caching) `dynamic` e `revalidate`. Mova o código compartilhado para `lib/`, ou liste nomes extras com `{ allow: [...] }`.

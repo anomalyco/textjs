@@ -27,7 +27,7 @@ Roteamento
 Cada mapa de teclas registra um handler `useInput`, então as regras de entrada existentes se aplicam. Um `<Input>` com foco trata as teclas primeiro, porque os editores escutam na prioridade 10 e os mapas de teclas na 0. Uma tecla correspondente interrompe a propagação. Um `<Modal>` aberto desativa as associações fora dele, a menos que o mapa de teclas passe `global: true`.
 
 <!-- s:a6076c8127 -->
-As sequências são identificadas dentro desse handler. Uma tecla que inicia uma sequência fica pendente e interrompe a propagação, e a sequência é reiniciada quando a próxima tecla chega após mais de `sequenceTimeout` (1.000 ms por padrão):
+As sequências são identificadas dentro desse handler. Uma tecla que inicia uma sequência fica pendente e interrompe a propagação, e a sequência é reiniciada quando a próxima tecla chega após mais de `sequenceTimeout` (1.000 ms por padrão):
 
 <!-- s:aa0a9c8615 -->
 Um registro por raiz

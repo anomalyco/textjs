@@ -4,7 +4,7 @@
 - Brazilian vocabulary: arquivo, pasta, tela, navegador, servidor, padrão (default), celular, time (team), deploy (fazer deploy). Not ficheiro, ecrã, utilizador.
 - Headings and labels are noun phrases or infinitives without a period: “Instalação”, “Abrir o console”, “Agrupar rotas”. Sentence case: only the first word and proper names take a capital.
 - Quotes are “…”, with ‘…’ inside. Browser interface labels go in “…” and match Chrome's Brazilian interface: “Preservar registro”, “Configurações”. The Console panel is “Console”.
-- Decimal comma in prose: 0,163 ms, 70,6%, 66 ms, 21 kB. Thousands take a period (3.200 células, 12.000 quadros). Never touch version numbers (Bun 1.2+, Node.js 22+, 1.4.1), numbers in code, paths or URLs.
+- Decimal comma in prose, with a no-break space (U+00A0) before units: 0,163 ms, 70,6%, 66 ms, 21 kB. Thousands take a period (3.200 células, 12.000 quadros). Never touch version numbers (Bun 1.2+, Node.js 22+, 1.4.1), numbers in code, paths or URLs.
 - Dates read 3 de novembro de 2026. Ranges use an en dash: 70–81%.
 - Genders: o console, o quadro, a rota, o layout, o hook, o componente, o tema, o span, o app.
 - Keep API names, components, hooks, file paths, CLI commands and keyboard shortcuts (⌘⌥J, Ctrl+Shift+J, Enter) exactly as written.

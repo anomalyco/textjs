@@ -52,7 +52,7 @@ Diferenças
 <!-- s:56ed51fed3 -->
 | Recurso | DevTools | Terminal |
 | :-- | :-- | :-- |
-| Cadência de quadros | ~15 fps | Até `fps` |
+| Cadência de quadros | ~15 fps | Até `fps` |
 | Tamanho da grade | Console acoplado | Janela do terminal |
 | `<Image src>` | Carregamento via canvas | Uso de `pixels` |
 | `console.log` | Seus quadros | Retenção até sair |

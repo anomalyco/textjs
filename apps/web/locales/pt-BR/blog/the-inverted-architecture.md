@@ -8,10 +8,10 @@ O pipeline
 Cada etapa existe porque o console é uma tela incomum. Ele usa fonte monoespaçada e é orientado a linhas, recebe estilos com `%c`, e o DevTools decide quando repintá-lo.
 
 <!-- s:db7daa7cf2 -->
-reconciler
+Reconciliador
 
 <!-- s:f3cdc101e1 -->
-`@textjs/react` é um reconciler do React 19 (`react-reconciler@0.34.0`) com dois elementos hospedeiros, `tx-box` e `tx-text`, além de instâncias de texto para filhos do tipo string. Tudo que você importa, de `<Box>` a `<Markdown>`, é construído sobre eles. Os commits são agendados com `requestAnimationFrame`, e uma tecla pressionada ou uma colagem dispara a renderização de forma síncrona na mesma tarefa.
+`@textjs/react` é um reconciliador do React 19 (`react-reconciler@0.34.0`) com dois elementos hospedeiros, `tx-box` e `tx-text`, além de instâncias de texto para filhos do tipo string. Tudo o que você importa, de `<Box>` a `<Markdown>`, é construído sobre eles. Os commits são agendados em `requestAnimationFrame`, e um pressionamento de tecla ou uma colagem dispara uma renderização síncrona na mesma tarefa.
 
 <!-- s:1ab8b509e0 -->
 Layout
@@ -47,7 +47,7 @@ Uma chamada
 Cada quadro alterado é uma única chamada:
 
 <!-- s:e3e37e3616 -->
-Os quadros são anexados, cadenciados pelo limitador de 50 ms do DevTools e trocados dentro de uma única pintura. [Turbolog: eliminando o flash](/blog/turbolog-eliminating-the-flash) cobre essa parte.
+Os quadros são anexados, cadenciados pelo limitador de 50 ms do DevTools e trocados dentro de uma única pintura. [Turbolog: eliminando o flash](/blog/turbolog-eliminating-the-flash) cobre essa parte.
 
 <!-- s:99a3c4d459 -->
 Entrada
@@ -59,4 +59,4 @@ O console não pode receber entradas do teclado, então a página as recebe. Um 
 O que a página vê
 
 <!-- s:03e00f4b44 -->
-A página não pode ler o tamanho do console, apenas o da própria janela, então o Text.js o infere: um painel acoplado reduz `innerWidth` ou `innerHeight` enquanto `outer*` permanece igual, e cada hipótese de acoplamento é calculada para os níveis de zoom do Chrome. O melhor ajuste vence. As constantes (56 px de espaçamento interno horizontal, 104 px de elementos da interface do console, 14 px de distância entre linhas) foram medidas no frontend real do DevTools.
+A página não pode ler o tamanho do console, apenas o da própria janela, então o Text.js o infere: um painel acoplado reduz `innerWidth` ou `innerHeight` enquanto `outer*` permanece igual, e cada hipótese de acoplamento é calculada para os níveis de zoom do Chrome. O melhor ajuste vence. As constantes (56 px de espaçamento interno horizontal, 104 px de elementos da interface do console, 14 px de distância entre linhas) foram medidas no frontend real do DevTools.

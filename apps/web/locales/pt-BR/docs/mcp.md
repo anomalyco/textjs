@@ -59,10 +59,10 @@ Uma interação típica:
 Quadros e ociosidade
 
 <!-- s:f2e8fe0f06 -->
-Antes de ler um quadro, qualquer ferramenta espera o app ficar ocioso: nenhum quadro agendado, nenhum `fetch` em andamento e nenhum commit ou quadro por 50 ms. Assim, o agente vê o resultado da sua entrada, não um quadro no meio de uma atualização.
+Antes de ler um quadro, qualquer ferramenta espera o app ficar ocioso: nenhum quadro agendado, nenhum `fetch` em andamento e nenhum commit ou quadro por 50 ms. Assim, o agente vê o resultado da sua entrada, não um quadro no meio de uma atualização.
 
 <!-- s:fbad6f5c1a -->
-Um `<Spinner>` ou um gráfico que se atualiza uma vez por segundo ainda conta como ocioso entre as atualizações, então páginas com animações continuam legíveis. Um app que renderiza com intervalos menores que 50 ms nunca fica ocioso. As leituras desistem após 1,5 segundos (`settleMs` altera isso), enviam o quadro mais recente e o marcam como `busy`. `wait_for` sem texto espera a ociosidade, com seu próprio `quietMs`, e retorna um erro se ela nunca ocorrer.
+Um `<Spinner>` ou um gráfico que se atualiza uma vez por segundo ainda conta como ocioso entre as atualizações, então páginas com animações continuam legíveis. Um app que renderiza com intervalos menores que 50 ms nunca fica ocioso. As leituras desistem após 1,5 segundos (`settleMs` altera isso), enviam o quadro mais recente e o marcam como `busy`. `wait_for` sem texto espera a ociosidade, com seu próprio `quietMs`, e retorna um erro se ela nunca ocorrer.
 
 <!-- s:c5250c2f7a -->
 As coordenadas são células com índice a partir de zero: `x` é a coluna, `y` é a linha. Caracteres largos, como CJK e emojis, ocupam duas colunas.
