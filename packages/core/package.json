@@ -24,6 +24,10 @@
       "types": "./src/experimental.ts",
       "default": "./src/experimental.ts"
     },
+    "./internal": {
+      "types": "./src/internal.ts",
+      "default": "./src/internal.ts"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -37,6 +41,10 @@
       "./experimental": {
         "types": "./dist/experimental.d.ts",
         "default": "./dist/experimental.js"
+      },
+      "./internal": {
+        "types": "./dist/internal.d.ts",
+        "default": "./dist/internal.js"
       }
     }
   },

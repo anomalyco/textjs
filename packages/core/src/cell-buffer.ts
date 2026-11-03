@@ -7,7 +7,21 @@ import { blendOver, type PackedColor } from "./color";
 import { ATTR_WIDE_CONT, CellGrid, CHAR_CONTINUATION, CHAR_SPACE } from "./cell-grid";
 import { codePointWidth, graphemeWidth, stringWidth, truncateText, type Grapheme } from "./text-measure";
 
-export * from "./cell-grid";
+export {
+  ATTR_ALLOW_LINK,
+  ATTR_BOLD,
+  ATTR_DIM,
+  ATTR_INVERSE,
+  ATTR_ITALIC,
+  ATTR_NONE,
+  ATTR_STRIKETHROUGH,
+  ATTR_STYLE_MASK,
+  ATTR_UNDERLINE,
+  ATTR_WIDE_CONT,
+  CHAR_CONTINUATION,
+  CHAR_SPACE,
+  GRAPHEME_POOL_FLAG,
+} from "./cell-grid";
 
 export interface Rect {
   x: number;

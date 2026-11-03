@@ -14,7 +14,8 @@
  * Browser-safe and dependency-light: the frame player bundles this module.
  */
 
-import { ATTR_WIDE_CONT, CHAR_CONTINUATION, GRAPHEME_POOL_FLAG, type CellGrid } from "@textjs/core";
+import { ATTR_WIDE_CONT, CHAR_CONTINUATION, GRAPHEME_POOL_FLAG } from "@textjs/core";
+import type { CellGrid } from "@textjs/core/internal";
 
 export const LIVE_PROTOCOL_VERSION = 1;
 /** SSE stream (GET) and input endpoint (POST), relative to `basePath`. */

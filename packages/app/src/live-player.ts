@@ -8,13 +8,13 @@
  */
 
 import {
-  CellGrid,
   CssConsoleDriver,
   InputEngine,
   ViewportController,
   type ConsoleTarget,
   type InputEvent,
 } from "@textjs/core";
+import { CellGrid } from "@textjs/core/internal";
 import { isAppPath, LIVE_PATH, LIVE_SESSION_HEADER, LiveFrameDecoder, parseLiveBanner, type LiveBanner, type LiveInput, type LiveServerMessage } from "./live-protocol";
 
 export interface FramePlayerConfig {

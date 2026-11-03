@@ -30,6 +30,8 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
     expect("encodeIndexedPng" in coreTopLevel).toBe(false);
     expect("deflateZlib" in coreTopLevel).toBe(false);
     expect("parseBannerColor" in coreTopLevel).toBe(false);
+    expect("CellGrid" in coreTopLevel).toBe(false);
+    expect("CellGrid" in coreExperimental).toBe(false);
     expect("paintHalfBlocks" in coreExperimental).toBe(false);
     expect("quantizer" in coreExperimental).toBe(false);
   });

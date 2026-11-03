@@ -1,4 +1,5 @@
-import type { CellBuffer, CellGrid } from "./cell-buffer";
+import type { CellBuffer } from "./cell-buffer";
+import type { CellGrid } from "./cell-grid";
 import type { PackedColor } from "./color";
 
 export interface SpriteDriverContext {

@@ -6,8 +6,8 @@ import {
   ATTR_WIDE_CONT,
   CHAR_SPACE,
   CellBuffer,
-  type CellGrid,
 } from "./cell-buffer";
+import type { CellGrid } from "./cell-grid";
 import { blendOver, colorToCss, type PackedColor } from "./color";
 import { encodeIndexedPng, encodeRgbaPng, encodeSpriteSvgDataUrl, hasTransparentPixels, type EncodedPng, type SpriteKeyframe } from "./drivers/png";
 import { DEFAULT_TYPOGRAPHY, SEAL_CSS, sealsBefore } from "./drivers/style";
