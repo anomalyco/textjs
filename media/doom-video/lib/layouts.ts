@@ -19,5 +19,14 @@ export const LAYOUTS: Record<"a" | "b" | "c", Layout> = {
   c: { dock: "bottom", page: { w: 600, h: 170 }, dt: { w: 600, h: 620 }, dpr: 3, filmPage: true },
 };
 
-/** The clip, in seconds of Doom's clock (0 = the first tic, on the title screen). The demo starts at 4.86. */
+/** What capture.ts films, in seconds of Doom's clock (0 = the first tic, on the title screen; DEMO1 starts at 4.86). */
 export const CLIP = { from: 3.35, to: 29.0 };
+
+/**
+ * The edit prepare.ts cuts from a capture, found from the engine's log so a fresh capture lands on the same beats:
+ * DEMO1's sound from its first call (a zombie's sight sound, 6.2 s) over `titleHold` seconds of the title screen, then
+ * the picture cuts into the demo in sync, and ends `afterKill` seconds after the last death sound before
+ * `lastKillBefore` (an imp, shotgunned at 27.96 s).
+ * `posterAt` is the poster's moment (an imp's fireballs coming down the corridor).
+ */
+export const EDIT = { titleHold: 0.8, lastKillBefore: 28.5, afterKill: 0.7, posterAt: 11.45 };

@@ -5,13 +5,13 @@
 import { chromium } from "playwright-core";
 import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { END_CARD, FADE, TITLE, URL_TEXT, type Composition } from "./lib/geometry";
+import { END_CARD, FADE, TITLE, URL_FADE, URL_TEXT, type Composition } from "./lib/geometry";
 import type { Layout } from "./lib/layouts";
 
 const cut = process.argv[2] as "a" | "b" | "c";
 const ROOT = import.meta.dir;
 const jobDir = join(ROOT, "out/job", cut);
-const job = JSON.parse(readFileSync(join(jobDir, "job.json"), "utf8")) as { layout: Layout; comp: Composition; duration: number; clip: { from: number } };
+const job = JSON.parse(readFileSync(join(jobDir, "job.json"), "utf8")) as { layout: Layout; comp: Composition; duration: number; poster: number };
 const { layout, comp } = job;
 const RATIO = { a: "16x9", b: "1x1", c: "9x16" }[cut];
 const work = join(ROOT, "out/work", cut);
@@ -86,11 +86,11 @@ const geist = await pg.evaluate(() => document.fonts.check("600 40px Geist"));
 await browser.close();
 console.error(`overlays rendered (Geist available: ${geist})`);
 
-// 2. Audio: loudness-normalised to −16 LUFS (−1.5 dBTP), faded with the picture, silent under the end card.
+// 2. Audio: loudness-normalised to −16 LUFS (−1.5 dBTP); the last sound rings out briefly over the end card.
 const measured = sh(["ffmpeg", "-hide_banner", "-i", join(jobDir, "sound.wav"), "-t", String(D), "-af", "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json", "-f", "null", "-"]);
 const m = JSON.parse(measured.slice(measured.lastIndexOf("{"), measured.lastIndexOf("}") + 1)) as Record<string, string>;
 const loudnorm = `loudnorm=I=-16:TP=-1.5:LRA=11:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true`;
-sh(["ffmpeg", "-y", "-hide_banner", "-i", join(jobDir, "sound.wav"), "-af", `atrim=0:${D},${loudnorm},aresample=48000,afade=t=out:st=${D - FADE}:d=${FADE},apad=whole_dur=${TOTAL}`, "-c:a", "pcm_s16le", join(work, "audio.wav")]);
+sh(["ffmpeg", "-y", "-hide_banner", "-i", join(jobDir, "sound.wav"), "-af", `atrim=0:${D + 0.6},${loudnorm},aresample=48000,afade=t=out:st=${D - 0.1}:d=0.6,apad=whole_dur=${TOTAL}`, "-c:a", "pcm_s16le", join(work, "audio.wav")]);
 const check = sh(["ffmpeg", "-hide_banner", "-i", join(work, "audio.wav"), "-af", "ebur128=peak=true", "-f", "null", "-"]);
 const lufs = /I:\s+(-?[\d.]+) LUFS/.exec(check.slice(check.lastIndexOf("Summary")))?.[1];
 const peak = /Peak:\s+(-?[\d.]+) dBFS/.exec(check.slice(check.lastIndexOf("Summary")))?.[1];
@@ -117,7 +117,7 @@ const endIdx = n + 1;
 const audioIdx = n + 2;
 graph += `[${last}][dt]overlay=${dtRect.x}:${dtRect.y}:eof_action=repeat[l2];`;
 graph += `[l2][${frameIdx}:v]overlay=0:0:shortest=1,trim=duration=${D},fade=t=out:st=${D - FADE}:d=${FADE},format=yuv420p[main];`;
-graph += `[${endIdx}:v]format=yuv420p,fade=t=in:st=0:d=0.5,trim=duration=${END_CARD}[end];`;
+graph += `[${endIdx}:v]format=yuv420p,fade=t=in:st=0:d=${URL_FADE},trim=duration=${END_CARD}[end];`;
 graph += `[main][end]concat=n=2:v=1:a=0,format=yuv420p[v]`;
 const out = join(final, `doom-${cut}-${RATIO}.mp4`);
 const t0 = performance.now();
@@ -128,10 +128,10 @@ sh([
 ]);
 console.error(`encoded in ${((performance.now() - t0) / 1000).toFixed(0)} s`);
 
-// 4. Poster (an imp's fireballs coming down the corridor, 11.45 s into Doom's clock) and review frames.
-const posterAt = 11.45 - job.clip.from;
+// 4. Poster (EDIT.posterAt in lib/layouts.ts) and review frames: the opening, the cut, the ending and the card.
+const posterAt = job.poster;
 sh(["ffmpeg", "-y", "-hide_banner", "-ss", posterAt.toFixed(3), "-i", out, "-frames:v", "1", "-q:v", "2", join(final, `doom-${cut}-${RATIO}-poster.jpg`)]);
 sh(["ffmpeg", "-y", "-hide_banner", "-i", out, "-vf", `fps=1,scale=${Math.round(comp.canvas.w / 4)}:-2,tile=6x5`, "-frames:v", "1", join(review, "sheet.jpg")]);
-for (const t of [0, 1, 2, 8.3, 15, D - 0.1, D + 1.5]) sh(["ffmpeg", "-y", "-hide_banner", "-ss", t.toFixed(2), "-i", out, "-frames:v", "1", "-q:v", "2", join(review, `t${t.toFixed(1)}.jpg`)]);
+for (const t of [0, 0.4, 0.78, 0.85, 1.2, 2, D - 0.75, D - 0.25, D - 0.02, D + 0.1, D + 0.3, D + 2.4]) sh(["ffmpeg", "-y", "-hide_banner", "-ss", t.toFixed(2), "-i", out, "-frames:v", "1", "-q:v", "2", join(review, `t${t.toFixed(2)}.jpg`)]);
 const probe = sh(["ffprobe", "-v", "error", "-show_entries", "format=duration,size:stream=codec_name,width,height,r_frame_rate", "-of", "compact", out]);
 console.log(probe.trim());

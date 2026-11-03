@@ -35,14 +35,14 @@ export const COMPOSITIONS: Record<"a" | "b" | "c", Composition> = {
   // DevTools alone (720×640 CSS: tabs, console toolbar, the frame and the prompt), title above.
   b: {
     canvas: { w: 1080, h: 1080 },
-    scale: 1.375,
-    x: Math.round((1080 - 720 * 1.375) / 2),
-    y: 150,
+    scale: 1.35,
+    x: Math.round((1080 - 720 * 1.35) / 2),
+    y: 120,
     bar: 0,
     dtCrop: { w: 720, h: 640 },
     picture: { x: 50, y: 106, w: 613, h: 459 },
     boxEdge: { x: 30, y: 150, w: 15, h: 300 },
-    title: { y: 82, size: 44 },
+    title: { y: 70, size: 44 },
     url: { size: 68 },
   },
   // 600×826 CSS window (36 bar + 170 page + 620 DevTools), title above.
@@ -62,6 +62,8 @@ export const COMPOSITIONS: Record<"a" | "b" | "c", Composition> = {
 
 export const TITLE = "Doom in the DevTools console";
 export const URL_TEXT = "textjs.org/doom";
-/** Seconds: the fade to black after the footage, and the URL card that follows. */
-export const FADE = 0.5;
-export const END_CARD = 3.5;
+/** Seconds: the picture's fade to black after the footage, the URL card that follows, and the URL's fade in. */
+export const FADE = 0.2;
+export const END_CARD = 2.5;
+export const URL_FADE = 0.25;
+

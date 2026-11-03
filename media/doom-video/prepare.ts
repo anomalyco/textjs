@@ -1,13 +1,13 @@
-// Turns a capture into a job bundle for produce.ts (run on the VM): picks the clip's frames, drops the empty-console
-// repaints between Text.js's periodic console.clear() and the next frame, measures how far the console picture trails
-// the engine, and synthesizes the sound track from the logged engine calls.
+// Turns a capture into a job bundle for produce.ts (run on the VM): drops the empty-console repaints between
+// Text.js's periodic console.clear() and the next frame, measures how far the console picture trails the engine, cuts
+// the edit (EDIT in lib/layouts.ts) and synthesizes its sound track from the logged engine calls.
 //
 //   bun media/doom-video/prepare.ts <a|b|c>   → out/job/<cut>/
-import { linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { linkSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadCapture, regionMeans } from "./lib/analyze";
 import { COMPOSITIONS } from "./lib/geometry";
-import { CLIP, LAYOUTS } from "./lib/layouts";
+import { EDIT, LAYOUTS } from "./lib/layouts";
 import { OUT } from "./lib/site";
 import type { SoundEvent } from "./lib/sound-log";
 import { synthesize, writeWav } from "./lib/synth";
@@ -50,7 +50,7 @@ const sampleAt = (series: Array<{ t: number; l: number }>, t: number): number =>
 const corr = (lagMs: number): number => {
   const xs: number[] = [];
   const ys: number[] = [];
-  for (let t = 5.5; t < CLIP.to; t += 0.005) {
+  for (let t = 5.5; t < shown.at(-1)!.t - 0.5; t += 0.005) {
     xs.push(sampleAt(draws, t));
     ys.push(sampleAt(shown, t + lagMs / 1000));
   }
@@ -74,46 +74,71 @@ for (let l = 0; l <= 250; l += 5) {
 }
 console.error(`${cut}: console picture trails the engine by ${lag} ms (r = ${best.toFixed(3)})`);
 
-// 3. Frames for the clip, as concat lists with durations (seconds from the clip start).
-const duration = CLIP.to - CLIP.from;
+// 3. The edit, from the log (so a fresh capture lands on the same beats). The sound starts on frame 1 with DEMO1's
+// first sound, over a short hold on the title screen; the picture then cuts into the demo where that sound has got
+// to, so everything after the cut is in sync. It ends just after the last kill before EDIT.lastKillBefore. Times are
+// picture times (engine time + lag), in seconds of Doom's clock.
+const lumps = readWad();
+const lagS = lag / 1000;
+const starts = cap.events.filter((e) => e[1] === "start").map((e) => ({ t: rel(e[0] as number), name: lumps[e[2] as number]!.name }));
+const titleSig = cap.events.find((e) => e[1] === "draw") as number[];
+const demoDraw = cap.events.find((e) => e[1] === "draw" && rel(e[0] as number) > 1 && Math.abs((e[2] as number) - titleSig[2]!) + Math.abs((e[3] as number) - titleSig[3]!) + Math.abs((e[4] as number) - titleSig[4]!) > 30);
+if (!demoDraw) throw new Error("the demo never started");
+const demoStart = rel(demoDraw[0] as number) + lagS;
+const firstSound = starts.find((e) => e.t > rel(demoDraw[0] as number));
+const kill = starts.filter((e) => /DTH/.test(e.name) && e.t < EDIT.lastKillBefore).at(-1);
+if (!firstSound || !kill) throw new Error("couldn't find the first sound or the last kill");
+const segments = [
+  { from: demoStart - EDIT.titleHold - 0.05, to: demoStart - 0.05 },
+  { from: firstSound.t + lagS + EDIT.titleHold, to: kill.t + lagS + EDIT.afterKill },
+];
+const duration = segments.reduce((n, g) => n + g.to - g.from, 0);
+/** Output time of a picture time from the first sound on. */
+const outTime = (picture: number): number => picture - (firstSound.t + lagS);
+console.error(
+  `${cut}: sound from ${firstSound.name} at ${firstSound.t.toFixed(2)} s over ${EDIT.titleHold} s of title, picture cuts in at ${segments[1]!.from.toFixed(2)} s, ends ${EDIT.afterKill} s after ${kill.name} at ${kill.t.toFixed(2)} s → ${duration.toFixed(2)} s of footage`,
+);
+
+// 4. Frames for each segment, as one concat list with durations.
 function pickFrames(name: "dt" | "page", frames: Array<{ t: number; file: string }>, skip: Set<number>) {
   mkdirSync(join(job, name), { recursive: true });
-  const kept = frames.map((f, i) => ({ ...f, i, s: rel(f.t) - CLIP.from })).filter((f) => !skip.has(f.i));
-  let first = 0;
-  for (let k = 0; k < kept.length; k++) if (kept[k]!.s <= 0) first = k;
-  const used = kept.slice(first).filter((f) => f.s < duration);
-  const list = used.map((f, k) => {
-    const start = k === 0 ? 0 : f.s;
-    const end = k + 1 < used.length ? used[k + 1]!.s : duration;
-    linkSync(join(cap.dir, name, f.file), join(job, name, f.file));
-    return { file: f.file, dur: Math.max(0.001, end - start) };
-  });
+  const kept = frames.map((f, i) => ({ ...f, i, s: rel(f.t) })).filter((f) => !skip.has(f.i));
+  const list: Array<{ file: string; dur: number }> = [];
+  for (const g of segments) {
+    let first = 0;
+    for (let k = 0; k < kept.length; k++) if (kept[k]!.s <= g.from) first = k;
+    const used = kept.slice(first).filter((f) => f.s < g.to);
+    used.forEach((f, k) => {
+      const start = k === 0 ? g.from : f.s;
+      const end = k + 1 < used.length ? used[k + 1]!.s : g.to;
+      try {
+        linkSync(join(cap.dir, name, f.file), join(job, name, f.file));
+      } catch {}
+      list.push({ file: f.file, dur: Math.max(0.001, end - start) });
+    });
+  }
   writeFileSync(join(job, name, "list.txt"), list.map((f) => `file '${f.file}'\nduration ${f.dur.toFixed(6)}`).join("\n") + `\nfile '${list.at(-1)!.file}'\n`);
   return list.length;
 }
 const dtFrames = pickFrames("dt", cap.dt, flashes);
 const pageFrames = layout.filmPage && cap.page ? pickFrames("page", cap.page, new Set()) : 0;
 
-// 4. Sound: the engine's calls, on the clip's clock, shifted by the picture's lag.
+// 5. Sound: the engine's calls from the first sound on, on the output clock, shifted by the picture's lag.
 const events: SoundEvent[] = [];
 for (const e of cap.events) {
-  const t = (rel(e[0] as number) - CLIP.from) * 1000 + lag;
+  const picture = rel(e[0] as number) + lagS;
+  if (picture < firstSound.t + lagS - 0.001) continue;
+  const t = outTime(picture) * 1000;
   if (e[1] === "start") events.push({ t, kind: "start", lump: e[2] as number, channel: e[3] as number, vol: e[4] as number, sep: e[5] as number });
   else if (e[1] === "update") events.push({ t, kind: "update", channel: e[2] as number, vol: e[3] as number, sep: e[4] as number });
   else if (e[1] === "stop") events.push({ t, kind: "stop", channel: e[2] as number });
 }
-const lumps = readWad();
 writeWav(join(job, "sound.wav"), synthesize(events, lumps, duration * 1000 + 1500));
+const sounds = events.filter((e) => e.kind === "start" && e.t < duration * 1000).map((e) => ({ t: +(e.t / 1000).toFixed(3), name: lumps[(e as { lump: number }).lump]!.name }));
+console.error(`${cut}: ${sounds.length} sounds; the first, ${sounds[0]?.name}, at ${sounds[0]?.t.toFixed(3)} s`);
 
-// Check the page's sound calls against an offline run of the same tics (same sequence = the page's audio played normally).
-const offline = JSON.parse(readFileSync(join(OUT, "preview", "sounds.json"), "utf8")) as SoundEvent[];
-const sig = (e: SoundEvent): string => (e.kind === "start" ? `start ${e.lump} ${e.channel}` : `${e.kind} ${e.channel}`);
-const pageSeq = events.filter((e) => e.t <= duration * 1000 - 500).map(sig);
-const offSeq = offline.filter((e) => e.t / 1000 >= CLIP.from - 1).map(sig);
-let match = 0;
-while (match < pageSeq.length && pageSeq[match] === offSeq[match]) match++;
-const starts = events.filter((e) => e.kind === "start" && e.t >= 0 && e.t < duration * 1000);
-console.error(`${cut}: ${starts.length} sounds in the clip; page and offline sound calls agree for ${match}/${pageSeq.length}`);
-
-writeFileSync(join(job, "job.json"), JSON.stringify({ cut, layout, comp, clip: CLIP, duration, lag, flashes: flashes.size, dtFrames, pageFrames, sounds: starts.map((e) => ({ t: +(e.t / 1000).toFixed(3), name: lumps[(e as { lump: number }).lump]!.name })) }, null, 2));
-console.log(JSON.stringify({ cut, duration, lag, dtFrames, pageFrames }));
+writeFileSync(
+  join(job, "job.json"),
+  JSON.stringify({ cut, layout, comp, segments, duration, lag, poster: outTime(EDIT.posterAt), flashes: flashes.size, dtFrames, pageFrames, sounds }, null, 2),
+);
+console.log(JSON.stringify({ cut, duration: +duration.toFixed(3), lag, dtFrames, pageFrames }));

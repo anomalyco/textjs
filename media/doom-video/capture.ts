@@ -10,7 +10,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { CLIP, LAYOUTS, type Layout } from "./lib/layouts";
-import { chromiumPath, OUT, serveSite } from "./lib/site";
+import { buildSite, chromiumPath, OUT, serveSite } from "./lib/site";
 
 const cut = process.argv[2] as keyof typeof LAYOUTS;
 const layout: Layout | undefined = LAYOUTS[cut];
@@ -30,6 +30,8 @@ const port: number = await new Promise((r) => {
     s.close(() => r(p));
   });
 });
+// Build the checkout as it is now, so a re-capture picks up site changes.
+buildSite();
 const site = serveSite();
 const browser = await chromium.launch({
   executablePath: chromiumPath(),
