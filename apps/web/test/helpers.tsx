@@ -57,7 +57,10 @@ export async function mount(element: ReactNode, opts: { cols: number; rows: numb
     tabFocus: opts.tabFocus ?? true,
   });
   await act(async () => root.render(element));
-  scheduler.flush();
+  // The first frame can update state (useMeasure reads layout on frame), so it runs inside act() too.
+  await act(async () => {
+    scheduler.flush();
+  });
   const frame = (): string => {
     scheduler.flush();
     return root.renderer.buffer.toPlainString(true).replace(/\n+$/, "");

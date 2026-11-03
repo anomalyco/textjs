@@ -96,7 +96,10 @@ export async function createTestRoot(options: ConsoleRootOptions = {}): Promise<
       await act(async () => {
         root.render(element);
       });
-      scheduler.flush();
+      // The first frame can update state (useMeasure reads layout on frame), so it runs inside act() too.
+      await act(async () => {
+        scheduler.flush();
+      });
     },
     frame,
     async emitKey(key, mods = {}) {

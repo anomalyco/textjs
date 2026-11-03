@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import * as coreTopLevel from "../src/index";
 import {
   CellBuffer,
@@ -403,6 +403,8 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
     (globalThis as { document?: unknown }).document = fakeDoc;
 
     let renderer: ConsoleRenderer | null = null;
+    // Fake timers drive both the renderer's clock and its pacing timers, so each step lands exactly.
+    jest.useFakeTimers();
     try {
       renderer = new ConsoleRenderer({ root, console: con, viewport: { width: 12, height: 4 }, input: false, registerGlobal: false });
       renderer.renderNow(true);
@@ -411,7 +413,7 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
       expect(renderer.stats().fps).toBe(1);
 
       // Static sprite + text update -> does NOT enter temporal sprite staging (emits immediately!)
-      await new Promise((r) => setTimeout(r, 120));
+      jest.advanceTimersByTime(120);
       label = "v1";
       txtNode._fullDamage = true;
       root._sceneDirty = true;
@@ -435,7 +437,7 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
       // Wait for scheduled flush -> emits batched 2-keyframe SVG and increments frameCount & fps by delivered visualFrames
       px.fill(GREEN);
       root._fullDamage = true;
-      await new Promise((r) => setTimeout(r, 70));
+      jest.advanceTimersByTime(70);
       expect(renderer.driver._hasStagedKeyframes).toBe(false);
       expect(renderer.stats().frameCount).toBeGreaterThanOrEqual(3);
 
@@ -448,14 +450,15 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
       fakeDoc.visibilityState = "hidden";
       for (const fn of listeners.get("visibilitychange") ?? []) fn();
       expect(renderer.driver._hasStagedKeyframes).toBe(false);
-      await new Promise((r) => setTimeout(r, 80));
+      jest.advanceTimersByTime(80);
       expect(con.logs.length).toBe(logsBeforeHide);
 
       fakeDoc.visibilityState = "visible";
       for (const fn of listeners.get("visibilitychange") ?? []) fn();
-      await new Promise((r) => setTimeout(r, 60));
+      jest.advanceTimersByTime(60);
       expect(con.logs.length).toBe(logsBeforeHide + 1);
     } finally {
+      jest.useRealTimers();
       renderer?.dispose();
       root.destroy();
       if (prevDoc === undefined) delete (globalThis as { document?: unknown }).document;
@@ -503,7 +506,7 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
     root.destroy();
   });
 
-  test("createDefaultScheduler backs rAF with a 24ms timer when rAF stalls and cancels both cleanly", async () => {
+  test("createDefaultScheduler backs rAF with a 24ms timer when rAF stalls and cancels both cleanly", () => {
     const prevRaf = globalThis.requestAnimationFrame;
     const prevCancel = globalThis.cancelAnimationFrame;
     let cancelledId = -1;
@@ -511,18 +514,19 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
     globalThis.cancelAnimationFrame = (id: number) => {
       cancelledId = id;
     };
+    jest.useFakeTimers();
     try {
       const sched = createDefaultScheduler();
       let runs = 0;
-      const t0 = performance.now();
-      await new Promise<void>((resolve) => {
-        sched.request(() => {
-          runs++;
-          resolve();
-        });
+      sched.request(() => {
+        runs++;
       });
+      jest.advanceTimersByTime(23);
+      expect(runs).toBe(0);
+      jest.advanceTimersByTime(1);
       expect(runs).toBe(1);
-      expect(performance.now() - t0).toBeLessThan(120);
+      jest.advanceTimersByTime(100);
+      expect(runs).toBe(1);
 
       let cancelledRuns = 0;
       const h = sched.request(() => {
@@ -530,9 +534,10 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
       });
       sched.cancel(h);
       expect(cancelledId).toBe(77);
-      await new Promise((r) => setTimeout(r, 40));
+      jest.advanceTimersByTime(100);
       expect(cancelledRuns).toBe(0);
     } finally {
+      jest.useRealTimers();
       globalThis.requestAnimationFrame = prevRaf;
       globalThis.cancelAnimationFrame = prevCancel;
     }
