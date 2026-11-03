@@ -6,7 +6,8 @@ import { A } from "../router";
 import { CopyButton } from "../site/CodeBlock";
 import { SearchIcon } from "../site/icons";
 import { MarkdownDoc } from "../site/Markdown";
-import { ERROR_DOCS as TX_ERRORS, getErrorPageDoc, TX000 } from "./tx000";
+import { ERROR_DOCS as TX_ERRORS, getErrorPageDoc } from "./error-pages";
+import { TX000 } from "./tx000";
 
 export function errorPath(code: string): string {
   return `/errors/${code}`;

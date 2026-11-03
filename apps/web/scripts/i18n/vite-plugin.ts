@@ -32,8 +32,9 @@ export interface UnitsManifest {
 }
 
 const COMPANION = join(SRC_DIR, "console-companion") + "/";
-/** The error pages' translations, `{}` in source (`src/pages/error-docs.ts`). */
+/** The error pages' translations and their titles alone, `{}` in source (`src/pages/error-docs.ts`, `error-titles.ts`). */
 const ERROR_DOCS = join(SRC_DIR, "pages", "error-docs.ts");
+const ERROR_TITLES = join(SRC_DIR, "pages", "error-titles.ts");
 /** The docs pages' headings for search, English in source (`src/docs/search-index.ts`). */
 const SEARCH_INDEX = join(SRC_DIR, "docs", "search-index.ts");
 const ENGLISH_ISLAND = [join(SRC_DIR, "docs") + "/", join(SRC_DIR, "blog") + "/", join(SRC_DIR, "learn") + "/"];
@@ -76,17 +77,19 @@ export function i18nPlugin(locale: string): Plugin {
       return `${resolved.id}${resolved.id.includes("?") ? "&" : "?"}${EN_QUERY}`;
     },
     load(id) {
-      if (!source && clean(id) === ERROR_DOCS) {
+      if (!source && (clean(id) === ERROR_DOCS || clean(id) === ERROR_TITLES)) {
         const translations = parseTranslation(readText(translationFile(locale, "errors")));
         const out: Record<string, { title: string; cause: string; fix: string }> = {};
+        const titles: Record<string, string> = {};
         for (const e of errorPageDocs()) {
           const title = translations.get(blockId(e.title));
           const cause = assemble(e.cause, translations);
           const fix = assemble(e.fix, translations);
           documents[`errors/${e.code}`] = { total: 1 + cause.total + fix.total, translated: (title ? 1 : 0) + cause.translated + fix.translated };
           out[e.code] = { title: title ?? e.title, cause: cause.markdown, fix: fix.markdown };
+          if (title) titles[e.code] = title;
         }
-        return `export const ERROR_TRANSLATIONS = ${JSON.stringify(out)};`;
+        return clean(id) === ERROR_TITLES ? `export const ERROR_TITLES = ${JSON.stringify(titles)};` : `export const ERROR_TRANSLATIONS = ${JSON.stringify(out)};`;
       }
       if (!source && clean(id) === SEARCH_INDEX && !isEnglishCopy(id)) {
         const out: Record<string, Heading[]> = {};

@@ -6,6 +6,7 @@ import { CompanionApp } from "../src/console-companion/App";
 import { viewportLimitsFor } from "../src/console-companion/boot";
 import { SiteStore, siteStore } from "../src/console-companion/store";
 import { exampleFrame, exampleGrid, exampleHeader, HOME_EXAMPLE_GRID, homeExampleHeader, isHomeExampleFrame } from "../src/console-companion/tabs/ExampleTab";
+import { docLabel } from "../src/docs/meta";
 import { PREVIEWS } from "../src/docs/previews";
 import { LivePreview } from "../src/site/LivePreview";
 import { KitSection } from "../src/pages/home/Kit";
@@ -102,12 +103,12 @@ describe("docs examples in the console: companion", () => {
     h = await mount(<CompanionApp />, { cols: spec.cols + 20, rows: spec.rows + 6, tabFocus: false });
     h.frame();
     const companion = extractStyledFrame(h.root.renderer.buffer);
-    const header = exampleHeader("components-layout", "layout");
+    const header = exampleHeader(docLabel("components-layout"), "layout");
     const mirrored = exampleFrame(companion, header, "layout");
     expect(mirrored).not.toBeNull();
     expect(mirrored?.height).toBe(spec.rows);
     // A frame that isn't showing this example yet (e.g. the docs view) is never mirrored.
-    expect(exampleFrame(companion, exampleHeader("components-layout", "modal"), "modal")).toBeNull();
+    expect(exampleFrame(companion, exampleHeader(docLabel("components-layout"), "modal"), "modal")).toBeNull();
     await h.unmount();
 
     h = await mount(spec.render(), { cols: spec.cols, rows: spec.rows, tabFocus: false });

@@ -28,6 +28,10 @@ async function open(path) {
     if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errors.push(m.text());
   });
   const docChunks = [];
+  const logs = [];
+  page.on("console", (m) => {
+    if (m.type() === "log") logs.push(m.text());
+  });
   page.on("request", (r) => {
     if (/\/assets\/doc-[\w-]+\.js$/.test(r.url())) docChunks.push(new URL(r.url()).pathname);
   });
@@ -39,7 +43,7 @@ async function open(path) {
   });
   await page.goto(`${base}${path}`, { waitUntil: "networkidle" });
   await page.evaluate(() => (window.__spa = true));
-  return { page, context, errors, docChunks };
+  return { page, context, errors, docChunks, logs };
 }
 
 /** Opens ⌘K, types `query` and returns the results as `label | sub | group`. */
@@ -61,9 +65,15 @@ const first = (results) => results[0] ?? { label: "", sub: "" };
 
 /** Hover a sidebar link, then click it: the next page's Markdown is fetched on hover and the click renders it at once. */
 async function navigation(prefix) {
-  const { page, context, errors, docChunks } = await open(`${prefix}/docs/routing`);
+  const { page, context, errors, docChunks, logs } = await open(`${prefix}/docs/routing`);
   const own = docChunks.length;
-  check(own >= 1 && own <= 2, `${prefix || "en"}: the page loads its own Markdown only (${docChunks.join(", ")})`);
+  // A locale page's console stays English, so it loads the English page too.
+  check(own === (prefix ? 2 : 1), `${prefix || "en"}: the page loads its own Markdown only (${docChunks.join(", ")})`);
+  const consoleShows = async (text) => {
+    for (let i = 0; i < 40 && !logs.some((l) => l.includes(text)); i++) await page.waitForTimeout(100);
+    return logs.some((l) => l.includes(text));
+  };
+  check(await consoleShows("The App Router maps folders"), `${prefix || "en"}: the console's Docs tab shows the page`);
   const link = page.locator(`.docs-sidebar a[href="${prefix}/docs/caching"]`);
   const fetched = page.waitForResponse((r) => /\/assets\/doc-[\w-]+\.js$/.test(r.url()), { timeout: 5000 }).catch(() => null);
   await link.hover();
@@ -81,6 +91,9 @@ async function navigation(prefix) {
   }, `${prefix}/docs/caching`);
   check(ms >= 0 && ms < 100, `${prefix || "en"}: a hovered page renders on the next frame (${ms.toFixed(0)}ms)`);
   check((await page.locator(".docs-toc a").count()) > 3 && (await page.locator(".docs-main .prose h2").count()) > 3, `${prefix || "en"}: content and table of contents follow`);
+  const edit = await page.locator(".docs-edit").getAttribute("href");
+  check(edit?.endsWith(prefix ? "/apps/web/locales/ja/docs/caching.md" : "/apps/web/src/docs/content/caching.md"), `${prefix || "en"}: Edit on GitHub follows (${edit})`);
+  check(await consoleShows("Cache route handler responses"), `${prefix || "en"}: and so does the console`);
   // Going to a page nobody hovered keeps the old one until its Markdown arrives, then swaps without shifting.
   await page.evaluate((href) => document.querySelector(`.docs-nav a.next`)?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 })), "");
   await page.waitForFunction(() => /\/docs\/deploying$/.test(location.pathname) && document.querySelector("h1.docs-title")?.textContent !== "");

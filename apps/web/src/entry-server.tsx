@@ -11,7 +11,7 @@ import { LEARN_ROUTES } from "./learn/routes";
 import { MERCH_ROUTES } from "./merch/routes";
 import { PRESETS, presetPath, type PresetId } from "./console-companion/store";
 import { t } from "./i18n/t";
-import { ERROR_DOCS as TX_ERRORS } from "./pages/tx000";
+import { ERROR_DOCS as TX_ERRORS } from "./pages/error-pages";
 import { Root } from "./Root";
 import { preloadAllRoutes, routeManifestSources } from "./route-loader";
 import { matchRoute, resetLocation, titleFor } from "./router";

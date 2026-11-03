@@ -12,6 +12,7 @@ import {
   isHomeExampleFrame,
   runsExamples,
 } from "../../docs/preview-meta";
+import { docLabel } from "../../docs/meta";
 import { PREVIEWS } from "../../docs/previews";
 import { siteStore } from "../store";
 import { useSite } from "../useSite";
@@ -60,7 +61,7 @@ export function ExampleTab({ id }: { id: string }): ReactNode {
       <Box className="flex-row h-1 shrink-0 px-1 gap-2">
         <Box className="grow shrink overflow-hidden">
           <Text bold color="fg" wrap="truncate-end">
-            {home ? homeExampleHeader(id) : exampleHeader(site.docSlug, id)}
+            {home ? homeExampleHeader(id) : exampleHeader(docLabel(site.docSlug), id)}
           </Text>
         </Box>
         <Box className="shrink-0">

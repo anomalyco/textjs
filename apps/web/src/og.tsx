@@ -11,7 +11,7 @@ import { chapterNumber, COMPLETE_SLUG } from "./learn/course";
 import { getProduct, PRODUCTS } from "./merch/products";
 import { PRESETS } from "./console-companion/store";
 import { OpenCodeWordmark, TerminalWordmark } from "./site/brand-marks";
-import { getErrorPageDoc } from "./pages/tx000";
+import { getErrorPageDoc } from "./pages/error-pages";
 import { matchRoute } from "./router";
 import type { PrerenderRoute } from "./entry-server";
 
