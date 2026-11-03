@@ -82,6 +82,18 @@ Einschränkungen
 - **Terminals.** Terminals, die sowohl BDSM als auch `LRO` ignorieren und ihre eigene Bidi-Verarbeitung ausführen (zum Beispiel mit aktiviertem Bidi in iTerm2), ordnen Rechts-nach-links-Zeilen möglicherweise erneut um.
 - **DOM-Spiegel.** `<ConsoleMirror>` passt keine Breiten an, sodass Rechts-nach-links-Abschnitte dort um bis zu 0,3 % ihrer Breite abweichen können.
 
+<!-- s:f4d4dadbf6 -->
+Das Fokus-Pad übersetzen
+
+<!-- s:7791d4db4e -->
+`<FocusPad>` aus `@textjs/react/dom` (auch von `<TextCanvas>` gerendert) fordert Besucher auf, die Konsole zu öffnen, auf die Seite zu klicken und eine Taste zu drücken. Sein Text ist standardmäßig Englisch. Zum Übersetzen übergib `messages` mit den Zeichenfolgen, die du ersetzen möchtest. Ausgelassene Schlüssel behalten ihren englischen Text, der in `defaultFocusPadMessages` aufgeführt ist.
+
+<!-- s:66c2b8e3e2 -->
+Eine Zeichenfolge, die einen Wert enthält, ist eine Funktion, die den ganzen Satz zurückgibt, sodass eine Übersetzung den Wert an beliebiger Stelle einsetzen kann. `step`, `pressShortcut`, `then`, `defaultAction` und `shortcutOpens` sind Funktionen. `step` erhält die Schrittnummer und die Anzahl der Schritte. `then` erhält die `action`-Prop oder den Text von `defaultAction`, wenn es keine `action` gibt. `defaultAction` erhält die Tasten des ersten Hinweises oder `null`, wenn es keine Hinweise gibt. `pressShortcut` erhält die Tasten des Tastenkürzels für Screenreader, und `shortcutOpens` erhält das Tastenkürzel als `<kbd>`-Elemente.
+
+<!-- s:e9475554da -->
+`messages` umfasst auch die Beschriftungen, die Screenreader vorlesen, und die Steuerung der Konsolengröße (`sizeControl`). `<TextCanvas>` akzeptiert dieselbe `messages`-Prop. `<ViewportControl>` akzeptiert sie ebenfalls und verwendet die Schlüssel der Größensteuerung. Tastenbeschriftungen wie ⌘⌥J, Ctrl+Shift+J und Enter werden nicht übersetzt.
+
 <!-- s:40caf66c4d -->
 API
 
