@@ -419,13 +419,13 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
     },
     {
       "depth": 2,
-      "text": "API",
-      "id": "api"
+      "text": "Translating the focus pad",
+      "id": "translating-the-focus-pad"
     },
     {
       "depth": 2,
-      "text": "Translating the focus pad",
-      "id": "translating-the-focus-pad"
+      "text": "API",
+      "id": "api"
     }
   ],
   "keyboard": [

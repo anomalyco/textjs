@@ -60,6 +60,8 @@ function env(): { key: string; base: string } {
 interface Glossary {
   keep: string[];
   terms: Record<string, Record<string, string>>;
+  /** Context for a UI string that's ambiguous on its own, keyed by the exact catalog key. */
+  notes?: Record<string, string>;
 }
 const glossary = JSON.parse(readFileSync(join(LOCALES_DIR, "glossary.json"), "utf8")) as Glossary;
 /** The site's copy rules: apps/web/STYLE.md and "Writing docs and copy" in CONTRIBUTING.md. */
@@ -108,6 +110,9 @@ function systemPrompt(locale: string, job: Job): string {
   const terms = Object.entries(glossary.terms)
     .filter(([en, t]) => t[locale] && new RegExp(`\\b${en}`, "i").test(text))
     .map(([en, t]) => `- ${en} → ${t[locale]}`);
+  const notes = Object.entries(glossary.notes ?? {})
+    .filter(([key]) => job.items.some((i) => i.text === key))
+    .map(([key, note]) => `- "${key}": ${note}`);
   return [
     `You translate the website of Text.js, a React framework for apps that render in the browser DevTools console, from English into ${lang?.name ?? locale} (${locale}).`,
     "Rules:",
@@ -118,6 +123,7 @@ function systemPrompt(locale: string, job: Job): string {
     "- Don't add, drop or reorder sentences. Don't explain jokes; keep the deadpan tone.",
     keep.length ? `- Keep these names exactly as written: ${keep.join(", ")}.` : "",
     terms.length ? `- Preferred terms:\n${terms.join("\n")}` : "",
+    notes.length ? `- Context for these strings:\n${notes.join("\n")}` : "",
     job.kind === "ui" ? "- These are interface strings (buttons, labels, titles, short descriptions). Keep them as short as the English." : "",
     job.kind === "captions" ? "- These are subtitles for a narrated video, not a transcript. Condense each sentence to subtitle style so it can be read while it's spoken: aim for the item's character budget (listed after the page; letters, digits and code count as half a character), drop filler, repetition and asides, and keep every fact, number and code name. A subtitle is about 60% the length of a full translation. End sentences in the locale's register (Japanese: short です・ます endings such as 〜します, never 体言止め or a bare noun), and make them fit by cutting words, not endings: drop subjects the viewer can see, connectives, examples, restatements and minor detail. Go over the budget only when even the shortest such sentence can't fit. Subtitles are plain text without Markdown or backticks; write code names (console.log, page.tsx, useInput) as written in code, even where the narrator spells them out." : "",
     "",

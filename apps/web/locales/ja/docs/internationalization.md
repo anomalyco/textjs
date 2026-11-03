@@ -82,17 +82,20 @@ DevToolsはすべての `%c` スパンを `contain: paint` で描画し、それ
 - **ターミナル。** BDSMと `LRO` の両方を無視して独自の双方向処理を実行するターミナル（たとえば双方向処理を有効にしたiTerm2）では、右から左への行が再び並べ替えられる場合があります。
 - **DOMミラー。** `<ConsoleMirror>` は幅調整しないため、右から左へのランでは、その幅の最大0.3%のずれが生じる場合があります。
 
+<!-- s:f4d4dadbf6 -->
+フォーカスパッドの翻訳
+
+<!-- s:7791d4db4e -->
+`@textjs/react/dom` の `<FocusPad>`（`<TextCanvas>` でもレンダリングされます）は、コンソールを開き、ページをクリックしてキーを押すよう訪問者に案内します。テキストはデフォルトで英語です。翻訳するには、置き換える文字列を `messages` に渡します。省略したキーには、`defaultFocusPadMessages` に記載された英語のテキストが使われます。
+
+<!-- s:66c2b8e3e2 -->
+値を含む文字列は文全体を返す関数なので、翻訳では値を文中の任意の位置に配置できます。`step`、`pressShortcut`、`then`、`defaultAction`、`shortcutOpens` は関数です。`step` はステップ番号とステップ総数を受け取ります。`then` は `action` プロパティーを受け取り、`action` がない場合は `defaultAction` のテキストを受け取ります。`defaultAction` は最初のヒントのキーを受け取り、ヒントがない場合は `null` を受け取ります。`pressShortcut` はスクリーンリーダー用にショートカットのキーを受け取り、`shortcutOpens` はショートカットを `<kbd>` 要素として受け取ります。
+
+<!-- s:e9475554da -->
+`messages` には、スクリーンリーダーが読み上げるラベルとコンソールのサイズコントロール（`sizeControl`）も含まれます。`<TextCanvas>` も同じ `messages` プロパティーを受け取ります。`<ViewportControl>` もこれを受け取り、サイズコントロールのキーを使用します。⌘⌥J、Ctrl+Shift+J、Enterなどのキー表記は翻訳しません。
+
 <!-- s:40caf66c4d -->
 API
 
 <!-- s:03607f875b -->
 `resolveLevels(types, codePoints, direction)`、`applyLineRules`、`reorderIndices` は、アルゴリズム自体の規則P1〜I2、L1、L2を公開しています。
-
-<!-- s:f4d4dadbf6 -->
-フォーカスパッドの翻訳
-
-<!-- s:c5e85c7dc7 -->
-`@textjs/react/dom` の `<FocusPad>`（`<TextCanvas>` でもレンダリングされます）は、コンソールを開き、ページをクリックしてキーを押すよう訪問者に案内します。デフォルトのテキストは英語です。翻訳するには、翻訳する文字列を `messages` に渡します。省略したキーには、`defaultFocusPadMessages` に記載された英語のテキストが使われます。
-
-<!-- s:090cb95b0c -->
-値を含む文字列は文全体を返す関数なので、翻訳では値を文中の任意の位置に配置できます。`then` は `action` プロパティを、`shortcutOpens` はキーキャップ形式のコンソールショートカットを、`step` はステップ番号とステップ総数を受け取ります。`messages` は、スクリーンリーダーが読み上げるラベルとコンソールのサイズコントロール（`sizeControl`）にも対応しています。`<ViewportControl>` と `<TextCanvas>` も同じ `messages` プロパティを受け取ります。⌘⌥J、Ctrl+Shift+J、Enterなどのキーキャップは翻訳しません。

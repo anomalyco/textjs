@@ -11,21 +11,24 @@ export interface FocusPadMessages {
   stepLive: string;
   /** Headline while the console is closed: "Open the console". */
   openConsole: string;
-  /** Label for a shortcut's keycaps: "Press ⌘ ⌥ J". */
+  /** Screen reader label for a shortcut's keycaps: "Press ⌘ ⌥ J". */
   pressShortcut: (keys: string) => string;
   /** "The app renders in DevTools." */
   rendersInDevtools: string;
-  /** Shown instead in Safari, which hides Web Inspector until its developer features are on. */
+  /** Shown in Safari instead of `rendersInDevtools`: "First turn on …". Safari hides Web Inspector until its developer features are on. */
   safariDeveloperFeatures: string;
-  /** The line after the shortcut. `action` is the `action` prop, or `defaultAction` of the first hint. */
+  /** Last line of the first step: "Then click here and press ↑ ↓." `action` is the `action` prop, or `defaultAction`'s text. */
   then: (action: string) => ReactNode;
-  /** The action when there's no `action` prop: "press ↑ ↓" for the first hint's keys, or "type" without hints. */
+  /**
+   * The action when there's no `action` prop: "press ↑ ↓" for the first hint's keys, or "type" without hints.
+   * The result is passed into `then(action)`.
+   */
   defaultAction: (keys: string | null) => string;
   /** Headline while the page doesn't have the keyboard: "Click here". */
   clickHere: string;
   /** "The app reads keys from this page." */
   readsKeys: string;
-  /** "⌘⌥J opens the console." `shortcut` is the shortcut as a keycap. */
+  /** "⌘⌥J opens the console." `shortcut` is the shortcut as `<kbd>` elements, one per browser until the browser is detected. */
   shortcutOpens: (shortcut: ReactNode) => ReactNode;
   /** Headline while keys reach the app: "Live in your console". */
   liveInConsole: string;
@@ -37,17 +40,22 @@ export interface FocusPadMessages {
   needsDesktop: string;
   /** Size control option that follows the docked console: "Fit console". The measured size is appended. */
   fitConsole: string;
-  /** Size control option for any other size: "Custom". */
+  /** Size control option for a typed size: "Custom". "…" or the size is appended. */
   custom: string;
   /** Size control label: "Console size". */
   consoleSize: string;
   /** Size control tooltip while it can't measure the console. */
   consoleSizeUndocked: string;
-  /** Labels for the custom size fields: "Columns", "Rows". */
+  /** Label for the custom width field: "Columns". */
   columns: string;
+  /** Label for the custom height field: "Rows". */
   rows: string;
 }
 
+/** The strings `<ViewportControl>` shows: its options, label, tooltip and custom size fields. */
+export type ViewportControlMessages = Pick<FocusPadMessages, "fitConsole" | "custom" | "consoleSize" | "consoleSizeUndocked" | "columns" | "rows">;
+
+/** The English strings. `<FocusPad>`, `<TextCanvas>` and `<ViewportControl>` use them for any key `messages` leaves out. */
 export const defaultFocusPadMessages: FocusPadMessages = {
   step: (n, total) => `Step ${n} of ${total}`,
   stepLive: "Live",
@@ -78,9 +86,9 @@ export const defaultFocusPadMessages: FocusPadMessages = {
 };
 
 /** `base` (the defaults) with `messages` on top; a key set to `undefined` keeps the base. */
-export function resolveFocusPadMessages(messages: Partial<FocusPadMessages> | undefined, base: FocusPadMessages = defaultFocusPadMessages): FocusPadMessages {
+export function resolveFocusPadMessages<T extends object = FocusPadMessages>(messages: Partial<T> | undefined, base: T = defaultFocusPadMessages as unknown as T): T {
   if (!messages) return base;
-  const out: Record<string, unknown> = { ...base };
+  const out: Record<string, unknown> = { ...(base as Record<string, unknown>) };
   for (const [k, v] of Object.entries(messages)) if (v !== undefined) out[k] = v;
-  return out as unknown as FocusPadMessages;
+  return out as T;
 }

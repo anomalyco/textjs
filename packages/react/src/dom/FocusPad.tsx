@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { CHROME_STORAGE_KEY, detectConsoleBrowser, estimateDockedConsoleSize, extractStyledFrame, type ConsoleBrowser, type KeyInputEvent, type StyledFrame } from "@textjs/core";
 import type { ConsoleRoot } from "../root";
 import { ConsoleMirror } from "./ConsoleMirror";
@@ -118,6 +118,7 @@ const CSS = `
 .tx-pad-seg{position:relative;width:24px;height:4px;border-radius:2px;background:var(--tx-track);overflow:hidden}
 .tx-pad-seg>i{position:absolute;inset:0;border-radius:inherit;transition:transform .5s ${EASE},opacity .3s ease}
 .tx-pad-seg>i:first-child{background:var(--tx-text);transform-origin:left center;transform:scaleX(0)}
+[dir=rtl] .tx-pad-seg>i:first-child{transform-origin:right center}
 .tx-pad-seg[data-step=done]>i:first-child{transform:none;opacity:.4}
 .tx-pad-seg[data-step=current]>i:first-child{transform:none}
 .tx-pad-seg>i:last-child{background:var(--tx-live);opacity:0}
@@ -148,7 +149,7 @@ const CSS = `
 .tx-pad-touch{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:240px;padding:0 8px}
 .tx-pad-touch h2{margin:0;font-size:28px;line-height:36px;font-weight:600;letter-spacing:-.028em;color:var(--tx-text);text-align:center}
 .tx-pad-touch p{margin:0;max-width:400px;font-size:15px;line-height:24px;color:var(--tx-muted);text-align:center;text-wrap:balance}
-.tx-pad-size{position:absolute;right:24px;bottom:24px}
+.tx-pad-size{position:absolute;inset-inline-end:24px;bottom:24px}
 .tx-pad-size:has(select:focus-visible){outline:2px solid var(--tx-focus);outline-offset:4px;border-radius:4px}
 @media (min-width:901px){.tx-pad[data-size-corner] .tx-pad-desk{padding-bottom:32px}}
 @media (max-width:900px){.tx-pad-size{position:static}}
@@ -169,6 +170,9 @@ html[data-browser=safari] .tx-pad .tx-pad-sub,.tx-pad[data-console=safari] .tx-p
 @keyframes tx-pad-ring{0%{opacity:.6}100%{opacity:0}}
 @keyframes tx-pad-pop{0%{opacity:0;transform:translateY(4px)}12%{opacity:1;transform:none}70%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.tx-pad *{animation:none!important;transition:none!important}.tx-pad-ring,.tx-pad-dot::after,.tx-pad-click::after{display:none}}
+.tx-pad-keys,.tx-pad-hint>span,.tx-pad-echo,.tx-pad-line kbd{direction:ltr;unicode-bidi:isolate}
+.tx-pad:is(:lang(ja),:lang(zh),:lang(ko)) .tx-pad-gap{display:none}
+.tx-pad:is(:lang(ar),:lang(fa),:lang(ur),:lang(he),:lang(hi),:lang(ja),:lang(ko),:lang(zh)) :is(.tx-pad-headline,.tx-pad-touch h2){letter-spacing:0}
 html:not([data-os=mac]) .tx-pad .tx-os-mac,html[data-os=mac] .tx-pad .tx-os-other,html:not([data-browser=firefox]) .tx-pad .tx-br-firefox,html:not([data-browser=safari]) .tx-pad .tx-br-safari,html[data-browser=firefox] .tx-pad .tx-br-chromium,html[data-browser=safari] .tx-pad .tx-br-chromium,html[data-browser=safari] .tx-pad .tx-not-safari{display:none!important}
 `;
 
@@ -386,7 +390,8 @@ export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, la
               <span key="safari" className={devtools ? "tx-pad-line" : "tx-pad-line tx-br-safari"}>
                 {m.safariDeveloperFeatures}
               </span>
-            ) : null}{" "}
+            ) : null}
+            <span className="tx-pad-gap"> </span>
             <span className="tx-pad-line">{m.then(doThis)}</span>
           </p>
         </>
@@ -403,7 +408,8 @@ export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, la
             </span>
           </div>
           <p key="click-sub" className={cls("tx-pad-sub")}>
-            <span className="tx-pad-line">{m.readsKeys}</span>{" "}
+            <span className="tx-pad-line">{m.readsKeys}</span>
+            <span className="tx-pad-gap"> </span>
             <span className="tx-pad-line">
               {m.shortcutOpens(
                 (devtools ? [devtools] : CONSOLES).map((c) => (
@@ -460,7 +466,9 @@ export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, la
  */
 export function FocusPad({ root, title, hints = [], action, capturing, onActivate, appearance = "dark", showMirrorDefault = false, top, banner, className, style, children, sizeControl = false, messages }: FocusPadProps): ReactNode {
   const c = PALETTE[appearance];
-  const m = resolveFocusPadMessages(messages);
+  const m = useMemo(() => resolveFocusPadMessages(messages), [messages]);
+  const sizeOverrides = typeof sizeControl === "object" ? sizeControl.messages : undefined;
+  const sizeMessages = useMemo(() => resolveFocusPadMessages(sizeOverrides, m), [sizeOverrides, m]);
   const [pageFocused, setPageFocused] = useState(true);
   const [docked, setDocked] = useState(false);
   const [blurred, setBlurred] = useState(false);
@@ -624,7 +632,7 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
             color={c.subtle}
             activeColor={c.text}
             {...(typeof sizeControl === "object" ? sizeControl : {})}
-            messages={resolveFocusPadMessages(typeof sizeControl === "object" ? sizeControl.messages : undefined, m)}
+            messages={sizeMessages}
             onChange={(choice) => {
               if (typeof sizeControl === "object") sizeControl.onChange?.(choice);
               if (onActivate) onActivate();

@@ -7,9 +7,10 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 <!-- s:2e16922cfc -->
 追加
 
-<!-- s:d86a45e51a -->
-- `@textjs/react`: `<FocusPad messages>` で、翻訳されたサイト向けにパッドの組み込み文字列を置き換えられます。すべての行、スクリーンリーダーのラベル、コンソールサイズのコントロールを対象とし、`<TextCanvas>` と `<ViewportControl>` も受け付けます。「ここをクリックして↑ ↓を押してください。」のように値を含む文字列は、文全体を返す関数です。`defaultFocusPadMessages` には英語のテキストが入っています。`messages` を指定しなければ、パッドは従来どおりに描画されます。[フォーカスパッドの翻訳](https://textjs.org/docs/internationalization#translating-the-focus-pad)を参照してください。
-- textjs.org: 日本語版のPlayground、OpenCode、Coffee、学習ページのフォーカスパッドが、各デモのキーの下にあるラベルを含めて日本語になりました。
+<!-- s:4a00c6f42e -->
+- `@textjs/react`: `<FocusPad messages>` で、翻訳されたサイト向けにパッドの組み込み文字列を置き換えられます。すべての行、スクリーンリーダー用のラベル、コンソールサイズのコントロールが対象です。`<TextCanvas>` と `<ViewportControl>` も `messages` を受け取ります。`<ViewportControl>` はサイズコントロールのキーのみを使います。「次にここをクリックして、↑ ↓を押します。」のように値を含む文字列は、文全体を返す関数です。`defaultFocusPadMessages` に英語のテキストがあります。[フォーカスパッドの翻訳](https://textjs.org/docs/internationalization#translating-the-focus-pad)を参照してください。
+- `@textjs/react`: 右から左へ書くページでは、フォーカスパッドは⌘ ⌥ Jなどのキー表示や120×36などのコンソールサイズを左から右へ表示し、サイズコントロールとステップバーの配置を左右反転します。中国語、日本語、韓国語のページでは、2つの文の間のスペースを省きます。
+- textjs.org: textjs.org/jaでは、各デモのキーの下にあるラベルを含め、すべてのページでフォーカスパッドが日本語になります。
 
 <!-- s:5b88618770 -->
 変更

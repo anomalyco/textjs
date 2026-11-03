@@ -20,7 +20,7 @@ export const PAD_MESSAGES: FocusPadMessages = {
   openOnDesktop: t("Open on a desktop"),
   needsDesktop: t("This app renders in the DevTools console, which needs a desktop browser."),
   fitConsole: t("Fit console"),
-  custom: t("Custom"),
+  custom: t("Custom size"),
   consoleSize: t("Console size"),
   consoleSizeUndocked: t("Console size. Undocked DevTools can't be measured from the page, so this uses a default. Dock DevTools or pick a size."),
   columns: t("Columns"),

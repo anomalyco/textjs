@@ -102,9 +102,9 @@ export const DOCS_META: readonly DocMeta[] = [
   },
   {
     slug: "internationalization",
-    title: msg("Internationalization: Bidirectional Text"),
-    nav: msg("Bidirectional Text"),
-    description: msg("Hebrew, Arabic and mixed-direction text: UAX #9, dir, alignment, Arabic shaping and grid-exact output."),
+    title: msg("Internationalization"),
+    nav: msg("Internationalization"),
+    description: msg("Right-to-left and mixed-direction text, Arabic shaping, and translating the focus pad."),
     category: "Building Your Application",
   },
   {

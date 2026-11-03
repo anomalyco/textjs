@@ -89,6 +89,27 @@ Pass `measureText: false` to turn fitting off, or supply your own `(text, bold, 
 - **Terminals.** Terminals that ignore both BDSM and `LRO` and run their own bidi (for example with bidi enabled in iTerm2) may reorder right-to-left rows again.
 - **DOM mirrors.** `<ConsoleMirror>` doesn't fit widths, so right-to-left runs there can drift by up to 0.3% of their width.
 
+## Translating the focus pad
+
+`<FocusPad>` from `@textjs/react/dom` (also rendered by `<TextCanvas>`) tells visitors to open the console, click the page and press a key. Its text is English by default. To translate it, pass `messages` with the strings you want to replace. Keys you leave out keep their English text, listed in `defaultFocusPadMessages`.
+
+```tsx
+import { FocusPad, type FocusPadMessages } from "@textjs/react/dom";
+
+const ja: Partial<FocusPadMessages> = {
+  openConsole: "コンソールを開く",
+  step: (n, total) => `${total}ステップ中${n}ステップ目`,
+  then: (action) => `次にここをクリックして、${action}。`,
+  shortcutOpens: (shortcut) => <>{shortcut}でコンソールが開きます。</>,
+};
+
+<FocusPad root={root} hints={[{ keys: "↑ ↓", label: "件数" }]} action="↑ ↓を押します" messages={ja} />;
+```
+
+A string that contains a value is a function that returns the whole sentence, so a translation can put the value anywhere in it. `step`, `pressShortcut`, `then`, `defaultAction` and `shortcutOpens` are functions. `step` gets the step number and the number of steps. `then` gets the `action` prop, or `defaultAction`'s text when there's no `action`. `defaultAction` gets the first hint's keys, or `null` without hints. `pressShortcut` gets the shortcut's keys for screen readers, and `shortcutOpens` gets the shortcut as `<kbd>` elements.
+
+`messages` also covers the labels screen readers announce and the console size control (`sizeControl`). `<TextCanvas>` takes the same `messages` prop. `<ViewportControl>` takes it too and uses the size control's keys. Keycaps such as ⌘⌥J, Ctrl+Shift+J and Enter aren't translated.
+
 ## API
 
 ```ts
@@ -100,22 +121,3 @@ paragraphDirection("123 שלום");           // "rtl" (rules P2–P3)
 ```
 
 `resolveLevels(types, codePoints, direction)`, `applyLineRules` and `reorderIndices` expose the algorithm itself: rules P1–I2, L1 and L2.
-
-## Translating the focus pad
-
-`<FocusPad>` from `@textjs/react/dom` (also rendered by `<TextCanvas>`) tells visitors to open the console, click the page and press a key. Its text is English by default. To translate it, pass `messages` with any of its strings. Keys you leave out keep their English text, listed in `defaultFocusPadMessages`.
-
-```tsx
-import { FocusPad, type FocusPadMessages } from "@textjs/react/dom";
-
-const ja: Partial<FocusPadMessages> = {
-  openConsole: "コンソールを開きます",
-  step: (n, total) => `ステップ ${n}/${total}`,
-  then: (action) => `次に、ここをクリックして${action}。`,
-  shortcutOpens: (shortcut) => <>{shortcut}でコンソールが開きます。</>,
-};
-
-<FocusPad root={root} hints={[{ keys: "↑ ↓", label: "件数" }]} action="↑ ↓を押します" messages={ja} />;
-```
-
-A string that contains a value is a function that returns the whole sentence, so a translation can put the value anywhere in it. `then` gets the `action` prop, `shortcutOpens` gets the console shortcut as a keycap, and `step` gets the step number and the number of steps. `messages` also covers the labels screen readers announce and the console size control (`sizeControl`). `<ViewportControl>` and `<TextCanvas>` take the same `messages` prop. Keycaps such as ⌘⌥J, Ctrl+Shift+J and Enter aren't translated.

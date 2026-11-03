@@ -16,12 +16,14 @@ const KEEP = new Set(["text run"]);
 const padKeys = (): string[] => [...extractMessages().values()].filter((m) => m.files.includes("src/site/pad-messages.tsx")).map((m) => m.key);
 
 describe("focus pad strings", () => {
-  test("in English, the site's pad is the package's pad", () => {
+  test("in English, the site's pad is the package's pad (apart from the size control's \"Custom size\")", () => {
     expect(Object.keys(PAD_MESSAGES).sort()).toEqual(Object.keys(defaultFocusPadMessages).sort());
     const hints = [{ keys: "← →", label: "switch region" }];
     // The prerendered (open) state, with hydration markers.
-    const pad = (messages?: typeof PAD_MESSAGES): string => renderToString(<FocusPad root={null} hints={hints} action="press ← →" sizeControl messages={messages} />);
-    expect(pad(PAD_MESSAGES)).toBe(pad());
+    const pad = (messages?: Partial<typeof PAD_MESSAGES>): string => renderToString(<FocusPad root={null} hints={hints} action="press ← →" sizeControl messages={messages} />);
+    // One English difference: the size option reads "Custom size", because the catalog's "Custom" is a price.
+    expect(PAD_MESSAGES.custom).toBe("Custom size");
+    expect(pad(PAD_MESSAGES)).toBe(pad({ custom: "Custom size" }));
     for (const state of ["open", "click", "live"] as FocusPadState[]) {
       for (const devtools of [null, "chromium-mac", "safari", "firefox-other"] as (FocusPadConsole | null)[]) {
         for (const h of [hints, []]) {
