@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `@textjs/react`, `@textjs/app`: while the page doesn't have focus, the console frame's last row reads "Click the page to use the keyboard", so a visitor who clicks the app in the console knows why keys stopped working. It shows when the app has a `useInput` or `usePaste` handler or a focus target, in the browser console only, including on server-rendered routes. Inline mirrors and the VS Code preview don't show it. Turn it off with `focusHint: false` in `text.config.ts` or `createConsoleRoot`.
+- `@textjs/react`: `usePageFocus()` returns whether the page has focus. To decide yourself when the app wants the keyboard, set `focusHint: false` and render `<FocusHint active={…}>`. `useInput(handler, { ambient: true })` marks an always-on shortcut that doesn't show the hint by itself.
+
 ## [1.2.0] - 2026-11-02
 
 ### Added

@@ -282,6 +282,28 @@ describe("error.tsx, loading.tsx and the root error boundary", () => {
   });
 });
 
+describe("theme", () => {
+  test("the App Router and the root share one theme, so root chrome follows theme changes", async () => {
+    let shell: ReturnType<typeof useAppTheme> | null = null;
+    function Page(): ReactNode {
+      shell = useAppTheme();
+      return <Text>{shell.theme.name}</Text>;
+    }
+    const history = createMemoryHistory("/");
+    t = await createTestRoot({ width: 40, height: 4 });
+    await t.render(<AppRouter routes={{ segment: "", page: { default: Page } }} history={history} errorStore={null} documentTitle={false} theme="tokyoNight" />);
+    expect(t.root.getTheme().id).toBe(themes.tokyoNight.id);
+    await t.act(() => shell!.setTheme("geistLight"));
+    expect(t.root.getTheme().id).toBe(themes.geistLight.id);
+    expect(t.frame()).toContain(themes.geistLight.name);
+    await t.act(() => t!.root.setTheme("amberCrt"));
+    expect(shell!.theme.id).toBe(themes.amberCrt.id);
+    await t.act(() => shell!.cycleTheme());
+    expect(t.root.getTheme().id).toBe(shell!.theme.id);
+    expect(shell!.theme.id).not.toBe(themes.amberCrt.id);
+  });
+});
+
 describe("<TextDevOverlay>", () => {
   function Settings(): ReactNode {
     const shell = useAppTheme();

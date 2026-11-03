@@ -13,6 +13,8 @@ export interface LiveManifest {
   basePath: string;
   title: string;
   viewport: TextConfig["viewport"];
+  /** `false` when `text.config.ts` turns the focus hint off. */
+  focusHint?: boolean;
   /** Player script URL (with `basePath`), when any route renders on the server. */
   player: string | null;
   /** Patterns of server-rendered pages. */

@@ -34,6 +34,11 @@ export interface RegisterOptions {
   scope?: Scope;
   /** Receive events even while a modal trap is active outside this handler's scope. */
   global?: boolean;
+  /**
+   * An always-on shortcut (like the Dev Overlay's F2) that doesn't mean the app wants the
+   * keyboard, so it never shows the focus hint by itself.
+   */
+  ambient?: boolean;
 }
 
 interface Entry<E> {
@@ -42,6 +47,7 @@ interface Entry<E> {
   seq: number;
   scope: Scope;
   global: boolean;
+  ambient: boolean;
 }
 
 /** Priority used by focused text editors so typing never leaks into global shortcuts. */
@@ -62,6 +68,8 @@ function withControl<E extends object>(event: E): E & EventControl {
 export class InputManager {
   private readonly entries: { [K in InputEventType]: Array<Entry<EventTypes[K]>> } = { key: [], paste: [], wheel: [] };
   private readonly cleanup: Array<() => void> = [];
+  private readonly wantListeners = new Set<() => void>();
+  private wanting = 0;
 
   constructor(
     readonly engine: InputEngine,
@@ -78,7 +86,24 @@ export class InputManager {
         this.flush();
       }),
       engine.on("wheel", (e) => runWithPriority(ContinuousEventPriority, () => this.dispatch("wheel", e), "wheel")),
+      focus.onEntriesChange(() => this.emitWants()),
     );
+  }
+
+  /**
+   * Whether the app wants the keyboard: a key or paste handler is registered (other than
+   * `ambient` ones), or Tab can reach a focus target. Drives the default focus hint.
+   */
+  readonly wantsKeys = (): boolean => this.wanting > 0 || this.focus.hasTargets();
+
+  /** Called when {@link wantsKeys} may have changed. */
+  readonly subscribeWants = (listener: () => void): (() => void) => {
+    this.wantListeners.add(listener);
+    return () => this.wantListeners.delete(listener);
+  };
+
+  private emitWants(): void {
+    for (const l of this.wantListeners) l();
   }
 
   private flush(): void {
@@ -95,14 +120,19 @@ export class InputManager {
       seq: ++seqCounter,
       scope: options.scope ?? ROOT_SCOPE,
       global: options.global ?? false,
+      ambient: options.ambient ?? false,
     };
+    const counts = type !== "wheel" && !entry.ambient;
     // Keep sorted: priority desc, then most recently registered first.
     let i = 0;
     while (i < list.length && ((list[i] as Entry<EventTypes[K]>).priority > entry.priority || ((list[i] as Entry<EventTypes[K]>).priority === entry.priority && (list[i] as Entry<EventTypes[K]>).seq > entry.seq))) i++;
     list.splice(i, 0, entry);
+    if (counts && ++this.wanting === 1) this.emitWants();
     return () => {
       const idx = list.indexOf(entry);
-      if (idx >= 0) list.splice(idx, 1);
+      if (idx < 0) return;
+      list.splice(idx, 1);
+      if (counts && --this.wanting === 0) this.emitWants();
     };
   }
 
@@ -136,5 +166,7 @@ export class InputManager {
     this.entries.key.length = 0;
     this.entries.paste.length = 0;
     this.entries.wheel.length = 0;
+    this.wanting = 0;
+    this.wantListeners.clear();
   }
 }

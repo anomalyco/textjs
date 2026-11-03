@@ -6,7 +6,7 @@
 import { extractStyledFrame, InputEngine, type StyledFrame } from "@textjs/core";
 import { createConsoleRoot, type ConsoleRoot } from "@textjs/react";
 import { applyViewportChoice, VIEWPORT_CHOICE_KEY, type ViewportChoice } from "@textjs/react/dom";
-import { CompanionApp } from "./App";
+import { CompanionApp, CompanionFocusHint } from "./App";
 import {
   activateCompanion,
   BYPASS_SELECTOR,
@@ -14,8 +14,10 @@ import {
   COMPANION_ROWS,
   companionReady,
   ENGAGE_SELECTOR,
+  engagesConsole,
   getCompanion,
   LEARN_VIEWPORT_KEY,
+  noteWindowFocus,
   PLAYGROUND_VIEWPORT_KEY,
   registerBootedCompanion,
   setBootingCompanion,
@@ -77,6 +79,11 @@ export class GatedInputEngine extends InputEngine {
   }
 }
 
+const selectionCollapsed = (): boolean => {
+  const s = typeof getSelection === "function" ? getSelection() : null;
+  return s === null || s.isCollapsed;
+};
+
 const finePointer = (): boolean => typeof matchMedia === "function" && matchMedia("(pointer: fine)").matches;
 
 let bootStarted: Promise<Companion> | null = null;
@@ -99,6 +106,8 @@ export function bootCompanion(): Promise<Companion> {
         input: engine,
         theme: initialSnap.theme,
         tabFocus: false,
+        // CompanionFocusHint shows it only where clicking the page gives the console the keyboard.
+        focusHint: false,
         identifierPrefix: "txc",
         ...consoleRootErrors,
       }),
@@ -157,16 +166,30 @@ export function bootCompanion(): Promise<Companion> {
       }
     });
 
-    // Only clicking an explicit console surface routes keys into the console;
-    // the page background stays a normal, selectable, scrollable document.
+    let focusOnClick = false;
     document.addEventListener("mousedown", (e) => {
       const t = e.target as Element | null;
+      focusOnClick = false;
       if (!t || typeof t.closest !== "function") return;
-      if (t.closest(ENGAGE_SELECTOR) === null || t.closest(BYPASS_SELECTOR) !== null) return;
+      const snap = siteStore.getSnapshot();
+      if (!engagesConsole(t, snap.consoleInput, snap.pathname)) return;
       siteStore.set({ consoleInput: true });
-      if (finePointer()) setTimeout(() => engine.focus(), 0);
+      focusOnClick = finePointer();
     });
-    window.addEventListener("focus", () => engine.setFocused(true));
+    // The hidden input takes focus once the click is over, and only without a text selection, so
+    // dragging or double-clicking to select text and ⌘C still work.
+    document.addEventListener("click", () => {
+      if (!focusOnClick) return;
+      focusOnClick = false;
+      // After the click: a click inside a selection collapses it only once the event is over.
+      setTimeout(() => {
+        if (selectionCollapsed()) engine.focus();
+      }, 0);
+    });
+    window.addEventListener("focus", (e) => {
+      noteWindowFocus(e.timeStamp);
+      engine.setFocused(true);
+    });
     window.addEventListener("blur", () => engine.setFocused(false));
 
     const listeners = new Set<FrameListener>();
@@ -191,7 +214,12 @@ export function bootCompanion(): Promise<Companion> {
     if (!isCompanionTabLoaded(latestSnap.tab)) await preloadCompanionTab(latestSnap.tab);
     if (latestSnap.example !== null && !isCompanionTabLoaded("example")) await preloadCompanionTab("example");
 
-    root.render(<CompanionApp />);
+    root.render(
+      <>
+        <CompanionApp />
+        <CompanionFocusHint />
+      </>,
+    );
 
     const c: Companion = {
       root,

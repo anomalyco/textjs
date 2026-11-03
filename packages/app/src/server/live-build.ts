@@ -194,6 +194,7 @@ export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildRes
     pages: {},
     liveHtml: null,
     ...(config.live ? { live: config.live } : {}),
+    ...(config.focusHint === false ? { focusHint: false } : {}),
   };
   const write = (rel: string, html: string): void => {
     const file = join(outDir, rel);

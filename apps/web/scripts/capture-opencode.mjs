@@ -40,6 +40,8 @@ try {
   if (await screencast.count()) await screencast.click();
   await page.mouse.click(640, 600);
   const capture = async (label, needle) => {
+    // Playwright keeps each page focused; a blurred page would log the "Click the page" bar into the capture.
+    if (!(await page.evaluate(() => document.hasFocus()))) throw Error(`${label}: the page lost focus`);
     await page.waitForFunction((n) => window.capture?.[0].replace(/%c/g, "").includes(n), needle);
     await dt.locator(".console-message-text").filter({ hasText: needle }).last().waitFor({ state: "visible" });
     await page.waitForTimeout(150); // DT paints on its own 50ms throttle.

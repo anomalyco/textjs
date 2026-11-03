@@ -40,6 +40,7 @@ export { mergeStyleProps } from "./host";
 export {
   useApp,
   useViewport,
+  usePageFocus,
   useConsoleStats,
   useInput,
   usePaste,

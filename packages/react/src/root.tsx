@@ -23,6 +23,7 @@ import { StatsStore, ViewportStore } from "./stores";
 import { resolveTheme, ThemeProvider, type TextTheme, type ThemeName } from "./theme";
 import { TxBox } from "./host";
 import { connectDevTools, type DevToolsConnection } from "./devtools-hook";
+import { RootFocusHint } from "./components/FocusHint";
 
 export interface ConsoleRootOptions extends Omit<ConsoleRendererOptions, "root" | "input" | "viewport"> {
   /** Fixed grid width in cells (shorthand for `viewport.width`). */
@@ -39,6 +40,14 @@ export interface ConsoleRootOptions extends Omit<ConsoleRendererOptions, "root" 
   transparent?: boolean;
   /** Tab / Shift+Tab focus cycling (default `true`). */
   tabFocus?: boolean;
+  /**
+   * "Click the page to use the keyboard" over the console frame's last row while the page doesn't
+   * have focus and the app wants keys (an active `useInput` or `usePaste` handler, or a focus
+   * target). By default that needs an input engine that reads keys from this page; `true` also
+   * covers engines fed from a browser page elsewhere (server-rendered routes). `false` turns it off.
+   * See `<FocusHint>`.
+   */
+  focusHint?: boolean;
   identifierPrefix?: string;
   onUncaughtError?: (error: unknown) => void;
   onRecoverableError?: (error: unknown) => void;
@@ -91,11 +100,13 @@ function RootShell({
   runtime,
   themeStore,
   transparent,
+  focusHint,
   children,
 }: {
   runtime: RootRuntime;
   themeStore: ThemeStore;
   transparent: boolean;
+  focusHint: boolean | undefined;
   children: ReactNode;
 }): ReactNode {
   const theme = useSyncExternalStore(themeStore.subscribe, themeStore.get, themeStore.get);
@@ -112,6 +123,7 @@ function RootShell({
             wireframeLabel="app"
           >
             {children}
+            {focusHint === false ? null : <RootFocusHint pageInput={focusHint === true} />}
           </TxBox>
         </ThemeProvider>
       </ScopeContext>
@@ -138,6 +150,7 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
     theme,
     transparent = false,
     tabFocus = true,
+    focusHint,
     identifierPrefix = "tx",
     onUncaughtError = defaultErrorHandler,
     onRecoverableError = defaultErrorHandler,
@@ -232,6 +245,7 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
     focus,
     viewport: viewportStore,
     stats,
+    theme: themeStore,
     exit: (error?: unknown) => {
       // Defer so `exit()` is safe to call from render-phase handlers and effects.
       queueMicrotask(() => {
@@ -247,7 +261,7 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
     render(element: ReactNode) {
       if (unmounted) throw txError("TX005");
       reconciler.updateContainerSync(
-        <RootShell runtime={runtime} themeStore={themeStore} transparent={transparent}>
+        <RootShell runtime={runtime} themeStore={themeStore} transparent={transparent} focusHint={focusHint}>
           {element}
         </RootShell>,
         fiberRoot,

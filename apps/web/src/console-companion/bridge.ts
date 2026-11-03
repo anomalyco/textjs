@@ -2,7 +2,7 @@ import type { StyledFrame } from "@textjs/core";
 import type { ConsoleRoot } from "@textjs/react";
 import { loadViewportChoice, VIEWPORT_CHOICE_KEY, type ViewportChoice } from "@textjs/react/dom";
 import { exampleGrid, runsExamples } from "../docs/preview-meta";
-import type { CompanionTab } from "./store";
+import { isPadRoute, type CompanionTab } from "./store";
 
 /** The Home hero mirrors the console on the page, so Home keeps (at most) this shape. */
 export const COMPANION_COLS = 100;
@@ -67,8 +67,48 @@ export function shouldRouteToConsole(active: Element | null, consoleInput: boole
   return active.closest(BYPASS_SELECTOR) === null;
 }
 
+/** Page controls that handle their own clicks: pressing one never engages the console by itself. */
+export const INTERACTIVE_SELECTOR =
+  'a[href],button,input,textarea,select,label,summary,[contenteditable],[role=button],[tabindex]:not([tabindex="-1"]),[data-textjs-interactive]';
+
+/** A press on something that handles its own clicks (links, buttons, fields, the Console pill, search). */
+export function isInteractivePress(target: EventTarget | null): boolean {
+  const el = target as Element | null;
+  return el !== null && typeof el.closest === "function" && el.closest(`${INTERACTIVE_SELECTOR},${BYPASS_SELECTOR}`) !== null;
+}
+
+/** A press that brings focus back counts within this long after the window's `focus` event. */
+const REFOCUS_MS = 300;
+let windowFocusedAt = -Infinity;
+
+/** @internal Boot records each window `focus` event's time. */
+export function noteWindowFocus(timeStamp: number): void {
+  windowFocusedAt = timeStamp;
+}
+
+/**
+ * Whether a press is the click that brought focus back to the page from DevTools or another
+ * window, which only means "give the console the keyboard again". Browsers fire the window's
+ * `focus` before or after that `mousedown`, so both orders count.
+ */
+export function isRefocusPress(e: { timeStamp: number }): boolean {
+  if (typeof document !== "undefined" && typeof document.hasFocus === "function" && !document.hasFocus()) return true;
+  return e.timeStamp - windowFocusedAt < REFOCUS_MS;
+}
+
 /** Explicit console surfaces (live DevTools mirrors) that route keystrokes into the companion when clicked. */
 export const ENGAGE_SELECTOR = "[data-console-engage]";
+
+/**
+ * Whether pressing `target` routes keys into the console: an explicit console surface, or any
+ * non-interactive part of the page wherever the focus hint can show (pad pages, or once keys go to
+ * the console), so "Click the page" always works. Elsewhere the page stays a normal document.
+ */
+export function engagesConsole(target: Pick<Element, "closest">, consoleInput: boolean, pathname: string): boolean {
+  if (target.closest(BYPASS_SELECTOR) !== null) return false;
+  if (target.closest(ENGAGE_SELECTOR) !== null) return true;
+  return (consoleInput || isPadRoute(pathname)) && target.closest(INTERACTIVE_SELECTOR) === null;
+}
 
 export type FrameListener = (frame: StyledFrame) => void;
 

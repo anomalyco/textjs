@@ -8,6 +8,7 @@ import { scriptFor, partsFromSteps, initialSessions } from "../src/demos/opencod
 import { normalizeServerUrl } from "../src/demos/opencode/live";
 import { v1Message } from "../../opencode-console/lib/client";
 import { shouldRouteToConsole } from "../src/console-companion/boot";
+import { engagesConsole, isInteractivePress, isRefocusPress, noteWindowFocus } from "../src/console-companion/bridge";
 import { mount, type Harness } from "./helpers";
 
 /** Site store updates re-render the mounted companion, so they run inside `act`. */
@@ -195,6 +196,39 @@ describe("demo logic", () => {
   test("input coexistence gate", () => {
     expect(shouldRouteToConsole(null, true)).toBe(true);
     expect(shouldRouteToConsole(null, false)).toBe(false);
+  });
+
+  test("clicking the page gives the console the keyboard wherever the focus hint can show", () => {
+    // A target that matches the selectors listed in `hits`.
+    const el = (...hits: string[]) => ({ closest: (sel: string) => (hits.some((h) => sel.split(",").includes(h)) ? ({} as Element) : null) });
+    const page = el();
+    // Pad pages, before the first click on the pad.
+    expect(engagesConsole(page, false, "/playground")).toBe(true);
+    expect(engagesConsole(page, false, "/coffee")).toBe(true);
+    // Docs, blog and Home only once keys go to the console (an example is running, or the pill is on).
+    expect(engagesConsole(page, false, "/docs/routing")).toBe(false);
+    expect(engagesConsole(page, true, "/docs/routing")).toBe(true);
+    // Links, buttons and fields keep their own clicks; explicit console surfaces always engage.
+    expect(engagesConsole(el("a[href]"), false, "/playground")).toBe(false);
+    expect(engagesConsole(el("button"), true, "/docs")).toBe(false);
+    expect(engagesConsole(el("input"), true, "/playground")).toBe(false);
+    expect(engagesConsole(el("[data-console-engage]"), false, "/docs")).toBe(true);
+    expect(engagesConsole(el('[tabindex]:not([tabindex="-1"])'), true, "/docs")).toBe(false);
+  });
+
+  test("a refocus press on the Console pill, search or another control keeps its own meaning", () => {
+    const el = (...hits: string[]) => ({ closest: (sel: string) => (hits.some((h) => sel.split(",").includes(h)) ? ({} as Element) : null) }) as unknown as EventTarget;
+    expect(isInteractivePress(el("[data-textjs-interactive]"))).toBe(true); // Console pill
+    expect(isInteractivePress(el("input"))).toBe(true); // search
+    expect(isInteractivePress(el("[data-console-bypass]"))).toBe(true);
+    expect(isInteractivePress(el('[tabindex]:not([tabindex="-1"])'))).toBe(true);
+    expect(isInteractivePress(el())).toBe(false);
+  });
+
+  test("the press that brings focus back from DevTools is a refocus, in either event order", () => {
+    noteWindowFocus(1000);
+    expect(isRefocusPress({ timeStamp: 1020 })).toBe(true);
+    expect(isRefocusPress({ timeStamp: 5000 })).toBe(false);
   });
 
   test("every demo declares two or three keys and what to do first", () => {

@@ -38,3 +38,4 @@ export { KeyHelp, KeyHints, Kbd, StatusBar, type KeyHelpProps, type KeyHintsProp
 export { Gradient, GRADIENTS, sampleGradient, type GradientProps, type GradientName } from "./Gradient";
 export { Image, loadImagePixels, resamplePixels, type ImageProps, type PixelData } from "./Image";
 export { Center, Stack, Grid, SplitPane, FocusScope, type StackProps, type GridProps, type SplitPaneProps, type FocusScopeProps } from "./layout";
+export { FocusHint, type FocusHintProps } from "./FocusHint";

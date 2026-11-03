@@ -15,7 +15,7 @@ import {
   type ConsoleTarget,
   type InputEvent,
 } from "@textjs/core";
-import { isAppPath, LIVE_PATH, LIVE_SESSION_HEADER, LiveFrameDecoder, type LiveInput, type LiveServerMessage } from "./live-protocol";
+import { isAppPath, LIVE_PATH, LIVE_SESSION_HEADER, LiveFrameDecoder, parseLiveBanner, type LiveBanner, type LiveInput, type LiveServerMessage } from "./live-protocol";
 
 export interface FramePlayerConfig {
   /** Mount point (`""` or `"/console"`). */
@@ -84,6 +84,26 @@ export class FramePlayerCore {
     const ok = this.decoder.apply(this.buffer, msg);
     if (ok) this.requestPaint();
     return ok;
+  }
+
+  private banner: LiveBanner | null = null;
+
+  /** Draw the server's focus hint over the frame's last row in the console only (`null` removes it). */
+  setBanner(banner: unknown): void {
+    const next = parseLiveBanner(banner);
+    const cur = this.banner;
+    if (next === cur || (next !== null && cur !== null && next.text === cur.text && next.fg === cur.fg && next.bg === cur.bg)) return;
+    this.banner = next;
+    this.driver._setBanner(next);
+    this.requestPaint();
+  }
+
+  /**
+   * A new or resumed stream began. Drop the old stream's banner: the server resends one that still
+   * applies right after `hello`, and sends nothing when focus came back while the stream was down.
+   */
+  startStream(): void {
+    this.setBanner(null);
   }
 
   setHidden(hidden: boolean): void {
@@ -293,6 +313,7 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
         if (!core.applyFrame(msg, data.length)) reconnect();
         break;
       case "hello":
+        core.startStream();
         sid = msg.sid;
         retry = 500;
         setStatus("live");
@@ -315,6 +336,9 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
         break;
       case "title":
         document.title = msg.title;
+        break;
+      case "banner":
+        core.setBanner(msg.banner);
         break;
       case "load": {
         const href = safeHref(msg.href, base);
