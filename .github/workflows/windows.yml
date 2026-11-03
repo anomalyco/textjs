@@ -1,6 +1,7 @@
 # ▼ Windows: the packages' build, typecheck and tests; this checkout's build of
 # textjs.org in headful Chrome and Edge with DevTools docked, driven by real OS
-# keystrokes (US, German and Japanese IME); and, by hand, what a new user runs
+# keystrokes (US, German and Japanese IME), with chart glyphs checked in Consolas alone
+# (Windows 10's console font); and, by hand, what a new user runs
 # from npm (create-text-app with bunx and npx, text build, text dev, the bridge).
 #
 # The Packages and Browser jobs run only when something they cover changed.
@@ -70,6 +71,7 @@ jobs:
               - apps/opencode-console/**
               - packages/**
               - scripts/windows/**
+              - bench/devtools/glyph-*
               - package.json
               - bun.lock
               - .github/actions/setup/**
@@ -168,6 +170,8 @@ jobs:
           Set-WinUserLanguageList $list -Force
 
       - uses: ./.github/actions/setup
+        with:
+          install-dirs: bench/devtools # playwright-core for the glyph check
 
       # The pull request's own site, so a check never depends on what's live on textjs.org.
       # The terminal.shop API points at a closed port, so /coffee shows the recorded catalogue.
@@ -185,6 +189,12 @@ jobs:
 
       - name: Check ${{ matrix.browser }}
         run: node scripts/windows/browser-check.mjs --browser ${{ matrix.browser }} --origin http://localhost:4173 --out "$RUNNER_TEMP/browser"
+
+      # Windows 10 has no Cascadia Mono, so its console draws frames in Consolas, which lacks
+      # eighth blocks, quadrants, braille, ▶ and ✓. Forcing Consolas alone simulates it.
+      - name: Chart glyphs in Consolas (${{ matrix.browser }})
+        if: always()
+        run: bun bench/devtools/glyph-shot.ts --browser ${{ matrix.browser }} --out "$RUNNER_TEMP/browser/glyphs" --check
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
