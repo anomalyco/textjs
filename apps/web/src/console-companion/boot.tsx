@@ -6,7 +6,7 @@
 import { extractStyledFrame, InputEngine, type StyledFrame } from "@textjs/core";
 import { createConsoleRoot, type ConsoleRoot } from "@textjs/react";
 import { applyViewportChoice, VIEWPORT_CHOICE_KEY, type ViewportChoice } from "@textjs/react/dom";
-import { CompanionApp } from "./App";
+import { CompanionApp, CompanionFocusHint } from "./App";
 import {
   activateCompanion,
   BYPASS_SELECTOR,
@@ -99,6 +99,8 @@ export function bootCompanion(): Promise<Companion> {
         input: engine,
         theme: initialSnap.theme,
         tabFocus: false,
+        // CompanionFocusHint shows it only where clicking the page gives the console the keyboard.
+        focusHint: false,
         identifierPrefix: "txc",
         ...consoleRootErrors,
       }),
@@ -191,7 +193,12 @@ export function bootCompanion(): Promise<Companion> {
     if (!isCompanionTabLoaded(latestSnap.tab)) await preloadCompanionTab(latestSnap.tab);
     if (latestSnap.example !== null && !isCompanionTabLoaded("example")) await preloadCompanionTab("example");
 
-    root.render(<CompanionApp />);
+    root.render(
+      <>
+        <CompanionApp />
+        <CompanionFocusHint />
+      </>,
+    );
 
     const c: Companion = {
       root,

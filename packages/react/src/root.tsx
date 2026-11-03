@@ -23,6 +23,7 @@ import { StatsStore, ViewportStore } from "./stores";
 import { resolveTheme, ThemeProvider, type TextTheme, type ThemeName } from "./theme";
 import { TxBox } from "./host";
 import { connectDevTools, type DevToolsConnection } from "./devtools-hook";
+import { FocusHint } from "./components/FocusHint";
 
 export interface ConsoleRootOptions extends Omit<ConsoleRendererOptions, "root" | "input" | "viewport"> {
   /** Fixed grid width in cells (shorthand for `viewport.width`). */
@@ -39,6 +40,11 @@ export interface ConsoleRootOptions extends Omit<ConsoleRendererOptions, "root" 
   transparent?: boolean;
   /** Tab / Shift+Tab focus cycling (default `true`). */
   tabFocus?: boolean;
+  /**
+   * Cover the bottom row with "Click the page to use the keyboard" while the page doesn't have focus
+   * and the input engine reads keys from it (default `true`). See `<FocusHint>`.
+   */
+  focusHint?: boolean;
   identifierPrefix?: string;
   onUncaughtError?: (error: unknown) => void;
   onRecoverableError?: (error: unknown) => void;
@@ -91,11 +97,13 @@ function RootShell({
   runtime,
   themeStore,
   transparent,
+  focusHint,
   children,
 }: {
   runtime: RootRuntime;
   themeStore: ThemeStore;
   transparent: boolean;
+  focusHint: boolean;
   children: ReactNode;
 }): ReactNode {
   const theme = useSyncExternalStore(themeStore.subscribe, themeStore.get, themeStore.get);
@@ -112,6 +120,7 @@ function RootShell({
             wireframeLabel="app"
           >
             {children}
+            {focusHint ? <FocusHint /> : null}
           </TxBox>
         </ThemeProvider>
       </ScopeContext>
@@ -138,6 +147,7 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
     theme,
     transparent = false,
     tabFocus = true,
+    focusHint = true,
     identifierPrefix = "tx",
     onUncaughtError = defaultErrorHandler,
     onRecoverableError = defaultErrorHandler,
@@ -247,7 +257,7 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
     render(element: ReactNode) {
       if (unmounted) throw txError("TX005");
       reconciler.updateContainerSync(
-        <RootShell runtime={runtime} themeStore={themeStore} transparent={transparent}>
+        <RootShell runtime={runtime} themeStore={themeStore} transparent={transparent} focusHint={focusHint}>
           {element}
         </RootShell>,
         fiberRoot,

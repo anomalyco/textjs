@@ -31,6 +31,20 @@ useWheel((e) => scrollBy(e.rows));
 const { cols, rows, focused, paused } = useViewport();
 ```
 
+## `usePageFocus`
+
+Returns whether the page has focus. Keystrokes reach the app only while it does.
+
+```tsx
+const focused = usePageFocus();
+```
+
+While the page doesn't have focus, the root draws `<FocusHint>` over the console's last row. To show it only when your app wants the keyboard, turn off the default with `focusHint: false` and render it yourself:
+
+```tsx
+<FocusHint active={editing} />
+```
+
 ## `useConsoleStats`
 
 ```tsx

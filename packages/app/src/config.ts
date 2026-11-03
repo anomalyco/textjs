@@ -49,6 +49,8 @@ export interface TextConfig {
   devIndicators?: boolean;
   /** Open the FocusPad's inline console preview by default (default `false`). */
   showMirrorDefault?: boolean;
+  /** Cover the console's bottom row with "Click the page to use the keyboard" while DevTools has focus (default `true`). */
+  focusHint?: boolean;
   /** Build output directory (default `"dist"`). */
   outDir?: string;
   /** App Router directory relative to the project root (default `"app"`). */
@@ -131,6 +133,7 @@ export interface ClientConfig {
   viewport: ViewportConfig;
   devIndicators: boolean;
   showMirrorDefault: boolean;
+  focusHint: boolean;
   basePath: string;
   title: string;
   hints?: Array<{ keys: string; label: string }>;
@@ -142,6 +145,7 @@ export function toClientConfig(config: TextConfig): ClientConfig {
     viewport: { ...config.viewport },
     devIndicators: config.devIndicators ?? true,
     showMirrorDefault: config.showMirrorDefault ?? false,
+    focusHint: config.focusHint ?? true,
     basePath: normalizeBasePath(config.basePath),
     title: config.title ?? "",
     ...(config.hints ? { hints: config.hints.map((h) => ({ keys: h.keys, label: h.label })) } : {}),

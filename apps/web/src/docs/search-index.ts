@@ -937,6 +937,11 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
     },
     {
       "depth": 2,
+      "text": "usePageFocus",
+      "id": "usepagefocus"
+    },
+    {
+      "depth": 2,
       "text": "useConsoleStats",
       "id": "useconsolestats"
     },

@@ -126,7 +126,7 @@ describe("vite plugin", () => {
     expect(defineConfig({ outDir: "out" })).toEqual({ outDir: "out" });
     expect(normalizeBasePath("console/")).toBe("/console");
     expect(normalizeBasePath("/")).toBe("");
-    expect(toClientConfig({ viewport: { width: 80 } })).toEqual({ viewport: { width: 80 }, devIndicators: true, showMirrorDefault: false, basePath: "", title: "" });
+    expect(toClientConfig({ viewport: { width: 80 } })).toEqual({ viewport: { width: 80 }, devIndicators: true, showMirrorDefault: false, focusHint: true, basePath: "", title: "" });
   });
 });
 

@@ -47,6 +47,16 @@ export function useViewport(): ViewportApi {
   return useMemo(() => ({ ...state, resize, setResponsive }), [state, resize, setResponsive]);
 }
 
+/**
+ * Whether the page has focus, so keystrokes reach the app. `false` while DevTools or another window
+ * has focus, or the tab is hidden. Re-renders only when it changes.
+ */
+export function usePageFocus(): boolean {
+  const rt = useRuntime();
+  const get = useCallback(() => rt.viewport.getSnapshot().focused, [rt]);
+  return useSyncExternalStore(rt.viewport.subscribe, get, get);
+}
+
 export interface UseConsoleStatsOptions {
   /** Minimum milliseconds between updates (default `250`, i.e. 4 Hz). */
   interval?: number;

@@ -55,6 +55,7 @@ export default defineConfig({
 | `hints` | `[]` | Two or three keys shown on the page's FocusPad |
 | `action` | `press <first hint>` | What to do once focused, e.g. `"type a prompt"` |
 | `devIndicators` | `true` | In-console Dev Overlay (`[▼]`) |
+| `focusHint` | `true` | "Click the page to use the keyboard" over the console's last row while DevTools has focus |
 | `rewrites` | `[]` | Rewrites and proxies |
 
 ## CLI

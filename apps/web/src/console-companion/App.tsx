@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Box, KeyHint, Text, useApp, useFocusManager, useInput } from "@textjs/react";
+import { Box, FocusHint, KeyHint, Text, useApp, useFocusManager, useInput } from "@textjs/react";
 import { exampleGrid, runsExamples } from "../docs/preview-meta";
 import { matchRoute } from "../router";
 import { SiteDevTools } from "./DevTools";
-import { DOCS_READING_HINTS, hintsFor, PRESETS, siteStore, type CompanionTab, type Hint } from "./store";
+import { DOCS_READING_HINTS, hintsFor, isPadRoute, PRESETS, siteStore, type CompanionTab, type Hint } from "./store";
 import { NotFoundTab } from "./tabs/NotFoundTab";
 import { getLoadedCompanionTabs, preloadCompanionTab, subscribeCompanionTabs } from "./tabs-loader";
 import { teamModule, useTeamGate } from "./team-gate";
@@ -38,6 +38,15 @@ function Header({ tab, notFound = false }: { tab: CompanionTab; notFound?: boole
       {label ? <Text color="subtle" wrap="nowrap">{` / ${label}`}</Text> : null}
     </Box>
   );
+}
+
+/**
+ * The console's focus hint, on pad pages and wherever the visitor sent keystrokes to the console.
+ * Elsewhere clicking the page doesn't route keys to the console, so the hint would be wrong.
+ */
+export function CompanionFocusHint(): ReactNode {
+  const site = useSite();
+  return <FocusHint active={site.consoleInput || isPadRoute(site.pathname)} />;
 }
 
 export function CompanionApp(): ReactNode {
