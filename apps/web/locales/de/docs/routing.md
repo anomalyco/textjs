@@ -45,4 +45,4 @@ Navigiere aus dem Code:
 Lies die aktuelle Route aus:
 
 <!-- s:a5386906c8 -->
-Zurück, Vorwärts und Deep Links funktionieren. Auf einem statischen Host benötigen dynamische Segmente einen Fallback auf `index.html`. Der `static`-Adapter schreibt diesen als `404.html`.
+Zurück, Vorwärts und Deep-Links funktionieren. Auf einem statischen Host benötigen dynamische Segmente einen Fallback auf `index.html`. Der `static`-Adapter schreibt diesen als `404.html`.

@@ -23,7 +23,7 @@ Die Server-Adapter (`bun`, `vercel` und `cloudflare`) führen dieselbe Pipeline 
 Statisch
 
 <!-- s:9ebd0d2866 -->
-Verwende diesen Adapter für Hosts ohne Server, etwa GitHub Pages, S3 oder ein CDN. `GET`-Route-Handler mit `dynamic = "force-static"` oder `revalidate` werden per Prerendering in Dateien umgewandelt: Aus `app/api/feed.json/route.ts` wird `dist/api/feed.json`. Eine Kopie von `index.html` wird in `404.html` geschrieben, damit Deep Links die Konsolen-App öffnen. Statische Hosts können curl nicht von einem Browser unterscheiden, daher erhält curl die HTML-Seite.
+Verwende diesen Adapter für Hosts ohne Server, etwa GitHub Pages, S3 oder ein CDN. `GET`-Route-Handler mit `dynamic = "force-static"` oder `revalidate` werden per Prerendering in Dateien umgewandelt: Aus `app/api/feed.json/route.ts` wird `dist/api/feed.json`. Eine Kopie von `index.html` wird in `404.html` geschrieben, damit Deep-Links die Konsolen-App öffnen. Statische Hosts können curl nicht von einem Browser unterscheiden, daher erhält curl die HTML-Seite.
 
 <!-- s:1e90536a2a -->
 Der Build schlägt fehl und listet alle Gründe auf, wenn die App einen Server benötigt: `middleware.ts`, [serverseitig gerenderte Routen](/docs/server-rendering), dynamische Route-Handler, Route-Handler mit dynamischen Segmenten oder andere Methoden als `GET`. Konfiguriere `rewrites` stattdessen auf dem Host.

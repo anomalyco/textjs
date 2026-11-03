@@ -8,7 +8,7 @@ Die Vorschau ist live. Klicke darauf und drücke `↑`.
 Funktionsumfang
 
 <!-- s:d3708efc68 -->
-- **React 19**: nebenläufiges Rendering, Suspense und Fehlergrenzen.
+- **React 19**: nebenläufiges Rendering, Suspense und Error Boundaries.
 - **App Router**: Layouts, Seiten, dynamische Segmente und Route-Handler.
 - **Yoga-Layout**: flexbox in WebAssembly, auf ganzzahlige Zellen ausgerichtet.
 - **Turbolog**: ein `console.log`-Aufruf pro geändertem Frame.

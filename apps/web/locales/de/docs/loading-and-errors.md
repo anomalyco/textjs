@@ -1,5 +1,5 @@
 <!-- s:510651334f -->
-Ladezustände und Fehlergrenzen rendern in der Konsole. Definiere sie pro Route-Segment mit `loading.tsx` und `error.tsx`.
+Ladezustände und Error Boundaries rendern in der Konsole. Definiere sie pro Route-Segment mit `loading.tsx` und `error.tsx`.
 
 <!-- s:28d65d04f2 -->
 Ladeanzeige

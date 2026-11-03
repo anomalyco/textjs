@@ -20,7 +20,7 @@ Dynamische Segmente funktionieren genauso wie in Next.js. `[id]` wird zu einem P
 Route-Handler liegen in `app/api` und geben eine standardmäßige `Response` zurück:
 
 <!-- s:fe0c29445c -->
-Der Router hält `window.location` über `history.pushState` synchron, sodass Zurück, Vorwärts und Deep Links funktionieren, und schreibt `metadata.title` in `document.title`. Die App zeichnet in der Konsole, und die Seite enthält ein Fokus-Pad, das Eingaben erfasst.
+Der Router hält `window.location` über `history.pushState` synchron, sodass Zurück, Vorwärts und Deep-Links funktionieren, und schreibt `metadata.title` in `document.title`. Die App zeichnet in der Konsole, und die Seite enthält ein Fokus-Pad, das Eingaben erfasst.
 
 <!-- s:6109f13d80 -->
 Die CLI

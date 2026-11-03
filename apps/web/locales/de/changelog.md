@@ -15,8 +15,15 @@ Hinzugefügt
 <!-- s:5b88618770 -->
 Geändert
 
-<!-- s:f7da7bb6d2 -->
-- `@textjs/core`: Die Konsolen von Chromium und Firefox löschen animierte Sprite-Ausgaben bei 16 MB statt bei 4 MB, sodass textjs.org/doom etwa alle 19 Sekunden statt alle 4,5 Sekunden „Konsole wurde geleert“ anzeigt. Safari und als `▀`-Halbblöcke gezeichnete Sprites bleiben bei 4 MB. Der maximale Heap der Seite auf textjs.org/doom steigt von 10,8 MB auf etwa 12–13 MB.
+<!-- s:27b507a9de -->
+- `@textjs/core`: Die Konsolen von Chromium und Firefox löschen animierte Sprite-Ausgaben bei 16 MB statt bei 4 MB, sodass textjs.org/doom etwa alle 19 Sekunden statt alle 4,5 Sekunden „Konsole wurde gelöscht“ anzeigt. Safari und Sprites aus `▀`-Halbblöcken bleiben bei 4 MB. Die maximale Heap-Belegung der Seite auf textjs.org/doom steigt von 10,8 MB auf etwa 12–13 MB.
+- textjs.org: Eine Dokumentationsseite lädt nur ihr eigenes Markdown statt aller 33 Seiten herunter, sodass englische Dokumentationsseiten 43–47 KB weniger JavaScript (gzip) laden und /ja-Dokumentationsseiten 60–64 KB weniger. Wenn du den Mauszeiger über einen Link zu einer anderen Dokumentationsseite bewegst oder ihn fokussierst, wird diese Seite vorab geladen, sodass sie sich weiterhin sofort öffnet.
+
+<!-- s:afe76b8d59 -->
+Behoben
+
+<!-- s:4290e90e78 -->
+- textjs.org/ja: Die ⌘K-Suche zeigt die japanischen Überschriften der Dokumentation und gleicht japanische Abfragen mit ihnen ab. Zuvor listete sie englische Überschriften unter japanischen Seitentiteln auf. Englische Namen finden weiterhin Seiten: `routing` findet ルーティング und `open the console` findet コンソールを開く.
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom spielt die Soundeffekte von Doom ab, mit Dooms eigenem Stereo-Panning und entfernungsabhängiger Dämpfung. Der Ton startet mit deinem ersten Klick oder Tastendruck auf der Seite, pausiert mit dem Spiel und folgt Sfx Volume in Dooms Menü Options → Sound Volume. Es gibt keine Musik.
@@ -24,9 +31,6 @@ Geändert
 <!-- s:144aa59e73 -->
 - `@textjs/react`, `@textjs/app`: Der Fokushinweis („Klicke auf die Seite, um die Tastatur zu verwenden“) ist in jedem Theme ein bernsteinfarbener Balken mit fettem schwarzem Text. Zuvor nutzte er die umgekehrten Farben des Themes. Bei jedem Erscheinen blinkt er 4-mal über etwa 6 Sekunden und bleibt danach bernsteinfarben. Bei aktivierter reduzierter Bewegung blinkt er nicht. Jeder Blinkzyklus protokolliert bis zu 8 zusätzliche Konsolen-Frames.
 - textjs.org: Doom ist nach textjs.org/doom umgezogen. textjs.org/playground/doom leitet dorthin weiter.
-
-<!-- s:afe76b8d59 -->
-Behoben
 
 <!-- s:b91de36548 -->
 - `@textjs/core`, `@textjs/react`: Chromes Bereich „Probleme“ meldet nicht mehr auf jeder Seite „Ein Formularfeldelement sollte ein id- oder name-Attribut haben“. Das versteckte Tastatur-`<textarea>` heißt `textjs-input`, und das `<select>` für die Konsolengröße von `ViewportControl` (auch in `FocusPad`s `sizeControl`) hat eine `id` und den Namen `textjs-console-size`. Das Tastatur-`<textarea>` deaktiviert außerdem die Verarbeitung durch 1Password, LastPass, Bitwarden und Dashlane.

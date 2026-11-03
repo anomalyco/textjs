@@ -1,5 +1,5 @@
 <!-- s:ce06f5c491 -->
-Der App Router ordnet Dateien in `app/` URLs zu und folgt dabei den Konventionen des Next.js App Router. Die Adressleiste und der Verlauf des Browsers bleiben synchron, sodass Zurück, Vorwärts und Deep Links funktionieren, während die UI in der Konsole rendert.
+Der App Router ordnet Dateien in `app/` URLs zu und folgt dabei den Konventionen des Next.js App Router. Die Adressleiste und der Verlauf des Browsers bleiben synchron, sodass Zurück, Vorwärts und Deep-Links funktionieren, während die UI in der Konsole rendert.
 
 <!-- s:00fe1aba85 -->
 Dateien als Routen

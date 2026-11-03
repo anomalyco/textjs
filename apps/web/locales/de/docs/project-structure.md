@@ -20,7 +20,7 @@ Routing-Dateien
 | `layout.tsx` | Gemeinsame UI für ein Segment |
 | `page.tsx` | Über eine Route erreichbare Ansicht |
 | `loading.tsx` | Fallback für Suspense |
-| `error.tsx` | Fehlergrenze |
+| `error.tsx` | Error Boundary |
 | `not-found.tsx` | URLs ohne passende Route |
 | `route.ts` | API-Endpunkt |
 
