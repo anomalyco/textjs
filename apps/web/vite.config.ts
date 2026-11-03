@@ -194,8 +194,10 @@ export default defineConfig(({ isSsrBuild }) => ({
       output: isSsrBuild
         ? {}
         : {
-            // Rename the Errors chunk file so `vite build` output passes `not.toContain("error")` in build.test.ts.
-            chunkFileNames: (info) => (info.name === "Errors" ? "assets/tx-codes-[hash].js" : "assets/[name]-[hash].js"),
+            // Chunk names without "error" (the Errors page, the loading-and-errors doc), so `vite build` output passes
+            // `not.toContain("error")` in build.test.ts. Each docs page's Markdown is a `doc-` chunk.
+            chunkFileNames: (info) =>
+              info.name === "Errors" ? "assets/tx-codes-[hash].js" : info.facadeModuleId?.includes("/src/docs/content/") ? "assets/doc-[hash].js" : "assets/[name]-[hash].js",
             manualChunks(id) {
               if (id.includes("yoga-layout")) return "yoga";
               if (id.includes("node_modules/react-reconciler/")) return "reconciler";

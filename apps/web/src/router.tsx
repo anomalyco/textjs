@@ -6,7 +6,7 @@ import { learnRoute, learnTitle } from "./learn/routes";
 import { merchRoute, merchTitle } from "./merch/routes";
 import { LOCALE, localePath, SOURCE_LOCALE, splitLocale } from "./i18n/locales";
 import { t } from "./i18n/t";
-import { getErrorPageDoc } from "./pages/tx000";
+import { getErrorPageTitle } from "./pages/tx000";
 import { safeDecode } from "./url";
 
 export type Route =
@@ -55,7 +55,7 @@ export function matchRoute(pathname: string): Route {
   const tx = /^\/errors\/([^/]+)$/.exec(p);
   if (tx) {
     const code = safeDecode(tx[1] as string).toUpperCase();
-    return getErrorPageDoc(code) ? { name: "error", code } : { name: "not-found" };
+    return getErrorPageTitle(code) !== undefined ? { name: "error", code } : { name: "not-found" };
   }
   if (p === "/changelog") return { name: "changelog" };
   if (p === "/blog") return { name: "blog" };
@@ -92,7 +92,7 @@ export function titleFor(route: Route): string {
     case "errors":
       return t("Error Codes | Text.js");
     case "error":
-      return t("{code}: {title} | Text.js", { code: route.code, title: getErrorPageDoc(route.code)?.title ?? t("Error") });
+      return t("{code}: {title} | Text.js", { code: route.code, title: getErrorPageTitle(route.code) ?? t("Error") });
     case "changelog":
       return t("Changelog | Text.js");
     case "blog":

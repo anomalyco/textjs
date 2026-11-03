@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { RouteView } from "../src/App";
 import { BRIDGE_COMMAND } from "../src/demos/opencode/live";
-import { DOCS, docPath } from "../src/docs/registry";
+import { DOCS_META, docPath } from "../src/docs/registry";
 import { A, matchRoute, normalizePath, resetLocation, titleFor } from "../src/router";
 import { Footer, Header } from "../src/site/Chrome";
 import { REPO_URL, docEditUrl } from "../src/site/links";
@@ -26,7 +26,7 @@ describe("router", () => {
     for (const gone of ["/playground/doom", "/doom/DOOM1.WAD"]) expect(matchRoute(gone)).toEqual({ name: "not-found" });
     expect(matchRoute("/nope")).toEqual({ name: "not-found" });
     expect(matchRoute("/docs/does-not-exist")).toEqual({ name: "not-found" });
-    for (const d of DOCS) expect(matchRoute(docPath(d.slug))).toEqual({ name: "docs", slug: d.slug });
+    for (const d of DOCS_META) expect(matchRoute(docPath(d.slug))).toEqual({ name: "docs", slug: d.slug });
     expect(normalizePath("//docs//routing/")).toBe("/docs/routing");
     // Malformed percent-encoding never throws.
     expect(matchRoute("/docs/%E0%A4%A")).toEqual({ name: "not-found" });
@@ -106,7 +106,7 @@ describe("page rendering", () => {
   });
 
   test("every docs page renders with title, TOC and pagination", () => {
-    for (const d of DOCS) {
+    for (const d of DOCS_META) {
       const html = renderToStaticMarkup(<RouteView route={{ name: "docs", slug: d.slug }} />);
       expect(html).toContain(d.title.replace(/&/g, "&amp;"));
       expect(html).toContain("On this page");

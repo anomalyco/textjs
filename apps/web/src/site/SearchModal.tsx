@@ -10,7 +10,7 @@ import { useScrollLock } from "./Sheet";
 
 type Item = SearchItem;
 type SearchEngine = {
-  searchDocsMeta: typeof import("../docs/search-index").searchDocsMeta;
+  searchDocsMeta: typeof import("../docs/search").searchDocsMeta;
   aliasResults: typeof import("./search-aliases").aliasResults;
 };
 
@@ -43,7 +43,7 @@ let enginePromise: Promise<SearchEngine> | null = null;
 export function preloadSearchDialog(): Promise<SearchEngine> {
   if (engineCache) return Promise.resolve(engineCache);
   if (!enginePromise) {
-    enginePromise = Promise.all([import("../docs/search-index"), import("./search-aliases")]).then(([idx, al]) => {
+    enginePromise = Promise.all([import("../docs/search"), import("./search-aliases")]).then(([idx, al]) => {
       engineCache = { searchDocsMeta: idx.searchDocsMeta, aliasResults: al.aliasResults };
       return engineCache;
     });

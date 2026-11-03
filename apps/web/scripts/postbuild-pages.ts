@@ -42,7 +42,7 @@ interface ServerEntry {
   NOT_FOUND_PATH: string;
   PREFIT_MIRRORS_SCRIPT: string;
   PREFIT_MIRRORS_WHILE_PARSING_SCRIPT: string;
-  ROUTE_MANIFEST_SRC: Record<Exclude<Route["name"], "not-found">, string>;
+  routeManifestSources(route: Route): string[];
   matchRoute(pathname: string): Route;
   learnVideo(slug: string): { poster: string } | null;
   render(pathname: string): Promise<string>;
@@ -88,14 +88,19 @@ for (const locale of parseLocaleSet(process.env.TEXTJS_LOCALES)) {
   cpSync(join(dir, "client", "assets"), join(distDir, "assets"), { recursive: true, force: false });
 }
 
-/** Collect JS modulepreloads and CSS files needed by a route's dynamic chunk (`entry`: the entry's own files). */
+/**
+ * Collect JS modulepreloads and CSS files needed by a route's dynamic chunks: its page and, for a docs page, its
+ * Markdown (`entry`: the entry's own files; `own`: the page's chunk).
+ */
 function routeAssets(build: Build, routePath: string): { css: string[]; js: string[]; entry: string[]; own?: string } {
   const { manifest, server } = build;
   if (!manifest) return { css: [], js: [], entry: [] };
   const route = server.matchRoute(routePath);
   if (route.name === "not-found") return { css: [], js: [], entry: [] };
-  const srcKey = server.ROUTE_MANIFEST_SRC[route.name];
-  if (!srcKey || !manifest[srcKey]) return { css: [], js: [], entry: [] };
+  const sources = server.routeManifestSources(route);
+  const missing = sources.find((key) => !manifest[key]);
+  if (missing) throw new Error(`${routePath}: ${missing} is not in the Vite manifest`);
+  const srcKey = sources[0] as string;
 
   const visited = new Set<string>();
   const css = new Set<string>();
@@ -119,7 +124,7 @@ function routeAssets(build: Build, routePath: string): { css: string[]; js: stri
     if (!entryFiles.has(chunk.file)) js.add(chunk.file);
     for (const imp of chunk.imports ?? []) walk(imp);
   };
-  walk(srcKey);
+  for (const key of sources) walk(key);
   return { css: [...css], js: [...js], entry: [...entryFiles], own: manifest[srcKey]?.file };
 }
 

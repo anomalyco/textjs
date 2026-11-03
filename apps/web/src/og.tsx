@@ -5,14 +5,13 @@
 
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CATEGORY_LABELS } from "./docs/meta";
-import { getDoc } from "./docs/registry";
+import { CATEGORY_LABELS, getDocMeta } from "./docs/meta";
 import { t } from "./i18n/t";
 import { chapterNumber, COMPLETE_SLUG } from "./learn/course";
 import { getProduct, PRODUCTS } from "./merch/products";
 import { PRESETS } from "./console-companion/store";
 import { OpenCodeWordmark, TerminalWordmark } from "./site/brand-marks";
-import { getErrorPageDoc } from "./pages/tx000";
+import { getErrorPageDoc } from "./pages/error-pages";
 import { matchRoute } from "./router";
 import type { PrerenderRoute } from "./entry-server";
 
@@ -64,7 +63,7 @@ export async function ogCard(route: PrerenderRoute): Promise<OgCard> {
     case "home":
       return { ...base, template: "home", title: t("The Console Framework"), alt: alt("", t("The Console Framework")) };
     case "docs": {
-      const doc = getDoc(m.slug);
+      const doc = getDocMeta(m.slug);
       if (path === "/docs") return { ...base, title: t("Documentation"), alt: alt("", t("Documentation")) };
       const section = doc ? t("Docs · {category}", { category: CATEGORY_LABELS[doc.category] }) : t("Docs");
       return { ...base, section, alt: alt(t("Docs"), title) };

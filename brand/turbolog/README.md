@@ -22,7 +22,7 @@ Construction:
 On the site, the lockup is 1em tall, so its caps match Geist caps at the same font size. The ▼ and the wordmark use `currentColor`, and the gradient switches with `color-scheme` through `light-dark()`. It appears once on each of these pages:
 
 - the landing page's Turbolog section eyebrow (`apps/web/src/pages/home/Turbolog.tsx`)
-- the header of `/docs/turbolog-engine` (`brand: "turbolog"` in `apps/web/src/docs/registry.ts`)
+- the header of `/docs/turbolog-engine` (`brand: "turbolog"` in `apps/web/src/docs/meta.ts`)
 - the `/status` heading (`apps/web/src/pages/Status.tsx`)
 - the header of the Turbolog blog post (`brand: turbolog` in its frontmatter)
 

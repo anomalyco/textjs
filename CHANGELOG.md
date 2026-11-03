@@ -15,6 +15,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - `@textjs/core`: Chromium and Firefox consoles clear animated sprite output at 16 MB instead of 4 MB, so textjs.org/doom shows "Console was cleared" about every 19 seconds instead of every 4.5. Safari, and sprites drawn as `▀` half-blocks, keep 4 MB. The page's peak heap on textjs.org/doom goes from 10.8 MB to about 12–13 MB.
+- textjs.org: a docs page downloads only its own Markdown instead of all 33 pages, so English docs pages load 43–47 KB less JavaScript (gzip) and /ja docs pages 60–64 KB less. Hovering over or focusing a link to another docs page fetches that page early, so it still opens at once.
+
+### Fixed
+
+- textjs.org/ja: ⌘K search shows the Japanese docs headings and matches Japanese queries against them. It used to list English headings under Japanese page titles. English names still find pages: `routing` finds ルーティング and `open the console` finds コンソールを開く.
 
 ## [1.4.1] - 2026-11-03
 

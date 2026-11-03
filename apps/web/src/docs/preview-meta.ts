@@ -1,6 +1,5 @@
 import type { StyledFrame } from "@textjs/core";
 import type { CompanionTab, Hint } from "../console-companion/store";
-import { DOCS_META, getDocMeta } from "./meta";
 
 export interface PreviewMeta {
   cols: number;
@@ -61,9 +60,9 @@ export function exampleGrid(id: string, tab: CompanionTab = "docs"): { cols: num
   return size ? { cols: size.cols, rows: size.rows + EXAMPLE_HEADER_ROWS } : null;
 }
 
-export function exampleHeader(docSlug: string, id: string): string {
-  const doc = getDocMeta(docSlug) ?? DOCS_META[0];
-  return `▼ Docs › ${doc?.nav ?? doc?.title ?? "Docs"} › ${previewLabel(id)}`;
+/** The line above a docs example running in the console. `page` is the doc's label (`docLabel` in `meta.ts`). */
+export function exampleHeader(page: string, id: string): string {
+  return `▼ Docs › ${page} › ${previewLabel(id)}`;
 }
 
 export const HOME_EXAMPLE_PREFIX = "▼ Text.js › Components › ";

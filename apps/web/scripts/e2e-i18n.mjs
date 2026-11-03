@@ -39,6 +39,8 @@ try {
     await page.evaluate(() => (window.__spa = true));
     await page.click('.docs-sidebar a[href="/ja/docs/installation"], aside a[href="/ja/docs/installation"]');
     await page.waitForURL("**/ja/docs/installation");
+    // The page's Markdown is its own chunk; a click without a hover first waits for it.
+    await page.locator("h1.docs-title", { hasText: "インストール" }).waitFor();
     check(await page.evaluate(() => window.__spa === true), "a docs link navigates client-side within /ja");
     check((await page.getAttribute("html", "lang")) === "ja", "still Japanese after navigating");
     // The heading anchor keeps its English id.
