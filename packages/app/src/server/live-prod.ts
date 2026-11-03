@@ -15,6 +15,8 @@ import { LiveServer, type LiveServerOptions } from "./live";
 import type { MiddlewareModule } from "./middleware";
 import { createLiveAuthorizer } from "./middleware-runtime";
 import { LIVE_MANIFEST, type LiveManifest } from "./live-manifest";
+import { createAnsiHandler, type AnsiHandler } from "./ansi-server";
+import { staticFile } from "./static-file";
 import type { LiveEntryModule } from "./live-dev";
 
 export interface LiveProductionOptions {
@@ -34,6 +36,12 @@ export interface LiveProduction {
   readonly server: LiveServer | null;
   /** `url` has `basePath` stripped. Returns `true` when the request was answered. */
   handle(req: IncomingMessage, res: ServerResponse, url: string): Promise<boolean>;
+  /**
+   * The ANSI frame for a terminal client (curl), or `null` (serve the page as
+   * usual). Call it at the page-serving step: after middleware, rewrites and
+   * route handlers. `url` has `basePath` stripped.
+   */
+  ansi: AnsiHandler;
   close(): void;
 }
 
@@ -43,6 +51,41 @@ function wantsHtml(req: IncomingMessage, pathname: string): boolean {
   if (last.includes(".")) return false;
   const accept = req.headers.accept;
   return accept === undefined || accept.includes("text/html") || accept.includes("*/*");
+}
+
+/**
+ * Prerendered frames from the build, and on-request renders for every other
+ * route (dynamic, server-rendered, not found) through `live.mjs`, imported on
+ * the first request that needs it. If it can't be imported (a route module
+ * touches `window` at the top level), terminals get HTML from then on.
+ */
+function createAnsiFrames(outDir: string, manifest: LiveManifest, loadEntry: () => Promise<LiveEntryModule>, onError?: (error: unknown) => void): AnsiHandler {
+  const ansi = manifest.ansi;
+  if (!ansi) return async () => null;
+  const frames: Record<string, string> = {};
+  for (const [pattern, rel] of Object.entries(ansi.frames)) {
+    const p = join(outDir, rel);
+    if (existsSync(p)) frames[pattern] = readFileSync(p, "utf8");
+  }
+  let onRequest = ansi.onRequest;
+  const theme = manifest.viewport?.theme as ThemeName | undefined;
+  return createAnsiHandler({
+    frames,
+    isFile: (pathname) => staticFile(outDir, pathname) !== null,
+    onError,
+    render: async (href) => {
+      if (!onRequest) return null;
+      let entry: LiveEntryModule;
+      try {
+        entry = await loadEntry();
+      } catch (error) {
+        onRequest = false;
+        onError?.(error);
+        return null;
+      }
+      return entry.prerenderAnsi({ routes: entry.routes, path: href, cols: ansi.cols, rows: ansi.rows, theme });
+    },
+  });
 }
 
 /** Load `.text/live-manifest.json` (and the live bundle when routes render on the server). */
@@ -59,8 +102,11 @@ export async function loadLiveProduction(outDir: string, options: LiveProduction
 
   let server: LiveServer | null = null;
   let runtimeOf: (pathname: string) => "server" | "client" = () => "client";
+  const entryFile = pathToFileURL(join(outDir, ".text", "server", "live.mjs")).href;
+  let loaded: Promise<LiveEntryModule> | null = null;
+  const loadEntry = (): Promise<LiveEntryModule> => (loaded ??= import(entryFile) as Promise<LiveEntryModule>);
   if (manifest.serverRoutes.length > 0) {
-    const entry = (await import(pathToFileURL(join(outDir, ".text", "server", "live.mjs")).href)) as LiveEntryModule;
+    const entry = await loadEntry();
     runtimeOf = (pathname) => (entry.isServerPage(entry.routes, pathname) ? "server" : "client");
     server = new LiveServer({
       basePath: manifest.basePath,
@@ -77,6 +123,8 @@ export async function loadLiveProduction(outDir: string, options: LiveProduction
         entry.createLiveApp({ ...init, routes: entry.routes, theme: manifest.viewport?.theme as ThemeName | undefined, defaultTitle: manifest.title || undefined, focusHint: manifest.focusHint }),
     });
   }
+
+  const ansi = createAnsiFrames(outDir, manifest, loadEntry, options.onError);
 
   const send = (req: IncomingMessage, res: ServerResponse, body: Buffer): true => {
     res.statusCode = 200;
@@ -105,6 +153,7 @@ export async function loadLiveProduction(outDir: string, options: LiveProduction
       if (server && liveHtml && runtimeOf(route) === "server") return send(req, res, liveHtml);
       return false;
     },
+    ansi,
     close() {
       server?.close();
     },

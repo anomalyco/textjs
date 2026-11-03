@@ -2,7 +2,8 @@
  * A minimal local emulation of Vercel's Build Output API v3 router, enough to
  * exercise `.vercel/output` from `text build --adapter vercel` without a
  * deploy: `config.json` routes (`src`, `dest`, `headers`, `continue`,
- * `middlewarePath`, `has` / `missing`, `status`, `transforms`, `handle: "filesystem"`,
+ * `middlewarePath`, `has` / `missing` (string or `{ eq, re, pre, suf, inc }` values), `methods`,
+ * `status`, `transforms`, `handle: "filesystem"`,
  * external `dest` proxying), static files, Node.js functions
  * (`launcherType: "Nodejs"`) and Edge middleware speaking `x-middleware-*`.
  * Functions are part of the filesystem: a request for a function's path
@@ -22,14 +23,26 @@ import { extname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { staticFile as exactFile } from "../src/server/static-file";
 
+/** Vercel's `MatchableValue` (the subset the adapter emits, plus the plain comparisons). */
+interface MatchableValue {
+  eq?: string;
+  neq?: string;
+  re?: string;
+  pre?: string;
+  suf?: string;
+  inc?: string[];
+  ninc?: string[];
+}
+
 interface Condition {
   type: "header" | "cookie" | "query" | "host";
   key?: string;
-  value?: string;
+  value?: string | MatchableValue;
 }
 
 interface Route {
   src?: string;
+  methods?: string[];
   dest?: string;
   headers?: Record<string, string>;
   continue?: boolean;
@@ -57,7 +70,20 @@ function holds(c: Condition, headers: Headers, query: URLSearchParams): boolean 
   else if (c.type === "query") actual = query.get(c.key ?? "");
   else actual = (headers.get("host") ?? "").replace(/:\d+$/, "");
   if (actual === null || actual === undefined) return false;
-  return c.value === undefined || new RegExp(`^(?:${c.value})$`).test(actual);
+  if (c.value === undefined) return true;
+  if (typeof c.value === "string") return new RegExp(`^(?:${c.value})$`).test(actual);
+  const v = c.value;
+  const value = actual;
+  // Every field given must hold. `re` searches (it isn't anchored).
+  return (
+    (v.eq === undefined || value === v.eq) &&
+    (v.neq === undefined || value !== v.neq) &&
+    (v.re === undefined || new RegExp(v.re).test(value)) &&
+    (v.pre === undefined || value.startsWith(v.pre)) &&
+    (v.suf === undefined || value.endsWith(v.suf)) &&
+    (v.inc === undefined || v.inc.includes(value)) &&
+    (v.ninc === undefined || !v.ninc.includes(value))
+  );
 }
 
 /** The raw request target's path, as sent (route `src` sees it before any URL parser re-encodes it), and its query. */
@@ -74,7 +100,13 @@ function routerTarget(raw: string | undefined): { pathname: string; search: stri
 type NodeHandler = (req: IncomingMessage, res: ServerResponse) => unknown;
 type EdgeHandler = (request: Request, context: { waitUntil(p: Promise<unknown>): void }) => Promise<Response>;
 
-const MIME: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".json": "application/json" };
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css",
+  ".json": "application/json",
+  ".txt": "text/plain; charset=utf-8",
+};
 
 function listen(server: Server): Promise<string> {
   return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(`http://127.0.0.1:${(server.address() as AddressInfo).port}`)));
@@ -191,6 +223,7 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
           }
           continue;
         }
+        if (route.methods && !route.methods.includes(req.method ?? "GET")) continue;
         // Vercel matches `src` case-insensitively unless the route says `caseSensitive: true`.
         const m = new RegExp(route.src ?? "^$", route.caseSensitive ? "" : "i").exec(pathname);
         if (!m) continue;

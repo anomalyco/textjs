@@ -42,6 +42,7 @@ function fileResponse(path, immutable) {
 export const handler = createRequestHandler({
   ...options,
   live: live ? (request, url, context) => runNodeStyle(request, url, (req, res) => live.handle(req, res, url), context.clientAddress) : undefined,
+  ansi: live ? (request, url) => live.ansi(request, url) : undefined,
   assets(pathname) {
     // Directories serve their index.html (prerendered console shells).
     const path = staticFile(dir, decodeURIComponent(pathname), { index: true });

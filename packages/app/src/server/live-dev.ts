@@ -6,9 +6,11 @@
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { join, relative, sep } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
-import type { ViewportConfig } from "../config";
+import { resolveAnsiSize, type AnsiConfig, type ViewportConfig } from "../config";
+import { createAnsiHandler, type AnsiHandler } from "./ansi-server";
+import { staticFile } from "./static-file";
 import { LIVE_PATH } from "../live-protocol";
 import type { RouteManifest } from "../routing";
 import type { ThemeName } from "@textjs/react";
@@ -45,6 +47,7 @@ export interface LiveEntryModule {
   routes: RouteManifest;
   createLiveApp(options: LiveAppOptions): Promise<LiveApp>;
   prerenderShell(options: import("./live-app").PrerenderShellOptions): Promise<import("./live-app").ShellCall[]>;
+  prerenderAnsi(options: import("./live-app").PrerenderShellOptions): Promise<import("./live-app").AnsiFrame | null>;
   routeRuntime(routes: RouteManifest, pathname: string): RouteRuntime;
   isServerPage(routes: RouteManifest, pathname: string): boolean;
 }
@@ -208,6 +211,8 @@ export interface LiveDevOptions {
   viewport?: ViewportConfig;
   focusHint?: boolean;
   live?: { maxSessions?: number; reconnectGraceMs?: number };
+  /** `text.config.ts` `ansi`. */
+  ansi?: false | AnsiConfig;
   logger?: { info(message: string): void; error(message: string): void };
 }
 
@@ -215,6 +220,8 @@ export interface LiveDevHandler {
   readonly server: LiveServer;
   /** `url` has `basePath` stripped. Returns `true` when the request was answered. */
   handle(req: IncomingMessage, res: ServerResponse, url: string): Promise<boolean>;
+  /** The ANSI frame for a terminal client (curl), rendered on request, or `null`. Call it at the page-serving step. */
+  ansi: AnsiHandler;
   close(): void;
 }
 
@@ -335,8 +342,28 @@ export function createLiveDevHandler(vite: ViteDevServer, o: LiveDevOptions): Li
   vite.watcher.on("unlink", onUnlink);
   vite.httpServer?.once("close", () => live.close());
 
+  const ansiSize = resolveAnsiSize({ ansi: o.ansi, viewport: o.viewport });
+  const publicDir = vite.config.publicDir ? resolve(vite.config.publicDir) : "";
+  const ansi: AnsiHandler = ansiSize
+    ? createAnsiHandler({
+        // Every request renders the current code.
+        cacheSize: 0,
+        skip: (pathname) => pathname.startsWith("/@") || pathname.startsWith("/__") || pathname.startsWith("/node_modules/"),
+        isFile: (pathname) => Boolean(publicDir) && staticFile(publicDir, pathname) !== null,
+        onError: (error) => {
+          if (error instanceof Error) vite.ssrFixStacktrace(error);
+          log?.error(` ⨯ ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
+        },
+        render: async (href) => {
+          const mod = await loadEntry();
+          return mod.prerenderAnsi({ routes: mod.routes, path: href, ...ansiSize, theme: o.viewport?.theme as ThemeName | undefined });
+        },
+      })
+    : async () => null;
+
   return {
     server: live,
+    ansi,
     async handle(req, res, url) {
       const pathname = url.split("?")[0] ?? "/";
       if (pathname === LIVE_PATH) return live.handle(req, res, url);

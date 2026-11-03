@@ -10,10 +10,20 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { MiddlewareModule } from "../middleware";
-import { bundleServerEntry } from "./bundle";
-import { assertNoServerRoutes, removeServerBundle, serverEntry, type AdapterContext, type AdapterResult } from "./shared";
+import { bundleServerEntry, frameworkFile } from "./bundle";
+import { assertNoServerRoutes, readAnsiFrames, removeServerBundle, serverEntry, type AdapterContext, type AdapterResult } from "./shared";
 
 export const CLOUDFLARE_COMPAT = { date: "2025-01-01", flags: ["nodejs_compat"] } as const;
+
+/** Inlined ANSI frames past this size get a build note: Workers limit the compressed bundle size. */
+export const CLOUDFLARE_ANSI_NOTE_BYTES = 1024 * 1024;
+
+/** Prerendered ANSI frames inlined into the worker (`ASSETS` would serve them at a URL middleware never sees). */
+function ansiPrelude(frames: Record<string, string>): string {
+  if (Object.keys(frames).length === 0) return "const ansi = undefined;";
+  return `import { createAnsiHandler } from ${JSON.stringify(frameworkFile("server/ansi-server.ts"))};
+const ansi = createAnsiHandler({ frames: ${JSON.stringify(frames)} });`;
+}
 
 const BODY = `
 const fetchAsset = (env, url, request) => env.ASSETS.fetch(new Request(url, { method: request.method, headers: request.headers }));
@@ -40,6 +50,7 @@ async function asset(env, url, request) {
 
 const handler = createRequestHandler({
   ...options,
+  ansi,
   assets(pathname, request, context) {
     return asset(context.env, new URL(pathname, request.url), request);
   },
@@ -80,7 +91,9 @@ export function cloudflareRoutes(ctx: AdapterContext, middleware: MiddlewareModu
 
 export async function adaptCloudflare(ctx: AdapterContext, middleware: MiddlewareModule | null): Promise<AdapterResult> {
   assertNoServerRoutes(ctx, "cloudflare");
-  await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: BODY }), outFile: join(ctx.outDir, "_worker.js"), target: "webworker" });
+  const frames = readAnsiFrames(ctx.outDir);
+  const frameBytes = Object.values(frames).reduce((n, f) => n + Buffer.byteLength(f), 0);
+  await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: `${ansiPrelude(frames)}\n${BODY}` }), outFile: join(ctx.outDir, "_worker.js"), target: "webworker" });
   writeFileSync(join(ctx.outDir, "_routes.json"), `${JSON.stringify(cloudflareRoutes(ctx, middleware), null, 2)}\n`);
   const headersFile = join(ctx.outDir, "_headers");
   const rule = "/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n";
@@ -95,6 +108,7 @@ export async function adaptCloudflare(ctx: AdapterContext, middleware: Middlewar
     adapter: "cloudflare",
     output: ctx.outDir,
     notes: [
+      ...(frameBytes > CLOUDFLARE_ANSI_NOTE_BYTES ? [`curl frames add ${(frameBytes / 1024 / 1024).toFixed(1)} MB to _worker.js. Set \`ansi: false\` on pages that don't need them if the worker gets too large.`] : []),
       `Requires the ${CLOUDFLARE_COMPAT.flags.join(", ")} compatibility flag (Pages → Settings → Runtime, or wrangler.toml).`,
       `Preview: bunx wrangler pages dev ${ctx.config.outDir ?? "dist"} --compatibility-flags=nodejs_compat`,
       `Deploy:  bunx wrangler pages deploy ${ctx.config.outDir ?? "dist"}`,

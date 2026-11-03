@@ -138,13 +138,18 @@ export async function startProductionServer(options: StartOptions): Promise<Star
           return proxyRequest(req, res, new URL(path, target.target).href, origin);
         }
       }
-      if (live && (await live.handle(req, res, url))) return;
       // `route` is canonical: route matching decodes it once, file lookups use the decoded form.
       const route = url.split("?")[0] ?? "/";
       const pathname = decodeURIComponent(route);
+      const m = api ? matchApiRoute(api.manifest, route) : null;
+      const mod = m ? api?.handlers[m.file] : undefined;
+      if (live && !mod) {
+        // Terminal clients (curl) get the page's first frame as ANSI, wherever a page would be served.
+        const frame = await live.ansi(req, url);
+        if (frame) return sendWebResponse(res, frame, req.method);
+      }
+      if (live && (await live.handle(req, res, url))) return;
       if (api) {
-        const m = matchApiRoute(api.manifest, route);
-        const mod = m ? api.handlers[m.file] : undefined;
         if (m && mod) {
           const request = toWebRequest(Object.assign(req, { url }), origin, res);
           return sendWebResponse(res, await runRouteHandlerWithCache(mod, request, { params: m.params, pattern: m.pattern, pathname: route }), request.method);

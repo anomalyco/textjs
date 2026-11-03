@@ -19,6 +19,7 @@ export async function adaptStatic(ctx: AdapterContext, middleware: MiddlewareMod
   for (const pattern of serverRoutePatterns(ctx)) problems.push(`${pattern}: renders on the server (\`export const runtime = "server"\`). Use --adapter bun (or \`text start\`).`);
   const notes: string[] = [];
   if (ctx.rewrites.length > 0) notes.push("rewrites in text.config.ts are not applied by static hosts; configure them on your host.");
+  if (ctx.config.ansi !== false) notes.push("curl gets the HTML page: static hosts can't answer terminal clients with ANSI. Use --adapter bun, vercel or cloudflare (or `text start`).");
 
   const written: string[] = [];
   if (ctx.api.length > 0 && problems.length === 0) {

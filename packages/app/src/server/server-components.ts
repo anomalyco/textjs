@@ -20,6 +20,8 @@ type AnyComponent = (props: any) => unknown;
 /** Promises kept per cache (least recently used are dropped first). */
 export const SERVER_COMPONENT_CACHE_SIZE = 256;
 
+const NEVER: Promise<never> = new Promise<never>(() => undefined);
+
 /** Per-session promise cache, cleared whenever the route or `router.refresh()` generation changes. */
 export class ServerComponentCache {
   private generation = "";
@@ -30,11 +32,17 @@ export class ServerComponentCache {
   private settledAt = 0;
   private readonly maxEntries: number;
   private readonly onActivity: (() => void) | undefined;
+  private readonly suspendOnly: boolean;
 
-  /** `onActivity` runs whenever a component's promise starts or settles (idle tracking). */
-  constructor(options: { maxEntries?: number; onActivity?: () => void } = {}) {
+  /**
+   * `onActivity` runs whenever a component's promise starts or settles (idle tracking).
+   * With `suspendOnly`, async components never run: each one suspends to its
+   * `<Suspense>` fallback (prerendered shells and ANSI frames, which capture the first frame).
+   */
+  constructor(options: { maxEntries?: number; onActivity?: () => void; suspendOnly?: boolean } = {}) {
     this.maxEntries = options.maxEntries ?? SERVER_COMPONENT_CACHE_SIZE;
     this.onActivity = options.onActivity;
+    this.suspendOnly = options.suspendOnly ?? false;
   }
 
   get size(): number {
@@ -66,6 +74,7 @@ export class ServerComponentCache {
   }
 
   read(component: AnyComponent, props: object, generation: string): Promise<ReactNode> {
+    if (this.suspendOnly) return NEVER;
     if (generation !== this.generation) {
       this.generation = generation;
       this.entries.clear();

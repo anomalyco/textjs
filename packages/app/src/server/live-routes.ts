@@ -226,7 +226,7 @@ export function withServerStubs(scan: AppScan): AppScan {
 /** `virtual:textjs/live`: the SSR entry rendering live sessions and PPR shells. */
 export function generateLiveEntryModule(scan: AppScan): string {
   return `${generateRoutesModule(scan)}
-export { createLiveApp, isServerPage, prerenderShell, routeRuntime } from ${JSON.stringify(LIVE_APP_MODULE)};
+export { createLiveApp, isServerPage, prerenderAnsi, prerenderShell, routeRuntime } from ${JSON.stringify(LIVE_APP_MODULE)};
 `;
 }
 

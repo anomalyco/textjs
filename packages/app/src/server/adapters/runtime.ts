@@ -45,6 +45,12 @@ export interface RequestHandlerOptions {
    * middleware and rewrites. `url` is the path and query without basePath.
    */
   live?: (request: Request, url: string, context: RequestContext) => Promise<Response | null> | Response | null;
+  /**
+   * The ANSI frame for a terminal client (curl), or `null`. Runs at the
+   * page-serving step: after middleware, rewrites and route handlers, before
+   * `live`, assets and the document. `url` is the path and query without basePath.
+   */
+  ansi?: (request: Request, url: string, context: RequestContext) => Promise<Response | null> | Response | null;
 }
 
 export type TextRequestHandler = (request: Request, context?: RequestContext) => Promise<Response>;
@@ -113,6 +119,13 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
       }
     }
 
+    const api = matchApi(options.manifest, pathname);
+    const mod = api ? options.handlers[api.id] : undefined;
+    if (options.ansi && !mod) {
+      const frame = await options.ansi(request, pathname + search, context);
+      if (frame) return finish(frame);
+    }
+
     if (options.live) {
       const live = await options.live(request, pathname + search, context);
       if (live) return finish(live);
@@ -120,8 +133,6 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
 
     // `pathname` is canonical: route matching decodes it once, file lookups use the decoded form.
     const decoded = decodeURIComponent(pathname);
-    const api = matchApi(options.manifest, pathname);
-    const mod = api ? options.handlers[api.id] : undefined;
     if (api && mod) {
       const target = new URL(pathname + search, url.origin);
       const req = target.href === request.url ? request : rebuild(request, new Headers(request.headers), target);
