@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import { join } from "node:path";
 import { createElement } from "react";
 import { assemble, formatTranslation, parseTranslation, segment } from "../scripts/i18n/document";
-import { checkLocale } from "../scripts/i18n/check";
-import { extractMessages } from "../scripts/i18n/sources";
+import { checkLocale, unreadableCalls } from "../scripts/i18n/check";
+import { CALL, extractMessages, PLURAL } from "../scripts/i18n/sources";
+import { i18nPlugin } from "../scripts/i18n/vite-plugin";
 import { validate, validatePlural } from "../scripts/i18n/validate";
 import { headingsOf, toConsoleMarkdown } from "../src/docs/registry";
-import { LOCALES, localePath, splitLocale } from "../src/i18n/locales";
+import { LOCALES, localePath, parseLocaleSet, splitLocale } from "../src/i18n/locales";
 import { rich } from "../src/i18n/rich";
 import { interpolate, plural } from "../src/i18n/t";
 import { localizeHref, matchRoute } from "../src/router";
@@ -20,7 +22,8 @@ describe("locales", () => {
     expect(splitLocale("/ja/docs/routing")).toEqual({ locale: ja, path: "/docs/routing" });
     expect(splitLocale("/ja")).toEqual({ locale: ja, path: "/" });
     expect(splitLocale("/docs").locale.code).toBe("en");
-    expect(splitLocale("/pt-br/blog").locale.code).toBe("pt-BR");
+    // Only built locales are prefixes; others are ordinary (unknown) paths.
+    expect(splitLocale("/pt-br/blog").locale.code).toBe("en");
     expect(localePath(ja, "/")).toBe("/ja");
     expect(localePath(ja, "/docs")).toBe("/ja/docs");
     expect(localePath(LOCALES[0]!, "/docs")).toBe("/docs");
@@ -28,8 +31,15 @@ describe("locales", () => {
   });
 
   test("no route's first segment collides with a locale path", () => {
-    for (const l of LOCALES) if (l.path) expect(matchRoute(`/${l.path}`).name).toBe("home");
+    for (const l of LOCALES) if (l.path) expect(["home", "not-found"]).toContain(matchRoute(`/${l.path}`).name);
     expect(new Set(LOCALES.map((l) => l.path)).size).toBe(LOCALES.length);
+  });
+
+  test("a deploy's locale set comes from TEXTJS_LOCALES, with optional status overrides", () => {
+    expect(parseLocaleSet("en").map((l) => l.code)).toEqual(["en"]);
+    expect(parseLocaleSet("ja:live").map((l) => `${l.code}:${l.status}`)).toEqual(["en:source", "ja:live"]);
+    expect(parseLocaleSet("ar").find((l) => l.code === "ar")?.status).toBe("draft");
+    expect(() => parseLocaleSet("xx")).toThrow();
   });
 
   test("the English build leaves links alone", () => {
@@ -51,6 +61,30 @@ describe("catalog", () => {
     expect(plural(3, { one: "{count} frame", other: "{count} frames" })).toBe("3 frames");
     const html = renderToStaticMarkup(createElement("p", null, rich("Read the <link>docs</link>.", { link: (c) => createElement("a", { href: "/docs" }, c) })));
     expect(html).toBe('<p>Read the <a href="/docs">docs</a>.</p>');
+  });
+
+  test("rich text nests, and an untranslated rich string is marked as English", () => {
+    const tags = { safari: (c: unknown) => createElement("span", { className: "br-safari" }, c as string), link: (c: unknown) => createElement("a", { href: "/x" }, c as string) };
+    expect(renderToStaticMarkup(createElement("p", null, rich("Open it<safari> (<link>turn on</link> first)</safari>.", tags)))).toBe('<p>Open it<span class="br-safari"> (<a href="/x">turn on</a> first)</span>.</p>');
+    expect(renderToStaticMarkup(createElement("p", null, rich.en("Hi <link>there</link>", tags)))).toBe('<p><span lang="en" dir="ltr">Hi <a href="/x">there</a></span></p>');
+  });
+
+  test("extraction reads only literal calls, and the check reports the rest", () => {
+    const code = 'x.t("no"); at("no"); t("yes"); msg("yes2"); plural(Math.max(a, b), { one: "{count} item", other: "{count} items" });';
+    expect([...code.matchAll(CALL)].map((m) => JSON.parse(m[2] as string))).toEqual(["yes", "yes2"]);
+    expect([...code.matchAll(PLURAL)]).toHaveLength(1);
+    expect(unreadableCalls()).toEqual([]);
+  });
+
+  test("a locale build compiles strings in, and marks untranslated ones as English", () => {
+    const plugin = i18nPlugin("ja") as { transform: (code: string, id: string) => { code: string } | null };
+    const file = join(import.meta.dir, "..", "src", "site", "Example.tsx");
+    const out = plugin.transform.call({}, 'import { t } from "../i18n/t";\nconst a = <p>{t("Docs")}</p>;\nconst b = <p>{t("Not in the catalog")}</p>;\nconst c = <i title={t("Not in the catalog")} />;', file)!.code;
+    expect(out).toContain('<p>{"ドキュメント"}</p>');
+    expect(out).toContain('<p>{<span lang="en" dir="ltr">{"Not in the catalog"}</span>}</p>');
+    expect(out).toContain('title={"Not in the catalog"}');
+    const en = i18nPlugin("en") as typeof plugin;
+    expect(en.transform.call({}, 'import { t } from "../i18n/t";\nconst a = <p>{t("Docs")}</p>;', file)!.code).toContain('<p>{"Docs"}</p>');
   });
 
   test("keys are literal strings found in the source", () => {

@@ -15,7 +15,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
 import { assemble, parseTranslation } from "./document";
-import { CALL, documentForFile, parsePluralObject, PLURAL, readCatalog, readText, SRC_DIR, translationFile, USES_CATALOG, type Catalog } from "./sources";
+import { getLocale } from "../../src/i18n/locales";
+import { CALL, documentForFile, LITERAL, parsePluralObject, PLURAL, readCatalog, readText, SRC_DIR, translationFile, USES_CATALOG, type Catalog } from "./sources";
 
 export interface Units {
   translated: number;
@@ -30,7 +31,9 @@ export interface UnitsManifest {
 }
 
 const COMPANION = join(SRC_DIR, "console-companion") + "/";
-const ENGLISH_ISLAND = [join(SRC_DIR, "docs") + "/", join(SRC_DIR, "blog") + "/"];
+const ENGLISH_ISLAND = [join(SRC_DIR, "docs") + "/", join(SRC_DIR, "blog") + "/", join(SRC_DIR, "learn") + "/"];
+/** Modules with state the page and the console share; copying them would split it. */
+const SHARED_STATE = /\/learn\/(progress|captions)\.ts$/;
 const EN_QUERY = "lang=en";
 
 const clean = (id: string): string => id.split("?")[0] as string;
@@ -57,7 +60,7 @@ export function i18nPlugin(locale: string): Plugin {
       const resolved = await this.resolve(id, clean(importer), { ...options, skipSelf: true });
       if (!resolved || resolved.external) return null;
       const file = clean(resolved.id);
-      if (!ENGLISH_ISLAND.some((d) => file.startsWith(d)) || isEnglishCopy(resolved.id)) return null;
+      if (!ENGLISH_ISLAND.some((d) => file.startsWith(d)) || SHARED_STATE.test(file) || isEnglishCopy(resolved.id)) return null;
       return `${resolved.id}${resolved.id.includes("?") ? "&" : "?"}${EN_QUERY}`;
     },
     load(id) {
@@ -78,10 +81,25 @@ export function i18nPlugin(locale: string): Plugin {
         units.total++;
         if (!english && (plural ? typeof catalog[key] === "object" : typeof catalog[key] === "string" && catalog[key] !== "")) units.translated++;
       };
-      let out = code.replace(CALL, (_m, fn: string, literal: string, end: string) => {
+      const rtl = !english && getLocale(locale)?.dir === "rtl";
+      const missing = (key: string): boolean => !english && !(typeof catalog[key] === "string" && catalog[key]);
+      // Untranslated text stays English. As a JSX child it's marked up as English; elsewhere (attributes, data)
+      // a right-to-left page gets it in a left-to-right isolate, so its punctuation stays put.
+      let out = code;
+      if (!english && file.endsWith(".tsx")) {
+        out = out.replace(new RegExp(String.raw`(?<!=\s*)\{\s*t\(\s*(${LITERAL})\s*\)\s*\}`, "g"), (m, literal: string) => {
+          const key = JSON.parse(literal) as string;
+          if (!missing(key) || /\{\w+\}/.test(key)) return m;
+          count(key);
+          return `{<span lang="en" dir="ltr">{${JSON.stringify(key)}}</span>}`;
+        });
+      }
+      out = out.replace(CALL, (_m, fn: string, literal: string, end: string) => {
         const key = JSON.parse(literal) as string;
         count(key);
-        const text = JSON.stringify(english ? key : lookup(key));
+        if (fn === "rich" && missing(key)) return `rich.en(${literal}${end}`;
+        const value = english ? key : lookup(key);
+        const text = JSON.stringify(rtl && missing(key) ? `\u2066${value}\u2069` : value);
         // A bare `t("x")` or `msg("x")` is just its text.
         if (end === ")" && (fn === "t" || fn === "msg") && !/\{\w+\}/.test(key)) return text;
         return `${fn}(${text}${end}`;

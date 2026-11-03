@@ -158,7 +158,11 @@ export default defineConfig(({ isSsrBuild }) => ({
     // Locale builds only contribute pages and chunks; English ships public/ and the Doom WAD.
     ...(SOURCE ? [doomWadGzip(Boolean(isSsrBuild))] : []),
   ],
-  define: { __TEXTJS_RELEASE__: JSON.stringify(release()), __TEXTJS_LOCALE__: JSON.stringify(LOCALE) },
+  define: {
+    __TEXTJS_RELEASE__: JSON.stringify(release()),
+    __TEXTJS_LOCALE__: JSON.stringify(LOCALE),
+    __TEXTJS_LOCALES__: JSON.stringify(process.env.TEXTJS_LOCALES ?? ""),
+  },
   publicDir: SOURCE ? "public" : false,
   build: {
     target: "es2022",

@@ -65,7 +65,7 @@ export const DOCS_META: readonly DocMeta[] = [
     slug: "server-rendering",
     title: msg("Server Rendering and Partial Prerendering"),
     nav: msg("Server Rendering"),
-    description: msg('runtime = "server": routes rendered on the server and streamed as frames; prerendered console shells.'),
+    description: msg("runtime = \"server\": routes rendered on the server and streamed as frames; prerendered console shells."),
     category: "Building Your Application",
   },
   {
@@ -287,4 +287,9 @@ export function stripI18nMarkup(markdown: string): string {
   return markdown
     .replace(/^<!-- i18n:[\w-]+ -->\n\n?/gm, "")
     .replace(/^(\s{0,3}#{1,6}\s.*?)\s*\{#[\w-]+\}\s*$/gm, "$1");
+}
+
+/** Whether assembled Markdown has any translated heading (one without the `i18n:en` line before it). */
+export function hasTranslatedHeading(markdown: string): boolean {
+  return /(?<!<!-- i18n:en -->\n\n)^#{2,6} .*\{#[\w-]+\}$/m.test(markdown);
 }

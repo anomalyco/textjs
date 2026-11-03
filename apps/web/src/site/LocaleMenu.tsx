@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { LOCALE, localePath, offeredLocales, type Locale } from "../i18n/locales";
 import { t } from "../i18n/t";
 import { getLocation } from "../router";
+import { ChevronDown, CloseIcon } from "./icons";
 
 /** The visitor's choice of language (set by the picker or the banner); the banner never shows once it's set. */
 export const LOCALE_KEY = "textjs:locale";
@@ -21,10 +22,14 @@ function switchTo(locale: Locale): void {
   window.location.assign(`${localePath(locale, path)}${window.location.search}${hash}`);
 }
 
-/** Footer language picker. Renders nothing while English is the only language offered. */
+/** Whether the footer shows a language picker: more than one language to offer. */
+export function hasLocaleMenu(): boolean {
+  return offeredLocales().length > 1;
+}
+
+/** Footer language picker, beside the status line. */
 export function LocaleMenu(): ReactNode {
   const locales = offeredLocales();
-  if (locales.length < 2) return null;
   return (
     <label className="locale-menu" data-console-bypass="">
       <span className="sr-only">{t("Language")}</span>
@@ -41,6 +46,7 @@ export function LocaleMenu(): ReactNode {
           </option>
         ))}
       </select>
+      <ChevronDown size={12} aria-hidden="true" />
     </label>
   );
 }
@@ -65,7 +71,7 @@ export function suggestedLocale(languages: readonly string[], locales: readonly 
 }
 
 interface BannerCopy {
-  text: string;
+  /** "Read in English", in the offered language. */
   action: string;
   dismiss: string;
 }
@@ -85,10 +91,14 @@ export function LocaleSuggestion(): ReactNode {
     const target = suggestedLocale(navigator.languages ?? [navigator.language]);
     if (!target || target === LOCALE) return;
     let alive = true;
-    void import("../../locales/banner.json").then((m) => {
-      const copy = (m.default as Record<string, BannerCopy>)[target.code];
-      if (alive && copy) setOffer({ locale: target, copy });
-    });
+    import("../../locales/banner.json").then(
+      (m) => {
+        const copy = (m.default as Record<string, BannerCopy>)[target.code];
+        if (alive && copy) setOffer({ locale: target, copy });
+      },
+      // An offer isn't worth an error: a failed chunk just means no banner.
+      () => {},
+    );
     return () => {
       alive = false;
     };
@@ -97,9 +107,8 @@ export function LocaleSuggestion(): ReactNode {
   const { locale, copy } = offer;
   return (
     // The corner follows the page's direction; the offer reads in its own.
-    <div className="locale-suggestion" role="region" aria-label={copy.text} data-console-bypass="">
+    <div className="locale-suggestion" role="region" aria-label={locale.name} data-console-bypass="">
       <div className="locale-suggestion-body" lang={locale.code} dir={locale.dir}>
-        <span>{copy.text}</span>
         <button type="button" className="btn btn-secondary btn-sm" onClick={() => switchTo(locale)}>
           {copy.action}
         </button>
@@ -112,7 +121,7 @@ export function LocaleSuggestion(): ReactNode {
             setOffer(null);
           }}
         >
-          ×
+          <CloseIcon size={14} />
         </button>
       </div>
     </div>

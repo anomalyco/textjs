@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
-import { CATEGORY_LABELS } from "../docs/meta";
+import { CATEGORY_LABELS, hasTranslatedHeading } from "../docs/meta";
+import { LOCALE, SOURCE_LOCALE } from "../i18n/locales";
 import { DOC_CATEGORIES, DOCS, docPath, getDoc, headingsOf, neighbors } from "../docs/registry";
 import { t } from "../i18n/t";
 import { A, useLocation } from "../router";
@@ -110,7 +111,7 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
               <p className="docs-desc">{doc.description}</p>
             </Fragment>
             <MarkdownDoc key={doc.slug} source={doc.markdown} />
-            <A href={docEditUrl(doc.slug)} className="docs-edit">
+            <A href={docEditUrl(doc.slug, hasTranslatedHeading(doc.markdown) ? LOCALE : SOURCE_LOCALE)} className="docs-edit">
               <GitHubIcon size={14} />
               {t("Edit this page on GitHub")}
             </A>

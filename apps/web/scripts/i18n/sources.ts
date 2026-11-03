@@ -52,11 +52,13 @@ export type Catalog = Record<string, CatalogValue>;
 
 /** Files that use the catalog import it; nothing else is scanned or rewritten. */
 export const USES_CATALOG = /from\s+"[./]*(?:\.\.\/)*i18n\/(?:t|rich)"/;
-const LITERAL = String.raw`"(?:[^"\\\n]|\\.)*"`;
-/** `t("…")` / `msg("…")` / `rich("…"` / `t("…",` — the first argument is the key. */
-export const CALL = new RegExp(String.raw`\b(t|msg|rich)\(\s*(${LITERAL})\s*([,)])`, "g");
-/** `plural(n, { one: "…", other: "…" })` — keyed by `other`. */
-export const PLURAL = new RegExp(String.raw`\bplural\(([^,()]+),\s*(\{(?:\s*(?:zero|one|two|few|many|other):\s*${LITERAL}\s*,?)+\s*\})`, "g");
+export const LITERAL = String.raw`"(?:[^"\\\n]|\\.)*"`;
+/** `t("…")` / `msg("…")` / `rich("…"` / `t("…",` — the first argument is the key. Not `x.t(` or `at(`. */
+export const CALL = new RegExp(String.raw`(?<![.\w])(t|msg|rich)\(\s*(${LITERAL})\s*([,)])`, "g");
+/** `plural(n, { one: "…", other: "…" })` — keyed by `other`. The count may contain one level of parentheses. */
+export const PLURAL = new RegExp(String.raw`(?<![.\w])plural\(((?:[^,()]|\([^()]*\))+),\s*(\{(?:\s*(?:zero|one|two|few|many|other):\s*${LITERAL}\s*,?)+\s*\})`, "g");
+/** Any catalog call, to catch the ones the patterns above can't read (single quotes, template literals, variables). */
+export const ANY_CALL = /(?<![.\w])(t|msg|rich|plural)\(/g;
 
 export function parsePluralObject(source: string): Record<string, string> {
   return JSON.parse(source.replace(/(zero|one|two|few|many|other):/g, '"$1":').replace(/,\s*\}$/, "}")) as Record<string, string>;

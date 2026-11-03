@@ -4,7 +4,8 @@ import { activateCompanion, COMPANION_COLS, COMPANION_ROWS, subscribeCompanionFr
 import { isHomeExampleFrame } from "../docs/preview-meta";
 import { useSite } from "../console-companion/useSite";
 import { A } from "../router";
-import { DevtoolsShortcut, SafariConsoleNote } from "../site/Chrome";
+import { rich } from "../i18n/rich";
+import { CONSOLE_TAGS } from "../site/Chrome";
 import { CopyCommand } from "../site/CodeBlock";
 import { DevToolsWindow } from "../site/DevToolsWindow";
 import { HighlightedCode } from "../site/highlight";
@@ -75,11 +76,15 @@ function Hero(): ReactNode {
                 <CopyCommand command="bunx create-text-app" />
               </div>
               <p className="hero-whisper desktop-only">
-                This page is running in your console. Open it with <kbd><DevtoolsShortcut /></kbd>
-                <SafariConsoleNote />, click the preview below and press{" "}
-                <span className="nowrap">
-                  <kbd>↑</kbd> <kbd>↓</kbd>.
-                </span>
+                {rich("This page is running in your console. Open it with <keys></keys><safari> (<link>turn on developer features</link> first)</safari>, click the preview below and press <arrows>.</arrows>", {
+                  ...CONSOLE_TAGS,
+                  arrows: (c) => (
+                    <span className="nowrap">
+                      <kbd>↑</kbd> <kbd>↓</kbd>
+                      {c}
+                    </span>
+                  ),
+                })}
               </p>
             </div>
           </div>

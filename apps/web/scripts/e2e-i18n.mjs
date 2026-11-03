@@ -63,6 +63,27 @@ try {
     check(errors.length === 0, `no console errors (${errors.join(" | ")})`);
     await context.close();
   }
+  // The banner never covers the footer's picker, status line or copyright, even scrolled to the very end.
+  for (const [width, height] of [[390, 844], [1440, 900]]) {
+    for (const path of ["/ja", "/ja/docs/routing"]) {
+      const context = await browser.newContext({ locale: "en-US", viewport: { width, height } });
+      const page = await context.newPage();
+      await page.goto(`${base}${path}`, { waitUntil: "networkidle" });
+      await page.locator(".locale-suggestion").waitFor({ timeout: 5000 }).catch(() => {});
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await page.waitForTimeout(200);
+      const overlaps = await page.evaluate(() => {
+        const banner = document.querySelector(".locale-suggestion")?.getBoundingClientRect();
+        if (!banner) return ["no banner"];
+        return [".locale-menu", ".footer-status", ".tx-copyright p", ".footer nav"]
+          .flatMap((sel) => [...document.querySelectorAll(sel)].map((el) => [sel, el.getBoundingClientRect()]))
+          .filter(([, r]) => r.width > 0 && r.left < banner.right && r.right > banner.left && r.top < banner.bottom && r.bottom > banner.top)
+          .map(([sel]) => sel);
+      });
+      check(overlaps.length === 0, `banner covers nothing in the footer at ${width}px on ${path} (${overlaps.join(", ")})`);
+      await context.close();
+    }
+  }
   {
     const { page, context } = await open("/ja/no-such-page", "ja-JP");
     check((await page.getAttribute("html", "lang")) === "ja", "an unknown /ja path gets the Japanese 404");

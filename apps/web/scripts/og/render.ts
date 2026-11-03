@@ -107,7 +107,8 @@ function glyphsByFamily(page: Page): Promise<Record<string, string>> {
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
       const family = getComputedStyle(n.parentElement as Element).fontFamily;
       const set = (out[family] ??= new Set());
-      for (const ch of n.textContent ?? "") if (ch.trim()) set.add(ch);
+      // Bidi isolates (around untranslated text on RTL cards) draw nothing.
+      for (const ch of n.textContent ?? "") if (ch.trim() && !/[\u2066-\u2069]/.test(ch)) set.add(ch);
     }
     return Object.fromEntries(Object.entries(out).map(([f, s]) => [f, [...s].join("")]));
   });

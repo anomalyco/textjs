@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NOT_FOUND_PATH, ROUTES } from "../src/entry-server";
@@ -61,8 +61,8 @@ describe("Open Graph cards", () => {
 
 describe("Open Graph images in the build", () => {
   const out = mkdtempSync(join(tmpdir(), "textjs-og-"));
-  const dist = join(out, "dist");
-  const ssr = join(out, "ssr");
+  const dist = join(out, "draft", "dist");
+  const live = join(out, "live", "dist");
   const locales = join(out, "locales");
 
   beforeAll(() => {
@@ -70,14 +70,20 @@ describe("Open Graph images in the build", () => {
       const proc = Bun.spawnSync(cmd, { cwd: ROOT, stdout: "pipe", stderr: "pipe", env: { ...process.env, ...env } });
       if (proc.exitCode !== 0) throw new Error(`${cmd.join(" ")} failed:\n${proc.stderr.toString()}`);
     };
-    run(["bun", "x", "vite", "build", "--outDir", dist, "--emptyOutDir"]);
-    run(["bun", "x", "vite", "build", "--ssr", "src/entry-server.tsx", "--outDir", ssr, "--emptyOutDir"]);
-    // One locale build too, as scripts/build.ts does it.
-    const ja = { TEXTJS_LOCALE: "ja" };
+    // English plus Japanese as scripts/build.ts builds them. The fixtures pin ja's status, so promoting it in
+    // locales.ts doesn't change what these tests expect.
+    const set = { TEXTJS_LOCALES: "ja:draft" };
+    run(["bun", "x", "vite", "build", "--outDir", join(out, "base", "dist"), "--emptyOutDir"], set);
+    run(["bun", "x", "vite", "build", "--ssr", "src/entry-server.tsx", "--outDir", join(out, "base", "ssr"), "--emptyOutDir"], set);
+    const ja = { ...set, TEXTJS_LOCALE: "ja" };
     run(["bun", "x", "vite", "build", "--outDir", join(locales, "ja", "client"), "--emptyOutDir"], ja);
     run(["bun", "x", "vite", "build", "--ssr", "src/entry-server.tsx", "--outDir", join(locales, "ja", "ssr"), "--emptyOutDir"], ja);
-    run(["bun", "scripts/postbuild-pages.ts"], { TEXTJS_WEB_DIST: dist, TEXTJS_WEB_SSR: ssr, TEXTJS_WEB_LOCALES: locales, TEXTJS_LOCALES: "en,ja" });
-  }, 240_000);
+    // The prerenderer twice: ja as a draft, and ja live (its links, hreflang, sitemap and headers).
+    for (const [name, status] of [["draft", "ja:draft"], ["live", "ja:live"]] as const) {
+      cpSync(join(out, "base"), join(out, name), { recursive: true });
+      run(["bun", "scripts/postbuild-pages.ts"], { TEXTJS_WEB_DIST: join(out, name, "dist"), TEXTJS_WEB_SSR: join(out, name, "ssr"), TEXTJS_WEB_LOCALES: locales, TEXTJS_LOCALES: status });
+    }
+  }, 300_000);
 
   afterAll(() => rmSync(out, { recursive: true, force: true }));
 
@@ -188,5 +194,35 @@ describe("Open Graph images in the build", () => {
     expect(rule?.get("content-language")).toBe("ja");
     // Drafts add nothing to English pages.
     expect(readFileSync(join(dist, "docs", "routing.html"), "utf8")).not.toContain('hreflang="');
+    expect(existsSync(join(dist, "sitemap-ja.xml"))).toBe(false);
+  });
+
+  test("a live locale is offered only for pages with translated content of their own", () => {
+    const page = (p: string): string => readFileSync(join(live, `${p}.html`), "utf8");
+    const canonical = (html: string): string | undefined => /<link\s+rel="canonical"\s+href="([^"]*)"/.exec(html)?.[1];
+    const routing = page("ja/docs/routing");
+    expect(routing).not.toContain('name="robots"');
+    expect(canonical(routing)).toBe("https://textjs.org/ja/docs/routing");
+    expect(routing).toContain('<link rel="alternate" hreflang="en" href="https://textjs.org/docs/routing" />');
+    expect(routing).toContain('<link rel="alternate" hreflang="ja" href="https://textjs.org/ja/docs/routing" />');
+    expect(routing).toContain('<link rel="alternate" hreflang="x-default" href="https://textjs.org/docs/routing" />');
+    expect(routing.indexOf('hreflang="ja"')).toBeGreaterThan(routing.indexOf('rel="modulepreload"'));
+    expect(page("docs/routing")).toContain('hreflang="ja"');
+    // /docs/introduction is /docs: only the canonical URL is an alternate or in the sitemap.
+    expect(page("docs/introduction")).not.toContain('hreflang="');
+    expect(page("ja/docs/introduction")).not.toContain('hreflang="');
+    expect(canonical(page("ja/docs/introduction"))).toBe("https://textjs.org/ja/docs");
+    // The enterprise page's own copy isn't translated; shared header and footer strings don't make it Japanese.
+    const enterprise = page("ja/enterprise");
+    expect(enterprise).not.toContain('hreflang="');
+    expect(canonical(enterprise)).toBe("https://textjs.org/enterprise");
+    const sitemap = readFileSync(join(live, "sitemap-ja.xml"), "utf8");
+    const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+    expect(urls).toContain("https://textjs.org/ja/docs/routing");
+    expect(urls.filter((u) => u === "https://textjs.org/ja/docs")).toHaveLength(1);
+    expect(urls).not.toContain("https://textjs.org/ja/docs/introduction");
+    expect(urls).not.toContain("https://textjs.org/ja/enterprise");
+    expect(readFileSync(join(live, "robots.txt"), "utf8")).toContain("Sitemap: https://textjs.org/sitemap-ja.xml");
+    expect(readFileSync(join(live, "_headers"), "utf8")).not.toContain("X-Robots-Tag");
   });
 });

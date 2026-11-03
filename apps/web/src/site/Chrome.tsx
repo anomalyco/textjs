@@ -3,14 +3,14 @@ import { useConsoleLogDown } from "../console-health";
 import { activateCompanion } from "../console-companion/bridge";
 import { isPadRoute, siteStore } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
-import { rich } from "../i18n/rich";
+import { rich, type Tags } from "../i18n/rich";
 import { msg, t } from "../i18n/t";
 import { A, useLocation } from "../router";
 import { ArrowUpRight, ChevronRight, CloseIcon, GitHubIcon, Logo, MenuIcon, SearchIcon } from "./icons";
 import { REPO_URL } from "./links";
 import { LogoMenu, useLogoMenu } from "./LogoMenu";
 import { openSearch, preloadSearchDialog } from "./SearchModal";
-import { LocaleMenu } from "./LocaleMenu";
+import { hasLocaleMenu, LocaleMenu } from "./LocaleMenu";
 import { Sheet, useCloseOnMedia } from "./Sheet";
 
 /**
@@ -31,18 +31,19 @@ export function DevtoolsShortcut(): ReactNode {
 }
 
 /**
- * Safari's console shortcut only works once its developer features are on. Shown after an inline
- * `<DevtoolsShortcut />` in Safari only (`html[data-browser=safari]`).
+ * Tags for sentences that tell the visitor to open the console, so each sentence is one catalog string:
+ * `<keys></keys>` is this browser's shortcut, and `<safari>…</safari>` is shown in Safari only
+ * (`html[data-browser=safari]`), where the shortcut works once developer features are on (`<link>`).
  */
-export function SafariConsoleNote(): ReactNode {
-  return (
-    <span className="br-safari">
-      {" ("}
-      <A href="/docs/installation#open-the-console">{t("turn on developer features")}</A>
-      {t(" first)")}
-    </span>
-  );
-}
+export const CONSOLE_TAGS: Tags = {
+  keys: () => (
+    <kbd>
+      <DevtoolsShortcut />
+    </kbd>
+  ),
+  safari: (c) => <span className="br-safari">{c}</span>,
+  link: (c) => <A href="/docs/installation#open-the-console">{c}</A>,
+};
 
 const NAV = [
   { href: "/docs", label: msg("Docs") },
@@ -187,9 +188,15 @@ export function Footer(): ReactNode {
           <A href="/store">{t("Store")}</A>
           <A href="/status">{t("Status")}</A>
           <A href={REPO_URL}>GitHub</A>
-          <LocaleMenu />
         </nav>
-        <FooterStatus />
+        {hasLocaleMenu() ? (
+          <div className="footer-end">
+            <FooterStatus />
+            <LocaleMenu />
+          </div>
+        ) : (
+          <FooterStatus />
+        )}
       </div>
     </footer>
   );

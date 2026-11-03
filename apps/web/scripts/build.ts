@@ -5,17 +5,20 @@
  * English builds into dist/ as before. Other locales build into node_modules/.cache/textjs-locales/<code>/ and
  * the prerenderer merges their chunks into dist/assets and writes their pages under dist/<path>/.
  *
- *   TEXTJS_LOCALES=en,ja,ar bun run build    only these locales (English is always built)
+ *   TEXTJS_LOCALES=ja,ar bun run build        only these locales (English is always built)
+ *   TEXTJS_LOCALES=ja:live bun run build      override a status (a preview of going live)
  */
 
 import { cpus } from "node:os";
 import { join } from "node:path";
-import { LOCALES } from "../src/i18n/locales";
+import { parseLocaleSet } from "../src/i18n/locales";
 
 const WEB_DIR = join(import.meta.dirname, "..");
 const CACHE = join(WEB_DIR, "node_modules", ".cache");
-const only = process.env.TEXTJS_LOCALES?.split(",").map((s) => s.trim()).filter(Boolean);
-const locales = LOCALES.filter((l) => l.code !== "en" && (only ? only.includes(l.code) : l.status !== "planned"));
+const built = parseLocaleSet(process.env.TEXTJS_LOCALES);
+const locales = built.filter((l) => l.status !== "source");
+/** Every build and the prerenderer see the same set, so links, the picker and hreflang agree. */
+const SPEC = locales.length ? locales.map((l) => `${l.code}:${l.status}`).join(",") : "en";
 
 async function run(args: string[], env: Record<string, string>): Promise<void> {
   const proc = Bun.spawn(["bun", "x", "vite", ...args], { cwd: WEB_DIR, env: { ...process.env, ...env }, stdout: "inherit", stderr: "inherit" });
@@ -23,7 +26,7 @@ async function run(args: string[], env: Record<string, string>): Promise<void> {
 }
 
 async function build(code: string): Promise<void> {
-  const env = { TEXTJS_LOCALE: code };
+  const env = { TEXTJS_LOCALE: code, TEXTJS_LOCALES: SPEC };
   if (code === "en") {
     await run(["build"], env);
     await run(["build", "--ssr", "src/entry-server.tsx", "--outDir", join(CACHE, "textjs-ssr"), "--emptyOutDir"], env);
@@ -44,7 +47,7 @@ await Promise.all(
 
 const post = Bun.spawn(["bun", "scripts/postbuild-pages.ts"], {
   cwd: WEB_DIR,
-  env: { ...process.env, TEXTJS_LOCALES: ["en", ...locales.map((l) => l.code)].join(",") },
+  env: { ...process.env, TEXTJS_LOCALES: SPEC },
   stdout: "inherit",
   stderr: "inherit",
 });

@@ -39,7 +39,7 @@
     { "source": "/zh-TW", "destination": "/zh-tw", "permanent": true },
     { "source": "/zh-TW/:path*", "destination": "/zh-tw/:path*", "permanent": true }
   ],
-  "rewrites": [{ "source": "/((?!assets/|fonts/|og/|favicon\\.svg|og\\.png|og\\.svg|robots\\.txt|sitemap\\.xml|blog/rss\\.xml|humans\\.txt|llms\\.txt|home\\.ansi|api/v2/|enterprise/sample-invoice\\.pdf).*)", "destination": "/index.html" }],
+  "rewrites": [{ "source": "/((?!assets/|fonts/|og/|favicon\\.svg|og\\.png|og\\.svg|robots\\.txt|sitemap(?:-[a-z-]+)?\\.xml|(?:[a-z-]+/)?blog/rss\\.xml|humans\\.txt|llms\\.txt|home\\.ansi|api/v2/|enterprise/sample-invoice\\.pdf).*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/assets/(.*)",

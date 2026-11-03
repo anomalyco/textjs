@@ -60,19 +60,25 @@
 :root:lang(hi) {
   --sans: "Geist", "Geist Fallback", "Kohinoor Devanagari", "Devanagari Sangam MN", "Nirmala UI", "Noto Sans Devanagari", sans-serif;
 }
-/* Negative tracking breaks Arabic joining and crowds CJK and Devanagari. */
-:root:is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(hi)) :is(h1, h2, h3, h4, h5, h6, p, li, a, button, small, strong, td, th) {
+/* Negative tracking breaks Arabic joining and crowds CJK and Devanagari. On the text itself, so the wordmark and
+   English blocks (lang="en") keep theirs. */
+:is(h1, h2, h3, h4, h5, h6, p, li, a:not(.wordmark), button, small, strong, td, th):is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(hi)) {
   letter-spacing: 0 !important;
 }
-:root:is(:lang(ar), :lang(fa), :lang(ur), :lang(hi)) .prose {
+.prose:is(:lang(ja), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(hi)) {
   line-height: 1.8;
 }
-:root:is(:lang(ja), :lang(zh-CN), :lang(zh-TW)) body {
+.prose:lang(ko) {
+  line-height: 1.7;
+}
+.prose:is(:lang(ja), :lang(zh-CN), :lang(zh-TW)) {
   line-break: strict;
   overflow-wrap: anywhere;
 }
 :root:lang(ja) body {
   word-break: auto-phrase;
+  text-autospace: normal;
+  text-spacing-trim: trim-start;
 }
 :root:lang(ko) body {
   word-break: keep-all;
@@ -1565,21 +1571,50 @@ kbd {
   color: var(--fg);
 }
 
+/* The footer's right column when there's a language picker: the status line, then the picker. */
+.footer-end {
+  grid-area: status;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 20px;
+}
+
+.footer-end .footer-status {
+  align-self: center;
+}
+
+.locale-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: var(--subtle);
+  font-size: 13px;
+}
+
 .locale-menu select {
   appearance: none;
-  height: 24px;
-  padding: 0 10px;
-  border: 1px solid var(--line-2);
-  border-radius: 6px;
+  padding-block: 2px;
+  padding-inline: 0 18px;
+  border: 0;
   background: transparent;
-  color: var(--subtle);
+  color: inherit;
   font: inherit;
-  font-size: 13px;
   cursor: pointer;
 }
 
-.locale-menu select:hover,
 .locale-menu select:focus-visible {
+  outline: 2px solid var(--blue-2);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.locale-menu svg {
+  position: absolute;
+  inset-inline-end: 0;
+  pointer-events: none;
+}
+
+.locale-menu:hover {
   color: var(--fg);
 }
 
@@ -1587,7 +1622,7 @@ kbd {
 .locale-suggestion {
   position: fixed;
   inset-inline-start: 20px;
-  bottom: 20px;
+  bottom: max(20px, env(safe-area-inset-bottom));
   z-index: 60;
   max-width: calc(100vw - 40px);
   padding: 6px;
@@ -1597,37 +1632,42 @@ kbd {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.8);
-  color: var(--muted);
-  font-size: 13px;
 }
 
 .locale-suggestion-body {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-inline-start: 10px;
+  gap: 4px;
 }
 
 .locale-suggestion-close {
-  width: 28px;
-  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   color: var(--subtle);
-  font-size: 18px;
-  line-height: 1;
   cursor: pointer;
 }
 
 .locale-suggestion-close:hover {
+  background: var(--bg-2);
   color: var(--fg);
 }
 
+/* While the offer is up, the footer leaves room for it, so the end of the page is never under it. Extra space
+   below everything else, so nothing moves. */
+body:has(.locale-suggestion) .footer {
+  padding-bottom: 104px;
+}
+
 @media (max-width: 640px) {
-  /* Above the console pill on narrow screens. */
   .locale-suggestion {
-    bottom: 72px;
+    inset-inline-start: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
   }
 }
 

@@ -61,7 +61,11 @@ interface Glossary {
   terms: Record<string, Record<string, string>>;
 }
 const glossary = JSON.parse(readFileSync(join(LOCALES_DIR, "glossary.json"), "utf8")) as Glossary;
-const siteStyle = readFileSync(join(WEB_DIR, "STYLE.md"), "utf8");
+/** The site's copy rules: apps/web/STYLE.md and "Writing docs and copy" in CONTRIBUTING.md. */
+const siteStyle = [
+  readFileSync(join(WEB_DIR, "STYLE.md"), "utf8"),
+  /## Writing docs and copy\n([\s\S]*?)\n## /.exec(readFileSync(join(WEB_DIR, "..", "..", "CONTRIBUTING.md"), "utf8"))?.[1] ?? "",
+].join("\n\n");
 
 /** Component, hook and API names exported by the packages, kept as written. */
 function apiNames(): string[] {
@@ -115,8 +119,8 @@ function systemPrompt(locale: string, job: Job): string {
     terms.length ? `- Preferred terms:\n${terms.join("\n")}` : "",
     job.kind === "ui" ? "- These are interface strings (buttons, labels, titles, short descriptions). Keep them as short as the English." : "",
     "",
-    "Site copy rules (English, for tone):",
-    siteStyle.split("\n").filter((l) => /^\d+\. \*\*(Brand|Say it once|Headings)/.test(l)).join("\n"),
+    "The site's English copy rules. Apply their intent to the translation (register, no filler, facts kept exact):",
+    siteStyle,
     "",
     style ? `Locale style guide:\n${style}` : "",
   ]

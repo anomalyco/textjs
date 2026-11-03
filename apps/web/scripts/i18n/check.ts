@@ -8,9 +8,33 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { LOCALES } from "../../src/i18n/locales";
 import { parseTranslation, segment } from "./document";
-import { documentSources, extractMessages, LOCALES_DIR, readCatalog, readText, translationFile } from "./sources";
+import { ANY_CALL, CALL, documentSources, extractMessages, LOCALES_DIR, PLURAL, readCatalog, readText, SRC_DIR, translationFile, USES_CATALOG } from "./sources";
 import { validate, validatePlural } from "./validate";
-import { join } from "node:path";
+import { readdirSync } from "node:fs";
+import { join, relative } from "node:path";
+
+/** Catalog calls the extractor can't read (not one double-quoted literal), which would never be translated. */
+export function unreadableCalls(dir = SRC_DIR): string[] {
+  const out: string[] = [];
+  const walk = (d: string): void => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const p = join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (/\.tsx?$/.test(e.name)) {
+        const code = readFileSync(p, "utf8");
+        if (!USES_CATALOG.test(code)) continue;
+        const read = new Set([...code.matchAll(CALL), ...code.matchAll(PLURAL)].map((m) => m.index));
+        for (const m of code.matchAll(ANY_CALL)) {
+          if (read.has(m.index)) continue;
+          const line = code.slice(0, m.index).split("\n").length;
+          out.push(`${relative(join(SRC_DIR, ".."), p)}:${line}: ${code.slice(m.index, m.index + 50).split("\n")[0]}`);
+        }
+      }
+    }
+  };
+  walk(dir);
+  return out;
+}
 
 export interface LocaleReport {
   locale: string;
@@ -62,6 +86,8 @@ export function checkLocale(locale: string): LocaleReport {
 
 if (import.meta.main) {
   const reports = LOCALES.filter((l) => l.status === "live" || l.status === "draft").map((l) => checkLocale(l.code));
+  const unreadable = unreadableCalls();
+  for (const u of unreadable) console.log(`error ${u}: the first argument must be one double-quoted string`);
   const pct = (a: number, b: number): string => (b === 0 ? "–" : `${Math.round((100 * a) / b)}%`);
   const lines = [
     "| Locale | UI strings | Document blocks | Stale blocks | Errors | Warnings |",
@@ -74,5 +100,5 @@ if (import.meta.main) {
     if (process.argv.includes("--warnings")) for (const w of r.warnings) console.log(`warning ${r.locale} ${w}`);
   }
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Translations\n\n${lines.join("\n")}\n\nStale or missing text shows in English until \`bun run i18n:translate\` runs on a Mac.\n`);
-  if (reports.some((r) => r.errors.length)) process.exit(1);
+  if (unreadable.length || reports.some((r) => r.errors.length)) process.exit(1);
 }

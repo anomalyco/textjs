@@ -7,6 +7,8 @@
  */
 
 declare const __TEXTJS_LOCALE__: string | undefined;
+/** The locales this deploy builds, with their status (`scripts/build.ts`, `TEXTJS_LOCALES`): `ja:draft,ar:live`. */
+declare const __TEXTJS_LOCALES__: string | undefined;
 
 export type LocaleStatus = "source" | "live" | "draft" | "planned";
 
@@ -50,19 +52,42 @@ export function getLocale(code: string): Locale | undefined {
   return LOCALES.find((l) => l.code === code);
 }
 
+/**
+ * `ja,ar:live` → those locales (English always first), each with its status or an override. With no list, every
+ * locale that isn't planned.
+ */
+export function parseLocaleSet(spec: string | undefined): Locale[] {
+  if (!spec) return LOCALES.filter((l) => l.status !== "planned");
+  const out: Locale[] = [SOURCE_LOCALE];
+  for (const item of spec.split(",").map((s) => s.trim()).filter(Boolean)) {
+    const [code = "", status] = item.split(":");
+    const locale = getLocale(code);
+    if (!locale) throw new Error(`unknown locale "${code}"`);
+    if (locale === SOURCE_LOCALE) continue;
+    if (status && !["live", "draft"].includes(status)) throw new Error(`${code}: status must be live or draft`);
+    const resolved = status ? { ...locale, status: status as LocaleStatus } : locale;
+    // A planned locale named on the command line is built as a draft.
+    out.push(resolved.status === "planned" ? { ...resolved, status: "draft" } : resolved);
+  }
+  return out;
+}
+
+/** The locales built into this deploy. Links, the picker and the banner only know these. */
+export const BUILT_LOCALES: readonly Locale[] = parseLocaleSet(typeof __TEXTJS_LOCALES__ === "string" ? __TEXTJS_LOCALES__ : undefined);
+
 /** The locale this bundle was built for (English under `bun test` and the default build). */
-export const LOCALE: Locale = getLocale(typeof __TEXTJS_LOCALE__ === "string" ? __TEXTJS_LOCALE__ : "en") ?? SOURCE_LOCALE;
+export const LOCALE: Locale = BUILT_LOCALES.find((l) => l.code === (typeof __TEXTJS_LOCALE__ === "string" ? __TEXTJS_LOCALE__ : "en")) ?? SOURCE_LOCALE;
 
 /** Locales offered to visitors: the picker and the suggestion banner. */
 export function offeredLocales(): Locale[] {
-  return LOCALES.filter((l) => l.status === "source" || l.status === "live" || l === LOCALE);
+  return BUILT_LOCALES.filter((l) => l.status === "source" || l.status === "live" || l === LOCALE);
 }
 
 /** `/ja/docs/routing` → ja and `/docs/routing`; any other path belongs to English. */
 export function splitLocale(pathname: string): { locale: Locale; path: string } {
   const m = /^\/([a-z]{2}(?:-[a-z]{2})?)(?=\/|$)(.*)$/.exec(pathname);
   if (m) {
-    const locale = LOCALES.find((l) => l.path === m[1] && l !== SOURCE_LOCALE);
+    const locale = BUILT_LOCALES.find((l) => l.path === m[1] && l !== SOURCE_LOCALE);
     if (locale) return { locale, path: m[2] || "/" };
   }
   return { locale: SOURCE_LOCALE, path: pathname };

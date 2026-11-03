@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { cpSync } from "node:fs";
-import { LOCALES, localePath, SOURCE_LOCALE, type Locale } from "../src/i18n/locales";
+import { localePath, parseLocaleSet, SOURCE_LOCALE, type Locale } from "../src/i18n/locales";
 import type { OgCard } from "../src/og";
 import type { Route } from "../src/router";
 import { inlineScriptHashes, withScriptHashes } from "./csp";
@@ -75,11 +75,10 @@ async function loadBuild(locale: Locale, clientDir: string, serverDir: string): 
   };
 }
 
-const only = process.env.TEXTJS_LOCALES?.split(",");
 const builds: Build[] = [await loadBuild(SOURCE_LOCALE, distDir, ssrDir)];
-for (const locale of LOCALES) {
+for (const locale of parseLocaleSet(process.env.TEXTJS_LOCALES)) {
   const dir = join(localesDir, locale.code);
-  if (locale === SOURCE_LOCALE || (only ? !only.includes(locale.code) : locale.status === "planned")) continue;
+  if (locale.status === "source") continue;
   if (!existsSync(join(dir, "client", "index.html"))) throw new Error(`${locale.code}: no build in ${dir} (run scripts/build.ts)`);
   builds.push(await loadBuild(locale, join(dir, "client"), join(dir, "ssr")));
   // Hashed chunks from every build share dist/assets; chunks that don't differ by locale have the same name.
@@ -87,7 +86,7 @@ for (const locale of LOCALES) {
 }
 
 /** Collect JS modulepreloads and CSS files needed by a route's dynamic chunk (`entry`: the entry's own files). */
-function routeAssets(build: Build, routePath: string): { css: string[]; js: string[]; entry: string[] } {
+function routeAssets(build: Build, routePath: string): { css: string[]; js: string[]; entry: string[]; own?: string } {
   const { manifest, server } = build;
   if (!manifest) return { css: [], js: [], entry: [] };
   const route = server.matchRoute(routePath);
@@ -118,7 +117,7 @@ function routeAssets(build: Build, routePath: string): { css: string[]; js: stri
     for (const imp of chunk.imports ?? []) walk(imp);
   };
   walk(srcKey);
-  return { css: [...css], js: [...js], entry: [...entryFiles] };
+  return { css: [...css], js: [...js], entry: [...entryFiles], own: manifest[srcKey]?.file };
 }
 
 function escapeAttr(s: string): string {
@@ -263,25 +262,33 @@ function writeHtml(routePath: string, html: string): void {
   writeFileSync(file, html);
 }
 
-/** Share of a route's catalog strings and of its document's blocks with a current translation (the lower one). */
-function coverage(build: Build, route: PrerenderRoute): number {
-  if (build.locale === SOURCE_LOCALE) return 1;
+/**
+ * Whether a locale's version of a route is translated: content of its own (the route's chunk strings, or its
+ * document) is translated, and both the strings on the page and its document are at least MIN_COVERAGE
+ * translated. Strings shared by every page (header, footer, page titles) don't make a page translated on their own.
+ */
+function translated(build: Build, route: PrerenderRoute): boolean {
+  if (build.locale === SOURCE_LOCALE) return true;
   const units = build.units;
-  if (!units) return 0;
-  const { js, entry } = routeAssets(build, route.path);
-  let translated = 0;
-  let total = 0;
-  for (const f of new Set([...entry, ...js])) {
-    const u = units.chunks[f];
-    if (u) {
-      translated += u.translated;
-      total += u.total;
+  if (!units) return false;
+  const { js, entry, own } = routeAssets(build, route.path);
+  const sum = (files: Iterable<string>): { translated: number; total: number } => {
+    const out = { translated: 0, total: 0 };
+    for (const f of new Set(files)) {
+      const u = units.chunks[f];
+      if (u) {
+        out.translated += u.translated;
+        out.total += u.total;
+      }
     }
-  }
-  const catalog = total === 0 ? 1 : translated / total;
-  const doc = units.documents[documentId(build, route.path) ?? ""];
-  const document = !doc || doc.total === 0 ? 1 : doc.translated / doc.total;
-  return Math.min(catalog, document);
+    return out;
+  };
+  const ratio = (u: { translated: number; total: number } | undefined): number | null => (u && u.total > 0 ? u.translated / u.total : null);
+  const page = ratio(sum([...entry, ...js]));
+  const doc = ratio(units.documents[documentId(build, route.path) ?? ""]);
+  const ownStrings = ratio(sum(own ? [own] : []));
+  const ownContent = doc ?? ownStrings;
+  return ownContent !== null && ownContent >= MIN_COVERAGE && Math.min(page ?? 1, doc ?? 1) >= MIN_COVERAGE;
 }
 
 /** The translated document a route renders, if any (`docs/routing`). */
@@ -300,7 +307,8 @@ const indexable = (b: Build): boolean => b.locale === SOURCE_LOCALE || b.locale.
 const covered = new Map<string, Set<Build>>();
 for (const build of builds) {
   for (const r of build.server.ROUTES) {
-    if (r.noindex || !indexable(build) || coverage(build, r) < MIN_COVERAGE) continue;
+    // Only canonical URLs take part (/docs/introduction is /docs).
+    if (r.noindex || (r.canonical && r.canonical !== r.path) || !indexable(build) || !translated(build, r)) continue;
     const set = covered.get(r.path) ?? new Set<Build>();
     set.add(build);
     covered.set(r.path, set);
@@ -316,15 +324,18 @@ for (const build of builds) {
   const notFoundPath = localePath(locale, server.NOT_FOUND_PATH);
   for (const r of server.ROUTES) {
     const path = localePath(locale, r.path);
-    const own = covered.get(r.path)?.has(build) ?? false;
+    const target = r.canonical ?? r.path;
+    const isCanonical = target === r.path;
+    const own = covered.get(target)?.has(build) ?? false;
     // A page mostly in English points search engines at the English page.
-    const canonical = own || locale === SOURCE_LOCALE ? localePath(locale, r.canonical ?? r.path) : (r.canonical ?? r.path);
+    const canonical = own || locale === SOURCE_LOCALE ? localePath(locale, target) : target;
     const noindex = r.noindex || !indexable(build);
-    const alternates = own ? builds.filter((b) => covered.get(r.path)?.has(b)).map((b) => ({ code: b.locale.code, path: localePath(b.locale, r.canonical ?? r.path) })) : [];
+    // hreflang and the sitemap list canonical URLs only.
+    const alternates = own && isCanonical ? builds.filter((b) => covered.get(target)?.has(b)).map((b) => ({ code: b.locale.code, path: localePath(b.locale, target) })) : [];
     let html = withLocale(withMeta(build.baseHtml, r.title, r.description, canonical), locale);
     if (noindex) html = withNoindex(html);
     pages.set(path, withAlternates(await withMarkup(build, html, path), alternates));
-    if (!noindex && own && locale !== SOURCE_LOCALE) sitemaps.set(locale, [...(sitemaps.get(locale) ?? []), canonical]);
+    if (!noindex && own && isCanonical && locale !== SOURCE_LOCALE) sitemaps.set(locale, [...(sitemaps.get(locale) ?? []), canonical]);
   }
   const notFound = withNoindex(withLocale(build.baseHtml.replace(/<title>[^<]*<\/title>/, `<title>${escapeAttr(server.titleFor({ name: "not-found" }))}</title>`), locale));
   pages.set(notFoundPath, await withMarkup(build, notFound, notFoundPath));

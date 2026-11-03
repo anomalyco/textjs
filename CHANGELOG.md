@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `@textjs/react`: `<Image renderMode="halfblock">` draws `▀` half-blocks everywhere, as `<Image>` did in 1.3.
 - `@textjs/core/experimental`: `drawPixels` takes `encoding: "rgba"` for a lossless sprite with soft alpha and more than 256 colors, and a `fallback` function that paints the cells wherever the sprite can't be shown.
+- textjs.org: a draft Japanese version at textjs.org/ja, starting with the Introduction, Installation and Routing docs and the site interface. Untranslated paragraphs show in English. It isn't indexed or offered in the language picker yet.
 
 ### Changed
 
