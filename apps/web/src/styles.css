@@ -109,6 +109,14 @@
 :root:not(:lang(en), :lang(ja), :lang(ko), :lang(zh)) :is(h3, h4) {
   text-wrap: pretty;
 }
+/* Vietnamese stacks tone marks over circumflexes (Ế, Ộ) and Devanagari puts matras above and below the letters, so
+   display headings need more leading than Latin's 1–1.1 or marks touch the line above. */
+:root:lang(vi) body :is(h1, h2) {
+  line-height: 1.25;
+}
+:root:lang(hi) body :is(h1, h2) {
+  line-height: 1.4;
+}
 /* A German compound wider than a phone (Konsolenanwendungen) hyphenates; shorter words never do. */
 :is(h1, h2, h3):lang(de) {
   hyphens: auto;

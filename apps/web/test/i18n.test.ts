@@ -7,6 +7,7 @@ import { assembleCaptions, captionGroups, parseVtt, segments } from "../scripts/
 import { assemble, formatTranslation, parseTranslation, segment } from "../scripts/i18n/document";
 import { checkLocale, unreadableCalls } from "../scripts/i18n/check";
 import { CALL, extractMessages, PLURAL } from "../scripts/i18n/sources";
+import { withGeistSubsets } from "../scripts/i18n/fonts";
 import { i18nPlugin } from "../scripts/i18n/vite-plugin";
 import { validate, validatePlural } from "../scripts/i18n/validate";
 import { headingsOf, toConsoleMarkdown } from "../src/docs/registry";
@@ -27,7 +28,7 @@ describe("locales", () => {
     expect(splitLocale("/ja")).toEqual({ locale: ja, path: "/" });
     expect(splitLocale("/docs").locale.code).toBe("en");
     // Only built locales are prefixes; others are ordinary (unknown) paths.
-    expect(splitLocale("/it/blog").locale.code).toBe("en");
+    expect(splitLocale("/ar/blog").locale.code).toBe("en");
     expect(localePath(ja, "/")).toBe("/ja");
     expect(localePath(ja, "/docs")).toBe("/ja/docs");
     expect(localePath(LOCALES[0]!, "/docs")).toBe("/docs");
@@ -189,6 +190,44 @@ describe("catalog", () => {
     expect(validate("ja", "Call `render()` twice.", "呼び出します。").errors).toEqual([]);
     expect(validatePlural("ja", { other: "{count}" })).toEqual([]);
     expect(validatePlural("ja", { one: "x", other: "y" }).length).toBe(1);
+    // Polish and Russian need few and many, or 3 and 5 would read as the fraction form.
+    expect(validatePlural("pl", { one: "{count} pytanie", other: "{count} pytania" })).toEqual(["plural forms need `many` (pl)", "plural forms need `few` (pl)"]);
+    expect(validatePlural("ru", { one: "{count} вопрос", few: "{count} вопроса", many: "{count} вопросов", other: "{count} вопроса" })).toEqual([]);
+  });
+
+  test("Firefox holds the page for Geist, Geist Mono and the page's Latin Extended or Cyrillic subset", () => {
+    const html = readFileSync(join(import.meta.dir, "..", "index.html"), "utf8");
+    const script = /<script>\s*\(function \(\) \{[\s\S]*?\}\)\(\);\s*<\/script>/.exec(html)?.[0].replace(/^<script>|<\/script>$/g, "") ?? "";
+    expect(script).toContain('root.dataset.browser = "firefox"');
+    const loads = (lang: string): string[][] => {
+      const calls: string[][] = [];
+      const root = { lang, dataset: {} as Record<string, string>, style: { visibility: "", removeProperty() {} } };
+      const env = {
+        document: { documentElement: root, fonts: { load: (font: string, text?: string) => (calls.push([font, text ?? ""]), Promise.resolve([])) } },
+        navigator: { platform: "MacIntel", userAgent: "Firefox" },
+        window: { CSS: { supports: (p: string) => p === "-moz-appearance" } },
+        CSS: { supports: (p: string) => p === "-moz-appearance" },
+        Promise,
+        setTimeout: () => 0,
+        requestAnimationFrame: () => 0,
+      };
+      new Function(...Object.keys(env), script)(...Object.values(env));
+      return calls;
+    };
+    expect(loads("en")).toEqual([["16px Geist", "a"], ['12px "Geist Mono"', " \u2588"], ['16px "Geist Fallback"', ""], ['12px "Geist Mono Fallback"', ""]]);
+    expect(loads("ja").slice(0, 2)).toEqual([["16px Geist", "a"], ['12px "Geist Mono"', " \u2588"]]);
+    for (const [lang, ch] of [["pl", "ą"], ["tr", "ğ"], ["vi", "ạ"], ["ru", "ж"]]) expect(loads(lang as string).slice(0, 2)).toEqual([["16px Geist", `a${ch}`], ['12px "Geist Mono"', ` \u2588${ch}`]]);
+  });
+
+  test("Polish, Turkish, Vietnamese and Russian pages preload their Geist subsets; others don't", () => {
+    const html = readFileSync(join(import.meta.dir, "..", "index.html"), "utf8");
+    expect(withGeistSubsets(html, "en")).toBe(html);
+    expect(withGeistSubsets(html, "ja")).toBe(html);
+    const pl = withGeistSubsets(html, "pl");
+    expect(pl).toContain('<link rel="preload" href="/fonts/geist-latin-ext.woff2" as="font" type="font/woff2" crossorigin />');
+    expect(pl).toContain('src: url(/fonts/geist-mono-latin-ext.woff2) format("woff2"); unicode-range: U+0100-0130');
+    expect(pl).not.toContain("cyrillic");
+    expect(withGeistSubsets(html, "ru")).toContain("/fonts/geist-cyrillic.woff2");
   });
 
   test("committed translations pass validation", () => {

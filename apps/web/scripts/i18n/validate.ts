@@ -44,6 +44,7 @@ const SCRIPT: Record<string, RegExp> = {
   ur: /[\u0600-\u06ff]/,
   he: /[\u0590-\u05ff]/,
   hi: /[\u0900-\u097f]/,
+  vi: /[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i,
 };
 
 export function validate(locale: string, source: string, target: string, keep: readonly string[] = []): Verdict {
@@ -70,11 +71,28 @@ export function validate(locale: string, source: string, target: string, keep: r
   return { errors, warnings };
 }
 
-/** Plural forms must use the locale's categories and include `other`. */
+/** Up to four whole counts (and 1.5) per plural category of a locale: Polish `few` → 2, 3, 4, 22. */
+export function pluralSamples(locale: string): Map<string, number[]> {
+  const rules = new Intl.PluralRules(locale);
+  const out = new Map<string, number[]>();
+  for (const n of [...Array.from({ length: 200 }, (_, i) => i), 1.5]) {
+    const list = out.get(rules.select(n)) ?? [];
+    if (list.length < 4) list.push(n);
+    out.set(rules.select(n), list);
+  }
+  return out;
+}
+
+/**
+ * Plural forms must use the locale's categories, include `other`, and cover every category a whole count can
+ * select (Polish and Russian `few` and `many`), so `plural()` never falls back to `other` for 3 or 5.
+ */
 export function validatePlural(locale: string, forms: Record<string, string>): string[] {
   const categories = new Intl.PluralRules(locale).resolvedOptions().pluralCategories as string[];
   const errors: string[] = [];
   if (!forms.other) errors.push("plural forms need `other`");
   for (const k of Object.keys(forms)) if (!categories.includes(k)) errors.push(`"${k}" isn't a plural category in ${locale} (${categories.join(", ")})`);
+  const whole = new Intl.PluralRules(locale);
+  for (const c of new Set(Array.from({ length: 200 }, (_, n) => whole.select(n)))) if (!forms[c]) errors.push(`plural forms need \`${c}\` (${locale})`);
   return errors;
 }

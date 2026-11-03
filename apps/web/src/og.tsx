@@ -47,7 +47,7 @@ export function ogSlug(path: string): string {
 const svg = (node: ReactNode): string => renderToStaticMarkup(node);
 
 /** `Routing | Text.js Docs` → `Routing`. */
-function pageTitle(title: string): string {
+export function pageTitle(title: string): string {
   return title.replace(/\s+\|\s+(Text\.js( Docs| Playground| Store)?|Learn Text\.js)$/, "");
 }
 

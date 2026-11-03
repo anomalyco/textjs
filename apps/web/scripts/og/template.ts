@@ -11,6 +11,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { OgCard } from "../../src/og";
 import { WORDMARK_SVG } from "../../src/site/LogoMenu";
+import { GEIST_RANGES } from "../i18n/fonts";
 
 /** Origin the renderer serves fonts and images from (requests never leave the page). */
 export const OG_ORIGIN = "https://og.textjs.local";
@@ -26,6 +27,8 @@ export const OG_FONTS: Record<string, string> = withExisting({
   "/fonts/geist-latin.woff2": "public/fonts/geist-latin.woff2",
   "/fonts/geist-mono-latin.woff2": "public/fonts/geist-mono-latin.woff2",
   "/fonts/geist-mono-symbols.woff2": "public/fonts/geist-mono-symbols.woff2",
+  "/fonts/geist-latin-ext.woff2": "public/fonts/geist-latin-ext.woff2",
+  "/fonts/geist-cyrillic.woff2": "public/fonts/geist-cyrillic.woff2",
   "/fonts/geist-og.woff2": "scripts/og/fonts/geist-og.woff2",
   "/fonts/geist-mono-og.woff2": "scripts/og/fonts/geist-mono-og.woff2",
   "/fonts/noto-symbols-og.woff2": "scripts/og/fonts/noto-symbols-og.woff2",
@@ -34,6 +37,7 @@ export const OG_FONTS: Record<string, string> = withExisting({
   "/fonts/noto-sans-sc-og.woff2": "scripts/og/fonts/noto-sans-sc-og.woff2",
   "/fonts/noto-sans-tc-og.woff2": "scripts/og/fonts/noto-sans-tc-og.woff2",
   "/fonts/noto-sans-arabic-og.woff2": "scripts/og/fonts/noto-sans-arabic-og.woff2",
+  "/fonts/noto-sans-devanagari-og.woff2": "scripts/og/fonts/noto-sans-devanagari-og.woff2",
 });
 
 function withExisting(fonts: Record<string, string>): Record<string, string> {
@@ -44,9 +48,14 @@ function withExisting(fonts: Record<string, string>): Record<string, string> {
 // The site's unicode ranges (index.html), so the bundled subsets draw exactly what they draw on the site.
 const LATIN = "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD";
 const MONO_SYMBOLS = "U+2000-2001, U+2004-2008, U+200A, U+23B8-23BD, U+2500-259F";
+// The extra subsets Polish, Turkish, Vietnamese and Russian pages load (scripts/i18n/vite-plugin.ts).
+const LATIN_EXT = GEIST_RANGES["latin-ext"];
+const CYRILLIC = GEIST_RANGES.cyrillic;
 
 const FONT_CSS = `
 @font-face { font-family: "Geist"; font-weight: 100 900; src: url(/fonts/geist-latin.woff2) format("woff2"); unicode-range: ${LATIN}; }
+@font-face { font-family: "Geist"; font-weight: 100 900; src: url(/fonts/geist-latin-ext.woff2) format("woff2"); unicode-range: ${LATIN_EXT}; }
+@font-face { font-family: "Geist"; font-weight: 100 900; src: url(/fonts/geist-cyrillic.woff2) format("woff2"); unicode-range: ${CYRILLIC}; }
 @font-face { font-family: "Geist Mono"; font-weight: 100 900; src: url(/fonts/geist-mono-latin.woff2) format("woff2"); unicode-range: ${LATIN}; }
 @font-face { font-family: "Geist Mono"; font-weight: 100 900; src: url(/fonts/geist-mono-symbols.woff2) format("woff2"); unicode-range: ${MONO_SYMBOLS}; }
 @font-face { font-family: "Geist OG"; font-weight: 100 900; src: url(/fonts/geist-og.woff2) format("woff2"); }
@@ -57,6 +66,7 @@ const FONT_CSS = `
 @font-face { font-family: "OG Simplified Chinese"; font-weight: 100 900; src: url(/fonts/noto-sans-sc-og.woff2) format("woff2"); }
 @font-face { font-family: "OG Traditional Chinese"; font-weight: 100 900; src: url(/fonts/noto-sans-tc-og.woff2) format("woff2"); }
 @font-face { font-family: "OG Arabic"; font-weight: 100 900; src: url(/fonts/noto-sans-arabic-og.woff2) format("woff2"); }
+@font-face { font-family: "OG Devanagari"; font-weight: 100 900; src: url(/fonts/noto-sans-devanagari-og.woff2) format("woff2"); }
 `;
 
 const SANS = `"Geist", "Geist OG", "OG Symbols"`;
@@ -99,8 +109,9 @@ body { font-family: ${SANS}; color: #ededed; -webkit-font-smoothing: antialiased
 .card:lang(zh-CN) { font-family: "Geist", "OG Simplified Chinese", "Geist OG", "OG Symbols"; }
 .card:lang(zh-TW) { font-family: "Geist", "OG Traditional Chinese", "Geist OG", "OG Symbols"; }
 .card:is(:lang(ar), :lang(fa), :lang(ur)) { font-family: "Geist", "OG Arabic", "Geist OG", "OG Symbols"; }
+.card:lang(hi) { font-family: "Geist", "OG Devanagari", "Geist OG", "OG Symbols"; }
 .card[lang]:not(:lang(en)) :is(.title, .label) { letter-spacing: 0; }
-.card:is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(hi)) .title { line-height: 1.2; }
+.card:is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(hi), :lang(vi)) .title { line-height: 1.2; }
 .card[dir="rtl"] .brand { left: auto; right: ${EDGE}px; }
 .card[dir="rtl"] .label { padding-left: 0; padding-right: 24px; border-left: 0; border-right: 2px solid #333; }
 .card[dir="rtl"] .title { left: auto; right: ${EDGE}px; }

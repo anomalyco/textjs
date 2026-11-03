@@ -109,7 +109,16 @@ try {
       const english = await context.newPage();
       await english.goto(`${base}/docs/routing`, { waitUntil: "networkidle" });
       check((await lead(page)) !== (await lead(english)), `${code}: the page is translated`);
+      const geistFiles = (pg) => pg.evaluate(() => performance.getEntriesByType("resource").map((e) => new URL(e.name).pathname).filter((p) => p.startsWith("/fonts/geist-")));
+      check(!(await geistFiles(english)).some((f) => /latin-ext|cyrillic/.test(f)), `${code}: English pages don't load the extra Geist subsets`);
       await english.close();
+      // Polish, Turkish, Vietnamese and Russian letters draw in Geist, from the subset the page preloads.
+      const subset = { pl: ["latin-ext", "ą"], tr: ["latin-ext", "ğ"], vi: ["latin-ext", "ạ"], ru: ["cyrillic", "ж"] }[code];
+      if (subset) {
+        const files = await geistFiles(page);
+        const ready = await page.evaluate((ch) => document.fonts.check("16px Geist", ch) && document.fonts.check('12px "Geist Mono"', ch), subset[1]);
+        check(files.includes(`/fonts/geist-${subset[0]}.woff2`) && files.includes(`/fonts/geist-mono-${subset[0]}.woff2`) && ready, `${code}: Geist and Geist Mono ${subset[0]} load and draw ${subset[1]} (${files.join(" ")})`);
+      }
       check((await page.locator(".locale-suggestion").count()) === 0, `${code}: no banner when the browser language matches`);
       // Client navigation keeps the prefix and stays in the SPA.
       await page.evaluate(() => (window.__spa = true));

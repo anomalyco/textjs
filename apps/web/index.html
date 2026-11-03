@@ -68,11 +68,11 @@
         root.style.visibility = "hidden";
         setTimeout(show, 150);
         // allSettled: a local() fallback that isn't installed rejects at once. " \u2588" loads Geist Mono's symbols subset too.
-        // A character from the page's language, so pages in Latin Extended or Cyrillic load that subset too.
-        var sample = { pl: "ą", tr: "ğ", vi: "ạ", ru: "ж" }[root.lang] || "a";
+        // Plus a character from the page's language, so pages in Latin Extended or Cyrillic load that subset of both too.
+        var sample = { pl: "ą", tr: "ğ", vi: "ạ", ru: "ж" }[root.lang] || "";
         Promise.allSettled([
-          document.fonts.load("16px Geist", sample),
-          document.fonts.load('12px "Geist Mono"', " \u2588"),
+          document.fonts.load("16px Geist", "a" + sample),
+          document.fonts.load('12px "Geist Mono"', " \u2588" + sample),
           document.fonts.load('16px "Geist Fallback"'),
           document.fonts.load('12px "Geist Mono Fallback"'),
         ]).then(settle);

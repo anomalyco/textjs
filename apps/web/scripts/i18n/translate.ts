@@ -21,7 +21,7 @@ import { getLocale } from "../../src/i18n/locales";
 import { formatTranslation, parseTranslation, segment } from "./document";
 import { captionBudget, captionGroups, parseVtt } from "./captions";
 import { captionFile, captionSources, catalogFile, documentSources, englishText, extractMessages, LOCALES_DIR, readCaptions, readCatalog, readText, translationFile, WEB_DIR, type Catalog, type CatalogValue } from "./sources";
-import { validate, validatePlural } from "./validate";
+import { pluralSamples, validate, validatePlural } from "./validate";
 
 const { values } = parseArgs({
   options: {
@@ -273,7 +273,9 @@ for (const locale of locales) {
           // Plurals: one item per category the locale uses.
           for (const m of plural) {
             const categories = new Intl.PluralRules(locale).resolvedOptions().pluralCategories as string[];
-            const forms = await translate({ locale, model, kind: "ui", title: `Plural forms of "${m.key}" (categories: ${categories.join(", ")})`, items: categories.map((c) => ({ id: c, text: m.key })) });
+            const samples = pluralSamples(locale);
+            const counts = categories.map((c) => `${c}: ${samples.get(c)?.join(", ") ?? "1000000"}`).join("; ");
+            const forms = await translate({ locale, model, kind: "ui", title: `Plural forms of "${m.key}". Each item id is a CLDR plural category; write the form {count} takes for the counts listed (${counts})`, items: categories.map((c) => ({ id: c, text: m.key })) });
             const value = Object.fromEntries(forms.ok);
             if (validatePlural(locale, value).length === 0) next[m.key] = value;
             else failures.push(`messages (plural): ${m.key}`);

@@ -15,6 +15,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
 import { assemble, blockId, parseTranslation } from "./document";
+import { withGeistSubsets } from "./fonts";
 import { headingsOf, type Heading } from "../../src/docs/outline";
 import { intlTag } from "../../src/i18n/intl";
 import { getLocale } from "../../src/i18n/locales";
@@ -75,6 +76,9 @@ export function i18nPlugin(locale: string): Plugin {
   return {
     name: "textjs-i18n",
     enforce: "pre",
+    transformIndexHtml(html) {
+      return source ? html : withGeistSubsets(html, locale);
+    },
     async resolveId(id, importer, options) {
       if (source || !importer) return null;
       const english = isEnglishCopy(importer) || clean(importer).startsWith(COMPANION);
