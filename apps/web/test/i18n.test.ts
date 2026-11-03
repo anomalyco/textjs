@@ -56,13 +56,13 @@ describe("locales", () => {
     expect(groups).toEqual([...groups].sort((a, b) => a - b));
     const latin = LOCALES.filter((l) => script(l) === 1).map((l) => l.name);
     expect(latin).toEqual([...latin].sort(new Intl.Collator("und").compare));
-    expect(LOCALES.filter((l) => l.status === "live" || l.status === "source").map((l) => l.name)).toEqual(["English", "Deutsch", "Español", "Français", "Português (Brasil)", "日本語", "한국어", "简体中文", "繁體中文"]);
+    expect(LOCALES.filter((l) => l.status === "live" || l.status === "source").map((l) => l.name)).toEqual(["English", "Bahasa Indonesia", "Deutsch", "Español", "Français", "Italiano", "Polski", "Português (Brasil)", "Tiếng Việt", "Türkçe", "Русский", "हिन्दी", "日本語", "한국어", "简体中文", "繁體中文"]);
   });
 
-  test("production builds the eight reviewed locales live", () => {
+  test("production builds the fifteen reviewed locales live", () => {
     // The deploy sets no TEXTJS_LOCALES, so these are the locales textjs.org indexes and offers in the picker and banner.
     const built = parseLocaleSet(undefined);
-    expect(built.filter((l) => l.status === "live").map((l) => l.code)).toEqual(["de", "es", "fr", "pt-BR", "ja", "ko", "zh-CN", "zh-TW"]);
+    expect(built.filter((l) => l.status === "live").map((l) => l.code)).toEqual(["id", "de", "es", "fr", "it", "pl", "pt-BR", "vi", "tr", "ru", "hi", "ja", "ko", "zh-CN", "zh-TW"]);
     expect(built.every((l) => ["source", "live", "draft"].includes(l.status))).toBe(true);
   });
 
