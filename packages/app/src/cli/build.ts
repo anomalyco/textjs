@@ -174,7 +174,7 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
       for (const s of live.skipped) print(color.gray(`   ${s.pattern} streams without a shell: ${s.reason.split("\n")[0]}`));
       if (live.ansi && live.ansi.routes > 0) {
         print(ok(`Prerendering curl frames (${live.ansi.frames}/${live.ansi.routes}), ${formatBytes(live.ansi.bytes)}`));
-        for (const s of live.ansi.skipped) print(color.gray(`   ${s.pattern} serves HTML to curl: ${s.reason.split("\n")[0]}`));
+        for (const s of live.ansi.skipped) print(color.gray(`   ${s.pattern} has no prerendered curl frame: ${s.reason.split("\n")[0]}`));
       }
     }
     const routes = summarize(pages, api, new Set(listServerPages(scan).map((p) => p.pattern)));
