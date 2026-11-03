@@ -94,7 +94,7 @@ export class FramePlayerCore {
     const cur = this.banner;
     if (next === cur || (next !== null && cur !== null && next.text === cur.text && next.fg === cur.fg && next.bg === cur.bg)) return;
     this.banner = next;
-    this.driver._setBanner(next);
+    this.driver._setBanner(next, () => this.requestPaint());
     this.requestPaint();
   }
 
@@ -289,6 +289,7 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
       if (last && last.slice(last.indexOf(" ") + 1) === target && target === location.href && Date.now() - at < 3000) {
         disposed = true;
         stream?.abort();
+        core.setBanner(null);
         setStatus("unavailable");
         return;
       }
@@ -424,6 +425,7 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
     core,
     dispose() {
       disposed = true;
+      core.driver._setBanner(null);
       stream?.abort();
       if (retryTimer !== null) clearTimeout(retryTimer);
       offInput();

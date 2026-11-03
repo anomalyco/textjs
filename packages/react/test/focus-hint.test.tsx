@@ -1,6 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import { CellBuffer, CssConsoleDriver, InputEngine } from "@textjs/core";
-import { Box, Button, FocusHint, Modal, ScrollBox, SplitPane, Tabs, Text, themes, useFocus, useInput, usePageFocus } from "../src/index";
+import { Box, Button, FocusHint, Modal, ScrollBox, SplitPane, Tabs, Text, useFocus, useInput, usePageFocus } from "../src/index";
 import * as api from "../src/index";
 import { focusHintLabel } from "../src/components/FocusHint";
 import { createTestRoot, FakeConsole, type TestRoot } from "./helpers";
@@ -51,6 +51,26 @@ function Focusable() {
   return <Passive />;
 }
 
+/**
+ * Counts live 700ms intervals (the focus hint's blink timers) from `setInterval` / `clearInterval`
+ * calls, so other timers the renderer or React schedule don't count. Install after `useFakeTimers`.
+ */
+function trackBlinkTimers(): { live: () => number; restore: () => void } {
+  const g = globalThis as { setInterval: typeof setInterval; clearInterval: typeof clearInterval };
+  const { setInterval: set, clearInterval: clear } = g;
+  const live = new Set<unknown>();
+  g.setInterval = ((fn: () => void, ms?: number) => {
+    const id = set(fn, ms);
+    if (ms === 700) live.add(id);
+    return id;
+  }) as typeof setInterval;
+  g.clearInterval = ((id?: ReturnType<typeof setInterval>) => {
+    live.delete(id);
+    clear(id);
+  }) as typeof clearInterval;
+  return { live: () => live.size, restore: () => Object.assign(g, { setInterval: set, clearInterval: clear }) };
+}
+
 describe("usePageFocus", () => {
   test("follows the input engine's page focus and re-renders only when it changes", async () => {
     const t = await createTestRoot({ width: 20, height: 2 });
@@ -85,22 +105,61 @@ describe("FocusHint", () => {
     await t.act(() => t.engine.setFocused(false));
     expect(consoleLastRow(t)).toBe(HINT);
     expect(t.lines()).toEqual(["header", "keys"]);
-    // Reverse video in the theme's colors.
-    const theme = themes.geistDark;
-    expect(t.root.renderer._banner).toEqual({ text: HINT, fg: theme.bg, bg: theme.fg });
+    expect(t.root.renderer._banner).toEqual({ text: HINT, fg: "#000000", bg: "#ffc53d" });
     await t.act(() => t.engine.setFocused(true));
     expect(t.root.renderer._banner).toBeNull();
     expect(consoleLastRow(t)).toBe("keys");
     await t.unmount();
   });
 
-  test("follows theme changes", async () => {
+  test("is the same amber bar in every theme", async () => {
     const t = await createTestRoot({ width: 40, height: 2, focusHint: false });
     await t.render(<FocusHint active />);
     await t.act(() => t.engine.setFocused(false));
     await t.act(() => t.root.setTheme("geistLight"));
-    expect(t.root.renderer._banner).toEqual({ text: HINT, fg: themes.geistLight.bg, bg: themes.geistLight.fg });
+    expect(t.root.renderer._banner).toEqual({ text: HINT, fg: "#000000", bg: "#ffc53d" });
     await t.unmount();
+  });
+
+  test("blinks after each blur, and stops on focus and on unmount", async () => {
+    const g = globalThis as { matchMedia?: (query: string) => { matches: boolean } };
+    g.matchMedia = () => ({ matches: false });
+    jest.useFakeTimers();
+    const blinkTimers = trackBlinkTimers();
+    try {
+      const t = await createTestRoot({ width: 40, height: 2, focusHint: false });
+      await t.render(<FocusHint active />);
+      expect(blinkTimers.live()).toBe(0);
+      /** The bar's background in the last frame logged after advancing `ms`. */
+      const barAfter = (ms: number) => {
+        jest.advanceTimersByTime(ms);
+        t.frame();
+        const css = String(t.console.logs.at(-1)?.slice(1).join("|"));
+        return css.includes("background-color:#ffc53d") ? "amber" : css.includes("background-color:#000000") ? "ink" : "none";
+      };
+      await t.act(() => t.engine.setFocused(false));
+      expect(consoleLastRow(t)).toBe(HINT);
+      expect(blinkTimers.live()).toBe(1);
+      expect(barAfter(0)).toBe("amber");
+      expect(barAfter(700)).toBe("ink");
+      await t.act(() => t.engine.setFocused(true));
+      expect(blinkTimers.live()).toBe(0);
+      expect(barAfter(0)).toBe("none");
+      // The next blur blinks again from the start, then holds amber.
+      await t.act(() => t.engine.setFocused(false));
+      const seen = [barAfter(0)];
+      for (let i = 0; i < 8; i++) seen.push(barAfter(700));
+      expect(seen).toEqual(["amber", "ink", "amber", "ink", "amber", "ink", "amber", "ink", "amber"]);
+      expect(blinkTimers.live()).toBe(0);
+      await t.act(() => t.engine.setFocused(true));
+      await t.act(() => t.engine.setFocused(false));
+      await t.unmount();
+      expect(blinkTimers.live()).toBe(0);
+    } finally {
+      blinkTimers.restore();
+      jest.useRealTimers();
+      delete g.matchMedia;
+    }
   });
 
   test("points up at the page when DevTools is docked at the bottom", () => {

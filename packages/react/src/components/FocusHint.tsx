@@ -1,9 +1,12 @@
 import { useCallback, useLayoutEffect, useSyncExternalStore, type ReactNode } from "react";
 import type { DockSide } from "@textjs/core";
 import { useRuntime } from "../context";
-import { useTheme } from "../theme";
 
 export const FOCUS_HINT_TEXT = "Click the page to use the keyboard";
+
+/** The hint's bar: bold black on amber, the same in every theme. */
+const HINT_INK = "#000000";
+const HINT_AMBER = "#ffc53d";
 
 /** The hint's label. Docked at the bottom, the page is directly above the console. */
 export function focusHintLabel(dock: DockSide): string {
@@ -20,7 +23,6 @@ export interface FocusHintProps {
 
 function Banner({ active, pageInput }: { active: boolean | undefined; pageInput: boolean }): null {
   const rt = useRuntime();
-  const theme = useTheme();
   const getLabel = useCallback(() => {
     const vp = rt.viewport.getSnapshot();
     return vp.focused ? null : focusHintLabel(vp.dock);
@@ -28,19 +30,19 @@ function Banner({ active, pageInput }: { active: boolean | undefined; pageInput:
   const label = useSyncExternalStore(rt.viewport.subscribe, getLabel, getLabel);
   const wants = useSyncExternalStore(rt.input.subscribeWants, rt.input.wantsKeys, rt.input.wantsKeys);
   const show = label !== null && (active ?? ((pageInput || rt.engine.element !== null) && wants));
-  const { fg, bg } = theme;
   useLayoutEffect(() => {
     if (!show || label === null) return;
-    rt.renderer._setBanner({ text: label, fg: bg, bg: fg });
+    rt.renderer._setBanner({ text: label, fg: HINT_INK, bg: HINT_AMBER });
     return () => rt.renderer._setBanner(null);
-  }, [rt, show, label, fg, bg]);
+  }, [rt, show, label]);
   return null;
 }
 
 /**
- * "Click the page to use the keyboard" in reverse video over the console frame's last row while
+ * "Click the page to use the keyboard" in an amber bar over the console frame's last row while
  * the page doesn't have focus, so a visitor who clicked into DevTools knows why keys stopped
- * reaching the app. It covers the last row because DevTools keeps the console scrolled to the
+ * reaching the app. Each time it appears, it blinks for about 6 seconds, unless the system's
+ * reduced motion setting is on. It covers the last row because DevTools keeps the console scrolled to the
  * bottom, and it's drawn only into console frames, never into the buffer that mirrors and tests read.
  *
  * Console roots draw one by default (`focusHint: false` turns it off). Render it yourself with

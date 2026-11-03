@@ -70,7 +70,7 @@ const { cols, rows, focused, paused } = useViewport();
 const focused = usePageFocus();
 ```
 
-While the page doesn't have focus and the app has a `useInput` or `usePaste` handler, a `useKeyState` hook or a focus target that Tab can reach, the console frame's last row reads "Click the page to use the keyboard". Handlers marked [`ambient`](#useinput) don't count. The hint doesn't appear in a terminal, in tests or in inline mirrors. To decide yourself when it shows, set `focusHint: false` in `text.config.ts` or `createConsoleRoot` and render `<FocusHint>`:
+While the page doesn't have focus and the app has a `useInput` or `usePaste` handler, a `useKeyState` hook or a focus target that Tab can reach, the console frame's last row becomes an amber bar that reads "Click the page to use the keyboard". Handlers marked [`ambient`](#useinput) don't count. The hint doesn't appear in a terminal, in tests or in inline mirrors. Each time the hint appears, it blinks for about 6 seconds, unless the system's reduced motion setting is on. To decide yourself when it shows, set `focusHint: false` in `text.config.ts` or `createConsoleRoot` and render `<FocusHint>`:
 
 ```tsx
 <FocusHint active={editing} />
