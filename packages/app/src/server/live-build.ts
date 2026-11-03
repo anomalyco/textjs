@@ -122,7 +122,8 @@ process.stdout.write(${JSON.stringify(RESULT_MARK)} + JSON.stringify(out) + "\\n
       });
     });
     const line = output.split("\n").find((l) => l.startsWith(RESULT_MARK));
-    if (line === undefined) return { importError: "the prerender process exited without results", routes: {} };
+    // Killed or crashed after importing: every route reports "prerendering did not finish", and on-request renders stay on.
+    if (line === undefined) return { importError: null, routes: {} };
     return JSON.parse(line.slice(RESULT_MARK.length)) as PrerenderOutput;
   } finally {
     rmSync(runner, { force: true });
