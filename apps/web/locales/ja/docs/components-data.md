@@ -33,7 +33,7 @@
 | `isItemDisabled` | カーソルがスキップする項目 |
 | `height` | 表示行数（デフォルト：親要素いっぱい） |
 | `highlightedIndex` / `onHighlight` | 制御されたカーソル |
-| `vimKeys` | `j` `k` `g` `G` （デフォルト： `true` ） |
+| `vimKeys` | `j` `k` `g` `G`（デフォルト：`true`） |
 
 <!-- s:55759482eb -->
 `<Table>`

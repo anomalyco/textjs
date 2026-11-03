@@ -1,8 +1,8 @@
 <!-- s:9f5667f5e7 -->
-`@textjs/app/testing` （または `@textjs/react/testing` ）は、アプリを画面外にレンダリングし、キーを押してフレームをテキストとして返します。テストはブラウザーやDevToolsなしで実行できます。
+`@textjs/app/testing`（または `@textjs/react/testing`）は、アプリを画面外にレンダリングし、キーを押してフレームをテキストとして返します。テストはブラウザーやDevToolsなしで実行できます。
 
 <!-- s:9bc71b1ad2 -->
-Bun、Vitest、Jestなど、 `async` テストに対応する任意のランナーで動作します。
+Bun、Vitest、Jestなど、`async` テストに対応する任意のランナーで動作します。
 
 <!-- s:f7898e6b92 -->
 レンダリング

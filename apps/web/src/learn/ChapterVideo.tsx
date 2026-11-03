@@ -4,7 +4,7 @@ import { siteStore } from "../console-companion/store";
 import { t } from "../i18n/t";
 import { CloseIcon, PauseIcon, PipIcon, PlayIcon, ReturnIcon } from "../site/icons";
 import { useInView } from "../site/useInView";
-import { captionsMode, captionsStore, useCaptions } from "./captions";
+import { captionsStore, pickedLanguage, trackModes, useCaptions } from "./captions";
 import { escClosesMiniPlayer, miniPlayer, MINI_PLAYER_IDLE, type MiniPlayerEvent, type MiniPlayerState } from "./miniPlayer";
 import { formatDuration, learnVideo, type LearnVideo } from "./video";
 
@@ -163,23 +163,32 @@ function useMedia(query: string): boolean {
   return matches;
 }
 
-/** Applies the captions choice to the video's track, and follows changes made from the native controls. */
+/** The caption language picked last, so turning captions back on brings it back (on this page and the next). */
+let lastLanguage: string | null = null;
+
+/** Applies the captions choice to the video's tracks, one showing at most, and follows the native captions menu. */
 function useCaptionTrack(video: HTMLVideoElement | null, on: boolean): void {
   useEffect(() => {
-    const track = video?.textTracks[0];
-    if (!track) return;
-    const mode = captionsMode(on, track.mode);
-    if (mode) track.mode = mode;
+    if (!video) return;
+    const tracks = [...video.textTracks];
+    trackModes(tracks, on, lastLanguage).forEach((mode, i) => {
+      if (tracks[i]!.mode !== mode) tracks[i]!.mode = mode;
+    });
   }, [video, on]);
   useEffect(() => {
     if (!video) return;
-    const tracks = video.textTracks;
+    const list = video.textTracks;
     const sync = (): void => {
-      const track = tracks[0];
-      if (track) captionsStore.set(track.mode === "showing");
+      const tracks = [...list];
+      const picked = pickedLanguage(tracks, lastLanguage);
+      if (picked) {
+        lastLanguage = picked;
+        for (const t of tracks) if (t.mode === "showing" && t.language !== picked) t.mode = "hidden";
+      }
+      captionsStore.set(picked !== null);
     };
-    tracks.addEventListener("change", sync);
-    return () => tracks.removeEventListener("change", sync);
+    list.addEventListener("change", sync);
+    return () => list.removeEventListener("change", sync);
   }, [video]);
 }
 

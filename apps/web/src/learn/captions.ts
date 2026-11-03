@@ -26,13 +26,31 @@ export function parseCaptions(raw: string | null, fallback = DEFAULT_ON): boolea
   return raw === null ? fallback : raw === "on";
 }
 
+export interface TrackState {
+  mode: TextTrackMode;
+  language: string;
+}
+
 /**
- * The text track mode to apply for `on`, or `null` to leave the track alone. Turning captions off hides a showing
- * track; a track that was never shown stays disabled, so its file isn't fetched.
+ * The modes for a video's caption tracks, with at most one showing. Off hides every showing track. On keeps the
+ * showing track, or shows the one in `preferred` (the language last picked), or the first (the page's language).
+ * Tracks never shown stay disabled, so their files aren't fetched.
  */
-export function captionsMode(on: boolean, current: TextTrackMode): TextTrackMode | null {
-  if (on) return current === "showing" ? null : "showing";
-  return current === "showing" ? "hidden" : null;
+export function trackModes(tracks: readonly TrackState[], on: boolean, preferred: string | null): TextTrackMode[] {
+  if (!on) return tracks.map((t) => (t.mode === "showing" ? "hidden" : t.mode));
+  let keep = tracks.findIndex((t) => t.mode === "showing");
+  if (keep < 0) keep = Math.max(0, tracks.findIndex((t) => t.language === preferred));
+  return tracks.map((t, i) => (i === keep ? "showing" : t.mode === "showing" ? "hidden" : t.mode));
+}
+
+/**
+ * After a change from the native captions menu: the language now showing. When two show (the menu turned one on
+ * without turning the other off), the one that isn't `previous` is the new pick.
+ */
+export function pickedLanguage(tracks: readonly TrackState[], previous: string | null): string | null {
+  const showing = tracks.filter((t) => t.mode === "showing");
+  if (showing.length === 0) return null;
+  return (showing.find((t) => t.language !== previous) ?? showing[0])!.language;
 }
 
 export class CaptionsStore {

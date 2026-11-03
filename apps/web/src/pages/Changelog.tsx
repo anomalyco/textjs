@@ -50,7 +50,7 @@ export function ChangelogPage(): ReactNode {
         <div className="rs-head-links">
           <A href="/blog" className="text-link">
             <span>
-              {t("Read the blog")} <span className="rtl-flip">→</span>
+              {t("Read the blog")}&nbsp;<span className="rtl-flip">→</span>
             </span>
           </A>
         </div>

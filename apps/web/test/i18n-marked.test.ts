@@ -52,7 +52,7 @@ function unmarked(file: string): string[] {
   const at = (n: ts.Node): string => `${relative(SRC, file)}:${sf.getLineAndCharacterOfPosition(n.getStart()).line + 1}`;
   const visit = (n: ts.Node): void => {
     if (ts.isJsxText(n)) {
-      const text = n.getText().replace(/\s+/g, " ").trim();
+      const text = n.getText().replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
       if (/[A-Za-z]{2,}/.test(text) && !ALLOWED.has(text)) found.push(`${at(n)} ${text}`);
     }
     if (ts.isJsxAttribute(n) && n.initializer && ts.isStringLiteral(n.initializer) && ATTRS.has(n.name.getText())) {

@@ -10,17 +10,18 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 <!-- s:14d523690c -->
 - `@textjs/react`: `<Image renderMode="halfblock">` は、1.3の `<Image>` と同様に、すべての環境で `▀` のハーフブロックを描画します。
 - `@textjs/core/experimental`: `drawPixels` は、滑らかなアルファ値と256色を超える色を持つロスレスのスプライト用に `encoding: "rgba"` を受け取り、スプライトを表示できない場所でセルを描画する `fallback` 関数も受け取ります。
-- `@textjs/app`: `text dev`、`text start`、および `bun`、`vercel`、`cloudflare` アダプターで、curl、Wget、HTTPie、xhはHTMLページの代わりにページの最初のフレームをトゥルーカラーのANSIテキストとして取得します。`text build` は静的ページのフレームを事前レンダリングします。`text start` と `bun` はリクエスト時に動的ページとサーバーレンダリングのページをレンダリングし、不明なパスにはアプリのnot-foundページと `404` を返します。フレームのデフォルトは80 × 24です。サイズの変更やフレームの無効化には、`text.config.ts` の `ansi` またはページの `export const ansi` を使います。`static` アダプターはcurlにHTMLページを配信します。[curlとターミナルクライアント](https://textjs.org/docs/curl)を参照してください。
+- `@textjs/app`: `text dev`、`text start`、および `bun`、`vercel`、`cloudflare` アダプターで、curl、Wget、HTTPie、xhはHTMLページの代わりにページの最初のフレームをトゥルーカラーのANSIテキストとして取得します。`text build` は静的ページのフレームをプリレンダリングします。`text start` と `bun` はリクエスト時に動的ページとサーバーレンダリングのページをレンダリングし、不明なパスにはアプリのnot-foundページと `404` を返します。フレームのデフォルトは80 × 24です。サイズの変更やフレームの無効化には、`text.config.ts` の `ansi` またはページの `export const ansi` を使います。`static` アダプターはcurlにHTMLページを配信します。[curlとターミナルクライアント](https://textjs.org/docs/curl)を参照してください。
 - `@textjs/app/ansi` は、`text start` やアダプターを使わないサーバー向けに `wantsAnsi` と `ansiResponse` をエクスポートし、`@textjs/react` は `frameToAnsi` をエクスポートします。
 - textjs.org: textjs.org/jaに日本語版の草稿を追加し、はじめに、インストール、ルーティングのドキュメントとサイトのインターフェースから翻訳を始めています。未翻訳の段落は英語で表示します。検索インデックスへの登録と言語選択への追加はまだしていません。
 
 <!-- s:5b88618770 -->
 変更
 
-<!-- s:08ccb4d6dc -->
-- `@textjs/react`: `<Image>` はChromiumとFirefoxのコンソールでピクセルスプライトを描画し、セルあたりの最大ピクセル数はピクセルアートで8 × 16、写真で4 × 8です。これは、マイナーリリース間でフレームの見た目を同じに保つという[サポートポリシー](https://textjs.org/docs/support-policy)の約束を意図的に破る変更です。1.3のハーフブロックを維持するには `renderMode="halfblock"` を渡します。Safari、ターミナル（`text run` を含む）、ANSIとプレーンテキスト出力、およびサーバーレンダリングされるライブページの最初のフレームでは、引き続きハーフブロックを描画します。
-- `@textjs/app`: curl、Wget、HTTPie、xhでページを取得するスクリプトと稼働監視は、ANSIテキストを受け取るようになりました。引き続きHTMLを取得するには、`Accept: text/html` を送信するか、`text.config.ts` で `ansi: false` を設定します。
-- `@textjs/app`: `text build` がページのシェルを事前レンダリングする間、非同期サーバーコンポーネントは実行されなくなりました。以前と同様に `<Suspense>` のフォールバックを表示し、ビルド時にはデータリクエストを開始しません。
+<!-- s:4ebc120f9a -->
+- `@textjs/react`: `<Image>` はChromiumとFirefoxのコンソールでピクセルスプライトを描画するようになりました。1セルあたりの解像度は、ピクセルアートで最大8 × 16ピクセル、写真で最大4 × 8ピクセルです。これは、マイナーリリース間でフレームの見た目を変えないという[サポートポリシー](https://textjs.org/docs/support-policy)の約束を意図的に破る変更です。1.3のハーフブロックを維持するには、`renderMode="halfblock"` を渡してください。Safari、ターミナル（`text run` を含む）、ANSI出力とプレーンテキスト出力、サーバーレンダリングされるライブページの最初のフレームでは、引き続きハーフブロックを描画します。
+- `@textjs/app`: curl、Wget、HTTPie、xhでページを取得するスクリプトや稼働監視は、ANSIテキストを受け取るようになりました。引き続きHTMLを受け取るには、`Accept: text/html` を送信するか、`text.config.ts` で `ansi: false` を設定してください。
+- `@textjs/app`: `text build` がページのシェルをプリレンダリングする際に、非同期サーバーコンポーネントを実行しなくなりました。従来どおり `<Suspense>` のフォールバックを表示しますが、ビルド時にデータリクエストを開始しません。
+- `@textjs/app`: サーバーレンダリングされるページのフレームプレイヤーが3 KB小さくなり、`examples/dashboard` ではgzip圧縮後のサイズが25.4 KBから22.4 KBになりました。`CellBuffer` の描画メソッド、ボックスの境界線、テキストの切り詰め処理を含まなくなりました。
 
 <!-- s:afe76b8d59 -->
 修正
@@ -58,11 +59,11 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 - Windowsでチャートとスピナーがフレーム内に収まります。Consolasには▁▂▃▅▆▇のブロック、四分割ブロック、点字、▶、✓がないため、Windowsは最大1.8セル幅の代替フォントで描画し、チャートの行がフレームの右端を超えていました。コンソールのフォントスタックは `"SF Mono",Menlo,"Cascadia Mono",Consolas,monospace` になり、Windows 11ではフレーム全体をCascadia Monoで描画します。`<ConsoleMirror>`、VS Codeプレビュー、DevTools拡張機能のフレームビューも、Consolasより前にCascadia Monoを指定します。
 - `@textjs/opencode`: WindowsのNode環境で、ブリッジが `npm i -g opencode-ai` でインストールされたOpenCodeを見つけます。Nodeはnpmの `opencode.cmd` シムを名前で起動できないため、ブリッジはOpenCodeが未インストールであるかのように動作していました。現在は各 `PATHEXT` 拡張子で `PATH` を検索し、`cmd.exe` 経由で `.cmd` シムを実行します。Bun（`bunx`）ではすでに動作していました。
 - Windowsで `text build` が動作します。以前はすべてのテンプレートで `Could not resolve entry module "virtual:textjs/api"` が出るか、エラーメッセージなしで失敗していました。
-- `text build` は、コンソールシェルの事前レンダリングやサーバーレンダリングされるルートのビルドが失敗した場合、エラーを表示します。以前はViteの「ビルド失敗」の行の後、理由を表示せずにコード1で終了していました。
+- `text build` は、コンソールシェルのプリレンダリングやサーバーレンダリングされるルートのビルドが失敗した場合、エラーを表示します。以前はViteの「ビルド失敗」の行の後、理由を表示せずにコード1で終了していました。
 - Windowsの `text dev` は、ファイルを編集するとサーバーレンダリングされるルートを再レンダリングし、ページの `runtime` エクスポートが変わるとブラウザーを再読み込みします。
 - Windowsの `text dev` は、`/app/page.tsx` などViteがモジュールとして配信するソースファイルに対して `middleware.ts` を実行しなくなり、認証リダイレクトで開発クライアントが壊れなくなりました。
 - プロジェクトパスに `C:\Users\RUNNER~1` などのWindows 8.3短縮名が含まれる場合も、`text run` と `text mcp` が動作します。以前はCLIとアプリが `@textjs/app` を二重に読み込むため、「アプリケーションエラー」と表示されていました。
-- Windowsでビルドした `dist/` は、LinuxとmacOSでも事前レンダリング済みページを配信します。ライブルートのマニフェストがパスをバックスラッシュで保存していました。
+- Windowsでビルドした `dist/` は、LinuxとmacOSでもプリレンダリング済みページを配信します。ライブルートのマニフェストがパスをバックスラッシュで保存していました。
 - `text.config.ts` の `vite` オプションで `build.rollupOptions.input` を設定しても、`text build` が動作します。以前はその入力がAPI、サーバーレンダリングされるルート、アダプターの各バンドルのエントリーを置き換え、ビルドが失敗していました。
 - ページ読み込み後の最初の数秒間に停止した場合も `text dev` が終了し、`server.close()` が解決します。以前は、新たに検出された依存関係の最適化中にViteを閉じると、終了処理が完了しませんでした（vitejs/vite#22934）。
 
@@ -73,7 +74,7 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 - `@textjs/app` 1.1.0以前では、保護されたパスを `/ad%6din`、`/api//admin`、`/admin%2Fx` など別の形式で記述すると、リクエストが `middleware.ts` を回避できました。ミドルウェアは送信されたままのパスを照合する一方、ページ、ルートハンドラー、静的ファイルはデコード後のパスで検索していました（ルートハンドラーでは2回デコード）。これは `text dev`、`text start`、および `--adapter bun`、`vercel`、`cloudflare` のビルドに影響しました。静的ビルドはミドルウェアを使えないため、影響はありません。1.2.0に更新し、再ビルドして再デプロイしてください。Vercelでは `.vercel/output`、Cloudflare Pagesでは `dist/`、Bunでは `dist/` 全体が対象です（サーバーを再起動してください）。独自のURLでまだアクセスできる古いデプロイは削除するか、保護してください。
 - すべてのホストがリクエストごとに1つの正規化されたパス名を算出し、マッチャー、`request.nextUrl`、すべての検索に使います。パーセントエスケープをデコードし、`new URL()` と同じ形式でパスを再エンコードし、`.` と `..` のセグメントを解決し、重複するスラッシュと末尾のスラッシュを削除します。`%2F`、`%5C`、または不正なパーセントエンコーディングを含むパスには `400` を返します。`text dev`、`text start`、Bunアダプターは正確な名前でのみ静的ファイルを配信するため、macOSとWindowsで `/ADMIN/report.txt` が `public/admin/report.txt` を配信しなくなりました。
 - マッチャー、書き換え元、ルートセグメント、`basePath` はリクエストパスと同じエンコード形式で比較されるため、`matcher: "/café/:path*"` と `"/caf%c3%a9/:path*"` は `/caf%C3%A9` を保護し、`"/ops%40corp/:path*"` は `/ops@corp` を保護します。マッチャーのないミドルウェアは `basePath` の外では実行されません。`/admin/` など末尾にスラッシュがあるマッチャーは `/admin` に一致し、`host` 条件はホスト名の末尾のドットを無視します。
-- `runtime = "server"` ルートのライブセッションは、ミドルウェアが `/restricted` から `/login` への書き換えなどで別のパスやクエリに書き換えたページや、`NextResponse.next({ status: 403 })` などのエラーステータスで応答したページをレンダリングしません。
+- `runtime = "server"` ルートのライブセッションは、ミドルウェアが `/restricted` から `/login` への書き換えなどで別のパスやクエリーに書き換えたページや、`NextResponse.next({ status: 403 })` などのエラーステータスで応答したページをレンダリングしません。
 - `--adapter vercel`: ルートハンドラー関数は、生成されたルートのみが設定するリクエストヘッダーからパスを取得するため、`/api/x/%252e%252e/admin` が `/api/admin` に到達しなくなり、`/_textjs/*` をどのように表記しても関数は実行されません。生成されたルートは大文字と小文字を区別して照合するため、ミドルウェアが検査していない `/LEGACY/x` が `/legacy/:path*` の書き換えに一致しなくなりました。`{` などの未エンコード文字を含む、正規化されていない可能性のあるすべてのパスはエッジミドルウェアを通ります。このミドルウェアはすべてのVercelビルドに含まれ、リクエストを正規化されたパスに書き換えます。
 - `--adapter cloudflare`: 静的ファイルはエンコードされたパスで検索されるため、`/x/%252e%252e/admin/report.txt` が `/admin/report.txt` を配信しなくなりました。`basePath` がある場合、その外側のファイルがワーカーを通さずに配信されることもなくなりました。
 - `text dev` は、`/public/…` や `/@fs/…` での `public/` ファイルの配信、`middleware.ts` や `text.config.ts` などのサーバー専用ソースの大文字と小文字を変えた指定、エンコードされた `/@fs/` パス、拡張子なしのモジュールリクエスト（`/text.config?import`）、設定による書き換えを通じた配信、および `basePath` 外のルートハンドラーの配信をしません。
@@ -82,9 +83,9 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 - Text.jsはFirefoxとSafariのコンソールでレンダリングします。`CssConsoleDriver` はCSS機能のチェックでブラウザーを検出します。`%c` スパンがインラインのままになる環境では、マージンなしで行高14pxを指定し、ソフトラップを無効にし、`line-height: 100vh` のカーテンを使います。
 - レスポンシブなサイズ調整は、Firefoxのソースリンク列のスペースを確保します。Safariではフォントスタックの先頭にMenloを置きます。WebインスペクタではユーザーがインストールしたSF Monoで描画できても、ページからは使えないためです。
 - コンソールを選ぶには、`createConsoleRoot`、`ConsoleRenderer`、`CssConsoleDriver` に `browser: "chromium" | "firefox" | "safari"` を渡します。
-- 事前レンダリングされたシェルには、両方の種類のコンソール用CSSが含まれます。
+- プリレンダリングされたシェルには、両方の種類のコンソール用CSSが含まれます。
 - `<FocusPad>` は訪問者のブラウザー用のコンソールショートカットを表示します。Firefoxでは⌘⌥KまたはCtrl+Shift+K、Safariでは⌘⌥Cと「Webデベロッパ用の機能を表示」を有効にする案内を表示します。
-- 事前レンダリングされた `<FocusPad>` は、すべてのブラウザーのショートカットをレンダリングします。最初の描画前に `<html>` に `data-browser`（`firefox` または `safari`）と `data-os`（`mac`）を設定すると、訪問者に合うものだけを表示します。未設定の場合は、ハイドレーションまでChromeのWindows・Linux用ショートカットを表示します。
+- プリレンダリングされた `<FocusPad>` は、すべてのブラウザーのショートカットをレンダリングします。最初の描画前に `<html>` に `data-browser`（`firefox` または `safari`）と `data-os`（`mac`）を設定すると、訪問者に合うものだけを表示します。未設定の場合は、ハイドレーションまでChromeのWindows・Linux用ショートカットを表示します。
 
 <!-- s:74de7c87f7 -->
 - ⌘⌥KとCtrl+Shift+K（Firefoxのコンソールショートカット）は、アプリに届かずブラウザーに渡されます。
@@ -99,7 +100,7 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 
 <!-- s:59f86c9edc -->
 - OpenCode Lite: ファイルごとの差分の確認、プロンプト履歴の閲覧、リーダーキーのショートカットの設定、プロバイダーアカウントとMCPサーバーの管理に対応します。サンドボックスには、スクリプトで動作するターミナルペインが含まれます。
-- OpenCode Lite: `/` を入力するとコマンドを検索し、`@` を入力するとプロジェクトファイルを添付します。Tabはファイルメニューでディレクトリを開きます。接続中のセッションはサーバーのプロジェクトを検索し、サンドボックスはサンプルリポジトリを検索します。
+- OpenCode Lite: `/` を入力するとコマンドを検索し、`@` を入力するとプロジェクトファイルを添付します。Tabはファイルメニューでディレクトリーを開きます。接続中のセッションはサーバーのプロジェクトを検索し、サンドボックスはサンプルリポジトリを検索します。
 - textjs.org/coffee: terminal.shopのデモはSSHアプリと同様にコンソールサイズに追従し、小・中・大のレイアウトと、20 × 10未満での「ターミナルが小さすぎます」の表示に対応します。アカウントには、支払い方法、名前を編集できるプロフィール、サブスクリプションの週次スケジュール変更を追加します。サインアウト中も、カートとアカウント内のよくある質問、概要、デバッグ情報をサインインせずに開けます。
 
 <!-- s:d106fb27b3 -->
@@ -139,7 +140,7 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 <!-- s:01075dcc87 -->
 - `text dev` はすべてのリクエストで `proxy` パスをプロキシ経由で配信します。`fetch()` は `Accept: */*` を送信するため、以前は開発サーバーが先にアプリのHTMLを返し、opencodeテンプレートの初回実行が「予期しないトークン '<'」で失敗していました。
 - Viteの依存関係スキャンがサーバー専用ファイルを読んでも、`text dev` はReactを二重に読み込まなくなりました。以前はスキャンがサーバー専用インポートの検査に引っかかり、スタックトレースの後にコンソールへ「無効なフック呼び出し」を出力し、Fast Refreshを壊していました。
-- `text dev` は `/?demo` などクエリ文字列付きのページURLを処理します。以前はViteがこれらをプロジェクトフォルダーとして扱ってディスク全体を監視し、Linuxでページが読み込まれませんでした。
+- `text dev` は `/?demo` などクエリー文字列付きのページURLを処理します。以前はViteがこれらをプロジェクトフォルダーとして扱ってディスク全体を監視し、Linuxでページが読み込まれませんでした。
 - create-text-app: すべてのテンプレートの初期画面で開発用ピルが最初のキーヒントを覆わなくなり、デフォルトのプロジェクト名をドキュメントに合わせて `my-app` にし、テンプレートは `eslint-plugin-textjs` の推奨設定を通過し、dashboardのREADMEでは `--adapter static` ビルドを説明します。
 - `<FocusPad>` と `<ViewportControl>` は個別指定プロパティだけで境界線を設定します。以前は開発時にキーヒントが点灯するたび、Reactが「再レンダリング中にスタイルプロパティを更新しています（border）」と警告していました。
 - 行の最後のテキストは、短くなっても位置を維持します。以前は `<Spacer>` の後で最長のテキストがあった位置に留まり、はみ出す行に収めるため縮小された兄弟要素も縮小されたままでした。
@@ -151,7 +152,7 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 
 <!-- s:4841011fa5 -->
 - **破壊的変更：** フレームワークとCLIのパッケージは `@textjs/next` になりました（npmでは `textjs` が使用済みです）。インポートを `textjs` から `@textjs/next` に更新してください。
-- OpenCodeブリッジは `bunx @textjs/app proxy` で、どのディレクトリからでも実行できます。
+- OpenCodeブリッジは `bunx @textjs/app proxy` で、どのディレクトリーからでも実行できます。
 - コンソールはデフォルトで、ドッキングされたDevToolsパネルに収まります（下・左・右へのドッキング、ページズーム、ツールバーの折り返しに対応）。ドッキングされていないDevToolsでは `120×36` にフォールバックします。パッドにサイズコントロールを追加しました。
 
 <!-- s:dd18fee429 -->
@@ -169,7 +170,7 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 - コンソールの隣にコンポーネントツリー、フレームインスペクター、タイムラインのパネルを追加するText.js DevTools拡張機能。
 - `eslint-plugin-textjs` とライブプレビュー付きのVS Code拡張機能。
 - `apps/terminal-shop`: 実際のAPIを使う、コンソール内のterminal.shopストアフロント（デフォルトは開発用サンドボックス、本番環境は二重ロック）。
-- textjs.org: コンソールで動く全10章の学習コース。ハイドレーション付きのビルド時事前レンダリング、セルフホストのメトリクスを合わせたフォント、スラッシュなしの `.html` ルート、ライブプレビュー付きの新しいドキュメントページ。
+- textjs.org: コンソールで動く全10章の学習コース。ハイドレーション付きのビルド時プリレンダリング、セルフホストのメトリクスを合わせたフォント、スラッシュなしの `.html` ルート、ライブプレビュー付きの新しいドキュメントページ。
 
 <!-- s:25c8658848 -->
 - 消去後のDevToolsのスロットル位相ロックを解消しました。消去するフレームの後、レンダラーは一度だけ110ms待機し、以降のフレームがDevToolsの即時描画経路に入るようにします。表示遅延のp50は63msから10msになりました。
@@ -204,7 +205,7 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 
 <!-- s:52e989e27d -->
 - サーバーレンダリング。`runtime = "server"` をエクスポートするページは、`async function` コンポーネントを含めサーバーでレンダリングし、行単位のセル差分をServer-Sent Events経由でgzip約19 kBのフレームプレーヤーにストリーミングします。
-- 部分的事前レンダリング。`text build` は各静的ルートの最初のフレームをHTMLにインライン化し、モジュールの読み込み前にコンソールを描画します。
+- 部分的プリレンダリング。`text build` は各静的ルートの最初のフレームをHTMLにインライン化し、モジュールの読み込み前にコンソールを描画します。
 - `middleware.ts`、ルートセグメント設定（`dynamic`、`revalidate`）、`textjs/cache`（`unstable_cache`、`revalidateTag`、`revalidatePath`）。
 - `text build --adapter static|bun|vercel|cloudflare`。
 - `bench/devtools`: 実際のDevToolsフロントエンドを操作し、空白の描画、フレームの欠落、表示遅延、DevToolsのCPU使用量を計測するハーネス。
@@ -219,7 +220,7 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 - textjs.org全体のモバイル対応とレスポンシブ対応の見直し。
 
 <!-- s:1d66ad9bc5 -->
-- `@textjs/font`: `<FigletText>` と `<AsciiFont>` 用の、17フォントを同梱したFIGletフォントパーサーとレンダラー。出力は `figlet` 2.2.5バイナリから記録した273件の参照結果と一致します。
+- `@textjs/font`: `<FigletText>` と `<AsciiFont>` 用の、17フォントを同梱したFIGletフォントパーサーとレンダラー。出力は `figlet` 2.2.5バイナリーから記録した273件の参照結果と一致します。
 - `text proxy`: textjs.orgがOpenCodeサーバーと通信するためのローカルCORSブリッジ。
 
 <!-- s:1331e4db42 -->
@@ -233,6 +234,6 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 
 <!-- s:67e64392c2 -->
 - `@textjs/core`：フラットな型付き配列を使う `CellBuffer`、Yoga WASMレイアウト、`Intl.Segmenter` によるテキスト計測、`%c` ランレングス符号化ドライバーです。変更のあるフレームごとに `console.log` を1回呼び出し、アイドル時には呼び出しません。
-- `@textjs/react`：React 19のreconciler、PascalCaseコンポーネント（`Box`、`Text`、`ScrollBox`、`Input`、`Textarea`、`Select`、`Tabs`、`Code`、`Markdown`、`Diff`、`Modal`、`Spinner` など）、セル単位のTailwindスタイルの `className` ユーティリティ、themes、DOMの `FocusPad` です。
+- `@textjs/react`：React 19のreconciler、PascalCaseコンポーネント（`Box`、`Text`、`ScrollBox`、`Input`、`Textarea`、`Select`、`Tabs`、`Code`、`Markdown`、`Diff`、`Modal`、`Spinner` など）、セル単位のTailwindスタイルの `className` ユーティリティー、テーマ、DOMの `FocusPad` です。
 - `textjs`：ファイルシステムベースのApp Router（`layout`、`page`、`loading`、`error`、`not-found`、動的セグメント、ルートハンドラー）、`text dev`、`text build`、`text start`、コンソール内の `[▼]` インスペクターです。
 - `starter` テンプレートと `dashboard` テンプレートを備えた `create-text-app` です。

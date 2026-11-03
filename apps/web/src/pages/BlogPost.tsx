@@ -15,7 +15,7 @@ export function BlogPostPage({ slug }: { slug: string }): ReactNode {
   return (
     <article className="container blog-post">
       <A href="/blog" className="blog-back">
-        <span className="rtl-flip">←</span> {t("Blog")}
+        <span className="rtl-flip">←</span>&nbsp;{t("Blog")}
       </A>
       <header className="blog-post-head">
         {post.brand === "turbolog" ? <TurbologLockup className="blog-brand" /> : null}

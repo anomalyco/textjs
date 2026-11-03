@@ -40,10 +40,10 @@ text.config.ts
 | オプション | デフォルト | 説明 |
 | :-- | :-- | :-- |
 | `title` | `""` | ページとFocusPadのタイトル |
-| `viewport` | コンソールに合わせる、それ以外は `120×36` | `responsive` （デフォルトは `true` ）、フォールバックの `width × height` 、 `theme` |
+| `viewport` | コンソールに合わせる、それ以外は `120×36` | `responsive`（デフォルトは `true`）、フォールバックの `width × height`、`theme` |
 | `hints` | `[]` | ページのFocusPadに表示する2〜3個のキー |
-| `action` | `press <first hint>` | フォーカス後の操作、例： `"type a prompt"` |
-| `devIndicators` | `true` | コンソール内の開発用オーバーレイ（ `[▼]` ） |
+| `action` | `press <first hint>` | フォーカス後の操作、例：`"type a prompt"` |
+| `devIndicators` | `true` | コンソール内の開発用オーバーレイ（`[▼]`） |
 | `focusHint` | `true` | ページにフォーカスがない間、コンソールの最終行に重ねて表示する「キーボードを使うにはページをクリックしてください」 |
 | `rewrites` | `[]` | リライトとプロキシー |
 | `ansi` | `{ cols: 80, rows: 24 }` | [curlとターミナルクライアント](/docs/curl)用のフレームサイズ、またはHTMLを配信する場合は `false` |

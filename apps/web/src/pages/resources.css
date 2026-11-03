@@ -463,6 +463,23 @@
   color: var(--fg-strong);
 }
 
+/* Phones: the table fits the screen. Value columns take their longest word or phrase, and the feature names wrap. */
+@media (max-width: 600px) {
+  .ent-table {
+    min-width: 0;
+    font-size: 13px;
+  }
+
+  .ent-table td {
+    width: auto;
+  }
+
+  .ent-table th,
+  .ent-table td {
+    padding-inline: 8px;
+  }
+}
+
 .ent-none {
   color: var(--faint);
 }

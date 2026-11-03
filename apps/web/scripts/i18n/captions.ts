@@ -34,6 +34,28 @@ export function parseVtt(vtt: string): Cue[] {
   return cues;
 }
 
+const seconds = (t: string): number => t.split(":").reduce((n, part) => n * 60 + Number(part), 0);
+
+/** How long a sentence is on screen. */
+export function groupSeconds(g: CaptionGroup): number {
+  return seconds((g.cues[g.cues.length - 1] as Cue).end) - seconds((g.cues[0] as Cue).start);
+}
+
+/** Characters a reader takes in per second: about 4 for Chinese and Japanese, 15 for alphabetic scripts. */
+export function readingSpeed(locale: string): number {
+  return /^(ja|zh|ko)/.test(locale) ? 4 : 15;
+}
+
+/** Subtitle length as read: half-width letters, digits and code count half (the Japanese subtitle convention). */
+export function captionLength(text: string): number {
+  return [...text.replace(/\s+/g, "")].reduce((n, ch) => n + (WIDE.test(ch) ? 1 : 0.5), 0);
+}
+
+/** The most characters (by `captionLength`) a sentence's subtitle should have in a locale. */
+export function captionBudget(g: CaptionGroup, locale: string): number {
+  return Math.max(6, Math.round(groupSeconds(g) * readingSpeed(locale)));
+}
+
 export function captionGroups(cues: readonly Cue[]): CaptionGroup[] {
   const groups: CaptionGroup[] = [];
   let current: Cue[] = [];
@@ -54,8 +76,28 @@ export function captionGroups(cues: readonly Cue[]): CaptionGroup[] {
 const WIDE = /[\u3000-\u30ff\u3400-\u9fff\uac00-\ud7af\uff00-\uffef]/;
 const BREAK_AFTER = /[、。，．！？,.;:!?)」』）]$/;
 
-function segments(text: string, locale: string): string[] {
-  return [...new Intl.Segmenter(locale, { granularity: "word" }).segment(text)].map((s) => s.segment);
+/** Never starts a line or cue: closing punctuation, the long vowel mark and small kana. */
+const NO_START = /^[、。，．！？!?,.:;」』）)\]ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ]/;
+/** Never ends a line or cue: opening brackets. */
+const NO_END = /[「『（(\[]$/;
+/** Runs that stay whole: Latin words, numbers and code (`console.log`, `+`, `/docs`), and katakana words. */
+const LATIN = /[A-Za-z0-9+/._%-]/;
+const KATAKANA = /[\u30a0-\u30ffー]/;
+/** Particles and okurigana belong to the word before them, so breaks fall between phrases. */
+const HIRAGANA = /^[\u3041-\u309f]/;
+
+/** Phrase segments: words with their particles, never starting with closing punctuation, never splitting a word or code run. */
+export function segments(text: string, locale: string): string[] {
+  const out: string[] = [];
+  for (const { segment } of new Intl.Segmenter(locale, { granularity: "word" }).segment(text)) {
+    const prev = out[out.length - 1];
+    const a = prev?.slice(-1) ?? "";
+    const b = segment[0] ?? "";
+    const glue = prev !== undefined && (NO_START.test(segment) || (HIRAGANA.test(segment) && !/\s$/.test(prev)) || NO_END.test(prev) || (LATIN.test(a) && LATIN.test(b)) || (KATAKANA.test(a) && KATAKANA.test(b)));
+    if (glue) out[out.length - 1] = prev + segment;
+    else out.push(segment);
+  }
+  return out;
 }
 
 /** Splits `text` into `weights.length` parts sized like the weights, at word boundaries and preferably after punctuation. */

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { getCompanion } from "../console-companion/boot";
 import { siteStore, type OpenCodeConnection } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
-import { autoConnectTarget, BRIDGE_COMMAND, DEFAULT_SERVER_URL, discoverServer, normalizeServerUrl, pairBridge, PairingRequired, rememberBridgeToken, rememberServer, WrongCode } from "../demos/opencode/live";
+import { autoConnectTarget, BRIDGE_COMMAND, DEFAULT_SERVER_URL, discoverServer, normalizeServerUrl, pairBridge, PAIRING_PROMPT, PairingRequired, rememberBridgeToken, rememberServer, WrongCode } from "../demos/opencode/live";
 import { t } from "../i18n/t";
 import { CopyCommand } from "../site/CodeBlock";
 
@@ -149,7 +149,7 @@ export function ConnectPanel(): ReactNode {
       <>
         <span className={`dot dot-amber${pairing ? " pulse" : ""}`} />
         <span className="status-text" id={STATUS_ID} title={conn.message}>
-          {pairing ? t("Pairing…") : (conn.message ?? t("Enter the code from your terminal."))}
+          {pairing ? t("Pairing…") : (conn.message ?? PAIRING_PROMPT)}
         </span>
         <button type="button" className="text-link status-action" onClick={() => toSandbox(conn.url)}>
           {t("Cancel")}

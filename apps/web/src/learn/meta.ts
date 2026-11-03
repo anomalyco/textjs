@@ -45,7 +45,7 @@ export const CHAPTERS_META: readonly ChapterMeta[] = [
       },
       {
         question: msg("What does an idle app log?"),
-        options: [msg("One frame per second"), msg("One frame per animation frame"), "Nothing"],
+        options: [msg("One frame per second"), msg("One frame per animation frame"), msg("Nothing")],
         answer: 2,
         explanation: msg("If no cell changed, the renderer returns before it builds a string, so nothing is logged."),
       },
@@ -146,7 +146,7 @@ export const CHAPTERS_META: readonly ChapterMeta[] = [
       },
       {
         question: msg("What survives navigation between pages?"),
-        options: [msg("Layout state"), "Nothing", msg("Page state")],
+        options: [msg("Layout state"), msg("Nothing"), msg("Page state")],
         answer: 0,
         explanation: msg("Layouts stay mounted while their pages change."),
       },
@@ -267,13 +267,13 @@ export const CHAPTERS_META: readonly ChapterMeta[] = [
     quiz: [
       {
         question: msg("What does a static host need for dynamic routes?"),
-        options: ["Nothing", msg("A rewrite to index.html"), msg("A route per page")],
+        options: [msg("Nothing"), msg("A rewrite to index.html"), msg("A route per page")],
         answer: 1,
         explanation: msg("Static routes are prerendered to their own HTML files. Dynamic segments fall back to the client app in index.html."),
       },
       {
         question: msg("Which console setting should be off?"),
-        options: [msg("Preserve log"), msg("Show timestamps"), "Autocomplete"],
+        options: [msg("Preserve log"), msg("Show timestamps"), msg("Autocomplete")],
         answer: 0,
         explanation: msg("Text.js clears the console to release old frames. With Preserve log on, DevTools ignores the clear."),
       },

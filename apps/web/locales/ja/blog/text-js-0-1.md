@@ -37,13 +37,13 @@ CLI
 インスペクター
 
 <!-- s:cdb3155210 -->
-実行中のアプリで `` Ctrl+` `` または `F2` を押すと、コンソール内に `[▼]` インスペクターが開きます。一致したルートとそのパラメーター、フレームのサイズ、スパン数、各フェーズの所要時間、dirty gateがスキップしたフレーム数を表示します。 `W` はYogaのレイアウトをワイヤーフレームとして描画します。
+実行中のアプリで `` Ctrl+` `` または `F2` を押すと、コンソール内に `[▼]` インスペクターが開きます。一致したルートとそのパラメーター、フレームのサイズ、スパン数、各フェーズの所要時間、dirty gateがスキップしたフレーム数を表示します。`W` はYogaのレイアウトをワイヤーフレームとして描画します。
 
 <!-- s:c2600ceabc -->
 0.1のその他の機能
 
 <!-- s:289b0a9973 -->
-`@textjs/react` には、PascalCaseのコンポーネント（`Box`、`Text`、`ScrollBox`、`Input`、`Textarea`、`Select`、`Tabs`、`Code`、`Markdown`、`Diff`、`Modal`、`Spinner`）、セル単位で機能するTailwind風の `className` ユーティリティ、themesが含まれます。レイアウトはWebAssembly上のYogaで動作します。
+`@textjs/react` には、PascalCaseのコンポーネント（`Box`、`Text`、`ScrollBox`、`Input`、`Textarea`、`Select`、`Tabs`、`Code`、`Markdown`、`Diff`、`Modal`、`Spinner`）、セル単位で機能するTailwind風の `className` ユーティリティー、テーマが含まれます。レイアウトはWebAssembly上のYogaで動作します。
 
 <!-- s:8ad0f2154c -->
 全一覧は[変更履歴](/changelog#v0-1-0)にあります。

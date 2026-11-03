@@ -5,7 +5,7 @@
 `useInput`
 
 <!-- s:eab63471a6 -->
-`useInput` は、ここまで使ってきた低レベルのフックです。正規化された `key` （`"up"`、`"return"`、`"escape"`）、入力された文字を格納する `input`、および `ctrl`、`alt`、`shift`、`meta` を含む `KeyEvent` を受け取ります。
+`useInput` は、ここまで使ってきた低レベルのフックです。正規化された `key`（`"up"`、`"return"`、`"escape"`）、入力された文字を格納する `input`、および `ctrl`、`alt`、`shift`、`meta` を含む `KeyEvent` を受け取ります。
 
 <!-- s:bc64f58619 -->
 キー入力がツリーの下位にあるハンドラーに届かないようにするには、`e.stopPropagation()` を呼び出します。

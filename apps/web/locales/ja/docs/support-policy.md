@@ -12,7 +12,7 @@
 | サポート終了 | なし | — |
 
 <!-- s:d5987f6ecf -->
-パッチは各メジャーバージョンの最新のマイナーバージョンにのみ提供されます。 `1.5.0` がリリースされると、修正は `1.4.x` ではなく `1.5.x` に適用されます。 `2.0.0` がリリースされると、 `1.x` の最後のマイナーバージョンがメンテナンスLTS系列となり、 `lts` と `v1-lts` のdist-tagで公開されます。
+パッチは各メジャーバージョンの最新のマイナーバージョンにのみ提供されます。`1.5.0` がリリースされると、修正は `1.4.x` ではなく `1.5.x` に適用されます。`2.0.0` がリリースされると、`1.x` の最後のマイナーバージョンがメンテナンスLTS系列となり、`lts` と `v1-lts` のdist-tagで公開されます。
 
 <!-- s:6a7ba75ff1 -->
 | バージョン | 状態 | サポート期限 |
@@ -38,13 +38,13 @@ LTSでの修正対象
 以下は、少なくとも1つのマイナーリリースで非推奨の警告を出した後、メジャーリリースでのみ変更します。
 
 <!-- s:4ca9fd7807 -->
-- `@textjs/app/server` と `@textjs/app/cache` を含む、 `@textjs/app` 、 `@textjs/react` 、 `@textjs/core` の公開エクスポート
-- `text.config.ts` のオプション、 `text` CLIのコマンドとフラグ
-- `app/` 内のファイル規約、 `middleware.ts` 、ルートセグメント設定
-- アダプターの出力レイアウト（ `.vercel/output` 、 `_worker.js` 、 `dist/server.js` ）
+- `@textjs/app/server` と `@textjs/app/cache` を含む、`@textjs/app`、`@textjs/react`、`@textjs/core` の公開エクスポート
+- `text.config.ts` のオプション、`text` CLIのコマンドとフラグ
+- `app/` 内のファイル規約、`middleware.ts`、ルートセグメント設定
+- アダプターの出力レイアウト（`.vercel/output`、`_worker.js`、`dist/server.js`）
 
-<!-- s:41f8c270ae -->
-対象外は、 `@textjs/core/experimental` と `@textjs/react/experimental` 配下のすべてを含む、実験的または `unstable_` と明示されたAPI（変更履歴に記載したうえで、マイナーリリースで変更する場合があります）、 `x-middleware-*` ヘッダーや `.text/` のビルドメタデータなどの内部仕様、canaryリリース、および `console.log` の具体的な書式文字列とCSSです（フレームの見た目は変わりませんが、エンコードが高速化される場合があります）。
+<!-- s:3a8ad71311 -->
+対象外：`@textjs/core/experimental` と `@textjs/react/experimental` 配下のすべてを含む、実験的または `unstable_` と明示されたAPI（マイナーリリースで変更される場合があり、変更履歴に記載されます）、`@textjs/core/internal`、`x-middleware-*` ヘッダー、`.text/` ビルドメタデータなどの内部仕様、canaryリリース、および `console.log` の厳密な書式文字列とCSS（フレームの見た目は変わりませんが、エンコードが高速化される場合があります）。
 
 <!-- s:5c7d9aae9b -->
 ランタイムのサポート
@@ -54,9 +54,9 @@ LTSでの修正対象
 | :-- | :-- |
 | Chrome / Edge DevTools | 現行および過去2つの安定版リリース |
 | FirefoxとSafariのコンソール | 現行の安定版リリース |
-| Node.js | アクティブLTSおよびメンテナンスLTSリリース（ `text start` 、Vercel Functions） |
+| Node.js | アクティブLTSおよびメンテナンスLTSリリース（`text start`、Vercel Functions） |
 | Bun | 最新の1.x |
-| Cloudflare Workers | `compatibility_date` が2025-01-01以降、 `nodejs_compat` |
+| Cloudflare Workers | `compatibility_date` が2025-01-01以降、`nodejs_compat` |
 
 <!-- s:509c18536b -->
 ランタイム自体のサポートが終了したバージョンをサポート対象から外すことは、破壊的変更には該当しません。

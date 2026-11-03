@@ -10,7 +10,7 @@ Text.jsにはフォームコントロール、ダイアログ、トーストが�
 | `<Button>` | `↵` `Space` | `onPress` |
 | `<Checkbox>` | `Space` `↵` | `checked` / `onChange` |
 | `<Switch>` | `Space` `←` `→` | `checked` / `onChange` |
-| `<RadioGroup>` | `↑` `↓` （または `←` `→`） | `value` / `onChange` |
+| `<RadioGroup>` | `↑` `↓`（または `←` `→`） | `value` / `onChange` |
 | `<Slider>` | `←` `→`、`Shift` ×5、`Home` `End` | `value` / `onChange` |
 
 <!-- s:1c3c5ba8fd -->
@@ -45,7 +45,7 @@ Text.jsにはフォームコントロール、ダイアログ、トーストが�
 | :-- | :-- |
 | `duration` | ミリ秒（デフォルトは `4000`。読み込み中のトーストは表示を維持） |
 | `id` | 再利用すると既存のトーストをその場で更新 |
-| `position` | `<Toaster>` に指定：`bottom-right` （デフォルト）、`top-center`、… |
+| `position` | `<Toaster>` に指定：`bottom-right`（デフォルト）、`top-center`、… |
 | `max` | `<Toaster>` に指定：同時に表示する数（デフォルトは `3`） |
 
 <!-- s:476f42f2b3 -->

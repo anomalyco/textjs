@@ -17,7 +17,7 @@ export function NotFoundPage(): ReactNode {
       </h1>
       <A href="/" className="btn btn-secondary btn-sm">
         <span>
-          <span className="rtl-flip">←</span> {t("Back home")}
+          <span className="rtl-flip">←</span>&nbsp;{t("Back home")}
         </span>
       </A>
     </div>

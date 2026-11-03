@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { A } from "../router";
 import { rich } from "../i18n/rich";
-import { t } from "../i18n/t";
+import { formatDate, t } from "../i18n/t";
 import { CONSOLE_TAGS, Footer } from "../site/Chrome";
 import { ArrowRight } from "../site/icons";
 import { certificateLines, formatCertificateDate, linkedInAddUrl, NAME_PLACEHOLDER } from "../learn/certificate";
@@ -197,21 +197,21 @@ function ChapterPage({ chapter }: { chapter: Chapter }): ReactNode {
               <A href={learnPath(prev.slug)}>
                 <small>{t("Previous")}</small>
                 <span>
-                  <span className="rtl-flip">←</span> {prev.title}
+                  <span className="rtl-flip">←</span>&nbsp;{prev.title}
                 </span>
               </A>
             ) : (
               <A href="/learn">
                 <small>{t("Course")}</small>
                 <span>
-                  <span className="rtl-flip">←</span> {t("Overview")}
+                  <span className="rtl-flip">←</span>&nbsp;{t("Overview")}
                 </span>
               </A>
             )}
             <A href={learnPath(next ? next.slug : COMPLETE_SLUG)} className="next">
               <small>{next ? t("Chapter {n}", { n: i + 2 }) : t("Finish")}</small>
               <span>
-                {next ? next.title : t("Certificate")} <span className="rtl-flip">→</span>
+                {next ? next.title : t("Certificate")}&nbsp;<span className="rtl-flip">→</span>
               </span>
             </A>
           </nav>
@@ -242,7 +242,7 @@ function CertificatePage(): ReactNode {
           <h1 className="docs-title">{t("Certificate")}</h1>
           <p className="docs-desc">{t("Complete all {chapters} chapters to get a certificate, printed on the page and in your console.", { chapters: CHAPTERS.length })}</p>
           <p className={`learn-cert-status${complete ? " done" : ""}`}>
-            {complete ? t("✓ Course complete. {date}", { date: formatCertificateDate(progress.completedAt) }) : t("{done} of {chapters} chapters complete. Complete the rest to get your certificate.", { done: n, chapters: CHAPTERS.length })}
+            {complete ? t("✓ Course complete. {date}", { date: progress.completedAt ? formatDate(progress.completedAt) : "—" }) : t("{done} of {chapters} chapters complete. Complete the rest to get your certificate.", { done: n, chapters: CHAPTERS.length })}
           </p>
 
           <label className="learn-name">

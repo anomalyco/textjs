@@ -8,7 +8,9 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { LOCALES } from "../src/i18n/locales";
 import { captionsPath, learnVideo, PUBLISHED } from "../src/learn/video";
+import { translatedCaptions } from "./i18n/sources";
 
 const SITE_HOST = "textjs.org";
 const MEDIA_HOST = "media.textjs.org";
@@ -368,12 +370,17 @@ export async function checkSite(options: CheckOptions = {}): Promise<Report> {
     }
   }
 
-  // Learn caption tracks render on the client too, from this site.
+  // Learn caption tracks render on the client too, from this site: English, and each built locale's translation.
   for (const slug of Object.keys(PUBLISHED)) {
-    if (!isFile(join(dist, "learn", `${slug}.html`))) continue;
-    internalRefs++;
-    const path = captionsPath(slug, "en");
-    if (!isFile(join(dist, path.slice(1)))) report("asset", path, "not found", `src/learn/video.ts PUBLISHED.${slug}`);
+    const langs = [
+      ...(isFile(join(dist, "learn", `${slug}.html`)) ? ["en"] : []),
+      ...LOCALES.filter((l) => l.path && isFile(join(dist, l.path, "learn", `${slug}.html`)) && translatedCaptions(l.code).includes(slug)).map((l) => l.code),
+    ];
+    for (const lang of langs) {
+      internalRefs++;
+      const path = captionsPath(slug, lang);
+      if (!isFile(join(dist, path.slice(1)))) report("asset", path, "not found", `src/learn/video.ts PUBLISHED.${slug}`);
+    }
   }
 
   const externalChecked = options.external === true;

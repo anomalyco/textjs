@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { POSTS_META as POSTS, postPath } from "../blog/meta";
+import { LOCALE, localePath } from "../i18n/locales";
 import { formatDate, t } from "../i18n/t";
 import { A } from "../router";
 import "./resources.css";
@@ -11,12 +12,12 @@ export function BlogPage(): ReactNode {
         <h1>{t("The latest from Text.js")}</h1>
         <p className="rs-lede">{t("Releases and engineering notes from the Text.js team.")}</p>
         <div className="rs-head-links">
-          <a href="/blog/rss.xml" className="text-link">
+          <a href={localePath(LOCALE, "/blog/rss.xml")} className="text-link">
             {t("RSS feed")}
           </a>
           <A href="/changelog" className="text-link">
             <span>
-              {t("Changelog")} <span className="rtl-flip">→</span>
+              {t("Changelog")}&nbsp;<span className="rtl-flip">→</span>
             </span>
           </A>
         </div>

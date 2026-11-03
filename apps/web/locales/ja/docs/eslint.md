@@ -23,7 +23,7 @@
 コンソールファイル
 
 <!-- s:04573fe453 -->
-ほとんどのルールは、コンソールに描画するファイルにのみ適用されます。対象は、`@textjs/app` または `@textjs/react` からコンポーネントやフック（`Box`、`Text`、`useInput`、…）をインポートするファイルです。`react-dom` または `@textjs/react/dom` をインポートするファイルはページのコードとして扱われ、検査されないため、1つのプロジェクトでDOMページとコンソールアプリを混在させられます。`tokenize` や `parseMarkdown` のようなユーティリティをインポートしても、コンソールファイルにはなりません。
+ほとんどのルールは、コンソールに描画するファイルにのみ適用されます。対象は、`@textjs/app` または `@textjs/react` からコンポーネントやフック（`Box`、`Text`、`useInput`、…）をインポートするファイルです。`react-dom` または `@textjs/react/dom` をインポートするファイルはページのコードとして扱われ、検査されないため、1つのプロジェクトでDOMページとコンソールアプリを混在させられます。`tokenize` や `parseMarkdown` のようなユーティリティーをインポートしても、コンソールファイルにはなりません。
 
 <!-- s:96e9c86b58 -->
 App Routerのルールは、`src/app/` を含む任意の `app/` ディレクトリー内で、ファイル名（`page.tsx`、`layout.tsx`、`route.ts`、…）に基づいて適用されます。別のディレクトリー名を使っている場合は、`valid-route-module`、`valid-metadata`、`route-handler-exports` に `{ appDir: "routes" }` を渡してください。
@@ -90,7 +90,7 @@ Text.jsは、すべての文字を固定セルのグリッドに配置します�
 コンポーネント内で `setInterval` を直接使う場合、古い状態の参照を避けるためにエフェクト、クリーンアップ、refが必要です。`useInterval` はこの3つを処理し、`null` で停止します。
 
 <!-- s:894ec09a45 -->
-アニメーションでは、`useAnimationFrame` がレンダラーのフレーム間隔に従い、出力の一時停止中は停止します。[ユーティリティフック](/docs/utility-hooks)を参照してください。
+アニメーションでは、`useAnimationFrame` がレンダラーのフレーム間隔に従い、出力の一時停止中は停止します。[ユーティリティーフック](/docs/utility-hooks)を参照してください。
 
 <!-- s:0d541fb900 -->
 `no-sub-frame-timers`

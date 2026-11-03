@@ -19,7 +19,7 @@ import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { getLocale } from "../../src/i18n/locales";
 import { formatTranslation, parseTranslation, segment } from "./document";
-import { captionGroups, parseVtt } from "./captions";
+import { captionBudget, captionGroups, parseVtt } from "./captions";
 import { captionFile, captionSources, catalogFile, documentSources, englishText, extractMessages, LOCALES_DIR, readCaptions, readCatalog, readText, translationFile, WEB_DIR, type Catalog, type CatalogValue } from "./sources";
 import { validate, validatePlural } from "./validate";
 
@@ -119,7 +119,7 @@ function systemPrompt(locale: string, job: Job): string {
     keep.length ? `- Keep these names exactly as written: ${keep.join(", ")}.` : "",
     terms.length ? `- Preferred terms:\n${terms.join("\n")}` : "",
     job.kind === "ui" ? "- These are interface strings (buttons, labels, titles, short descriptions). Keep them as short as the English." : "",
-    job.kind === "captions" ? "- These are subtitles for a narrated video. Translate each sentence naturally and concisely, so it can be read while it's spoken. Write words the narrator spells out (\"app folder\", \"page dot tsx\") as they'd be read in the target language, keeping code names as written." : "",
+    job.kind === "captions" ? "- These are subtitles for a narrated video, not a transcript. Condense each sentence to subtitle style so it can be read while it's spoken: aim for the item's character budget (listed after the page; letters, digits and code count as half a character), drop filler, repetition and asides, and keep every fact, number and code name. A subtitle is about 60% the length of a full translation. End sentences in the locale's register (Japanese: short です・ます endings such as 〜します, never 体言止め or a bare noun), and make them fit by cutting words, not endings: drop subjects the viewer can see, connectives, examples, restatements and minor detail. Go over the budget only when even the shortest such sentence can't fit. Subtitles are plain text without Markdown or backticks; write code names (console.log, page.tsx, useInput) as written in code, even where the narrator spells them out." : "",
     "",
     "The site's English copy rules. Apply their intent to the translation (register, no filler, facts kept exact):",
     siteStyle,
@@ -197,7 +197,9 @@ async function translate(job: Job): Promise<{ ok: Map<string, string>; failed: s
     const problems: string[] = [];
     const retry: Item[] = [];
     for (const item of pending) {
-      const target = out.get(item.id);
+      const raw = out.get(item.id);
+      // Subtitles are plain text: code names without backticks.
+      const target = raw !== undefined && job.kind === "captions" ? raw.replace(/`+/g, "") : raw;
       const verdict = target === undefined ? { errors: ["missing"], warnings: [] } : validate(job.locale, item.text, target, keep);
       if (verdict.errors.length === 0 && target !== undefined) ok.set(item.id, target);
       else {
@@ -208,6 +210,7 @@ async function translate(job: Job): Promise<{ ok: Map<string, string>; failed: s
     pending = retry;
     feedback = problems.join("\n");
   }
+  if (pending.length && process.env.I18N_DEBUG) console.error(`${job.title}:\n${feedback}`);
   return { ok, failed: pending.map((p) => p.id) };
 }
 
@@ -320,8 +323,10 @@ for (const locale of locales) {
     tasks.push(async () => {
       const result: Record<string, string> = { ...existing };
       for (let i = 0; i < todo.length; i += 40) {
-        const items = todo.slice(i, i + 40).map((g) => ({ id: g.id, text: g.text }));
-        const { ok, failed } = await translate({ locale, model: TEXT_MODEL, kind: "captions", title: `Captions of the Learn Text.js video "${slug}" (narration, one sentence per item)`, context: transcript, items });
+        const batch = todo.slice(i, i + 40);
+        const items = batch.map((g) => ({ id: g.id, text: g.text }));
+        const budgets = batch.map((g) => `${g.id}: ${captionBudget(g, locale)}`).join("\n");
+        const { ok, failed } = await translate({ locale, model: TEXT_MODEL, kind: "captions", title: `Captions of the Learn Text.js video "${slug}" (narration, one sentence per item)`, context: `${transcript}\n\nCharacter budget per item (id: characters; half-width characters count half):\n${budgets}`, items });
         for (const [k, text] of ok) result[k] = text;
         failures.push(...failed.map((f) => `${id}: ${f}`));
       }

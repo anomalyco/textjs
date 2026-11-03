@@ -1,5 +1,5 @@
 <!-- s:68d1688157 -->
-手書きの行をコンポーネントに置き換えます。キーボード操作と並べ替えに対応した `<Table>` 、仮想スクロールに対応した `<List>` 、1/8ブロックと四分区画のドットで描くチャートを使います。
+手書きの行をコンポーネントに置き換えます。キーボード操作と並べ替えに対応した `<Table>`、仮想スクロールに対応した `<List>`、1/8ブロックと四分区画のドットで描くチャートを使います。
 
 <!-- s:05c3784661 -->
 並べ替え可能なテーブル
@@ -23,4 +23,4 @@
 その他のコンポーネント
 
 <!-- s:ff2d92e2d3 -->
-`<List>` 、`<Tree>` 、`<Tabs>` 、`<Select>` 、`<Input>` 、`<Modal>` 、`<Toaster>` 、`<CommandPalette>` 、`<ProgressBar>` 、`<LineChart>` などは、[コンポーネント](/docs/components-data)で説明しています。
+`<List>`、`<Tree>`、`<Tabs>`、`<Select>`、`<Input>`、`<Modal>`、`<Toaster>`、`<CommandPalette>`、`<ProgressBar>`、`<LineChart>` などは、[コンポーネント](/docs/components-data)で説明しています。

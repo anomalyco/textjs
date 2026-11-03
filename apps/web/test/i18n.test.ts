@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { join } from "node:path";
 import { createElement } from "react";
-import { assembleCaptions, captionGroups, parseVtt } from "../scripts/i18n/captions";
+import { assembleCaptions, captionGroups, parseVtt, segments } from "../scripts/i18n/captions";
 import { assemble, formatTranslation, parseTranslation, segment } from "../scripts/i18n/document";
 import { checkLocale, unreadableCalls } from "../scripts/i18n/check";
 import { CALL, extractMessages, PLURAL } from "../scripts/i18n/sources";
@@ -159,7 +159,10 @@ describe("captions", () => {
     expect(out.total).toBe(2);
     const cues = parseVtt(out.vtt);
     expect(cues.map((c) => c.start)).toEqual(["00:00:01.000", "00:00:03.100", "00:00:05.100"]);
-    expect(cues.slice(0, 2).map((c) => c.text.replace(/\n/g, "")).join("")).toBe("この章では、Acme Deploysを1つのレイアウトを共有するルートに分割します。");
+    expect(cues.slice(0, 2).map((c) => c.text.replace(/\s+/g, "")).join("")).toBe("この章では、AcmeDeploysを1つのレイアウトを共有するルートに分割します。");
+    // Lines and cues break between phrases: never before 、。」ー or small kana, never inside a Latin or katakana word.
+    for (const c of cues) for (const line of c.text.split("\n")) expect(line).not.toMatch(/^[、。」）ーゃゅょっャュョッ]/);
+    expect(segments("デプロイカードのスタイルを設定し、console.logを呼びます。", "ja")).toEqual(["デプロイカードの", "スタイルを", "設定し、", "console.logを", "呼びます。"]);
     expect(cues[2]!.text).toBe("Press Enter.");
   });
 });

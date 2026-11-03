@@ -126,14 +126,14 @@ export function ErrorPage({ code }: { code: string }): ReactNode {
           <A href={errorPath(prev.code)}>
             <small>{t("Previous")}</small>
             <span>
-              <span className="rtl-flip">←</span> {prev.code} {prev.title}
+              <span className="rtl-flip">←</span>&nbsp;{prev.code} {prev.title}
             </span>
           </A>
         ) : (
           <A href="/errors">
             <small>{t("Index")}</small>
             <span>
-              <span className="rtl-flip">←</span> {t("All error codes")}
+              <span className="rtl-flip">←</span>&nbsp;{t("All error codes")}
             </span>
           </A>
         )}
@@ -141,7 +141,7 @@ export function ErrorPage({ code }: { code: string }): ReactNode {
           <A href={errorPath(next.code)} className="next">
             <small>{t("Next")}</small>
             <span>
-              {next.code} {next.title} <span className="rtl-flip">→</span>
+              {next.code} {next.title}&nbsp;<span className="rtl-flip">→</span>
             </span>
           </A>
         ) : null}
