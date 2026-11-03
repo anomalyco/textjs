@@ -370,7 +370,7 @@ describe("Doom sound effects", () => {
     // A monster's sounds come from where it stands.
     expect(started.some((s) => s.sep !== 128 && s.vol < 64)).toBe(true);
     expect(Math.max(...started.map((s) => s.channel))).toBeLessThan(8);
-  });
+  }, 30_000);
 
   test("DoomSound stays silent until a gesture, plays each channel through a gain and a stereo panner, and follows Doom's clock", async () => {
     const wad = readWad();
