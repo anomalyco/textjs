@@ -26,10 +26,10 @@ Navigation
 `<Link>` peut recevoir le focus et prend en charge les raccourcis à une seule touche.
 
 <!-- s:328e16abd4 -->
-| Propriété | Description |
+| Prop | Description |
 | :-- | :-- |
 | `href` | Chemin de destination |
-| `shortcut` | Touche qui suit le lien |
+| `shortcut` | Touche qui ouvre le lien |
 | `replace` | Remplacement de l’entrée dans l’historique |
 
 <!-- s:c6bd4ebc06 -->

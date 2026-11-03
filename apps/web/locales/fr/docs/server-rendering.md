@@ -11,7 +11,7 @@ Chaque page est rendue à l’un de ces deux endroits :
 | | Client (par défaut) | Serveur (`runtime = "server"`) |
 | --- | --- | --- |
 | Exécution de l’arbre React | L’onglet du navigateur | `text dev` / `text start` / l’adaptateur `bun` (Bun ou Node) |
-| Téléchargement par le navigateur | L’application complète : React, Yoga WASM, vos routes | Le lecteur de frames, environ 21 kB gzip |
+| Téléchargement par le navigateur | L’application complète : React, Yoga WASM, vos routes | Le lecteur de frames, environ 21 ko gzip |
 | Accès aux données | `fetch()` vers les gestionnaires de route | Directement : bases de données, fichiers, `node:*`, secrets |
 | Composants asynchrones | Utilisation de `use()` ou d’effets | Prise en charge des composants `async function` |
 | Latence des frappes | Même tâche, synchrone | Un aller-retour vers le serveur |
@@ -46,7 +46,7 @@ Utilisez l’environnement d’exécution **serveur** pour :
 <!-- s:bb8a20e6e2 -->
 - Les tableaux de bord et les vues d’administration qui lisent des bases de données, des fichiers, des files d’attente ou des API privées. Les identifiants restent sur le serveur.
 - Les routes avec des dépendances lourdes (SDK, analyseurs, tables de syntaxe) que vous ne voulez pas inclure dans le bundle du navigateur.
-- Les pages qui doivent se charger rapidement sur des réseaux lents. Le navigateur télécharge le lecteur de 21 kB (gzip) au lieu de l’application complète.
+- Les pages qui doivent se charger rapidement sur des réseaux lents. Le navigateur télécharge le lecteur de 21 ko (gzip) au lieu de l’application complète.
 
 <!-- s:920f4ad7e8 -->
 Vous pouvez combiner les environnements d’exécution dans une même application. La navigation entre eux charge l’URL cible comme un nouveau document. Le bundle du navigateur remplace chaque page serveur par un substitut minimal, de sorte que les modules serveur et tout ce qu’ils importent ne sont jamais envoyés au client.

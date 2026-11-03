@@ -8,7 +8,7 @@ L’aperçu est interactif. Cliquez dessus et appuyez sur `↑`.
 Fonctionnalités incluses
 
 <!-- s:d3708efc68 -->
-- **React 19** : rendu concurrent, Suspense et limites d’erreur.
+- **React 19** : rendu concurrent, Suspense et périmètres d’erreurs.
 - **App Router** : layouts, pages, segments dynamiques et gestionnaires de route.
 - **Layout Yoga** : flexbox en WebAssembly, aligné sur des cellules entières.
 - **Turbolog** : un appel à `console.log` par frame modifiée.

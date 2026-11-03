@@ -15,8 +15,15 @@ Ajouts
 <!-- s:5b88618770 -->
 Modifications
 
-<!-- s:f7da7bb6d2 -->
-- `@textjs/core` : les consoles Chromium et Firefox effacent la sortie des sprites animés à 16 Mo au lieu de 4 Mo, si bien que textjs.org/doom affiche « La console a été effacée » environ toutes les 19 secondes au lieu de toutes les 4,5 secondes. Safari et les sprites dessinés en demi-blocs `▀` conservent la limite de 4 Mo. Le pic de mémoire du tas de la page textjs.org/doom passe de 10,8 Mo à environ 12–13 Mo.
+<!-- s:27b507a9de -->
+- `@textjs/core` : les consoles Chromium et Firefox effacent la sortie des sprites animés à 16 Mo au lieu de 4 Mo, donc textjs.org/doom affiche « La console a été effacée » environ toutes les 19 secondes au lieu de toutes les 4,5 secondes. Safari et les sprites dessinés en demi-blocs `▀` conservent la limite de 4 Mo. Le pic d’utilisation du tas de la page textjs.org/doom passe de 10,8 Mo à environ 12–13 Mo.
+- textjs.org : une page de documentation télécharge uniquement son propre Markdown au lieu des 33 pages, donc les pages de documentation en anglais chargent 43–47 ko de JavaScript en moins (gzip), et les pages de documentation /ja 60–64 ko de moins. Survoler un lien vers une autre page de documentation ou lui donner le focus déclenche le chargement anticipé de cette page, qui s’ouvre donc toujours immédiatement.
+
+<!-- s:afe76b8d59 -->
+Corrections
+
+<!-- s:4290e90e78 -->
+- textjs.org/ja : la recherche ⌘K affiche les titres de la documentation en japonais et y recherche les requêtes en japonais. Elle affichait auparavant des titres de section en anglais sous les titres de page en japonais. Les noms en anglais trouvent toujours les pages : `routing` trouve ルーティング et `open the console` trouve コンソールを開く.
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom joue les effets sonores de Doom, avec sa propre spatialisation stéréo et son atténuation selon la distance. Le son démarre au premier clic ou à la première touche sur la page, se met en pause avec le jeu et suit le réglage Sfx Volume du menu Options → Sound Volume de Doom. Il n’y a pas de musique.
@@ -24,9 +31,6 @@ Modifications
 <!-- s:144aa59e73 -->
 - `@textjs/react`, `@textjs/app` : l’indication de focus (« Cliquez sur la page pour utiliser le clavier ») est une barre ambrée avec du texte noir en gras dans chaque thème. Elle utilisait auparavant les couleurs inversées du thème. À chaque apparition, elle clignote 4 fois en environ 6 secondes, puis reste ambrée. Elle ne clignote pas lorsque la réduction des animations est activée. Chaque cycle de clignotement ajoute jusqu’à 8 frames supplémentaires à la console.
 - textjs.org : Doom a été déplacé vers textjs.org/doom. textjs.org/playground/doom y redirige.
-
-<!-- s:afe76b8d59 -->
-Corrections
 
 <!-- s:b91de36548 -->
 - `@textjs/core`, `@textjs/react` : le panneau « Problèmes » de Chrome ne signale plus « Un élément de champ de formulaire doit avoir un attribut id ou name » sur chaque page. Le `<textarea>` masqué du clavier porte le nom `textjs-input`, et le `<select>` de taille de console de `ViewportControl` (également présent dans le `sizeControl` de `FocusPad`) possède un `id` et le nom `textjs-console-size`. Le `<textarea>` du clavier désactive aussi l’intervention de 1Password, LastPass, Bitwarden et Dashlane.
@@ -226,7 +230,7 @@ Frames sans clignotement et rendu côté serveur.
 - Une frame en streaming est passée de 0,79 ms à 0,14 ms, une étape d’indicateur de chargement de 0,90 ms à 0,056 ms. La sortie est identique bit pour bit.
 
 <!-- s:52e989e27d -->
-- Rendu côté serveur. Une page qui exporte `runtime = "server"` effectue son rendu sur le serveur, y compris pour les composants `async function`, et transmet en continu les deltas de cellules par ligne via des événements envoyés par le serveur à un lecteur de frames d’environ 19 kB gzip.
+- Rendu côté serveur. Une page qui exporte `runtime = "server"` effectue son rendu sur le serveur, y compris pour les composants `async function`, et transmet en continu les deltas de cellules par ligne via des événements envoyés par le serveur à un lecteur de frames d’environ 19 ko gzip.
 - Prérendu partiel. `text build` intègre la première frame de chaque route statique dans son HTML, afin que la console s’affiche avant le chargement de tout module.
 - `middleware.ts`, configuration des segments de route (`dynamic`, `revalidate`) et `textjs/cache` (`unstable_cache`, `revalidateTag`, `revalidatePath`).
 - `text build --adapter static|bun|vercel|cloudflare`.

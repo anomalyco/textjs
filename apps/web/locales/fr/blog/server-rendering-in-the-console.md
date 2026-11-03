@@ -8,7 +8,7 @@ Text.js 0.4 a ajouté un second emplacement pour le rendu d’une page. Par déf
 Ce que le navigateur télécharge
 
 <!-- s:6764f4bb25 -->
-Une page avec rendu côté serveur n’embarque ni React, ni Yoga, ni vos routes. Le navigateur charge un lecteur de frames d’environ 21 kB compressé avec gzip, qui contient un `CellBuffer` et le même `CssConsoleDriver` que le moteur de rendu client. Il cadence les frames aux mêmes 15 images par seconde, de sorte qu’une frame avec rendu côté serveur produit le même appel `console.log` que le client.
+Une page avec rendu côté serveur n’embarque ni React, ni Yoga, ni vos routes. Le navigateur charge un lecteur de frames d’environ 21 ko compressé avec gzip, qui contient un `CellBuffer` et le même `CssConsoleDriver` que le moteur de rendu client. Il cadence les frames aux mêmes 15 images par seconde, de sorte qu’une frame avec rendu côté serveur produit le même appel `console.log` que le client.
 
 <!-- s:c1c4090983 -->
 Le protocole

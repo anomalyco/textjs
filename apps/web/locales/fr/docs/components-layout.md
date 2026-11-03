@@ -8,7 +8,7 @@ Ces primitives organisent la grille de cellules avec Yoga flexbox.
 Le conteneur de layout.
 
 <!-- s:b2726c7ef5 -->
-| Propriété | Description |
+| Prop | Description |
 | :-- | :-- |
 | `className` | Classes utilitaires pour les cellules |
 | `border` | `single` `rounded` `double` `heavy` `dashed` |
@@ -23,7 +23,7 @@ Le conteneur de layout.
 Texte en ligne. Les éléments `<Text>` imbriqués deviennent des spans stylisés.
 
 <!-- s:d078a242d3 -->
-| Propriété | Description |
+| Prop | Description |
 | :-- | :-- |
 | `color` | Couleur du texte |
 | `bold` `italic` `underline` `dim` | Attributs |

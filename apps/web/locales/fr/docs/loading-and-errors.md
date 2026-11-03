@@ -1,5 +1,5 @@
 <!-- s:510651334f -->
-Les états de chargement et les limites d’erreur s’affichent dans la console. Définissez-les par segment de route avec `loading.tsx` et `error.tsx`.
+Les états de chargement et les périmètres d’erreurs s’affichent dans la console. Définissez-les par segment de route avec `loading.tsx` et `error.tsx`.
 
 <!-- s:28d65d04f2 -->
 Interface de chargement
