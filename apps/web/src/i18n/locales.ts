@@ -30,7 +30,7 @@ export const LOCALES: readonly Locale[] = [
   { code: "de", path: "de", name: "Deutsch", dir: "ltr", status: "draft" },
   { code: "it", path: "it", name: "Italiano", dir: "ltr", status: "planned" },
   { code: "pt-BR", path: "pt-br", name: "Português (Brasil)", dir: "ltr", status: "draft" },
-  { code: "ja", path: "ja", name: "日本語", dir: "ltr", status: "draft" },
+  { code: "ja", path: "ja", name: "日本語", dir: "ltr", status: "live" },
   { code: "ko", path: "ko", name: "한국어", dir: "ltr", status: "draft" },
   { code: "zh-CN", path: "zh-cn", name: "简体中文", dir: "ltr", status: "draft" },
   { code: "zh-TW", path: "zh-tw", name: "繁體中文", dir: "ltr", status: "draft" },
