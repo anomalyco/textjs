@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-03
+
 ### Added
 
 - `@textjs/react`: `<FocusPad messages>` replaces any of the pad's built-in strings, for translated sites. It covers every line, the screen reader labels and the console size control. `<TextCanvas>` and `<ViewportControl>` also take `messages`. `<ViewportControl>` uses only the size control's keys. Strings that contain a value, such as "Then click here and press ↑ ↓.", are functions that return the whole sentence. `defaultFocusPadMessages` has the English text. See [Translating the focus pad](https://textjs.org/docs/internationalization#translating-the-focus-pad).
