@@ -13,7 +13,7 @@ import ts from "typescript";
 const SRC = join(import.meta.dir, "..", "src");
 const DIRS = ["pages", "site", "learn", "merch", "App.tsx", "ErrorBoundary.tsx", "Root.tsx"];
 const SKIP = /\/learn\/apps\//;
-const ATTRS = new Set(["title", "aria-label", "alt", "placeholder", "label", "aria-description", "activateLabel"]);
+const ATTRS = new Set(["title", "aria-label", "alt", "placeholder", "label", "aria-description", "aria-roledescription", "activateLabel"]);
 
 /** Code, product names, keyboard shortcuts and mock browser UI that read the same in every language. */
 const ALLOWED = new Set([
@@ -58,6 +58,12 @@ function unmarked(file: string): string[] {
     if (ts.isJsxAttribute(n) && n.initializer && ts.isStringLiteral(n.initializer) && ATTRS.has(n.name.getText())) {
       const text = n.initializer.text;
       if (/[A-Za-z]{2,}/.test(text) && !ALLOWED.has(text)) found.push(`${at(n)} ${n.name.getText()}="${text}"`);
+    }
+    // Template literals in the same attributes: `aria-label={`Copy ${command}`}`.
+    if (ts.isJsxAttribute(n) && n.initializer && ts.isJsxExpression(n.initializer) && n.initializer.expression && ATTRS.has(n.name.getText())) {
+      const e = n.initializer.expression;
+      const parts = ts.isTemplateExpression(e) ? [e.head.text, ...e.templateSpans.map((s) => s.literal.text)] : ts.isNoSubstitutionTemplateLiteral(e) ? [e.text] : [];
+      if (parts.some((p) => /[A-Za-z]{2,}/.test(p))) found.push(`${at(n)} ${n.name.getText()}={${e.getText()}}`);
     }
     ts.forEachChild(n, visit);
   };

@@ -87,3 +87,12 @@ API
 
 <!-- s:03607f875b -->
 `resolveLevels(types, codePoints, direction)`、`applyLineRules`、`reorderIndices` は、アルゴリズム自体の規則P1〜I2、L1、L2を公開しています。
+
+<!-- s:f4d4dadbf6 -->
+フォーカスパッドの翻訳
+
+<!-- s:c5e85c7dc7 -->
+`@textjs/react/dom` の `<FocusPad>`（`<TextCanvas>` でもレンダリングされます）は、コンソールを開き、ページをクリックしてキーを押すよう訪問者に案内します。デフォルトのテキストは英語です。翻訳するには、翻訳する文字列を `messages` に渡します。省略したキーには、`defaultFocusPadMessages` に記載された英語のテキストが使われます。
+
+<!-- s:090cb95b0c -->
+値を含む文字列は文全体を返す関数なので、翻訳では値を文中の任意の位置に配置できます。`then` は `action` プロパティを、`shortcutOpens` はキーキャップ形式のコンソールショートカットを、`step` はステップ番号とステップ総数を受け取ります。`messages` は、スクリーンリーダーが読み上げるラベルとコンソールのサイズコントロール（`sizeControl`）にも対応しています。`<ViewportControl>` と `<TextCanvas>` も同じ `messages` プロパティを受け取ります。⌘⌥J、Ctrl+Shift+J、Enterなどのキーキャップは翻訳しません。

@@ -49,7 +49,7 @@ export function CodeBlock({ code, language, file, lineNumbers }: CodeBlockProps)
 export function CopyCommand({ command }: { command: string }): ReactNode {
   const [copied, copy] = useCopy();
   return (
-    <button type="button" className="copy-cmd" dir="ltr" onClick={() => copy(command)} aria-label={`Copy ${command}`}>
+    <button type="button" className="copy-cmd" dir="ltr" onClick={() => copy(command)} aria-label={t("Copy {command}", { command })}>
       <span className="prompt">$</span>
       <span className="cmd">{command}</span>
       {copied ? <CheckIcon /> : <CopyIcon />}

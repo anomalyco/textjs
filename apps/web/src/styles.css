@@ -2601,6 +2601,15 @@ body:has(.locale-suggestion) .footer {
   margin-bottom: calc(var(--tx-pad-gap, 32px) * -1);
 }
 
+/* The pad's prose follows the page's direction; key sequences (⌘ ⌥ J, ← →) always read left to right. */
+.pad .tx-pad-keys,
+.pad .tx-pad-hint > span,
+.pad .tx-pad-echo,
+.pad .tx-pad-line kbd {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
 .pad-title {
   font-size: 14px;
   line-height: 20px;
