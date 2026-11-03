@@ -83,6 +83,8 @@ describe("catalog", () => {
     expect(out).toContain('<p>{"ドキュメント"}</p>');
     expect(out).toContain('<p>{<span lang="en" dir="ltr">{"Not in the catalog"}</span>}</p>');
     expect(out).toContain('title={"Not in the catalog"}');
+    const unwrapped = plugin.transform.call({}, 'import { t } from "../i18n/t";\nconst d = `${t("Not in the catalog")}`;\nconst e = <option>{t("Not in the catalog")}</option>;', file)!.code;
+    expect(unwrapped).not.toContain("<span");
     const en = i18nPlugin("en") as typeof plugin;
     expect(en.transform.call({}, 'import { t } from "../i18n/t";\nconst a = <p>{t("Docs")}</p>;', file)!.code).toContain('<p>{"Docs"}</p>');
   });

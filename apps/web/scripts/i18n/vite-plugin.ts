@@ -87,7 +87,7 @@ export function i18nPlugin(locale: string): Plugin {
       // a right-to-left page gets it in a left-to-right isolate, so its punctuation stays put.
       let out = code;
       if (!english && file.endsWith(".tsx")) {
-        out = out.replace(new RegExp(String.raw`(?<!=\s*)\{\s*t\(\s*(${LITERAL})\s*\)\s*\}`, "g"), (m, literal: string) => {
+        out = out.replace(new RegExp(String.raw`(?<![=$]\s*)\{\s*t\(\s*(${LITERAL})\s*\)\s*\}(?!\s*<\/(?:option|title|textarea)\b)`, "g"), (m, literal: string) => {
           const key = JSON.parse(literal) as string;
           if (!missing(key) || /\{\w+\}/.test(key)) return m;
           count(key);
