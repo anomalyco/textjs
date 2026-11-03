@@ -68,7 +68,7 @@ const ITEMS: Array<{ title: string; body: ReactNode; href: string }> = [
 /** Server → SSE row deltas → frame player → console.log. */
 function Stream({ play }: { play: boolean }): ReactNode {
   return (
-    <div className={`sv-flow${play ? " play" : ""}`} aria-hidden="true">
+    <div className={`sv-flow${play ? " play" : ""}`} dir="ltr" aria-hidden="true">
       <div className="sv-node">
         <span className="sv-node-k">Server</span>
         <span className="sv-node-v">React + Yoga</span>

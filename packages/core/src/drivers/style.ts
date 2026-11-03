@@ -109,6 +109,25 @@ export function typographyCss(t: ConsoleTypographyOptions): string {
   return css;
 }
 
+/**
+ * Chromium pixel-snaps each `contain: paint` span on its own, so where two
+ * backgrounds meet at a fractional x the device pixel between them can be left
+ * to neither span and the console background shows through as a hairline.
+ * Extending a span's background 1px under its right neighbour (which paints
+ * over it) closes the seam without moving anything.
+ */
+export const SEAL_CSS = "padding-right:1px;margin-right:-1px;";
+
+/**
+ * Whether a span with background `bg` takes `SEAL_CSS` before a right
+ * neighbour with background `next` (`undefined` at the end of the row, which
+ * seals so rows still merge). A missing or translucent neighbour would show
+ * the overlap.
+ */
+export function sealsBefore(bg: number, next: number | undefined): boolean {
+  return (bg & 255) !== 0 && (next === undefined || (next & 255) === 255);
+}
+
 export function styleCss(base: string, style: EffectiveStyle): string {
   let css = base;
   if ((style.fg & 255) !== 0) css += `color:${colorToCss(style.fg)};`;

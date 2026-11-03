@@ -2,18 +2,23 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { getLoadedRoutes, isRouteLoaded, preloadRoute } from "./route-loader";
 import { A, matchRoute, titleFor, useLocation, type LocationState, type Route } from "./router";
 import { ConsolePill, Footer, Header } from "./site/Chrome";
+import { LocaleSuggestion } from "./site/LocaleMenu";
 import { SearchModal } from "./site/SearchModal";
 import { recoverFromChunkFailure, report } from "./telemetry/capture";
+import { t } from "./i18n/t";
 import { safeDecode } from "./url";
 
 export function NotFoundPage(): ReactNode {
   return (
     <div className="container notfound">
       <h1>
-        <b>404</b>This page could not be found.
+        <b>404</b>
+        {t("This page could not be found.")}
       </h1>
       <A href="/" className="btn btn-secondary btn-sm">
-        ← Back home
+        <span>
+          <span className="rtl-flip">←</span> {t("Back home")}
+        </span>
       </A>
     </div>
   );
@@ -124,6 +129,7 @@ export function App(): ReactNode {
       {route.name === "docs" || (route.name === "learn" && route.slug !== "") ? null : <Footer />}
       <ConsolePill />
       <SearchModal />
+      <LocaleSuggestion />
     </>
   );
 }

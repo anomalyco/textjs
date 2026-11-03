@@ -10,15 +10,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `@textjs/react`: `<Image renderMode="halfblock">` draws `▀` half-blocks everywhere, as `<Image>` did in 1.3.
 - `@textjs/core/experimental`: `drawPixels` takes `encoding: "rgba"` for a lossless sprite with soft alpha and more than 256 colors, and a `fallback` function that paints the cells wherever the sprite can't be shown.
+- `@textjs/app`: curl, Wget, HTTPie and xh get a page's first frame as truecolor ANSI text instead of the HTML page, on `text dev`, `text start` and the `bun`, `vercel` and `cloudflare` adapters. `text build` prerenders frames for static pages. `text start` and `bun` render dynamic and server-rendered pages on request, and answer unknown paths with the app's not-found page and a `404`. Frames are 80 × 24 by default. Change the size, or turn frames off, with `ansi` in `text.config.ts` or `export const ansi` in a page. The `static` adapter serves curl the HTML page. See [curl and Terminal Clients](https://textjs.org/docs/curl).
+- `@textjs/app/ansi` exports `wantsAnsi` and `ansiResponse` for servers that don't use `text start` or an adapter, and `@textjs/react` exports `frameToAnsi`.
+- textjs.org: a draft Japanese version at textjs.org/ja, starting with the Introduction, Installation and Routing docs and the site interface. Untranslated paragraphs show in English. It isn't indexed or offered in the language picker yet.
 
 ### Changed
 
 - `@textjs/react`: `<Image>` now draws a pixel sprite in Chromium and Firefox consoles, with up to 8 × 16 pixels per cell for pixel art and 4 × 8 for photos. This deliberately breaks the [support policy](https://textjs.org/docs/support-policy)'s promise that frames look the same between minor releases. Pass `renderMode="halfblock"` to keep the 1.3 half-blocks. Safari, terminals (including `text run`), ANSI and plain-text output, and the first frame of server-rendered live pages, still draw half-blocks.
+- `@textjs/app`: scripts and uptime checks that fetch pages with curl, Wget, HTTPie or xh now get ANSI text. To keep getting HTML, send `Accept: text/html`, or set `ansi: false` in `text.config.ts`.
+- `@textjs/app`: async server components no longer run while `text build` prerenders a page's shell. They show their `<Suspense>` fallback, as before, without starting their data requests at build time.
 
 ### Fixed
 
 - `@textjs/core`: charts and spinners keep their grid on Windows 10. Its console font is Consolas, which has no ▁▂▃▅▆▇ eighth blocks, quadrants, braille, ▶ or ✓, and their fallback glyphs ran rows past the frame's right edge. `CssConsoleDriver` now measures, once, which of these glyphs the console font draws more than a fifth of a cell off, and draws those as the nearest glyph Consolas has: `_` `▄` `▌` `█` for eighths, half blocks for quadrants and braille, `►` `◄` `√` `×` for arrows, checks and crosses. Fonts that fit them, such as Cascadia Mono on Windows 11 and Menlo on macOS, draw the originals. `measureText: false` turns this off.
 - `@textjs/core`: no more 1px vertical hairlines between neighbouring backgrounds in Chrome and Edge DevTools, such as beside "account" and "qty" in textjs.org/coffee. Chromium snaps each `%c` span to device pixels separately and could leave the pixel where two spans met to neither. `CssConsoleDriver` now extends a span's background 1px under an opaque right neighbour (`padding-right:1px;margin-right:-1px`). Firefox and Safari frames don't change.
+- `@textjs/core`: `<Image>` sprites in Chrome and Edge follow the same 1px rule as text. Text to the left of a transparent sprite no longer paints a 1px strip of its background over the sprite's left edge, and a sprite seals against opaque text on its right, including inverse text. A sprite alone in its rows now reaches the frame's right edge, like the text rows above and below it.
+- `@textjs/react`: `<ConsoleMirror>` draws a photo beside text as half-blocks, as the console does, instead of as the image.
 
 ## [1.3.0] - 2026-11-03
 

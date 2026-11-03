@@ -22,6 +22,7 @@ cd my-app && bun install && bun dev
 - `@textjs/app/navigation`: `useRouter`, `usePathname`, `useParams`, `useSearchParams`, `notFound`, `redirect`
 - `@textjs/app/link`: `<Link href>` (focusable; `Enter` navigates, optional `shortcut`)
 - `@textjs/app/server`: `NextRequest` and `NextResponse` for `middleware.ts`
+- `@textjs/app/ansi`: `wantsAnsi` and `ansiResponse`, to answer curl and other terminal clients with a frame from a custom server ([docs](https://textjs.org/docs/curl))
 - `@textjs/app/cache`: `unstable_cache`, `cache`, `revalidateTag`, `revalidatePath`
 - `@textjs/app/testing`: `render`, `renderToString` and `cleanup` for offscreen tests
 - `@textjs/app/terminal`: `renderToTerminal`

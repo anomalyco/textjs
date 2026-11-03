@@ -53,6 +53,7 @@ export function useLogoMenu(): [LogoMenuState | null, (e: MouseEvent<HTMLElement
 export function LogoMenu({ state, onClose }: { state: LogoMenuState; onClose: () => void }): ReactNode {
   const menu = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState<number | null>(null);
+  // physical: positioned at pointer coordinates
   const [pos, setPos] = useState({ left: state.x, top: state.y });
 
   const close = (): void => {
@@ -64,6 +65,7 @@ export function LogoMenu({ state, onClose }: { state: LogoMenuState; onClose: ()
     const el = menu.current;
     if (!el) return;
     const h = el.offsetHeight;
+    // physical: clamped to the viewport in pointer coordinates
     setPos({ left: Math.max(8, Math.min(state.x, window.innerWidth - MENU_WIDTH - 8)), top: Math.max(8, Math.min(state.y, window.innerHeight - h - 8)) });
     el.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
   }, [state]);

@@ -1,0 +1,22 @@
+{
+  "en": { "action": "Read in English", "dismiss": "Dismiss" },
+  "es": { "action": "Leer en español", "dismiss": "Cerrar" },
+  "fr": { "action": "Lire en français", "dismiss": "Fermer" },
+  "de": { "action": "Auf Deutsch lesen", "dismiss": "Schließen" },
+  "it": { "action": "Leggi in italiano", "dismiss": "Chiudi" },
+  "pt-BR": { "action": "Ler em português", "dismiss": "Fechar" },
+  "ja": { "action": "日本語で読む", "dismiss": "閉じる" },
+  "ko": { "action": "한국어로 보기", "dismiss": "닫기" },
+  "zh-CN": { "action": "阅读中文版", "dismiss": "关闭" },
+  "zh-TW": { "action": "閱讀中文版", "dismiss": "關閉" },
+  "ru": { "action": "Читать на русском", "dismiss": "Закрыть" },
+  "tr": { "action": "Türkçe oku", "dismiss": "Kapat" },
+  "pl": { "action": "Czytaj po polsku", "dismiss": "Zamknij" },
+  "id": { "action": "Baca dalam bahasa Indonesia", "dismiss": "Tutup" },
+  "vi": { "action": "Đọc bằng tiếng Việt", "dismiss": "Đóng" },
+  "hi": { "action": "हिन्दी में पढ़ें", "dismiss": "बंद करें" },
+  "ar": { "action": "اقرأ بالعربية", "dismiss": "إغلاق" },
+  "he": { "action": "לקריאה בעברית", "dismiss": "סגירה" },
+  "fa": { "action": "خواندن به فارسی", "dismiss": "بستن" },
+  "ur": { "action": "اردو میں پڑھیں", "dismiss": "بند کریں" }
+}

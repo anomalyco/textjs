@@ -6,7 +6,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ThemeName } from "@textjs/react";
 import { LIVE_PATH } from "../live-protocol";
@@ -15,6 +15,8 @@ import { LiveServer, type LiveServerOptions } from "./live";
 import type { MiddlewareModule } from "./middleware";
 import { createLiveAuthorizer } from "./middleware-runtime";
 import { LIVE_MANIFEST, type LiveManifest } from "./live-manifest";
+import { createAnsiHandler, NO_ANSI, pageCacheControl, type AnsiHandler } from "./ansi-server";
+import { staticFile } from "./static-file";
 import type { LiveEntryModule } from "./live-dev";
 
 export interface LiveProductionOptions {
@@ -34,6 +36,12 @@ export interface LiveProduction {
   readonly server: LiveServer | null;
   /** `url` has `basePath` stripped. Returns `true` when the request was answered. */
   handle(req: IncomingMessage, res: ServerResponse, url: string): Promise<boolean>;
+  /**
+   * The ANSI frame for a terminal client (curl), or `null` (serve the page as
+   * usual). Call it at the page-serving step: after middleware, rewrites and
+   * route handlers. `url` has `basePath` stripped.
+   */
+  ansi: AnsiHandler;
   close(): void;
 }
 
@@ -43,6 +51,50 @@ function wantsHtml(req: IncomingMessage, pathname: string): boolean {
   if (last.includes(".")) return false;
   const accept = req.headers.accept;
   return accept === undefined || accept.includes("text/html") || accept.includes("*/*");
+}
+
+/**
+ * Prerendered frames from the build, and on-request renders for every other
+ * route (dynamic, server-rendered, not found) through `live.mjs`, imported on
+ * the first request that needs it. If it can't be imported (a route module
+ * touches `window` at the top level), terminals get HTML from then on.
+ */
+function createAnsiFrames(outDir: string, manifest: LiveManifest, loadEntry: () => Promise<LiveEntryModule>, onError?: (error: unknown) => void): AnsiHandler {
+  const ansi = manifest.ansi;
+  if (!ansi) return NO_ANSI;
+  const frames: Record<string, string> = {};
+  for (const [pattern, rel] of Object.entries(ansi.frames)) {
+    const p = join(outDir, rel);
+    if (existsSync(p)) frames[pattern] = readFileSync(p, "utf8");
+  }
+  const shells = new Set(Object.values(manifest.pages));
+  let onRequest = ansi.onRequest;
+  const theme = manifest.viewport?.theme as ThemeName | undefined;
+  return createAnsiHandler({
+    frames,
+    // Files, and directory indexes from `public/` (the bun adapter serves `/manual` from `manual/index.html`),
+    // but not the app's own documents: the root `index.html` and prerendered page shells.
+    isFile: (pathname) => {
+      if (staticFile(outDir, pathname) !== null) return true;
+      if (pathname === "/") return false;
+      const index = staticFile(outDir, pathname, { index: true });
+      return index !== null && !shells.has(relative(outDir, index).split(sep).join("/"));
+    },
+    onError,
+    renders: () => onRequest,
+    render: async (href) => {
+      if (!onRequest) return null;
+      let entry: LiveEntryModule;
+      try {
+        entry = await loadEntry();
+      } catch (error) {
+        onRequest = false;
+        onError?.(error);
+        return null;
+      }
+      return entry.prerenderAnsi({ routes: entry.routes, path: href, cols: ansi.cols, rows: ansi.rows, theme });
+    },
+  });
 }
 
 /** Load `.text/live-manifest.json` (and the live bundle when routes render on the server). */
@@ -59,8 +111,11 @@ export async function loadLiveProduction(outDir: string, options: LiveProduction
 
   let server: LiveServer | null = null;
   let runtimeOf: (pathname: string) => "server" | "client" = () => "client";
+  const entryFile = pathToFileURL(join(outDir, ".text", "server", "live.mjs")).href;
+  let loaded: Promise<LiveEntryModule> | null = null;
+  const loadEntry = (): Promise<LiveEntryModule> => (loaded ??= import(entryFile) as Promise<LiveEntryModule>);
   if (manifest.serverRoutes.length > 0) {
-    const entry = (await import(pathToFileURL(join(outDir, ".text", "server", "live.mjs")).href)) as LiveEntryModule;
+    const entry = await loadEntry();
     runtimeOf = (pathname) => (entry.isServerPage(entry.routes, pathname) ? "server" : "client");
     server = new LiveServer({
       basePath: manifest.basePath,
@@ -78,10 +133,12 @@ export async function loadLiveProduction(outDir: string, options: LiveProduction
     });
   }
 
+  const ansi = createAnsiFrames(outDir, manifest, loadEntry, options.onError);
+
   const send = (req: IncomingMessage, res: ServerResponse, body: Buffer): true => {
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+    res.setHeader("Cache-Control", pageCacheControl(res));
     res.end(req.method === "HEAD" ? undefined : body);
     return true;
   };
@@ -105,6 +162,7 @@ export async function loadLiveProduction(outDir: string, options: LiveProduction
       if (server && liveHtml && runtimeOf(route) === "server") return send(req, res, liveHtml);
       return false;
     },
+    ansi,
     close() {
       server?.close();
     },

@@ -143,7 +143,8 @@ export async function prerenderShell({ path }) {
     );
     const realFetch = globalThis.fetch;
     const t0 = Date.now();
-    const results = await prerenderInChild(bundle, { paths: ["/fast", "/slow", "/boom"], cols: 10, rows: 2, timeoutMs: 300 });
+    const { importError, routes: results } = await prerenderInChild(bundle, { paths: ["/fast", "/slow", "/boom"], cols: 10, rows: 2, timeoutMs: 300 });
+    expect(importError).toBeNull();
     expect(Date.now() - t0).toBeLessThan(10_000);
     expect(results["/fast"]).toEqual({ calls: [{ method: "log", args: ["%c/fast", ""] }] });
     expect(results["/slow"]).toEqual({ error: "timed out after 300ms" });

@@ -292,7 +292,7 @@
 }
 
 .ent-stat + .ent-stat {
-  border-left: 1px solid var(--line);
+  border-inline-start: 1px solid var(--line);
 }
 
 .ent-stat strong {
@@ -343,7 +343,7 @@
 }
 
 .ent-card:nth-child(even) {
-  border-left-width: 1px;
+  border-inline-start-width: 1px;
 }
 
 .ent-card:nth-child(n + 3) {
@@ -431,7 +431,7 @@
 .ent-table td {
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
-  text-align: left;
+  text-align: start;
   font-weight: 400;
 }
 
@@ -572,7 +572,7 @@
 }
 
 .st-updated {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-size: 13px;
   color: var(--muted);
 }
@@ -723,6 +723,10 @@
   transition: transform 0.2s ease;
 }
 
+[dir="rtl"] .st-progress span {
+  transform-origin: right;
+}
+
 .st-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -734,7 +738,7 @@
 }
 
 .st-metrics > div + div {
-  border-left: 1px solid var(--line);
+  border-inline-start: 1px solid var(--line);
 }
 
 .st-metrics dt {
@@ -788,7 +792,7 @@
 .st-table th,
 .st-table td {
   padding: 12px 24px;
-  text-align: left;
+  text-align: start;
   border-top: 1px solid var(--line);
   white-space: nowrap;
 }
@@ -831,7 +835,7 @@
   display: inline-block;
   width: 64px;
   height: 6px;
-  margin-right: 10px;
+  margin-inline-end: 10px;
   border-radius: 999px;
   background: var(--bg-3);
   vertical-align: 1px;
@@ -891,7 +895,8 @@
   justify-content: space-between;
   gap: 8px 16px;
   flex-wrap: wrap;
-  padding: 16px 48px 16px 24px;
+  padding-block: 16px;
+  padding-inline: 24px 48px;
   position: relative;
   cursor: pointer;
   list-style: none;
@@ -904,10 +909,11 @@
 .st-incident summary::after {
   content: "";
   position: absolute;
-  right: 26px;
+  inset-inline-end: 26px;
   top: 22px;
   width: 7px;
   height: 7px;
+  /* physical: a rotated corner that points down, in any direction */
   border-right: 1.5px solid var(--subtle);
   border-bottom: 1.5px solid var(--subtle);
   transform: rotate(45deg);
@@ -965,9 +971,10 @@
 
 .st-updates li {
   position: relative;
-  padding: 0 0 16px 20px;
-  border-left: 1px solid var(--line-2);
-  margin-left: 3px;
+  padding-block: 0 16px;
+  padding-inline: 20px 0;
+  border-inline-start: 1px solid var(--line-2);
+  margin-inline-start: 3px;
 }
 
 .st-updates li:last-child {
@@ -977,7 +984,7 @@
 .st-updates li::before {
   content: "";
   position: absolute;
-  left: -4px;
+  inset-inline-start: -4px;
   top: 7px;
   width: 7px;
   height: 7px;
@@ -1095,7 +1102,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .ent-stat:nth-child(3) {
-    border-left: 0;
+    border-inline-start: 0;
   }
   .ent-section {
     padding-top: 80px;
@@ -1109,7 +1116,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .ent-card:nth-child(even) {
-    border-left-width: 0;
+    border-inline-start-width: 0;
   }
   .ent-card:nth-child(n + 2) {
     border-top-width: 1px;
@@ -1118,7 +1125,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .st-metrics > div:nth-child(3) {
-    border-left: 0;
+    border-inline-start: 0;
   }
   .st-metrics > div:nth-child(n + 3) {
     border-top: 1px solid var(--line);
@@ -1134,20 +1141,20 @@
   }
   .st-component,
   .st-card-head {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-inline-start: 16px;
+    padding-inline-end: 16px;
   }
   .st-month h3,
   .st-incident-body {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-inline-start: 16px;
+    padding-inline-end: 16px;
   }
   .st-incident summary {
-    padding-left: 16px;
-    padding-right: 40px;
+    padding-inline-start: 16px;
+    padding-inline-end: 40px;
   }
   .st-incident summary::after {
-    right: 18px;
+    inset-inline-end: 18px;
   }
   .st-metrics > div {
     padding: 16px;
@@ -1156,8 +1163,8 @@
     font-size: 20px;
   }
   .st-progress {
-    margin-left: 16px;
-    margin-right: 16px;
+    margin-inline-start: 16px;
+    margin-inline-end: 16px;
   }
   .st-bars {
     gap: 1px;
@@ -1173,7 +1180,7 @@
     padding: 22px;
   }
   .st-updated {
-    margin-left: 0;
+    margin-inline-start: 0;
     width: 100%;
   }
 }

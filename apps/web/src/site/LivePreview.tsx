@@ -130,13 +130,13 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
       : `${meta?.cols ?? 0}×${meta?.rows ?? 0} · ${sandbox.stats ? `${sandbox.stats.totalMs.toFixed(2)}ms` : "booting Turbolog…"}`;
 
   return (
-    <div className={`preview${active ? " in-console" : ""}`} ref={ref} data-preview={id}>
+    <div className={`preview${active ? " in-console" : ""}`} ref={ref} dir="ltr" data-preview={id}>
       <div className="preview-head">
         <span className="live">
           <span className="dot" /> {active ? "Live in your console" : "Live"}
         </span>
         <span className="preview-stats">{stats}</span>
-        <span style={{ marginLeft: "auto" }}>{language}</span>
+        <span style={{ marginInlineStart: "auto" }}>{language}</span>
         {meta ? (
           active ? (
             <button type="button" className="preview-run desktop-only" onClick={() => siteStore.exitExample(id)} title="Show the docs in the console again">

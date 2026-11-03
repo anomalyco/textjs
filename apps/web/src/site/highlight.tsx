@@ -15,7 +15,7 @@ export const HighlightedCode = memo(function HighlightedCode({ code, language, l
   const lines = tokenize(code.replace(/\n$/, ""), lang);
   const hl = new Set(highlight ?? []);
   return (
-    <pre className={`code ${className ?? ""}`}>
+    <pre className={`code ${className ?? ""}`} dir="ltr">
       <code>
         {lines.map((tokens, i) => (
           <span key={i} className={`line${hl.has(i + 1) ? " hl" : ""}`}>

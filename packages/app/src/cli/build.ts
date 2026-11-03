@@ -157,7 +157,8 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
     // Partial Prerendering shells + server-rendered routes (after measuring the client bundle).
     let live: Awaited<ReturnType<typeof buildLiveRoutes>>;
     try {
-      live = await buildLiveRoutes({ root: opts.root, config, outDir, scan, plugins: [textjsVitePlugin({ ...config, root: opts.root })] });
+      // Static hosts can't answer terminal clients differently, so the static adapter gets no ANSI frames.
+      live = await buildLiveRoutes({ root: opts.root, config, outDir, scan, plugins: [textjsVitePlugin({ ...config, root: opts.root })], ansi: adapterName !== "static" });
     } catch (error) {
       print(fail(color.red("Failed to prerender.")));
       print();
@@ -167,8 +168,14 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
     }
     if (live) {
       const player = live.player ? `, frame player ${formatBytes(live.player.bytes)} (${formatBytes(live.player.gzip)} gzip)` : "";
-      print(ok(`Prerendering console shells (${live.shells}/${live.staticRoutes})${live.manifest.serverRoutes.length > 0 ? ` · ${live.manifest.serverRoutes.length} server-rendered` : ""}${player}`));
+      if (live.staticRoutes > 0 || live.manifest.serverRoutes.length > 0) {
+        print(ok(`Prerendering console shells (${live.shells}/${live.staticRoutes})${live.manifest.serverRoutes.length > 0 ? ` · ${live.manifest.serverRoutes.length} server-rendered` : ""}${player}`));
+      }
       for (const s of live.skipped) print(color.gray(`   ${s.pattern} streams without a shell: ${s.reason.split("\n")[0]}`));
+      if (live.ansi && live.ansi.routes > 0) {
+        print(ok(`Prerendering curl frames (${live.ansi.frames}/${live.ansi.routes})`));
+        for (const s of live.ansi.skipped) print(color.gray(`   ${s.pattern} has no prerendered curl frame: ${s.reason.split("\n")[0]}`));
+      }
     }
     const routes = summarize(pages, api, new Set(listServerPages(scan).map((p) => p.pattern)));
     const manifest: BuildManifest = {

@@ -14,6 +14,7 @@ import { BRAND_MARK, ENGINE_NAME, txMessage, VERSION } from "@textjs/core";
 import { normalizeBasePath, toClientConfig, type Rewrite, type TextConfig } from "./config";
 import { applyRewrites, canonicalRequestTarget, compileRewrite, proxyRequest, requestOrigin, runRouteHandler, sendWebResponse, toWebRequest, type CompiledRewrite, type RouteHandlerModule } from "./server/http";
 import { attachFrameStream } from "./server/frames";
+import { appendVary } from "./server/ansi-server";
 import { createLiveDevHandler, textjsLivePlugin } from "./server/live-dev";
 import { withServerStubs } from "./server/live-routes";
 import { runRouteHandlerWithCache } from "./server/cache-route";
@@ -435,7 +436,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
       const frames = attachFrameStream(server, root, { basePath });
       server.httpServer?.once("close", () => frames.close());
       // Server-rendered routes (`export const runtime = "server"`): live sessions + frame player HTML.
-      const live = createLiveDevHandler(server, { root, appDir: appDirName, basePath, title: title(), viewport: options.viewport, focusHint: options.focusHint, live: options.live, logger: log });
+      const live = createLiveDevHandler(server, { root, appDir: appDirName, basePath, title: title(), viewport: options.viewport, focusHint: options.focusHint, live: options.live, ansi: options.ansi, logger: log });
       server.httpServer?.once("close", () => live.close());
       const userHook = await options.configureServer?.(server as never);
 
@@ -476,8 +477,18 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
             }
           }
           const pathname = url.split("?")[0] ?? "/";
-          if (await live.handle(req, res, url)) return;
           const api = matchApiRoute(apiManifest, pathname);
+          if (!api) {
+            // Terminal clients (curl) get the page's first frame as ANSI, wherever a page would be served.
+            const frame = await live.ansi(req, url);
+            if (frame) {
+              await sendWebResponse(res, frame, req.method);
+              log?.info(` ${req.method} ${pathname} ${res.statusCode} (ANSI) in ${Math.round(performance.now() - started)}ms`);
+              return;
+            }
+            if ((req.method === "GET" || req.method === "HEAD") && live.ansi.varies(url)) res.setHeader("Vary", appendVary(res.getHeader("vary")?.toString()));
+          }
+          if (await live.handle(req, res, url)) return;
           if (api) {
             const mod = (await server.ssrLoadModule(api.file)) as RouteHandlerModule;
             const request = toWebRequest(Object.assign(req, { url }), origin, res);

@@ -81,7 +81,7 @@ function Preview({ id, enabled, active, available }: { id: string; enabled: bool
   const companionFrame = useCompanionFrame(active);
   if (active)
     return (
-      <div className="sandbox">
+      <div className="sandbox" dir="ltr">
         <DevToolsWindow
           frame={exampleFrame(companionFrame, homeExampleHeader(id), id, "home") ?? sandbox.frame}
           engage

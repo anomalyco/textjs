@@ -16,10 +16,12 @@ import {
   type ConsoleTarget,
   type RendererScheduler,
 } from "@textjs/core";
-import { createConsoleRootSync, type ConsoleRoot, type ThemeName } from "@textjs/react";
+import { createConsoleRootSync, frameToAnsi, type ConsoleRoot, type ThemeName } from "@textjs/react";
+import { pageAnsiSize } from "../config";
 import { RouterContext } from "../context";
 import { createMemoryHistory, parseHref, type HistoryAction, type MemoryHistory } from "../history";
 import type { LiveBanner, LiveInput } from "../live-protocol";
+import { isNotFoundError, isRedirectError } from "../navigation-errors";
 import { AppRouter } from "../router";
 import { resolveRoute, type RouteManifest, type RouteModule, type RouteModuleRef, type RouteSegmentNode } from "../routing";
 import { isAsyncComponent, serverComponent, ServerComponentCache, ServerComponentsProvider } from "./server-components";
@@ -330,16 +332,29 @@ export interface PrerenderShellOptions {
   theme?: ThemeName;
 }
 
+interface FirstFrameOptions {
+  routes: RouteManifest;
+  path: string;
+  cols: number;
+  rows: number;
+  theme?: ThemeName;
+  focusHint?: boolean;
+  /**
+   * Terminal frames: `notFound()` renders the not-found page instead of
+   * failing, and a `redirect()` (or any navigation) yields `null`.
+   */
+  terminal?: boolean;
+}
+
 /**
- * Render the static shell of a route: the first committed frame, with every
- * `<Suspense>` boundary that is still waiting (async server components,
- * `use()`, lazy modules) showing its fallback. `fetch` never resolves while
- * rendering, so data loaded in effects stays in its loading state too.
- *
- * Returns the exact `console.clear()` / `console.log()` calls the client's
- * driver would make for this frame (curtain included).
+ * Render a route's first committed frame and hand its buffer to `capture`
+ * before unmounting. Async server components never run (they suspend to
+ * their fallbacks), and `fetch` never resolves while rendering, so data
+ * loaded in effects stays in its loading state too. Everything after
+ * `initYoga()` is synchronous: the `fetch` stub can't leak into other work
+ * on the same event loop.
  */
-export async function prerenderShell(options: PrerenderShellOptions): Promise<ShellCall[]> {
+async function renderFirstFrame<T>(options: FirstFrameOptions, capture: (buffer: CellBuffer, notFound: boolean) => T): Promise<T | null> {
   await initYoga();
   const g = globalThis as { fetch?: typeof fetch };
   const realFetch = g.fetch;
@@ -353,6 +368,7 @@ export async function prerenderShell(options: PrerenderShellOptions): Promise<Sh
     responsive: false,
     theme: options.theme,
     input: new InputEngine({ document: null }),
+    ...(options.focusHint === false ? { focusHint: false } : {}),
     console: NULL_CONSOLE,
     clear: "never",
     scheduler: { request: () => null, cancel: () => undefined },
@@ -365,20 +381,39 @@ export async function prerenderShell(options: PrerenderShellOptions): Promise<Sh
   try {
     const history = createMemoryHistory(options.path);
     root.render(
-      <ServerComponentsProvider cache={new ServerComponentCache()}>
+      <ServerComponentsProvider cache={new ServerComponentCache({ suspendOnly: true })}>
         <AppRouter routes={prepareServerManifest(options.routes)} history={history} theme={options.theme} documentTitle={false} errorStore={null} />
       </ServerComponentsProvider>,
     );
     root.flushSyncRender();
-    if (errors.length > 0) {
+    const navigated = history.location.href !== parseHref(options.path).href;
+    if (options.terminal && (navigated || errors.some(isRedirectError))) return null;
+    const notFound = options.terminal === true && errors.length > 0 && errors.every(isNotFoundError);
+    if (errors.length > 0 && !notFound) {
       const first = errors[0];
       throw new Error(`rendering ${options.path} threw: ${first instanceof Error ? first.message : String(first)}`, { cause: first });
     }
-    if (history.location.href !== parseHref(options.path).href) throw new Error(`rendering ${options.path} navigated to ${history.location.href}`);
+    if (navigated) throw new Error(`rendering ${options.path} navigated to ${history.location.href}`);
+    return capture(root.renderer.buffer, notFound);
+  } finally {
+    root.unmount();
+    g.fetch = realFetch;
+  }
+}
+
+/**
+ * Render the static shell of a route: the first committed frame, with every
+ * `<Suspense>` boundary that is still waiting (async server components,
+ * `use()`, lazy modules) showing its fallback.
+ *
+ * Returns the exact `console.clear()` / `console.log()` calls the client's
+ * driver would make for this frame (curtain included).
+ */
+export async function prerenderShell(options: PrerenderShellOptions): Promise<ShellCall[]> {
+  const calls = await renderFirstFrame(options, (buffer) => {
     // The live stream sends cells (`readCells`), so pixel sprites draw as half-blocks once it takes
     // over. Bake the same cells into the shell, so the first frame doesn't switch and the HTML
     // doesn't carry each sprite's data URL twice.
-    const buffer = root.renderer.buffer;
     buffer._materializeSpritesInRect(0, 0, buffer.width, buffer.height, true, false);
     const capture = (browser: "chromium" | "firefox"): ShellCall[] => {
       const calls: ShellCall[] = [];
@@ -386,7 +421,7 @@ export async function prerenderShell(options: PrerenderShellOptions): Promise<Sh
         clear: () => void calls.push({ method: "clear", args: [] }),
         log: (...args: unknown[]) => void calls.push({ method: "log", args: args.map(String) }),
       };
-      new CssConsoleDriver({ console: target, curtain: true, browser }).render(root.renderer.buffer);
+      new CssConsoleDriver({ console: target, curtain: true, browser }).render(buffer);
       return calls;
     };
     // The shell runs before any module, so it carries the CSS for both kinds of console.
@@ -395,8 +430,34 @@ export async function prerenderShell(options: PrerenderShellOptions): Promise<Sh
       const css = inline[i]?.args.slice(1);
       return call.method === "log" && css !== undefined && css.join("\0") !== call.args.slice(1).join("\0") ? { ...call, inlineArgs: css } : call;
     });
-  } finally {
-    root.unmount();
-    g.fetch = realFetch;
-  }
+  });
+  return calls as ShellCall[];
+}
+
+// ---------------------------------------------------------------------------
+// ANSI frames for terminal clients
+// ---------------------------------------------------------------------------
+
+/** A route's first frame for curl and friends. */
+export interface AnsiFrame {
+  ansi: string;
+  /** `404` when the path matches no page or the page called `notFound()`. */
+  status: 200 | 404;
+}
+
+/**
+ * A route's first frame (as for {@link prerenderShell}) as truecolor ANSI,
+ * at `cols × rows` unless the page's `export const ansi` changes the size.
+ * `null` when the page opts out (`export const ansi = false`) or redirects
+ * while rendering (the client follows it). Throws on render errors.
+ */
+export async function prerenderAnsi(options: PrerenderShellOptions): Promise<AnsiFrame | null> {
+  const match = resolveRoute(options.routes, pathOf(options.path));
+  const page = match.notFound ? undefined : match.chain[match.chain.length - 1]?.page;
+  const size = pageAnsiSize({ cols: options.cols, rows: options.rows }, page !== undefined && typeof page !== "function" ? page.ansi : undefined);
+  if (size === null) return null;
+  return renderFirstFrame({ ...size, routes: options.routes, path: options.path, theme: options.theme, focusHint: false, terminal: true }, (buffer, notFound) => ({
+    ansi: frameToAnsi(buffer, { theme: options.theme }),
+    status: match.notFound || notFound ? 404 : 200,
+  }));
 }

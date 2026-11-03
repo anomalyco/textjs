@@ -49,7 +49,9 @@ export function ChangelogPage(): ReactNode {
         </div>
         <div className="rs-head-links">
           <A href="/blog" className="text-link">
-            Read the blog →
+            <span>
+              Read the blog <span className="rtl-flip">→</span>
+            </span>
           </A>
         </div>
       </header>

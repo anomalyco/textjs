@@ -15,6 +15,8 @@ import {
   DEFAULT_STYLE_RESOLVE,
   DEFAULT_TYPOGRAPHY,
   resolveStyle,
+  SEAL_CSS,
+  sealsBefore,
   styleCss,
   styleKeyOf,
   typographyCss,
@@ -201,15 +203,6 @@ function pinVisualOrder(text: string): string {
 
 /** Blink stores inline sizes in LayoutUnits (1/64 px) and rounds text widths up to one. */
 const LAYOUT_UNIT = 64;
-
-/**
- * Chromium pixel-snaps each `contain: paint` span on its own, so where two
- * backgrounds meet at a fractional x the device pixel between them can be left
- * to neither span and the console background shows through as a hairline.
- * Extending a span's background 1px under its right neighbour (which paints
- * over it) closes the seam without moving anything.
- */
-const SEAL_CSS = "padding-right:1px;margin-right:-1px;";
 
 /**
  * DOM text of an escaped span (`%%` → `%`). The pins stay in the text so a
@@ -437,9 +430,10 @@ export class CssConsoleDriver {
    * Compile one row into RLE spans. Plain spaces whose visible background
    * matches the open span are folded into it regardless of foreground, weight
    * or slant (all invisible on a blank cell), which removes most `%c` breaks
-   * in real TUI layouts.
+   * in real TUI layouts. `after` is the background of whatever follows the
+   * row on the same line, if anything, for sealing its last span.
    */
-  compileRow(buffer: CellBuffer, y: number): CompiledSpan[] {
+  compileRow(buffer: CellBuffer, y: number, after?: number): CompiledSpan[] {
     const spans: CompiledSpan[] = [];
     const W = buffer.width;
     const C = buffer._chars;
@@ -813,7 +807,7 @@ export class CssConsoleDriver {
     }
     const standIns = this.standIns === undefined ? this.measureStandIns() : this.standIns;
     if (standIns !== null) for (const span of spans) if (!span.blank) span.text = applyStandIns(span.text, standIns);
-    if (!this.profile.inline) this.sealSpans(spans);
+    if (!this.profile.inline) this.sealSpans(spans, after);
     if (rowRtl) this.fitRtlSpans(spans);
     return spans;
   }
@@ -827,17 +821,15 @@ export class CssConsoleDriver {
   }
 
   /**
-   * Seal each span with a background unless its right neighbour's is missing
-   * or translucent, which would show the overlap (see `SEAL_CSS`). The last
-   * span of a row is sealed too, so rows still merge with the next. A span
-   * left unsealed is marked `deco` so `assemble` never folds it into a sealed one.
+   * Seal spans by `sealsBefore`, with `after` as the last span's right
+   * neighbour. An opaque span left unsealed is marked `deco` so `assemble`
+   * never folds it into a sealed one.
    */
-  private sealSpans(spans: CompiledSpan[]): void {
+  private sealSpans(spans: CompiledSpan[], after: number | undefined): void {
     for (let i = 0; i < spans.length; i++) {
       const s = spans[i] as CompiledSpan;
       if ((s.bg & 255) === 0) continue;
-      const next = spans[i + 1];
-      if (next !== undefined && (next.bg & 255) !== 255) {
+      if (!sealsBefore(s.bg, i + 1 < spans.length ? (spans[i + 1] as CompiledSpan).bg : after)) {
         s.deco = true;
         continue;
       }

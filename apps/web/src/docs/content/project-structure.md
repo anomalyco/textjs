@@ -57,6 +57,7 @@ export default defineConfig({
 | `devIndicators` | `true` | In-console Dev Overlay (`[▼]`) |
 | `focusHint` | `true` | "Click the page to use the keyboard" over the console's last row while the page doesn't have focus |
 | `rewrites` | `[]` | Rewrites and proxies |
+| `ansi` | `{ cols: 80, rows: 24 }` | Frame size for [curl and terminal clients](/docs/curl), or `false` to serve them HTML |
 
 ## CLI
 

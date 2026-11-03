@@ -30,7 +30,9 @@ export function ToolingSection(): ReactNode {
                 <ArrowRight size={13} />
               </h3>
               <p>{t.body}</p>
-              <span className="tool-label">{t.label}</span>
+              <span className="tool-label">
+                <span dir="ltr">{t.label}</span>
+              </span>
             </A>
           ))}
         </div>

@@ -31,9 +31,15 @@
     { "source": "/merch/hoodie", "destination": "/store", "permanent": true },
     { "source": "/merch/cap", "destination": "/store", "permanent": true },
     { "source": "/merch/sticker-sheet", "destination": "/store", "permanent": true },
-    { "source": "/merch/:path*", "destination": "/store/:path*", "permanent": true }
+    { "source": "/merch/:path*", "destination": "/store/:path*", "permanent": true },
+    { "source": "/pt-BR", "destination": "/pt-br", "permanent": true },
+    { "source": "/pt-BR/:path*", "destination": "/pt-br/:path*", "permanent": true },
+    { "source": "/zh-CN", "destination": "/zh-cn", "permanent": true },
+    { "source": "/zh-CN/:path*", "destination": "/zh-cn/:path*", "permanent": true },
+    { "source": "/zh-TW", "destination": "/zh-tw", "permanent": true },
+    { "source": "/zh-TW/:path*", "destination": "/zh-tw/:path*", "permanent": true }
   ],
-  "rewrites": [{ "source": "/((?!assets/|fonts/|og/|favicon\\.svg|og\\.png|og\\.svg|robots\\.txt|sitemap\\.xml|blog/rss\\.xml|humans\\.txt|llms\\.txt|home\\.ansi|api/v2/|enterprise/sample-invoice\\.pdf).*)", "destination": "/index.html" }],
+  "rewrites": [{ "source": "/((?!assets/|fonts/|og/|favicon\\.svg|og\\.png|og\\.svg|robots\\.txt|sitemap(?:-[a-z-]+)?\\.xml|(?:[a-z-]+/)?blog/rss\\.xml|humans\\.txt|llms\\.txt|home\\.ansi|api/v2/|enterprise/sample-invoice\\.pdf).*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/assets/(.*)",

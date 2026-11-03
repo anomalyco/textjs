@@ -8,6 +8,7 @@ import serverRendering from "./content/server-rendering.md?raw";
 import middleware from "./content/middleware.md?raw";
 import caching from "./content/caching.md?raw";
 import deploying from "./content/deploying.md?raw";
+import curl from "./content/curl.md?raw";
 import releaseChannels from "./content/release-channels.md?raw";
 import supportPolicy from "./content/support-policy.md?raw";
 import styling from "./content/styling.md?raw";
@@ -30,7 +31,7 @@ import turbologEngine from "./content/turbolog-engine.md?raw";
 import opencode from "./content/opencode.md?raw";
 import fonts from "./content/fonts.md?raw";
 import internationalization from "./content/internationalization.md?raw";
-import { DOC_CATEGORIES, DOCS_META, docPath, getDocMeta, plainInline, slugify, type DocCategory, type DocMeta } from "./meta";
+import { DOC_CATEGORIES, DOCS_META, docPath, getDocMeta, plainInline, slugify, splitHeadingId, stripI18nMarkup, type DocCategory, type DocMeta } from "./meta";
 
 export { DOC_CATEGORIES, DOCS_META, docPath, getDocMeta, plainInline, slugify, type DocCategory, type DocMeta };
 
@@ -49,6 +50,7 @@ const DOC_MARKDOWN: Record<string, string> = {
   middleware,
   caching,
   deploying,
+  curl,
   styling,
   internationalization,
   keyboard,
@@ -106,8 +108,8 @@ export function headingsOf(markdown: string): Heading[] {
     if (fence) continue;
     const m = /^(#{2,3})\s+(.*)$/.exec(line);
     if (m) {
-      const text = plainInline((m[2] as string).trim());
-      out.push({ depth: (m[1] as string).length, text, id: slugify(m[2] as string) });
+      const heading = splitHeadingId(m[2] as string);
+      out.push({ depth: (m[1] as string).length, text: plainInline(heading.text.trim()), id: heading.id ?? slugify(heading.text) });
     }
   }
   if (headingsCache.size < 128) headingsCache.set(markdown, out);
@@ -116,7 +118,7 @@ export function headingsOf(markdown: string): Heading[] {
 
 /** Remove website-only fence metadata (`tsx@file`, `tsx#preview`) for the console renderer. */
 export function toConsoleMarkdown(markdown: string): string {
-  return markdown.replace(/^(\s*```)([\w-]+)[@#][^\n]*$/gm, "$1$2");
+  return stripI18nMarkup(markdown).replace(/^(\s*```)([\w-]+)[@#][^\n]*$/gm, "$1$2");
 }
 
 export interface SearchHit {

@@ -200,6 +200,7 @@ function Gallery({ product: p }: { product: Product }): ReactNode {
     const el = track.current;
     const next = (i + count) % count;
     setIndex(next);
+    // physical: scroll offsets, in a gallery kept LTR so its arrows, keys and swipes agree
     el?.scrollTo({ left: next * el.clientWidth, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   };
 
@@ -215,7 +216,7 @@ function Gallery({ product: p }: { product: Product }): ReactNode {
   }, []);
 
   return (
-    <div className="merch-gallery" onPointerEnter={warmExtra} onTouchStart={warmExtra} onFocus={warmExtra}>
+    <div className="merch-gallery" dir="ltr" onPointerEnter={warmExtra} onTouchStart={warmExtra} onFocus={warmExtra}>
       <div className="merch-stage">
         <div
           ref={track}

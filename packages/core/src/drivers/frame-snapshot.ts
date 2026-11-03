@@ -155,6 +155,8 @@ export function extractStyledFrame(buffer: CellBuffer, style: Partial<StyleResol
 
   const sprites: StyledSprite[] = [];
   for (const sp of buffer._sprites) {
+    // The rows already hold the half-blocks the console shows for these.
+    if (sp.codec.drawsAsCells(buffer, sp, opts)) continue;
     let dataUrl = cache.spriteUrls.get(sp.hash);
     if (dataUrl === undefined) {
       dataUrl = sp.codec.encodePngDataUrl(sp);

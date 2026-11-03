@@ -24,6 +24,7 @@ const CONFIG_KEYS: Record<keyof TextConfig, true> = {
   ppr: true,
   live: true,
   server: true,
+  ansi: true,
 };
 
 /** Warn (once each) about keys Text.js does not read. */

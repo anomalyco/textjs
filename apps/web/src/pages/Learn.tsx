@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { A } from "../router";
-import { DevtoolsShortcut, Footer, SafariConsoleNote } from "../site/Chrome";
+import { rich } from "../i18n/rich";
+import { CONSOLE_TAGS, Footer } from "../site/Chrome";
 import { ArrowRight } from "../site/icons";
 import { certificateLines, formatCertificateDate, linkedInAddUrl, NAME_PLACEHOLDER } from "../learn/certificate";
 import { ChapterBody, chapterHeadings } from "../learn/ChapterBody";
@@ -104,8 +105,7 @@ function Overview(): ReactNode {
       <section className="learn-section">
         <h2>The course runs in your console</h2>
         <p className="learn-section-lede">
-          Open the console with <kbd><DevtoolsShortcut /></kbd>
-          <SafariConsoleNote />, click below and pick a chapter with the arrow keys.
+          {rich("Open the console with <keys></keys><safari> (<link>turn on developer features</link> first)</safari>, click below and pick a chapter with the arrow keys.", CONSOLE_TAGS)}
         </p>
         <LearnPad title="learn" hints={OVERVIEW_HINTS.hints} action={OVERVIEW_HINTS.action} />
       </section>
@@ -167,13 +167,10 @@ function ChapterPage({ chapter }: { chapter: Chapter }): ReactNode {
           <div className="learn-live-note">
             <span className="dot" aria-hidden="true" />
             <span>
-              {"This chapter's app is running in your console. Open it with "}
-              <kbd>
-                <DevtoolsShortcut />
-              </kbd>
-              <SafariConsoleNote />
-              {", then "}
-              <a href="#try-it">try it</a>.
+              {rich("This chapter's app is running in your console. Open it with <keys></keys><safari> (<link>turn on developer features</link> first)</safari>, then <try>try it</try>.", {
+                ...CONSOLE_TAGS,
+                try: (c) => <a href="#try-it">{c}</a>,
+              })}
             </span>
           </div>
           <ChapterVideo slug={chapter.slug} title={chapter.title} />
@@ -200,17 +197,23 @@ function ChapterPage({ chapter }: { chapter: Chapter }): ReactNode {
             {prev ? (
               <A href={learnPath(prev.slug)}>
                 <small>Previous</small>
-                <span>← {prev.title}</span>
+                <span>
+                  <span className="rtl-flip">←</span> {prev.title}
+                </span>
               </A>
             ) : (
               <A href="/learn">
                 <small>Course</small>
-                <span>← Overview</span>
+                <span>
+                  <span className="rtl-flip">←</span> Overview
+                </span>
               </A>
             )}
             <A href={learnPath(next ? next.slug : COMPLETE_SLUG)} className="next">
               <small>{next ? `Chapter ${i + 2}` : "Finish"}</small>
-              <span>{next ? next.title : "Certificate"} →</span>
+              <span>
+                {next ? next.title : "Certificate"} <span className="rtl-flip">→</span>
+              </span>
             </A>
           </nav>
         </article>

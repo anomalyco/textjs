@@ -37,6 +37,53 @@
   color-scheme: dark;
 }
 
+/* Scripts Geist doesn't cover use system fonts (no web font to wait for, so no layout shift). Geist stays first
+   for the Latin text and code inside them. */
+:root:lang(ja) {
+  --sans: "Geist", "Geist Fallback", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, "Noto Sans JP", sans-serif;
+}
+:root:lang(ko) {
+  --sans: "Geist", "Geist Fallback", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+}
+:root:lang(zh-CN) {
+  --sans: "Geist", "Geist Fallback", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+}
+:root:lang(zh-TW) {
+  --sans: "Geist", "Geist Fallback", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+}
+:root:is(:lang(ar), :lang(fa), :lang(ur)) {
+  --sans: "Geist", "Geist Fallback", "SF Arabic", "Geeza Pro", "Segoe UI", "Noto Sans Arabic", Tahoma, sans-serif;
+}
+:root:lang(he) {
+  --sans: "Geist", "Geist Fallback", "SF Hebrew", "Arial Hebrew", "Segoe UI", "Noto Sans Hebrew", sans-serif;
+}
+:root:lang(hi) {
+  --sans: "Geist", "Geist Fallback", "Kohinoor Devanagari", "Devanagari Sangam MN", "Nirmala UI", "Noto Sans Devanagari", sans-serif;
+}
+/* Negative tracking breaks Arabic joining and crowds CJK and Devanagari. On the text itself, so the wordmark and
+   English blocks (lang="en") keep theirs. */
+:is(h1, h2, h3, h4, h5, h6, p, li, a:not(.wordmark), button, small, strong, td, th):is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(hi)) {
+  letter-spacing: 0 !important;
+}
+.prose:is(:lang(ja), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(hi)) {
+  line-height: 1.8;
+}
+.prose:lang(ko) {
+  line-height: 1.7;
+}
+.prose:is(:lang(ja), :lang(zh-CN), :lang(zh-TW)) {
+  line-break: strict;
+  overflow-wrap: anywhere;
+}
+:root:lang(ja) body {
+  word-break: auto-phrase;
+  text-autospace: normal;
+  text-spacing-trim: trim-start;
+}
+:root:lang(ko) body {
+  word-break: keep-all;
+}
+
 *,
 *::before,
 *::after {
@@ -112,6 +159,24 @@ code,
 kbd,
 pre {
   font-family: var(--mono);
+}
+
+/* Code and key chords read left to right in RTL pages too; isolate keeps them from reordering the text around them.
+   Scoped to RTL because isolation shifts line breaks in LTR prose. */
+/* Arrows and chevrons that point along the reading direction mirror in RTL. `scale`, so hover nudges that use
+   `transform` still apply. */
+span.rtl-flip {
+  display: inline-block;
+}
+
+[dir="rtl"] .rtl-flip {
+  scale: -1 1;
+}
+
+[dir="rtl"] code,
+[dir="rtl"] kbd {
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 img,
@@ -390,7 +455,7 @@ kbd {
   color: var(--fg);
   font: inherit;
   font-size: 14px;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -420,7 +485,7 @@ kbd {
 }
 
 .header-right {
-  margin-left: auto;
+  margin-inline-start: auto;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -434,7 +499,8 @@ kbd {
   gap: 10px;
   height: 36px;
   width: 220px;
-  padding: 0 8px 0 12px;
+  padding-block: 0;
+  padding-inline: 12px 8px;
   border-radius: 8px;
   border: 1px solid var(--line-2);
   background: var(--bg-1);
@@ -450,7 +516,7 @@ kbd {
 }
 
 .search-btn kbd {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 .icon-btn {
@@ -476,9 +542,9 @@ kbd {
   display: none;
 }
 
-/* Puts the mark, not its hit area, on the container's right edge. */
+/* Puts the mark, not its hit area, on the container's end edge. */
 .github-btn {
-  margin-right: -9px;
+  margin-inline-end: -9px;
 }
 
 @media (max-width: 1100px) {
@@ -503,7 +569,7 @@ kbd {
   }
   .header-right {
     gap: 4px;
-    margin-right: -8px;
+    margin-inline-end: -8px;
   }
   .header-right .icon-btn {
     width: 44px;
@@ -541,8 +607,8 @@ kbd {
 
 .sheet-top .sheet-panel {
   top: 0;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   max-height: 100%;
   overflow-y: auto;
   border-bottom: 1px solid var(--line);
@@ -553,11 +619,11 @@ kbd {
 .sheet-left .sheet-panel {
   top: 0;
   bottom: 0;
-  left: 0;
+  inset-inline-start: 0;
   width: min(320px, 86vw);
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--line-2);
+  border-inline-end: 1px solid var(--line-2);
   box-shadow: 30px 0 60px -20px rgba(0, 0, 0, 0.9);
   animation: sheet-slide 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -578,6 +644,17 @@ kbd {
 @keyframes sheet-slide {
   from {
     transform: translateX(-100%);
+  }
+}
+
+[dir="rtl"] .sheet-left .sheet-panel {
+  box-shadow: -30px 0 60px -20px rgba(0, 0, 0, 0.9);
+  animation-name: sheet-slide-rtl;
+}
+
+@keyframes sheet-slide-rtl {
+  from {
+    transform: translateX(100%);
   }
 }
 
@@ -605,7 +682,7 @@ kbd {
   background: var(--bg-1);
   color: var(--subtle);
   font-size: 15px;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -685,7 +762,7 @@ kbd {
 }
 
 .cross::before {
-  left: 10px;
+  inset-inline-start: 10px;
   top: 0;
   width: 1px;
   height: 21px;
@@ -693,29 +770,29 @@ kbd {
 
 .cross::after {
   top: 10px;
-  left: 0;
+  inset-inline-start: 0;
   width: 21px;
   height: 1px;
 }
 
 .cross.tl {
   top: -11px;
-  left: -11px;
+  inset-inline-start: -11px;
 }
 
 .cross.tr {
   top: -11px;
-  right: -11px;
+  inset-inline-end: -11px;
 }
 
 .cross.bl {
   bottom: -11px;
-  left: -11px;
+  inset-inline-start: -11px;
 }
 
 .cross.br {
   bottom: -11px;
-  right: -11px;
+  inset-inline-end: -11px;
 }
 
 .hero-body {
@@ -766,7 +843,8 @@ kbd {
   align-items: center;
   gap: 10px;
   height: 48px;
-  padding: 0 14px 0 18px;
+  padding-block: 0;
+  padding-inline: 18px 14px;
   border-radius: 999px;
   border: 1px solid var(--line-2);
   background: var(--bg-1);
@@ -821,7 +899,7 @@ kbd {
 }
 
 .split-code {
-  border-right: 1px solid var(--line);
+  border-inline-end: 1px solid var(--line);
   background: var(--bg-1);
   display: flex;
   flex-direction: column;
@@ -840,7 +918,7 @@ kbd {
     grid-template-columns: minmax(0, 1fr);
   }
   .split-code {
-    border-right: 0;
+    border-inline-end: 0;
     border-bottom: 1px solid var(--line);
   }
 }
@@ -861,7 +939,7 @@ kbd {
   gap: 6px;
   padding: 12px 16px;
   border: 0;
-  border-right: 1px solid var(--line);
+  border-inline-end: 1px solid var(--line);
   background: transparent;
   font-family: var(--mono);
   font-size: 12.5px;
@@ -883,8 +961,8 @@ kbd {
 .file-tabs button[aria-selected="true"]::after {
   content: "";
   position: absolute;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   bottom: -1px;
   height: 1px;
   background: var(--fg);
@@ -918,9 +996,9 @@ kbd {
 .code .ln {
   display: inline-block;
   width: 2.2em;
-  margin-right: 16px;
+  margin-inline-end: 16px;
   color: var(--faint);
-  text-align: right;
+  text-align: end;
   user-select: none;
 }
 
@@ -978,7 +1056,8 @@ kbd {
   align-items: center;
   gap: 8px;
   height: 42px;
-  padding: 0 8px 0 16px;
+  padding-block: 0;
+  padding-inline: 16px 8px;
   border-bottom: 1px solid var(--line);
   font-family: var(--mono);
   font-size: 12.5px;
@@ -986,7 +1065,7 @@ kbd {
 }
 
 .codeblock-head .lang {
-  margin-left: auto;
+  margin-inline-start: auto;
   color: var(--subtle);
   font-size: 11px;
   text-transform: lowercase;
@@ -1019,7 +1098,7 @@ kbd {
 .codeblock > .copy-btn.floating {
   position: absolute;
   top: 10px;
-  right: 10px;
+  inset-inline-end: 10px;
   opacity: 0;
 }
 
@@ -1153,7 +1232,8 @@ kbd {
 
 .dt-log {
   display: block;
-  padding: 18px 8px 6px 12px;
+  padding-block: 18px 6px;
+  padding-inline: 12px 8px;
   border-bottom: 1px solid var(--dt-line);
   position: relative;
   cursor: text;
@@ -1167,7 +1247,7 @@ kbd {
 .dt-source {
   position: absolute;
   top: 2px;
-  right: 10px;
+  inset-inline-end: 10px;
   color: var(--dt-muted);
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -1181,7 +1261,8 @@ kbd {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 12px 6px 10px;
+  padding-block: 4px 6px;
+  padding-inline: 10px 12px;
   color: var(--dt-accent);
   font-family: var(--mono);
   font-size: 12px;
@@ -1453,7 +1534,7 @@ kbd {
 
 .tx-copyright > img {
   position: absolute;
-  left: 50%;
+  left: 50%; /* physical: centered with translate(-50%) */
   top: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
@@ -1490,6 +1571,106 @@ kbd {
   color: var(--fg);
 }
 
+/* The footer's right column when there's a language picker: the status line, then the picker. */
+.footer-end {
+  grid-area: status;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 20px;
+}
+
+.footer-end .footer-status {
+  align-self: center;
+}
+
+.locale-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: var(--subtle);
+  font-size: 13px;
+}
+
+.locale-menu select {
+  appearance: none;
+  padding-block: 2px;
+  padding-inline: 0 18px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.locale-menu select:focus-visible {
+  outline: 2px solid var(--blue-2);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.locale-menu svg {
+  position: absolute;
+  inset-inline-end: 0;
+  pointer-events: none;
+}
+
+.locale-menu:hover {
+  color: var(--fg);
+}
+
+/* Bottom start corner, across from the console pill; fixed, so it never moves the page. */
+.locale-suggestion {
+  position: fixed;
+  inset-inline-start: 20px;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 60;
+  max-width: calc(100vw - 40px);
+  padding: 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: rgba(10, 10, 10, 0.86);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.8);
+}
+
+.locale-suggestion-body {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.locale-suggestion-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--subtle);
+  cursor: pointer;
+}
+
+.locale-suggestion-close:hover {
+  background: var(--bg-2);
+  color: var(--fg);
+}
+
+/* While the offer is up, the footer leaves room for it, so the end of the page is never under it. Extra space
+   below everything else, so nothing moves. */
+body:has(.locale-suggestion) .footer {
+  padding-bottom: 104px;
+}
+
+@media (max-width: 640px) {
+  .locale-suggestion {
+    inset-inline-start: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
 .footer-status {
   display: inline-flex;
   align-items: center;
@@ -1514,14 +1695,15 @@ kbd {
 
 .console-pill {
   position: fixed;
-  right: 20px;
+  inset-inline-end: 20px;
   bottom: 20px;
   z-index: 60;
   display: inline-flex;
   align-items: center;
   gap: 10px;
   height: 40px;
-  padding: 0 16px 0 14px;
+  padding-block: 0;
+  padding-inline: 14px 16px;
   border-radius: 999px;
   border: 1px solid var(--line-2);
   background: rgba(10, 10, 10, 0.86);
@@ -1616,7 +1798,7 @@ kbd {
   display: none;
   align-items: center;
   height: 36px;
-  margin-right: -8px;
+  margin-inline-end: -8px;
   padding: 0 8px;
   border: 0;
   background: transparent;
@@ -1649,7 +1831,7 @@ kbd {
   border: 0;
   background: transparent;
   color: var(--muted);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   font-size: 14px;
 }
@@ -1660,7 +1842,7 @@ kbd {
 }
 
 .kbar-item .kbar-sub {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-size: 12px;
   color: var(--subtle);
   white-space: nowrap;
@@ -1724,8 +1906,9 @@ kbd {
   top: var(--header-h);
   height: calc(100vh - var(--header-h));
   overflow-y: auto;
-  padding: 28px 16px 48px 24px;
-  border-right: 1px solid var(--line);
+  padding-block: 28px 48px;
+  padding-inline: 24px 16px;
+  border-inline-end: 1px solid var(--line);
   scrollbar-width: thin;
 }
 
@@ -1786,7 +1969,8 @@ kbd {
   top: var(--header-h);
   height: calc(100vh - var(--header-h));
   overflow-y: auto;
-  padding: 40px 24px 48px 8px;
+  padding-block: 40px 48px;
+  padding-inline: 8px 24px;
   font-size: 13px;
 }
 
@@ -1806,7 +1990,7 @@ kbd {
 }
 
 .docs-toc a.d3 {
-  padding-left: 12px;
+  padding-inline-start: 12px;
 }
 
 .docs-toc a:hover,
@@ -1885,7 +2069,7 @@ kbd {
 }
 
 .docs-nav a.next {
-  text-align: right;
+  text-align: end;
   grid-column: 2;
 }
 
@@ -1915,7 +2099,7 @@ kbd {
   background: transparent;
   color: var(--muted);
   font-size: 14px;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -1942,7 +2126,8 @@ kbd {
   justify-content: space-between;
   flex-shrink: 0;
   height: 56px;
-  padding: 0 6px 0 20px;
+  padding-block: 0;
+  padding-inline: 20px 6px;
   border-bottom: 1px solid var(--line);
   font-size: 14px;
   font-weight: 600;
@@ -2100,7 +2285,7 @@ kbd {
 .prose h2 a.anchor,
 .prose h3 a.anchor {
   position: absolute;
-  left: -24px;
+  inset-inline-start: -24px;
   color: var(--faint);
   text-decoration: none;
   opacity: 0;
@@ -2125,7 +2310,7 @@ kbd {
 .prose ul,
 .prose ol {
   margin: 16px 0;
-  padding-left: 22px;
+  padding-inline-start: 22px;
 }
 
 .prose li {
@@ -2314,7 +2499,7 @@ kbd {
   opacity: 0;
   width: 1px;
   height: 1px;
-  left: 0;
+  inset-inline-start: 0;
   top: 0;
   border: 0;
   padding: 0;
@@ -2572,7 +2757,7 @@ kbd {
   white-space: nowrap;
   min-width: 0;
   flex: 1;
-  text-align: left;
+  text-align: start;
 }
 
 .status-region {
@@ -2619,7 +2804,7 @@ kbd {
 }
 
 .status-line .status-action {
-  margin-left: 8px;
+  margin-inline-start: 8px;
   flex-shrink: 0;
   padding: 0;
   border: 0;
@@ -2762,9 +2947,9 @@ html[data-browser="safari"] .pad-stage {
 .notfound h1 b {
   color: var(--fg);
   font-weight: 500;
-  padding-right: 16px;
-  margin-right: 16px;
-  border-right: 1px solid var(--line-2);
+  padding-inline-end: 16px;
+  margin-inline-end: 16px;
+  border-inline-end: 1px solid var(--line-2);
 }
 
 .search-btn span {
@@ -3005,7 +3190,8 @@ html[data-browser="safari"] .pad-stage {
   align-items: center;
   justify-content: space-between;
   height: 36px;
-  padding: 0 4px 0 14px;
+  padding-block: 0;
+  padding-inline: 14px 4px;
   border-bottom: 1px solid var(--line);
   font-size: 12px;
   color: var(--subtle);

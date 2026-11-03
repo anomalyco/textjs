@@ -12,14 +12,14 @@
  */
 
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
 import { pathToFileURL } from "node:url";
 import { gzipSync } from "node:zlib";
 import { build, type InlineConfig, type Rollup } from "vite";
 import { withFrameworkEntry } from "./vite-entry";
-import { normalizeBasePath, type TextConfig } from "../config";
-import type { ShellCall } from "./live-app";
+import { normalizeBasePath, resolveAnsiSize, type TextConfig } from "../config";
+import type { AnsiFrame, ShellCall } from "./live-app";
 import { textjsLivePlugin } from "./live-dev";
 import { createLiveHtml, listServerPages, VIRTUAL_LIVE, VIRTUAL_PLAYER } from "./live-routes";
 import { injectShell, shellPath, shellScript } from "./ppr";
@@ -31,45 +31,79 @@ export { LIVE_MANIFEST, type LiveManifest } from "./live-manifest";
 /** How long one route may take to prerender before it streams without a shell. */
 export const PRERENDER_TIMEOUT_MS = 10_000;
 
-type PrerenderResult = { calls: ShellCall[] } | { error: string };
+/** One route's prerender: its PPR shell (`calls` or `error`) and its ANSI frame (`ansi` or `ansiError`). */
+export interface PrerenderResult {
+  calls?: ShellCall[];
+  error?: string;
+  /** `null` when the page opts out (`export const ansi = false`). */
+  ansi?: AnsiFrame | null;
+  ansiError?: string;
+}
+
+export interface PrerenderJob {
+  /** Routes that get a PPR shell, at `cols × rows`. */
+  paths: string[];
+  cols: number;
+  rows: number;
+  theme?: string;
+  timeoutMs: number;
+  /** Routes that get an ANSI frame, at the app's ANSI size. */
+  ansi?: { cols: number; rows: number; paths: string[] } | null;
+}
+
+export interface PrerenderOutput {
+  /** Why `live.mjs` couldn't be imported (then no route has a result), or `null`. */
+  importError: string | null;
+  routes: Record<string, PrerenderResult>;
+}
 
 const RESULT_MARK = "\u0000textjs-prerender:";
 
 /**
- * Prerender shells in a disposable child process: route modules' top-level
- * side effects (timers, sockets, a patched `fetch`) can't hang or leak into the
- * build, and each route gets `timeoutMs`. The child exits once its results are
- * written.
+ * Prerender shells and ANSI frames in a disposable child process: route
+ * modules' top-level side effects (timers, sockets, a patched `fetch`) can't
+ * hang or leak into the build, and each route gets `timeoutMs`. The child
+ * exits once its results are written.
  */
-export async function prerenderInChild(
-  liveBundle: string,
-  job: { paths: string[]; cols: number; rows: number; theme?: string; timeoutMs: number },
-): Promise<Record<string, PrerenderResult>> {
-  if (job.paths.length === 0) return {};
+export async function prerenderInChild(liveBundle: string, job: PrerenderJob): Promise<PrerenderOutput> {
+  const ansiPaths = job.ansi?.paths ?? [];
+  if (job.paths.length === 0 && !job.ansi) return { importError: null, routes: {} };
   const runner = join(dirname(liveBundle), `prerender-${process.pid}-${Date.now()}.mjs`);
   writeFileSync(
     runner,
     `const job = JSON.parse(process.argv[3]);
-const out = {};
+const out = { importError: null, routes: {} };
+const message = (error) => error instanceof Error ? error.message : String(error);
 const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error("timed out after " + ms + "ms")), ms).unref?.());
+let entry = null;
 try {
-  const entry = await Promise.race([import(process.argv[2]), timeout(job.timeoutMs)]);
+  entry = await Promise.race([import(process.argv[2]), timeout(job.timeoutMs)]);
+} catch (error) {
+  out.importError = message(error);
+}
+if (entry) {
   for (const path of job.paths) {
+    const r = (out.routes[path] ??= {});
     try {
-      const calls = await Promise.race([entry.prerenderShell({ routes: entry.routes, path, cols: job.cols, rows: job.rows, theme: job.theme }), timeout(job.timeoutMs)]);
-      out[path] = { calls };
+      r.calls = await Promise.race([entry.prerenderShell({ routes: entry.routes, path, cols: job.cols, rows: job.rows, theme: job.theme }), timeout(job.timeoutMs)]);
     } catch (error) {
-      out[path] = { error: error instanceof Error ? error.message : String(error) };
+      r.error = message(error);
     }
   }
-} catch (error) {
-  for (const path of job.paths) out[path] ??= { error: error instanceof Error ? error.message : String(error) };
+  for (const path of job.ansi ? job.ansi.paths : []) {
+    const r = (out.routes[path] ??= {});
+    try {
+      r.ansi = await Promise.race([entry.prerenderAnsi({ routes: entry.routes, path, cols: job.ansi.cols, rows: job.ansi.rows, theme: job.theme }), timeout(job.timeoutMs)]);
+    } catch (error) {
+      r.ansiError = message(error);
+    }
+  }
 }
 process.stdout.write(${JSON.stringify(RESULT_MARK)} + JSON.stringify(out) + "\\n", () => process.exit(0));
 `,
   );
   try {
-    const budget = job.timeoutMs * job.paths.length + 30_000;
+    const budget = job.timeoutMs * (job.paths.length + ansiPaths.length + 1) + 30_000;
     const output = await new Promise<string>((resolveRun) => {
       const child = spawn(process.execPath, [runner, pathToFileURL(liveBundle).href, JSON.stringify(job)], { stdio: ["ignore", "pipe", "inherit"], env: process.env });
       let stdout = "";
@@ -88,8 +122,9 @@ process.stdout.write(${JSON.stringify(RESULT_MARK)} + JSON.stringify(out) + "\\n
       });
     });
     const line = output.split("\n").find((l) => l.startsWith(RESULT_MARK));
-    if (line === undefined) return Object.fromEntries(job.paths.map((p) => [p, { error: "the prerender process exited without results" }]));
-    return JSON.parse(line.slice(RESULT_MARK.length)) as Record<string, PrerenderResult>;
+    // Killed or crashed without saying why: treat it like a failed import, so terminals get HTML rather than renders that may crash the server too.
+    if (line === undefined) return { importError: "the prerender process exited without results", routes: {} };
+    return JSON.parse(line.slice(RESULT_MARK.length)) as PrerenderOutput;
   } finally {
     rmSync(runner, { force: true });
   }
@@ -104,6 +139,8 @@ export interface LiveBuildOptions {
   plugins: InlineConfig["plugins"];
   /** Per-route prerender budget (default {@link PRERENDER_TIMEOUT_MS}). */
   prerenderTimeoutMs?: number;
+  /** Render ANSI frames for terminal clients (default: unless `ansi: false`; the static adapter can't serve them). */
+  ansi?: boolean;
 }
 
 export interface LiveBuildResult {
@@ -113,6 +150,8 @@ export interface LiveBuildResult {
   /** Routes whose shell could not be prerendered, with the reason. */
   skipped: Array<{ pattern: string; reason: string }>;
   player: { bytes: number; gzip: number } | null;
+  /** ANSI frames for terminal clients, when on. */
+  ansi: { frames: number; routes: number; skipped: Array<{ pattern: string; reason: string }> } | null;
 }
 
 const META = ".text";
@@ -133,7 +172,9 @@ export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildRes
   const pages = listPages(scan);
   const ppr = config.ppr !== false;
   const staticPages = ppr ? pages.filter((p) => !p.dynamic) : [];
-  if (serverPages.length === 0 && staticPages.length === 0) return null;
+  const ansiSize = o.ansi === false ? null : resolveAnsiSize(config);
+  const ansiPages = ansiSize ? pages.filter((p) => !p.dynamic) : [];
+  if (serverPages.length === 0 && staticPages.length === 0 && !(ansiSize && pages.length > 0)) return null;
 
   const serverDir = join(outDir, META, "server");
   await build(
@@ -209,35 +250,61 @@ export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildRes
 
   const skipped: LiveBuildResult["skipped"] = [];
   let shells = 0;
-  if (staticPages.length > 0) {
-    const indexFile = join(outDir, "index.html");
-    const template = existsSync(indexFile) ? readFileSync(indexFile, "utf8") : null;
-    const vp = config.viewport ?? {};
-    const wanted = staticPages.filter((p) => serverSet.has(p.pattern) || template !== null);
-    const results = await prerenderInChild(join(serverDir, "live.mjs"), {
-      paths: wanted.map((p) => p.pattern),
-      cols: vp.width ?? 120,
-      rows: vp.height ?? 36,
-      theme: vp.theme,
-      timeoutMs: o.prerenderTimeoutMs ?? PRERENDER_TIMEOUT_MS,
-    });
-    for (const page of wanted) {
-      const server = serverSet.has(page.pattern);
-      try {
-        const result = results[page.pattern] ?? { error: "prerendering did not finish" };
-        if ("error" in result) throw new Error(result.error);
-        const script = shellScript(result.calls, shellPath(basePath, page.pattern));
-        const rel = htmlFileFor(page.pattern, server);
-        write(rel, server ? liveDoc(script) : injectShell(template as string, script));
-        manifest.pages[page.pattern] = rel;
-        shells++;
-      } catch (error) {
-        skipped.push({ pattern: page.pattern, reason: error instanceof Error ? error.message : String(error) });
-      }
+  const indexFile = join(outDir, "index.html");
+  const template = existsSync(indexFile) ? readFileSync(indexFile, "utf8") : null;
+  const vp = config.viewport ?? {};
+  const wanted = staticPages.filter((p) => serverSet.has(p.pattern) || template !== null);
+  const prerendered =
+    wanted.length > 0 || ansiSize
+      ? await prerenderInChild(join(serverDir, "live.mjs"), {
+          paths: wanted.map((p) => p.pattern),
+          cols: vp.width ?? 120,
+          rows: vp.height ?? 36,
+          theme: vp.theme,
+          timeoutMs: o.prerenderTimeoutMs ?? PRERENDER_TIMEOUT_MS,
+          ansi: ansiSize ? { ...ansiSize, paths: ansiPages.map((p) => p.pattern) } : null,
+        })
+      : { importError: null, routes: {} };
+  const failed = (path: string): string => prerendered.importError ?? (prerendered.routes[path] ? "" : "prerendering did not finish");
+  for (const page of wanted) {
+    const server = serverSet.has(page.pattern);
+    try {
+      const result = prerendered.routes[page.pattern];
+      if (!result || result.error !== undefined || !result.calls) throw new Error(result?.error ?? failed(page.pattern));
+      const script = shellScript(result.calls, shellPath(basePath, page.pattern));
+      const rel = htmlFileFor(page.pattern, server);
+      write(rel, server ? liveDoc(script) : injectShell(template as string, script));
+      manifest.pages[page.pattern] = rel;
+      shells++;
+    } catch (error) {
+      skipped.push({ pattern: page.pattern, reason: error instanceof Error ? error.message : String(error) });
     }
   }
+
+  let ansi: LiveBuildResult["ansi"] = null;
+  if (ansiSize) {
+    ansi = { frames: 0, routes: ansiPages.length, skipped: [] };
+    const frames: Record<string, string> = {};
+    for (const page of ansiPages) {
+      const result = prerendered.routes[page.pattern];
+      // Opted out (`export const ansi = false`): the page serves HTML to terminals too.
+      if (result?.ansi === null) continue;
+      if (!result?.ansi || result.ansi.status !== 200) {
+        ansi.skipped.push({ pattern: page.pattern, reason: result?.ansiError ?? (result?.ansi ? "the page called notFound()" : failed(page.pattern)) });
+        continue;
+      }
+      // A file at the same path (`public/about`) is served as is.
+      const file = join(outDir, ...page.pattern.split("/").filter(Boolean));
+      if (page.pattern !== "/" && existsSync(file) && statSync(file).isFile()) continue;
+      const rel = posix.join(META, "ansi", page.pattern === "/" ? "" : page.pattern.slice(1), "index.txt");
+      write(rel, result.ansi.ansi);
+      frames[page.pattern] = rel;
+      ansi.frames++;
+    }
+    manifest.ansi = { ...ansiSize, frames, onRequest: prerendered.importError === null };
+  }
   write(join(META, LIVE_MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);
-  return { manifest, shells, staticRoutes: staticPages.length, skipped, player };
+  return { manifest, shells, staticRoutes: staticPages.length, skipped, player, ansi };
 }
 
 /** Bytes of every client `.js` asset except the frame player (for size comparisons). */

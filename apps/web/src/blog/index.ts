@@ -8,6 +8,8 @@ import figlet from "./figlet-fonts.md?raw";
 import yoga from "./laying-out-the-console-with-yoga.md?raw";
 import textJs01 from "./text-js-0-1.md?raw";
 import consoleLog from "./rendering-react-into-console-log.md?raw";
+import { LOCALE, localePath } from "../i18n/locales";
+import { t } from "../i18n/t";
 import { formatPostDate, getPostMeta, postPath, POSTS_META, type BlogPostMeta } from "./meta";
 
 export { formatPostDate, getPostMeta, postPath, POSTS_META, type BlogPostMeta };
@@ -37,7 +39,9 @@ function post(slug: string, source: string): BlogPost {
     if (!data[key]) throw new Error(`blog/${slug}.md is missing "${key}" in its frontmatter`);
   }
   if (data.brand !== undefined && data.brand !== "turbolog") throw new Error(`blog/${slug}.md has an unknown brand "${data.brand}"`);
-  return { slug, title: data.title as string, date: data.date as string, author: data.author as string, summary: data.summary as string, ...(data.brand ? { brand: "turbolog" as const } : {}), markdown: body.trim() };
+  // Title and summary come from POSTS_META, where the catalog translates them; frontmatter stays English.
+  const meta = getPostMeta(slug);
+  return { slug, title: meta?.title ?? (data.title as string), date: data.date as string, author: data.author as string, summary: meta?.summary ?? (data.summary as string), ...(data.brand ? { brand: "turbolog" as const } : {}), markdown: body.trim() };
 }
 
 /** Newest first; posts on the same day keep the order listed here. */
@@ -73,8 +77,8 @@ export function renderRss(posts: readonly BlogPost[] = POSTS): string {
     .map(
       (p) => `    <item>
       <title>${xml(p.title)}</title>
-      <link>${SITE}${postPath(p.slug)}</link>
-      <guid isPermaLink="true">${SITE}${postPath(p.slug)}</guid>
+      <link>${SITE}${localePath(LOCALE, postPath(p.slug))}</link>
+      <guid isPermaLink="true">${SITE}${localePath(LOCALE, postPath(p.slug))}</guid>
       <pubDate>${new Date(`${p.date}T00:00:00Z`).toUTCString()}</pubDate>
       <dc:creator>${xml(p.author)}</dc:creator>
       <description>${xml(p.summary)}</description>
@@ -85,12 +89,12 @@ export function renderRss(posts: readonly BlogPost[] = POSTS): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
-    <title>Text.js Blog</title>
-    <link>${SITE}/blog</link>
-    <description>Releases and engineering notes from the Text.js team.</description>
-    <language>en</language>
+    <title>${xml(t("Text.js Blog"))}</title>
+    <link>${SITE}${localePath(LOCALE, "/blog")}</link>
+    <description>${xml(t("Releases and engineering notes from the Text.js team."))}</description>
+    <language>${LOCALE.code}</language>
     <lastBuildDate>${latest}</lastBuildDate>
-    <atom:link href="${SITE}/blog/rss.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="${SITE}${localePath(LOCALE, "/blog/rss.xml")}" rel="self" type="application/rss+xml" />
 ${items}
   </channel>
 </rss>
