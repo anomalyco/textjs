@@ -177,7 +177,9 @@ export function DoomDemo({ reserveRows = 4, active = true, loadAssets }: DoomDem
       if (live) setLoadedBytes(bytes);
     })
       .then(({ wasm, wad }) => {
-        clock.current = { offset: performance.now(), stoppedAt: null };
+        // Start at 0 and stopped: the clock runs once the game is ready and the page is focused.
+        const t = performance.now();
+        clock.current = { offset: t, stoppedAt: t };
         return createDoom({ wasm, wads: [wad], now });
       })
       .then(
