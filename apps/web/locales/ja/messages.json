@@ -13,6 +13,7 @@
   "Active and LTS release lines, what counts as a breaking change, and supported runtimes.": "アクティブ版とLTS版のリリース系列、破壊的変更の基準、対応ランタイム。",
   "All systems operational": "すべてのシステムが正常稼働中",
   "Architecture": "アーキテクチャー",
+  "Back home": "ホームに戻る",
   "Bidirectional Text": "双方向テキスト",
   "Blog": "ブログ",
   "Building Your Application": "アプリケーションの構築",
@@ -151,6 +152,5 @@
   "useInterval, useAnimationFrame, useTween, useSpring, useMeasure, useBreakpoint and useLocalStorage.": "useInterval、useAnimationFrame、useTween、useSpring、useMeasure、useBreakpoint、useLocalStorage。",
   "useKeymap, sequences, the ? help overlay, key hints and the command palette.": "useKeymap、キーシーケンス、?ヘルプオーバーレイ、キーヒント、コマンドパレット。",
   "{title} | Text.js Docs": "{title} | Text.jsドキュメント",
-  "© 2026 <link>Anomaly</link>. All rights reserved.": "© 2026 <link>Anomaly</link>。無断転載を禁じます。",
-  "← Back home": "← ホームに戻る"
+  "© 2026 <link>Anomaly</link>. All rights reserved.": "© 2026 <link>Anomaly</link>。無断転載を禁じます。"
 }
