@@ -50,7 +50,8 @@
       "pl": "konsola",
       "id": "konsol",
       "vi": "console",
-      "hi": "कंसोल"
+      "hi": "कंसोल",
+      "he": "מסוף"
     },
     "frame": {
       "ja": "フレーム",
@@ -68,7 +69,8 @@
       "pl": "klatka",
       "id": "frame",
       "vi": "frame",
-      "hi": "फ़्रेम"
+      "hi": "फ़्रेम",
+      "he": "פריים"
     },
     "cell": {
       "ja": "セル",
@@ -86,7 +88,8 @@
       "pl": "komórka",
       "id": "sel",
       "vi": "ô",
-      "hi": "सेल"
+      "hi": "सेल",
+      "he": "תא"
     },
     "route": {
       "ja": "ルート",
@@ -104,7 +107,8 @@
       "pl": "trasa",
       "id": "route",
       "vi": "route",
-      "hi": "रूट"
+      "hi": "रूट",
+      "he": "נתיב"
     },
     "layout": {
       "ja": "レイアウト",
@@ -122,7 +126,8 @@
       "pl": "layout",
       "id": "layout",
       "vi": "layout",
-      "hi": "लेआउट"
+      "hi": "लेआउट",
+      "he": "layout"
     },
     "Docs": {
       "ja": "ドキュメント",
@@ -140,7 +145,8 @@
       "pl": "Dokumentacja",
       "id": "Dokumentasi",
       "vi": "Tài liệu",
-      "hi": "डॉक्स"
+      "hi": "डॉक्स",
+      "he": "תיעוד"
     },
     "route handler": {
       "ja": "ルートハンドラー",
@@ -158,7 +164,8 @@
       "id": "route handler",
       "vi": "route handler",
       "hi": "रूट हैंडलर",
-      "ar": "معالج المسار"
+      "ar": "معالج المسار",
+      "he": "מטפל נתיב"
     },
     "theme": {
       "ja": "テーマ",
@@ -176,7 +183,8 @@
       "id": "tema",
       "vi": "theme",
       "hi": "थीम",
-      "ar": "سمة"
+      "ar": "سمة",
+      "he": "ערכת נושא"
     },
     "browser": {
       "ja": "ブラウザー",
@@ -194,7 +202,8 @@
       "id": "browser",
       "vi": "trình duyệt",
       "hi": "ब्राउज़र",
-      "ar": "متصفح"
+      "ar": "متصفح",
+      "he": "דפדפן"
     },
     "Preserve log": {
       "ja": "ログを保持",
@@ -212,7 +221,8 @@
       "id": "Simpan log",
       "vi": "Lưu giữ nhật ký",
       "hi": "लॉग सेव करें",
-      "ar": "الاحتفاظ بالسجلّ"
+      "ar": "الاحتفاظ بالسجلّ",
+      "he": "שמירת היומן"
     },
     "prerender": {
       "ja": "プリレンダリング",
@@ -230,7 +240,8 @@
       "id": "prerender",
       "vi": "prerender",
       "hi": "प्रीरेंडरिंग",
-      "ar": "العرض المسبق"
+      "ar": "العرض المسبق",
+      "he": "רינדור מראש"
     },
     "server rendering": {
       "ja": "サーバーレンダリング",
@@ -248,7 +259,8 @@
       "id": "rendering di server",
       "vi": "render phía máy chủ",
       "hi": "सर्वर रेंडरिंग",
-      "ar": "العرض على الخادم"
+      "ar": "العرض على الخادم",
+      "he": "רינדור בצד השרת"
     },
     "server-rendered": {
       "ja": "サーバーレンダリングされる",
@@ -266,7 +278,8 @@
       "id": "di-render di server",
       "vi": "được render phía máy chủ",
       "hi": "सर्वर पर रेंडर किया गया",
-      "ar": "معروض على الخادم"
+      "ar": "معروض على الخادم",
+      "he": "מרונדר בצד השרת"
     },
     "utility": {
       "ja": "ユーティリティー"
@@ -287,7 +300,8 @@
       "id": "direktori",
       "vi": "thư mục",
       "hi": "डायरेक्टरी",
-      "ar": "دليل"
+      "ar": "دليل",
+      "he": "ספרייה"
     },
     "query": {
       "ja": "クエリー",
@@ -305,7 +319,8 @@
       "id": "kueri",
       "vi": "truy vấn",
       "hi": "क्वेरी",
-      "ar": "استعلام"
+      "ar": "استعلام",
+      "he": "שאילתה"
     },
     "binary": {
       "ja": "バイナリー",
@@ -323,7 +338,8 @@
       "id": "biner",
       "vi": "tệp nhị phân",
       "hi": "बाइनरी",
-      "ar": "ملف ثنائي"
+      "ar": "ملف ثنائي",
+      "he": "קובץ בינארי"
     },
     "edge function": {
       "ja": "エッジ関数",
@@ -341,7 +357,8 @@
       "id": "edge function",
       "vi": "edge function",
       "hi": "एज फ़ंक्शन",
-      "ar": "دالة edge"
+      "ar": "دالة edge",
+      "he": "פונקציית edge"
     },
     "edge middleware": {
       "ja": "エッジミドルウェア",
@@ -359,7 +376,8 @@
       "id": "edge middleware",
       "vi": "edge middleware",
       "hi": "एज मिडलवेयर",
-      "ar": "edge middleware"
+      "ar": "edge middleware",
+      "he": "edge middleware"
     },
     "span": {
       "ja": "スパン",
@@ -377,7 +395,8 @@
       "id": "span",
       "vi": "span",
       "hi": "span",
-      "ar": "span"
+      "ar": "span",
+      "he": "span"
     },
     "chart": {
       "ja": "チャート",
@@ -395,7 +414,8 @@
       "id": "grafik",
       "vi": "biểu đồ",
       "hi": "चार्ट",
-      "ar": "مخطط"
+      "ar": "مخطط",
+      "he": "תרשים"
     },
     "word joiner": {
       "ja": "ワードジョイナー",
@@ -413,7 +433,8 @@
       "id": "word joiner",
       "vi": "word joiner",
       "hi": "word joiner",
-      "ar": "word joiner"
+      "ar": "word joiner",
+      "he": "word joiner"
     },
     "architecture": {
       "ja": "アーキテクチャー"
@@ -437,7 +458,8 @@
       "id": "insiden",
       "vi": "sự cố",
       "hi": "इंसिडेंट",
-      "ar": "حادثة"
+      "ar": "حادثة",
+      "he": "תקרית"
     },
     "Learn": {
       "ja": "学習",
@@ -455,7 +477,8 @@
       "id": "Belajar",
       "vi": "Học",
       "hi": "सीखें",
-      "ar": "تعلّم"
+      "ar": "تعلّم",
+      "he": "למידה"
     },
     "shared": {
       "ja": "共通の"
@@ -476,7 +499,8 @@
       "id": "keymap",
       "vi": "keymap",
       "hi": "कीमैप",
-      "ar": "خريطة المفاتيح"
+      "ar": "خريطة المفاتيح",
+      "he": "מפת מקשים"
     },
     "sparkline": {
       "ja": "スパークライン",
@@ -494,7 +518,8 @@
       "id": "sparkline",
       "vi": "sparkline",
       "hi": "स्पार्कलाइन",
-      "ar": "sparkline"
+      "ar": "sparkline",
+      "he": "sparkline"
     },
     "append": {
       "ja": "追記",
@@ -512,7 +537,8 @@
       "id": "menambahkan di akhir",
       "vi": "nối thêm",
       "hi": "जोड़ना",
-      "ar": "إلحاق"
+      "ar": "إلحاق",
+      "he": "הוספה לסוף"
     },
     "component": {
       "es": "componente",
@@ -529,7 +555,8 @@
       "id": "komponen",
       "vi": "component",
       "hi": "कंपोनेंट",
-      "ar": "مكوّن"
+      "ar": "مكوّن",
+      "he": "רכיב"
     },
     "hook": {
       "es": "hook",
@@ -546,7 +573,8 @@
       "id": "hook",
       "vi": "hook",
       "hi": "हुक",
-      "ar": "خطاف"
+      "ar": "خطاف",
+      "he": "הוק"
     },
     "deploy": {
       "es": "desplegar",
@@ -563,7 +591,8 @@
       "id": "deploy",
       "vi": "triển khai",
       "hi": "डिप्लॉय",
-      "ar": "نشر"
+      "ar": "نشر",
+      "he": "פריסה"
     },
     "shortcut": {
       "es": "atajo",
@@ -580,7 +609,8 @@
       "id": "pintasan",
       "vi": "phím tắt",
       "hi": "शॉर्टकट",
-      "ar": "اختصار"
+      "ar": "اختصار",
+      "he": "קיצור מקשים"
     },
     "terminal": {
       "es": "terminal",
@@ -597,7 +627,8 @@
       "id": "terminal",
       "vi": "terminal",
       "hi": "टर्मिनल",
-      "ar": "الطرفية"
+      "ar": "الطرفية",
+      "he": "טרמינל"
     },
     "error boundary": {
       "de": "Error Boundary",
@@ -614,7 +645,8 @@
       "id": "error boundary",
       "vi": "error boundary",
       "hi": "एरर बाउंड्री",
-      "ar": "حدود الأخطاء"
+      "ar": "حدود الأخطاء",
+      "he": "גבול שגיאה"
     },
     "focus pad": {
       "es": "panel de foco",
@@ -631,7 +663,8 @@
       "id": "focus pad",
       "vi": "vùng focus",
       "hi": "फ़ोकस पैड",
-      "ar": "لوحة التركيز"
+      "ar": "لوحة التركيز",
+      "he": "משטח המיקוד"
     },
     "dynamic segment": {
       "zh-CN": "动态路由段",
@@ -643,7 +676,8 @@
       "id": "segmen dinamis",
       "vi": "phân đoạn động",
       "hi": "डायनामिक सेगमेंट",
-      "ar": "مقطع ديناميكي"
+      "ar": "مقطع ديناميكي",
+      "he": "מקטע דינמי"
     },
     "offscreen": {
       "zh-CN": "离屏"
@@ -658,7 +692,8 @@
       "id": "tombol konfirmasi",
       "vi": "phím xác nhận",
       "hi": "पुष्टि करने वाली कुंजी",
-      "ar": "مفتاح التأكيد"
+      "ar": "مفتاح التأكيد",
+      "he": "מקש האישור"
     },
     "deep link": {
       "de": "Deep-Link"
@@ -673,7 +708,8 @@
       "id": "engineer khusus",
       "vi": "kỹ sư phụ trách riêng",
       "hi": "नियुक्त इंजीनियर",
-      "ar": "مهندس مخصّص"
+      "ar": "مهندس مخصّص",
+      "he": "מהנדס ייעודי"
     },
     "kB": {
       "fr": "ko",
@@ -688,11 +724,13 @@
       "id": "Langkah berikutnya",
       "vi": "Bước tiếp theo",
       "hi": "अगले कदम",
-      "ar": "الخطوات التالية"
+      "ar": "الخطوات التالية",
+      "he": "השלבים הבאים"
     },
     "framework": {
       "tr": "framework",
-      "ar": "إطار عمل"
+      "ar": "إطار عمل",
+      "he": "פריימוורק"
     },
     "named console engineer": {
       "ar": "مهندس وحدة تحكم مخصّص"

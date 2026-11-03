@@ -30,7 +30,7 @@ describe("locales", () => {
     expect(splitLocale("/ja")).toEqual({ locale: ja, path: "/" });
     expect(splitLocale("/docs").locale.code).toBe("en");
     // Only built locales are prefixes; others are ordinary (unknown) paths.
-    expect(splitLocale("/he/blog").locale.code).toBe("en");
+    expect(splitLocale("/fa/blog").locale.code).toBe("en");
     expect(localePath(ja, "/")).toBe("/ja");
     expect(localePath(ja, "/docs")).toBe("/ja/docs");
     expect(localePath(LOCALES[0]!, "/docs")).toBe("/docs");

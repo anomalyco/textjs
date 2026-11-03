@@ -47,6 +47,7 @@ export const SCRIPT_FONTS: Readonly<Record<string, string>> = {
   vi: "/fonts/geist-latin-ext.woff2",
   ru: "/fonts/geist-cyrillic.woff2",
   hi: "/fonts/noto-sans-devanagari-og.woff2",
+  he: "/fonts/noto-sans-hebrew-og.woff2",
   ar: "/fonts/noto-naskh-arabic-og.woff2",
   fa: "/fonts/noto-naskh-arabic-og.woff2",
   ur: "/fonts/noto-naskh-arabic-og.woff2",
