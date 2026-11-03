@@ -44,6 +44,7 @@ export interface BenchmarkRunMetrics {
     dirtyRowsMean: number;
     spanCountMean: number;
     cssBytesMean: number;
+    cssBytesPerLog: number;
     layoutPaintMs: MetricSummary;
     encodeMs: MetricSummary;
     consoleCallMs: MetricSummary;
@@ -573,6 +574,7 @@ async function runSingleBenchmark(
         dirtyRowsMean: pageRes.dirtyRowsMean,
         spanCountMean: pageRes.spanCountMean,
         cssBytesMean: pageRes.cssBytesMean,
+        cssBytesPerLog: pageRes.cssBytesPerLog,
         layoutPaintMs: pageRes.layoutPaintMs,
         encodeMs: pageRes.encodeMs,
         consoleCallMs: pageRes.consoleCallMs,

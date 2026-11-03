@@ -480,6 +480,7 @@ function getSpriteCodec(): SpriteCodec {
       const hasStaged = staged.size > 0;
       let dirty = 0;
       let maxVisualFrames = 1;
+      let drewCells = false;
       const rowPitch = ctx._profile.rowHeight;
       const cellW = ctx._getCellAdvance();
       const padY = ctx._profile.inline ? 0 : ctx.typography.rowPaddingY;
@@ -488,6 +489,7 @@ function getSpriteCodec(): SpriteCodec {
         const bandBg = spriteBand(ctx.styleOptions, buffer, sp);
         if (bandBg === undefined) {
           buffer._materializeSpritesInRect(sp.x, sp.y, sp.x + sp.width, sp.y + sp.height, false, false);
+          drewCells = true;
           continue;
         }
         let spriteDirty = full || hasStaged || force;
@@ -633,7 +635,7 @@ function getSpriteCodec(): SpriteCodec {
           rowCache[y] = ctx.compileRow(buffer, y);
         }
       }
-      return { nextSpanned, dirty, maxVisualFrames };
+      return { nextSpanned, dirty, maxVisualFrames, drewCells };
     },
   };
   return codecInstance;

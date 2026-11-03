@@ -217,7 +217,17 @@ function unescapeConsoleText(escaped: string): string {
 
 const IDLE_COMPACT_FRAMES = 100;
 const IDLE_COMPACT_MS = 1000;
+/**
+ * Sprite frames clear once the characters logged since the last clear would pass this. Half-block
+ * frames (Safari, or a sprite drawn as cells) keep the 4 MB measured on the 160×50 half-block bench,
+ * about 5.3K spans per frame, which Web Inspector doesn't virtualize. A sprite frame is 3 spans,
+ * Chromium's `ConsoleViewport` virtualizes offscreen messages and the 100vh curtain keeps about 2
+ * mounted, and `console.clear()` doesn't free DevTools' heap anyway. The page holds about 1 byte
+ * per character logged until its console storage levels off near 5M characters, so 16 MB costs
+ * about 2 MB more peak page heap, freed on clear. 300 Doom logs are ~17.6 MB.
+ */
 const SPRITE_MAX_BYTES = 4 * 1024 * 1024;
+const SPRITE_URL_MAX_BYTES = 16 * 1024 * 1024;
 /** The banner swaps its colors every `BLINK_MS`, `BLINK_SWAPS` times (even, so it ends as set). */
 const BLINK_MS = 700;
 const BLINK_SWAPS = 8;
@@ -317,6 +327,8 @@ export class CssConsoleDriver {
   private blinkTimer: ReturnType<typeof setInterval> | null = null;
   private lastSpanCount = 0;
   private lastVisualFrames = 1;
+  /** Clear budget for the last encoded frame's sprites: 16 MB when every sprite was a URL, else 4 MB. */
+  private spriteBudget = SPRITE_MAX_BYTES;
   /** Frames logged since the last `console.clear()`; 0 forces a clear on the next frame. */
   private appended = 0;
   private appendedBytes = 0;
@@ -1216,6 +1228,7 @@ export class CssConsoleDriver {
 
   private encodeRows(buffer: CellGrid, options: DriverRenderOptions): { frame: ConsoleFrame | null; dirtyRows: number } {
     this.lastVisualFrames = 1;
+    this.spriteBudget = SPRITE_MAX_BYTES;
     const hasSprites = buffer._sprites.length > 0;
     const useSpriteUrls = hasSprites && this.profile.supportsSpriteUrl;
     if (hasSprites && !useSpriteUrls) {
@@ -1263,7 +1276,7 @@ export class CssConsoleDriver {
       return { frame: this.assemble(), dirtyRows: dirty };
     }
 
-    const { nextSpanned, dirty, maxVisualFrames } = buffer._sprites[0]!.codec.encodeSprites(
+    const { nextSpanned, dirty, maxVisualFrames, drewCells } = buffer._sprites[0]!.codec.encodeSprites(
       this,
       buffer,
       buffer.getRowHashes(),
@@ -1285,6 +1298,7 @@ export class CssConsoleDriver {
     this.rowSpanned = nextSpanned;
     this.hasSpannedRows = nextSpanned.some((v) => v !== 0);
     this.lastVisualFrames = maxVisualFrames;
+    if (!drewCells) this.spriteBudget = SPRITE_URL_MAX_BYTES;
 
     if (dirty === 0 && maxVisualFrames <= 1 && !options.force && this.rendered) return { frame: null, dirtyRows: 0 };
     this.rendered = true;
@@ -1308,7 +1322,7 @@ export class CssConsoleDriver {
       let clear = mode === "frame";
       if (mode === "append") {
         const n = this.appended;
-        const overSpriteBudget = hasSprites && n >= 1 && this.appendedBytes + frameBytes > SPRITE_MAX_BYTES;
+        const overSpriteBudget = hasSprites && n >= 1 && this.appendedBytes + frameBytes > this.spriteBudget;
         if (n === 0 || n >= this.maxFrames || overSpriteBudget || (n >= IDLE_COMPACT_FRAMES && t0 - this.lastLogAt >= IDLE_COMPACT_MS)) {
           clear = true;
           this.appended = 0;
