@@ -49,7 +49,7 @@ export function ErrorsIndexPage(): ReactNode {
       <p className="docs-desc">{rich("Each <c>TX</c> code is stable and has a page with its cause and fix. Codes are never renumbered or reused.", { c: (c) => <code>{c}</code> })}</p>
       <label className="tx-errors-search">
         <SearchIcon size={16} />
-        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Search by code, message or package…")} aria-label={t("Search error codes")} spellCheck={false} autoComplete="off" />
+        <input type="search" name="q" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Search by code, message or package…")} aria-label={t("Search error codes")} spellCheck={false} autoComplete="off" />
         <span className="tx-errors-count" aria-live="polite">
           {t("{count} of {total}", { count: hits.length, total: TX_ERRORS.length })}
         </span>

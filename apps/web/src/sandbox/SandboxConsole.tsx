@@ -65,6 +65,7 @@ export function SandboxConsole({ frame, engine, source, filter, className, captu
         <textarea
           ref={sink}
           className="sandbox-sink"
+          name="sandbox-input"
           aria-label="Sandbox console keyboard input"
           autoCapitalize="off"
           autoComplete="off"

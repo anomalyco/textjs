@@ -92,7 +92,7 @@ describe("/coffee (terminal.shop)", () => {
     // terminal.shop's wordmark leads the message, on desktop and in the touch notice.
     expect(html.match(/<svg class="wordmark-terminal" role="img" aria-label="terminal.shop" width="132" height="32" viewBox="0 0 744 180"/g)?.length).toBe(2);
     expect(html).toContain('fill="#FF5C00"');
-    expect(html).toContain(">Coffee</a></nav>");
+    expect(html).toContain(">Coffee</a></div></nav>");
     expect(html).not.toContain("View source");
     expect(html).toContain("Then click here and press ↑ ↓ to browse.");
     expect(html).toContain("no API key needed");

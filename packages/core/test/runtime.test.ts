@@ -271,10 +271,14 @@ describe("InputEngine capture gate", () => {
 describe("zero-jump input", () => {
   function fakeDocument() {
     const focusCalls: unknown[] = [];
+    const attrs: Record<string, string> = {};
     const sink = {
       value: "",
       style: { cssText: "" },
-      setAttribute() {},
+      attrs,
+      setAttribute(name: string, value: string) {
+        attrs[name] = value;
+      },
       addEventListener() {},
       removeEventListener() {},
       remove() {},
@@ -313,6 +317,15 @@ describe("zero-jump input", () => {
     const paste = key("v", { metaKey: true });
     engine.handleKeyDown(paste);
     expect(paste.prevented).toBe(false);
+    engine.detach();
+  });
+
+  test("the sink has a name, so Chrome's Issues panel doesn't flag it, and stays out of autofill", () => {
+    const { doc, sink } = fakeDocument();
+    const engine = new InputEngine({ document: doc }).attach();
+    expect(sink.attrs.name).toBe("textjs-input");
+    expect(sink.attrs.id).toBeUndefined();
+    expect(sink.attrs).toMatchObject({ autocomplete: "off", autocapitalize: "off", autocorrect: "off", spellcheck: "false", "data-1p-ignore": "", "data-lpignore": "true", "data-bwignore": "", "data-form-type": "other" });
     engine.detach();
   });
 

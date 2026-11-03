@@ -527,10 +527,17 @@ export class InputEngine {
     const win = doc.defaultView;
     const sink = doc.createElement("textarea");
     sink.setAttribute("aria-label", "Text.js keyboard input");
+    // A name (no id: every root has its own sink) keeps Chrome's Issues panel quiet about an unnamed form field.
+    sink.setAttribute("name", "textjs-input");
     sink.setAttribute("autocomplete", "off");
     sink.setAttribute("autocapitalize", "off");
     sink.setAttribute("autocorrect", "off");
     sink.setAttribute("spellcheck", "false");
+    // Password managers ignore autocomplete="off"; these opt the sink out of 1Password, LastPass, Bitwarden and Dashlane.
+    sink.setAttribute("data-1p-ignore", "");
+    sink.setAttribute("data-lpignore", "true");
+    sink.setAttribute("data-bwignore", "");
+    sink.setAttribute("data-form-type", "other");
     sink.setAttribute("tabindex", "-1");
     sink.setAttribute("data-textjs-input-sink", "");
     sink.style.cssText = SINK_STYLE;

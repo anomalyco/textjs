@@ -249,6 +249,7 @@ function CertificatePage(): ReactNode {
             <span>{t("Name on certificate")}</span>
             <input
               type="text"
+              name="name"
               value={progress.name}
               placeholder={NAME_PLACEHOLDER}
               maxLength={48}

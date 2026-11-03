@@ -6,7 +6,7 @@ import { DOCS, docPath } from "../src/docs/registry";
 import { A, matchRoute, normalizePath, resetLocation, titleFor } from "../src/router";
 import { Footer, Header } from "../src/site/Chrome";
 import { REPO_URL, docEditUrl } from "../src/site/links";
-import { siteStore, tabForPath } from "../src/console-companion/store";
+import { presetCrumb, siteStore, tabForPath } from "../src/console-companion/store";
 
 describe("router", () => {
   test("matches every site route", () => {
@@ -70,6 +70,18 @@ describe("router", () => {
     siteStore.syncRoute("/docs/styling");
     expect(siteStore.getSnapshot().consoleInput).toBe(false);
     siteStore.syncRoute("/");
+  });
+});
+
+describe("console breadcrumb follows the demo's URL", () => {
+  test("/playground shows the default demo", () => {
+    expect(presetCrumb("dashboard")).toBe("playground / dashboard");
+  });
+  test("/playground/snake", () => {
+    expect(presetCrumb("snake")).toBe("playground / snake");
+  });
+  test("/doom has its own path", () => {
+    expect(presetCrumb("doom")).toBe("doom");
   });
 });
 

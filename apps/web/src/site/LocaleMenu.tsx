@@ -34,6 +34,7 @@ export function LocaleMenu(): ReactNode {
     <label className="locale-menu" data-console-bypass="">
       <span className="sr-only">{t("Language")}</span>
       <select
+        name="locale"
         value={LOCALE.code}
         onChange={(e) => {
           const next = locales.find((l) => l.code === e.target.value);

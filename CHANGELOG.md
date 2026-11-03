@@ -17,6 +17,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- `@textjs/core`, `@textjs/react`: Chrome's Issues panel no longer reports "A form field element should have an id or name attribute" on every page. The hidden keyboard `<textarea>` is named `textjs-input`, and `ViewportControl`'s console size `<select>` (also in `FocusPad`'s `sizeControl`) has an `id` and the name `textjs-console-size`. The keyboard `<textarea>` also opts out of 1Password, LastPass, Bitwarden and Dashlane.
+- textjs.org: the console header on textjs.org/doom reads "Text.js / doom" instead of "Text.js / playground / doom".
+- textjs.org/doom: a narrow window no longer leaves a stray "·" after "View source".
+- textjs.org: in a narrow window, the Playground's demo picker fades out at an edge with more demos to scroll to, instead of cutting the last one off mid-word.
 - textjs.org/doom runs at Doom's 35 tics per second. In a level it ran 3.8× fast on a 60Hz display (131 tics per second) and 5.5× at 120Hz (192), because the page mistook the extra clock reads Doom makes while drawing a level for a busy-wait, and moved Doom's clock a tic ahead on every animation frame and timer callback.
 
 ## [1.4.0] - 2026-11-03
