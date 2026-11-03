@@ -36,75 +36,222 @@
   "terms": {
     "console": {
       "ja": "コンソール",
-      "ar": "وحدة التحكم"
+      "ar": "وحدة التحكم",
+      "es": "consola",
+      "fr": "console",
+      "de": "Konsole",
+      "pt-BR": "console",
+      "ko": "콘솔",
+      "zh-CN": "控制台",
+      "zh-TW": "主控台"
     },
     "frame": {
       "ja": "フレーム",
-      "ar": "إطار"
+      "ar": "إطار",
+      "es": "fotograma",
+      "fr": "frame",
+      "de": "Frame",
+      "pt-BR": "quadro",
+      "ko": "프레임",
+      "zh-CN": "帧",
+      "zh-TW": "影格"
     },
     "cell": {
       "ja": "セル",
-      "ar": "خلية"
+      "ar": "خلية",
+      "es": "celda",
+      "fr": "cellule",
+      "de": "Zelle",
+      "pt-BR": "célula",
+      "ko": "셀",
+      "zh-CN": "单元格",
+      "zh-TW": "儲存格"
     },
     "route": {
       "ja": "ルート",
-      "ar": "مسار"
+      "ar": "مسار",
+      "es": "ruta",
+      "fr": "route",
+      "de": "Route",
+      "pt-BR": "rota",
+      "ko": "라우트",
+      "zh-CN": "路由",
+      "zh-TW": "路由"
     },
     "layout": {
       "ja": "レイアウト",
-      "ar": "تخطيط"
+      "ar": "تخطيط",
+      "es": "layout",
+      "fr": "layout",
+      "de": "Layout",
+      "pt-BR": "layout",
+      "ko": "레이아웃",
+      "zh-CN": "布局",
+      "zh-TW": "版面配置"
     },
     "Docs": {
       "ja": "ドキュメント",
-      "ar": "التوثيق"
+      "ar": "التوثيق",
+      "es": "Documentación",
+      "fr": "Documentation",
+      "de": "Dokumentation",
+      "pt-BR": "Documentação",
+      "ko": "문서",
+      "zh-CN": "文档",
+      "zh-TW": "文件"
     },
     "route handler": {
-      "ja": "ルートハンドラー"
+      "ja": "ルートハンドラー",
+      "es": "manejador de ruta",
+      "fr": "gestionnaire de route",
+      "de": "Route-Handler",
+      "pt-BR": "manipulador de rota",
+      "ko": "라우트 핸들러",
+      "zh-CN": "路由处理程序",
+      "zh-TW": "路由處理常式"
     },
     "theme": {
-      "ja": "テーマ"
+      "ja": "テーマ",
+      "es": "tema",
+      "fr": "thème",
+      "de": "Theme",
+      "pt-BR": "tema",
+      "ko": "테마",
+      "zh-CN": "主题",
+      "zh-TW": "主題"
     },
     "browser": {
-      "ja": "ブラウザー"
+      "ja": "ブラウザー",
+      "es": "navegador",
+      "fr": "navigateur",
+      "de": "Browser",
+      "pt-BR": "navegador",
+      "ko": "브라우저",
+      "zh-CN": "浏览器",
+      "zh-TW": "瀏覽器"
     },
     "Preserve log": {
-      "ja": "ログを保持"
+      "ja": "ログを保持",
+      "es": "Conservar registro",
+      "fr": "Conserver le journal",
+      "de": "Log beibehalten",
+      "pt-BR": "Preservar registro",
+      "ko": "로그 보존",
+      "zh-CN": "保留日志",
+      "zh-TW": "保留記錄"
     },
     "prerender": {
-      "ja": "プリレンダリング"
+      "ja": "プリレンダリング",
+      "es": "prerenderizar",
+      "fr": "prérendu",
+      "de": "Prerendering",
+      "pt-BR": "pré-renderização",
+      "ko": "프리렌더링",
+      "zh-CN": "预渲染",
+      "zh-TW": "預先渲染"
     },
     "server rendering": {
-      "ja": "サーバーレンダリング"
+      "ja": "サーバーレンダリング",
+      "es": "renderizado en el servidor",
+      "fr": "rendu côté serveur",
+      "de": "Server-Rendering",
+      "pt-BR": "renderização no servidor",
+      "ko": "서버 렌더링",
+      "zh-CN": "服务端渲染",
+      "zh-TW": "伺服器端渲染"
     },
     "server-rendered": {
-      "ja": "サーバーレンダリングされる"
+      "ja": "サーバーレンダリングされる",
+      "es": "renderizado en el servidor",
+      "fr": "rendu côté serveur",
+      "de": "serverseitig gerendert",
+      "pt-BR": "renderizado no servidor",
+      "ko": "서버에서 렌더링된",
+      "zh-CN": "服务端渲染的",
+      "zh-TW": "伺服器端渲染的"
     },
     "utility": {
       "ja": "ユーティリティー"
     },
     "directory": {
-      "ja": "ディレクトリー"
+      "ja": "ディレクトリー",
+      "es": "directorio",
+      "fr": "répertoire",
+      "de": "Verzeichnis",
+      "pt-BR": "diretório",
+      "ko": "디렉터리",
+      "zh-CN": "目录",
+      "zh-TW": "目錄"
     },
     "query": {
-      "ja": "クエリー"
+      "ja": "クエリー",
+      "es": "consulta",
+      "fr": "requête",
+      "de": "Abfrage",
+      "pt-BR": "consulta",
+      "ko": "쿼리",
+      "zh-CN": "查询",
+      "zh-TW": "查詢"
     },
     "binary": {
-      "ja": "バイナリー"
+      "ja": "バイナリー",
+      "es": "binario",
+      "fr": "binaire",
+      "de": "Binary",
+      "pt-BR": "binário",
+      "ko": "바이너리",
+      "zh-CN": "二进制文件",
+      "zh-TW": "二進位檔"
     },
     "edge function": {
-      "ja": "エッジ関数"
+      "ja": "エッジ関数",
+      "es": "función edge",
+      "fr": "fonction edge",
+      "de": "Edge-Funktion",
+      "pt-BR": "função edge",
+      "ko": "에지 함수",
+      "zh-CN": "边缘函数",
+      "zh-TW": "邊緣函式"
     },
     "edge middleware": {
-      "ja": "エッジミドルウェア"
+      "ja": "エッジミドルウェア",
+      "es": "middleware edge",
+      "fr": "middleware edge",
+      "de": "Edge-Middleware",
+      "pt-BR": "middleware edge",
+      "ko": "에지 미들웨어",
+      "zh-CN": "边缘中间件",
+      "zh-TW": "邊緣中介軟體"
     },
     "span": {
-      "ja": "スパン"
+      "ja": "スパン",
+      "es": "span",
+      "fr": "span",
+      "de": "Span",
+      "pt-BR": "span",
+      "ko": "스팬",
+      "zh-CN": "span",
+      "zh-TW": "span"
     },
     "chart": {
-      "ja": "チャート"
+      "ja": "チャート",
+      "es": "gráfico",
+      "fr": "graphique",
+      "de": "Diagramm",
+      "pt-BR": "gráfico",
+      "ko": "차트",
+      "zh-CN": "图表",
+      "zh-TW": "圖表"
     },
     "word joiner": {
-      "ja": "ワードジョイナー"
+      "ja": "ワードジョイナー",
+      "es": "word joiner",
+      "fr": "word joiner",
+      "de": "Word Joiner",
+      "pt-BR": "word joiner",
+      "ko": "워드 조이너",
+      "zh-CN": "word joiner",
+      "zh-TW": "word joiner"
     },
     "architecture": {
       "ja": "アーキテクチャー"
@@ -113,22 +260,144 @@
       "ja": "メモリー"
     },
     "incident": {
-      "ja": "インシデント"
+      "ja": "インシデント",
+      "es": "incidente",
+      "fr": "incident",
+      "de": "Störung",
+      "pt-BR": "incidente",
+      "ko": "장애",
+      "zh-CN": "事件",
+      "zh-TW": "事件"
     },
     "Learn": {
-      "ja": "学習"
+      "ja": "学習",
+      "es": "Aprender",
+      "fr": "Apprendre",
+      "de": "Lernen",
+      "pt-BR": "Aprender",
+      "ko": "학습",
+      "zh-CN": "学习",
+      "zh-TW": "學習"
     },
     "shared": {
       "ja": "共通の"
     },
     "keymap": {
-      "ja": "キーマップ"
+      "ja": "キーマップ",
+      "es": "mapa de teclas",
+      "fr": "keymap",
+      "de": "Keymap",
+      "pt-BR": "mapa de teclas",
+      "ko": "키맵",
+      "zh-CN": "按键映射",
+      "zh-TW": "按鍵對應"
     },
     "sparkline": {
-      "ja": "スパークライン"
+      "ja": "スパークライン",
+      "es": "sparkline",
+      "fr": "sparkline",
+      "de": "Sparkline",
+      "pt-BR": "sparkline",
+      "ko": "스파크라인",
+      "zh-CN": "迷你图",
+      "zh-TW": "走勢圖"
     },
     "append": {
-      "ja": "追記"
+      "ja": "追記",
+      "es": "añadir al final",
+      "fr": "ajouter à la suite",
+      "de": "anhängen",
+      "pt-BR": "anexar",
+      "ko": "덧붙이기",
+      "zh-CN": "追加",
+      "zh-TW": "附加"
+    },
+    "component": {
+      "es": "componente",
+      "fr": "composant",
+      "de": "Komponente",
+      "pt-BR": "componente",
+      "ko": "컴포넌트",
+      "zh-CN": "组件",
+      "zh-TW": "元件"
+    },
+    "hook": {
+      "es": "hook",
+      "fr": "hook",
+      "de": "Hook",
+      "pt-BR": "hook",
+      "ko": "훅",
+      "zh-CN": "Hook",
+      "zh-TW": "Hook"
+    },
+    "deploy": {
+      "es": "desplegar",
+      "fr": "déployer",
+      "de": "deployen",
+      "pt-BR": "fazer deploy",
+      "ko": "배포",
+      "zh-CN": "部署",
+      "zh-TW": "部署"
+    },
+    "shortcut": {
+      "es": "atajo",
+      "fr": "raccourci",
+      "de": "Tastenkürzel",
+      "pt-BR": "atalho",
+      "ko": "단축키",
+      "zh-CN": "快捷键",
+      "zh-TW": "快速鍵"
+    },
+    "terminal": {
+      "es": "terminal",
+      "fr": "terminal",
+      "de": "Terminal",
+      "pt-BR": "terminal",
+      "ko": "터미널",
+      "zh-CN": "终端",
+      "zh-TW": "終端機"
+    },
+    "error boundary": {
+      "de": "Error Boundary",
+      "fr": "périmètre d’erreurs",
+      "es": "límite de error",
+      "pt-BR": "error boundary",
+      "ko": "에러 바운더리",
+      "zh-CN": "错误边界",
+      "zh-TW": "錯誤邊界"
+    },
+    "focus pad": {
+      "es": "panel de foco",
+      "fr": "zone de focus",
+      "de": "Fokusfeld",
+      "pt-BR": "área de foco",
+      "ko": "포커스 패드",
+      "zh-CN": "焦点区",
+      "zh-TW": "焦點區"
+    },
+    "dynamic segment": {
+      "zh-CN": "动态路由段",
+      "zh-TW": "動態區段"
+    },
+    "offscreen": {
+      "zh-CN": "离屏"
+    },
+    "confirmation key": {
+      "de": "Bestätigungstaste",
+      "es": "tecla de confirmación"
+    },
+    "deep link": {
+      "de": "Deep-Link"
+    },
+    "named engineer": {
+      "zh-CN": "专属工程师",
+      "zh-TW": "專屬工程師"
+    },
+    "kB": {
+      "fr": "ko"
+    },
+    "Next steps": {
+      "es": "Próximos pasos"
     }
   },
   "notes": {

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { rich } from "../i18n/rich";
-import { t } from "../i18n/t";
+import { formatNumber, t } from "../i18n/t";
 import { A } from "../router";
 import "./resources.css";
 
@@ -9,7 +9,7 @@ const SALES_BODY = ["Company:", "Team size:", "DevTools dock position (bottom, l
 export const SALES_HREF = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent("Text.js Enterprise")}&body=${encodeURIComponent(SALES_BODY)}`;
 
 export const STATS = [
-  { value: "99.99%", label: t("of console.log calls return") },
+  { value: formatNumber(0.9999, { style: "percent", maximumFractionDigits: 2 }), label: t("of console.log calls return") },
   { value: "1", label: t("console.log per changed frame") },
   { value: "0", label: t("calls per idle frame") },
   { value: "66ms", label: t("minimum time between frames") },

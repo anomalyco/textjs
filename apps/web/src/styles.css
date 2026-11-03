@@ -76,9 +76,6 @@
 .prose:is(:lang(ja), :lang(zh-CN), :lang(zh-TW)) {
   overflow-wrap: anywhere;
 }
-.prose:is(:lang(zh-CN), :lang(zh-TW)) {
-  line-break: strict;
-}
 /* No line starts with ー, small kana or closing punctuation; headings break at phrases into even lines. */
 :root:lang(ja) body {
   word-break: auto-phrase;
@@ -86,11 +83,37 @@
   text-autospace: normal;
   text-spacing-trim: trim-start;
 }
-:is(h1, h2, h3):lang(ja) {
-  text-wrap: balance;
+:root:is(:lang(zh-CN), :lang(zh-TW)) body {
+  line-break: strict;
+  text-spacing-trim: trim-start;
 }
+/* Korean breaks between words, as it's written; a word wider than the line still wraps. */
 :root:lang(ko) body {
   word-break: keep-all;
+  overflow-wrap: break-word;
+}
+:is(h1, h2, h3):is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW)) {
+  text-wrap: balance;
+}
+/* Chinese headings break only between phrases (spaces, punctuation, zero-width spaces in the catalog), and
+   anywhere only when one phrase is wider than the line. */
+:is(h1, h2, h3):is(:lang(zh-CN), :lang(zh-TW)) {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+/* Hero subtitles in Chinese, Japanese and Korean wrap into even lines instead of leaving a word or two alone. */
+:is(.hero .lede, .rs-lede):is(:lang(ja), :lang(ko), :lang(zh)) {
+  text-wrap: balance;
+}
+/* Translated card titles don't end on a single short word (CJK headings are balanced above). */
+:root:not(:lang(en), :lang(ja), :lang(ko), :lang(zh)) :is(h3, h4) {
+  text-wrap: pretty;
+}
+/* A German compound wider than a phone (Konsolenanwendungen) hyphenates; shorter words never do. */
+:is(h1, h2, h3):lang(de) {
+  hyphens: auto;
+  hyphenate-limit-chars: 14 6 6;
+  overflow-wrap: break-word;
 }
 
 *,

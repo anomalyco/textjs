@@ -50,4 +50,4 @@ Text.jsはChrome DevToolsのコンソールでReactアプリを描画します�
 今後の予定
 
 <!-- s:cb5f6bd294 -->
-npmで公開している `@textjs/core` 0.0.xのプロトタイプは、すべてを1つのパッケージに収めています。Text.js 0.1では、ここで説明したレンダラーを `@textjs/core` に、Reactのreconcilerを `@textjs/react` に移し、App Routerを追加します。
+npmにある `@textjs/core` 0.0.xのプロトタイプは、すべてを1つのパッケージにまとめています。Text.js 0.1では、ここで説明したレンダラーを `@textjs/core` に、Reactリコンサイラーを `@textjs/react` に移し、App Routerを追加します。

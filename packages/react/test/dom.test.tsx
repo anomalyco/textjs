@@ -251,9 +251,9 @@ describe("DOM companion", () => {
     expect(live([])).toContain('aria-label="ライブ"');
     expect(live([])).toContain("入力を始めます。");
 
-    // The space between two sentences is its own node, which Chinese, Japanese and Korean pages hide.
+    // The space between two sentences is its own node, which Chinese and Japanese pages hide (Korean keeps it).
     expect(open.match(/<span class="tx-pad-gap"> <\/span>/g)?.length).toBe(1);
-    expect(open).toContain(".tx-pad:is(:lang(ja),:lang(zh),:lang(ko)) .tx-pad-gap{display:none}");
+    expect(open).toContain(".tx-pad:is(:lang(ja),:lang(zh)) .tx-pad-gap{display:none}");
     expect(renderToStaticMarkup(<FocusPadMessage state="click" hints={[]} doThis="x" devtools="chromium-mac" />)).toContain('<span class="tx-pad-line">The app reads keys from this page.</span><span class="tx-pad-gap"> </span><span class="tx-pad-line"><kbd>⌘⌥J</kbd> opens the console.</span>');
     // Key sequences read left to right on right-to-left pages.
     expect(open).toContain(".tx-pad-keys,.tx-pad-hint>span,.tx-pad-echo,.tx-pad-line kbd{direction:ltr;unicode-bidi:isolate}");
