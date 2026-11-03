@@ -15,6 +15,6 @@ export * from "./renderer";
 export * from "./errors";
 export * from "./error-docs";
 
-export const VERSION = "1.2.0";
+export const VERSION = "1.3.0";
 export const ENGINE_NAME = "Turbolog";
 export const BRAND_MARK = "\u25BC";

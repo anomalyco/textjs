@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-03
+
 ### Added
 
 - `@textjs/react/experimental` exports `<Pixels>` for live framebuffers and `useKeyState` for held keys; `@textjs/core/experimental` exports `drawPixels`. These may change in a minor release.
