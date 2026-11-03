@@ -1,5 +1,6 @@
 export { ConsoleMirror, type ConsoleMirrorProps } from "./ConsoleMirror";
 export { devtoolsShortcutKeys, FocusPad, focusPadConsole, focusPadState, keyLabel, type FocusPadConsole, type FocusPadHint, type FocusPadProps, type FocusPadSignals, type FocusPadState } from "./FocusPad";
+export { defaultFocusPadMessages, type FocusPadMessages } from "./messages";
 export { TextCanvas, type TextCanvasProps } from "./TextCanvas";
 export {
   applyViewportChoice,

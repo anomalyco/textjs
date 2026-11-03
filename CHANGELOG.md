@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `@textjs/react`: `<FocusPad messages>` replaces any of the pad's built-in strings, for translated sites. It covers every line, the screen reader labels and the console size control, and `<TextCanvas>` and `<ViewportControl>` take it too. Strings that contain a value, such as "Then click here and press ↑ ↓.", are functions that return the whole sentence. `defaultFocusPadMessages` has the English text. Without `messages`, the pad renders exactly as before. See [Translating the focus pad](https://textjs.org/docs/internationalization#translating-the-focus-pad).
+- textjs.org: the focus pad on the Japanese Playground, OpenCode, Coffee and Learn pages is in Japanese, including the labels under each demo's keys.
+
 ### Changed
 
 - `@textjs/core`: Chromium and Firefox consoles clear animated sprite output at 16 MB instead of 4 MB, so textjs.org/doom shows "Console was cleared" about every 19 seconds instead of every 4.5. Safari, and sprites drawn as `▀` half-blocks, keep 4 MB. The page's peak heap on textjs.org/doom goes from 10.8 MB to about 12–13 MB.

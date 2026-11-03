@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import type { ConsoleRoot } from "../root";
+import { resolveFocusPadMessages, type FocusPadMessages } from "./messages";
 
 /** `"fit"` follows the docked DevTools console; a size pins the grid. */
 export type ViewportChoice = "fit" | { cols: number; rows: number };
@@ -101,6 +102,8 @@ export interface ViewportControlProps {
   /** Text colors: resting and hover/active. */
   color?: string;
   activeColor?: string;
+  /** Replace any of the control's strings (`fitConsole`, `custom`, `consoleSize`, `consoleSizeUndocked`, `columns`, `rows`). */
+  messages?: Partial<FocusPadMessages>;
 }
 
 const MONO = '"Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menlo, monospace';
@@ -109,7 +112,8 @@ const MONO = '"Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menl
  * A one-line console size picker: "Fit console" (follow docked DevTools) or a
  * fixed grid. Renders as quiet text over a native `<select>`.
  */
-export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, presets = VIEWPORT_PRESETS, onChange, className, style, color = "#707070", activeColor = "#ededed" }: ViewportControlProps): ReactNode {
+export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, presets = VIEWPORT_PRESETS, onChange, className, style, color = "#707070", activeColor = "#ededed", messages }: ViewportControlProps): ReactNode {
+  const m = resolveFocusPadMessages(messages);
   const state = useSyncExternalStore(root?.viewport.subscribe ?? NOOP_SUBSCRIBE, () => root?.viewport.getSnapshot() ?? null, () => null);
   const fit = useFitSize(root);
   const [custom, setCustom] = useState(false);
@@ -140,12 +144,9 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
     if (choice) choose(choice);
   };
 
-  const fitLabel = fit ? `Fit console · ${fit.cols}×${fit.rows}` : "Fit console";
+  const fitLabel = fit ? `${m.fitConsole} · ${fit.cols}×${fit.rows}` : m.fitConsole;
   const label = responsive ? fitLabel : state ? `${state.cols}×${state.rows}` : "";
-  const title =
-    responsive && fit && !fit.measurable
-      ? "Console size. Undocked DevTools can't be measured from the page, so this uses a default. Dock DevTools or pick a size."
-      : "Console size";
+  const title = responsive && fit && !fit.measurable ? m.consoleSizeUndocked : m.consoleSize;
 
   const text: CSSProperties = { fontFamily: MONO, fontSize: 12, lineHeight: "20px", color: hover ? activeColor : color, transition: "color .15s ease", whiteSpace: "nowrap" };
 
@@ -176,9 +177,9 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) commitCustom();
         }}
       >
-        <input ref={colsRef} id={`${id}-cols`} name="textjs-console-cols" aria-label="Columns" inputMode="numeric" value={draft.cols} onChange={(e) => setDraft((d) => ({ ...d, cols: e.target.value.replace(/\D/g, "") }))} onKeyDown={onKey} style={field} />
+        <input ref={colsRef} id={`${id}-cols`} name="textjs-console-cols" aria-label={m.columns} inputMode="numeric" value={draft.cols} onChange={(e) => setDraft((d) => ({ ...d, cols: e.target.value.replace(/\D/g, "") }))} onKeyDown={onKey} style={field} />
         ×
-        <input id={`${id}-rows`} name="textjs-console-rows" aria-label="Rows" inputMode="numeric" value={draft.rows} onChange={(e) => setDraft((d) => ({ ...d, rows: e.target.value.replace(/\D/g, "") }))} onKeyDown={onKey} style={field} />
+        <input id={`${id}-rows`} name="textjs-console-rows" aria-label={m.rows} inputMode="numeric" value={draft.rows} onChange={(e) => setDraft((d) => ({ ...d, rows: e.target.value.replace(/\D/g, "") }))} onKeyDown={onKey} style={field} />
       </span>
     );
   }
@@ -203,7 +204,7 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
       <select
         id={id}
         name="textjs-console-size"
-        aria-label="Console size"
+        aria-label={m.consoleSize}
         value={value}
         disabled={!root}
         onChange={(e) => {
@@ -222,7 +223,7 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
         {presets.map((p) => (
           <option key={`${p.cols}x${p.rows}`} value={`${p.cols}x${p.rows}`}>{`${p.cols}×${p.rows}`}</option>
         ))}
-        <option value="custom">{value === "custom" && state ? `Custom · ${state.cols}×${state.rows}` : "Custom…"}</option>
+        <option value="custom">{value === "custom" && state ? `${m.custom} · ${state.cols}×${state.rows}` : `${m.custom}…`}</option>
       </select>
     </span>
   );
