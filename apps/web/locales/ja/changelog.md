@@ -7,10 +7,10 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 <!-- s:2e16922cfc -->
 追加
 
-<!-- s:4a00c6f42e -->
-- `@textjs/react`: `<FocusPad messages>` で、翻訳されたサイト向けにパッドの組み込み文字列を置き換えられます。すべての行、スクリーンリーダー用のラベル、コンソールサイズのコントロールが対象です。`<TextCanvas>` と `<ViewportControl>` も `messages` を受け取ります。`<ViewportControl>` はサイズコントロールのキーのみを使います。「次にここをクリックして、↑ ↓を押します。」のように値を含む文字列は、文全体を返す関数です。`defaultFocusPadMessages` に英語のテキストがあります。[フォーカスパッドの翻訳](https://textjs.org/docs/internationalization#translating-the-focus-pad)を参照してください。
-- `@textjs/react`: 右から左へ書くページでは、フォーカスパッドは⌘ ⌥ Jなどのキー表示や120×36などのコンソールサイズを左から右へ表示し、サイズコントロールとステップバーの配置を左右反転します。中国語、日本語、韓国語のページでは、2つの文の間のスペースを省きます。
-- textjs.org: textjs.org/jaでは、各デモのキーの下にあるラベルを含め、すべてのページでフォーカスパッドが日本語になります。
+<!-- s:fd5b09c2ec -->
+- `@textjs/react`: `<FocusPad messages>` は、サイトの翻訳用にパッドの組み込み文字列を置き換えます。すべての行、スクリーンリーダーのラベル、コンソールサイズのコントロールに対応します。`<TextCanvas>` と `<ViewportControl>` も `messages` を受け取ります。`<ViewportControl>` はサイズコントロールのキーのみを使います。「次にここをクリックして↑ ↓を押します。」のように値を含む文字列は、文全体を返す関数です。`defaultFocusPadMessages` には英語のテキストが入っています。[フォーカスパッドの翻訳](https://textjs.org/docs/internationalization#translating-the-focus-pad)を参照してください。
+- `@textjs/react`: 右から左に書くページでは、フォーカスパッドは⌘ ⌥ Jなどのキーキャップと120×36などのコンソールサイズを左から右の順序に保ち、サイズコントロールとステップバーを左右反転します。中国語と日本語のページでは2つの文の間のスペースを除き、韓国語では残します。
+- textjs.org: textjs.org/jaでは、各デモのキーの下にあるラベルを含め、すべてのページでフォーカスパッドを日本語で表示します。
 
 <!-- s:5b88618770 -->
 変更
@@ -129,9 +129,9 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 パフォーマンス
 
 <!-- s:f59d215740 -->
-- `@textjs/react`: `Box` と `Text` は、マウント時や更新時にpropsオブジェクトをコピーせず、不要な項目を除去済みのシーンpropsをreconcilerに渡します。
-- `@textjs/core`: `SceneNode.getTextModel()` は、単一文字列の `<Text>` リーフではインラインツリーの走査を省略し、キャッシュ済みのゼロ初期化された `Uint16Array` の `runOf` バッファーを再利用します。`CssConsoleDriver` は同じスタイルの連続したBMPセルを内部ループで走査し、`ConsoleRenderer` は変更のないフレームで `countYogaNodes()` を省略します。
-- textjs.org: ルートとコンソールコンパニオンのタブを、ルートごとのJS・CSSチャンクに分割します。ストアの写真は `photos/final` のマスターから再エンコードし、補足の商品写真はホバー時やスライド切り替え時に読み込みます。
+- `@textjs/react`: `Box` と `Text` は、マウント時と更新時にpropsオブジェクトをコピーする代わりに、不要なプロパティーを事前に除去したシーンのpropsをリコンサイラーに渡します。
+- `@textjs/core`: `SceneNode.getTextModel()` は、単一文字列の `<Text>` リーフでインラインツリーの走査を省略し、キャッシュされたゼロ初期化済みの `Uint16Array` の `runOf` バッファーを再利用します。`CssConsoleDriver` はスタイルが一致する連続したBMPセルを内部ループで走査し、`ConsoleRenderer` は変更のないフレームで `countYogaNodes()` を省略します。
+- textjs.org: ルートとコンソールコンパニオンのタブを、ルートごとのJSとCSSのチャンクに分割しました。ストアの写真は `photos/final` のマスターから再エンコードし、追加の商品写真はホバー時またはスライドの切り替え時に読み込みます。
 
 <!-- s:6909c337fb -->
 - `<ViewportControl>` は `20ch` の代わりにピクセル単位の `minWidth` を使い、`<FocusPad>` と同じメトリクスを合わせた代替フォントを指定するため、`Geist Mono` の読み込み時もサイズ選択の幅を維持します。
@@ -255,7 +255,7 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 最初のマイルストーンです。
 
 <!-- s:67e64392c2 -->
-- `@textjs/core`：フラットな型付き配列を使う `CellBuffer`、Yoga WASMレイアウト、`Intl.Segmenter` によるテキスト計測、`%c` ランレングス符号化ドライバーです。変更のあるフレームごとに `console.log` を1回呼び出し、アイドル時には呼び出しません。
-- `@textjs/react`：React 19のreconciler、PascalCaseコンポーネント（`Box`、`Text`、`ScrollBox`、`Input`、`Textarea`、`Select`、`Tabs`、`Code`、`Markdown`、`Diff`、`Modal`、`Spinner` など）、セル単位のTailwindスタイルの `className` ユーティリティー、テーマ、DOMの `FocusPad` です。
-- `textjs`：ファイルシステムベースのApp Router（`layout`、`page`、`loading`、`error`、`not-found`、動的セグメント、ルートハンドラー）、`text dev`、`text build`、`text start`、コンソール内の `[▼]` インスペクターです。
-- `starter` テンプレートと `dashboard` テンプレートを備えた `create-text-app` です。
+- `@textjs/core`: フラットな型付き配列上の `CellBuffer`、Yoga WASMレイアウト、`Intl.Segmenter` によるテキスト計測、`%c` ランレングス符号化ドライバー。変更のあるフレームごとに `console.log` を1回呼び出し、アイドル時は呼び出しなし。
+- `@textjs/react`: React 19リコンサイラー、PascalCaseコンポーネント（`Box`、`Text`、`ScrollBox`、`Input`、`Textarea`、`Select`、`Tabs`、`Code`、`Markdown`、`Diff`、`Modal`、`Spinner` など）、セル単位のTailwind風 `className` ユーティリティー、テーマ、DOMの `FocusPad`。
+- `textjs`: ファイルシステムベースのApp Router（`layout`、`page`、`loading`、`error`、`not-found`、動的セグメント、ルートハンドラー）、`text dev`、`text build`、`text start`、コンソール内の `[▼]` インスペクター。
+- `starter` と `dashboard` テンプレートを備えた `create-text-app`。

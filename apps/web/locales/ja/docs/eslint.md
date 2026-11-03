@@ -49,7 +49,7 @@ App Routerのルールは、`src/app/` を含む任意の `app/` ディレクト
 `no-dom-elements`
 
 <!-- s:deb9e3c0ec -->
-`<div>`、`<span>`、カスタム要素などのDOMタグはコンソールには存在しません。reconcilerは自身のホストノードのみを認識し、それ以外には `TX003` をスローします。
+`<div>`、`<span>`、カスタム要素などのDOMタグはコンソールには存在しません。リコンサイラーは独自のホストノードのみを認識し、それ以外には `TX003` をスローします。
 
 <!-- s:bd7c3e0318 -->
 修正提案は、タグを最も近いコンポーネント（`div` → `Box`、`span`/`p` → `Text`、`strong` → `Text bold`、`a` → `Link`、`input` → `Input`、`hr` → `Divider`、…）に置き換え、インポートを追加します。
