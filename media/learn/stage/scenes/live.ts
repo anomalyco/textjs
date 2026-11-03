@@ -87,7 +87,7 @@ export const live: SceneFactory = (data, cue) => {
     h("span", "dot", el);
     el.append(document.createTextNode(b.text));
     // Centred in the strip above the window, clear of its edges and the HUD marks.
-    Object.assign(el.style, { position: "absolute", left: "50%", top: "18px", fontSize: "18px", color: "#ededed" });
+    Object.assign(el.style, { position: "absolute", left: "50%", top: "24px", fontSize: "18px", color: "#ededed" });
     return { el, at: cue(b.at), until: cue(b.until) };
   });
 

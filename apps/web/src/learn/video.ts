@@ -12,7 +12,7 @@ export const LEARN_MEDIA_BASE = "https://media.textjs.org";
 
 /** Published chapter videos: slug → length in seconds. */
 export const PUBLISHED: Readonly<Record<string, number>> = {
-  "getting-started": 234.3,
+  "getting-started": 235.3,
   layout: 218.7,
   styling: 204.4,
   "input-and-keymaps": 205.1,
@@ -26,7 +26,7 @@ export const PUBLISHED: Readonly<Record<string, number>> = {
 
 /** Re-rendered chapters: slug → file revision (2 and up). */
 export const REVISIONS: Readonly<Record<string, number>> = {
-  "getting-started": 3,
+  "getting-started": 4,
   layout: 3,
   styling: 3,
   "input-and-keymaps": 2,
