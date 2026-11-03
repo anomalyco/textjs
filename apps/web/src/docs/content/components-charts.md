@@ -75,12 +75,21 @@ Named gradients: `geist` `dusk` `ocean` `mono` `ember`.
 
 ## `<Image>`
 
-Chromium and Firefox consoles draw the image as a pixel sprite. Pixel art (256 colors or fewer, with no partly transparent pixels) keeps up to 8 × 16 pixels per cell, and photos up to 4 × 8. Safari, terminals and plain-text copies get `▀` half-blocks: each cell holds two pixels, top in the foreground and bottom in the background. Pass `renderMode="halfblock"` to draw half-blocks everywhere.
+Chromium and Firefox consoles draw the image as a pixel sprite. Pixel art (256 colors or fewer, with no partly transparent pixels) keeps up to 8 × 16 pixels per cell, and photos up to 4 × 8. Safari, terminals, plain-text copies and pages with [`runtime = "server"`](/docs/server-rendering) get `▀` half-blocks: each cell holds two pixels, top in the foreground and bottom in the background. Pass `renderMode="halfblock"` to draw half-blocks everywhere, as `<Image>` did in 1.3.
 
 ```tsx
 <Image src="/avatar.png" width={24} />
 <Image pixels={{ width, height, data }} height={8} fit="cover" />
 ```
+
+| Prop | Description |
+| :-- | :-- |
+| `src` | Image URL (browser only) |
+| `pixels` | `{ width, height, data }` raw RGBA, row by row |
+| `width` / `height` | Box size in cells and rows. Pass one to keep the aspect ratio |
+| `fit` | `contain` (default), `cover` or `fill` |
+| `alt` | Text shown while `src` loads or if it fails |
+| `renderMode` | `auto` (default: sprite where supported, `▀` half-blocks elsewhere) or `halfblock` |
 
 `src` loads through a canvas, so cross-origin images need CORS. `pixels` takes raw RGBA anywhere, including the terminal.
 
@@ -114,6 +123,6 @@ const source: PixelSource = { width: 320, height: 200, data: new Uint32Array(320
 | `sample` | Half-block fallback filter: `nearest` (default) or `average` |
 | `renderMode` | `auto` (default: sprite where supported, `▀` half-blocks elsewhere) or `halfblock` |
 
-`renderMode="auto"` draws a pixelated sprite in Chromium, and Firefox per its console's style rules (not benchmarked), and falls back to `▀` half-blocks in Safari, terminals and plain-text copies. Pass `renderMode="halfblock"` to draw half-blocks everywhere.
+`renderMode="auto"` draws a pixelated sprite in Chromium, and Firefox per its console's style rules (not benchmarked), and falls back to `▀` half-blocks in Safari, terminals, plain-text copies and pages with `runtime = "server"`. Pass `renderMode="halfblock"` to draw half-blocks everywhere.
 
 To draw pixels without React, import `drawPixels` from `@textjs/core/experimental` along with `DrawPixelsOptions`, `PixelSource`, `PixelFit`, `PixelSample`, `PixelRenderMode`, `PixelEncoding` and `PixelRect`. Its `encoding: "rgba"` option keeps more than 256 colors and soft alpha for still images, and `fallback` paints your own cells wherever the sprite can't be shown. See [Breaking changes](/docs/support-policy#breaking-changes) for how experimental exports are versioned.
