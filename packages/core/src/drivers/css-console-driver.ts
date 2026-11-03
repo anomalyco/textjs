@@ -1,4 +1,4 @@
-import { blendOver, parseColor } from "../color";
+import { blendOver, parseBannerColor } from "../color";
 import type { ConsoleBanner } from "../internal";
 import {
   ATTR_ALLOW_LINK,
@@ -9,8 +9,8 @@ import {
   CHAR_SPACE,
   GRAPHEME_POOL_FLAG,
   type CellBuffer,
-  type SpriteDriverContext,
 } from "../cell-buffer";
+import type { SpriteDriverContext } from "../sprite-types";
 import {
   DEFAULT_STYLE_RESOLVE,
   DEFAULT_TYPOGRAPHY,
@@ -77,8 +77,6 @@ export interface CssConsoleDriverOptions {
   clear?: ClearMode | boolean;
   /** In `"append"` mode, clear and start over after this many frames (default 300). */
   maxFrames?: number;
-  /** In `"append"` mode, clear once accumulated logged string chars since the last clear exceed this budget (default 4 MB). */
-  maxBytes?: number;
   /**
    * In `"append"` mode, push earlier frames above the top of the console with
    * a 100vh top margin on a leading span (a 100vh line in Firefox and Safari,
@@ -153,8 +151,8 @@ export interface DriverRenderResult {
   cleared?: boolean;
   dirtyRows: number;
   spanCount: number;
-  /** Distinct visual frames delivered by this log call (`> 1` when temporal sprite keyframes are batched). */
-  visualFrames?: number;
+  /** @internal Distinct visual frames delivered by this log call (`> 1` when temporal sprite keyframes are batched). */
+  _visualFrames?: number;
   encodeMs: number;
   frame: ConsoleFrame | null;
 }
@@ -211,16 +209,15 @@ function unescapeConsoleText(escaped: string): string {
   return escaped.includes("%%") ? escaped.replaceAll("%%", "%") : escaped;
 }
 
-const IDLE_COMPACT_FRAMES = 24;
+const IDLE_COMPACT_FRAMES = 100;
 const IDLE_COMPACT_MS = 1000;
-const DEFAULT_MAX_BYTES = 4 * 1024 * 1024;
+const SPRITE_MAX_BYTES = 4 * 1024 * 1024;
 
 const SKIPPED: DriverRenderResult = Object.freeze({
   skipped: true,
   cleared: false,
   dirtyRows: 0,
   spanCount: 0,
-  visualFrames: 0,
   encodeMs: 0,
   frame: null,
 });
@@ -272,7 +269,6 @@ export class CssConsoleDriver {
   private target: ConsoleTarget | null;
   readonly clearMode: ClearMode;
   private readonly maxFrames: number;
-  private readonly maxBytes: number;
   private readonly profile: Readonly<ConsoleProfile>;
   private readonly curtainOption: boolean | undefined;
   private readonly coalesce: boolean;
@@ -332,7 +328,6 @@ export class CssConsoleDriver {
     const clear = options.clear ?? "append";
     this.clearMode = clear === true ? "frame" : clear === false ? "never" : clear;
     this.maxFrames = Math.max(1, options.maxFrames ?? 300);
-    this.maxBytes = Math.max(1, options.maxBytes ?? DEFAULT_MAX_BYTES);
     this.curtainOption = options.curtain;
     this.coalesce = options.coalesceWhitespace ?? true;
     this.baseCss = profile.inline ? inlineTypographyCss(this.typography, profile.typography.fontFamily) : typographyCss(this.typography);
@@ -341,16 +336,18 @@ export class CssConsoleDriver {
     this.measureOption = options.measureText;
   }
 
-  /** Whether this console supports multi-keyframe sprite batching (`true` in Chromium and Firefox append mode). */
-  get supportsTemporalSprites(): boolean {
-    return this.profile.supportsSpriteUrl && this.clearMode === "append";
+  /** @internal Whether this console supports multi-keyframe sprite batching (`true` in Chromium append mode). */
+  get _supportsTemporalSprites(): boolean {
+    return this.profile.supportsTemporalBatching && this.clearMode === "append";
   }
 
-  get hasStagedKeyframes(): boolean {
+  /** @internal */
+  get _hasStagedKeyframes(): boolean {
     return this.stagedSprites.size > 0;
   }
 
-  private clearStagedSprites(): void {
+  /** @internal Drop any buffered temporal sprite keyframes without emitting them. */
+  _discardStagedKeyframes(): void {
     if (this.stagedSprites.size === 0) return;
     for (const list of this.stagedSprites.values()) {
       for (const f of list) if (this.stagePixelPool.length < 8) this.stagePixelPool.push(f.pixels);
@@ -358,9 +355,10 @@ export class CssConsoleDriver {
     this.stagedSprites.clear();
   }
 
-  stageKeyframe(buffer: CellBuffer, atMs: number = now()): boolean {
-    if (!this.supportsTemporalSprites || buffer.sprites.length === 0) return false;
-    return buffer.sprites[0]!.codec.stageKeyframe(this.stagedSprites, this.stagePixelPool, buffer, atMs);
+  /** @internal */
+  _stageKeyframe(buffer: CellBuffer, atMs: number = now()): boolean {
+    if (!this._supportsTemporalSprites || buffer._sprites.length === 0) return false;
+    return buffer._sprites[0]!.codec.stageKeyframe(this.stagedSprites, this.stagePixelPool, buffer, atMs);
   }
 
   setConsole(target: ConsoleTarget | null): void {
@@ -374,7 +372,7 @@ export class CssConsoleDriver {
     this.height = -1;
     this.appended = 0;
     this.appendedBytes = 0;
-    this.clearStagedSprites();
+    this._discardStagedKeyframes();
   }
 
   /** Number of interned CSS style strings. */
@@ -408,10 +406,10 @@ export class CssConsoleDriver {
   compileRow(buffer: CellBuffer, y: number): CompiledSpan[] {
     const spans: CompiledSpan[] = [];
     const W = buffer.width;
-    const C = buffer.chars;
-    const F = buffer.fg;
-    const B = buffer.bg;
-    const A = buffer.attrs;
+    const C = buffer._chars;
+    const F = buffer._fg;
+    const B = buffer._bg;
+    const A = buffer._attrs;
     const pool = buffer.graphemePool;
     const opts = this.styleOptions;
     const scratch = this.scratch;
@@ -1104,7 +1102,7 @@ export class CssConsoleDriver {
     if (banner === null || buffer.height === 0) return this.encodeRows(buffer, options);
     // Console-only: drawn over the last row for this frame, then put back, so the buffer never holds it.
     const y = buffer.height - 1;
-    const saved = buffer._overlayRow(y, banner.text, parseColor(banner.fg), parseColor(banner.bg));
+    const saved = buffer._overlayRow(y, banner.text, parseBannerColor(banner.fg), parseBannerColor(banner.bg));
     try {
       return this.encodeRows(buffer, options);
     } finally {
@@ -1122,12 +1120,13 @@ export class CssConsoleDriver {
 
   private encodeRows(buffer: CellBuffer, options: DriverRenderOptions): { frame: ConsoleFrame | null; dirtyRows: number } {
     this.lastVisualFrames = 1;
-    const useSpriteUrls = buffer.sprites.length > 0 && this.profile.supportsSpriteUrl;
-    if (buffer.sprites.length > 0 && !useSpriteUrls) {
-      this.clearStagedSprites();
-      buffer.ensureSpritesMaterialized();
-    } else if (buffer.sprites.length === 0 && this.stagedSprites.size > 0) {
-      this.clearStagedSprites();
+    const hasSprites = buffer._sprites.length > 0;
+    const useSpriteUrls = hasSprites && this.profile.supportsSpriteUrl;
+    if (hasSprites && !useSpriteUrls) {
+      this._discardStagedKeyframes();
+      buffer._ensureSpritesMaterialized();
+    } else if (!hasSprites && this.stagedSprites.size > 0) {
+      this._discardStagedKeyframes();
     }
     const W = buffer.width;
     const H = buffer.height;
@@ -1178,7 +1177,7 @@ export class CssConsoleDriver {
       nextUniqueStyleId: () => this.nextFitId--,
       compileRow: (b, y) => this.compileRow(b, y),
     };
-    const { nextSpanned, dirty, maxVisualFrames } = buffer.sprites[0]!.codec.encodeSprites(
+    const { nextSpanned, dirty, maxVisualFrames } = buffer._sprites[0]!.codec.encodeSprites(
       ctx,
       buffer,
       buffer.getRowHashes(),
@@ -1210,8 +1209,12 @@ export class CssConsoleDriver {
     const t0 = now();
     const { frame, dirtyRows } = this.encode(buffer, options);
     if (frame === null) return SKIPPED;
-    let frameBytes = frame.format.length;
-    for (let i = 0; i < frame.args.length; i++) frameBytes += (frame.args[i] as string).length;
+    const hasSprites = buffer._sprites.length > 0;
+    let frameBytes = 0;
+    if (hasSprites) {
+      frameBytes = frame.format.length;
+      for (let i = 0; i < frame.args.length; i++) frameBytes += (frame.args[i] as string).length;
+    }
     const target = this.target ?? (typeof console !== "undefined" ? console : null);
     let cleared = false;
     if (target !== null) {
@@ -1219,18 +1222,14 @@ export class CssConsoleDriver {
       let clear = mode === "frame";
       if (mode === "append") {
         const n = this.appended;
-        if (
-          n === 0 ||
-          n >= this.maxFrames ||
-          (n >= 1 && this.appendedBytes + frameBytes > this.maxBytes) ||
-          (n >= IDLE_COMPACT_FRAMES && t0 - this.lastLogAt >= IDLE_COMPACT_MS)
-        ) {
+        const overSpriteBudget = hasSprites && n >= 1 && this.appendedBytes + frameBytes > SPRITE_MAX_BYTES;
+        if (n === 0 || n >= this.maxFrames || overSpriteBudget || (n >= IDLE_COMPACT_FRAMES && t0 - this.lastLogAt >= IDLE_COMPACT_MS)) {
           clear = true;
           this.appended = 0;
           this.appendedBytes = 0;
         }
         this.appended++;
-        this.appendedBytes += frameBytes;
+        if (hasSprites) this.appendedBytes += frameBytes;
         this.lastLogAt = t0;
       }
       if (clear) {
@@ -1241,15 +1240,16 @@ export class CssConsoleDriver {
       else target.log(frame.format, ...frame.args);
     }
     this.lastSpanCount = frame.args.length;
-    return {
+    const res: DriverRenderResult = {
       skipped: false,
       cleared,
       dirtyRows,
       spanCount: frame.args.length,
-      visualFrames: this.lastVisualFrames,
       encodeMs: now() - t0,
       frame,
     };
+    if (this.lastVisualFrames > 1) res._visualFrames = this.lastVisualFrames;
+    return res;
   }
 
   private logAppended(target: ConsoleTarget, frame: ConsoleFrame, unchanged: boolean): void {

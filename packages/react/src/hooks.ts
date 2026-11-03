@@ -139,7 +139,14 @@ export function useKeyState(onChange?: (event: KeyStateEvent) => void): KeyState
   const engine = rt.input.engine;
   const ref = useRef(onChange);
   ref.current = onChange;
-  useLayoutEffect(() => engine.on("keystate", (e) => ref.current?.(e)), [engine]);
+  useLayoutEffect(() => {
+    const releaseClaim = rt.input.claimKeys();
+    const unsub = engine.on("keystate", (e) => ref.current?.(e));
+    return () => {
+      unsub();
+      releaseClaim();
+    };
+  }, [rt, engine]);
   return useMemo(
     () => ({
       isDown: (code: string) => engine.isDown(code),

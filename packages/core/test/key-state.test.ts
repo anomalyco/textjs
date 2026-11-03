@@ -58,11 +58,26 @@ describe("keystate", () => {
     expect(input.pressed.size).toBe(0);
   });
 
-  test("browser shortcuts and IME composition aren't tracked", () => {
-    const { input } = engine();
+  test("browser shortcuts and IME composition keydowns aren't tracked, while composition keyups still release", () => {
+    const { input, log } = engine();
+    const anyEvents: string[] = [];
+    input.onAny((e) => anyEvents.push(e.type));
+    const pRef = input.pressed;
     input.handleKeyDown(ev("F12", "F12"));
     input.handleKeyDown(ev("Process", "KeyN", { isComposing: true, keyCode: 229 }));
     expect(input.pressed.size).toBe(0);
+
+    // Key pressed normally, then released while IME is composing -> must still release cleanly
+    input.handleKeyDown(ev("a", "KeyA"));
+    expect(input.isDown("KeyA")).toBe(true);
+    expect(input.pressed).toBe(pRef); // persistent Set reused without allocating
+    input.handleKeyUp(ev("Process", "KeyA", { isComposing: true, keyCode: 229 }));
+    expect(input.isDown("KeyA")).toBe(false);
+    expect(input.pressed.size).toBe(0);
+    expect(input.pressed).toBe(pRef);
+    expect(log).toEqual(["KeyA↓", "KeyA↑"]);
+    // KeyStateEvent is not part of InputEvent / onAny
+    expect(anyEvents).toEqual(["key"]);
   });
 
   test("a closed gate tracks nothing, but a release still lands", () => {

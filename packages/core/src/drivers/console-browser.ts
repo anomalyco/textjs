@@ -47,6 +47,8 @@ export interface ConsoleProfile {
   inline: boolean;
   /** Whether `%c` styles preserve `background-image: url("data:...")` (Chromium, Firefox) vs stripping `url(...)` (Safari). */
   supportsSpriteUrl: boolean;
+  /** Whether 2–3 frame `@keyframes` SVG batching is used to cross Chromium's 50ms `viewportThrottler`. */
+  supportsTemporalBatching: boolean;
   /** Typography defaults for this console (merged over `DEFAULT_TYPOGRAPHY`). */
   typography: Readonly<Partial<ConsoleTypographyOptions>>;
   /** Row pitch in CSS px, used to fit the grid to the console's height. */
@@ -76,6 +78,7 @@ export const CONSOLE_PROFILES: Readonly<Record<ConsoleBrowser, Readonly<ConsoleP
   chromium: Object.freeze({
     inline: false,
     supportsSpriteUrl: true,
+    supportsTemporalBatching: true,
     typography: Object.freeze({}),
     rowHeight: 14,
     consolePaddingX: 56,
@@ -84,6 +87,7 @@ export const CONSOLE_PROFILES: Readonly<Record<ConsoleBrowser, Readonly<ConsoleP
   firefox: Object.freeze({
     inline: true,
     supportsSpriteUrl: true,
+    supportsTemporalBatching: false,
     typography: Object.freeze({ ...INLINE_ROWS }),
     rowHeight: 14,
     consolePaddingX: 140,
@@ -92,6 +96,7 @@ export const CONSOLE_PROFILES: Readonly<Record<ConsoleBrowser, Readonly<ConsoleP
   safari: Object.freeze({
     inline: true,
     supportsSpriteUrl: false,
+    supportsTemporalBatching: false,
     typography: Object.freeze({ ...INLINE_ROWS, fontFamily: 'Menlo,"SF Mono",Consolas,monospace' }),
     rowHeight: 14,
     consolePaddingX: 40,

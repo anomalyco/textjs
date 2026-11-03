@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { packRGBA, txError, type CellBuffer, type ComputedRect, type LayoutProps } from "@textjs/core";
+import { drawPixels, type PixelSource } from "@textjs/core/experimental";
 import { TxBox } from "../host";
 import { useTheme } from "../theme";
 import { Text } from "./Text";
@@ -83,6 +84,37 @@ export function loadImagePixels(src: string, maxWidth = 256, maxHeight = 256): P
   });
 }
 
+function packPixelData(src: PixelData): PixelSource {
+  const sw = Math.max(0, Math.floor(src.width));
+  const sh = Math.max(0, Math.floor(src.height));
+  const len = sw * sh;
+  const out = new Uint32Array(len);
+  const d = src.data;
+  for (let i = 0; i < len; i++) {
+    const o = i * 4;
+    const a = (d[o + 3] as number) | 0;
+    out[i] = a < 16 ? 0 : packRGBA(d[o] as number, d[o + 1] as number, d[o + 2] as number, a);
+  }
+  return { width: sw, height: sh, data: out };
+}
+
+function cropPixelSource(src: PixelSource, boxAspect: number): PixelSource {
+  const srcAspect = src.width / src.height;
+  let cw = src.width;
+  let ch = src.height;
+  if (srcAspect > boxAspect) cw = Math.max(1, Math.round(src.height * boxAspect));
+  else if (srcAspect < boxAspect) ch = Math.max(1, Math.round(src.width / boxAspect));
+  if (cw === src.width && ch === src.height) return src;
+  const ox = (src.width - cw) >> 1;
+  const oy = (src.height - ch) >> 1;
+  const out = new Uint32Array(cw * ch);
+  for (let y = 0; y < ch; y++) {
+    const rowOff = (oy + y) * src.width + ox;
+    out.set(src.data.subarray(rowOff, rowOff + cw), y * cw);
+  }
+  return { width: cw, height: ch, data: out };
+}
+
 export interface ImageProps extends Omit<LayoutProps, "width" | "height"> {
   /** URL (browser; CORS-enabled). */
   src?: string;
@@ -98,7 +130,7 @@ export interface ImageProps extends Omit<LayoutProps, "width" | "height"> {
   alt?: string;
 }
 
-/** Half-block pixel art (`▀`: two pixels per cell) from a URL, canvas data or raw RGBA. */
+/** Crisp pixel sprite (Chromium, Firefox) with automatic `▀` half-block fallback (Safari, ANSI, plain text). */
 export function Image({ src, pixels, width, height, fit = "contain", alt = "", ...layout }: ImageProps): ReactNode {
   const theme = useTheme();
   const [loaded, setLoaded] = useState<PixelData | null>(null);
@@ -116,7 +148,8 @@ export function Image({ src, pixels, width, height, fit = "contain", alt = "", .
     };
   }, [src, pixels]);
   const img = pixels ?? loaded;
-  const cache = useRef<{ key: string; img: PixelData; data: Uint8ClampedArray } | null>(null);
+  const packedCache = useRef<{ img: PixelData; dataRef: ArrayLike<number>; packed: PixelSource } | null>(null);
+  const coverCache = useRef<{ base: PixelSource; key: string; cropped: PixelSource } | null>(null);
 
   let w = width;
   let h = height;
@@ -129,44 +162,27 @@ export function Image({ src, pixels, width, height, fit = "contain", alt = "", .
 
   const paint = useCallback(
     (buf: CellBuffer, r: Readonly<ComputedRect>) => {
-      if (!img || r.width <= 0 || r.height <= 0) return;
-      const boxW = r.width;
-      const boxH = r.height * 2;
-      let tw = boxW;
-      let th = boxH;
-      let cropX = 0;
-      let cropY = 0;
-      if (fit !== "fill") {
-        const scale = fit === "contain" ? Math.min(boxW / img.width, boxH / img.height) : Math.max(boxW / img.width, boxH / img.height);
-        tw = Math.max(1, Math.round(img.width * scale));
-        th = Math.max(1, Math.round(img.height * scale));
-        if (fit === "cover") {
-          cropX = Math.floor((tw - boxW) / 2);
-          cropY = Math.floor((th - boxH) / 2);
-        }
+      if (!img || r.contentWidth <= 0 || r.contentHeight <= 0 || img.width <= 0 || img.height <= 0) return;
+      if (packedCache.current?.img !== img || packedCache.current.dataRef !== img.data) {
+        packedCache.current = { img, dataRef: img.data, packed: packPixelData(img) };
       }
-      const key = `${tw}x${th}`;
-      if (cache.current?.key !== key || cache.current.img !== img) cache.current = { key, img, data: resamplePixels(img, tw, th) };
-      const px = cache.current.data;
-      const offX = fit === "contain" ? Math.floor((boxW - tw) / 2) : -cropX;
-      const offY = fit === "contain" ? Math.floor((boxH - th) / 2) : -cropY;
-      const at = (x: number, y: number): number => {
-        const ix = x - offX;
-        const iy = y - offY;
-        if (ix < 0 || iy < 0 || ix >= tw || iy >= th) return 0;
-        const i = (iy * tw + ix) * 4;
-        const a = px[i + 3] as number;
-        return a < 16 ? 0 : packRGBA(px[i] as number, px[i + 1] as number, px[i + 2] as number, a);
-      };
-      for (let cy = 0; cy < r.height; cy++) {
-        for (let cx = 0; cx < r.width; cx++) {
-          const top = at(cx, cy * 2);
-          const bottom = at(cx, cy * 2 + 1);
-          if (top === 0 && bottom === 0) continue;
-          if (top === 0) buf.setCell(r.x + cx, r.y + cy, "▄", bottom, 0);
-          else buf.setCell(r.x + cx, r.y + cy, "▀", top, bottom);
+      let source = packedCache.current.packed;
+      if (fit === "cover") {
+        const key = `${r.contentWidth}x${r.contentHeight}`;
+        if (coverCache.current?.base !== source || coverCache.current.key !== key) {
+          coverCache.current = { base: source, key, cropped: cropPixelSource(source, r.contentWidth / (r.contentHeight * 2)) };
         }
+        source = coverCache.current.cropped;
       }
+      drawPixels(buf, {
+        x: r.contentX,
+        y: r.contentY,
+        width: r.contentWidth,
+        height: r.contentHeight,
+        source,
+        fit: fit === "contain" ? "contain" : "fill",
+        sample: "average",
+      });
     },
     [img, fit],
   );

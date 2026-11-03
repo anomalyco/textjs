@@ -45,8 +45,6 @@ export {
   useInput,
   usePaste,
   useWheel,
-  useKeyState,
-  type KeyState,
   type AppApi,
   type ViewportApi,
   type UseInputOptions,

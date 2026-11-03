@@ -6,13 +6,11 @@ import {
   ATTR_WIDE_CONT,
   CHAR_SPACE,
   CellBuffer,
-  type BufferSprite,
-  type SpriteCodec,
-  type SpriteDriverContext,
 } from "./cell-buffer";
 import { blendOver, colorToCss, type PackedColor } from "./color";
+import { encodeIndexedPng, encodeSpriteSvgDataUrl, hasTransparentPixels, type SpriteKeyframe } from "./drivers/png";
 import { DEFAULT_TYPOGRAPHY } from "./drivers/style";
-import { encodeIndexedPng, encodeSpriteSvgDataUrl, type SpriteKeyframe } from "./drivers/png";
+import type { BufferSprite, SpriteCodec, SpriteDriverContext } from "./sprite-types";
 
 /** A live framebuffer: row-major packed `0xRRGGBBAA` colors, the format every Text.js color uses. */
 export interface PixelSource {
@@ -23,7 +21,7 @@ export interface PixelSource {
 
 export type PixelFit = "contain" | "fill";
 export type PixelSample = "nearest" | "average";
-export type PixelRenderMode = "auto" | "image" | "halfblock";
+export type PixelRenderMode = "auto" | "halfblock";
 
 export interface PixelRect {
   x: number;
@@ -33,10 +31,11 @@ export interface PixelRect {
 }
 
 const UPPER_HALF_BLOCK = 0x2580; // "▀"
+const LOWER_HALF_BLOCK = 0x2584; // "▄"
 const CACHE_SIZE = 16384;
 const CACHE_MASK = CACHE_SIZE - 1;
 
-const quantizers = new WeakMap<readonly PackedColor[], (c: PackedColor) => PackedColor>();
+const quantizers = /* @__PURE__ */ new WeakMap<readonly PackedColor[], (c: PackedColor) => PackedColor>();
 
 /** Nearest-color lookup (red-mean weighted RGB), memoized in a zero-GC typed direct-mapped table. */
 export function quantizer(palette: readonly PackedColor[]): (c: PackedColor) => PackedColor {
@@ -94,9 +93,8 @@ export function quantizer(palette: readonly PackedColor[]): (c: PackedColor) => 
 }
 
 /**
- * Paint `src` into `rect` as `▀` half-blocks (top pixel in the foreground, bottom in the background),
- * nearest-neighbour or box-average sampled so cell-grid fallbacks (terminals, Safari, `copyText()`)
- * render every framebuffer faithfully.
+ * Paint `src` into `rect` as `▀` / `▄` half-blocks (top pixel in the foreground, bottom in the background),
+ * nearest-neighbour or box-average sampled so cell-grid fallbacks render every framebuffer faithfully.
  */
 export function paintHalfBlocks(
   buf: CellBuffer,
@@ -135,7 +133,10 @@ export function paintHalfBlocks(
   const halfKy = ky >> 1;
 
   const at = (rowStart: number, sx: number): PackedColor => {
-    if (kx === 1 && ky === 1) return d[rowStart + sx] as number;
+    if (kx === 1 && ky === 1) {
+      const c = d[rowStart + sx] as number;
+      return (c & 255) < 16 ? 0 : c;
+    }
     const y0 = Math.max(0, Math.floor(rowStart / sw) - halfKy);
     const x0 = Math.max(0, sx - halfKx);
     const y1 = Math.min(sh, y0 + ky);
@@ -143,18 +144,23 @@ export function paintHalfBlocks(
     let r = 0;
     let g = 0;
     let b = 0;
+    let a = 0;
     let n = 0;
     for (let y = y0; y < y1; y++) {
       const ro = y * sw;
       for (let x = x0; x < x1; x++) {
         const c = d[ro + x] as number;
-        r += c >>> 24;
-        g += (c >>> 16) & 255;
-        b += (c >>> 8) & 255;
+        const pa = (c & 255) / 255;
+        r += (c >>> 24) * pa;
+        g += ((c >>> 16) & 255) * pa;
+        b += ((c >>> 8) & 255) * pa;
+        a += pa;
         n++;
       }
     }
-    return (((r / n) << 24) | ((g / n) << 16) | ((b / n) << 8) | 255) >>> 0;
+    const outA = n > 0 ? Math.round((a / n) * 255) : 0;
+    if (outA < 16 || a <= 0) return 0;
+    return (((Math.round(r / a) & 255) << 24) | ((Math.round(g / a) & 255) << 16) | ((Math.round(b / a) & 255) << 8) | outA) >>> 0;
   };
 
   for (let cy = 0; cy < rect.height; cy++) {
@@ -166,11 +172,13 @@ export function paintHalfBlocks(
       let t: PackedColor = sx < 0 || top < 0 ? 0 : at(top, sx);
       let b: PackedColor = sx < 0 || bottom < 0 ? 0 : at(bottom, sx);
       if (snap) {
-        t = snap(t);
-        b = snap(b);
+        if (t !== 0) t = snap(t);
+        if (b !== 0) b = snap(b);
       }
       if (t === 0 && b === 0) continue;
-      if (t === b) buf.setCell(rect.x + cx, dstY, CHAR_SPACE, t, t);
+      if (t === 0) buf.setCell(rect.x + cx, dstY, LOWER_HALF_BLOCK, b, 0);
+      else if (b === 0) buf.setCell(rect.x + cx, dstY, UPPER_HALF_BLOCK, t, 0);
+      else if (t === b) buf.setCell(rect.x + cx, dstY, CHAR_SPACE, t, t);
       else buf.setCell(rect.x + cx, dstY, UPPER_HALF_BLOCK, t, b);
     }
   }
@@ -190,7 +198,7 @@ export interface DrawPixelsOptions {
   palette?: readonly PackedColor[];
   /** Sampling filter for cell-grid fallback (`"nearest"` | `"average"`, default `"nearest"`). */
   sample?: PixelSample;
-  /** `"auto"` (default: crisp sprite in Chromium/Firefox consoles, half-blocks elsewhere), `"image"` or `"halfblock"`. */
+  /** `"auto"` (default: crisp sprite in Chromium/Firefox consoles, half-blocks elsewhere) or `"halfblock"`. */
   renderMode?: PixelRenderMode;
 }
 
@@ -215,15 +223,19 @@ function acquirePool(pool: Uint32Array[], length: number): Uint32Array {
   return new Uint32Array(length);
 }
 
+function releasePool(pool: Uint32Array[], buf: Uint32Array): void {
+  if (pool.length < 8) pool.push(buf);
+}
+
 function resolveCleanBandBg(ctx: SpriteDriverContext, buffer: CellBuffer, sp: BufferSprite): number | null {
-  for (const other of buffer.sprites) {
+  for (const other of buffer._sprites) {
     if (other !== sp && other.y < sp.y + sp.height && other.y + other.height > sp.y) return null;
   }
   const W = buffer.width;
-  const C = buffer.chars;
-  const F = buffer.fg;
-  const B = buffer.bg;
-  const A = buffer.attrs;
+  const C = buffer._chars;
+  const F = buffer._fg;
+  const B = buffer._bg;
+  const A = buffer._attrs;
   const opts = ctx.styleOptions;
   let bandBg = -1;
   for (let y = sp.y, yEnd = sp.y + sp.height; y < yEnd; y++) {
@@ -281,39 +293,55 @@ function buildSpriteSvgUrl(
   const staged = stagedMap.get(slotKey);
   const dw = Math.max(1, Math.round(drawW));
   const dh = Math.max(1, Math.round(drawH));
+  const pxCount = sp.sourceWidth * sp.sourceHeight;
 
   if (staged !== undefined && staged.length > 0) {
     stagedMap.delete(slotKey);
-    const rawFrames: StagedFrame[] = [];
-    for (const f of staged) {
-      if (rawFrames.length === 0 || rawFrames[rawFrames.length - 1]!.hash !== f.hash) rawFrames.push(f);
-      else if (stagePool.length < 8) stagePool.push(f.pixels);
-    }
-    if (rawFrames[rawFrames.length - 1]!.hash !== sp.hash) {
-      rawFrames.push({ hash: sp.hash, pixels: sp.pixels, atMs: renderAt });
-    }
-    if (rawFrames.length > 1) {
-      const keyframes: SpriteKeyframe[] = [];
-      const baseAt = rawFrames[0]!.atMs;
-      let prevPixels: Uint32Array | undefined;
-      for (let i = 0; i < rawFrames.length; i++) {
-        const rf = rawFrames[i]!;
-        const png = encodeIndexedPng(rf.pixels, sp.sourceWidth, sp.sourceHeight, { palette: sp.palette, prev: prevPixels });
-        if (png !== null) {
-          const delayMs = i === 0 ? 0 : Math.max(12, Math.min(48, Math.round(rf.atMs - baseAt)));
-          keyframes.push({ png, delayMs });
-          prevPixels = rf.pixels;
+    try {
+      // Stacked SVG <image> keyframes require opaque frames so earlier frames cannot bleed through transparent pixels.
+      let anyTransparent = hasTransparentPixels(sp.pixels, pxCount);
+      if (!anyTransparent) {
+        for (const f of staged) {
+          if (hasTransparentPixels(f.pixels, pxCount)) {
+            anyTransparent = true;
+            break;
+          }
         }
       }
-      for (const f of staged) if (stagePool.length < 8) stagePool.push(f.pixels);
-      if (keyframes.length > 0) {
-        return {
-          url: encodeSpriteSvgDataUrl(keyframes, sp.sourceWidth, sp.sourceHeight, dw, dh),
-          visualFrames: keyframes.length,
-        };
+      if (!anyTransparent) {
+        const rawFrames: StagedFrame[] = [];
+        for (const f of staged) {
+          if (rawFrames.length === 0 || rawFrames[rawFrames.length - 1]!.hash !== f.hash) {
+            rawFrames.push(f);
+          }
+        }
+        if (rawFrames[rawFrames.length - 1]!.hash !== sp.hash) {
+          rawFrames.push({ hash: sp.hash, pixels: sp.pixels, atMs: renderAt });
+        }
+        if (rawFrames.length > 1) {
+          const keyframes: SpriteKeyframe[] = [];
+          const baseAt = rawFrames[0]!.atMs;
+          let prevPixels: Uint32Array | undefined;
+          for (let i = 0; i < rawFrames.length; i++) {
+            const rf = rawFrames[i]!;
+            const png = encodeIndexedPng(rf.pixels, sp.sourceWidth, sp.sourceHeight, { palette: sp.palette, prev: prevPixels });
+            if (png !== null) {
+              const delayMs = i === 0 ? 0 : Math.max(12, Math.min(48, Math.round(rf.atMs - baseAt)));
+              keyframes.push({ png, delayMs });
+              prevPixels = rf.pixels;
+            }
+          }
+          if (keyframes.length > 0) {
+            return {
+              url: encodeSpriteSvgDataUrl(keyframes, sp.sourceWidth, sp.sourceHeight, dw, dh),
+              visualFrames: keyframes.length,
+            };
+          }
+        }
       }
-    } else {
-      for (const f of staged) if (stagePool.length < 8) stagePool.push(f.pixels);
+    } finally {
+      // Single release point: every staged pixel buffer is returned to the pool at most once.
+      for (const f of staged) releasePool(stagePool, f.pixels);
     }
   }
 
@@ -328,200 +356,226 @@ function buildSpriteSvgUrl(
   return { url, visualFrames: 1 };
 }
 
-const SPRITE_CODEC: SpriteCodec = {
-  materialize(buf: CellBuffer, sp: BufferSprite): void {
-    paintHalfBlocks(
-      buf,
-      sp,
-      { width: sp.sourceWidth, height: sp.sourceHeight, data: sp.pixels },
-      sp.fit,
-      sp.pixelAspect,
-      sp.palette,
-      sp.sample,
-    );
-  },
-  encodePngDataUrl(sp: BufferSprite): string {
-    const png = encodeIndexedPng(sp.pixels, sp.sourceWidth, sp.sourceHeight, { palette: sp.palette });
-    return png ? `data:image/png;base64,${png.base64}` : "";
-  },
-  stageKeyframe(staged, pool, buffer, atMs): boolean {
-    let added = false;
-    for (const sp of buffer.sprites) {
-      const key = slotKeyOf(sp);
-      let list = staged.get(key);
-      if (list === undefined) {
-        list = [];
-        staged.set(key, list);
-      }
-      const last = list[list.length - 1];
-      if (last !== undefined && last.hash === sp.hash) continue;
-      if (list.length >= 2) {
-        const dropped = list.pop()!;
-        if (pool.length < 8) pool.push(dropped.pixels);
-      }
-      const px = acquirePool(pool, sp.pixels.length);
-      px.set(sp.pixels);
-      list.push({ hash: sp.hash, pixels: px, atMs });
-      added = true;
-    }
-    return added;
-  },
-  encodeSprites(ctx, buffer, hashes, prevHashes, prevSpanned, rowCache, staged, stagePool, svgCache, full, force, renderAt) {
-    const W = buffer.width;
-    const H = buffer.height;
-    const nextSpanned = new Uint8Array(H);
-    const handled = new Uint8Array(H);
-    const hasStaged = staged.size > 0;
-    let dirty = 0;
-    let maxVisualFrames = 1;
-    const rowPitch = ctx.rowHeight;
-    const cellW = ctx.getCellAdvance();
-    const padY = ctx.inline ? 0 : ctx.typography.rowPaddingY;
+let codecInstance: SpriteCodec | null = null;
 
-    for (const sp of buffer.sprites) {
-      let spriteDirty = full || hasStaged || force;
-      if (!spriteDirty) {
-        for (let y = sp.y; y < sp.y + sp.height; y++) {
-          if (hashes[y] !== prevHashes[y]) {
-            spriteDirty = true;
-            break;
-          }
+function getSpriteCodec(): SpriteCodec {
+  if (codecInstance !== null) return codecInstance;
+  codecInstance = {
+    materialize(buf: CellBuffer, sp: BufferSprite): void {
+      paintHalfBlocks(
+        buf,
+        sp,
+        { width: sp.sourceWidth, height: sp.sourceHeight, data: sp.pixels },
+        sp.fit,
+        sp.pixelAspect,
+        sp.palette,
+        sp.sample,
+      );
+    },
+    encodePngDataUrl(sp: BufferSprite): string {
+      const png = encodeIndexedPng(sp.pixels, sp.sourceWidth, sp.sourceHeight, { palette: sp.palette });
+      return png ? `data:image/png;base64,${png.base64}` : "";
+    },
+    stageKeyframe(staged, pool, buffer, atMs): boolean {
+      let added = false;
+      for (const sp of buffer._sprites) {
+        if (hasTransparentPixels(sp.pixels, sp.sourceWidth * sp.sourceHeight)) continue;
+        const key = slotKeyOf(sp);
+        let list = staged.get(key);
+        if (list === undefined) {
+          list = [];
+          staged.set(key, list);
         }
+        const last = list[list.length - 1];
+        if (last !== undefined && last.hash === sp.hash) continue;
+        if (list.length >= 2) {
+          const dropped = list.shift()!;
+          releasePool(pool, dropped.pixels);
+        }
+        const px = acquirePool(pool, sp.pixels.length);
+        px.set(sp.pixels);
+        list.push({ hash: sp.hash, pixels: px, atMs });
+        added = true;
       }
-      const bandBg = resolveCleanBandBg(ctx, buffer, sp);
-      const boxX = sp.x * cellW;
-      const boxW = sp.width * cellW;
-      const boxH = sp.height * rowPitch;
-      let drawW = boxW;
-      let drawH = boxH;
-      if (sp.fit === "contain") {
-        const aspect = (sp.sourceWidth * sp.pixelAspect) / sp.sourceHeight;
-        if (boxW / boxH > aspect) drawW = Math.max(1, boxH * aspect);
-        else drawH = Math.max(1, boxW / aspect);
-      }
+      return added;
+    },
+    encodeSprites(ctx, buffer, hashes, prevHashes, prevSpanned, rowCache, staged, stagePool, svgCache, full, force, renderAt) {
+      const W = buffer.width;
+      const H = buffer.height;
+      const nextSpanned = new Uint8Array(H);
+      const handled = new Uint8Array(H);
+      const hasStaged = staged.size > 0;
+      let dirty = 0;
+      let maxVisualFrames = 1;
+      const rowPitch = ctx.rowHeight;
+      const cellW = ctx.getCellAdvance();
+      const padY = ctx.inline ? 0 : ctx.typography.rowPaddingY;
 
-      if (bandBg !== null) {
-        for (let y = sp.y + 1; y < sp.y + sp.height; y++) nextSpanned[y] = 1;
-        if (!spriteDirty && prevSpanned[sp.y] === 0) {
-          let spanMatch = true;
-          for (let y = sp.y + 1; y < sp.y + sp.height; y++) {
-            if (prevSpanned[y] !== 1) {
-              spanMatch = false;
+      for (const sp of buffer._sprites) {
+        let spriteDirty = full || hasStaged || force;
+        if (!spriteDirty) {
+          for (let y = sp.y; y < sp.y + sp.height; y++) {
+            if (hashes[y] !== prevHashes[y]) {
+              spriteDirty = true;
               break;
             }
           }
-          if (spanMatch) {
-            for (let y = sp.y; y < sp.y + sp.height; y++) handled[y] = 1;
-            continue;
-          }
+        }
+        const bandBg = resolveCleanBandBg(ctx, buffer, sp);
+        const boxX = sp.x * cellW;
+        const boxW = sp.width * cellW;
+        const boxH = sp.height * rowPitch;
+        let drawW = boxW;
+        let drawH = boxH;
+        if (sp.fit === "contain") {
+          const aspect = (sp.sourceWidth * sp.pixelAspect) / sp.sourceHeight;
+          if (boxW / boxH > aspect) drawW = Math.max(1, boxH * aspect);
+          else drawH = Math.max(1, boxW / aspect);
         }
 
-        const { url, visualFrames } = buildSpriteSvgUrl(sp, drawW, drawH, renderAt, staged, stagePool, svgCache);
-        if (visualFrames > maxVisualFrames) maxVisualFrames = visualFrames;
-        const posY = padY + (boxH - drawH) * 0.5;
-        const centeredX = Math.abs(sp.x + sp.width * 0.5 - W * 0.5) < 0.01;
-        const posXStr = centeredX ? "center" : `${(boxX + (boxW - drawW) * 0.5).toFixed(1)}px`;
-        let css = spriteTypoCss(ctx, boxH + 2 * padY);
-        if ((bandBg & 255) !== 0) css += `background-color:${colorToCss(bandBg)};`;
-        if (url) {
-          css += `background-image:url("${url}");background-repeat:no-repeat;background-size:${Math.round(drawW)}px ${Math.round(drawH)}px;background-position:${posXStr} ${posY.toFixed(1)}px;`;
-        }
-        rowCache[sp.y] = [
-          {
-            styleId: ctx.nextUniqueStyleId(),
-            styleKey: 0n,
-            css,
-            text: " ".repeat(W),
-            bg: bandBg,
-            blank: false,
-            link: false,
-            deco: true,
-            cells: W,
-          },
-        ];
-        for (let y = sp.y; y < sp.y + sp.height; y++) {
-          if (full || hashes[y] !== prevHashes[y] || prevSpanned[y] !== nextSpanned[y]) dirty++;
-          prevHashes[y] = hashes[y] as number;
-          handled[y] = 1;
-        }
-      } else {
-        const { url, visualFrames } = buildSpriteSvgUrl(sp, drawW, drawH, renderAt, staged, stagePool, svgCache);
-        if (visualFrames > maxVisualFrames) maxVisualFrames = visualFrames;
-        const relX = (boxW - drawW) * 0.5;
-        const baseRelY = padY + (boxH - drawH) * 0.5;
-        const rowTypo = spriteTypoCss(ctx, rowPitch + 2 * padY);
-        const sliceBg = (buffer.bg[sp.y * W + sp.x] as number) >>> 0;
-        const dw = Math.round(drawW);
-        const dh = Math.round(drawH);
-
-        buffer.ensureSpritesMaterialized();
-        for (let y = sp.y; y < sp.y + sp.height; y++) {
-          const out = [];
-          if (sp.x > 0) {
-            const leftBuf = new CellBuffer(sp.x, 1);
-            const srcOff = y * W;
-            leftBuf.chars.set(buffer.chars.subarray(srcOff, srcOff + sp.x));
-            leftBuf.fg.set(buffer.fg.subarray(srcOff, srcOff + sp.x));
-            leftBuf.bg.set(buffer.bg.subarray(srcOff, srcOff + sp.x));
-            leftBuf.attrs.set(buffer.attrs.subarray(srcOff, srcOff + sp.x));
-            leftBuf.graphemePool = buffer.graphemePool;
-            out.push(...ctx.compileRow(leftBuf, 0));
+        if (bandBg !== null) {
+          for (let y = sp.y + 1; y < sp.y + sp.height; y++) nextSpanned[y] = 1;
+          if (!spriteDirty && prevSpanned[sp.y] === 0) {
+            let spanMatch = true;
+            for (let y = sp.y + 1; y < sp.y + sp.height; y++) {
+              if (prevSpanned[y] !== 1) {
+                spanMatch = false;
+                break;
+              }
+            }
+            if (spanMatch) {
+              for (let y = sp.y; y < sp.y + sp.height; y++) handled[y] = 1;
+              continue;
+            }
           }
-          let css = rowTypo;
-          if ((sliceBg & 255) !== 0) css += `background-color:${colorToCss(sliceBg)};`;
+
+          const { url, visualFrames } = buildSpriteSvgUrl(sp, drawW, drawH, renderAt, staged, stagePool, svgCache);
+          if (visualFrames > maxVisualFrames) maxVisualFrames = visualFrames;
+          const posY = padY + (boxH - drawH) * 0.5;
+          const centeredX = Math.abs(sp.x + sp.width * 0.5 - W * 0.5) < 0.01;
+          const posXStr = centeredX ? "center" : `${(boxX + (boxW - drawW) * 0.5).toFixed(1)}px`;
+          let css = spriteTypoCss(ctx, boxH + 2 * padY);
+          if ((bandBg & 255) !== 0) css += `background-color:${colorToCss(bandBg)};`;
           if (url) {
-            css += `background-image:url("${url}");background-repeat:no-repeat;background-size:${dw}px ${dh}px;background-position:${relX.toFixed(1)}px ${(baseRelY - (y - sp.y) * rowPitch).toFixed(1)}px;`;
+            css += `background-image:url("${url}");background-repeat:no-repeat;background-size:${Math.round(drawW)}px ${Math.round(drawH)}px;background-position:${posXStr} ${posY.toFixed(1)}px;`;
           }
-          out.push({
-            styleId: ctx.nextUniqueStyleId(),
-            styleKey: 0n,
-            css,
-            text: " ".repeat(sp.width),
-            bg: sliceBg,
-            blank: false,
-            link: false,
-            deco: true,
-            cells: sp.width,
-          });
-          const rx0 = sp.x + sp.width;
-          if (rx0 < W) {
-            const rw = W - rx0;
-            const rightBuf = new CellBuffer(rw, 1);
-            const srcOff = y * W + rx0;
-            rightBuf.chars.set(buffer.chars.subarray(srcOff, srcOff + rw));
-            rightBuf.fg.set(buffer.fg.subarray(srcOff, srcOff + rw));
-            rightBuf.bg.set(buffer.bg.subarray(srcOff, srcOff + rw));
-            rightBuf.attrs.set(buffer.attrs.subarray(srcOff, srcOff + rw));
-            rightBuf.graphemePool = buffer.graphemePool;
-            out.push(...ctx.compileRow(rightBuf, 0));
+          rowCache[sp.y] = [
+            {
+              styleId: ctx.nextUniqueStyleId(),
+              styleKey: 0n,
+              css,
+              text: " ".repeat(W),
+              bg: bandBg,
+              blank: false,
+              link: false,
+              deco: true,
+              cells: W,
+            },
+          ];
+          for (let y = sp.y; y < sp.y + sp.height; y++) {
+            if (full || hashes[y] !== prevHashes[y] || prevSpanned[y] !== nextSpanned[y]) dirty++;
+            prevHashes[y] = hashes[y] as number;
+            handled[y] = 1;
           }
-          rowCache[y] = out;
-          if (full || hashes[y] !== prevHashes[y] || prevSpanned[y] !== 0) dirty++;
-          prevHashes[y] = hashes[y] as number;
-          handled[y] = 1;
+        } else {
+          if (!spriteDirty) {
+            let unspanned = true;
+            for (let y = sp.y; y < sp.y + sp.height; y++) {
+              if (prevSpanned[y] !== 0) {
+                unspanned = false;
+                break;
+              }
+            }
+            if (unspanned) {
+              for (let y = sp.y; y < sp.y + sp.height; y++) handled[y] = 1;
+              continue;
+            }
+          }
+          const { url, visualFrames } = buildSpriteSvgUrl(sp, drawW, drawH, renderAt, staged, stagePool, svgCache);
+          if (visualFrames > maxVisualFrames) maxVisualFrames = visualFrames;
+          const relX = (boxW - drawW) * 0.5;
+          const baseRelY = padY + (boxH - drawH) * 0.5;
+          const rowTypo = spriteTypoCss(ctx, rowPitch + 2 * padY);
+          const sliceBg = sp.underBg;
+          const dw = Math.round(drawW);
+          const dh = Math.round(drawH);
+
+          for (let y = sp.y; y < sp.y + sp.height; y++) {
+            const out = [];
+            if (sp.x > 0) {
+              const leftBuf = new CellBuffer(sp.x, 1);
+              const srcOff = y * W;
+              leftBuf._chars.set(buffer._chars.subarray(srcOff, srcOff + sp.x));
+              leftBuf._fg.set(buffer._fg.subarray(srcOff, srcOff + sp.x));
+              leftBuf._bg.set(buffer._bg.subarray(srcOff, srcOff + sp.x));
+              leftBuf._attrs.set(buffer._attrs.subarray(srcOff, srcOff + sp.x));
+              leftBuf.graphemePool = buffer.graphemePool;
+              out.push(...ctx.compileRow(leftBuf, 0));
+            }
+            let css = rowTypo;
+            if ((sliceBg & 255) !== 0) css += `background-color:${colorToCss(sliceBg)};`;
+            if (url) {
+              css += `background-image:url("${url}");background-repeat:no-repeat;background-size:${dw}px ${dh}px;background-position:${relX.toFixed(1)}px ${(baseRelY - (y - sp.y) * rowPitch).toFixed(1)}px;`;
+            }
+            out.push({
+              styleId: ctx.nextUniqueStyleId(),
+              styleKey: 0n,
+              css,
+              text: " ".repeat(sp.width),
+              bg: sliceBg,
+              blank: false,
+              link: false,
+              deco: true,
+              cells: sp.width,
+            });
+            const rx0 = sp.x + sp.width;
+            if (rx0 < W) {
+              const rw = W - rx0;
+              const rightBuf = new CellBuffer(rw, 1);
+              const srcOff = y * W + rx0;
+              rightBuf._chars.set(buffer._chars.subarray(srcOff, srcOff + rw));
+              rightBuf._fg.set(buffer._fg.subarray(srcOff, srcOff + rw));
+              rightBuf._bg.set(buffer._bg.subarray(srcOff, srcOff + rw));
+              rightBuf._attrs.set(buffer._attrs.subarray(srcOff, srcOff + rw));
+              rightBuf.graphemePool = buffer.graphemePool;
+              out.push(...ctx.compileRow(rightBuf, 0));
+            }
+            rowCache[y] = out;
+            if (full || hashes[y] !== prevHashes[y] || prevSpanned[y] !== 0) dirty++;
+            prevHashes[y] = hashes[y] as number;
+            handled[y] = 1;
+          }
         }
       }
-    }
 
-    for (let y = 0; y < H; y++) {
-      if (handled[y] === 1) continue;
-      const h = hashes[y] as number;
-      if (full || prevSpanned[y] !== 0 || h !== prevHashes[y]) {
-        dirty++;
-        prevHashes[y] = h;
-        rowCache[y] = ctx.compileRow(buffer, y);
+      // Discard any unconsumed staging entries left over from sprites that moved, resized, or unmounted.
+      if (staged.size > 0) {
+        for (const list of staged.values()) {
+          for (const f of list) releasePool(stagePool, f.pixels);
+        }
+        staged.clear();
       }
-    }
-    return { nextSpanned, dirty, maxVisualFrames };
-  },
-};
+
+      for (let y = 0; y < H; y++) {
+        if (handled[y] === 1) continue;
+        const h = hashes[y] as number;
+        if (full || prevSpanned[y] !== 0 || h !== prevHashes[y]) {
+          dirty++;
+          prevHashes[y] = h;
+          rowCache[y] = ctx.compileRow(buffer, y);
+        }
+      }
+      return { nextSpanned, dirty, maxVisualFrames };
+    },
+  };
+  return codecInstance;
+}
 
 /**
  * Blit a pixel framebuffer into `buf` at `(x, y, width, height)`.
  * Consoles that support data-URI background sprites (Chromium, Firefox) render
  * the full-resolution pixels in a single span; Safari, ANSI terminals, plain-text
  * exports and overlapped overlays automatically materialize `▀` half-blocks.
- * Standalone so apps that never call `drawPixels` tree-shake the PNG codec out.
  */
 export function drawPixels(buf: CellBuffer, options: DrawPixelsOptions): void {
   const x = Math.floor(options.x);
@@ -534,7 +588,7 @@ export function drawPixels(buf: CellBuffer, options: DrawPixelsOptions): void {
   const pixelAspect = options.pixelAspect ?? 1;
   const sample = options.sample ?? "nearest";
   const mode = options.renderMode ?? "auto";
-  if (mode === "halfblock" || !buf.putSprite(x, y, w, h, src.width, src.height, src.data, fit, pixelAspect, options.palette, sample, SPRITE_CODEC)) {
+  if (mode === "halfblock" || !buf._putSprite(x, y, w, h, src.width, src.height, src.data, fit, pixelAspect, options.palette, sample, getSpriteCodec())) {
     paintHalfBlocks(buf, { x, y, width: w, height: h }, src, fit, pixelAspect, options.palette, sample);
   }
 }

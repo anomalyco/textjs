@@ -534,7 +534,7 @@ export function lineToString(gs: readonly Grapheme[], line: TextLine): string {
   return s;
 }
 
-const wrapCache = new LruCache<string, readonly string[]>(4096);
+const wrapCache = /* @__PURE__ */ new LruCache<string, readonly string[]>(4096);
 
 /** Wrap or truncate text into lines no wider than `maxWidth` cells. Results are cached and frozen. */
 export function wrapText(text: string, maxWidth: number, mode: WrapMode = "wrap"): readonly string[] {
@@ -559,7 +559,16 @@ export function truncateText(
   maxWidth: number,
   position: "end" | "middle" | "start" = "end",
 ): string {
-  return wrapText(text.replace(/\r?\n/g, " "), maxWidth, `truncate-${position}`)[0] ?? "";
+  const flat = text.includes("\n") || text.includes("\r") ? text.replace(/\r?\n/g, " ") : text;
+  const max = maxWidth === Infinity ? Infinity : Math.max(0, Math.floor(maxWidth));
+  if (isPrintableAscii(flat) && flat.length <= max) return flat;
+  const gs = segmentGraphemes(flat);
+  let total = 0;
+  for (let i = 0; i < gs.length; i++) total += (gs[i] as Grapheme).width;
+  if (total <= max) return flat;
+  const out: TextLine[] = [];
+  truncateHardLine(gs, 0, gs.length, total, max, `truncate-${position}`, out);
+  return out[0] ? lineToString(gs, out[0]) : "";
 }
 
 /**

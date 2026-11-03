@@ -6,6 +6,7 @@ import type { AddressInfo } from "node:net";
 import { EventEmitter } from "node:events";
 import { act, Suspense, useState, type ReactNode } from "react";
 import { ATTR_BOLD, ATTR_UNDERLINE, CellBuffer, initYoga } from "@textjs/core";
+import { drawPixels } from "@textjs/core/experimental";
 import { Box, Text, useInput } from "@textjs/react";
 import { useRouter } from "../src/navigation";
 import { AppRouter, createMemoryHistory, type RouteManifest } from "../src/router";
@@ -112,6 +113,25 @@ describe("live protocol", () => {
     const delta = enc.encode(a) as LiveFrame;
     expect(delta.k).toBeUndefined();
     expect(delta.r.map((r) => r[0])).toEqual([1]);
+  });
+
+  test("encodeRow materializes pixel sprites via readCells()", () => {
+    const a = new CellBuffer(8, 2);
+    a.clear(0x09090bff);
+    drawPixels(a, {
+      x: 0,
+      y: 0,
+      width: 2,
+      height: 1,
+      source: { width: 2, height: 2, data: new Uint32Array([0xff0000ff, 0x00ff00ff, 0x0000ffff, 0xffffffff]) },
+      fit: "fill",
+    });
+    const enc = new LiveFrameEncoder();
+    const frame = enc.encode(a) as LiveFrame;
+    const b = new CellBuffer(1, 1);
+    expect(new LiveFrameDecoder().apply(b, frame)).toBe(true);
+    expect(b.getCell(0, 0)).toMatchObject({ char: "▀", fg: 0xff0000ff, bg: 0x0000ffff });
+    expect(b.getCell(1, 0)).toMatchObject({ char: "▀", fg: 0x00ff00ff, bg: 0xffffffff });
   });
 
   test("rejects malformed input events", () => {

@@ -3,7 +3,7 @@
  * demand-driven animation-frame scheduler with rolling telemetry.
  */
 
-import { parseColor, type ColorInput } from "./color";
+import { colorToCss, parseColor, type ColorInput } from "./color";
 import { CellBuffer } from "./cell-buffer";
 import { CssConsoleDriver, type ClearMode, type ConsoleTarget, type DriverRenderOptions } from "./drivers/css-console-driver";
 import type { ConsoleBanner } from "./internal";
@@ -47,8 +47,6 @@ export interface ConsoleRendererOptions {
   clear?: ClearMode | boolean;
   /** In `"append"` mode, clear and start over after this many frames (default 300). */
   maxFrames?: number;
-  /** In `"append"` mode, clear once accumulated logged string chars exceed this budget (default 4 MB). */
-  maxBytes?: number;
   /** Clear before the first frame (default `true`; see `CssConsoleDriverOptions.initialClear`). */
   initialClear?: boolean;
   /** Lead each appended frame with the curtain span (see `CssConsoleDriverOptions.curtain`). */
@@ -105,6 +103,8 @@ const DEFAULT_FRAME_INTERVAL_MS = 66;
 const SPRITE_STAGE_INTERVAL_MS = 16;
 const SPRITE_EMIT_INTERVAL_MS = 51;
 const SAFARI_SPRITE_INTERVAL_MS = 33;
+/** Keep fast sprite pacing active for 250ms after the last observed sprite hash change; static sprites fall back to normal pacing. */
+const SPRITE_ACTIVE_WINDOW_MS = 250;
 /**
  * After `console.clear() + console.log(frame)`, DevTools' synthetic "Console was
  * cleared" row takes `viewportThrottler`'s immediate slot and pushes `frame` onto
@@ -150,7 +150,7 @@ function makeFrameResult(t: RendererStats, skipped: boolean): FrameResult {
 
 export function createDefaultScheduler(): RendererScheduler {
   if (typeof requestAnimationFrame === "function") {
-    // An undocked DevTools window can occlude the host page and stall rAF; back it with a 24ms timer.
+    // Headless/offscreen windows and busy compositors can stall rAF while visibilityState stays "visible"; cap the wait at 24ms.
     return {
       request: (cb) => {
         const state = { raf: 0, timer: null as ReturnType<typeof setTimeout> | null, done: false };
@@ -207,6 +207,8 @@ export class ConsoleRenderer {
   private lastEmitAt = -Infinity;
   private lastRasterAt = -Infinity;
   private lastEmitCleared = false;
+  private prevSpriteSig: number | null = null;
+  private spriteAnimatingUntil = -Infinity;
   private pendingForce = false;
   private pendingWhileHidden = false;
   private docHidden = false;
@@ -236,7 +238,6 @@ export class ConsoleRenderer {
       console: options.console,
       clear: options.clear,
       maxFrames: options.maxFrames,
-      maxBytes: options.maxBytes,
       initialClear: options.initialClear,
       curtain: options.curtain,
       typography: options.typography,
@@ -282,24 +283,26 @@ export class ConsoleRenderer {
       if (!(inputOpt instanceof InputEngine)) this.input.attach();
       this.cleanup.push(this.input.on("focus", (e: FocusChangeEvent) => this.setFocused(e.focused)));
     }
-    if (!options.scheduler && hasWindow && typeof document.addEventListener === "function") {
-      this.docHidden = document.visibilityState === "hidden";
+    const doc = typeof document !== "undefined" ? document : null;
+    if (!options.scheduler && doc !== null && typeof doc.addEventListener === "function") {
+      this.docHidden = doc.visibilityState === "hidden";
       const onVis = (): void => {
-        const hidden = document.visibilityState === "hidden";
+        const hidden = doc.visibilityState === "hidden";
         if (hidden === this.docHidden) return;
         this.docHidden = hidden;
         if (hidden) {
-          if (this.scheduled) {
-            this.cancelScheduled();
-            this.pendingWhileHidden = true;
-          }
+          const hadPending = this.scheduled || this.emitFlushDelay !== null || this.driver._hasStagedKeyframes;
+          this.cancelScheduled();
+          this.driver._discardStagedKeyframes();
+          this.spriteAnimatingUntil = -Infinity;
+          if (hadPending) this.pendingWhileHidden = true;
         } else if (this.pendingWhileHidden) {
           this.pendingWhileHidden = false;
           this.requestRender(this.pendingForce);
         }
       };
-      document.addEventListener("visibilitychange", onVis);
-      this.cleanup.push(() => document.removeEventListener("visibilitychange", onVis));
+      doc.addEventListener("visibilitychange", onVis);
+      this.cleanup.push(() => doc.removeEventListener("visibilitychange", onVis));
     }
     const reg = options.registerGlobal ?? hasWindow;
     if (reg) {
@@ -353,11 +356,24 @@ export class ConsoleRenderer {
    * `null`. It never enters {@link buffer}, so `copyText()` and DOM mirrors don't show it. @internal
    */
   _setBanner(banner: ConsoleBanner | null): void {
+    const normalized =
+      banner === null
+        ? null
+        : {
+            text: banner.text,
+            fg: colorToCss(parseColor(banner.fg)),
+            bg: colorToCss(parseColor(banner.bg)),
+          };
     const cur = this.currentBanner;
-    if (cur === banner || (cur !== null && banner !== null && cur.text === banner.text && cur.fg === banner.fg && cur.bg === banner.bg)) return;
-    this.currentBanner = banner;
-    this.driver._setBanner(banner);
-    for (const l of this.bannerListeners) l(banner);
+    if (
+      cur === normalized ||
+      (cur !== null && normalized !== null && cur.text === normalized.text && cur.fg === normalized.fg && cur.bg === normalized.bg)
+    ) {
+      return;
+    }
+    this.currentBanner = normalized;
+    this.driver._setBanner(normalized);
+    for (const l of this.bannerListeners) l(normalized);
     this.requestRender();
   }
 
@@ -392,6 +408,18 @@ export class ConsoleRenderer {
    * Schedule a frame on the next animation frame (coalesced), or once
    * `minFrameInterval` has passed since the last emitted frame.
    */
+  private computeSpriteSignature(): number | null {
+    const sprites = this.buffer._sprites;
+    if (sprites.length === 0) return null;
+    let sig = sprites.length;
+    for (let i = 0; i < sprites.length; i++) {
+      const sp = sprites[i]!;
+      if (!sp.opaque) return null;
+      sig = Math.imul(sig ^ sp.hash, 0x01000193);
+    }
+    return sig >>> 0;
+  }
+
   requestRender(force = false): void {
     if (this.disposed) return;
     if (force) this.pendingForce = true;
@@ -403,8 +431,8 @@ export class ConsoleRenderer {
     this.scheduled = true;
     const nowMs = now();
     let wait: number;
-    if (this.defaultPacing && this.buffer.sprites.length > 0) {
-      const stageInterval = this.driver.supportsTemporalSprites ? SPRITE_STAGE_INTERVAL_MS : SAFARI_SPRITE_INTERVAL_MS;
+    if (this.defaultPacing && this.buffer._sprites.length > 0 && nowMs < this.spriteAnimatingUntil) {
+      const stageInterval = this.driver._supportsTemporalSprites ? SPRITE_STAGE_INTERVAL_MS : SAFARI_SPRITE_INTERVAL_MS;
       wait = this.lastRasterAt + stageInterval - nowMs;
     } else {
       const interval = this.lastEmitCleared ? this.postClearInterval : this.frameInterval;
@@ -426,7 +454,7 @@ export class ConsoleRenderer {
   private readonly flushStagedSprites = (): void => {
     this.emitFlushDelay = null;
     if (this.disposed || this.isPaused || this.docHidden || this.scheduled) return;
-    if (this.driver.hasStagedKeyframes) this.renderNow(false);
+    if (this.driver._hasStagedKeyframes) this.renderNow(false);
   };
 
   private scheduleEmitFlush(waitMs: number): void {
@@ -474,7 +502,7 @@ export class ConsoleRenderer {
     if (this.disposed || this.isPaused) return null;
     const t = now();
     const minEmit =
-      this.defaultPacing && this.buffer.sprites.length > 0 && this.driver.supportsTemporalSprites
+      this.defaultPacing && this.buffer._sprites.length > 0 && t < this.spriteAnimatingUntil && this.driver._supportsTemporalSprites
         ? SPRITE_EMIT_INTERVAL_MS
         : this.frameInterval;
     const interval = this.lastEmitCleared ? this.postClearInterval : minEmit;
@@ -506,26 +534,31 @@ export class ConsoleRenderer {
     const t2 = now();
     this.lastRasterAt = t2;
 
-    if (!force && this.defaultPacing && buf.sprites.length > 0 && this.driver.supportsTemporalSprites) {
+    const sig = this.computeSpriteSignature();
+    if (sig === null) {
+      this.prevSpriteSig = null;
+      this.spriteAnimatingUntil = -Infinity;
+    } else if (this.prevSpriteSig === null) {
+      this.prevSpriteSig = sig;
+    } else if (sig !== this.prevSpriteSig) {
+      this.prevSpriteSig = sig;
+      this.spriteAnimatingUntil = t2 + SPRITE_ACTIVE_WINDOW_MS;
+    }
+
+    if (!force && this.defaultPacing && sig !== null && t2 < this.spriteAnimatingUntil && this.driver._supportsTemporalSprites) {
       const emitInterval = this.lastEmitCleared ? this.postClearInterval : SPRITE_EMIT_INTERVAL_MS;
       const untilEmit = this.lastEmitAt + emitInterval - t2;
       if (untilEmit > 1) {
-        const staged = this.driver.stageKeyframe(buf, t2);
-        this.scheduleEmitFlush(untilEmit);
+        const staged = this.driver._stageKeyframe(buf, t2);
+        if (staged || this.driver._hasStagedKeyframes) this.scheduleEmitFlush(untilEmit);
         t.layoutMs = t1 - t0;
         t.rasterMs = t2 - t1;
         t.encodeMs = 0;
         t.totalMs = t2 - t0;
         t.cols = buf.width;
         t.rows = buf.height;
-        if (staged) {
-          t.frameCount++;
-          t.fps = this.recordVisualFrameTime(t2);
-          if (root && t.frameCount % 30 === 1) t.yogaNodes = root.countYogaNodes();
-        } else {
-          t.skippedFrames++;
-        }
-        const frame = makeFrameResult(t, !staged);
+        if (!staged) t.skippedFrames++;
+        const frame = makeFrameResult(t, true);
         this.options.onFrame?.(frame);
         return frame;
       }
@@ -547,11 +580,15 @@ export class ConsoleRenderer {
     else {
       this.lastEmitAt = t3;
       this.lastEmitCleared = result.cleared === true;
-      t.frameCount++;
+      const delivered = Math.max(1, result._visualFrames ?? 1);
+      const prevCount = t.frameCount;
+      t.frameCount += delivered;
       t.dirtyRows = result.dirtyRows;
       t.spanCount = result.spanCount;
-      t.fps = this.recordVisualFrameTime(t3);
-      if (root && t.frameCount % 30 === 1) t.yogaNodes = root.countYogaNodes();
+      for (let k = 0; k < delivered; k++) t.fps = this.recordVisualFrameTime(t3);
+      if (root && (prevCount === 0 || Math.floor(t.frameCount / 30) !== Math.floor(prevCount / 30))) {
+        t.yogaNodes = root.countYogaNodes();
+      }
     }
     const frame = makeFrameResult(t, result.skipped);
     this.options.onFrame?.(frame);
@@ -610,6 +647,8 @@ export class ConsoleRenderer {
     this.isPaused = true;
     this.telemetry.paused = true;
     this.cancelScheduled();
+    this.driver._discardStagedKeyframes();
+    this.spriteAnimatingUntil = -Infinity;
   }
 
   resume(): void {

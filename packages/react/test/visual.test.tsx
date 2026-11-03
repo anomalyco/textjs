@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { parseColor } from "@textjs/core";
+import * as reactTopLevel from "../src/index";
 import {
   BarChart,
   Box,
@@ -14,7 +15,6 @@ import {
   Image,
   Kbd,
   LineChart,
-  Pixels,
   ProgressBar,
   resamplePixels,
   sampleGradient,
@@ -27,6 +27,8 @@ import {
   Text,
   useTheme,
 } from "../src/index";
+import * as reactExperimental from "../src/experimental";
+import { Pixels, useKeyState } from "../src/experimental";
 import { cleanup, render } from "../src/testing";
 
 afterEach(cleanup);
@@ -139,14 +141,28 @@ describe("<Gradient>", () => {
 });
 
 describe("<Image>", () => {
-  test("half-block pixels keep aspect ratio and colors", async () => {
+  test("uses crisp sprite path while keeping aspect ratio, fit='cover', and half-block fallback", async () => {
     // 2×2: red, green / blue, transparent
     const pixels = { width: 2, height: 2, data: [255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 0, 0, 0, 0] };
     const app = await render(<Image pixels={pixels} width={2} />, { cols: 4, rows: 2 });
+    expect(app.root.renderer.buffer._sprites.length).toBe(1);
     expect(app.lines()[0]).toBe("▀▀");
     expect(app.cell(0, 0)).toMatchObject({ fg: parseColor("#ff0000"), bg: parseColor("#0000ff") });
     expect(app.cell(1, 0)?.fg).toBe(parseColor("#00ff00"));
     expect(resamplePixels({ width: 2, height: 1, data: [0, 0, 0, 255, 255, 255, 255, 255] }, 1, 1)[0]).toBe(128);
+
+    // fit="cover" center-crops a wide 4×2 image into a 1×1 (1x2 subpixel) cell
+    const wide = {
+      width: 4,
+      height: 2,
+      data: [
+        255, 0, 0, 255,   0, 255, 0, 255,   0, 255, 0, 255,   255, 0, 0, 255,
+        255, 0, 0, 255,   0, 0, 255, 255,   0, 0, 255, 255,   255, 0, 0, 255,
+      ],
+    };
+    await app.rerender(<Image pixels={wide} width={2} height={1} fit="cover" />);
+    expect(app.root.renderer.buffer._sprites.length).toBe(1);
+    expect(app.cell(0, 0)).toMatchObject({ fg: parseColor("#00ff00"), bg: parseColor("#0000ff") });
   });
 
   test("new pixels of the same size repaint", async () => {
@@ -164,28 +180,82 @@ describe("<Image>", () => {
   });
 });
 
-describe("<Pixels>", () => {
-  test("renders live framebuffers as sprites and materializes half-block cells on read", async () => {
+describe("<Pixels> and @textjs/react/experimental", () => {
+  test("exposes Pixels and useKeyState only from @textjs/react/experimental", () => {
+    expect(typeof reactExperimental.Pixels).toBe("function");
+    expect(typeof reactExperimental.useKeyState).toBe("function");
+    expect("Pixels" in reactTopLevel).toBe(false);
+    expect("useKeyState" in reactTopLevel).toBe(false);
+    expect("paintHalfBlocks" in reactTopLevel).toBe(false);
+    expect("quantizer" in reactTopLevel).toBe(false);
+    expect("paintHalfBlocks" in reactExperimental).toBe(false);
+    expect("quantizer" in reactExperimental).toBe(false);
+  });
+
+  test("renders live framebuffers as sprites, preserves sprites across sibling text band updates, and supports useKeyState", async () => {
     const red = parseColor("#ff0000");
     const blue = parseColor("#0000ff");
     const green = parseColor("#00ff00");
     const data = new Uint32Array([red, red, blue, blue]);
     const source = { width: 2, height: 2, data };
-    const app = await render(<Pixels source={source} frame={0} width={2} height={1} fit="fill" />, { cols: 4, rows: 2 });
-    expect(app.root.renderer.buffer.sprites.length).toBe(1);
-    expect(app.lines()[0]).toBe("▀▀");
-    expect(app.cell(0, 0)).toMatchObject({ fg: red, bg: blue });
+    let seenDown: boolean | null = null;
+
+    function Scene({ n, frame, mode }: { n: number; frame: number; mode?: "auto" | "halfblock" }) {
+      const keys = useKeyState((e) => {
+        if (e.code === "KeyW") seenDown = e.down;
+      });
+      return (
+        <Box flexDirection="row">
+          <Pixels source={source} frame={frame} width={4} height={3} fit="fill" renderMode={mode} />
+          <Box flexDirection="column">
+            <Text>{keys.isDown("KeyW") ? "held" : "idle"}</Text>
+            <Text>{`count ${n}`}</Text>
+          </Box>
+        </Box>
+      );
+    }
+
+    const app = await render(<Scene n={0} frame={0} />, { cols: 20, rows: 6 });
+    expect(app.root.renderer.buffer._sprites.length).toBe(1);
+    expect(app.cell(0, 0)).toMatchObject({ fg: red, bg: red });
+
+    // Item 10: Sibling text update on row 1 (partial band repaint) keeps the 3-row sprite intact!
+    await app.rerender(<Scene n={1} frame={0} />);
+    expect(app.root.renderer.buffer._sprites.length).toBe(1);
+    expect(app.lines()[1]).toContain("count 1");
 
     // Mutate data in place and bump `frame`
     data[0] = green;
     data[1] = green;
-    await app.rerender(<Pixels source={source} frame={1} width={2} height={1} fit="fill" />);
-    expect(app.cell(0, 0)).toMatchObject({ fg: green, bg: blue });
+    await app.rerender(<Scene n={1} frame={1} />);
+    expect(app.cell(0, 0)?.fg).toBe(green);
 
     // Explicit halfblock mode skips sprite registration
-    await app.rerender(<Pixels source={source} frame={2} width={2} height={1} fit="fill" renderMode="halfblock" />);
-    expect(app.root.renderer.buffer.sprites.length).toBe(0);
-    expect(app.cell(0, 0)).toMatchObject({ fg: green, bg: blue });
+    await app.rerender(<Scene n={1} frame={2} mode="halfblock" />);
+    expect(app.root.renderer.buffer._sprites.length).toBe(0);
+    expect(app.cell(0, 0)?.fg).toBe(green);
+
+    // Verify useKeyState tracks press & release
+    app.root.renderer.input?.handleKeyDown({
+      key: "w",
+      code: "KeyW",
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+      altKey: false,
+      preventDefault() {},
+    });
+    expect(seenDown).toBe(true);
+    app.root.renderer.input?.handleKeyUp({
+      key: "w",
+      code: "KeyW",
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+      altKey: false,
+      preventDefault() {},
+    });
+    expect(seenDown).toBe(false);
   });
 });
 

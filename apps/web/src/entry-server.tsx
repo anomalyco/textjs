@@ -36,7 +36,7 @@ export const ROUTES: readonly PrerenderRoute[] = [
   { path: "/playground", title: titleFor(matchRoute("/playground")), description: "Pick a Text.js demo, open the DevTools console and press a few keys." },
   { path: presetPath("streaming"), title: titleFor(matchRoute(presetPath("streaming"))), description: "Watch Markdown and a code diff stream into the DevTools console, then press r to replay it." },
   { path: presetPath("snake"), title: titleFor(matchRoute(presetPath("snake"))), description: "Play Snake in the DevTools console. The game loop is a Text.js app that reads the arrow keys with useInput." },
-  { path: presetPath("doom"), title: titleFor(matchRoute(presetPath("doom"))), description: "Play the DOOM shareware episode in the DevTools console, drawn in half-block pixels." },
+  { path: presetPath("doom"), title: titleFor(matchRoute(presetPath("doom"))), description: "Play the DOOM shareware episode in the DevTools console." },
   { path: "/opencode", title: titleFor({ name: "opencode" }), description: "OpenCode Lite is a console client for the OpenCode coding agent. Connect a local server or try the sandbox." },
   { path: "/coffee", title: titleFor({ name: "coffee" }), description: "Browse the terminal.shop storefront and order coffee from the DevTools console." },
   ...LEARN_ROUTES,

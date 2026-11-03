@@ -1,11 +1,11 @@
 # Doom in the console: feasibility & v2 sprite numbers
 
-Shareware `DOOM1.WAD` v1.9 attract demos and E1M1, rendered through `<Pixels>` (`CellBuffer.drawPixels`) and
+Shareware `DOOM1.WAD` v1.9 attract demos and E1M1, rendered through `<Pixels>` (`@textjs/react/experimental` / `@textjs/core/experimental` `drawPixels`) and
 logged by `CssConsoleDriver` (append mode, curtain).
 
 - `encode.ts <frames.bin>`: offline half-block encode time, `%c` spans and `console.log` payload per grid and palette.
 - `../devtools/run.ts --scenario=doom`: the real DevTools frontend (two-context protocol). Query knobs via
-  `BENCH_QUERY`: `mode=auto|image|halfblock`, `palette=32|64|256`, `sample=average`, `maxFrames=N`, `levels=N`.
+  `BENCH_QUERY`: `mode=auto|halfblock`, `palette=32|64|256`, `sample=average`, `maxFrames=N`, `levels=N`.
   `BENCH_GC=1` forces GC before heap readings.
 - `matrix.sh`, `heap.sh`: the same on an exe.dev VM under Xvfb (software rendering, so slower than a Mac).
 - `capture.mjs`: plays `/playground/doom` in DevTools (menu, new game, walk, turn, fire, use, run, automap) and saves screenshots, a WebM and stats.
@@ -13,9 +13,9 @@ logged by `CssConsoleDriver` (append mode, curtain).
 
 ## Sprite mode (`mode=auto`, v2 default) vs half-blocks on an M5 Pro Mac (Chrome for Testing 151, headed, 10 s runs)
 
-In sprite mode (`CellBuffer.drawPixels` → `encodeIndexedPng` + `encodeSpriteSvgDataUrl`), Chromium and Firefox
+In sprite mode (`drawPixels` → `encodeIndexedPng` + `encodeSpriteSvgDataUrl`), Chromium and Firefox
 render the full `320×200` framebuffer at 4:3 inside a single `%c` span (`image-rendering: pixelated` inside an
-inline SVG `data:` URI), batching 2 temporal keyframes per ~57 ms log call so every `console.log` lands on
+inline SVG `data:` URI). On Chromium, 2 temporal keyframes are batched per ~57 ms log call so every `console.log` lands on
 `ConsoleView.viewportThrottler`'s 0 ms fast path while the browser compositor steps frames at Doom's native 35 Hz.
 Safari Web Inspector strips `url(...)` in `%c` styles and falls back automatically to `▀` half-blocks on its
 unthrottled `requestAnimationFrame` console loop (~31 fps).
@@ -35,7 +35,7 @@ unthrottled `requestAnimationFrame` console loop (~31 fps).
 ## Memory root cause & 60 s heap delta (`BENCH_GC=1`, M5 Pro Mac)
 
 Heap snapshots of the DevTools frontend traced retained memory across all Text.js apps to two mechanisms:
-1. Between `console.clear()` calls, `SDK.ConsoleModel` retains every `ConsoleMessage` and `ConsoleViewport` keeps up to ~69 messages mounted in the live DOM (`minimumRowHeight = 16px`). `CssConsoleDriver` now enforces a `maxBytes` budget (default 4 MB) and compacts after 24 frames on a 1 s idle pause.
+1. Between `console.clear()` calls, `SDK.ConsoleModel` retains every `ConsoleMessage` and `ConsoleViewport` keeps up to ~69 messages mounted in the live DOM (`minimumRowHeight = 16px`). `CssConsoleDriver` enforces a 4 MB accumulated byte budget while sprites are active and compacts after 100 frames on a 1 s idle pause (text-only apps stay unlimited up to `maxFrames = 300`).
 2. Upstream Chromium 151's `ConsoleViewMessage.buildMessageHelper` mounts a `StackTracePreviewContent` root widget on every rendered console message whose `IgnoreListManager` listener is never detached when `ConsoleViewport` or `console.clear()` removes the row, leaking the detached `<div class="console-message-stack-trace-wrapper">` subtree per rendered message. Collapsing 1,000–5,264 `<span>`s into 1 sprite `<span>` (and halving DOM messages/sec via 2-frame SVG batching) eliminates ~99.7% of leaked Blink DOM nodes:
    - Half-block 80×25 @ 15 fps (60 s, 557 frames painted): **+161.4 MB** (`+1,478,742` DOM nodes, ~297 KB/frame).
    - Half-block 160×50 @ 15 fps (extrapolated from 10 s `+112 MB`): **~+672 MB/min** (`+6.77M` DOM nodes/min).

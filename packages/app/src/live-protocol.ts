@@ -219,10 +219,11 @@ export class LiveFrameEncoder {
 
   private encodeRow(buf: CellBuffer, y: number, newStyles: LiveStyle[]): LiveRow {
     const W = buf.width;
-    const C = buf.chars;
-    const F = buf.fg;
-    const B = buf.bg;
-    const A = buf.attrs;
+    const cells = buf.readCells();
+    const C = cells.chars;
+    const F = cells.fg;
+    const B = cells.bg;
+    const A = cells.attrs;
     const runs: Array<number | string> = [];
     let graphemes: string[] | undefined;
     let curF = -1;
@@ -253,7 +254,7 @@ export class LiveFrameEncoder {
       if (rawA & ATTR_WIDE_CONT) text += M_CONT;
       else if (c >= GRAPHEME_POOL_FLAG) {
         text += M_POOL;
-        (graphemes ??= []).push(buf.graphemePool[c & 0x7fffffff] ?? " ");
+        (graphemes ??= []).push(cells.graphemePool[c & 0x7fffffff] ?? " ");
       } else if (c < 0x20 || c === 0x7f || (c >= 0xd800 && c <= 0xdfff)) text += `${M_ESC}${c.toString(16)};`;
       else text += c < 0x10000 ? String.fromCharCode(c) : String.fromCodePoint(c);
     }

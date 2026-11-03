@@ -4,7 +4,6 @@ import {
   CssConsoleDriver,
   createNode,
   createRawText,
-  drawPixels,
   initYoga,
   paintScene,
   type ConsoleTarget,
@@ -13,6 +12,7 @@ import {
   type SceneNode,
   type SceneNodeProps,
 } from "../../packages/core/src/index";
+import { drawPixels, paintHalfBlocks } from "../../packages/core/src/pixels";
 import {
   Box as RBox,
   createConsoleRootSync,
@@ -23,7 +23,6 @@ import {
   Text as RText,
   Textarea as RTextarea,
 } from "../../packages/react/src/index";
-import { paintHalfBlocks } from "../../packages/react/src/components/Pixels";
 import { createDoom, type DoomHost } from "../../apps/web/src/demos/doom/host";
 import { DOOM_PALETTE_32, DOOM_PALETTE_64 } from "../../apps/web/src/demos/doom/palette";
 
@@ -665,7 +664,7 @@ async function boot(): Promise<void> {
       for (let i = 0; i < label.length && i < opts.cols; i++) buf.setCell(i, 0, label[i] as string, 0xa1a1aaff, 0x000000ff);
       const src = { width: 320, height: 200, data: posterize(host.source.data, doomScratch, levels) };
       const q = new URLSearchParams(window.location.search);
-      const mode = q.get("mode") === "halfblock" ? "halfblock" : q.get("mode") === "image" ? "image" : "auto";
+      const mode = q.get("mode") === "halfblock" ? "halfblock" : "auto";
       const palette =
         q.get("palette") === "32"
           ? DOOM_PALETTE_32
@@ -734,10 +733,10 @@ async function boot(): Promise<void> {
         const afterPaint = performance.now();
 
         const useTemporal =
-          doom !== null && buf.sprites.length > 0 && driver.supportsTemporalSprites && parsed.mode === "native" && intervalMs < 51;
+          doom !== null && buf._sprites.length > 0 && driver._supportsTemporalSprites && parsed.mode === "native" && intervalMs < 51;
         const minEmitGap = lastLogCleared ? 110 : 51;
         if (useTemporal && afterPaint - lastLogAt < minEmitGap) {
-          driver.stageKeyframe(buf, afterPaint);
+          driver._stageKeyframe(buf, afterPaint);
           const afterStage = performance.now();
           layoutPaintSamples.push(afterPaint - f0);
           encodeSamples.push(afterStage - afterPaint);
@@ -825,7 +824,7 @@ async function boot(): Promise<void> {
           const clearsBefore = target.clearsCalled;
           emitOneFrame();
           const didClear = target.clearsCalled > clearsBefore;
-          const spriteTemporal = doom !== null && buf.sprites.length > 0 && driver.supportsTemporalSprites;
+          const spriteTemporal = doom !== null && buf._sprites.length > 0 && driver._supportsTemporalSprites;
           if (didClear && parsed.mode === "native" && !spriteTemporal) {
             nextTarget = performance.now() + Math.max(intervalMs, 110);
           } else {

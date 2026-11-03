@@ -3,6 +3,7 @@
  */
 
 import type { ColorInput } from "./color";
+import type { BufferSprite } from "./sprite-types";
 
 /** A one-row bar over the last row of console frames (the focus hint). */
 export interface ConsoleBanner {
@@ -19,4 +20,5 @@ export interface RowSnapshot {
   attrs: Uint16Array;
   pool: number;
   version: number;
+  sprites: BufferSprite[] | null;
 }

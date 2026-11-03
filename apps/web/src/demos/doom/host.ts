@@ -1,6 +1,6 @@
 // Host glue for jacobenget/doom.wasm (GPL-2.0, loaded at runtime from ./engine/, never bundled).
 // This file only implements the module's 10 imports, so it's ours to license.
-import type { PixelSource } from "@textjs/react";
+import type { PixelSource } from "@textjs/react/experimental";
 
 const DOOM_TICRATE = 35;
 

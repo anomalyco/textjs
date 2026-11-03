@@ -4,6 +4,7 @@
 
 import { blendOver, type PackedColor } from "./color";
 import type { RowSnapshot } from "./internal";
+import type { BufferSprite, SpriteCodec } from "./sprite-types";
 import {
   codePointWidth,
   graphemeWidth,
@@ -142,93 +143,24 @@ export interface DrawBoxOptions {
 /** Draws one line of title text at `(x, y)`, at most `maxWidth` cells; returns the columns used. */
 export type TitleTextDrawer = (buffer: CellBuffer, x: number, y: number, text: string, fg: PackedColor, bg: PackedColor, attrs: number, maxWidth: number) => number;
 
-export interface SpriteDriverContext {
-  readonly inline: boolean;
-  readonly rowHeight: number;
-  readonly defaultInlineFamily: string | undefined;
-  readonly typography: {
-    readonly fontFamily: string;
-    readonly fontSize: number;
-    readonly lineHeight: number;
-    readonly rowMarginY: number;
-    readonly rowPaddingY: number;
-    readonly extraCss: string;
-  };
-  readonly styleOptions: {
-    readonly inverseFg: PackedColor;
-    readonly inverseBg: PackedColor;
-  };
-  getCellAdvance(): number;
-  nextUniqueStyleId(): number;
-  compileRow(buffer: CellBuffer, y: number): Array<{
-    styleId: number;
-    styleKey: bigint;
-    css: string;
-    text: string;
-    bg: number;
-    blank: boolean;
-    link: boolean;
-    deco: boolean;
-    cells: number;
-  }>;
-}
-
-export interface SpriteCodec {
-  materialize(buf: CellBuffer, sp: BufferSprite): void;
-  encodePngDataUrl(sp: BufferSprite): string;
-  stageKeyframe(
-    staged: Map<string, Array<{ hash: number; pixels: Uint32Array; atMs: number }>>,
-    pool: Uint32Array[],
-    buffer: CellBuffer,
-    atMs: number,
-  ): boolean;
-  encodeSprites(
-    ctx: SpriteDriverContext,
-    buffer: CellBuffer,
-    hashes: Uint32Array,
-    prevHashes: Uint32Array,
-    prevSpanned: Uint8Array,
-    rowCache: unknown[][],
-    staged: Map<string, Array<{ hash: number; pixels: Uint32Array; atMs: number }>>,
-    stagePool: Uint32Array[],
-    svgCache: Map<string, { hash: number; drawW: number; drawH: number; url: string }>,
-    full: boolean,
-    force: boolean,
-    renderAt: number,
-  ): { nextSpanned: Uint8Array; dirty: number; maxVisualFrames: number };
-}
-
-export interface BufferSprite {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  sourceWidth: number;
-  sourceHeight: number;
-  pixels: Uint32Array;
-  fit: "contain" | "fill";
-  pixelAspect: number;
-  palette?: readonly PackedColor[];
-  sample: "nearest" | "average";
-  hash: number;
-  materialized: boolean;
-  codec: SpriteCodec;
-}
-
 /** Default foreground assumed for default-colored text when it must be blended (e.g. modal dimming). */
 export const ASSUMED_DEFAULT_FG: PackedColor = 0xd4d4d8ff;
 
 export class CellBuffer {
   width: number;
   height: number;
-  chars: Uint32Array;
-  fg: Uint32Array;
-  bg: Uint32Array;
-  attrs: Uint16Array;
+  /** @internal Raw backing array; prefer `readCells()` or `getCell()`. */
+  _chars: Uint32Array;
+  /** @internal Raw backing array; prefer `readCells()` or `getCell()`. */
+  _fg: Uint32Array;
+  /** @internal Raw backing array; prefer `readCells()` or `getCell()`. */
+  _bg: Uint32Array;
+  /** @internal Raw backing array; prefer `readCells()` or `getCell()`. */
+  _attrs: Uint16Array;
   /** Multi-codepoint grapheme clusters referenced by `chars[i] & ~GRAPHEME_POOL_FLAG`. */
   graphemePool: string[] = [];
-  /** Pixel sprites anchored to cell rectangles in this frame. */
-  sprites: BufferSprite[] = [];
+  /** @internal Pixel sprites anchored to cell rectangles in this frame. */
+  _sprites: BufferSprite[] = [];
   private spritePool: Uint32Array[] = [];
   private guardingSpriteMaterialize = false;
   private poolLookup = new Map<string, number>();
@@ -252,13 +184,70 @@ export class CellBuffer {
     this.width = Math.max(0, Math.floor(width));
     this.height = Math.max(0, Math.floor(height));
     const size = this.width * this.height;
-    this.chars = new Uint32Array(size).fill(CHAR_SPACE);
-    this.fg = new Uint32Array(size);
-    this.bg = new Uint32Array(size);
-    this.attrs = new Uint16Array(size);
+    this._chars = new Uint32Array(size).fill(CHAR_SPACE);
+    this._fg = new Uint32Array(size);
+    this._bg = new Uint32Array(size);
+    this._attrs = new Uint16Array(size);
     this.rowHashes = new Uint32Array(this.height);
     this.rowHashValid = new Uint8Array(this.height);
     this.resetScissor();
+  }
+
+  /** @internal Materialized character plane; prefer `readCells()`. */
+  get chars(): Uint32Array {
+    this._ensureSpritesMaterialized();
+    return this._chars;
+  }
+  set chars(v: Uint32Array) {
+    this._chars = v;
+  }
+
+  /** @internal Materialized foreground plane; prefer `readCells()`. */
+  get fg(): Uint32Array {
+    this._ensureSpritesMaterialized();
+    return this._fg;
+  }
+  set fg(v: Uint32Array) {
+    this._fg = v;
+  }
+
+  /** @internal Materialized background plane; prefer `readCells()`. */
+  get bg(): Uint32Array {
+    this._ensureSpritesMaterialized();
+    return this._bg;
+  }
+  set bg(v: Uint32Array) {
+    this._bg = v;
+  }
+
+  /** @internal Materialized attribute plane; prefer `readCells()`. */
+  get attrs(): Uint16Array {
+    this._ensureSpritesMaterialized();
+    return this._attrs;
+  }
+  set attrs(v: Uint16Array) {
+    this._attrs = v;
+  }
+
+  /**
+   * Return materialized cell planes for reading. Any active pixel sprites are
+   * rasterized into `▀` half-blocks without bumping `_writeVersion` or dirtying row hashes.
+   */
+  readCells(): {
+    readonly chars: Uint32Array;
+    readonly fg: Uint32Array;
+    readonly bg: Uint32Array;
+    readonly attrs: Uint16Array;
+    readonly graphemePool: readonly string[];
+  } {
+    this._ensureSpritesMaterialized();
+    return {
+      chars: this._chars,
+      fg: this._fg,
+      bg: this._bg,
+      attrs: this._attrs,
+      graphemePool: this.graphemePool,
+    };
   }
 
   get size(): number {
@@ -272,16 +261,16 @@ export class CellBuffer {
     this.width = w;
     this.height = h;
     const size = w * h;
-    this.chars = new Uint32Array(size).fill(CHAR_SPACE);
-    this.fg = new Uint32Array(size);
-    this.bg = new Uint32Array(size);
-    this.attrs = new Uint16Array(size);
+    this._chars = new Uint32Array(size).fill(CHAR_SPACE);
+    this._fg = new Uint32Array(size);
+    this._bg = new Uint32Array(size);
+    this._attrs = new Uint16Array(size);
     this.rowHashes = new Uint32Array(h);
     this.rowHashValid = new Uint8Array(h);
     this._writeVersion = (this._writeVersion + 1) | 0;
     this.graphemePool.length = 0;
     this.poolLookup.clear();
-    this.sprites.length = 0;
+    this._sprites.length = 0;
     this.spritePool.length = 0;
     this.scissorStack.length = 0;
     this.resetScissor();
@@ -289,19 +278,19 @@ export class CellBuffer {
 
   /** Reset every cell to a space with the given colors and drop the grapheme pool. */
   clear(bg: PackedColor = 0, fg: PackedColor = 0): void {
-    this.chars.fill(CHAR_SPACE);
-    this.fg.fill(fg >>> 0);
-    this.bg.fill(bg >>> 0);
-    this.attrs.fill(0);
+    this._chars.fill(CHAR_SPACE);
+    this._fg.fill(fg >>> 0);
+    this._bg.fill(bg >>> 0);
+    this._attrs.fill(0);
     this.rowHashValid.fill(0);
     this._writeVersion = (this._writeVersion + 1) | 0;
     if (this.graphemePool.length > 0) {
       this.graphemePool.length = 0;
       this.poolLookup.clear();
     }
-    if (this.sprites.length > 0) {
-      for (const sp of this.sprites) this.releaseSpritePixels(sp.pixels);
-      this.sprites.length = 0;
+    if (this._sprites.length > 0) {
+      for (const sp of this._sprites) this.releaseSpritePixels(sp.pixels);
+      this._sprites.length = 0;
     }
   }
 
@@ -321,25 +310,49 @@ export class CellBuffer {
     if (this.spritePool.length < 8) this.spritePool.push(buf);
   }
 
-  /** Populate half-block fallback cells for every active sprite without removing the sprites. */
-  ensureSpritesMaterialized(): void {
-    if (this.sprites.length > 0) this.materializeSpritesInRect(0, 0, this.width, this.height, false, false);
+  /** @internal Populate half-block fallback cells for every active sprite without removing sprites or bumping `_writeVersion`. */
+  _ensureSpritesMaterialized(): void {
+    if (this._sprites.length > 0) this.materializeSpritesInRect(0, 0, this.width, this.height, false, false);
   }
 
   private materializeSpritesInRect(x0: number, y0: number, x1: number, y1: number, remove: boolean, skipPaintIfCovered: boolean): void {
-    if (this.sprites.length === 0 || this.guardingSpriteMaterialize) return;
+    if (this._sprites.length === 0 || this.guardingSpriteMaterialize) return;
+    if (!remove) {
+      let needsPaint = false;
+      for (let i = 0; i < this._sprites.length; i++) {
+        const sp = this._sprites[i] as BufferSprite;
+        if (!sp.materialized && x0 < sp.x + sp.width && x1 > sp.x && y0 < sp.y + sp.height && y1 > sp.y) {
+          needsPaint = true;
+          break;
+        }
+      }
+      if (!needsPaint) return;
+    }
     this.guardingSpriteMaterialize = true;
+    const savedWriteVersion = this._writeVersion;
+    const savedRowValid = remove ? null : this.rowHashValid.slice();
     const savedStack = this.scissorStack.slice();
     const sx0 = this.clipX0;
     const sy0 = this.clipY0;
     const sx1 = this.clipX1;
     const sy1 = this.clipY1;
     try {
-      for (let i = this.sprites.length - 1; i >= 0; i--) {
-        const sp = this.sprites[i] as BufferSprite;
+      for (let i = this._sprites.length - 1; i >= 0; i--) {
+        const sp = this._sprites[i] as BufferSprite;
         if (x0 >= sp.x + sp.width || x1 <= sp.x || y0 >= sp.y + sp.height || y1 <= sp.y) continue;
         const fullyCovered = skipPaintIfCovered && x0 <= sp.x && y0 <= sp.y && x1 >= sp.x + sp.width && y1 >= sp.y + sp.height;
         if (!sp.materialized && !fullyCovered) {
+          if (sp.cellsDirty) {
+            const W = this.width;
+            for (let yy = sp.y; yy < sp.y + sp.height; yy++) {
+              const r0 = yy * W + sp.x;
+              const r1 = r0 + sp.width;
+              this._chars.fill(CHAR_SPACE, r0, r1);
+              this._fg.fill(0, r0, r1);
+              this._bg.fill(sp.underBg, r0, r1);
+              this._attrs.fill(0, r0, r1);
+            }
+          }
           this.clipX0 = sp.x;
           this.clipY0 = sp.y;
           this.clipX1 = sp.x + sp.width;
@@ -347,9 +360,10 @@ export class CellBuffer {
           this.scissorStack.length = 0;
           sp.codec.materialize(this, sp);
           sp.materialized = true;
+          sp.cellsDirty = true;
         }
         if (remove) {
-          this.sprites.splice(i, 1);
+          this._sprites.splice(i, 1);
           this.releaseSpritePixels(sp.pixels);
           this.rowHashValid.fill(0, sp.y, sp.y + sp.height);
         }
@@ -361,6 +375,10 @@ export class CellBuffer {
       this.clipY1 = sy1;
       this.scissorStack.length = 0;
       for (let i = 0; i < savedStack.length; i++) this.scissorStack.push(savedStack[i] as number);
+      if (!remove) {
+        this._writeVersion = savedWriteVersion;
+        if (savedRowValid !== null) this.rowHashValid.set(savedRowValid);
+      }
       this.guardingSpriteMaterialize = false;
     }
   }
@@ -434,17 +452,17 @@ export class CellBuffer {
 
   /** Text of the cell at a flat index (empty string for wide continuations). */
   cellText(index: number): string {
-    const c = this.chars[index] ?? CHAR_SPACE;
+    this._ensureSpritesMaterialized();
+    const c = this._chars[index] ?? CHAR_SPACE;
     if (c >= GRAPHEME_POOL_FLAG) return this.graphemePool[c & 0x7fffffff] ?? " ";
-    if (c === CHAR_CONTINUATION && ((this.attrs[index] ?? 0) & ATTR_WIDE_CONT) !== 0) return "";
+    if (c === CHAR_CONTINUATION && ((this._attrs[index] ?? 0) & ATTR_WIDE_CONT) !== 0) return "";
     return c < 0x10000 ? String.fromCharCode(c) : String.fromCodePoint(c);
   }
 
   getCell(x: number, y: number): { char: string; fg: PackedColor; bg: PackedColor; attrs: number } | null {
     if (x < 0 || y < 0 || x >= this.width || y >= this.height) return null;
-    if (this.sprites.length > 0) this.materializeSpritesInRect(x, y, x + 1, y + 1, false, false);
     const i = y * this.width + x;
-    return { char: this.cellText(i), fg: this.fg[i] ?? 0, bg: this.bg[i] ?? 0, attrs: this.attrs[i] ?? 0 };
+    return { char: this.cellText(i), fg: this._fg[i] ?? 0, bg: this._bg[i] ?? 0, attrs: this._attrs[i] ?? 0 };
   }
 
   /**
@@ -479,13 +497,13 @@ export class CellBuffer {
       code = CHAR_SPACE;
       w = 1;
     }
-    if (this.sprites.length > 0 && !this.guardingSpriteMaterialize) {
+    if (this._sprites.length > 0 && !this.guardingSpriteMaterialize) {
       this.materializeSpritesInRect(x, y, x + w, y + 1, true, false);
     }
     const W = this.width;
     const i = y * W + x;
-    const A = this.attrs;
-    const C = this.chars;
+    const A = this._attrs;
+    const C = this._chars;
     if ((A[i] as number) & ATTR_WIDE_CONT) {
       if (x > 0) C[i - 1] = CHAR_SPACE;
     } else if (w === 1 && x + 1 < W && (A[i + 1] as number) & ATTR_WIDE_CONT) {
@@ -499,11 +517,11 @@ export class CellBuffer {
     const a = attrs & ~ATTR_WIDE_CONT;
     const ba = bg & 255;
     const fa = fg & 255;
-    const B = this.bg;
+    const B = this._bg;
     const outBg = ba === 255 ? bg : ba === 0 ? (B[i] as number) : blendOver(bg, B[i] as number);
     const outFg = fa === 255 || fa === 0 ? fg : blendOver(fg, outBg);
     C[i] = code;
-    this.fg[i] = outFg;
+    this._fg[i] = outFg;
     B[i] = outBg;
     A[i] = a;
     this.rowHashValid[y] = 0;
@@ -511,7 +529,7 @@ export class CellBuffer {
     if (w === 2) {
       const j = i + 1;
       C[j] = CHAR_CONTINUATION;
-      this.fg[j] = outFg;
+      this._fg[j] = outFg;
       B[j] = ba === 255 ? bg : ba === 0 ? (B[j] as number) : blendOver(bg, B[j] as number);
       A[j] = a | ATTR_WIDE_CONT;
     }
@@ -522,10 +540,10 @@ export class CellBuffer {
   private repairEdges(y: number, x0: number, x1: number): void {
     const W = this.width;
     const row = y * W;
-    if (x0 > 0 && ((this.attrs[row + x0] as number) & ATTR_WIDE_CONT) !== 0) this.chars[row + x0 - 1] = CHAR_SPACE;
-    if (x1 < W && ((this.attrs[row + x1] as number) & ATTR_WIDE_CONT) !== 0) {
-      this.chars[row + x1] = CHAR_SPACE;
-      this.attrs[row + x1] = (this.attrs[row + x1] as number) & ~ATTR_WIDE_CONT;
+    if (x0 > 0 && ((this._attrs[row + x0] as number) & ATTR_WIDE_CONT) !== 0) this._chars[row + x0 - 1] = CHAR_SPACE;
+    if (x1 < W && ((this._attrs[row + x1] as number) & ATTR_WIDE_CONT) !== 0) {
+      this._chars[row + x1] = CHAR_SPACE;
+      this._attrs[row + x1] = (this._attrs[row + x1] as number) & ~ATTR_WIDE_CONT;
     }
   }
 
@@ -537,8 +555,23 @@ export class CellBuffer {
     const y1 = Math.min(this.clipY1, Math.floor(y + h));
     if (x0 >= x1 || y0 >= y1) return;
     const ba = bg & 255;
-    if (this.sprites.length > 0 && !this.guardingSpriteMaterialize) {
-      this.materializeSpritesInRect(x0, y0, x1, y1, true, ba === 255);
+    if (this._sprites.length > 0 && !this.guardingSpriteMaterialize) {
+      for (let i = this._sprites.length - 1; i >= 0; i--) {
+        const sp = this._sprites[i] as BufferSprite;
+        if (x0 >= sp.x + sp.width || x1 <= sp.x || y0 >= sp.y + sp.height || y1 <= sp.y) continue;
+        // Keep sprites that extend past a partial band clear; drop sprites fully covered by the fill.
+        const extendsPast = sp.x < x0 || sp.y < y0 || sp.x + sp.width > x1 || sp.y + sp.height > y1;
+        if (extendsPast) {
+          sp.materialized = false;
+        } else {
+          if (ba !== 255 && !sp.materialized) {
+            this.materializeSpritesInRect(sp.x, sp.y, sp.x + sp.width, sp.y + sp.height, false, false);
+          }
+          this._sprites.splice(i, 1);
+          this.releaseSpritePixels(sp.pixels);
+          this.rowHashValid.fill(0, sp.y, sp.y + sp.height);
+        }
+      }
     }
     this.rowHashValid.fill(0, y0, y1);
     this._writeVersion = (this._writeVersion + 1) | 0;
@@ -550,16 +583,16 @@ export class CellBuffer {
       this.repairEdges(yy, x0, x1);
       const i0 = yy * W + x0;
       const i1 = yy * W + x1;
-      this.chars.fill(charCode, i0, i1);
-      this.attrs.fill(a, i0, i1);
+      this._chars.fill(charCode, i0, i1);
+      this._attrs.fill(a, i0, i1);
       if (fast) {
-        this.fg.fill(fg, i0, i1);
-        if (ba === 255) this.bg.fill(bg, i0, i1);
+        this._fg.fill(fg, i0, i1);
+        if (ba === 255) this._bg.fill(bg, i0, i1);
       } else {
         for (let i = i0; i < i1; i++) {
-          const outBg = ba === 255 ? bg : ba === 0 ? (this.bg[i] as number) : blendOver(bg, this.bg[i] as number);
-          this.bg[i] = outBg;
-          this.fg[i] = fa === 255 || fa === 0 ? fg : blendOver(fg, outBg);
+          const outBg = ba === 255 ? bg : ba === 0 ? (this._bg[i] as number) : blendOver(bg, this._bg[i] as number);
+          this._bg[i] = outBg;
+          this._fg[i] = fa === 255 || fa === 0 ? fg : blendOver(fg, outBg);
         }
       }
     }
@@ -576,7 +609,7 @@ export class CellBuffer {
     const x1 = Math.min(this.clipX1, Math.floor(x + w));
     const y1 = Math.min(this.clipY1, Math.floor(y + h));
     if (x0 >= x1 || y0 >= y1) return;
-    if (this.sprites.length > 0 && !this.guardingSpriteMaterialize) {
+    if (this._sprites.length > 0 && !this.guardingSpriteMaterialize) {
       this.materializeSpritesInRect(x0, y0, x1, y1, true, false);
     }
     this.rowHashValid.fill(0, y0, y1);
@@ -588,19 +621,19 @@ export class CellBuffer {
     let lastFgOut = 0;
     for (let yy = y0; yy < y1; yy++) {
       for (let i = yy * W + x0, end = yy * W + x1; i < end; i++) {
-        const b = this.bg[i] as number;
+        const b = this._bg[i] as number;
         if (b !== lastBgIn) {
           lastBgIn = b;
           lastBgOut = blendOver(overlayRgba, b);
         }
-        this.bg[i] = lastBgOut;
-        let f = this.fg[i] as number;
+        this._bg[i] = lastBgOut;
+        let f = this._fg[i] as number;
         if ((f & 255) === 0) f = assumedFg;
         if (f !== lastFgIn) {
           lastFgIn = f;
           lastFgOut = blendOver(overlayRgba, f);
         }
-        this.fg[i] = lastFgOut;
+        this._fg[i] = lastFgOut;
       }
     }
   }
@@ -630,15 +663,15 @@ export class CellBuffer {
     const clipX1 = this.clipX1;
     const W = this.width;
     const rowOffset = y * W;
-    const C = this.chars;
-    const F = this.fg;
-    const B = this.bg;
-    const A = this.attrs;
+    const C = this._chars;
+    const F = this._fg;
+    const B = this._bg;
+    const A = this._attrs;
     const a = attrs & ~ATTR_WIDE_CONT;
     const ba = bg & 255;
     const fa = fg & 255;
     const fastColors = (ba === 0 || ba === 255) && (fa === 255 || fa === 0);
-    if (this.sprites.length > 0 && !this.guardingSpriteMaterialize) {
+    if (this._sprites.length > 0 && !this.guardingSpriteMaterialize) {
       this.materializeSpritesInRect(Math.max(x, clipX0), y, clipX1, y + 1, true, false);
     }
 
@@ -722,8 +755,8 @@ export class CellBuffer {
     return col;
   }
 
-  /** @internal Register a pixel sprite in an unclipped cell rectangle (called by `drawPixels`). */
-  putSprite(
+  /** @internal Register a pixel sprite when its rect fits the unclipped buffer (called by `drawPixels`). */
+  _putSprite(
     x: number,
     y: number,
     w: number,
@@ -738,24 +771,35 @@ export class CellBuffer {
     codec: SpriteCodec,
   ): boolean {
     if (!this.intersectsScissor(x, y, w, h)) return false;
-    if (x < this.clipX0 || y < this.clipY0 || x + w > this.clipX1 || y + h > this.clipY1) return false;
-    if (this.sprites.length > 0) {
+    if (x < 0 || y < 0 || x + w > this.width || y + h > this.height) return false;
+    let underBg = (this._bg[y * this.width + x] as number) >>> 0;
+    let inheritedDirty = false;
+    if (this._sprites.length > 0) {
+      for (const old of this._sprites) {
+        if (x >= old.x && x < old.x + old.width && y >= old.y && y < old.y + old.height && old.cellsDirty) {
+          underBg = old.underBg;
+          inheritedDirty = true;
+          break;
+        }
+      }
       this.materializeSpritesInRect(x, y, x + w, y + h, true, true);
     }
     const len = srcWidth * srcHeight;
     const pixels = this.acquireSpritePixels(len);
+    let opaque = true;
     let hash = (0x811c9dc5 ^ x ^ (y << 8) ^ (w << 16) ^ (h << 24) ^ srcWidth ^ (srcHeight << 16)) >>> 0;
     hash = Math.imul(hash ^ (fit === "fill" ? 1 : 2), 0x01000193);
     hash = Math.imul(hash ^ Math.round(pixelAspect * 4096), 0x01000193);
     for (let i = 0; i < len; i++) {
       const px = srcData[i] as number;
       pixels[i] = px;
+      if ((px & 255) < 128) opaque = false;
       hash = Math.imul(hash ^ px, 0x01000193);
     }
     hash ^= hash >>> 16;
     hash = Math.imul(hash, 0x85ebca6b) >>> 0;
 
-    this.sprites.push({
+    this._sprites.push({
       x,
       y,
       width: w,
@@ -768,7 +812,10 @@ export class CellBuffer {
       palette,
       sample,
       hash,
+      opaque,
+      underBg,
       materialized: false,
+      cellsDirty: inheritedDirty,
       codec,
     });
     this.rowHashValid.fill(0, y, y + h);
@@ -882,12 +929,14 @@ export class CellBuffer {
     const W = this.width;
     const hashes = this.rowHashes;
     const valid = this.rowHashValid;
-    const C = this.chars;
-    const F = this.fg;
-    const B = this.bg;
-    const A = this.attrs;
+    const C = this._chars;
+    const F = this._fg;
+    const B = this._bg;
+    const A = this._attrs;
     const pool = this.graphemePool;
-    if (pool.length === 0) {
+    const sprites = this._sprites;
+    const hasSprites = sprites.length > 0;
+    if (pool.length === 0 && !hasSprites) {
       for (let y = 0; y < H; y++) {
         if (valid[y] !== 0) continue;
         let h = 0x811c9dc5 ^ W;
@@ -900,13 +949,6 @@ export class CellBuffer {
         h ^= h >>> 16;
         h = Math.imul(h, 0x85ebca6b);
         h ^= h >>> 13;
-        if (this.sprites.length > 0) {
-          for (const sp of this.sprites) {
-            if (y >= sp.y && y < sp.y + sp.height) {
-              h = Math.imul(h ^ sp.hash ^ (y - sp.y + 1), 0x01000193);
-            }
-          }
-        }
         hashes[y] = h >>> 0;
         valid[y] = 1;
       }
@@ -915,7 +957,21 @@ export class CellBuffer {
     for (let y = 0; y < H; y++) {
       if (valid[y] !== 0) continue;
       let h = 0x811c9dc5 ^ W;
-      for (let i = y * W, end = i + W; i < end; i++) {
+      const rowOff = y * W;
+      for (let x = 0; x < W; x++) {
+        if (hasSprites) {
+          let jumped = false;
+          for (let si = 0; si < sprites.length; si++) {
+            const sp = sprites[si] as BufferSprite;
+            if (y >= sp.y && y < sp.y + sp.height && x >= sp.x && x < sp.x + sp.width) {
+              x = sp.x + sp.width - 1;
+              jumped = true;
+              break;
+            }
+          }
+          if (jumped) continue;
+        }
+        const i = rowOff + x;
         const c = C[i] as number;
         if (c >= GRAPHEME_POOL_FLAG) {
           const s = pool[c & 0x7fffffff] ?? "";
@@ -926,16 +982,17 @@ export class CellBuffer {
         h = Math.imul(h ^ (B[i] as number), 0x01000193);
         h = Math.imul(h ^ (A[i] as number), 0x01000193);
       }
-      h ^= h >>> 16;
-      h = Math.imul(h, 0x85ebca6b);
-      h ^= h >>> 13;
-      if (this.sprites.length > 0) {
-        for (const sp of this.sprites) {
+      if (hasSprites) {
+        for (let si = 0; si < sprites.length; si++) {
+          const sp = sprites[si] as BufferSprite;
           if (y >= sp.y && y < sp.y + sp.height) {
-            h = Math.imul(h ^ sp.hash ^ (y - sp.y + 1), 0x01000193);
+            h = Math.imul(h ^ sp.hash ^ ((y - sp.y + 1) * 0x9e37), 0x01000193);
           }
         }
       }
+      h ^= h >>> 16;
+      h = Math.imul(h, 0x85ebca6b);
+      h ^= h >>> 13;
       hashes[y] = h >>> 0;
       valid[y] = 1;
     }
@@ -963,12 +1020,14 @@ export class CellBuffer {
   }
 
   rowText(y: number, trimEnd = false): string {
-    if (this.sprites.length > 0) this.materializeSpritesInRect(0, y, this.width, y + 1, false, false);
+    if (this._sprites.length > 0 && !this.guardingSpriteMaterialize) {
+      this.materializeSpritesInRect(0, y, this.width, y + 1, false, false);
+    }
     let s = "";
     const W = this.width;
     for (let i = y * W, end = i + W; i < end; i++) {
-      const c = this.chars[i] as number;
-      if (c === CHAR_CONTINUATION && ((this.attrs[i] as number) & ATTR_WIDE_CONT) !== 0) continue;
+      const c = this._chars[i] as number;
+      if (c === CHAR_CONTINUATION && ((this._attrs[i] as number) & ATTR_WIDE_CONT) !== 0) continue;
       if (c >= GRAPHEME_POOL_FLAG) s += this.graphemePool[c & 0x7fffffff] ?? " ";
       else if (c < 0x10000) s += String.fromCharCode(c < 0x20 ? CHAR_SPACE : c);
       else s += String.fromCodePoint(c);
@@ -994,19 +1053,28 @@ export class CellBuffer {
   _overlayRow(y: number, text: string, fg: PackedColor, bg: PackedColor): RowSnapshot {
     const W = this.width;
     const i0 = y * W;
+    const sprites = this._sprites.some((sp) => y >= sp.y && y < sp.y + sp.height)
+      ? this._sprites.map((sp) => {
+          const px = this.acquireSpritePixels(sp.pixels.length);
+          px.set(sp.pixels);
+          return { ...sp, pixels: px };
+        })
+      : null;
     const snap: RowSnapshot = {
-      chars: this.chars.slice(i0, i0 + W),
-      fg: this.fg.slice(i0, i0 + W),
-      bg: this.bg.slice(i0, i0 + W),
-      attrs: this.attrs.slice(i0, i0 + W),
+      chars: sprites ? this._chars.slice() : this._chars.slice(i0, i0 + W),
+      fg: sprites ? this._fg.slice() : this._fg.slice(i0, i0 + W),
+      bg: sprites ? this._bg.slice() : this._bg.slice(i0, i0 + W),
+      attrs: sprites ? this._attrs.slice() : this._attrs.slice(i0, i0 + W),
       pool: this.graphemePool.length,
       version: this._writeVersion,
+      sprites,
     };
+    if (sprites) this.materializeSpritesInRect(0, y, W, y + 1, true, false);
     this.resetScissor();
-    this.chars.fill(CHAR_SPACE, i0, i0 + W);
-    this.fg.fill(fg >>> 0, i0, i0 + W);
-    this.bg.fill(bg >>> 0, i0, i0 + W);
-    this.attrs.fill(0, i0, i0 + W);
+    this._chars.fill(CHAR_SPACE, i0, i0 + W);
+    this._fg.fill(fg >>> 0, i0, i0 + W);
+    this._bg.fill(bg >>> 0, i0, i0 + W);
+    this._attrs.fill(0, i0, i0 + W);
     this.rowHashValid[y] = 0;
     this.drawText(Math.max(0, Math.floor((W - stringWidth(text)) / 2)), y, text, fg, bg, 0, W);
     return snap;
@@ -1014,28 +1082,32 @@ export class CellBuffer {
 
   /** @internal Undo {@link _overlayRow}. */
   _restoreRow(y: number, snap: RowSnapshot): void {
-    const i0 = y * this.width;
-    this.chars.set(snap.chars, i0);
-    this.fg.set(snap.fg, i0);
-    this.bg.set(snap.bg, i0);
-    this.attrs.set(snap.attrs, i0);
+    const off = snap.sprites ? 0 : y * this.width;
+    this._chars.set(snap.chars, off);
+    this._fg.set(snap.fg, off);
+    this._bg.set(snap.bg, off);
+    this._attrs.set(snap.attrs, off);
+    if (snap.sprites) {
+      for (const sp of this._sprites) this.releaseSpritePixels(sp.pixels);
+      this._sprites = snap.sprites;
+      this.rowHashValid.fill(0);
+    } else this.rowHashValid[y] = 0;
     for (let i = this.graphemePool.length - 1; i >= snap.pool; i--) this.poolLookup.delete(this.graphemePool[i] as string);
     this.graphemePool.length = snap.pool;
-    this.rowHashValid[y] = 0;
     this._writeVersion = snap.version;
   }
 
   /** Copy all cells from another buffer of the same size. */
   copyFrom(other: CellBuffer): void {
     this.resize(other.width, other.height);
-    this.chars.set(other.chars);
-    this.fg.set(other.fg);
-    this.bg.set(other.bg);
-    this.attrs.set(other.attrs);
+    this._chars.set(other._chars);
+    this._fg.set(other._fg);
+    this._bg.set(other._bg);
+    this._attrs.set(other._attrs);
     this.graphemePool = other.graphemePool.slice();
     this.poolLookup = new Map(this.graphemePool.map((g, i) => [g, i]));
-    for (const sp of this.sprites) this.releaseSpritePixels(sp.pixels);
-    this.sprites = other.sprites.map((sp) => {
+    for (const sp of this._sprites) this.releaseSpritePixels(sp.pixels);
+    this._sprites = other._sprites.map((sp) => {
       const px = this.acquireSpritePixels(sp.pixels.length);
       px.set(sp.pixels);
       return { ...sp, pixels: px };

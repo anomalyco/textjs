@@ -890,6 +890,11 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
       "depth": 2,
       "text": "<Image>",
       "id": "image"
+    },
+    {
+      "depth": 2,
+      "text": "<Pixels> (experimental)",
+      "id": "pixels-experimental"
     }
   ],
   "components-forms": [
@@ -929,6 +934,11 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
       "depth": 2,
       "text": "usePaste and useWheel",
       "id": "usepaste-and-usewheel"
+    },
+    {
+      "depth": 2,
+      "text": "useKeyState (experimental)",
+      "id": "usekeystate-experimental"
     },
     {
       "depth": 2,

@@ -1,20 +1,13 @@
 import { useCallback, type ReactNode } from "react";
+import type { CellBuffer, ComputedRect, LayoutProps, PackedColor } from "@textjs/core";
 import {
   drawPixels,
-  paintHalfBlocks,
-  quantizer,
-  type CellBuffer,
-  type ComputedRect,
-  type LayoutProps,
-  type PackedColor,
   type PixelFit,
   type PixelRenderMode,
   type PixelSample,
   type PixelSource,
-} from "@textjs/core";
+} from "@textjs/core/experimental";
 import { TxBox } from "../host";
-
-export { paintHalfBlocks, quantizer, type PixelFit, type PixelRenderMode, type PixelSample, type PixelSource };
 
 export interface PixelsProps extends Omit<LayoutProps, "width" | "height"> {
   source: PixelSource;
@@ -38,7 +31,7 @@ export interface PixelsProps extends Omit<LayoutProps, "width" | "height"> {
   /**
    * `"auto"` (default) renders a full-resolution pixelated sprite in consoles that allow `data:`
    * background images (Chromium, Firefox) and falls back to `▀` half-blocks in Safari, ANSI terminals
-   * and plain-text exports. Pass `"halfblock"` or `"image"` to pin a mode.
+   * and plain-text exports. Pass `"halfblock"` to pin half-block cells everywhere.
    */
   renderMode?: PixelRenderMode;
 }

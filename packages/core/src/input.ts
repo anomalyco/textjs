@@ -70,7 +70,7 @@ export interface KeyStateEvent {
   down: boolean;
 }
 
-export type InputEvent = KeyInputEvent | PasteInputEvent | WheelInputEvent | FocusChangeEvent | KeyStateEvent;
+export type InputEvent = KeyInputEvent | PasteInputEvent | WheelInputEvent | FocusChangeEvent;
 
 export interface InputEventMap {
   key: KeyInputEvent;
@@ -316,6 +316,7 @@ export class InputEngine {
     keystate: new Set(),
   };
   private readonly held = new Map<string, string>();
+  private readonly pressedSet = new Set<string>();
   private readonly anyListeners = new Set<Listener<InputEvent>>();
   private readonly doc: Document | null;
   private readonly options: Required<Omit<InputEngineOptions, "document" | "shouldCapture">>;
@@ -352,7 +353,7 @@ export class InputEngine {
 
   /** Physical keys held right now, by `KeyboardEvent.code`. Cleared when the page loses focus. */
   get pressed(): ReadonlySet<string> {
-    return new Set(this.held.keys());
+    return this.pressedSet;
   }
 
   isDown(code: string): boolean {
@@ -360,12 +361,13 @@ export class InputEngine {
   }
 
   private trackKey(e: KeyboardEventLike, down: boolean): void {
-    if (e.isComposing || e.keyCode === 229) return;
+    if (down && (e.isComposing || e.keyCode === 229)) return;
     const code = e.code || e.key;
     if (!code || code === "Unidentified") return;
     if (down) {
       if (this.held.has(code)) return;
       this.held.set(code, e.key);
+      this.pressedSet.add(code);
       this.emit("keystate", { type: "keystate", code, key: e.key, down: true });
       return;
     }
@@ -374,6 +376,7 @@ export class InputEngine {
     else if (this.held.has(code)) {
       const key = this.held.get(code) as string;
       this.held.delete(code);
+      this.pressedSet.delete(code);
       this.emit("keystate", { type: "keystate", code, key, down: false });
     }
   }
@@ -382,6 +385,7 @@ export class InputEngine {
   releaseAll(): void {
     for (const [code, key] of [...this.held]) {
       this.held.delete(code);
+      this.pressedSet.delete(code);
       this.emit("keystate", { type: "keystate", code, key, down: false });
     }
   }
@@ -400,7 +404,7 @@ export class InputEngine {
   emit<K extends keyof InputEventMap>(type: K, event: InputEventMap[K]): void {
     for (const l of this.listeners[type] as Set<Listener<InputEventMap[K]>>) l(event);
     if (type !== "keystate") {
-      for (const l of this.anyListeners) l(event);
+      for (const l of this.anyListeners) l(event as InputEvent);
     }
   }
 

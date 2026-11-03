@@ -1,5 +1,4 @@
 import { colorToCss, type PackedColor } from "../color";
-import type { PixelFit } from "../pixels";
 import {
   ATTR_ALLOW_LINK,
   ATTR_BOLD,
@@ -34,14 +33,15 @@ export interface StyledSpan {
   allowLink: boolean;
 }
 
-export interface StyledSprite {
+/** @internal */
+interface StyledSprite {
   x: number;
   y: number;
   width: number;
   height: number;
   sourceWidth: number;
   sourceHeight: number;
-  fit: PixelFit;
+  fit: "contain" | "fill";
   pixelAspect: number;
   /** `data:image/png;base64,...` of the current frame. */
   dataUrl: string;
@@ -51,7 +51,8 @@ export interface StyledFrame {
   width: number;
   height: number;
   rows: StyledSpan[][];
-  sprites?: readonly StyledSprite[];
+  /** @internal */
+  _sprites?: readonly StyledSprite[];
 }
 
 const ASCII_STRINGS: readonly string[] = Array.from({ length: 128 }, (_, i) => String.fromCharCode(i));
@@ -69,7 +70,7 @@ const snapshotCache = new WeakMap<CellBuffer, BufferSnapshotCache>();
 
 /** Extract a serializable styled snapshot of a buffer for DOM mirrors and docs playgrounds. */
 export function extractStyledFrame(buffer: CellBuffer, style: Partial<StyleResolveOptions> = {}): StyledFrame {
-  if (buffer.sprites.length > 0) buffer.ensureSpritesMaterialized();
+  const cells = buffer.readCells();
   const hasCustomStyle =
     style.inverseFg !== undefined ||
     style.inverseBg !== undefined ||
@@ -113,9 +114,9 @@ export function extractStyledFrame(buffer: CellBuffer, style: Partial<StyleResol
     const rowStart = y * W;
     for (let x = 0; x < W; x++) {
       const i = rowStart + x;
-      const raw = buffer.attrs[i] as number;
-      const f = buffer.fg[i] as number;
-      const b = buffer.bg[i] as number;
+      const raw = cells.attrs[i] as number;
+      const f = cells.fg[i] as number;
+      const b = cells.bg[i] as number;
       if (raw & ATTR_WIDE_CONT) {
         if (cur) cur.width++;
         continue;
@@ -141,17 +142,17 @@ export function extractStyledFrame(buffer: CellBuffer, style: Partial<StyleResol
         };
         spans.push(cur);
       }
-      const c = buffer.chars[i] as number;
+      const c = cells.chars[i] as number;
       cur.text += c < 128 ? (ASCII_STRINGS[c] as string) : buffer.cellText(i);
       cur.width++;
     }
     cachedRows[y] = spans;
     rows[y] = spans;
   }
-  if (buffer.sprites.length === 0) return { width: W, height: H, rows };
+  if (buffer._sprites.length === 0) return { width: W, height: H, rows };
 
   const sprites: StyledSprite[] = [];
-  for (const sp of buffer.sprites) {
+  for (const sp of buffer._sprites) {
     let dataUrl = cache.spriteUrls.get(sp.hash);
     if (dataUrl === undefined) {
       dataUrl = sp.codec.encodePngDataUrl(sp);
@@ -172,5 +173,5 @@ export function extractStyledFrame(buffer: CellBuffer, style: Partial<StyleResol
       });
     }
   }
-  return sprites.length > 0 ? { width: W, height: H, rows, sprites } : { width: W, height: H, rows };
+  return sprites.length > 0 ? { width: W, height: H, rows, _sprites: sprites } : { width: W, height: H, rows };
 }

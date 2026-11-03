@@ -1,7 +1,7 @@
 // Offline Turbolog cost of Doom frames as ▀ half-blocks: encode time, %c spans, console.log payload.
 // Usage: bun bench/doom/encode.ts <frames.bin>   (frames.bin from bench/doom/dump-frames.ts)
 import { CellBuffer, CssConsoleDriver, type ConsoleTarget } from "../../packages/core/src/index";
-import { paintHalfBlocks, type PixelSource } from "../../packages/react/src/components/Pixels";
+import { paintHalfBlocks, type PixelSource } from "../../packages/core/src/pixels";
 import { DOOM_PALETTE_32, DOOM_PALETTE_64 } from "../../apps/web/src/demos/doom/palette";
 
 /** Doom's 640×400 XRGB output → 320×200 packed RGBA, optionally posterized to `levels` steps per channel. */

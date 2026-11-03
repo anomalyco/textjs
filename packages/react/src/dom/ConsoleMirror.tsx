@@ -120,7 +120,7 @@ export function ConsoleMirror({
           {frame.rows.map((row, y) => (
             <Row key={y} spans={row} height={lineHeight} />
           ))}
-          {frame.sprites?.map((sp, i) => (
+          {frame._sprites?.map((sp, i) => (
             <div
               key={`sp-${i}`}
               style={{

@@ -137,10 +137,10 @@ export const NAMED_COLORS: Readonly<Record<string, string>> = {
   whitebright: "#fafafa",
 };
 
-const parseCache = new Map<string, PackedColor>();
+const parseCache = /* @__PURE__ */ new Map<string, PackedColor>();
 const PARSE_CACHE_MAX = 2048;
 
-const HEX2: readonly string[] = Array.from({ length: 256 }, (_, i) => (i < 16 ? "0" : "") + i.toString(16));
+const HEX2: readonly string[] = /* @__PURE__ */ Array.from({ length: 256 }, (_, i) => (i < 16 ? "0" : "") + i.toString(16));
 
 function clampByte(n: number): number {
   return n < 0 ? 0 : n > 255 ? 255 : Math.round(n);
@@ -236,7 +236,17 @@ export function parseColor(input: ColorInput): PackedColor {
   return value;
 }
 
-const cssCache = new Map<number, string>();
+/** @internal Parse a packed integer or `#hex` banner color without pulling in `NAMED_COLORS`. */
+export function parseBannerColor(input: ColorInput): PackedColor {
+  if (input === undefined || input === null) return COLOR_DEFAULT;
+  if (typeof input === "number") return Number.isFinite(input) ? input >>> 0 : COLOR_DEFAULT;
+  const s = input.trim();
+  if (s.charCodeAt(0) === 35 /* # */) return parseHex(s) ?? COLOR_DEFAULT;
+  if (/^0x[0-9a-fA-F]{1,8}$/.test(s)) return parseInt(s.slice(2), 16) >>> 0;
+  return COLOR_DEFAULT;
+}
+
+const cssCache = /* @__PURE__ */ new Map<number, string>();
 const CSS_CACHE_MAX = 8192;
 
 /** Convert a packed color to CSS hex (`#rrggbb` when opaque, `#rrggbbaa` otherwise). Interned. */

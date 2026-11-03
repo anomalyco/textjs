@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Box, Pixels, Text, useInput, useKeyState, useViewport, type PixelSource } from "@textjs/react";
+import { Box, Text, useInput, useViewport } from "@textjs/react";
+import { Pixels, useKeyState, type PixelSource } from "@textjs/react/experimental";
 import wasmUrl from "./engine/out/doom.wasm?url";
 import { createDoom, type DoomHost, type DoomKeys } from "./host";
 
@@ -119,8 +120,10 @@ export function DoomDemo({ reserveRows = 4 }: { reserveRows?: number }): ReactNo
     if (status === "ready" && host.current && doomKeyFor(e.code, host.current.keys) !== null) e.stopPropagation();
   });
 
+  const credit = "DOOM shareware © id Software · DOOM is a trademark of id Software. Not affiliated with or endorsed by id Software.";
   const cols = Math.max(20, vp.cols - 4);
-  const rows = Math.max(8, vp.rows - reserveRows - 3);
+  const creditRows = Math.max(1, Math.ceil(credit.length / cols));
+  const rows = Math.max(8, vp.rows - reserveRows - 2 - creditRows);
   if (status !== "ready" || host.current === null) {
     return (
       <Box className="flex-col grow items-center justify-center">
@@ -132,7 +135,9 @@ export function DoomDemo({ reserveRows = 4 }: { reserveRows?: number }): ReactNo
   return (
     <Box className="flex-col grow items-center">
       <Pixels source={source} frame={frame} width={cols} height={rows} pixelAspect={5 / 6} />
-      <Text color="subtle">DOOM shareware © id Software</Text>
+      <Text color="subtle" align="center" width={cols}>
+        {credit}
+      </Text>
     </Box>
   );
 }
