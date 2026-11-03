@@ -7,11 +7,11 @@
 import { prerender } from "react-dom/static";
 import { POSTS, postPath, renderRss } from "./blog";
 import { DOCS, docPath } from "./docs/registry";
-import { TX_ERRORS } from "@textjs/core";
 import { LEARN_ROUTES } from "./learn/routes";
 import { MERCH_ROUTES } from "./merch/routes";
 import { PRESETS, presetPath, type PresetId } from "./console-companion/store";
 import { t } from "./i18n/t";
+import { ERROR_DOCS as TX_ERRORS } from "./pages/tx000";
 import { Root } from "./Root";
 import { preloadAllRoutes, ROUTE_MANIFEST_SRC } from "./route-loader";
 import { matchRoute, resetLocation, titleFor } from "./router";

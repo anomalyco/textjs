@@ -301,6 +301,7 @@ function documentId(build: Build, routePath: string): string | undefined {
   if (r.name === "blog-post") return `blog/${r.slug}`;
   if (r.name === "learn" && r.slug) return `learn/${r.slug}`;
   if (r.name === "changelog") return "changelog";
+  if (r.name === "error") return `errors/${r.code}`;
   return undefined;
 }
 

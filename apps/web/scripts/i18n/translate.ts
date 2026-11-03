@@ -20,7 +20,7 @@ import { parseArgs } from "node:util";
 import { getLocale } from "../../src/i18n/locales";
 import { formatTranslation, parseTranslation, segment } from "./document";
 import { captionGroups, parseVtt } from "./captions";
-import { captionFile, captionSources, catalogFile, documentSources, extractMessages, LOCALES_DIR, readCaptions, readCatalog, readText, translationFile, WEB_DIR, type Catalog, type CatalogValue } from "./sources";
+import { captionFile, captionSources, catalogFile, documentSources, englishText, extractMessages, LOCALES_DIR, readCaptions, readCatalog, readText, translationFile, WEB_DIR, type Catalog, type CatalogValue } from "./sources";
 import { validate, validatePlural } from "./validate";
 
 const { values } = parseArgs({
@@ -282,7 +282,7 @@ for (const locale of locales) {
   // Documents ------------------------------------------------------------------------------------
   for (const doc of documentSources()) {
     if (!selected(doc.id)) continue;
-    const english = readFileSync(doc.file, "utf8");
+    const english = englishText(doc);
     const blocks = segment(english).filter((b) => b.kind !== "verbatim");
     const file = translationFile(locale, doc.id);
     const existing = parseTranslation(readText(file));

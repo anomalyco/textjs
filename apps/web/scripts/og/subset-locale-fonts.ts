@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Subsets the Noto fonts the Open Graph cards use for scripts Geist doesn't cover, to the characters in each
- * locale's catalog (card titles and labels all come from it). Run it after translating, with fonttools
+ * locale's catalog and error pages (card titles and labels all come from them). Run it after translating, with fonttools
  * (`pip install fonttools brotli`) and the source fonts from google/fonts:
  *
  *   bun scripts/og/subset-locale-fonts.ts --font ja=NotoSansJP[wght].ttf --font ar=NotoSansArabic[wdth,wght].ttf
@@ -14,7 +14,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { readCatalog } from "../i18n/sources";
+import { readCatalog, readText, translationFile } from "../i18n/sources";
 
 /** Locale → the OG font file it fills (scripts/og/fonts/), and the locales that share it. */
 const FONTS: Record<string, { file: string; locales: string[] }> = {
@@ -32,6 +32,7 @@ try {
     const chars = new Set<string>();
     for (const locale of target.locales) {
       for (const v of Object.values(readCatalog(locale))) for (const s of typeof v === "string" ? [v] : Object.values(v)) for (const ch of s) chars.add(ch);
+      for (const ch of readText(translationFile(locale, "errors"))) chars.add(ch);
     }
     const text = join(tmp, `${key}.txt`);
     writeFileSync(text, [...chars].join(""));

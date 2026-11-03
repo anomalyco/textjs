@@ -5,6 +5,7 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
+import { execFileSync } from "node:child_process";
 
 export const WEB_DIR = join(import.meta.dirname, "..", "..");
 export const SRC_DIR = join(WEB_DIR, "src");
@@ -12,9 +13,38 @@ export const LOCALES_DIR = join(WEB_DIR, "locales");
 const REPO_DIR = join(WEB_DIR, "..", "..");
 
 export interface DocumentSource {
-  /** `docs/routing`, `blog/text-js-1-0`, `learn/layout`, `changelog`. */
+  /** `docs/routing`, `blog/text-js-1-0`, `learn/layout`, `changelog`, `errors`. */
   id: string;
+  /** The English Markdown file (empty for a document generated from data). */
   file: string;
+  /** English text generated from data, when there's no file. */
+  text?: () => string;
+}
+
+export function englishText(doc: DocumentSource): string {
+  return doc.text ? doc.text() : readFileSync(doc.file, "utf8");
+}
+
+/** Every error page's title, cause and fix (`@textjs/core` and the site's TX000), as one document. */
+export function errorsMarkdown(): string {
+  return errorPageDocs()
+    .flatMap((e) => [e.title, e.cause, e.fix])
+    .join("\n\n");
+}
+
+export interface ErrorDocSource {
+  code: string;
+  title: string;
+  cause: string;
+  fix: string;
+}
+
+let errorDocs: ErrorDocSource[] | null = null;
+
+/** TX000 and `TX_ERRORS`, read in a Bun subprocess (`errors.ts`) because Vite loads its config in Node. */
+export function errorPageDocs(): ErrorDocSource[] {
+  errorDocs ??= JSON.parse(execFileSync("bun", [join(import.meta.dirname, "errors.ts")], { encoding: "utf8" })) as ErrorDocSource[];
+  return errorDocs;
 }
 
 const md = (dir: string, area: string): DocumentSource[] =>
@@ -29,12 +59,13 @@ export function documentSources(): DocumentSource[] {
     ...md(join(SRC_DIR, "blog"), "blog"),
     ...md(join(SRC_DIR, "learn", "content"), "learn"),
     { id: "changelog", file: join(REPO_DIR, "CHANGELOG.md") },
+    { id: "errors", file: "", text: errorsMarkdown },
   ];
 }
 
 /** The document an English Markdown file is, or `undefined` for files that aren't translated. */
 export function documentForFile(file: string): DocumentSource | undefined {
-  return documentSources().find((d) => d.file === file);
+  return documentSources().find((d) => d.file !== "" && d.file === file);
 }
 
 export function translationFile(locale: string, id: string): string {

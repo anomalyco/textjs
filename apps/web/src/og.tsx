@@ -5,7 +5,6 @@
 
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { TX_ERRORS } from "@textjs/core";
 import { CATEGORY_LABELS } from "./docs/meta";
 import { getDoc } from "./docs/registry";
 import { t } from "./i18n/t";
@@ -13,6 +12,7 @@ import { chapterNumber, COMPLETE_SLUG } from "./learn/course";
 import { getProduct, PRODUCTS } from "./merch/products";
 import { PRESETS } from "./console-companion/store";
 import { OpenCodeWordmark, TerminalWordmark } from "./site/brand-marks";
+import { getErrorPageDoc } from "./pages/tx000";
 import { matchRoute } from "./router";
 import type { PrerenderRoute } from "./entry-server";
 
@@ -84,8 +84,8 @@ export async function ogCard(route: PrerenderRoute): Promise<OgCard> {
     case "errors":
       return { ...base, title: t("Error Codes"), alt: alt(t("Errors"), t("Error Codes")) };
     case "error": {
-      const doc = TX_ERRORS.find((e) => e.code === m.code);
-      const name = doc?.title ?? (m.code === "TX000" ? "Success" : title);
+      const doc = getErrorPageDoc(m.code);
+      const name = doc?.title ?? title;
       return { ...base, template: "error", section: t("Errors"), code: m.code, title: name, alt: alt(doc?.kind === "warning" ? t("warning") : t("error"), `${m.code}, ${name}`) };
     }
     case "changelog":

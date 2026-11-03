@@ -9,7 +9,7 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { LOCALES } from "../../src/i18n/locales";
 import { captionGroups, parseVtt } from "./captions";
 import { parseTranslation, segment } from "./document";
-import { ANY_CALL, CALL, captionSources, documentSources, extractMessages, LOCALES_DIR, PLURAL, readCaptions, readCatalog, readText, SRC_DIR, translationFile, USES_CATALOG } from "./sources";
+import { ANY_CALL, CALL, captionSources, documentSources, englishText, extractMessages, LOCALES_DIR, PLURAL, readCaptions, readCatalog, readText, SRC_DIR, translationFile, USES_CATALOG } from "./sources";
 import { validate, validatePlural } from "./validate";
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -68,7 +68,7 @@ export function checkLocale(locale: string): LocaleReport {
   }
   for (const doc of documentSources()) {
     const file = translationFile(locale, doc.id);
-    const blocks = segment(readFileSync(doc.file, "utf8")).filter((b) => b.kind !== "verbatim");
+    const blocks = segment(englishText(doc)).filter((b) => b.kind !== "verbatim");
     report.documents.total += blocks.length;
     if (!existsSync(file)) continue;
     const translations = parseTranslation(readText(file));

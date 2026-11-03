@@ -1,12 +1,12 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { TX_ERRORS, TX_PACKAGES, txMessage, type TxCode, type TxErrorDoc } from "@textjs/core";
+import { TX_PACKAGES, txMessage, type TxCode, type TxErrorDoc } from "@textjs/core";
 import { rich } from "../i18n/rich";
 import { t } from "../i18n/t";
 import { A } from "../router";
 import { CopyButton } from "../site/CodeBlock";
 import { SearchIcon } from "../site/icons";
 import { MarkdownDoc } from "../site/Markdown";
-import { getErrorPageDoc, TX000 } from "./tx000";
+import { ERROR_DOCS as TX_ERRORS, getErrorPageDoc, TX000 } from "./tx000";
 
 export function errorPath(code: string): string {
   return `/errors/${code}`;
@@ -91,7 +91,7 @@ export function ErrorPage({ code }: { code: string }): ReactNode {
   const prev = i > 0 ? TX_ERRORS[i - 1] : undefined;
   const next = TX_ERRORS[i + 1];
   const example =
-    e === TX000 ? `Text.js error ${e.code}: ${e.message}` : txMessage(e.code as TxCode).replace(/^Text\.js error/, e.kind === "warning" ? "Text.js warning" : "Text.js error");
+    e.code === TX000.code ? `Text.js error ${e.code}: ${e.message}` : txMessage(e.code as TxCode).replace(/^Text\.js error/, e.kind === "warning" ? "Text.js warning" : "Text.js error");
   return (
     <article className="tx-errors">
       <div className="breadcrumbs">
