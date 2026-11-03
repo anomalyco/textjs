@@ -6,14 +6,14 @@
 
 import { prerender } from "react-dom/static";
 import { POSTS, postPath, renderRss } from "./blog";
-import { DOCS, docPath } from "./docs/registry";
+import { DOCS_META, docPath } from "./docs/meta";
 import { LEARN_ROUTES } from "./learn/routes";
 import { MERCH_ROUTES } from "./merch/routes";
 import { PRESETS, presetPath, type PresetId } from "./console-companion/store";
 import { t } from "./i18n/t";
-import { ERROR_DOCS as TX_ERRORS } from "./pages/tx000";
+import { ERROR_DOCS as TX_ERRORS } from "./pages/error-pages";
 import { Root } from "./Root";
-import { preloadAllRoutes, ROUTE_MANIFEST_SRC } from "./route-loader";
+import { preloadAllRoutes, routeManifestSources } from "./route-loader";
 import { matchRoute, resetLocation, titleFor } from "./router";
 
 await preloadAllRoutes();
@@ -37,7 +37,7 @@ export const ROUTES: readonly PrerenderRoute[] = [
   { path: "/", title: titleFor({ name: "home" }), description: "" },
   { path: "/docs", title: t("Documentation | Text.js"), description: t("Learn how to build React apps that render in the DevTools console.") },
   // Every page also lives at /docs/<slug> (/docs/introduction included).
-  ...DOCS.map((d) => ({ path: `/docs/${d.slug}`, title: titleFor(matchRoute(`/docs/${d.slug}`)), description: d.description, canonical: docPath(d.slug), cardTitle: d.title })),
+  ...DOCS_META.map((d) => ({ path: `/docs/${d.slug}`, title: titleFor(matchRoute(`/docs/${d.slug}`)), description: d.description, canonical: docPath(d.slug), cardTitle: d.title })),
   // The Playground's demos, in picker order. OpenCode and terminal.shop have their own URLs.
   { path: "/playground", title: titleFor(matchRoute("/playground")), description: t("Pick a Text.js demo, open the DevTools console and press a few keys."), cardTitle: demoLabel("dashboard") },
   { path: presetPath("streaming"), title: titleFor(matchRoute(presetPath("streaming"))), description: t("Watch Markdown and a code diff stream into the DevTools console, then press r to replay it."), cardTitle: demoLabel("streaming") },
@@ -71,7 +71,7 @@ export async function render(pathname: string): Promise<string> {
   return html;
 }
 
-export { titleFor, matchRoute, renderRss, ROUTE_MANIFEST_SRC };
+export { titleFor, matchRoute, renderRss, routeManifestSources };
 export { learnVideo } from "./learn/video";
 export { humansTxt, llmsTxt, statusApi } from "./static-files";
 export { renderHomeAnsi } from "./home-ansi";

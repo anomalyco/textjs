@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DOCS, docPath } from "../src/docs/registry";
+import { DOCS_META, docPath } from "../src/docs/registry";
 
 const ROOT = join(import.meta.dir, "..");
 
@@ -62,6 +62,6 @@ describe("production build", () => {
 
   test("sitemap lists every docs page", () => {
     const sitemap = readFileSync(join(ROOT, "public/sitemap.xml"), "utf8");
-    for (const d of DOCS) expect(sitemap).toContain(`https://textjs.org${docPath(d.slug)}<`);
+    for (const d of DOCS_META) expect(sitemap).toContain(`https://textjs.org${docPath(d.slug)}<`);
   });
 });

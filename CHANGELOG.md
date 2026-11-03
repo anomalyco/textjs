@@ -6,9 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `@textjs/react`: `<FocusPad messages>` replaces any of the pad's built-in strings, for translated sites. It covers every line, the screen reader labels and the console size control. `<TextCanvas>` and `<ViewportControl>` also take `messages`. `<ViewportControl>` uses only the size control's keys. Strings that contain a value, such as "Then click here and press ↑ ↓.", are functions that return the whole sentence. `defaultFocusPadMessages` has the English text. See [Translating the focus pad](https://textjs.org/docs/internationalization#translating-the-focus-pad).
+- `@textjs/react`: on right-to-left pages, the focus pad keeps keycaps such as ⌘ ⌥ J and console sizes such as 120×36 left to right, and mirrors its size control and step bar. On Chinese, Japanese and Korean pages, it drops the space between its two sentences.
+- textjs.org: on textjs.org/ja, the focus pad is in Japanese on every page, including the labels under each demo's keys.
+
 ### Changed
 
 - `@textjs/core`: Chromium and Firefox consoles clear animated sprite output at 16 MB instead of 4 MB, so textjs.org/doom shows "Console was cleared" about every 19 seconds instead of every 4.5. Safari, and sprites drawn as `▀` half-blocks, keep 4 MB. The page's peak heap on textjs.org/doom goes from 10.8 MB to about 12–13 MB.
+- textjs.org: a docs page downloads only its own Markdown instead of all 33 pages, so English docs pages load 43–47 KB less JavaScript (gzip) and /ja docs pages 60–64 KB less. Hovering over or focusing a link to another docs page fetches that page early, so it still opens at once.
+
+### Fixed
+
+- textjs.org/ja: ⌘K search shows the Japanese docs headings and matches Japanese queries against them. It used to list English headings under Japanese page titles. English names still find pages: `routing` finds ルーティング and `open the console` finds コンソールを開く.
 
 ## [1.4.1] - 2026-11-03
 

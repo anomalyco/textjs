@@ -1,11 +1,11 @@
-import { DOCS_META, type DocMeta } from "./meta";
+import type { Heading } from "./outline";
 
-export interface Heading {
-  depth: number;
-  text: string;
-  id: string;
-}
+export type { Heading };
 
+/**
+ * Every page's headings, so search doesn't load the pages. English is checked in (`test/docs.test.ts` keeps it in
+ * sync); a locale build replaces this module with its translated headings (`scripts/i18n/vite-plugin.ts`).
+ */
 export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
   "introduction": [
     {
@@ -416,6 +416,11 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
       "depth": 2,
       "text": "Limits",
       "id": "limits"
+    },
+    {
+      "depth": 2,
+      "text": "Translating the focus pad",
+      "id": "translating-the-focus-pad"
     },
     {
       "depth": 2,
@@ -1164,45 +1169,3 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
     }
   ]
 };
-
-export interface MetaSearchHit {
-  doc: DocMeta;
-  heading?: Heading;
-  score: number;
-}
-
-/** Subsequence fuzzy score (higher is better); `-1` when `query` doesn't match. */
-export function fuzzyScore(query: string, target: string): number {
-  const q = query.toLowerCase().replace(/\s+/g, "");
-  const t = target.toLowerCase();
-  if (q.length === 0) return 0;
-  const direct = t.indexOf(query.toLowerCase().trim());
-  if (direct >= 0) return 1000 - direct - t.length * 0.1;
-  let score = 0;
-  let ti = 0;
-  let streak = 0;
-  for (const ch of q) {
-    const found = t.indexOf(ch, ti);
-    if (found < 0) return -1;
-    streak = found === ti ? streak + 1 : 0;
-    score += 10 + streak * 5 - (found - ti);
-    ti = found + 1;
-  }
-  return score - t.length * 0.1;
-}
-
-export function searchDocsMeta(query: string, limit = 12): MetaSearchHit[] {
-  const q = query.trim();
-  if (q.length === 0) return DOCS_META.map((doc) => ({ doc, score: 0 }));
-  const hits: MetaSearchHit[] = [];
-  for (const doc of DOCS_META) {
-    const s = Math.max(fuzzyScore(q, doc.title) * 1.5, fuzzyScore(q, doc.nav ?? doc.title) * 1.5, fuzzyScore(q, doc.description));
-    if (s >= 0) hits.push({ doc, score: s + 50 });
-    for (const h of DOC_HEADINGS[doc.slug] ?? []) {
-      const hs = fuzzyScore(q, h.text);
-      if (hs >= 0) hits.push({ doc, heading: h, score: hs });
-    }
-  }
-  hits.sort((a, b) => b.score - a.score);
-  return hits.slice(0, limit);
-}

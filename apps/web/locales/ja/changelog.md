@@ -7,6 +7,34 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 <!-- s:2e16922cfc -->
 追加
 
+<!-- s:4a00c6f42e -->
+- `@textjs/react`: `<FocusPad messages>` で、翻訳されたサイト向けにパッドの組み込み文字列を置き換えられます。すべての行、スクリーンリーダー用のラベル、コンソールサイズのコントロールが対象です。`<TextCanvas>` と `<ViewportControl>` も `messages` を受け取ります。`<ViewportControl>` はサイズコントロールのキーのみを使います。「次にここをクリックして、↑ ↓を押します。」のように値を含む文字列は、文全体を返す関数です。`defaultFocusPadMessages` に英語のテキストがあります。[フォーカスパッドの翻訳](https://textjs.org/docs/internationalization#translating-the-focus-pad)を参照してください。
+- `@textjs/react`: 右から左へ書くページでは、フォーカスパッドは⌘ ⌥ Jなどのキー表示や120×36などのコンソールサイズを左から右へ表示し、サイズコントロールとステップバーの配置を左右反転します。中国語、日本語、韓国語のページでは、2つの文の間のスペースを省きます。
+- textjs.org: textjs.org/jaでは、各デモのキーの下にあるラベルを含め、すべてのページでフォーカスパッドが日本語になります。
+
+<!-- s:5b88618770 -->
+変更
+
+<!-- s:f7da7bb6d2 -->
+- `@textjs/core`: ChromiumとFirefoxのコンソールでは、アニメーションするスプライトの出力を4 MBではなく16 MBで消去するため、textjs.org/doomで「コンソールが消去されました」と表示される間隔が約4.5秒ごとから約19秒ごとに変わります。Safariと、`▀` の半ブロックで描画するスプライトは4 MBのままです。textjs.org/doomのページのピークヒープ使用量は10.8 MBから約12〜13 MBに増えます。
+
+<!-- s:125517f5e0 -->
+- textjs.org/doomで、Doom独自のステレオパンと距離減衰を使ってDoomの効果音を再生します。音はページ上で最初にクリックするかキーを押すと始まり、ゲームとともに一時停止し、DoomのOptions → Sound VolumeメニューにあるSfx Volumeに従います。音楽はありません。
+
+<!-- s:144aa59e73 -->
+- `@textjs/react`, `@textjs/app`: フォーカスのヒント（「キーボードを使うにはページをクリックしてください」）が、すべてのテーマで黒い太字のテキストを載せたアンバー色のバーになりました。以前はテーマの配色を反転していました。表示されるたびに約6秒間で4回点滅し、その後はアンバー色のままになります。視差効果を減らす設定がオンの場合は点滅しません。点滅の各サイクルで、最大8個の追加コンソールフレームをログに出力します。
+- textjs.org: Doomをtextjs.org/doomに移動しました。textjs.org/playground/doomはそこにリダイレクトします。
+
+<!-- s:afe76b8d59 -->
+修正
+
+<!-- s:b91de36548 -->
+- `@textjs/core`, `@textjs/react`: Chromeの「問題」パネルで、すべてのページに「フォームフィールド要素にはid属性またはname属性が必要です」と報告されなくなりました。キーボード入力用の非表示の `<textarea>` には `textjs-input` という名前が付き、`ViewportControl` のコンソールサイズ用 `<select>`（`FocusPad` の `sizeControl` にも含まれます）には `id` と `textjs-console-size` という名前が付きました。キーボード入力用の `<textarea>` は、1Password、LastPass、Bitwarden、Dashlaneの対象からも除外されます。
+- textjs.org: textjs.org/doomのコンソールヘッダーを「Text.js / playground / doom」から「Text.js / doom」に変更しました。
+- textjs.org/doom: 幅の狭いウィンドウで、「ソースを表示」の後に不要な「·」が残らなくなりました。
+- textjs.org: 幅の狭いウィンドウで、Playgroundのデモ選択欄は最後の項目を単語の途中で切らずに、スクロール先にデモがある側の端でフェードアウトするようになりました。
+- textjs.org/doomがDoom本来の毎秒35 ticで動作するようになりました。以前はレベル内で、60Hzディスプレイでは3.8×の速度（毎秒131 tic）、120Hzでは5.5×の速度（192）で動作していました。これは、Doomがレベル描画中に行う追加のクロック読み取りをページがビジーウェイトと誤認し、アニメーションフレームとタイマーのコールバックのたびにDoomのクロックを1 tic進めていたためです。
+
 <!-- s:14d523690c -->
 - `@textjs/react`: `<Image renderMode="halfblock">` は、1.3の `<Image>` と同様に、すべての環境で `▀` のハーフブロックを描画します。
 - `@textjs/core/experimental`: `drawPixels` は、滑らかなアルファ値と256色を超える色を持つロスレスのスプライト用に `encoding: "rgba"` を受け取り、スプライトを表示できない場所でセルを描画する `fallback` 関数も受け取ります。
@@ -14,17 +42,11 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 - `@textjs/app/ansi` は、`text start` やアダプターを使わないサーバー向けに `wantsAnsi` と `ansiResponse` をエクスポートし、`@textjs/react` は `frameToAnsi` をエクスポートします。
 - textjs.org: textjs.org/jaに日本語版の草稿を追加し、はじめに、インストール、ルーティングのドキュメントとサイトのインターフェースから翻訳を始めています。未翻訳の段落は英語で表示します。検索インデックスへの登録と言語選択への追加はまだしていません。
 
-<!-- s:5b88618770 -->
-変更
-
 <!-- s:f489f8e451 -->
 - `@textjs/react`: `<Image>` がChromiumとFirefoxのコンソールでピクセルスプライトを描画するようになりました。1セルあたり、ピクセルアートでは最大8 × 16ピクセル、写真では4 × 8ピクセルです。これは、マイナーリリース間でフレームの見た目を維持するという[サポートポリシー](https://textjs.org/docs/support-policy)の約束を意図的に破る変更です。1.3のハーフブロックを維持するには、`renderMode="halfblock"` を渡します。Safari、ターミナル（`text run` を含む）、ANSIおよびプレーンテキスト出力、サーバーレンダリングされるページ（`runtime = "server"`）では、引き続きハーフブロックを描画します。
 - `@textjs/app`: curl、Wget、HTTPie、xhでページを取得するスクリプトや稼働監視が、ANSIテキストを受け取るようになりました。引き続きHTMLを受け取るには、`Accept: text/html` を送信するか、`text.config.ts` で `ansi: false` を設定します。
 - `@textjs/app`: `text build` がページのシェルをプリレンダリングする間、非同期サーバーコンポーネントは実行されなくなりました。従来どおり `<Suspense>` のフォールバックを表示し、ビルド時にデータリクエストを開始しません。
 - `@textjs/app`: サーバーレンダリングされるページのフレームプレーヤーが3 KB小さくなり、`examples/dashboard` ではgzip圧縮後のサイズが25.4 KBから22.4 KBになりました。`CellBuffer` の描画メソッド、ボックスの枠線、テキストの切り詰め処理を含まなくなりました。
-
-<!-- s:afe76b8d59 -->
-修正
 
 <!-- s:ba0b1ea778 -->
 - `@textjs/core`: Windows 10でチャートとスピナーのグリッドを維持します。コンソールフォントのConsolasには▁▂▃▅▆▇の8分割ブロック、四分割ブロック、点字、▶、✓がなく、代替グリフによって行がフレームの右端を超えていました。`CssConsoleDriver` は、これらのグリフのうちコンソールフォントでセルの5分の1を超えるずれが生じるものを一度測定し、Consolasにある最も近いグリフで描画します。8分割ブロックには `_` `▄` `▌` `█`、四分割ブロックと点字にはハーフブロック、矢印、チェック、バツには `►` `◄` `√` `×` を使います。Windows 11のCascadia MonoやmacOSのMenloなど、グリフが収まるフォントでは元のグリフを描画します。`measureText: false` で無効にできます。

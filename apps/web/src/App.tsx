@@ -79,10 +79,10 @@ export function App(): ReactNode {
   const targetRoute = matchRoute(location.pathname);
   const [displayed, setDisplayed] = useState<LocationState>(location);
 
-  // If the target route module is already loaded, transition synchronously in the same render;
-  // otherwise keep the previous view mounted until the chunk (and its CSS) finishes loading so
+  // If the target route's chunks (a docs page's Markdown too) are already loaded, transition synchronously in the
+  // same render; otherwise keep the previous view mounted until they (and their CSS) finish loading so
   // <main> never collapses to 0px and causes a layout shift.
-  const readyNow = isRouteLoaded(targetRoute.name);
+  const readyNow = isRouteLoaded(targetRoute);
   const activeLocation = readyNow ? location : displayed;
   if (readyNow && displayed !== location) {
     setDisplayed(location);
@@ -91,7 +91,7 @@ export function App(): ReactNode {
   useEffect(() => {
     if (readyNow) return;
     let alive = true;
-    preloadRoute(targetRoute.name).then(
+    preloadRoute(targetRoute).then(
       () => {
         if (alive) setDisplayed(location);
       },

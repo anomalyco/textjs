@@ -19,10 +19,10 @@ function prerenderedFor(container: HTMLElement): boolean {
   return matchRoute(pre).name === "not-found" && matchRoute(here).name === "not-found";
 }
 
-// Register link prefetching for both DOM route chunks and console companion tabs.
+// Register link prefetching for both DOM route chunks (with a docs page's Markdown) and console companion tabs.
 let preloadCompanionForPath: ((pathname: string) => void) | null = null;
 registerHrefPrefetcher((pathname) => {
-  preloadRoute(matchRoute(pathname).name).catch(prefetchFailed);
+  preloadRoute(matchRoute(pathname)).catch(prefetchFailed);
   preloadCompanionForPath?.(pathname);
 });
 
@@ -40,9 +40,8 @@ companionPromise.catch((error: unknown) => {
   report(error, "console");
 });
 
-// Preload the matched route chunk (modulepreloaded in HTML, so it resolves in a microtask) before hydrating.
-const initialRoute = matchRoute(getLocation().pathname);
-void preloadRoute(initialRoute.name)
+// Preload the matched route's chunks (modulepreloaded in HTML, so they resolve in a microtask) before hydrating.
+void preloadRoute(matchRoute(getLocation().pathname))
   .then(() => {
     const container = document.getElementById("root");
     if (!container) return;

@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { CATEGORY_LABELS, hasTranslatedHeading } from "../docs/meta";
 import { LOCALE, SOURCE_LOCALE } from "../i18n/locales";
-import { DOC_CATEGORIES, DOCS, docPath, getDoc, headingsOf, neighbors } from "../docs/registry";
+import { DOC_CATEGORIES, DOCS_META, docPath, getDoc, headingsOf, neighbors } from "../docs/registry";
 import { t } from "../i18n/t";
 import { A, useLocation } from "../router";
 import { TurbologLockup } from "../site/brand-marks";
@@ -17,7 +17,7 @@ function DocLinks({ slug }: { slug: string }): ReactNode {
       {DOC_CATEGORIES.map((cat) => (
         <div key={cat}>
           <h5>{CATEGORY_LABELS[cat]}</h5>
-          {DOCS.filter((d) => d.category === cat).map((d) => (
+          {DOCS_META.filter((d) => d.category === cat).map((d) => (
             <A key={d.slug} href={docPath(d.slug)} aria-current={d.slug === slug ? "page" : undefined}>
               {d.nav ?? d.title}
             </A>
@@ -59,7 +59,7 @@ function useActiveHeading(ids: readonly string[]): string | null {
 }
 
 export function DocsPage({ slug }: { slug: string }): ReactNode {
-  const doc = getDoc(slug) ?? DOCS[0];
+  const doc = getDoc(slug) ?? getDoc("introduction");
   const { path: pathname } = useLocation();
   const [menu, setMenu] = useState(false);
   const close = (): void => setMenu(false);

@@ -2,7 +2,7 @@
  * Compiles one locale into the build. Catalog strings (`t`, `msg`, `rich`, `plural` with literal arguments) are
  * replaced by the locale's text, falling back to English; `t("x")` and `msg("x")` without parameters become plain
  * string literals, so no lookup or catalog ships. Markdown imported with `?raw` is answered with the assembled
- * locale document (`document.ts`).
+ * locale document (`document.ts`), and the docs search index (`src/docs/search-index.ts`) with that document's headings.
  *
  * The console companion stays English: modules it imports from `src/docs` and `src/blog` resolve to separate
  * English copies (`?lang=en`).
@@ -15,8 +15,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
 import { assemble, blockId, parseTranslation } from "./document";
+import { headingsOf, type Heading } from "../../src/docs/outline";
 import { getLocale } from "../../src/i18n/locales";
-import { CALL, documentForFile, errorPageDocs, LITERAL, parsePluralObject, PLURAL, readCatalog, readText, SRC_DIR, translationFile, USES_CATALOG, type Catalog } from "./sources";
+import { CALL, documentForFile, documentSources, errorPageDocs, LITERAL, parsePluralObject, PLURAL, readCatalog, readText, SRC_DIR, translationFile, USES_CATALOG, type Catalog, type DocumentSource } from "./sources";
 
 export interface Units {
   translated: number;
@@ -31,8 +32,11 @@ export interface UnitsManifest {
 }
 
 const COMPANION = join(SRC_DIR, "console-companion") + "/";
-/** The error pages' translations, `{}` in source (`src/pages/error-docs.ts`). */
+/** The error pages' translations and their titles alone, `{}` in source (`src/pages/error-docs.ts`, `error-titles.ts`). */
 const ERROR_DOCS = join(SRC_DIR, "pages", "error-docs.ts");
+const ERROR_TITLES = join(SRC_DIR, "pages", "error-titles.ts");
+/** The docs pages' headings for search, English in source (`src/docs/search-index.ts`). */
+const SEARCH_INDEX = join(SRC_DIR, "docs", "search-index.ts");
 const ENGLISH_ISLAND = [join(SRC_DIR, "docs") + "/", join(SRC_DIR, "blog") + "/", join(SRC_DIR, "learn") + "/"];
 /** Modules with state the page and the console share; copying them would split it. */
 const SHARED_STATE = /\/learn\/(progress|captions)\.ts$/;
@@ -52,6 +56,13 @@ export function i18nPlugin(locale: string): Plugin {
     return typeof v === "string" && v ? v : key;
   };
 
+  /** A document in this locale: the English with its translated blocks swapped in. */
+  const assembleDocument = (doc: DocumentSource): string => {
+    const { markdown, total, translated } = assemble(readFileSync(doc.file, "utf8"), parseTranslation(readText(translationFile(locale, doc.id))));
+    documents[doc.id] = { total, translated };
+    return markdown;
+  };
+
   return {
     name: "textjs-i18n",
     enforce: "pre",
@@ -66,25 +77,31 @@ export function i18nPlugin(locale: string): Plugin {
       return `${resolved.id}${resolved.id.includes("?") ? "&" : "?"}${EN_QUERY}`;
     },
     load(id) {
-      if (!source && clean(id) === ERROR_DOCS) {
+      if (!source && (clean(id) === ERROR_DOCS || clean(id) === ERROR_TITLES)) {
         const translations = parseTranslation(readText(translationFile(locale, "errors")));
         const out: Record<string, { title: string; cause: string; fix: string }> = {};
+        const titles: Record<string, string> = {};
         for (const e of errorPageDocs()) {
           const title = translations.get(blockId(e.title));
           const cause = assemble(e.cause, translations);
           const fix = assemble(e.fix, translations);
           documents[`errors/${e.code}`] = { total: 1 + cause.total + fix.total, translated: (title ? 1 : 0) + cause.translated + fix.translated };
           out[e.code] = { title: title ?? e.title, cause: cause.markdown, fix: fix.markdown };
+          if (title) titles[e.code] = title;
         }
-        return `export const ERROR_TRANSLATIONS = ${JSON.stringify(out)};`;
+        return clean(id) === ERROR_TITLES ? `export const ERROR_TITLES = ${JSON.stringify(titles)};` : `export const ERROR_TRANSLATIONS = ${JSON.stringify(out)};`;
+      }
+      if (!source && clean(id) === SEARCH_INDEX && !isEnglishCopy(id)) {
+        const out: Record<string, Heading[]> = {};
+        for (const doc of documentSources()) {
+          if (doc.id.startsWith("docs/")) out[doc.id.slice("docs/".length)] = headingsOf(assembleDocument(doc));
+        }
+        return `export const DOC_HEADINGS = ${JSON.stringify(out)};`;
       }
       if (source || isEnglishCopy(id) || !/[?&]raw(&|$)/.test(id)) return null;
       const doc = documentForFile(clean(id));
       if (!doc) return null;
-      const english = readFileSync(doc.file, "utf8");
-      const { markdown, total, translated } = assemble(english, parseTranslation(readText(translationFile(locale, doc.id))));
-      documents[doc.id] = { total, translated };
-      return `export default ${JSON.stringify(markdown)};`;
+      return `export default ${JSON.stringify(assembleDocument(doc))};`;
     },
     transform(code, id) {
       const file = clean(id);

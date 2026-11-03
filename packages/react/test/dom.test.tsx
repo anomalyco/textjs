@@ -2,11 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup, renderToString } from "react-dom/server";
 import { CellBuffer, extractStyledFrame, initYoga } from "@textjs/core";
 import {
   applyViewportChoice,
   ConsoleMirror,
+  defaultFocusPadMessages,
   devtoolsShortcutKeys,
   FocusPad,
   focusPadState,
@@ -15,6 +16,7 @@ import {
   parseViewportChoice,
   TextCanvas,
   ViewportControl,
+  type FocusPadMessages,
 } from "../src/dom/index";
 import { activateFocusPad, FocusPadMessage, focusPadConsole, type FocusPadConsole, type FocusPadMessageProps, type FocusPadPress, type FocusPadState } from "../src/dom/FocusPad";
 import type { ConsoleRoot } from "../src/root";
@@ -205,6 +207,63 @@ describe("DOM companion", () => {
     for (const f of fields) expect(f).toMatch(/ id="[^"]+".* name="textjs-console-size"/);
     const ids = fields.map((f) => / id="([^"]+)"/.exec(f)?.[1]);
     expect(new Set(ids).size).toBe(2);
+  });
+
+  test("FocusPad messages: English by default, any string replaceable", () => {
+    const hints = [{ keys: "↑ ↓", label: "count" }];
+    const pad = (props: Partial<Parameters<typeof FocusPad>[0]> = {}): string => renderToString(<FocusPad root={null} hints={hints} sizeControl {...props} />);
+    // The defaults are the built-in strings, and keys left undefined keep them (renderToString: the hydration markup too).
+    expect(pad({ messages: {} })).toBe(pad());
+    expect(pad({ messages: defaultFocusPadMessages })).toBe(pad());
+    expect(pad({ messages: { openConsole: undefined } })).toBe(pad());
+
+    // A partial override replaces only its own strings.
+    const partial = pad({ messages: { openConsole: "コンソールを開きます", fitConsole: "自動" } });
+    expect(partial).toContain(">コンソールを開きます</h2>");
+    expect(partial).not.toContain("Open the console");
+    expect(partial).toContain("自動");
+    expect(partial).not.toContain("Fit console");
+    expect(partial).toContain("The app renders in DevTools.");
+    expect(partial).toContain("Then click here and press ↑ ↓.");
+
+    // Parameterized lines get whole sentences, with the words in any order.
+    const ja: Partial<FocusPadMessages> = {
+      step: (n, total) => `ステップ ${n}/${total}`,
+      stepLive: "ライブ",
+      pressShortcut: (keys) => `${keys} を押します`,
+      then: (action) => <>次に、ここをクリックして{action}。</>,
+      defaultAction: (keys) => (keys ? `${keys}を押します` : "入力します"),
+      shortcutOpens: (shortcut) => <>{shortcut}でコンソールが開きます。</>,
+      startTyping: "入力を始めます。",
+      consoleSize: "コンソールのサイズ",
+      custom: "カスタム",
+    };
+    const open = renderToStaticMarkup(<FocusPad root={null} hints={hints} messages={ja} sizeControl />);
+    expect(open).toContain('aria-label="ステップ 1/3"');
+    expect(open).toContain('aria-label="⌘ ⌥ J を押します"');
+    expect(open).toContain('<span class="tx-pad-line">次に、ここをクリックして↑ ↓を押します。</span>');
+    expect(open).toContain('aria-label="コンソールのサイズ"');
+    expect(open).toContain("カスタム…");
+    expect(renderToStaticMarkup(<FocusPad root={null} messages={ja} />)).toContain("次に、ここをクリックして入力します。");
+    const m = { ...defaultFocusPadMessages, ...ja } as FocusPadMessages;
+    expect(renderToStaticMarkup(<FocusPadMessage state="click" hints={[]} doThis="x" devtools="chromium-mac" messages={m} />)).toContain("<kbd>⌘⌥J</kbd>でコンソールが開きます。");
+    const live = (h: typeof hints): string => renderToStaticMarkup(<FocusPadMessage state="live" hints={h} doThis="x" devtools="chromium-mac" messages={m} />);
+    expect(live([])).toContain('aria-label="ライブ"');
+    expect(live([])).toContain("入力を始めます。");
+
+    // The space between two sentences is its own node, which Chinese, Japanese and Korean pages hide.
+    expect(open.match(/<span class="tx-pad-gap"> <\/span>/g)?.length).toBe(1);
+    expect(open).toContain(".tx-pad:is(:lang(ja),:lang(zh),:lang(ko)) .tx-pad-gap{display:none}");
+    expect(renderToStaticMarkup(<FocusPadMessage state="click" hints={[]} doThis="x" devtools="chromium-mac" />)).toContain('<span class="tx-pad-line">The app reads keys from this page.</span><span class="tx-pad-gap"> </span><span class="tx-pad-line"><kbd>⌘⌥J</kbd> opens the console.</span>');
+    // Key sequences read left to right on right-to-left pages.
+    expect(open).toContain(".tx-pad-keys,.tx-pad-hint>span,.tx-pad-echo,.tx-pad-line kbd{direction:ltr;unicode-bidi:isolate}");
+
+    // The size control takes the pad's messages, and its own `messages` on top.
+    const sized = renderToStaticMarkup(<FocusPad root={null} messages={ja} sizeControl={{ messages: { custom: "その他" } }} />);
+    expect(sized).toContain('aria-label="コンソールのサイズ"');
+    expect(sized).toContain("その他…");
+    expect(renderToStaticMarkup(<ViewportControl root={null} messages={{ fitConsole: "自動" }} />)).toContain("自動");
+    expect(renderToStaticMarkup(<TextCanvas app={<Text>hi</Text>} messages={{ openConsole: "開く" }} />)).toContain(">開く</h2>");
   });
 
   test("FocusPad gives each browser's console shortcut", () => {

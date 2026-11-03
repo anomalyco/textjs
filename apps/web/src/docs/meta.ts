@@ -102,9 +102,9 @@ export const DOCS_META: readonly DocMeta[] = [
   },
   {
     slug: "internationalization",
-    title: msg("Internationalization: Bidirectional Text"),
-    nav: msg("Bidirectional Text"),
-    description: msg("Hebrew, Arabic and mixed-direction text: UAX #9, dir, alignment, Arabic shaping and grid-exact output."),
+    title: msg("Internationalization"),
+    nav: msg("Internationalization"),
+    description: msg("Right-to-left and mixed-direction text, Arabic shaping, and translating the focus pad."),
     category: "Building Your Application",
   },
   {
@@ -249,6 +249,12 @@ export function docPath(slug: string): string {
 export function getDocMeta(slug: string | undefined): DocMeta | undefined {
   const s = !slug ? "introduction" : slug;
   return DOCS_META.find((d) => d.slug === s);
+}
+
+/** A doc's short label, as in the sidebar (the first doc's for an unknown slug). */
+export function docLabel(slug: string | undefined): string {
+  const doc = getDocMeta(slug) ?? (DOCS_META[0] as DocMeta);
+  return doc.nav ?? doc.title;
 }
 
 /** Strip inline markdown for plain-text labels. */

@@ -1,6 +1,8 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, Input, Markdown, ScrollBox, Select, Text, useInput, useTheme, useViewport, type SelectOption } from "@textjs/react";
-import { DOCS, getDoc, searchDocs, toConsoleMarkdown } from "../../docs/registry";
+import { getDoc, getDocMeta, preloadDoc, subscribeDocs, toConsoleMarkdown } from "../../docs/registry";
+import { searchDocsMeta } from "../../docs/search";
+import { prefetchFailed } from "../../telemetry/capture";
 import { siteStore, type DocsPane } from "../store";
 import { useSite } from "../useSite";
 
@@ -12,12 +14,19 @@ export function DocsTab(): ReactNode {
   const site = useSite();
   const [query, setQuery] = useState("");
   const pane = site.docsPane;
-  const doc = getDoc(site.docSlug) ?? DOCS[0];
+  const doc = getDocMeta(site.docSlug) ?? getDocMeta("introduction");
+  const slug = doc?.slug ?? "introduction";
+  // The highlighted page's Markdown loads on demand, like the website's.
+  const snapshot = (): ReturnType<typeof getDoc> => getDoc(slug);
+  const page = useSyncExternalStore(subscribeDocs, snapshot, snapshot);
+  useEffect(() => {
+    preloadDoc(slug).catch(prefetchFailed);
+  }, [slug]);
 
   const options = useMemo<SelectOption[]>(() => {
     const seen = new Set<string>();
     const out: SelectOption[] = [];
-    for (const hit of searchDocs(query, 40)) {
+    for (const hit of searchDocsMeta(query, 40)) {
       if (seen.has(hit.doc.slug)) continue;
       seen.add(hit.doc.slug);
       out.push({ value: hit.doc.slug, label: hit.doc.nav ?? hit.doc.title });
@@ -25,7 +34,7 @@ export function DocsTab(): ReactNode {
     return out;
   }, [query]);
 
-  const markdown = useMemo(() => (doc ? toConsoleMarkdown(doc.markdown) : ""), [doc]);
+  const markdown = useMemo(() => (page ? toConsoleMarkdown(page.markdown) : ""), [page]);
 
   useInput(
     (e) => {

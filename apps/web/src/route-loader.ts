@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { DemoId } from "./console-companion/store";
+import { DOCS_META } from "./docs/meta";
 import type { CheckoutProvider } from "./merch/config";
 import type { Route } from "./router";
 
@@ -21,8 +22,8 @@ export interface LoadedRoutes {
 const loaded: LoadedRoutes = {};
 const inflight = new Map<string, Promise<void>>();
 
-/** Vite manifest source key for each route's dynamic import (used by `postbuild-pages.ts`). */
-export const ROUTE_MANIFEST_SRC: Record<Exclude<Route["name"], "not-found">, string> = {
+/** Vite manifest source key for each route's dynamic import. */
+const ROUTE_MANIFEST_SRC: Record<Exclude<Route["name"], "not-found">, string> = {
   home: "src/pages/Home.tsx",
   docs: "src/pages/Docs.tsx",
   playground: "src/pages/Playground.tsx",
@@ -39,16 +40,27 @@ export const ROUTE_MANIFEST_SRC: Record<Exclude<Route["name"], "not-found">, str
   merch: "src/merch/Merch.tsx",
 };
 
+/** `docs/registry.ts` once it has loaded: it holds each docs page's Markdown. */
+let docs: typeof import("./docs/registry") | undefined;
+
+/** Vite manifest source keys of the chunks a route renders with: its page and, for a docs page, its Markdown (`postbuild-pages.ts`). */
+export function routeManifestSources(route: Route): string[] {
+  if (route.name === "not-found") return [];
+  const page = ROUTE_MANIFEST_SRC[route.name];
+  return route.name === "docs" ? [page, `src/docs/content/${route.slug}.md?raw`] : [page];
+}
+
 export function getLoadedRoutes(): LoadedRoutes {
   return loaded;
 }
 
-export function isRouteLoaded(name: Route["name"]): boolean {
-  switch (name) {
+/** Whether a route can render now: its page module and the data it needs (a docs page's Markdown). */
+export function isRouteLoaded(route: Route): boolean {
+  switch (route.name) {
     case "home":
       return loaded.HomePage !== undefined;
     case "docs":
-      return loaded.DocsPage !== undefined;
+      return loaded.DocsPage !== undefined && docs?.getDoc(route.slug) !== undefined;
     case "playground":
     case "opencode":
     case "coffee":
@@ -86,21 +98,31 @@ function loadOnce(key: string, fn: () => Promise<void>): Promise<void> {
   return p;
 }
 
-export function preloadRoute(name: Route["name"]): Promise<void> {
-  if (isRouteLoaded(name)) return Promise.resolve();
-  switch (name) {
+/** Loads what `isRouteLoaded` checks, once. Link hover and focus call it too, so a click renders at once. */
+export function preloadRoute(route: Route): Promise<void> {
+  if (isRouteLoaded(route)) return Promise.resolve();
+  switch (route.name) {
     case "home":
       return loadOnce("home", () =>
         import("./pages/Home").then((m) => {
           loaded.HomePage = m.HomePage;
         }),
       );
-    case "docs":
-      return loadOnce("docs", () =>
-        import("./pages/Docs").then((m) => {
-          loaded.DocsPage = m.DocsPage;
+    case "docs": {
+      const { slug } = route;
+      // The page and its Markdown load in parallel.
+      return Promise.all([
+        loadOnce("docs", () =>
+          import("./pages/Docs").then((m) => {
+            loaded.DocsPage = m.DocsPage;
+          }),
+        ),
+        import("./docs/registry").then((m) => {
+          docs = m;
+          return m.preloadDoc(slug);
         }),
-      );
+      ]).then(() => undefined);
+    }
     case "playground":
     case "opencode":
     case "coffee":
@@ -164,10 +186,20 @@ export function preloadRoute(name: Route["name"]): Promise<void> {
   }
 }
 
+/** Every page module and every docs page (the prerenderer and tests). */
 export async function preloadAllRoutes(): Promise<void> {
-  await Promise.all(
-    (["home", "docs", "playground", "learn", "errors", "changelog", "blog", "blog-post", "enterprise", "status", "merch"] as const).map((n) =>
-      preloadRoute(n),
-    ),
-  );
+  const routes: Route[] = [
+    { name: "home" },
+    ...DOCS_META.map((d): Route => ({ name: "docs", slug: d.slug })),
+    { name: "playground", preset: "dashboard" },
+    { name: "learn", slug: "" },
+    { name: "errors" },
+    { name: "changelog" },
+    { name: "blog" },
+    { name: "blog-post", slug: "" },
+    { name: "enterprise" },
+    { name: "status" },
+    { name: "merch", slug: "" },
+  ];
+  await Promise.all(routes.map((r) => preloadRoute(r)));
 }

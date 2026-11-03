@@ -130,5 +130,9 @@
     "append": {
       "ja": "追記"
     }
+  },
+  "notes": {
+    "type": "The verb (to type on the keyboard), finishing “Then click here and …”. Not a data type.",
+    "Custom size": "The console size picker's option for typing your own columns and rows."
   }
 }

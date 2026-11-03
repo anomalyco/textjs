@@ -9,6 +9,7 @@ import { CALL, extractMessages, PLURAL } from "../scripts/i18n/sources";
 import { i18nPlugin } from "../scripts/i18n/vite-plugin";
 import { validate, validatePlural } from "../scripts/i18n/validate";
 import { headingsOf, toConsoleMarkdown } from "../src/docs/registry";
+import { DOC_HEADINGS, type Heading } from "../src/docs/search-index";
 import { LOCALES, localePath, parseLocaleSet, splitLocale } from "../src/i18n/locales";
 import { rich } from "../src/i18n/rich";
 import { interpolate, plural } from "../src/i18n/t";
@@ -88,6 +89,24 @@ describe("catalog", () => {
     expect(unwrapped).not.toContain("<span");
     const en = i18nPlugin("en") as typeof plugin;
     expect(en.transform.call({}, 'import { t } from "../i18n/t";\nconst a = <p>{t("Docs")}</p>;', file)!.code).toContain('<p>{"Docs"}</p>');
+  });
+
+  test("a locale build's search index and error titles come from its translations", () => {
+    const plugin = i18nPlugin("ja") as { load: (id: string) => string | null };
+    const src = join(import.meta.dir, "..", "src");
+    const module = (code: string): Record<string, unknown> => JSON.parse(code.replace(/^export const \w+ = /, "").replace(/;$/, "")) as Record<string, unknown>;
+    const index = module(plugin.load.call({}, join(src, "docs", "search-index.ts"))!) as Record<string, Heading[]>;
+    expect(Object.keys(index).sort()).toEqual(Object.keys(DOC_HEADINGS).sort());
+    // Translated text, English ids: results link to the same anchors.
+    expect(index.installation).toContainEqual({ depth: 2, text: "コンソールを開く", id: "open-the-console" });
+    for (const slug of Object.keys(index)) expect(index[slug]!.map((h) => h.id)).toEqual(DOC_HEADINGS[slug]!.map((h) => h.id));
+    // The console's English copy and English builds keep the checked-in index.
+    expect(plugin.load.call({}, `${join(src, "docs", "search-index.ts")}?lang=en`)).toBeNull();
+    expect((i18nPlugin("en") as typeof plugin).load.call({}, join(src, "docs", "search-index.ts"))).toBeNull();
+    const titles = module(plugin.load.call({}, join(src, "pages", "error-titles.ts"))!) as Record<string, string>;
+    const docs = module(plugin.load.call({}, join(src, "pages", "error-docs.ts"))!) as Record<string, { title: string }>;
+    expect(Object.keys(titles).length).toBeGreaterThan(0);
+    for (const [code, title] of Object.entries(titles)) expect(docs[code]?.title).toBe(title);
   });
 
   test("keys are literal strings found in the source", () => {
