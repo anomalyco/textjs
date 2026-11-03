@@ -44,10 +44,10 @@ describe("locales", () => {
     expect(() => parseLocaleSet("xx")).toThrow();
   });
 
-  test("production builds Japanese live and every other started locale as a draft", () => {
+  test("production builds the eight reviewed locales live", () => {
     // The deploy sets no TEXTJS_LOCALES, so these are the locales textjs.org indexes and offers in the picker and banner.
     const built = parseLocaleSet(undefined);
-    expect(built.filter((l) => l.status === "live").map((l) => l.code)).toEqual(["ja"]);
+    expect(built.filter((l) => l.status === "live").map((l) => l.code)).toEqual(["es", "fr", "de", "pt-BR", "ja", "ko", "zh-CN", "zh-TW"]);
     expect(built.every((l) => ["source", "live", "draft"].includes(l.status))).toBe(true);
   });
 

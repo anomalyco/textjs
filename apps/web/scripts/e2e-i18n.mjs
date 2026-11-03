@@ -79,6 +79,27 @@ async function padText(path) {
 }
 
 try {
+  if (!(process.env.LOCALES ?? "").includes(":")) {
+    // The English picker lists English and every live locale, in locales.ts order, and fits beside the status line.
+    const live = [...source.matchAll(/code: "([^"]+)"[^}]*status: "live"/g)].map((m) => m[1]);
+    for (const [width, height] of [[390, 844], [1440, 900]]) {
+      const ctx = await context("en-US", { width, height });
+      const page = await ctx.newPage();
+      await page.goto(`${base}/docs/routing`, { waitUntil: "networkidle" });
+      const options = await page.$$eval(".locale-menu option", (os) => os.map((o) => o.value));
+      check(JSON.stringify(options) === JSON.stringify(live.length ? ["en", ...live] : []), `English picker at ${width}px lists ${["en", ...live].join(", ")} (${options.join(", ")})`);
+      if (live.length) {
+        const fit = await page.evaluate(() => {
+          const menu = document.querySelector(".locale-menu").getBoundingClientRect();
+          const status = document.querySelector(".footer-status")?.getBoundingClientRect();
+          const overlap = status && menu.left < status.right && menu.right > status.left && menu.top < status.bottom && menu.bottom > status.top;
+          return { inside: menu.left >= 0 && menu.right <= document.documentElement.clientWidth, overlap: Boolean(overlap) };
+        });
+        check(fit.inside && !fit.overlap, `English picker at ${width}px fits the footer beside the status line (${JSON.stringify(fit)})`);
+      }
+      await ctx.close();
+    }
+  }
   for (const { code, path: p, live } of locales) {
     {
       const { page, context, errors } = await open(`/${p}/docs/routing`, code);
