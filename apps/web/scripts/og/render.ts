@@ -37,7 +37,7 @@ const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const sha = (data: string | Buffer): string => createHash("sha256").update(data).digest("hex");
 
 /** A locale's own card font (`template.ts`), which only that locale's cards draw with. */
-const SCRIPT_FONTS: Readonly<Record<string, string>> = {
+export const SCRIPT_FONTS: Readonly<Record<string, string>> = {
   ja: "/fonts/noto-sans-jp-og.woff2",
   ko: "/fonts/noto-sans-kr-og.woff2",
   "zh-CN": "/fonts/noto-sans-sc-og.woff2",
@@ -52,9 +52,9 @@ const isScriptFont = (url: string): boolean => Object.values(SCRIPT_FONTS).inclu
  * Hash of the renderer itself: these scripts, the shared fonts, the lockup (it lives in the site's logo menu) and the
  * card size. A locale's script font goes into its own cards' keys only, so re-subsetting it leaves other cards alone.
  */
-function rendererHash(): string {
+function rendererHash(read: (file: string) => NonSharedBuffer): string {
   const parts = ["template.ts", "render.ts", "png.ts"].map((f) => readFileSync(join(import.meta.dirname, f)));
-  for (const [url, file] of Object.entries(OG_FONTS)) if (!isScriptFont(url)) parts.push(readFileSync(join(WEB_DIR, file)));
+  for (const [url, file] of Object.entries(OG_FONTS)) if (!isScriptFont(url)) parts.push(read(join(WEB_DIR, file)));
   parts.push(Buffer.from(`${OG_WIDTH}x${OG_HEIGHT}\n${LOCKUP_SVG}`));
   return sha(Buffer.concat(parts));
 }
@@ -85,7 +85,7 @@ async function launch(): Promise<Browser | null> {
   }
 }
 
-async function openPage(browser: Browser, files: Map<string, string>): Promise<Page> {
+async function openPage(browser: Browser, files: Map<string, string>, read: (file: string) => NonSharedBuffer): Promise<Page> {
   const page = await browser.newPage({ viewport: { width: OG_WIDTH, height: OG_HEIGHT }, deviceScaleFactor: 1 });
   // Serve fonts and photos from disk; every other request (including localhost) is refused.
   await page.route("**/*", async (route) => {
@@ -94,18 +94,41 @@ async function openPage(browser: Browser, files: Map<string, string>): Promise<P
     const file = url.origin === OG_ORIGIN ? files.get(url.pathname) : undefined;
     if (!file) return route.abort();
     const type = extname(file) === ".woff2" ? "font/woff2" : extname(file) === ".webp" ? "image/webp" : extname(file) === ".png" ? "image/png" : "image/jpeg";
-    return route.fulfill({ status: 200, contentType: type, body: readFileSync(file) });
+    return route.fulfill({ status: 200, contentType: type, body: read(file) });
   });
   await page.goto(`${OG_ORIGIN}/`, { waitUntil: "load" });
   return page;
+}
+
+/**
+ * Waits until every font the page's text is set in has loaded. `document.fonts.ready` alone isn't enough: right after
+ * a DOM change no load has started yet, so it resolves at once and the text is drawn (or checked) in a fallback.
+ * `document.fonts.load()` starts the loads for exactly the characters on the page. A face that fails to load (a
+ * corrupt subset) is an error rather than a fallback.
+ */
+function settleFonts(page: Page): Promise<void> {
+  return page.evaluate(async () => {
+    const runs = new Map<string, string>();
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const s = getComputedStyle(n.parentElement as Element);
+      const font = `${s.fontStyle} ${s.fontWeight} 16px ${s.fontFamily}`;
+      runs.set(font, (runs.get(font) ?? "") + (n.textContent ?? ""));
+    }
+    // A face that can't load rejects here; it's reported by family below.
+    await Promise.all([...runs].map(([font, text]) => document.fonts.load(font, text).catch(() => [])));
+    await document.fonts.ready;
+    const failed = [...document.fonts].filter((f) => f.status === "error").map((f) => f.family);
+    if (failed.length) throw new Error(`og: fonts failed to load: ${failed.join(", ")}`);
+  });
 }
 
 async function shoot(page: Page, job: Job): Promise<Buffer> {
   await page.evaluate((html) => {
     document.body.innerHTML = html;
   }, cardHtml(job.card));
+  await settleFonts(page);
   await page.evaluate(async () => {
-    await document.fonts.ready;
     await Promise.all(Array.from(document.images).map((img) => img.decode()));
   });
   const overflow = await page.evaluate(() => (window as unknown as { __fit(): string[] }).__fit());
@@ -146,10 +169,10 @@ async function checkGlyphs(page: Page, glyphs: Map<string, Set<string>>): Promis
         span.style.fontFamily = family;
         span.textContent = text;
         document.body.replaceChildren(span);
-        return document.fonts.ready;
       },
       { text, family },
     );
+    await settleFonts(page);
     const { root } = await cdp.send("DOM.getDocument");
     const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector: "#g" });
     const { fonts } = await cdp.send("CSS.getPlatformFontsForNode", { nodeId });
@@ -181,8 +204,15 @@ export async function renderOgImages(cards: readonly OgCard[], distDir: string, 
   const outDir = join(distDir, "og");
   mkdirSync(outDir, { recursive: true });
 
+  // Every file is read once, so a font rewritten mid-build can't be served half-written or differ from its hash.
+  const snapshot = new Map<string, NonSharedBuffer>();
+  const read = (file: string): NonSharedBuffer => {
+    let data = snapshot.get(file);
+    if (!data) snapshot.set(file, (data = readFileSync(file)));
+    return data;
+  };
   const fonts = new Map(Object.entries(OG_FONTS).map(([url, file]) => [url, join(WEB_DIR, file)]));
-  const renderer = rendererHash();
+  const renderer = rendererHash(read);
   const slugs = new Set<string>();
   const jobs: Job[] = cards.map((original) => {
     if (slugs.has(original.slug)) throw new Error(`og: two cards share the slug ${original.slug}`);
@@ -192,13 +222,13 @@ export async function renderOgImages(cards: readonly OgCard[], distDir: string, 
     let photoHash = "";
     if (card.photo) {
       const file = photoFile(card.photo, distDir);
-      photoHash = sha(readFileSync(file));
+      photoHash = sha(read(file));
       const url = `/photo/${photoHash.slice(0, 16)}${extname(file)}`;
       files.set(url, file);
       card = { ...card, photo: url.slice(1) };
     }
     const scriptFont = card.lang ? OG_FONTS[SCRIPT_FONTS[card.lang] ?? ""] : undefined;
-    const scriptHash = scriptFont ? sha(readFileSync(join(WEB_DIR, scriptFont))) : "";
+    const scriptHash = scriptFont ? sha(read(join(WEB_DIR, scriptFont))) : "";
     // Only what's drawn: the alt text, the route and fields the template leaves out don't change a pixel.
     const key = sha(`${renderer}\n${scriptHash}${photoHash}\n${JSON.stringify(drawn(card))}`).slice(0, 20);
     const ext = card.photo ? "jpg" : "png";
@@ -215,7 +245,7 @@ export async function renderOgImages(cards: readonly OgCard[], distDir: string, 
       try {
         const allFiles = new Map<string, string>();
         for (const j of misses) for (const [u, f] of j.files) allFiles.set(u, f);
-        const pages = await Promise.all(Array.from({ length: Math.min(PAGES, misses.length) }, () => openPage(browser, allFiles)));
+        const pages = await Promise.all(Array.from({ length: Math.min(PAGES, misses.length) }, () => openPage(browser, allFiles, read)));
         let next = 0;
         const glyphs = new Map<string, Set<string>>();
         await Promise.all(
