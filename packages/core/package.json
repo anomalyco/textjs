@@ -1,6 +1,6 @@
 {
   "name": "@textjs/core",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Text.js core engine: CellBuffer, Yoga layout scene graph, text measurement, input and console drivers.",
   "type": "module",
   "license": "MIT",
@@ -24,6 +24,10 @@
       "types": "./src/experimental.ts",
       "default": "./src/experimental.ts"
     },
+    "./internal": {
+      "types": "./src/internal.ts",
+      "default": "./src/internal.ts"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -37,6 +41,10 @@
       "./experimental": {
         "types": "./dist/experimental.d.ts",
         "default": "./dist/experimental.js"
+      },
+      "./internal": {
+        "types": "./dist/internal.d.ts",
+        "default": "./dist/internal.js"
       }
     }
   },

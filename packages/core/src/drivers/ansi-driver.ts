@@ -8,8 +8,8 @@ import {
   ATTR_UNDERLINE,
   ATTR_WIDE_CONT,
   GRAPHEME_POOL_FLAG,
-  type CellBuffer,
-} from "../cell-buffer";
+  type CellGrid,
+} from "../cell-grid";
 import { hasRtl, isRtlCodePoint, LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../bidi";
 
 export interface AnsiRenderOptions {
@@ -70,7 +70,7 @@ function sgr(fg: PackedColor, bg: PackedColor, attrs: number, assumedBg: PackedC
 }
 
 /** Render a buffer to a truecolor ANSI string. */
-export function renderToAnsi(buffer: CellBuffer, options: AnsiRenderOptions = {}): string {
+export function renderToAnsi(buffer: CellGrid, options: AnsiRenderOptions = {}): string {
   const cells = buffer.readCells();
   const sep = options.lineSeparator ?? "\n";
   const assumedBg = options.assumedBg ?? 0x09090bff;
@@ -126,7 +126,7 @@ export class AnsiDriver {
     private readonly options: AnsiRenderOptions = { cursorHome: true },
   ) {}
 
-  render(buffer: CellBuffer, force = false): boolean {
+  render(buffer: CellGrid, force = false): boolean {
     const out = renderToAnsi(buffer, this.options);
     if (!force && out === this.last) return false;
     this.last = out;

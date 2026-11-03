@@ -7,7 +7,7 @@ import {
   ATTR_ITALIC,
   ATTR_STRIKETHROUGH,
   ATTR_UNDERLINE,
-} from "../cell-buffer";
+} from "../cell-grid";
 
 export interface ConsoleTypographyOptions {
   fontFamily: string;

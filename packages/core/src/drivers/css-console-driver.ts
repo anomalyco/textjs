@@ -8,8 +8,8 @@ import {
   ATTR_WIDE_CONT,
   CHAR_SPACE,
   GRAPHEME_POOL_FLAG,
-  type CellBuffer,
-} from "../cell-buffer";
+  type CellGrid,
+} from "../cell-grid";
 import type { SpriteDriverContext } from "../sprite-types";
 import {
   DEFAULT_STYLE_RESOLVE,
@@ -376,7 +376,7 @@ export class CssConsoleDriver {
   }
 
   /** @internal */
-  _stageKeyframe(buffer: CellBuffer, atMs: number = now()): boolean {
+  _stageKeyframe(buffer: CellGrid, atMs: number = now()): boolean {
     if (!this._supportsTemporalSprites || buffer._sprites.length === 0) return false;
     return buffer._sprites[0]!.codec.stageKeyframe(this.stagedSprites, this.stagePixelPool, buffer, atMs);
   }
@@ -433,7 +433,7 @@ export class CssConsoleDriver {
    * in real TUI layouts. `after` is the background of whatever follows the
    * row on the same line, if anything, for sealing its last span.
    */
-  compileRow(buffer: CellBuffer, y: number, after?: number): CompiledSpan[] {
+  compileRow(buffer: CellGrid, y: number, after?: number): CompiledSpan[] {
     const spans: CompiledSpan[] = [];
     const W = buffer.width;
     const C = buffer._chars;
@@ -1168,7 +1168,7 @@ export class CssConsoleDriver {
    * Diff row hashes and re-encode only changed rows. Returns `null` (with zero
    * string allocation) when nothing changed and `force` is not set.
    */
-  encode(buffer: CellBuffer, options: DriverRenderOptions = {}): { frame: ConsoleFrame | null; dirtyRows: number } {
+  encode(buffer: CellGrid, options: DriverRenderOptions = {}): { frame: ConsoleFrame | null; dirtyRows: number } {
     const banner = this.banner;
     if (banner === null || buffer.height === 0) return this.encodeRows(buffer, options);
     // Console-only: drawn over the last row for this frame, then put back, so the buffer never holds it.
@@ -1189,7 +1189,7 @@ export class CssConsoleDriver {
     this.banner = banner;
   }
 
-  private encodeRows(buffer: CellBuffer, options: DriverRenderOptions): { frame: ConsoleFrame | null; dirtyRows: number } {
+  private encodeRows(buffer: CellGrid, options: DriverRenderOptions): { frame: ConsoleFrame | null; dirtyRows: number } {
     this.lastVisualFrames = 1;
     const hasSprites = buffer._sprites.length > 0;
     const useSpriteUrls = hasSprites && this.profile.supportsSpriteUrl;
@@ -1266,7 +1266,7 @@ export class CssConsoleDriver {
     return { frame: this.assemble(), dirtyRows: dirty };
   }
 
-  render(buffer: CellBuffer, options: DriverRenderOptions = {}): DriverRenderResult {
+  render(buffer: CellGrid, options: DriverRenderOptions = {}): DriverRenderResult {
     const t0 = now();
     const { frame, dirtyRows } = this.encode(buffer, options);
     if (frame === null) return SKIPPED;

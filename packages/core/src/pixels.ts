@@ -7,6 +7,7 @@ import {
   CHAR_SPACE,
   CellBuffer,
 } from "./cell-buffer";
+import type { CellGrid } from "./cell-grid";
 import { blendOver, colorToCss, type PackedColor } from "./color";
 import { encodeIndexedPng, encodeRgbaPng, encodeSpriteSvgDataUrl, hasTransparentPixels, type EncodedPng, type SpriteKeyframe } from "./drivers/png";
 import { DEFAULT_TYPOGRAPHY, SEAL_CSS, sealsBefore } from "./drivers/style";
@@ -254,13 +255,13 @@ type InverseColors = SpriteDriverContext["styleOptions"];
  * draw it as half-block cells: it shares rows with another sprite, or it's a
  * photo beside text, whose sliced rows would each resend its whole data URL.
  */
-function spriteBand(opts: InverseColors, buffer: CellBuffer, sp: BufferSprite): number | null | undefined {
+function spriteBand(opts: InverseColors, buffer: CellGrid, sp: BufferSprite): number | null | undefined {
   if (sharesRowWithSibling(buffer._sprites, sp)) return undefined;
   const bandBg = resolveCleanBandBg(opts, buffer, sp);
   return bandBg === null && sp.encoding === "rgba" ? undefined : bandBg;
 }
 
-function resolveCleanBandBg(opts: InverseColors, buffer: CellBuffer, sp: BufferSprite): number | null {
+function resolveCleanBandBg(opts: InverseColors, buffer: CellGrid, sp: BufferSprite): number | null {
   const W = buffer.width;
   const C = buffer._chars;
   const F = buffer._fg;
@@ -295,7 +296,7 @@ function resolveCleanBandBg(opts: InverseColors, buffer: CellBuffer, sp: BufferS
 }
 
 /** Cells `x0..x1` of row `y` as a one-row buffer. */
-function rowSlice(buffer: CellBuffer, y: number, x0: number, x1: number): CellBuffer {
+function rowSlice(buffer: CellGrid, y: number, x0: number, x1: number): CellBuffer {
   const out = new CellBuffer(x1 - x0, 1);
   const a = y * buffer.width + x0;
   const b = a + x1 - x0;
