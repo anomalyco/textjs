@@ -6,7 +6,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ThemeName } from "@textjs/react";
 import { LIVE_PATH } from "../live-protocol";
@@ -15,7 +15,7 @@ import { LiveServer, type LiveServerOptions } from "./live";
 import type { MiddlewareModule } from "./middleware";
 import { createLiveAuthorizer } from "./middleware-runtime";
 import { LIVE_MANIFEST, type LiveManifest } from "./live-manifest";
-import { createAnsiHandler, type AnsiHandler } from "./ansi-server";
+import { createAnsiHandler, NO_ANSI, type AnsiHandler } from "./ansi-server";
 import { staticFile } from "./static-file";
 import type { LiveEntryModule } from "./live-dev";
 
@@ -61,18 +61,27 @@ function wantsHtml(req: IncomingMessage, pathname: string): boolean {
  */
 function createAnsiFrames(outDir: string, manifest: LiveManifest, loadEntry: () => Promise<LiveEntryModule>, onError?: (error: unknown) => void): AnsiHandler {
   const ansi = manifest.ansi;
-  if (!ansi) return async () => null;
+  if (!ansi) return NO_ANSI;
   const frames: Record<string, string> = {};
   for (const [pattern, rel] of Object.entries(ansi.frames)) {
     const p = join(outDir, rel);
     if (existsSync(p)) frames[pattern] = readFileSync(p, "utf8");
   }
+  const shells = new Set(Object.values(manifest.pages));
   let onRequest = ansi.onRequest;
   const theme = manifest.viewport?.theme as ThemeName | undefined;
   return createAnsiHandler({
     frames,
-    isFile: (pathname) => staticFile(outDir, pathname) !== null,
+    // Files, and directory indexes from `public/` (the bun adapter serves `/manual` from `manual/index.html`),
+    // but not the app's own documents: the root `index.html` and prerendered page shells.
+    isFile: (pathname) => {
+      if (staticFile(outDir, pathname) !== null) return true;
+      if (pathname === "/") return false;
+      const index = staticFile(outDir, pathname, { index: true });
+      return index !== null && !shells.has(relative(outDir, index).split(sep).join("/"));
+    },
     onError,
+    renders: () => onRequest,
     render: async (href) => {
       if (!onRequest) return null;
       let entry: LiveEntryModule;

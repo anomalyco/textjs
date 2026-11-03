@@ -12,7 +12,7 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { VERSION } from "@textjs/core";
-import { ANSI_CACHE_CONTROL, TERMINAL_UA } from "../../ansi";
+import { ANSI_CACHE_CONTROL, ANSI_VARY, TERMINAL_UA } from "../../ansi";
 import { encodePathSegment } from "../../path-text";
 import type { MiddlewareModule } from "../middleware";
 import { middlewareMatchers } from "../middleware-runtime";
@@ -37,6 +37,16 @@ export const VERCEL_NODE_RUNTIME = "nodejs22.x";
  */
 export const VERCEL_ANSI_DIR = "_textjs/ansi";
 
+/** Vercel accepts 2,048 routes per deployment: past this many, the build warns (each prerendered frame adds one). */
+export const VERCEL_ROUTES_NOTE = 1800;
+export const VERCEL_MAX_ROUTES = 2048;
+
+/** The build note for a `config.json` with `count` routes, or `null` while it's well under Vercel's limit. */
+export function vercelRouteNote(count: number): string | null {
+  if (count <= VERCEL_ROUTES_NOTE) return null;
+  return `config.json has ${count} routes. Vercel allows ${VERCEL_MAX_ROUTES.toLocaleString("en-US")} per deployment, and each curl frame adds one. Add \`export const ansi = false\` to pages that don't need a frame, or set \`ansi: false\` in text.config.ts.`;
+}
+
 /** `text/html` in any case, for an `Accept` condition (route `has` values have no flags). */
 const ACCEPT_HTML = "text/html".replace(/[a-z]/g, (c) => `[${c.toUpperCase()}${c}]`);
 
@@ -58,7 +68,7 @@ export function vercelAnsiRoute(pattern: string, basePath = ""): VercelRoute {
     caseSensitive: true,
     has: [{ type: "header", key: "user-agent", value: { re: TERMINAL_UA.source } }],
     missing: [{ type: "header", key: "accept", value: { re: ACCEPT_HTML } }],
-    headers: { "content-type": "text/plain; charset=utf-8", vary: "User-Agent, Accept", "cache-control": ANSI_CACHE_CONTROL, "x-content-type-options": "nosniff" },
+    headers: { "content-type": "text/plain; charset=utf-8", vary: ANSI_VARY, "cache-control": ANSI_CACHE_CONTROL, "x-content-type-options": "nosniff" },
   };
 }
 
@@ -189,6 +199,11 @@ export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule |
   for (const a of ctx.api) routes.push({ src: patternRegex(a.pattern, base), dest: `/${VERCEL_FUNCTION}`, transforms: routed, caseSensitive: true });
   // Pages, after route handlers and before files: a frame never shadows either (the build skips frames that collide with a file).
   for (const pattern of ansi) routes.push(vercelAnsiRoute(pattern, base));
+  // The HTML at those paths depends on User-Agent and Accept too (one route for all of them).
+  if (ansi.length > 0) {
+    const src = ansi.map((p) => patternRegex(p, base).slice(1, -1)).join("|");
+    routes.push({ src: `^(?:${src})$`, methods: ["GET", "HEAD"], headers: { vary: ANSI_VARY }, continue: true, caseSensitive: true });
+  }
   routes.push({ handle: "filesystem" });
   // Extensionless paths are console pages: serve the SPA document.
   routes.push({ src: `^${escapeRegex(base)}(?:\\/(?:[^/]+\\/)*[^/.]*)?$`, dest: `${base}/index.html`, caseSensitive: true });
@@ -221,6 +236,8 @@ export async function adaptVercel(ctx: AdapterContext, middleware: MiddlewareMod
   mkdirSync(mwDir, { recursive: true });
   await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: MIDDLEWARE_BODY, handlers: false, runtime: false }), outFile: join(mwDir, "index.js"), target: "edge" });
   writeFileSync(join(mwDir, ".vc-config.json"), `${JSON.stringify({ runtime: "edge", entrypoint: "index.js" }, null, 2)}\n`);
-  writeFileSync(join(out, "config.json"), `${JSON.stringify(vercelConfig(ctx, middleware, Object.keys(frames)), null, 2)}\n`);
-  return { adapter: "vercel", output: out, notes: ["Deploy: vercel deploy --prebuilt (or push: Vercel runs `text build` and picks up .vercel/output)"] };
+  const config = vercelConfig(ctx, middleware, Object.keys(frames));
+  writeFileSync(join(out, "config.json"), `${JSON.stringify(config, null, 2)}\n`);
+  const routeNote = vercelRouteNote(config.routes.length);
+  return { adapter: "vercel", output: out, notes: [...(routeNote ? [routeNote] : []), "Deploy: vercel deploy --prebuilt (or push: Vercel runs `text build` and picks up .vercel/output)"] };
 }

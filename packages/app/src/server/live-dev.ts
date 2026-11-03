@@ -9,7 +9,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { join, relative, resolve, sep } from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
 import { resolveAnsiSize, type AnsiConfig, type ViewportConfig } from "../config";
-import { createAnsiHandler, type AnsiHandler } from "./ansi-server";
+import { createAnsiHandler, NO_ANSI, type AnsiHandler } from "./ansi-server";
 import { staticFile } from "./static-file";
 import { LIVE_PATH } from "../live-protocol";
 import type { RouteManifest } from "../routing";
@@ -33,7 +33,7 @@ import {
 } from "./live-routes";
 import { scanApp, toPosix } from "./scan";
 import type { MiddlewareModule } from "./middleware";
-import { findMiddlewareFile } from "./middleware-node";
+import { findMiddlewareFile, isDevInternalRequest } from "./middleware-node";
 import { createLiveAuthorizer } from "./middleware-runtime";
 
 const RESOLVED_LIVE = `\0${VIRTUAL_LIVE}`;
@@ -348,7 +348,9 @@ export function createLiveDevHandler(vite: ViteDevServer, o: LiveDevOptions): Li
     ? createAnsiHandler({
         // Every request renders the current code.
         cacheSize: 0,
-        skip: (pathname) => pathname.startsWith("/@") || pathname.startsWith("/__") || pathname.startsWith("/node_modules/"),
+        coldRenders: null,
+        // Vite's own URLs and files in the project root (`/LICENSE`) never render a route.
+        skip: (pathname) => isDevInternalRequest(pathname, o.root),
         isFile: (pathname) => Boolean(publicDir) && staticFile(publicDir, pathname) !== null,
         onError: (error) => {
           if (error instanceof Error) vite.ssrFixStacktrace(error);
@@ -359,7 +361,7 @@ export function createLiveDevHandler(vite: ViteDevServer, o: LiveDevOptions): Li
           return mod.prerenderAnsi({ routes: mod.routes, path: href, ...ansiSize, theme: o.viewport?.theme as ThemeName | undefined });
         },
       })
-    : async () => null;
+    : NO_ANSI;
 
   return {
     server: live,

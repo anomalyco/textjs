@@ -20,8 +20,6 @@ type AnyComponent = (props: any) => unknown;
 /** Promises kept per cache (least recently used are dropped first). */
 export const SERVER_COMPONENT_CACHE_SIZE = 256;
 
-const NEVER: Promise<never> = new Promise<never>(() => undefined);
-
 /** Per-session promise cache, cleared whenever the route or `router.refresh()` generation changes. */
 export class ServerComponentCache {
   private generation = "";
@@ -33,6 +31,12 @@ export class ServerComponentCache {
   private readonly maxEntries: number;
   private readonly onActivity: (() => void) | undefined;
   private readonly suspendOnly: boolean;
+  /**
+   * What `suspendOnly` reads return. Per cache, never module-wide: React attaches a ping
+   * listener to the thrown promise that holds the root, so a shared never-settling promise
+   * would keep every rendered root (and its cell buffer) alive.
+   */
+  private readonly never = new Promise<never>(() => undefined);
 
   /**
    * `onActivity` runs whenever a component's promise starts or settles (idle tracking).
@@ -74,7 +78,7 @@ export class ServerComponentCache {
   }
 
   read(component: AnyComponent, props: object, generation: string): Promise<ReactNode> {
-    if (this.suspendOnly) return NEVER;
+    if (this.suspendOnly) return this.never;
     if (generation !== this.generation) {
       this.generation = generation;
       this.entries.clear();

@@ -15,6 +15,9 @@ const ACCEPTS_HTML = /text\/html/i;
 /** `Cache-Control` for ANSI responses: shared caches (which may ignore `Vary: User-Agent`) never store them. */
 export const ANSI_CACHE_CONTROL = "private, no-cache, no-store, max-age=0, must-revalidate";
 
+/** The request headers an ANSI response depends on: set it on the HTML page at the same URL too. */
+export const ANSI_VARY = "User-Agent, Accept";
+
 /** Node's `IncomingHttpHeaders` shape (lowercase names). */
 export type HeaderRecord = Record<string, string | string[] | undefined>;
 
@@ -44,14 +47,17 @@ export function wantsAnsi(a: Pick<Request, "method" | "headers"> | string | unde
   return accept === undefined || !ACCEPTS_HTML.test(accept);
 }
 
+const encoder = new TextEncoder();
+
 /** A `text/plain` response carrying `frame` (no body for `HEAD`), with the headers terminal responses need. */
 export function ansiResponse(frame: string, method = "GET", status = 200): Response {
-  return new Response(method === "HEAD" ? null : frame, {
+  const bytes = encoder.encode(frame);
+  return new Response(method === "HEAD" ? null : bytes, {
     status,
     headers: {
       "content-type": "text/plain; charset=utf-8",
-      "content-length": String(new TextEncoder().encode(frame).byteLength),
-      vary: "User-Agent, Accept",
+      "content-length": String(bytes.byteLength),
+      vary: ANSI_VARY,
       "cache-control": ANSI_CACHE_CONTROL,
       "x-content-type-options": "nosniff",
     },

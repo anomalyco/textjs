@@ -13,6 +13,7 @@ import { loadServerRuntime } from "../server/adapters/runtime-node";
 import { runRouteHandlerWithCache } from "../server/cache-route";
 import { runNodeMiddleware } from "../server/middleware-node";
 import { staticFile } from "../server/static-file";
+import { appendVary } from "../server/ansi-server";
 import { META_DIR } from "./build";
 import { loadTextConfig } from "./config";
 import { banner, color, fail, ok } from "./ui";
@@ -147,6 +148,8 @@ export async function startProductionServer(options: StartOptions): Promise<Star
         // Terminal clients (curl) get the page's first frame as ANSI, wherever a page would be served.
         const frame = await live.ansi(req, url);
         if (frame) return sendWebResponse(res, frame, req.method);
+        // Terminals could get a frame here, so the HTML page served instead depends on User-Agent and Accept.
+        if ((req.method === "GET" || req.method === "HEAD") && live.ansi.varies(url)) res.setHeader("Vary", appendVary(res.getHeader("vary")?.toString()));
       }
       if (live && (await live.handle(req, res, url))) return;
       if (api) {

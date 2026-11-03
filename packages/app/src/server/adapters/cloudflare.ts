@@ -7,7 +7,7 @@
  * `AsyncLocalStorage`).
  */
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { MiddlewareModule } from "../middleware";
 import { bundleServerEntry, frameworkFile } from "./bundle";
@@ -15,8 +15,17 @@ import { assertNoServerRoutes, readAnsiFrames, removeServerBundle, serverEntry, 
 
 export const CLOUDFLARE_COMPAT = { date: "2025-01-01", flags: ["nodejs_compat"] } as const;
 
-/** Inlined ANSI frames past this size get a build note: Workers limit the compressed bundle size. */
-export const CLOUDFLARE_ANSI_NOTE_BYTES = 1024 * 1024;
+/**
+ * A `_worker.js` past this size gets a build note. Cloudflare documents (Oct 2026) a 64 MiB
+ * uncompressed limit for Workers and 25 MiB for any single Pages file: warn at 20 MiB, near the lower one.
+ */
+export const CLOUDFLARE_WORKER_NOTE_BYTES = 20 * 1024 * 1024;
+
+/** The build note for a `_worker.js` of `bytes`, or `null` while it's well under Cloudflare's limits. */
+export function cloudflareWorkerNote(bytes: number): string | null {
+  if (bytes <= CLOUDFLARE_WORKER_NOTE_BYTES) return null;
+  return `_worker.js is ${(bytes / 1024 / 1024).toFixed(1)} MiB, near Cloudflare's 25 MiB Pages file limit. If the worker gets too large, add \`export const ansi = false\` to pages that don't need a frame, or set \`ansi: false\` in text.config.ts.`;
+}
 
 /** Prerendered ANSI frames inlined into the worker (`ASSETS` would serve them at a URL middleware never sees). */
 function ansiPrelude(frames: Record<string, string>): string {
@@ -92,8 +101,9 @@ export function cloudflareRoutes(ctx: AdapterContext, middleware: MiddlewareModu
 export async function adaptCloudflare(ctx: AdapterContext, middleware: MiddlewareModule | null): Promise<AdapterResult> {
   assertNoServerRoutes(ctx, "cloudflare");
   const frames = readAnsiFrames(ctx.outDir);
-  const frameBytes = Object.values(frames).reduce((n, f) => n + Buffer.byteLength(f), 0);
-  await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: `${ansiPrelude(frames)}\n${BODY}` }), outFile: join(ctx.outDir, "_worker.js"), target: "webworker" });
+  const workerFile = join(ctx.outDir, "_worker.js");
+  await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: `${ansiPrelude(frames)}\n${BODY}` }), outFile: workerFile, target: "webworker" });
+  const sizeNote = cloudflareWorkerNote(statSync(workerFile).size);
   writeFileSync(join(ctx.outDir, "_routes.json"), `${JSON.stringify(cloudflareRoutes(ctx, middleware), null, 2)}\n`);
   const headersFile = join(ctx.outDir, "_headers");
   const rule = "/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n";
@@ -108,7 +118,7 @@ export async function adaptCloudflare(ctx: AdapterContext, middleware: Middlewar
     adapter: "cloudflare",
     output: ctx.outDir,
     notes: [
-      ...(frameBytes > CLOUDFLARE_ANSI_NOTE_BYTES ? [`curl frames add ${(frameBytes / 1024 / 1024).toFixed(1)} MB to _worker.js. Set \`ansi: false\` on pages that don't need them if the worker gets too large.`] : []),
+      ...(sizeNote ? [sizeNote] : []),
       `Requires the ${CLOUDFLARE_COMPAT.flags.join(", ")} compatibility flag (Pages → Settings → Runtime, or wrangler.toml).`,
       `Preview: bunx wrangler pages dev ${ctx.config.outDir ?? "dist"} --compatibility-flags=nodejs_compat`,
       `Deploy:  bunx wrangler pages deploy ${ctx.config.outDir ?? "dist"}`,

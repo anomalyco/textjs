@@ -122,8 +122,8 @@ process.stdout.write(${JSON.stringify(RESULT_MARK)} + JSON.stringify(out) + "\\n
       });
     });
     const line = output.split("\n").find((l) => l.startsWith(RESULT_MARK));
-    // Killed or crashed after importing: every route reports "prerendering did not finish", and on-request renders stay on.
-    if (line === undefined) return { importError: null, routes: {} };
+    // Killed or crashed without saying why: treat it like a failed import, so terminals get HTML rather than renders that may crash the server too.
+    if (line === undefined) return { importError: "the prerender process exited without results", routes: {} };
     return JSON.parse(line.slice(RESULT_MARK.length)) as PrerenderOutput;
   } finally {
     rmSync(runner, { force: true });

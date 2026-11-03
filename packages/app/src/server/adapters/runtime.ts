@@ -10,6 +10,7 @@ import type { Rewrite } from "../../config";
 import { matchAppRoutes, type RouteManifest, type RouteSegmentNode } from "../../routing";
 import { runRouteHandlerWithCache } from "../cache-route";
 import { setCacheStore, type CacheStore } from "../cache";
+import { withAnsiVary } from "../ansi-server";
 import { applyRewrites, badRequest, canonicalPathname, compileRewrite, isLoopbackUrl, proxyFetch, type RouteHandlerModule } from "../http";
 import type { MiddlewareModule } from "../middleware";
 import { canonicalRequest, rebuild, runMiddleware, withMiddlewareHeaders, type MiddlewareMerge } from "../middleware-runtime";
@@ -50,7 +51,10 @@ export interface RequestHandlerOptions {
    * page-serving step: after middleware, rewrites and route handlers, before
    * `live`, assets and the document. `url` is the path and query without basePath.
    */
-  ansi?: (request: Request, url: string, context: RequestContext) => Promise<Response | null> | Response | null;
+  ansi?: ((request: Request, url: string, context: RequestContext) => Promise<Response | null> | Response | null) & {
+    /** Whether the page at `url` is negotiated, so its HTML gets `Vary: User-Agent, Accept`. */
+    varies?(url: string): boolean;
+  };
 }
 
 export type TextRequestHandler = (request: Request, context?: RequestContext) => Promise<Response>;
@@ -90,7 +94,12 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
     let request = incoming;
     let extra: Headers | null = null;
     let merge: MiddlewareMerge = {};
-    const finish = (response: Response): Response => (extra ? withMiddlewareHeaders(response, extra, merge) : response);
+    // Set once the page at this URL is negotiated (terminals could get a frame): its HTML must say so.
+    let vary = false;
+    const finish = (response: Response): Response => {
+      const out = extra ? withMiddlewareHeaders(response, extra, merge) : response;
+      return vary ? withAnsiVary(out) : out;
+    };
 
     if (options.middleware && !options.skipMiddleware) {
       const outcome = await runMiddleware(options.middleware, request, { basePath, waitUntil: context.waitUntil });
@@ -124,6 +133,8 @@ export function createRequestHandler(options: RequestHandlerOptions): TextReques
     if (options.ansi && !mod) {
       const frame = await options.ansi(request, pathname + search, context);
       if (frame) return finish(frame);
+      const method = request.method.toUpperCase();
+      vary = (method === "GET" || method === "HEAD") && (options.ansi.varies?.(pathname + search) ?? false);
     }
 
     if (options.live) {

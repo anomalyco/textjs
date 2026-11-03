@@ -48,6 +48,8 @@ export default function Moved() { redirect("/"); }
 `,
   "public/robots.txt": "robots file\n",
   "public/notes": "notes file\n",
+  NOTICE: "notice file\n",
+  "public/manual/index.html": "<p>manual file</p>\n",
   "middleware.ts": `import { NextResponse, type NextRequest } from "@textjs/app/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -88,6 +90,14 @@ async function exerciseFrames(base: string, options: { dev?: boolean } = {}): Pr
     expect(await html.text()).toContain("<html");
   }
 
+  // The HTML at a path with a frame says it depends on User-Agent and Accept; files don't.
+  const page = await get(base, "/", CHROME);
+  expect(page.headers.get("vary") ?? "").toContain("User-Agent, Accept");
+  await page.arrayBuffer();
+  const file = await get(base, "/robots.txt", CHROME);
+  expect(file.headers.get("vary") ?? "").not.toContain("User-Agent");
+  await file.arrayBuffer();
+
   // A page's own size, and its opt-out.
   const about = await (await get(base, "/about")).text();
   expect(about).toContain("about frame");
@@ -125,6 +135,28 @@ async function exerciseFrames(base: string, options: { dev?: boolean } = {}): Pr
   expect(await rewritten.text()).toContain("about frame");
   const upper = await rawRequest(base, "/ADMIN", { headers: CURL });
   expect(upper.body).not.toContain("admin page");
+}
+
+/** `text start` and bun: every page path is negotiated, and `public/` directory indexes are files. */
+async function exerciseServerVary(base: string, options: { directoryIndexes: boolean }): Promise<void> {
+  const post = await get(base, "/posts/42", CHROME);
+  expect(post.headers.get("content-type")).toContain("text/html");
+  expect(post.headers.get("vary") ?? "").toContain("User-Agent, Accept");
+  await post.arrayBuffer();
+  const manual = await get(base, "/manual");
+  expect(manual.headers.get("content-type")).toContain("text/html");
+  const body = await manual.text();
+  if (options.directoryIndexes) expect(body).toBe("<p>manual file</p>\n");
+}
+
+/** Hosts without a renderer: dynamic pages get plain HTML, which needs no `Vary`. */
+async function exercisePrebuiltOnly(base: string): Promise<void> {
+  const post = await get(base, "/posts/42");
+  expect(post.headers.get("content-type")).toContain("text/html");
+  await post.arrayBuffer();
+  const html = await get(base, "/posts/42", CHROME);
+  expect(html.headers.get("vary") ?? "").not.toContain("User-Agent");
+  await html.arrayBuffer();
 }
 
 /** Hosts that render on request: dynamic routes, not-found pages and `notFound()`. */
@@ -170,6 +202,7 @@ describe("curl gets ANSI", () => {
       const base = new URL(server.url).origin;
       await exerciseFrames(base);
       await exerciseOnRequest(base);
+      await exerciseServerVary(base, { directoryIndexes: false });
       expect((await rawRequest(base, "/.text/ansi/index.txt", { headers: CURL })).status).toBe(404);
     } finally {
       await server.close();
@@ -182,6 +215,10 @@ describe("curl gets ANSI", () => {
       const base = new URL(server.resolvedUrls?.local[0] ?? "").origin;
       await exerciseFrames(base, { dev: true });
       await exerciseOnRequest(base);
+      // Files in the project root never render a route.
+      const notice = await get(base, "/NOTICE");
+      expect(notice.headers.get("content-type")).not.toBe("text/plain; charset=utf-8");
+      await notice.arrayBuffer();
       // Vite's own URLs are left alone.
       const client = await get(base, "/@vite/client");
       expect(client.headers.get("content-type")).toContain("javascript");
@@ -199,6 +236,7 @@ describe("curl gets ANSI", () => {
       const base = new URL(await waitForLine(proc.stdout, /ready on (http:\/\/\S+)/, 15_000)).origin;
       await exerciseFrames(base);
       await exerciseOnRequest(base);
+      await exerciseServerVary(base, { directoryIndexes: true });
       expect((await rawRequest(base, "/.text/ansi/index.txt", { headers: CURL })).status).toBe(404);
     } finally {
       proc.kill();
@@ -226,9 +264,7 @@ describe("curl gets ANSI", () => {
         const res = await rawRequest(harness.url, path, { headers: CURL });
         expect({ path, leaked: res.body.includes("admin page") }).toEqual({ path, leaked: false });
       }
-      const post = await get(harness.url, "/posts/42");
-      expect(post.headers.get("content-type")).toContain("text/html");
-      await post.arrayBuffer();
+      await exercisePrebuiltOnly(harness.url);
       const notAllowed = await get(harness.url, "/", CURL, "POST");
       expect(notAllowed.headers.get("content-type") ?? "").not.toContain("text/plain");
       await notAllowed.arrayBuffer();
@@ -260,9 +296,7 @@ describe("curl gets ANSI", () => {
       const base = `http://127.0.0.1:${local.port}`;
       await exerciseFrames(base);
       // No renderer in the worker: dynamic pages serve HTML.
-      const post = await get(base, "/posts/42");
-      expect(post.headers.get("content-type")).toContain("text/html");
-      await post.arrayBuffer();
+      await exercisePrebuiltOnly(base);
     } finally {
       local.stop(true);
     }
@@ -274,7 +308,7 @@ describe("curl gets ANSI", () => {
       await buildApp({ root: plain, log: false, adapter: "static" });
       expect(existsSync(join(plain, "dist/.text"))).toBe(false);
       const result = await adapt(plain, "static");
-      expect(result.notes.join("\n")).toContain("curl gets the HTML page");
+      expect(result.notes.join("\n")).toContain("Static hosts serve curl the HTML page. To serve curl frames, use --adapter bun, vercel or cloudflare. Set `ansi: false` to hide this note.");
     } finally {
       rmSync(plain, { recursive: true, force: true });
     }
@@ -304,6 +338,8 @@ describe("config switches", () => {
     try {
       await buildApp({ root: dir, log: false });
       expect(existsSync(join(dir, "dist/.text/live-manifest.json"))).toBe(false);
+      expect((await adapt(dir, "static")).notes.join("\n")).not.toContain("curl");
+      await buildApp({ root: dir, log: false });
       const server = await startProductionServer({ root: dir, port: 0, log: false });
       try {
         const res = await get(new URL(server.url).origin, "/");

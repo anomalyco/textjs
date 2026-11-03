@@ -14,6 +14,7 @@ import { BRAND_MARK, ENGINE_NAME, txMessage, VERSION } from "@textjs/core";
 import { normalizeBasePath, toClientConfig, type Rewrite, type TextConfig } from "./config";
 import { applyRewrites, canonicalRequestTarget, compileRewrite, proxyRequest, requestOrigin, runRouteHandler, sendWebResponse, toWebRequest, type CompiledRewrite, type RouteHandlerModule } from "./server/http";
 import { attachFrameStream } from "./server/frames";
+import { appendVary } from "./server/ansi-server";
 import { createLiveDevHandler, textjsLivePlugin } from "./server/live-dev";
 import { withServerStubs } from "./server/live-routes";
 import { runRouteHandlerWithCache } from "./server/cache-route";
@@ -482,9 +483,10 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
             const frame = await live.ansi(req, url);
             if (frame) {
               await sendWebResponse(res, frame, req.method);
-              log?.info(` ${req.method} ${pathname} ${frame.status} (ANSI) in ${Math.round(performance.now() - started)}ms`);
+              log?.info(` ${req.method} ${pathname} ${res.statusCode} (ANSI) in ${Math.round(performance.now() - started)}ms`);
               return;
             }
+            if ((req.method === "GET" || req.method === "HEAD") && live.ansi.varies(url)) res.setHeader("Vary", appendVary(res.getHeader("vary")?.toString()));
           }
           if (await live.handle(req, res, url)) return;
           if (api) {

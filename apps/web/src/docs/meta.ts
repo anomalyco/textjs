@@ -91,7 +91,7 @@ export const DOCS_META: readonly DocMeta[] = [
     slug: "curl",
     title: "curl and Terminal Clients",
     nav: "curl",
-    description: "curl, Wget, HTTPie and xh get a page's first frame as truecolor ANSI: which requests, where and how to configure it.",
+    description: "curl, Wget, HTTPie and xh get a page's first frame as truecolor ANSI text. Configure its size or turn it off.",
     category: "Building Your Application",
   },
   {

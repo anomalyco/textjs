@@ -5,7 +5,9 @@ import { Box, frameToAnsi, Text } from "@textjs/react";
 import { render } from "@textjs/react/testing";
 import { ANSI_CACHE_CONTROL, ansiResponse, TERMINAL_UA, wantsAnsi } from "../src/ansi";
 import { MAX_ANSI_CELLS, pageAnsiSize, resolveAnsiSize } from "../src/config";
-import { ansiPagePath, createAnsiHandler } from "../src/server/ansi-server";
+import { cloudflareWorkerNote, CLOUDFLARE_WORKER_NOTE_BYTES } from "../src/server/adapters/cloudflare";
+import { VERCEL_ROUTES_NOTE, vercelRouteNote } from "../src/server/adapters/vercel";
+import { ANSI_COLD_RENDERS, ansiPagePath, appendVary, createAnsiHandler, withAnsiVary } from "../src/server/ansi-server";
 import { PRIVATE_CACHE_CONTROL } from "../src/server/http";
 import { ServerComponentCache } from "../src/server/server-components";
 
@@ -192,17 +194,71 @@ describe("createAnsiHandler", () => {
     }
   });
 
+  test("uncached renders are budgeted per process: past it, HTML until the budget refills", async () => {
+    let now = 0;
+    const realNow = Date.now;
+    Date.now = () => now;
+    try {
+      let renders = 0;
+      const handler = createAnsiHandler({
+        coldRenders: { limit: 3, windowMs: 3000 },
+        render: async () => {
+          renders++;
+          return { ansi: "x\n", status: 200 };
+        },
+      });
+      const statuses: Array<number | null> = [];
+      for (const p of ["/a", "/b", "/c", "/d", "/e"]) statuses.push((await handler(curl, p))?.status ?? null);
+      expect(statuses).toEqual([200, 200, 200, null, null]);
+      expect(renders).toBe(3);
+      // Cached pages don't spend the budget, and a refused page wasn't cached as a skip.
+      expect((await handler(curl, "/a"))?.status).toBe(200);
+      now += 1000;
+      expect((await handler(curl, "/d"))?.status).toBe(200);
+      expect(await handler(curl, "/e")).toBeNull();
+      expect(renders).toBe(4);
+    } finally {
+      Date.now = realNow;
+    }
+    expect(ANSI_COLD_RENDERS).toEqual({ limit: 20, windowMs: 10_000 });
+  });
+
+  test("varies(): the URLs whose HTML depends on User-Agent and Accept", () => {
+    const prebuilt = createAnsiHandler({ frames: { "/": "home\n" }, isFile: (p) => p === "/notes" });
+    expect(prebuilt.varies("/")).toBe(true);
+    expect(prebuilt.varies("/?x=1")).toBe(true);
+    expect(prebuilt.varies("/posts/1")).toBe(false);
+    let on = true;
+    const rendering = createAnsiHandler({ isFile: (p) => p === "/notes", renders: () => on, render: async () => null });
+    expect(rendering.varies("/posts/1")).toBe(true);
+    expect(rendering.varies("/notes")).toBe(false);
+    expect(rendering.varies("/robots.txt")).toBe(false);
+    expect(rendering.varies("/__textjs/live")).toBe(false);
+    on = false;
+    expect(rendering.varies("/posts/1")).toBe(false);
+  });
+
+  test("appendVary keeps what's there", () => {
+    expect(appendVary(undefined)).toBe("User-Agent, Accept");
+    expect(appendVary("Accept-Encoding")).toBe("Accept-Encoding, User-Agent, Accept");
+    expect(appendVary("accept, RSC")).toBe("accept, RSC, User-Agent");
+    expect(appendVary("*")).toBe("*");
+    const frozen = new Response("x", { headers: { vary: "Origin" } });
+    Object.defineProperty(frozen.headers, "set", { value: () => { throw new TypeError("immutable"); } });
+    expect(withAnsiVary(frozen).headers.get("vary")).toBe("Origin, User-Agent, Accept");
+  });
+
   test("the cache is bounded and can be turned off", async () => {
     let renders = 0;
     const render = async () => {
       renders++;
       return { ansi: "x\n", status: 200 as const };
     };
-    const small = createAnsiHandler({ cacheSize: 2, render });
+    const small = createAnsiHandler({ cacheSize: 2, coldRenders: null, render });
     for (const p of ["/a", "/b", "/c", "/a"]) await small(curl, p);
     expect(renders).toBe(4);
     renders = 0;
-    const off = createAnsiHandler({ cacheSize: 0, render });
+    const off = createAnsiHandler({ cacheSize: 0, coldRenders: null, render });
     for (const p of ["/a", "/a"]) await off(curl, p);
     expect(renders).toBe(2);
   });
@@ -224,5 +280,17 @@ describe("ServerComponentCache({ suspendOnly })", () => {
     expect(settled).toBe("pending");
     expect(ran).toBe(false);
     expect(cache.size).toBe(0);
+  });
+});
+
+describe("platform limits", () => {
+  test("Vercel: a note past 1,800 routes", () => {
+    expect(vercelRouteNote(VERCEL_ROUTES_NOTE)).toBeNull();
+    expect(vercelRouteNote(1900)).toContain("config.json has 1900 routes. Vercel allows 2,048 per deployment");
+  });
+
+  test("Cloudflare: a note past 20 MiB of _worker.js", () => {
+    expect(cloudflareWorkerNote(CLOUDFLARE_WORKER_NOTE_BYTES)).toBeNull();
+    expect(cloudflareWorkerNote(22 * 1024 * 1024)).toContain("_worker.js is 22.0 MiB");
   });
 });
