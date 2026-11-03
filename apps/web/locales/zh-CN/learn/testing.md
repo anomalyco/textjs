@@ -1,5 +1,5 @@
 <!-- s:329a4263b5 -->
-`@textjs/app/testing` 在屏幕外渲染应用，模拟按键，并以纯文本返回帧。测试无需浏览器或 DevTools 即可运行。
+`@textjs/app/testing` 离屏渲染应用，模拟按键，并以纯文本返回帧。测试无需浏览器或 DevTools 即可运行。
 
 <!-- s:22ea22bed4 -->
 第一个测试

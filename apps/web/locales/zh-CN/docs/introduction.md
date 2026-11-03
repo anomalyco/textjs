@@ -9,7 +9,7 @@ Text.js 是一个 React 框架，用于构建通过 `console.log` 在 DevTools �
 
 <!-- s:d3708efc68 -->
 - **React 19**：并发渲染、Suspense 和错误边界。
-- **App Router**：布局、页面、动态段和路由处理程序。
+- **App Router**：布局、页面、动态路由段和路由处理程序。
 - **Yoga 布局**：在 WebAssembly 中运行的 flexbox，对齐到整数单元格。
 - **Turbolog**：每个发生变化的帧调用一次 `console.log`。
 - **控制台 UI**：页面仅包含一个焦点捕获区和一个隐藏的输入框。

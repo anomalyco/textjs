@@ -59,7 +59,7 @@ Text.js 的 VS Code 扩展在代码旁显示控制台帧。它会镜像 `text de
 | 文件 | 预览 |
 | :-- | :-- |
 | `app/page.tsx` | `/` |
-| `app/(shop)/items/[id]/page.tsx` | `/items/id`（动态段使用自身名称） |
+| `app/(shop)/items/[id]/page.tsx` | `/items/id`（动态路由段使用自身名称） |
 | `app/blog/[[...slug]]/layout.tsx` | `/blog` |
 | `components/Card.tsx` | 默认导出或第一个 PascalCase 命名的导出，不传入 props |
 
@@ -120,7 +120,7 @@ Text.js 的 VS Code 扩展在代码旁显示控制台帧。它会镜像 `text de
 | `textjs.preview.followEditor` | `false` | 实时模式：跟随正在编辑的路由 |
 | `textjs.preview.fontSize` | `12` | 单元格字号（DevTools 使用 12） |
 | `textjs.preview.runtime` | | 无头预览使用的 Node.js 二进制文件（默认：VS Code 自带的版本） |
-| `textjs.devServer.url` | | 开发服务器 URL（默认：在端口 3000–3010 上发现）。仅使用 `http://` 回环地址 |
+| `textjs.devServer.url` | | 开发服务器 URL（默认：在端口 3000～3010 上发现）。仅使用 `http://` 回环地址 |
 | `textjs.devServer.command` | | Start Dev Server 使用的命令 |
 
 <!-- s:ea5e740ef1 -->

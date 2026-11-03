@@ -48,7 +48,7 @@
 `<KeyHelp>` 在按下 `?` 时打开，按分组列出所有当前有效且带标签的绑定。`keys` 和 `title` 分别用于更改触发按键和标题。
 
 <!-- s:8a5c3a3297 -->
-`<CommandPalette>` 在按下 `Ctrl+K` 或 `Ctrl+P` 时打开。它会对你的 `commands` 和所有带标签的绑定进行模糊匹配，并高亮匹配的字母。它会在运行命令前关闭，因此命令可以打开自己的模态框。
+`<CommandPalette>` 在按下 `Ctrl+K` 或 `Ctrl+P` 时打开。它会对你的 `commands` 和所有带标签的绑定做模糊匹配，并高亮匹配的字母。它会在运行命令前关闭，因此命令可以打开自己的模态框。
 
 <!-- s:bea7ebdffb -->
 `formatKeys` 将绑定渲染为显示文本。`formatKeys("ctrl+shift+p")` 在 macOS 上返回 `⌃⇧P`，在其他平台上返回 `ctrl+shift+P`，而 `<Kbd>` 使用相同格式渲染单个按键。

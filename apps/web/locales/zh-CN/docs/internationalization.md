@@ -46,7 +46,7 @@ Text.js 在 DevTools、终端和 DOM 镜像中按正确顺序渲染希伯来文�
 当前发布版的字体栈是 `"SF Mono", Menlo, "Cascadia Mono", Consolas, monospace`。这些字体都没有希伯来文或阿拉伯文字形，因此浏览器会逐字符回退到其他字体。在 macOS 上，回退字体是 Courier New，其等宽字形宽度为 0.6 em：字号为 12 px 时，每个字形宽 7.2012 px，而 Menlo 为 7.2246 px。它窄了 0.3%，足以让一整行希伯来文偏移约半个单元格。
 
 <!-- s:851f84e769 -->
-`CssConsoleDriver` 使用控制台字体在 canvas 上测量每个从右到左的 span（采用与 DevTools 相同的 Blink 塑形和字体回退机制），然后按精确的 LayoutUnit（1/64 px）差值补充内边距。span 的最终宽度与其覆盖的网格单元格相同（emoji 等宽字素占两个单元格）。span 最多收缩半个单元格，因此比例回退字体（Windows 上与 Cascadia Mono 搭配的 Times New Roman）会溢出，而不会让下一个 span 覆盖其字形。在真实 DevTools 前端（Chromium 151）中，对一个 64×21 的帧进行了测量，其中包含希伯来文、阿拉伯文、混合文本、希伯来文中夹有 emoji 的行，以及 RTL 框标题（`bun bench/devtools/bidi-shot.ts`）：
+`CssConsoleDriver` 使用控制台字体在 canvas 上测量每个从右到左的 span（采用与 DevTools 相同的 Blink 塑形和字体回退机制），然后按精确的 LayoutUnit（1/64 px）差值补充内边距。span 的最终宽度与其覆盖的网格单元格相同（emoji 等宽字素占两个单元格）。span 最多收缩半个单元格，因此比例回退字体（Windows 上与 Cascadia Mono 搭配的 Times New Roman）会溢出，而不会让下一个 span 覆盖其字形。在真实 DevTools 前端（Chromium 151）中，测量了一个 64×21 的帧，其中包含希伯来文、阿拉伯文、混合文本、希伯来文中夹有 emoji 的行，以及 RTL 框标题（`bun bench/devtools/bidi-shot.ts`）：
 
 <!-- s:45d1be4db4 -->
 | 帧 | 各行右边缘偏移 |
@@ -83,7 +83,7 @@ DevTools 使用 `contain: paint` 绘制每个 `%c` span，并将各个 span 分�
 - **DOM 镜像。** `<ConsoleMirror>` 不做宽度适配，因此其中从右到左的片段最多可能偏移自身宽度的 0.3%。
 
 <!-- s:f4d4dadbf6 -->
-翻译焦点面板
+翻译焦点区
 
 <!-- s:7791d4db4e -->
 `@textjs/react/dom` 中的 `<FocusPad>`（也由 `<TextCanvas>` 渲染）提示访客打开控制台、点击页面并按键。文本默认为英语。要翻译文本，传入 `messages`，其中包含要替换的字符串。未提供的键保留英文文本，这些文本列在 `defaultFocusPadMessages` 中。

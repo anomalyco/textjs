@@ -8,7 +8,7 @@
 `create-text-app` 会生成包含 App Router、TypeScript 和 `text` CLI 的项目骨架。
 
 <!-- s:9eee556b8f -->
-打开 `http://localhost:3000`，然后[打开浏览器控制台](/docs/installation#open-the-console)。页面会显示一个焦点区域。你的应用在控制台中渲染。
+打开 `http://localhost:3000`，然后[打开浏览器控制台](/docs/installation#open-the-console)。页面会显示一个焦点区。你的应用在控制台中渲染。
 
 <!-- s:7d69bcfbda -->
 你的第一个页面

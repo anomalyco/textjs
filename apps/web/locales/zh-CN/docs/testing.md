@@ -1,5 +1,5 @@
 <!-- s:9f5667f5e7 -->
-`@textjs/app/testing`（或 `@textjs/react/testing`）在屏幕外渲染应用，模拟按键，并以文本形式返回帧。测试无需浏览器或 DevTools 即可运行。
+`@textjs/app/testing`（或 `@textjs/react/testing`）离屏渲染应用，模拟按键，并以文本形式返回帧。测试无需浏览器或 DevTools 即可运行。
 
 <!-- s:9bc71b1ad2 -->
 支持任何能运行 `async` 测试的测试运行器，包括 Bun、Vitest 和 Jest。
@@ -10,7 +10,7 @@
 <!-- s:fc969a7928 -->
 | 方法 | 描述 |
 | :-- | :-- |
-| `render(el, { cols, rows, theme })` | 在屏幕外挂载（默认 80×24） |
+| `render(el, { cols, rows, theme })` | 离屏挂载（默认 80×24） |
 | `lastFrame()` | 纯文本形式的帧 |
 | `lines()` | 行数组形式的帧 |
 | `frames` | 到目前为止所有不同的帧 |

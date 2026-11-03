@@ -8,15 +8,22 @@
 新增
 
 <!-- s:fd5b09c2ec -->
-- `@textjs/react`：`<FocusPad messages>` 可替换焦点面板的任意内置字符串，用于翻译后的网站。它涵盖每一行文字、屏幕阅读器标签和控制台尺寸控件。`<TextCanvas>` 和 `<ViewportControl>` 也接受 `messages`。`<ViewportControl>` 仅使用尺寸控件的键。包含变量值的字符串（例如“然后点击这里并按 ↑ ↓。”）是返回完整句子的函数。`defaultFocusPadMessages` 包含英文文本。参见[翻译焦点面板](https://textjs.org/docs/internationalization#translating-the-focus-pad)。
-- `@textjs/react`：在从右到左的页面上，焦点面板让 ⌘ ⌥ J 等键帽和 120×36 等控制台尺寸保持从左到右显示，并镜像显示尺寸控件和步骤栏。在中文和日文页面上，两句话之间不留空格；韩文页面则保留空格。
-- textjs.org：在 textjs.org/ja 上，每个页面的焦点面板均使用日文，包括各个演示的按键下方标签。
+- `@textjs/react`：`<FocusPad messages>` 可替换焦点区的任意内置字符串，用于翻译后的网站。它涵盖每一行文字、屏幕阅读器标签和控制台尺寸控件。`<TextCanvas>` 和 `<ViewportControl>` 也接受 `messages`。`<ViewportControl>` 仅使用尺寸控件的键。包含变量值的字符串（例如“然后点击这里并按 ↑ ↓。”）是返回完整句子的函数。`defaultFocusPadMessages` 包含英文文本。参见[翻译焦点区](https://textjs.org/docs/internationalization#translating-the-focus-pad)。
+- `@textjs/react`：在从右到左的页面上，焦点区让 ⌘ ⌥ J 等键帽和 120×36 等控制台尺寸保持从左到右显示，并镜像显示尺寸控件和步骤栏。在中文和日文页面上，两句话之间不留空格；韩文页面则保留空格。
+- textjs.org：在 textjs.org/ja 上，每个页面的焦点区均使用日文，包括各个演示的按键下方标签。
 
 <!-- s:5b88618770 -->
 变更
 
-<!-- s:f7da7bb6d2 -->
-- `@textjs/core`：Chromium 和 Firefox 控制台在动画精灵输出达到 16 MB 时清空，不再是 4 MB，因此 textjs.org/doom 约每 19 秒显示一次“控制台已清空”，而非每 4.5 秒。Safari 和以 `▀` 半块绘制的精灵仍保留 4 MB 限制。textjs.org/doom 页面的堆内存峰值从 10.8 MB 增至约 12–13 MB。
+<!-- s:27b507a9de -->
+- `@textjs/core`：Chromium 和 Firefox 控制台在动画精灵输出达到 16 MB 时清除输出，原先为 4 MB，因此 textjs.org/doom 大约每 19 秒显示一次“控制台已清除”，原先为每 4.5 秒。Safari 和以 `▀` 半块绘制的精灵仍使用 4 MB。textjs.org/doom 页面的堆内存峰值从 10.8 MB 增至约 12～13 MB。
+- textjs.org：文档页面只下载自身的 Markdown，不再下载全部 33 个页面，因此英文文档页面加载的 JavaScript（gzip）减少了 43～47 KB，/ja 文档页面减少了 60～64 KB。将鼠标悬停在另一篇文档页面的链接上或使链接获得焦点时，会提前获取该页面，因此仍能立即打开。
+
+<!-- s:afe76b8d59 -->
+修复
+
+<!-- s:4290e90e78 -->
+- textjs.org/ja：⌘K 搜索显示日文文档标题，并用日文查询匹配这些标题。此前会在日文页面标题下列出英文标题。英文名称仍能找到页面：`routing` 可找到ルーティング，`open the console` 可找到コンソールを開く。
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom 播放 Doom 音效，使用 Doom 自带的立体声声像和距离衰减。首次在页面上点击或按键后开始播放声音，随游戏暂停，音量遵循 Doom 的 Options → Sound Volume 菜单中的 Sfx Volume 设置。没有音乐。
@@ -24,9 +31,6 @@
 <!-- s:144aa59e73 -->
 - `@textjs/react`、`@textjs/app`：焦点提示（“点击页面以使用键盘”）在所有主题中均为琥珀色条，配以黑色粗体文字。此前使用主题的反转配色。每次出现时，会在约 6 秒内闪烁 4 次，然后保持琥珀色。开启减少动态效果时不会闪烁。每轮闪烁周期最多额外记录 8 个控制台帧。
 - textjs.org：Doom 已移至 textjs.org/doom。textjs.org/playground/doom 会重定向到该地址。
-
-<!-- s:afe76b8d59 -->
-修复
 
 <!-- s:b91de36548 -->
 - `@textjs/core`、`@textjs/react`：Chrome 的“问题”面板不再在每个页面上报告“表单字段元素应具有 id 或 name 属性”。隐藏的键盘 `<textarea>` 命名为 `textjs-input`，`ViewportControl` 的控制台尺寸 `<select>`（也用于 `FocusPad` 的 `sizeControl`）具有 `id` 和名称 `textjs-console-size`。键盘 `<textarea>` 也禁用了 1Password、LastPass、Bitwarden 和 Dashlane 的处理。
@@ -68,7 +72,7 @@
 - `@textjs/app`：`POST /__textjs/input` 接受 `{ type: "text", text }`，用于输入法和死键文本。`@textjs/app/frame-protocol` 中的 `InputMessage` 和 `parseInputMessage` 已包含此类型。
 
 <!-- s:60239a49b7 -->
-- `@textjs/app`：中间件和路由处理程序接收规范路径。`/docs/` 和 `/docs//intro` 会以 `/docs` 和 `/docs/intro` 传入，因此通过重定向添加末尾斜杠的中间件现在会无限重定向。请移除该重定向。动态段不能包含编码后的斜杠：`/files/a%2Fb` 返回 `400`。
+- `@textjs/app`：中间件和路由处理程序接收规范路径。`/docs/` 和 `/docs//intro` 会以 `/docs` 和 `/docs/intro` 传入，因此通过重定向添加末尾斜杠的中间件现在会无限重定向。请移除该重定向。动态路由段不能包含编码后的斜杠：`/files/a%2Fb` 返回 `400`。
 - `@textjs/app`：使用中间件时，`--adapter cloudflare` 将所有请求发送到 worker，包括带哈希的资源；设置 `basePath` 时，还会发送基础路径之外的请求。每个运行 worker 的请求都算一次 Functions 调用，并计入你的 Workers 请求配额。在 Workers Free 套餐中，将 Pages 项目设为失败时关闭（Settings → Runtime → Fail open / closed），否则每日配额耗尽后，Pages 将绕过中间件提供文件。
 
 <!-- s:cb257a7494 -->
@@ -217,7 +221,7 @@
 <!-- s:f92fe85dce -->
 - 帧改为追加，不再每帧执行 `console.clear()` + `console.log()`。DevTools 同步执行清空，但以 50 ms 节流绘制新消息，因此在 15 fps 下，清空会使 70.6% 的 DevTools 绘制呈现空白，在 60 fps 下为 81.1%。前置的零宽遮幕 span 会隐藏较早的帧。仅在首帧、`invalidate()` 之后、堆叠达到 100 帧后的空闲时刻，或达到 300 帧时清空控制台。
 - 输出帧的间隔至少为 66 ms（约 15 fps）。更快的帧会重启 DevTools 节流并被丢弃：在 60 fps 下，DevTools 仅绘制了 295 个输出帧中的 67 个。
-- Playground 和 OpenCode 采用全屏焦点面板。
+- Playground 和 OpenCode 采用全屏焦点区。
 
 <!-- s:79bc055b31 -->
 - span CSS 仅使用完整属性，将 DevTools 复制到每行的属性从约 33 个减少到约 7 个。使用十六进制颜色，空白连续段仅以背景为键。
@@ -257,5 +261,5 @@
 <!-- s:67e64392c2 -->
 - `@textjs/core`：基于扁平类型化数组的 `CellBuffer`、Yoga WASM 布局、`Intl.Segmenter` 文本测量，以及 `%c` 游程编码驱动程序。每个脏帧调用一次 `console.log`，空闲时不调用。
 - `@textjs/react`：React 19 协调器、PascalCase 组件（`Box`、`Text`、`ScrollBox`、`Input`、`Textarea`、`Select`、`Tabs`、`Code`、`Markdown`、`Diff`、`Modal`、`Spinner` 等）、单元格级 Tailwind 风格的 `className` 工具类、主题和 DOM `FocusPad`。
-- `textjs`：基于文件系统的 App Router（`layout`、`page`、`loading`、`error`、`not-found`、动态段、路由处理程序）、`text dev`、`text build`、`text start` 和控制台内的 `[▼]` 检查器。
+- `textjs`：基于文件系统的 App Router（`layout`、`page`、`loading`、`error`、`not-found`、动态路由段、路由处理程序）、`text dev`、`text build`、`text start` 和控制台内的 `[▼]` 检查器。
 - `create-text-app`，附带 `starter` 和 `dashboard` 模板。

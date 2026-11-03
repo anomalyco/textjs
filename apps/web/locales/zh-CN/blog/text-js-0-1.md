@@ -20,7 +20,7 @@ App Router
 路由处理程序位于 `app/api` 中，返回标准的 `Response`：
 
 <!-- s:fe0c29445c -->
-路由器通过 `history.pushState` 保持 `window.location` 同步，因此后退、前进和深层链接均可使用，`metadata.title` 会写入 `document.title`。应用在控制台中绘制，页面则放置一个用于收集输入的焦点区域。
+路由器通过 `history.pushState` 保持 `window.location` 同步，因此后退、前进和深层链接均可使用，`metadata.title` 会写入 `document.title`。应用在控制台中绘制，页面则放置一个用于收集输入的焦点区。
 
 <!-- s:6109f13d80 -->
 CLI

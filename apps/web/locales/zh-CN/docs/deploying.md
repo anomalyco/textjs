@@ -26,7 +26,7 @@
 适用于不提供服务器的托管平台，例如 GitHub Pages、S3 或 CDN。设置了 `dynamic = "force-static"` 或 `revalidate` 的 `GET` 路由处理程序会预渲染为文件：`app/api/feed.json/route.ts` 会变为 `dist/api/feed.json`。`index.html` 的副本会写入 `404.html`，使深层链接能打开控制台应用。静态托管平台无法区分 curl 和浏览器，因此 curl 会收到 HTML 页面。
 
 <!-- s:1e90536a2a -->
-如果应用需要服务器，构建会失败并列出所有原因：`middleware.ts`、[服务端渲染的路由](/docs/server-rendering)、动态路由处理程序、带动态片段的路由处理程序或非 `GET` 方法。请改为在托管平台上配置 `rewrites`。
+如果应用需要服务器，构建会失败并列出所有原因：`middleware.ts`、[服务端渲染的路由](/docs/server-rendering)、动态路由处理程序、带动态路由段的路由处理程序或非 `GET` 方法。请改为在托管平台上配置 `rewrites`。
 
 <!-- s:2c3ddc9047 -->
 Bun

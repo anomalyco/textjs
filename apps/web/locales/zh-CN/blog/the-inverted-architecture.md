@@ -17,7 +17,7 @@
 布局
 
 <!-- s:c4d7c2c9e5 -->
-编译为 WebAssembly 的 Yoga 使用 `pointScaleFactor = 1` 对树进行布局，让每个盒子都对齐到完整的单元格。文本通过 `Intl.Segmenter` 和东亚字符宽度表测量，因此 `你好` 占 4 个单元格，`🚀` 占 2 个。如果一次编辑不会改变文本节点的尺寸，就不会再次调用 Yoga。
+编译为 WebAssembly 的 Yoga 使用 `pointScaleFactor = 1` 为树布局，让每个盒子都对齐到完整的单元格。文本通过 `Intl.Segmenter` 和东亚字符宽度表测量，因此 `你好` 占 4 个单元格，`🚀` 占 2 个。如果一次编辑不会改变文本节点的尺寸，就不会再次调用 Yoga。
 
 <!-- s:28cb69fc5d -->
 CellBuffer
@@ -53,7 +53,7 @@ CellBuffer
 输入
 
 <!-- s:e569f67f37 -->
-控制台无法接收按键，因此由页面接收。隐藏的 `<textarea>` 收集按键、粘贴和输入法组合输入，`wheel` 事件则滚动 `ScrollBox`。在 textjs.org 上，Playground 和 OpenCode 页面各自都是一整块焦点区域。打开控制台，然后点击页面即可输入。
+控制台无法接收按键，因此由页面接收。隐藏的 `<textarea>` 收集按键、粘贴和输入法组合输入，`wheel` 事件则滚动 `ScrollBox`。在 textjs.org 上，Playground 和 OpenCode 页面各自都是一整块焦点区。打开控制台，然后点击页面即可输入。
 
 <!-- s:7db6aa160c -->
 页面能看到什么
