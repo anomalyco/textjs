@@ -769,7 +769,7 @@
   "Text.js panel": "Text.js 패널",
   "Text.js renders the entire interface in the DevTools console, where your auditors can already inspect it.": "Text.js는 전체 인터페이스를 DevTools 콘솔에 렌더링해요. 감사 담당자는 이미 그곳에서 검사할 수 있어요.",
   "Text.js renders the same certificate in the console. It updates as you type your name.": "Text.js는 콘솔에도 같은 수료증을 렌더링해요. 이름을 입력하면 바로 반영돼요.",
-  "Text.js runs in desktop Chrome, Edge, Arc, Brave, Firefox and Safari. Turbolog is tuned against the Chromium DevTools frontend and its 50ms viewport throttler, and adjusts its CSS for the Firefox and Safari consoles.": "Text.js는 데스크톱 Chrome, Edge, Arc, Brave, Firefox, Safari에서 실행돼요. Turbolog는 Chromium DevTools 프런트엔드와 50ms 뷰포트 스로틀러에 맞춰 조정되어 있으며, Firefox와 Safari 콘솔에 맞게 CSS를 조정해요.",
+  "Text.js runs in desktop Chrome, Edge, Arc, Brave, Firefox and Safari. Turbolog is tuned against the Chromium DevTools frontend and its 50ms viewport throttler, and adjusts its CSS for the Firefox and Safari consoles.": "Text.js는 데스크톱 Chrome, Edge, Arc, Brave, Firefox, Safari에서 실행돼요. Turbolog는 Chromium DevTools 프런트엔드와 50ms 뷰포트 스로틀러에 맞춰 튜닝되어 있고, Firefox와 Safari 콘솔에서는 CSS를 바꿔요.",
   "Text.js runs Yoga in WebAssembly with a point scale factor of 1, so every box lands on a whole cell. Text is segmented with Intl.Segmenter and measured in cells.": "Text.js는 포인트 배율을 1로 설정해 WebAssembly에서 Yoga를 실행하므로 모든 상자가 정수 단위 셀에 맞춰져요. 텍스트는 Intl.Segmenter로 나누고 셀 단위로 측정해요.",
   "Text.js Store": "Text.js 스토어",
   "Text.js supports concurrent rendering, Suspense and error boundaries.": "Text.js는 동시 렌더링, Suspense, 에러 바운더리를 지원해요.",

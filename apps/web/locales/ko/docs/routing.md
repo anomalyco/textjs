@@ -5,7 +5,7 @@ App Router는 `app/`의 폴더를 URL에 매핑하고 브라우저의 주소 표
 페이지
 
 <!-- s:c4bd849316 -->
-`page.tsx`에서 컴포넌트를 기본 내보내기로 내보내세요:
+`page.tsx`에서 컴포넌트를 기본으로 내보내세요(export default):
 
 <!-- s:66a6e1dc46 -->
 레이아웃

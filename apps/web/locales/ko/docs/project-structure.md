@@ -20,7 +20,7 @@
 | `layout.tsx` | 세그먼트의 공유 UI |
 | `page.tsx` | 라우팅 가능한 화면 |
 | `loading.tsx` | Suspense 폴백 |
-| `error.tsx` | 오류 경계 |
+| `error.tsx` | 에러 바운더리 |
 | `not-found.tsx` | 일치하는 라우트가 없는 URL |
 | `route.ts` | API 엔드포인트 |
 

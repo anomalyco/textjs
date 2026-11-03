@@ -8,7 +8,7 @@ Text.js는 `console.log`로 DevTools 콘솔에 렌더링하는 앱을 위한 Rea
 포함된 기능
 
 <!-- s:d3708efc68 -->
-- **React 19**: 동시 렌더링, Suspense, 오류 경계.
+- **React 19**: 동시 렌더링, Suspense, 에러 바운더리.
 - **App Router**: 레이아웃, 페이지, 동적 세그먼트, 라우트 핸들러.
 - **Yoga 레이아웃**: 정수 단위 셀에 맞춘 WebAssembly 기반 flexbox.
 - **Turbolog**: 변경된 프레임마다 `console.log` 1회 호출.

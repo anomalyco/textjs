@@ -15,8 +15,15 @@ Text.js의 주요 변경 사항을 모두 이 파일에 기록해요.
 <!-- s:5b88618770 -->
 변경
 
-<!-- s:f7da7bb6d2 -->
-- `@textjs/core`: Chromium과 Firefox 콘솔은 애니메이션 스프라이트 출력을 4MB 대신 16MB에서 지워요. 따라서 textjs.org/doom에서 “콘솔이 지워졌어요”가 약 4.5초마다 표시되던 대신 약 19초마다 표시돼요. Safari와 `▀` 반 블록으로 그리는 스프라이트는 4MB를 유지해요. textjs.org/doom 페이지의 최대 힙 사용량은 10.8MB에서 약 12~13MB로 늘어나요.
+<!-- s:27b507a9de -->
+- `@textjs/core`: Chromium과 Firefox 콘솔은 애니메이션 스프라이트 출력을 4MB 대신 16MB에서 지우므로, textjs.org/doom에 “콘솔이 지워졌어요”가 약 4.5초마다가 아니라 19초마다 표시돼요. Safari와 `▀` 반 블록으로 그리는 스프라이트는 4MB를 유지해요. textjs.org/doom 페이지의 최대 힙 사용량은 10.8MB에서 약 12~13MB로 늘어나요.
+- textjs.org: 문서 페이지는 33개 페이지 전체가 아니라 해당 페이지의 Markdown만 다운로드하므로, 영어 문서 페이지가 로드하는 JavaScript(gzip)는 43~47KB, /ja 문서 페이지는 60~64KB 줄어들어요. 다른 문서 페이지 링크에 마우스를 올리거나 포커스를 두면 해당 페이지를 미리 가져오므로, 여전히 바로 열려요.
+
+<!-- s:afe76b8d59 -->
+수정
+
+<!-- s:4290e90e78 -->
+- textjs.org/ja: ⌘K 검색에 일본어 문서 제목이 표시되고 일본어 쿼리로 해당 제목을 검색해요. 이전에는 일본어 페이지 제목 아래에 영어 제목이 나열됐어요. 영어 이름으로도 여전히 페이지를 찾을 수 있어요: `routing`은 ルーティング을 찾고 `open the console`은 コンソールを開く를 찾아요.
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom에서 Doom 자체의 스테레오 패닝과 거리 감쇠를 적용한 Doom 효과음을 재생해요. 페이지에서 처음 클릭하거나 키를 누르면 소리가 시작되고, 게임과 함께 일시 정지되며, Doom의 Options → Sound Volume 메뉴에 있는 Sfx Volume 설정을 따라요. 음악은 없어요.
@@ -24,9 +31,6 @@ Text.js의 주요 변경 사항을 모두 이 파일에 기록해요.
 <!-- s:144aa59e73 -->
 - `@textjs/react`, `@textjs/app`: 포커스 안내(“키보드를 사용하려면 페이지를 클릭하세요”)가 모든 테마에서 굵은 검은색 글자가 있는 호박색 막대로 표시돼요. 이전에는 테마 색상을 반전했어요. 나타날 때마다 약 6초 동안 4번 깜빡인 뒤 호박색을 유지해요. 모션 줄이기가 켜져 있으면 깜빡이지 않아요. 깜빡임 주기마다 콘솔 프레임을 최대 8개 더 기록해요.
 - textjs.org: Doom이 textjs.org/doom으로 이동했어요. textjs.org/playground/doom은 해당 주소로 리디렉션돼요.
-
-<!-- s:afe76b8d59 -->
-수정
 
 <!-- s:b91de36548 -->
 - `@textjs/core`, `@textjs/react`: Chrome의 ‘문제’ 패널에서 더 이상 모든 페이지에 “양식 필드 요소에 id 또는 name 속성이 있어야 해요”를 보고하지 않아요. 숨겨진 키보드 `<textarea>`의 이름은 `textjs-input`이고, `ViewportControl`의 콘솔 크기 `<select>`(`FocusPad`의 `sizeControl`에도 있어요)에는 `id`와 `textjs-console-size`라는 이름이 있어요. 키보드 `<textarea>`는 1Password, LastPass, Bitwarden, Dashlane의 처리 대상에서도 제외돼요.
@@ -97,7 +101,7 @@ Text.js의 주요 변경 사항을 모두 이 파일에 기록해요.
 - 이제 모든 호스트가 요청마다 정규 경로명 하나를 계산하고 매처, `request.nextUrl`, 모든 조회에 사용해요. 퍼센트 이스케이프를 디코딩하고 `new URL()`이 쓰는 방식으로 경로를 다시 인코딩하며, `.`과 `..` 세그먼트를 처리하고 중복 슬래시와 끝 슬래시를 제거해요. `%2F`, `%5C`, 잘못된 퍼센트 인코딩이 있는 경로는 `400`을 받아요. `text dev`, `text start`, Bun 어댑터는 정확한 이름으로만 정적 파일을 제공하므로, macOS와 Windows에서 `/ADMIN/report.txt`가 더 이상 `public/admin/report.txt`를 제공하지 않아요.
 - 매처, 재작성 원본, 라우트 세그먼트, `basePath`는 요청 경로와 같은 인코딩 형식으로 비교하므로 `matcher: "/café/:path*"`와 `"/caf%c3%a9/:path*"`는 `/caf%C3%A9`를 보호하고, `"/ops%40corp/:path*"`는 `/ops@corp`를 보호해요. 매처가 없는 미들웨어는 `basePath` 밖에서 실행되지 않아요. `/admin/`처럼 끝 슬래시가 있는 매처는 `/admin`과 매칭되며, `host` 조건은 호스트 이름 끝의 점을 무시해요.
 - `runtime = "server"` 라우트의 실시간 세션은 미들웨어가 `/restricted`에서 `/login`으로 재작성하는 경우처럼 다른 경로나 쿼리로 재작성한 페이지, 또는 `NextResponse.next({ status: 403 })` 같은 오류 상태로 응답한 페이지를 렌더링하지 않아요.
-- `--adapter vercel`: 라우트 핸들러 함수는 생성된 라우트만 설정하는 요청 헤더에서 경로를 받으므로, `/api/x/%252e%252e/admin`이 더 이상 `/api/admin`에 도달하지 않으며 `/_textjs/*`를 어떻게 표기해도 함수를 실행하지 않아요. 생성된 라우트는 대소문자를 구분해 매칭하므로, `/LEGACY/x`가 미들웨어에서 검사하지 않은 `/legacy/:path*` 재작성에 더 이상 도달하지 않아요. `{` 같은 원시 문자를 포함해 정규 형식이 아닐 수 있는 모든 경로는 엣지 미들웨어를 거치며, 이제 모든 Vercel 빌드에 포함되는 엣지 미들웨어가 요청을 정규 경로로 재작성해요.
+- `--adapter vercel`: 라우트 핸들러 함수는 생성된 라우트만 설정하는 요청 헤더에서 경로를 받으므로, `/api/x/%252e%252e/admin`이 더 이상 `/api/admin`에 도달하지 않으며 `/_textjs/*`를 어떻게 표기해도 함수를 실행하지 않아요. 생성된 라우트는 대소문자를 구분해 매칭하므로, `/LEGACY/x`가 미들웨어에서 검사하지 않은 `/legacy/:path*` 재작성에 더 이상 도달하지 않아요. `{` 같은 원시 문자를 포함해 정규 형식이 아닐 수 있는 모든 경로는 에지 미들웨어를 거치며, 이제 모든 Vercel 빌드에 포함되는 에지 미들웨어가 요청을 정규 경로로 재작성해요.
 - `--adapter cloudflare`: 인코딩된 경로로 정적 파일을 조회하므로 `/x/%252e%252e/admin/report.txt`가 더 이상 `/admin/report.txt`를 제공하지 않아요. `basePath`가 있으면 그 밖의 파일을 워커 없이 제공하지 않아요.
 - `text dev`는 `/public/…` 또는 `/@fs/…` 아래에서 `public/` 파일을 제공하지 않으며, `middleware.ts`, `text.config.ts` 같은 서버 전용 소스를 대소문자를 바꾼 경로, 인코딩된 `/@fs/` 경로, 확장자 없는 모듈 요청(`/text.config?import`), 설정 재작성으로 제공하지 않고, `basePath` 밖의 라우트 핸들러도 제공하지 않아요.
 
