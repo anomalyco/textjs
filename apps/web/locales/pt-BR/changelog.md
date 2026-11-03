@@ -15,8 +15,15 @@ Adições
 <!-- s:5b88618770 -->
 Alterações
 
-<!-- s:f7da7bb6d2 -->
-- `@textjs/core`: os consoles do Chromium e do Firefox limpam a saída de sprites animados ao atingir 16 MB em vez de 4 MB, então textjs.org/doom mostra “O console foi limpo” a cada 19 segundos, aproximadamente, em vez de a cada 4,5. O Safari e os sprites desenhados como meios blocos `▀` mantêm 4 MB. O pico de heap da página em textjs.org/doom passa de 10,8 MB para cerca de 12–13 MB.
+<!-- s:27b507a9de -->
+- `@textjs/core`: os consoles do Chromium e do Firefox limpam a saída de sprites animados ao atingir 16 MB em vez de 4 MB, então textjs.org/doom mostra “O console foi limpo” a cada 19 segundos aproximadamente, em vez de a cada 4,5. O Safari e os sprites desenhados como meios blocos `▀` mantêm 4 MB. O pico de heap da página em textjs.org/doom passa de 10,8 MB para cerca de 12–13 MB.
+- textjs.org: uma página da documentação baixa apenas seu próprio Markdown em vez de todas as 33 páginas, então as páginas da documentação em inglês carregam 43–47 KB a menos de JavaScript (gzip), e as páginas da documentação em /ja, 60–64 KB a menos. Passar o mouse sobre um link para outra página da documentação ou focá-lo busca essa página antecipadamente, para que ela continue abrindo de imediato.
+
+<!-- s:afe76b8d59 -->
+Correções
+
+<!-- s:4290e90e78 -->
+- textjs.org/ja: a busca ⌘K mostra os títulos da documentação em japonês e compara as consultas em japonês com eles. Antes, ela listava títulos em inglês sob os títulos das páginas em japonês. Os nomes em inglês ainda encontram páginas: `routing` encontra ルーティング e `open the console` encontra コンソールを開く.
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom reproduz os efeitos sonoros do Doom, com o posicionamento estéreo e a atenuação por distância do próprio Doom. O som começa com seu primeiro clique ou pressionamento de tecla na página, pausa com o jogo e segue Sfx Volume no menu Options → Sound Volume do Doom. Não há música.
@@ -24,9 +31,6 @@ Alterações
 <!-- s:144aa59e73 -->
 - `@textjs/react`, `@textjs/app`: a dica de foco (“Clique na página para usar o teclado”) é uma barra âmbar com texto preto em negrito em todos os temas. Antes, ela usava as cores do tema invertidas. Sempre que aparece, pisca 4 vezes ao longo de cerca de 6 segundos e depois permanece âmbar. Ela não pisca quando a redução de movimento está ativada. Cada ciclo de piscada registra até 8 quadros extras no console.
 - textjs.org: Doom foi movido para textjs.org/doom. textjs.org/playground/doom redireciona para lá.
-
-<!-- s:afe76b8d59 -->
-Correções
 
 <!-- s:b91de36548 -->
 - `@textjs/core`, `@textjs/react`: o painel Problemas do Chrome não informa mais “Um elemento de campo de formulário deve ter um atributo id ou name” em todas as páginas. O `<textarea>` oculto do teclado tem o nome `textjs-input`, e o `<select>` de tamanho do console de `ViewportControl` (também no `sizeControl` de `FocusPad`) tem um `id` e o nome `textjs-console-size`. O `<textarea>` do teclado também desativa a integração com 1Password, LastPass, Bitwarden e Dashlane.

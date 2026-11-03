@@ -29,7 +29,7 @@ Navegação
 | Prop | Descrição |
 | :-- | :-- |
 | `href` | Caminho de destino |
-| `shortcut` | Tecla que segue o link |
+| `shortcut` | Tecla que abre o link |
 | `replace` | Substituição da entrada no histórico |
 
 <!-- s:c6bd4ebc06 -->

@@ -8,7 +8,7 @@ Essas primitivas organizam a grade de células com Yoga flexbox.
 O contêiner de layout.
 
 <!-- s:b2726c7ef5 -->
-| Propriedade | Descrição |
+| Prop | Descrição |
 | :-- | :-- |
 | `className` | Utilitários de células |
 | `border` | `single` `rounded` `double` `heavy` `dashed` |
@@ -23,7 +23,7 @@ O contêiner de layout.
 Texto em linha. Elementos `<Text>` aninhados se tornam spans estilizados.
 
 <!-- s:d078a242d3 -->
-| Propriedade | Descrição |
+| Prop | Descrição |
 | :-- | :-- |
 | `color` | Cor do texto |
 | `bold` `italic` `underline` `dim` | Atributos |
