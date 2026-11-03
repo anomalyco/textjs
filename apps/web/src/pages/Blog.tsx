@@ -14,7 +14,9 @@ export function BlogPage(): ReactNode {
             RSS feed
           </a>
           <A href="/changelog" className="text-link">
-            Changelog →
+            <span>
+              Changelog <span className="rtl-flip">→</span>
+            </span>
           </A>
         </div>
       </header>

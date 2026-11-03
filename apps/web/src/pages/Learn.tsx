@@ -200,17 +200,23 @@ function ChapterPage({ chapter }: { chapter: Chapter }): ReactNode {
             {prev ? (
               <A href={learnPath(prev.slug)}>
                 <small>Previous</small>
-                <span>← {prev.title}</span>
+                <span>
+                  <span className="rtl-flip">←</span> {prev.title}
+                </span>
               </A>
             ) : (
               <A href="/learn">
                 <small>Course</small>
-                <span>← Overview</span>
+                <span>
+                  <span className="rtl-flip">←</span> Overview
+                </span>
               </A>
             )}
             <A href={learnPath(next ? next.slug : COMPLETE_SLUG)} className="next">
               <small>{next ? `Chapter ${i + 2}` : "Finish"}</small>
-              <span>{next ? next.title : "Certificate"} →</span>
+              <span>
+                {next ? next.title : "Certificate"} <span className="rtl-flip">→</span>
+              </span>
             </A>
           </nav>
         </article>

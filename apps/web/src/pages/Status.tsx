@@ -37,7 +37,7 @@ function UptimeBars({ name, tone, status, today }: { name: string; tone: Tone; s
   if (today) parts.push(`${today.status} today`);
   if (LIVE_DAYS < DAYS) parts.push("no data before launch");
   return (
-    <div className="st-bars" role="img" aria-label={parts.join(", ")}>
+    <div className="st-bars" dir="ltr" role="img" aria-label={parts.join(", ")}>
       {DAY_LIST.map((d) => {
         const incident = incidents.get(d);
         let day: { tone: string; status: string } | null = null;
@@ -62,7 +62,7 @@ function ComponentRow({ c, down }: { c: Component; down: boolean }): ReactNode {
         <span className={`st-state st-state-${out ? OUTAGE.tone : c.tone}`}>{out ? OUTAGE.status : c.status}</span>
       </div>
       <UptimeBars name={c.name} tone={c.tone} status={c.status} today={out ? OUTAGE : undefined} />
-      <div className="st-axis">
+      <div className="st-axis" dir="ltr">
         <span>{DAYS} days ago</span>
         <span className="st-axis-mid">{out ? OUTAGE_DETAIL : c.detail}</span>
         <span>Today</span>

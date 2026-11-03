@@ -13,7 +13,9 @@ export function NotFoundPage(): ReactNode {
         <b>404</b>This page could not be found.
       </h1>
       <A href="/" className="btn btn-secondary btn-sm">
-        ← Back home
+        <span>
+          <span className="rtl-flip">←</span> Back home
+        </span>
       </A>
     </div>
   );

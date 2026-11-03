@@ -53,12 +53,15 @@ export function CloseIcon({ size = 18, ...props }: IconProps): ReactNode {
   return svg(size, props, <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />);
 }
 
+/** Arrows and chevrons that point along the reading direction mirror on RTL pages (`.rtl-flip`). */
+const flips = (props: IconProps): IconProps => ({ ...props, className: props.className ? `rtl-flip ${props.className}` : "rtl-flip" });
+
 export function ArrowRight({ size = 14, ...props }: IconProps): ReactNode {
-  return svg(size, props, <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />);
+  return svg(size, flips(props), <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />);
 }
 
 export function ArrowUpRight({ size = 14, ...props }: IconProps): ReactNode {
-  return svg(size, props, <path d="M5 11l6-6M6 4.5h5.5V10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />);
+  return svg(size, flips(props), <path d="M5 11l6-6M6 4.5h5.5V10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />);
 }
 
 /** GitHub's mark (Primer Octicons `mark-github`), unchanged. */
@@ -78,7 +81,7 @@ export function ChevronDown({ size = 14, ...props }: IconProps): ReactNode {
 }
 
 export function ChevronRight({ size = 14, ...props }: IconProps): ReactNode {
-  return svg(size, props, <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />);
+  return svg(size, flips(props), <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />);
 }
 
 export function PlayIcon({ size = 14, ...props }: IconProps): ReactNode {

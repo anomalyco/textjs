@@ -29,7 +29,7 @@ function Frame({ dim = false }: { dim?: boolean }): ReactNode {
 
 function DevToolsPane(): ReactNode {
   return (
-    <div className="aw-pane aw-devtools">
+    <div className="aw-pane aw-devtools" dir="ltr">
       <div className="aw-bar">
         <span className="aw-tab">Elements</span>
         <span className="aw-tab on">Console</span>
@@ -45,7 +45,7 @@ function DevToolsPane(): ReactNode {
 
 function TerminalPane(): ReactNode {
   return (
-    <div className="aw-pane aw-term">
+    <div className="aw-pane aw-term" dir="ltr">
       <div className="aw-bar">
         <span className="aw-lights">
           <i />
@@ -67,7 +67,7 @@ function TerminalPane(): ReactNode {
 
 function AgentPane(): ReactNode {
   return (
-    <div className="aw-pane aw-agent">
+    <div className="aw-pane aw-agent" dir="ltr">
       <div className="aw-bar">
         <span className="aw-title">textjs · read_frame</span>
       </div>

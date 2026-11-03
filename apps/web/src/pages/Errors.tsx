@@ -126,20 +126,22 @@ export function ErrorPage({ code }: { code: string }): ReactNode {
           <A href={errorPath(prev.code)}>
             <small>Previous</small>
             <span>
-              ← {prev.code} {prev.title}
+              <span className="rtl-flip">←</span> {prev.code} {prev.title}
             </span>
           </A>
         ) : (
           <A href="/errors">
             <small>Index</small>
-            <span>← All error codes</span>
+            <span>
+              <span className="rtl-flip">←</span> All error codes
+            </span>
           </A>
         )}
         {next ? (
           <A href={errorPath(next.code)} className="next">
             <small>Next</small>
             <span>
-              {next.code} {next.title} →
+              {next.code} {next.title} <span className="rtl-flip">→</span>
             </span>
           </A>
         ) : null}

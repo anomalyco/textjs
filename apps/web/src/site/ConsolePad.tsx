@@ -44,7 +44,7 @@ export function ConsolePad({ hints, action, top, banner, children }: ConsolePadP
   const root = useCompanionRoot();
   const site = useSite();
   return (
-    <div className="pad-stage">
+    <div className="pad-stage" dir="ltr">
       <FocusPad
         root={root}
         hints={hints}

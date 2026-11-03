@@ -81,7 +81,7 @@ export function OpenCodeBand(): ReactNode {
             </A>
           </div>
         </div>
-        <div className="oc-stage" aria-hidden="true">
+        <div className="oc-stage" dir="ltr" aria-hidden="true">
           <div className="oc-glow" />
           <div className="oc-crop">
             <DevToolsWindow frame={FRAME} source="opencode:1" cols={PACKED.width} rows={PACKED.height} fontSize={14} lineHeight={17} className="oc-window" />

@@ -116,13 +116,17 @@ export function DocsPage({ slug }: { slug: string }): ReactNode {
               {prev ? (
                 <A href={docPath(prev.slug)}>
                   <small>Previous</small>
-                  <span>← {prev.title}</span>
+                  <span>
+                    <span className="rtl-flip">←</span> {prev.title}
+                  </span>
                 </A>
               ) : null}
               {next ? (
                 <A href={docPath(next.slug)} className="next">
                   <small>Next</small>
-                  <span>{next.title} →</span>
+                  <span>
+                    {next.title} <span className="rtl-flip">→</span>
+                  </span>
                 </A>
               ) : null}
             </nav>
