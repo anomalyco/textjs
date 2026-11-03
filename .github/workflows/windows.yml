@@ -192,7 +192,7 @@ jobs:
       # eighth blocks, quadrants, braille, ▶ and ✓. Forcing Consolas alone simulates it.
       # Before the site check, whose browser stays open: a second Chrome would hand off to it.
       - name: Chart glyphs in Consolas (${{ matrix.browser }})
-        run: bun bench/devtools/glyph-shot.ts --browser ${{ matrix.browser }} --out "$RUNNER_TEMP/browser/glyphs" --check
+        run: bun bench/devtools/glyph-shot.ts --browser=${{ matrix.browser }} --out="$RUNNER_TEMP/browser/glyphs" --check
 
       - name: Check ${{ matrix.browser }}
         if: ${{ !cancelled() && steps.site.outcome == 'success' }}

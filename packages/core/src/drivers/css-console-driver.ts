@@ -97,7 +97,7 @@ export interface CssConsoleDriverOptions {
   /**
    * Measures text advance in CSS px with the console font, used to fit spans
    * of right-to-left text to the cell grid (see `fitRtlSpans`) and to find
-   * glyphs the font draws wider than a cell (see `measureStandIns`). Defaults
+   * glyphs the font can't fit in a cell (see `measureStandIns`). Defaults
    * to a canvas measurer in browsers; `false` (and non-browser runtimes)
    * disable both.
    */
