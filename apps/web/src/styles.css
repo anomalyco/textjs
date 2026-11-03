@@ -2628,6 +2628,8 @@ body:has(.locale-suggestion) .footer {
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
+  /* Keyboard focus scrolls a tab clear of the 40px edge fades. */
+  scroll-padding-inline: 40px;
   scrollbar-width: none;
   border-radius: 999px;
   mask-image: linear-gradient(to right, transparent, #000 var(--fade-left), #000 calc(100% - var(--fade-right)), transparent);
