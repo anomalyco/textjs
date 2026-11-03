@@ -41,8 +41,8 @@ function Banner({ active, pageInput }: { active: boolean | undefined; pageInput:
 /**
  * "Click the page to use the keyboard" in an amber bar over the console frame's last row while
  * the page doesn't have focus, so a visitor who clicked into DevTools knows why keys stopped
- * reaching the app. It blinks for a few seconds each time the page loses focus (steady with
- * reduced motion). It covers the last row because DevTools keeps the console scrolled to the
+ * reaching the app. Each time it appears, it blinks for about 6 seconds, unless the system's
+ * reduced motion setting is on. It covers the last row because DevTools keeps the console scrolled to the
  * bottom, and it's drawn only into console frames, never into the buffer that mirrors and tests read.
  *
  * Console roots draw one by default (`focusHint: false` turns it off). Render it yourself with

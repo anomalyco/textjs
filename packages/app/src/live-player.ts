@@ -289,6 +289,7 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
       if (last && last.slice(last.indexOf(" ") + 1) === target && target === location.href && Date.now() - at < 3000) {
         disposed = true;
         stream?.abort();
+        core.setBanner(null);
         setStatus("unavailable");
         return;
       }
