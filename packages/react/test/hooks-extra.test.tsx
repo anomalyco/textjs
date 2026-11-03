@@ -128,10 +128,16 @@ describe("layout and environment", () => {
       value: { ...(nav.navigator as object), clipboard: { writeText: async (t: string) => void writes.push(t) } },
       configurable: true,
     });
+    // Hold the reset timer so `copied` can't expire before a slow machine reads the frame.
+    const RESET_MS = 4321;
+    const resets: Array<() => void> = [];
+    const realSetTimeout = globalThis.setTimeout;
+    globalThis.setTimeout = ((fn: () => void, ms?: number, ...args: unknown[]) =>
+      ms === RESET_MS ? (resets.push(fn), 0) : realSetTimeout(fn, ms, ...args)) as typeof setTimeout;
     try {
       let api: ClipboardApi | null = null;
       function App() {
-        api = useClipboard({ timeout: 20 });
+        api = useClipboard({ timeout: RESET_MS });
         return <Text>{api.copied ? "copied" : "idle"}</Text>;
       }
       const app = await render(<App />, { cols: 10, rows: 1 });
@@ -142,8 +148,11 @@ describe("layout and environment", () => {
       expect(ok).toBe(true);
       expect(writes).toEqual(["dpl_8f2k"]);
       expect(app.lastFrame()).toBe("copied");
-      await app.waitForText("idle");
+      expect(resets).toHaveLength(1);
+      await app.act(() => resets[0]!());
+      expect(app.lastFrame()).toBe("idle");
     } finally {
+      globalThis.setTimeout = realSetTimeout;
       if (original) Object.defineProperty(globalThis, "navigator", original);
     }
   });
