@@ -73,7 +73,11 @@ export interface BufferSprite {
   palette?: readonly PackedColor[];
   sample: "nearest" | "average";
   hash: number;
-  opaque: boolean;
+  /** Opaque and indexed, so changing frames can batch into temporal keyframes. */
+  batchable: boolean;
+  encoding: "indexed" | "rgba";
+  /** Paints the cell fallback in place of the built-in half-blocks. */
+  fallback?: (buf: CellBuffer, rect: { x: number; y: number; width: number; height: number }) => void;
   underBg: PackedColor;
   materialized: boolean;
   cellsDirty: boolean;

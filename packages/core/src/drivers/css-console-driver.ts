@@ -25,6 +25,7 @@ import {
 import { hasRtl, isRtlCodePoint, LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../bidi";
 import { LruCache } from "../text-measure";
 import { consoleProfile, inlineTypographyCss, type ConsoleBrowser, type ConsoleProfile } from "./console-browser";
+import { applyStandIns, measureStandIns, type GlyphStandIns } from "./stand-ins";
 
 /** Minimal console surface used by the driver; inject a fake for tests and benchmarks. */
 export interface ConsoleTarget {
@@ -95,8 +96,10 @@ export interface CssConsoleDriverOptions {
   initialClear?: boolean;
   /**
    * Measures text advance in CSS px with the console font, used to fit spans
-   * of right-to-left text to the cell grid (see `fitRtlSpans`). Defaults to a
-   * canvas measurer in browsers; `false` (and non-browser runtimes) disable fitting.
+   * of right-to-left text to the cell grid (see `fitRtlSpans`) and to find
+   * glyphs the font can't fit in a cell (see `measureStandIns`). Defaults
+   * to a canvas measurer in browsers; `false` (and non-browser runtimes)
+   * disable both.
    */
   measureText?: TextAdvanceMeasurer | false;
   /**
@@ -200,6 +203,15 @@ function pinVisualOrder(text: string): string {
 const LAYOUT_UNIT = 64;
 
 /**
+ * Chromium pixel-snaps each `contain: paint` span on its own, so where two
+ * backgrounds meet at a fractional x the device pixel between them can be left
+ * to neither span and the console background shows through as a hairline.
+ * Extending a span's background 1px under its right neighbour (which paints
+ * over it) closes the seam without moving anything.
+ */
+const SEAL_CSS = "padding-right:1px;margin-right:-1px;";
+
+/**
  * DOM text of an escaped span (`%%` → `%`). The pins stay in the text so a
  * measurer sees the same (overridden) runs DevTools lays out: without them it
  * would reorder the visual-order glyphs and form ligatures (lam-alef) that
@@ -233,6 +245,8 @@ const BL_MASK = BL_SIZE - 1;
 interface InternedStyle {
   id: number;
   css: string;
+  /** The same style with `SEAL_CSS`, interned on first use and evicted with this one. */
+  sealed?: InternedStyle;
 }
 
 interface PrecompiledRow {
@@ -274,6 +288,8 @@ export class CssConsoleDriver {
   private readonly coalesce: boolean;
   private readonly baseCss: string;
   private readonly cssCache = new Map<bigint, InternedStyle>();
+  /** `cssCache` entries by id, for `sealSpans`. */
+  private readonly styleById = new Map<number, InternedStyle>();
   private nextStyleId = 1;
   private readonly l1Valid = new Uint8Array(L1_SIZE);
   private readonly l1Fg = new Uint32Array(L1_SIZE);
@@ -312,6 +328,7 @@ export class CssConsoleDriver {
   private readonly measureOption: TextAdvanceMeasurer | false | undefined;
   private measurer: TextAdvanceMeasurer | null | undefined;
   private cellAdvance = 0;
+  private standIns: GlyphStandIns | null | undefined;
   private readonly fitCache = new LruCache<string, string>(1024);
   private nextFitId = -2;
   private readonly blankScratch: EffectiveStyle = { fg: 0, bg: 0, flags: 0 };
@@ -398,13 +415,22 @@ export class CssConsoleDriver {
     let entry = this.cssCache.get(key);
     if (entry === undefined) {
       entry = { id: this.nextStyleId++, css: styleCss(this.baseCss, style) };
-      if (this.cssCache.size >= 4096) {
-        const oldest = this.cssCache.keys().next();
-        if (!oldest.done) this.cssCache.delete(oldest.value);
-      }
-      this.cssCache.set(key, entry);
+      this.storeStyle(key, entry);
     }
     return entry;
+  }
+
+  /** Adds a style to `cssCache` and `styleById`, evicting the oldest past 4,096. */
+  private storeStyle(key: bigint, entry: InternedStyle): void {
+    if (this.cssCache.size >= 4096) {
+      const oldest = this.cssCache.entries().next();
+      if (!oldest.done) {
+        this.cssCache.delete(oldest.value[0]);
+        this.styleById.delete(oldest.value[1].id);
+      }
+    }
+    this.cssCache.set(key, entry);
+    this.styleById.set(entry.id, entry);
   }
 
   /**
@@ -785,8 +811,44 @@ export class CssConsoleDriver {
         cells,
       });
     }
+    const standIns = this.standIns === undefined ? this.measureStandIns() : this.standIns;
+    if (standIns !== null) for (const span of spans) if (!span.blank) span.text = applyStandIns(span.text, standIns);
+    if (!this.profile.inline) this.sealSpans(spans);
     if (rowRtl) this.fitRtlSpans(spans);
     return spans;
+  }
+
+  /** Glyphs the console font can't fit in a cell, measured on the first row (see `measureStandIns`). */
+  private measureStandIns(): GlyphStandIns | null {
+    this._getCellAdvance();
+    const measure = this.measurer;
+    this.standIns = measure && this.cellAdvance > 0 ? measureStandIns(measure, this.cellAdvance) : null;
+    return this.standIns;
+  }
+
+  /**
+   * Seal each span with a background unless its right neighbour's is missing
+   * or translucent, which would show the overlap (see `SEAL_CSS`). The last
+   * span of a row is sealed too, so rows still merge with the next. A span
+   * left unsealed is marked `deco` so `assemble` never folds it into a sealed one.
+   */
+  private sealSpans(spans: CompiledSpan[]): void {
+    for (let i = 0; i < spans.length; i++) {
+      const s = spans[i] as CompiledSpan;
+      if ((s.bg & 255) === 0) continue;
+      const next = spans[i + 1];
+      if (next !== undefined && (next.bg & 255) !== 255) {
+        s.deco = true;
+        continue;
+      }
+      // The L1 and blank caches outlive `cssCache` evictions, so a hot style may come back with
+      // an id `cssCache` dropped (or re-interned under a new id): store it again.
+      let style = this.styleById.get(s.styleId) ?? this.cssCache.get(s.styleKey);
+      if (style === undefined) this.storeStyle(s.styleKey, (style = { id: s.styleId, css: s.css }));
+      const sealed = (style.sealed ??= { id: this.nextStyleId++, css: style.css + SEAL_CSS });
+      s.styleId = sealed.id;
+      s.css = sealed.css;
+    }
   }
 
   /**
@@ -818,7 +880,8 @@ export class CssConsoleDriver {
       if (span.blank || span.text.charCodeAt(0) !== 0x202d) continue;
       const bold = span.css.includes("font-weight:700");
       const italic = span.css.includes("font-style:italic");
-      const key = `${bold ? 1 : 0}${italic ? 1 : 0}${span.cells}:${span.text}`;
+      const sealed = span.css.endsWith(SEAL_CSS);
+      const key = `${bold ? 1 : 0}${italic ? 1 : 0}${sealed ? 1 : 0}${span.cells}:${span.text}`;
       let fit = this.fitCache.get(key);
       if (fit === undefined) {
         const target = Math.ceil(span.cells * this.cellAdvance * LAYOUT_UNIT);
@@ -827,11 +890,16 @@ export class CssConsoleDriver {
         // Pull in by at most half a cell: a proportional fallback font (Times New Roman next to
         // Cascadia Mono on Windows) would otherwise drag the following spans over these glyphs.
         const delta = Math.max(target - natural, -Math.floor((this.cellAdvance * LAYOUT_UNIT) / 2));
-        fit = delta > 0 ? `padding-right:${delta / LAYOUT_UNIT}px;` : delta < 0 ? `margin-right:${delta / LAYOUT_UNIT}px;` : "";
+        if (delta !== 0 && sealed) {
+          // Replaces the seal (sliced off below), with its 1px folded in.
+          fit = `padding-right:${Math.max(delta, 0) / LAYOUT_UNIT + 1}px;margin-right:${Math.min(delta, 0) / LAYOUT_UNIT - 1}px;`;
+        } else {
+          fit = delta > 0 ? `padding-right:${delta / LAYOUT_UNIT}px;` : delta < 0 ? `margin-right:${delta / LAYOUT_UNIT}px;` : "";
+        }
         this.fitCache.set(key, fit);
       }
       if (fit === "") continue;
-      span.css += fit;
+      span.css = (sealed ? span.css.slice(0, -SEAL_CSS.length) : span.css) + fit;
       span.styleId = this.nextFitId--;
       span.deco = true;
     }
@@ -874,7 +942,7 @@ export class CssConsoleDriver {
         // 1. First span on row (interacts with previous row / sep).
         const s0 = spans[0] as CompiledSpan;
         if (held !== null) {
-          if (s0.styleId === held.styleId || (!s0.deco && s0.bg === held.bg && s0.link === held.link)) {
+          if (s0.styleId === held.styleId || (!s0.deco && !held.deco && s0.bg === held.bg && s0.link === held.link)) {
             if (s0.blank) {
               heldText += sep + s0.text;
               sep = "";
@@ -910,7 +978,7 @@ export class CssConsoleDriver {
             curLink = held.link;
             curDeco = held.deco;
             held = null;
-            if (s0.styleId === curId || (s0.blank && !curDeco && s0.bg === curBg && s0.link === curLink)) {
+            if (s0.styleId === curId || (s0.blank && !s0.deco && !curDeco && s0.bg === curBg && s0.link === curLink)) {
               parts.push(sep, s0.text);
               sep = "";
             } else if (s0.blank) {
@@ -932,7 +1000,7 @@ export class CssConsoleDriver {
               curDeco = s0.deco;
             }
           }
-        } else if (s0.styleId === curId || (s0.blank && !curDeco && s0.bg === curBg && s0.link === curLink && curId !== -1)) {
+        } else if (s0.styleId === curId || (s0.blank && !s0.deco && !curDeco && s0.bg === curBg && s0.link === curLink && curId !== -1)) {
           parts.push(sep, s0.text);
           sep = "";
         } else if (s0.blank) {
@@ -984,7 +1052,7 @@ export class CssConsoleDriver {
         const sLast = spans[n - 1] as CompiledSpan;
         if (sLast.blank) {
           if (held !== null) {
-            if (sLast.styleId === held.styleId || sLast.bg === held.bg && sLast.link === held.link) {
+            if (sLast.styleId === held.styleId || (!sLast.deco && !held.deco && sLast.bg === held.bg && sLast.link === held.link)) {
               heldText += sLast.text;
               continue;
             }
@@ -1003,7 +1071,7 @@ export class CssConsoleDriver {
             curDeco = held.deco;
             held = null;
           }
-          if (sLast.styleId === curId || (!curDeco && sLast.bg === curBg && sLast.link === curLink && curId !== -1)) {
+          if (sLast.styleId === curId || (!sLast.deco && !curDeco && sLast.bg === curBg && sLast.link === curLink && curId !== -1)) {
             parts.push(sLast.text);
           } else {
             held = sLast;
@@ -1017,7 +1085,7 @@ export class CssConsoleDriver {
       for (let k = 0; k < n; k++) {
         const s = spans[k] as CompiledSpan;
         if (held !== null) {
-          if (s.styleId === held.styleId || (!s.deco && s.bg === held.bg && s.link === held.link)) {
+          if (s.styleId === held.styleId || (!s.deco && !held.deco && s.bg === held.bg && s.link === held.link)) {
             if (s.blank) {
               heldText += sep + s.text;
               sep = "";
@@ -1055,7 +1123,7 @@ export class CssConsoleDriver {
           curDeco = held.deco;
           held = null;
         }
-        if (s.styleId === curId || (coalesce && s.blank && !curDeco && s.bg === curBg && s.link === curLink && curId !== -1)) {
+        if (s.styleId === curId || (coalesce && s.blank && !s.deco && !curDeco && s.bg === curBg && s.link === curLink && curId !== -1)) {
           parts.push(sep, s.text);
           sep = "";
           continue;

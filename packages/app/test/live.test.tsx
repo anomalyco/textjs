@@ -7,7 +7,7 @@ import { EventEmitter } from "node:events";
 import { act, Suspense, useState, type ReactNode } from "react";
 import { ATTR_BOLD, ATTR_UNDERLINE, CellBuffer, initYoga } from "@textjs/core";
 import { drawPixels } from "@textjs/core/experimental";
-import { Box, Text, useInput } from "@textjs/react";
+import { Box, Image, Text, useInput } from "@textjs/react";
 import { useRouter } from "../src/navigation";
 import { AppRouter, createMemoryHistory, type RouteManifest } from "../src/router";
 import { FramePlayerCore, safeHref } from "../src/live-player";
@@ -749,6 +749,21 @@ describe("partial prerendering", () => {
     // Same frame, minus the curtain the test console doesn't use.
     expect(`%c\u200b%c\n${client.console.logs[0]?.[0]}`).toBe(calls[1]?.args[0] as string);
     await act(async () => client.root.unmount());
+  });
+});
+
+describe("live shell with pixel sprites", () => {
+  test("bakes <Image> into the shell as the half-blocks the live stream sends, with no data URL", async () => {
+    const pixels = { width: 8, height: 8, data: new Uint8ClampedArray(8 * 8 * 4).map((_, i) => (i % 4 === 3 ? 255 : (i * 37) % 256)) };
+    const imageRoutes: RouteManifest = {
+      segment: "",
+      layout: { default: Layout },
+      page: { default: () => <Image pixels={pixels} width={8} />, runtime: "server" },
+    };
+    const calls = await withoutActEnvironment(() => prerenderShell({ routes: imageRoutes, path: "/", cols: 20, rows: 6 }));
+    const log = calls.find((c) => c.method === "log" && c.args[0]?.includes("▀"));
+    expect(log).toBeDefined();
+    expect(calls.every((c) => c.args.every((a) => !a.includes("url(")) && (c.inlineArgs ?? []).every((a) => !a.includes("url(")))).toBe(true);
   });
 });
 

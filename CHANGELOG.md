@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `@textjs/react`: `<Image renderMode="halfblock">` draws `▀` half-blocks everywhere, as `<Image>` did in 1.3.
+- `@textjs/core/experimental`: `drawPixels` takes `encoding: "rgba"` for a lossless sprite with soft alpha and more than 256 colors, and a `fallback` function that paints the cells wherever the sprite can't be shown.
+
+### Changed
+
+- `@textjs/react`: `<Image>` now draws a pixel sprite in Chromium and Firefox consoles, with up to 8 × 16 pixels per cell for pixel art and 4 × 8 for photos. This deliberately breaks the [support policy](https://textjs.org/docs/support-policy)'s promise that frames look the same between minor releases. Pass `renderMode="halfblock"` to keep the 1.3 half-blocks. Safari, terminals (including `text run`), ANSI and plain-text output, and the first frame of server-rendered live pages, still draw half-blocks.
+
+### Fixed
+
+- `@textjs/core`: charts and spinners keep their grid on Windows 10. Its console font is Consolas, which has no ▁▂▃▅▆▇ eighth blocks, quadrants, braille, ▶ or ✓, and their fallback glyphs ran rows past the frame's right edge. `CssConsoleDriver` now measures, once, which of these glyphs the console font draws more than a fifth of a cell off, and draws those as the nearest glyph Consolas has: `_` `▄` `▌` `█` for eighths, half blocks for quadrants and braille, `►` `◄` `√` `×` for arrows, checks and crosses. Fonts that fit them, such as Cascadia Mono on Windows 11 and Menlo on macOS, draw the originals. `measureText: false` turns this off.
+- `@textjs/core`: no more 1px vertical hairlines between neighbouring backgrounds in Chrome and Edge DevTools, such as beside "account" and "qty" in textjs.org/coffee. Chromium snaps each `%c` span to device pixels separately and could leave the pixel where two spans met to neither. `CssConsoleDriver` now extends a span's background 1px under an opaque right neighbour (`padding-right:1px;margin-right:-1px`). Firefox and Safari frames don't change.
+
 ## [1.3.0] - 2026-11-03
 
 ### Added
