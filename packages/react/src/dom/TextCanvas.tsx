@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { createConsoleRoot, type ConsoleRoot, type ConsoleRootOptions } from "../root";
 import type { TextTheme, ThemeName } from "../theme";
 import { FocusPad, type FocusPadHint } from "./FocusPad";
+import type { FocusPadMessages } from "./messages";
 
 export interface TextCanvasProps {
   /** The console app to mount into `console.log`. */
@@ -12,10 +13,12 @@ export interface TextCanvasProps {
   theme?: TextTheme | ThemeName;
   showMirrorDefault?: boolean;
   title?: string;
-  /** Focus Pad appearance (defaults to the theme's appearance). */
+  /** focus pad appearance (defaults to the theme's appearance). */
   appearance?: "dark" | "light";
-  /** Keys worth pressing, shown on the Focus Pad. */
+  /** Keys worth pressing, shown on the focus pad. */
   hints?: readonly FocusPadHint[];
+  /** Replace any of the focus pad's strings (see `defaultFocusPadMessages`). */
+  messages?: Partial<FocusPadMessages>;
   rootOptions?: Omit<ConsoleRootOptions, "width" | "height" | "responsive" | "theme">;
   onRoot?: (root: ConsoleRoot | null) => void;
   className?: string;
@@ -25,7 +28,7 @@ export interface TextCanvasProps {
 
 /**
  * Boot a console root from a react-dom page: the app renders into the DevTools
- * console while the page shows the Focus Pad receiver.
+ * console while the page shows the focus pad receiver.
  */
 export function TextCanvas({
   app,
@@ -37,6 +40,7 @@ export function TextCanvas({
   title,
   appearance,
   hints,
+  messages,
   rootOptions,
   onRoot,
   className,
@@ -90,7 +94,7 @@ export function TextCanvas({
   const resolvedAppearance = appearance ?? (root ? root.getTheme().appearance : typeof theme === "object" ? theme.appearance : theme === "geistLight" ? "light" : "dark");
 
   return (
-    <FocusPad root={root} title={title} appearance={resolvedAppearance} hints={hints} showMirrorDefault={showMirrorDefault} className={className} style={style}>
+    <FocusPad root={root} title={title} appearance={resolvedAppearance} hints={hints} messages={messages} showMirrorDefault={showMirrorDefault} className={className} style={style}>
       {children}
     </FocusPad>
   );

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { CHROME_STORAGE_KEY, detectConsoleBrowser, estimateDockedConsoleSize, extractStyledFrame, type ConsoleBrowser, type KeyInputEvent, type StyledFrame } from "@textjs/core";
 import type { ConsoleRoot } from "../root";
 import { ConsoleMirror } from "./ConsoleMirror";
+import { defaultFocusPadMessages, resolveFocusPadMessages, type FocusPadMessages } from "./messages";
 import { ViewportControl, type ViewportControlProps } from "./ViewportControl";
 
 /** One key hint, e.g. `{ keys: "↑ ↓", label: "count" }`. Space-separated keys render as separate keycaps. */
@@ -60,6 +61,8 @@ export interface FocusPadProps {
   children?: ReactNode;
   /** Show a quiet console size picker ("Fit console" or a fixed grid) in the corner. */
   sizeControl?: boolean | Omit<ViewportControlProps, "root">;
+  /** Replace any of the pad's built-in strings, e.g. with translations (see `defaultFocusPadMessages`). */
+  messages?: Partial<FocusPadMessages>;
 }
 
 const PALETTE = {
@@ -115,6 +118,7 @@ const CSS = `
 .tx-pad-seg{position:relative;width:24px;height:4px;border-radius:2px;background:var(--tx-track);overflow:hidden}
 .tx-pad-seg>i{position:absolute;inset:0;border-radius:inherit;transition:transform .5s ${EASE},opacity .3s ease}
 .tx-pad-seg>i:first-child{background:var(--tx-text);transform-origin:left center;transform:scaleX(0)}
+[dir=rtl] .tx-pad-seg>i:first-child{transform-origin:right center}
 .tx-pad-seg[data-step=done]>i:first-child{transform:none;opacity:.4}
 .tx-pad-seg[data-step=current]>i:first-child{transform:none}
 .tx-pad-seg>i:last-child{background:var(--tx-live);opacity:0}
@@ -145,7 +149,7 @@ const CSS = `
 .tx-pad-touch{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:240px;padding:0 8px}
 .tx-pad-touch h2{margin:0;font-size:28px;line-height:36px;font-weight:600;letter-spacing:-.028em;color:var(--tx-text);text-align:center}
 .tx-pad-touch p{margin:0;max-width:400px;font-size:15px;line-height:24px;color:var(--tx-muted);text-align:center;text-wrap:balance}
-.tx-pad-size{position:absolute;right:24px;bottom:24px}
+.tx-pad-size{position:absolute;inset-inline-end:24px;bottom:24px}
 .tx-pad-size:has(select:focus-visible){outline:2px solid var(--tx-focus);outline-offset:4px;border-radius:4px}
 @media (min-width:901px){.tx-pad[data-size-corner] .tx-pad-desk{padding-bottom:32px}}
 @media (max-width:900px){.tx-pad-size{position:static}}
@@ -166,6 +170,9 @@ html[data-browser=safari] .tx-pad .tx-pad-sub,.tx-pad[data-console=safari] .tx-p
 @keyframes tx-pad-ring{0%{opacity:.6}100%{opacity:0}}
 @keyframes tx-pad-pop{0%{opacity:0;transform:translateY(4px)}12%{opacity:1;transform:none}70%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.tx-pad *{animation:none!important;transition:none!important}.tx-pad-ring,.tx-pad-dot::after,.tx-pad-click::after{display:none}}
+.tx-pad-keys,.tx-pad-hint>span,.tx-pad-echo,.tx-pad-line kbd{direction:ltr;unicode-bidi:isolate}
+.tx-pad:is(:lang(ja),:lang(zh),:lang(ko)) .tx-pad-gap{display:none}
+.tx-pad:is(:lang(ar),:lang(fa),:lang(ur),:lang(he),:lang(hi),:lang(ja),:lang(ko),:lang(zh)) :is(.tx-pad-headline,.tx-pad-touch h2){letter-spacing:0}
 html:not([data-os=mac]) .tx-pad .tx-os-mac,html[data-os=mac] .tx-pad .tx-os-other,html:not([data-browser=firefox]) .tx-pad .tx-br-firefox,html:not([data-browser=safari]) .tx-pad .tx-br-safari,html[data-browser=firefox] .tx-pad .tx-br-chromium,html[data-browser=safari] .tx-pad .tx-br-chromium,html[data-browser=safari] .tx-pad .tx-not-safari{display:none!important}
 `;
 
@@ -330,6 +337,7 @@ export interface FocusPadMessageProps {
   last?: { label: string; n: number } | null;
   /** Animate rows in (after the first state change only, so the first paint never fades). */
   animate?: boolean;
+  messages?: FocusPadMessages;
 }
 
 /**
@@ -339,7 +347,7 @@ export interface FocusPadMessageProps {
  * - `click`: a click target.
  * - `live`: the app's keys, lit as they arrive, with the last key echoed below.
  */
-export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, last = null, animate = false }: FocusPadMessageProps): ReactNode {
+export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, last = null, animate = false, messages: m = defaultFocusPadMessages }: FocusPadMessageProps): ReactNode {
   const step = state === "open" ? 1 : state === "click" ? 2 : 3;
   const enter = animate ? "tx-pad-in" : undefined;
   const cls = (name: string): string => (enter ? `${name} ${enter}` : name);
@@ -352,18 +360,18 @@ export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, la
 
   return (
     <>
-      <div className="tx-pad-steps" role="img" aria-label={state === "live" ? "Live" : `Step ${step} of 3`}>
+      <div className="tx-pad-steps" role="img" aria-label={state === "live" ? m.stepLive : m.step(step, 3)}>
         {[1, 2, 3].map(segment)}
       </div>
 
       {state === "open" ? (
         <>
           <h2 key="open" className={cls("tx-pad-headline")}>
-            Open the console
+            {m.openConsole}
           </h2>
           <div key="open-hero" className={cls("tx-pad-hero")}>
             {(devtools ? [devtools] : CONSOLES).map((c) => (
-              <div key={c} className={devtools ? "tx-pad-keys" : `tx-pad-keys ${variantClass(c)}`} aria-label={`Press ${SHORTCUT_KEYS[c].join(" ")}`}>
+              <div key={c} className={devtools ? "tx-pad-keys" : `tx-pad-keys ${variantClass(c)}`} aria-label={m.pressShortcut(SHORTCUT_KEYS[c].join(" "))}>
                 {SHORTCUT_KEYS[c].map((k) => (
                   <Keycap key={k} k={k} size="lg" />
                 ))}
@@ -375,21 +383,22 @@ export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, la
             {/* Safari hides Web Inspector until its developer features are turned on. */}
             {devtools !== "safari" ? (
               <span key="devtools" className={devtools ? "tx-pad-line" : "tx-pad-line tx-not-safari"}>
-                The app renders in DevTools.
+                {m.rendersInDevtools}
               </span>
             ) : null}
             {devtools === null || devtools === "safari" ? (
               <span key="safari" className={devtools ? "tx-pad-line" : "tx-pad-line tx-br-safari"}>
-                First turn on “Show features for web developers” in Safari Settings → Advanced.
+                {m.safariDeveloperFeatures}
               </span>
-            ) : null}{" "}
-            <span className="tx-pad-line">{`Then click here and ${doThis}.`}</span>
+            ) : null}
+            <span className="tx-pad-gap"> </span>
+            <span className="tx-pad-line">{m.then(doThis)}</span>
           </p>
         </>
       ) : state === "click" ? (
         <>
           <h2 key="click" className={cls("tx-pad-headline")}>
-            Click here
+            {m.clickHere}
           </h2>
           <div key="click-hero" className={cls("tx-pad-hero")} aria-hidden="true">
             <span className="tx-pad-click">
@@ -399,14 +408,16 @@ export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, la
             </span>
           </div>
           <p key="click-sub" className={cls("tx-pad-sub")}>
-            <span className="tx-pad-line">The app reads keys from this page.</span>{" "}
+            <span className="tx-pad-line">{m.readsKeys}</span>
+            <span className="tx-pad-gap"> </span>
             <span className="tx-pad-line">
-              {(devtools ? [devtools] : CONSOLES).map((c) => (
-                <kbd key={c} className={devtools ? undefined : variantClass(c)}>
-                  {SHORTCUT_KEYS[c].join(c.endsWith("-other") ? "+" : "")}
-                </kbd>
-              ))}{" "}
-              opens the console.
+              {m.shortcutOpens(
+                (devtools ? [devtools] : CONSOLES).map((c) => (
+                  <kbd key={c} className={devtools ? undefined : variantClass(c)}>
+                    {SHORTCUT_KEYS[c].join(c.endsWith("-other") ? "+" : "")}
+                  </kbd>
+                )),
+              )}
             </span>
           </p>
         </>
@@ -414,7 +425,7 @@ export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, la
         <>
           <h2 key="live" className={cls("tx-pad-headline tx-pad-live")}>
             <span className="tx-pad-dot" aria-hidden="true" />
-            Live in your console
+            {m.liveInConsole}
           </h2>
           <div key={`live-${hints.map((h) => `${h.keys} ${h.label}`).join("|")}`} className={cls("tx-pad-hero")}>
             {hints.length > 0 ? (
@@ -438,7 +449,7 @@ export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, la
                 <Keycap k={last.label} />
               </span>
             ) : hints.length > 0 ? null : (
-              "Start typing."
+              m.startTyping
             )}
           </p>
         </>
@@ -453,8 +464,11 @@ export function FocusPadMessage({ state, hints, doThis, devtools, lit = null, la
  * keyboard, and which keys to press. It lights up as keystrokes arrive.
  * Frames are never mirrored into the page unless `showMirrorDefault` is set.
  */
-export function FocusPad({ root, title, hints = [], action, capturing, onActivate, appearance = "dark", showMirrorDefault = false, top, banner, className, style, children, sizeControl = false }: FocusPadProps): ReactNode {
+export function FocusPad({ root, title, hints = [], action, capturing, onActivate, appearance = "dark", showMirrorDefault = false, top, banner, className, style, children, sizeControl = false, messages }: FocusPadProps): ReactNode {
   const c = PALETTE[appearance];
+  const m = useMemo(() => resolveFocusPadMessages(messages), [messages]);
+  const sizeOverrides = typeof sizeControl === "object" ? sizeControl.messages : undefined;
+  const sizeMessages = useMemo(() => resolveFocusPadMessages(sizeOverrides, m), [sizeOverrides, m]);
   const [pageFocused, setPageFocused] = useState(true);
   const [docked, setDocked] = useState(false);
   const [blurred, setBlurred] = useState(false);
@@ -543,7 +557,7 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
   if (state !== firstState.current) changed.current = true;
 
   const first = hints[0];
-  const doThis = action ?? (first ? `press ${first.keys}` : "type");
+  const doThis = action ?? m.defaultAction(first ? first.keys : null);
   const devtools = useConsole();
   const live = state === "live";
 
@@ -601,13 +615,13 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
 
       <div className="tx-pad-desk">
         {banner ? <div className="tx-pad-banner">{banner}</div> : null}
-        <FocusPadMessage state={state} hints={hints} doThis={doThis} devtools={devtools} lit={live ? lit : null} last={live ? last : null} animate={changed.current} />
+        <FocusPadMessage state={state} hints={hints} doThis={doThis} devtools={devtools} lit={live ? lit : null} last={live ? last : null} animate={changed.current} messages={m} />
       </div>
 
       <div className="tx-pad-touch">
         {banner ? <div className="tx-pad-banner">{banner}</div> : null}
-        <h2>Open on a desktop</h2>
-        <p>This app renders in the DevTools console, which needs a desktop browser.</p>
+        <h2>{m.openOnDesktop}</h2>
+        <p>{m.needsDesktop}</p>
       </div>
 
       {children}
@@ -618,6 +632,7 @@ export function FocusPad({ root, title, hints = [], action, capturing, onActivat
             color={c.subtle}
             activeColor={c.text}
             {...(typeof sizeControl === "object" ? sizeControl : {})}
+            messages={sizeMessages}
             onChange={(choice) => {
               if (typeof sizeControl === "object") sizeControl.onChange?.(choice);
               if (onActivate) onActivate();

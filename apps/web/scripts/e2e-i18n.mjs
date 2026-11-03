@@ -13,8 +13,12 @@ const check = (ok, what) => {
   if (!ok) failures.push(what);
 };
 
+/** Only the site under test: never a local OpenCode bridge or another dev server. */
+const guard = (context) => context.route(/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\//, (r) => (new URL(r.request().url()).origin === new URL(base).origin ? r.continue() : r.abort()));
+
 async function open(path, locale = "en-US") {
   const context = await browser.newContext({ locale, viewport: { width: 1280, height: 900 } });
+  await guard(context);
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -67,6 +71,7 @@ try {
   for (const [width, height] of [[390, 844], [1440, 900]]) {
     for (const path of ["/ja", "/ja/docs/routing"]) {
       const context = await browser.newContext({ locale: "en-US", viewport: { width, height } });
+      await guard(context);
       const page = await context.newPage();
       await page.goto(`${base}${path}`, { waitUntil: "networkidle" });
       await page.locator(".locale-suggestion").waitFor({ timeout: 5000 }).catch(() => {});
@@ -83,6 +88,34 @@ try {
       check(overlaps.length === 0, `banner covers nothing in the footer at ${width}px on ${path} (${overlaps.join(", ")})`);
       await context.close();
     }
+  }
+  // The focus pad is Japanese in every state: its lines, its labels for screen readers, the size control and the
+  // demo's keys. Names (the picker, the chapter title), keycaps and browser names stay as written.
+  for (const path of ["/ja/playground", "/ja/learn/getting-started"]) {
+    const { page, context, errors } = await open(path, "ja-JP");
+    const english = () =>
+      page.evaluate(() => {
+        const pad = document.querySelector("[data-textjs-focus-pad]");
+        if (!pad) return ["no pad"];
+        const keep = new Set(["DevTools", "Safari", "Web", "Ctrl", "Shift", "Enter", "Esc", "Space"]);
+        const skip = ".tx-pad-top, .pad-slot-top, .tx-pad-banner, .tx-pad-touch, style, kbd";
+        const out = [];
+        const walker = document.createTreeWalker(pad, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) if (!n.parentElement?.closest(skip)) out.push(n.textContent ?? "");
+        for (const el of pad.querySelectorAll("[aria-label], [title]")) if (!el.closest(skip)) out.push(el.getAttribute("aria-label") ?? "", el.getAttribute("title") ?? "");
+        for (const el of pad.querySelectorAll(".tx-pad-touch h2, .tx-pad-touch p")) out.push(el.textContent ?? "");
+        return [...new Set(out.join(" ").match(/[A-Za-z]{2,}/g) ?? [])].filter((w) => !keep.has(w));
+      });
+    const open_ = await english();
+    check(open_.length === 0, `${path}: the pad's first step is Japanese (${open_.join(" ")})`);
+    // Losing focus to DevTools: the click step, or the live one (the demo's keys) when the console has the keyboard.
+    await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+    await page.waitForSelector('[data-textjs-focus-pad]:not([data-state="open"])', { timeout: 3000 }).catch(() => {});
+    const state = await page.getAttribute("[data-textjs-focus-pad]", "data-state");
+    const next = await english();
+    check(state !== "open" && next.length === 0, `${path}: the ${state} step is Japanese (${next.join(" ")})`);
+    check(errors.length === 0, `${path}: hydrates with no console errors (${errors.join(" | ")})`);
+    await context.close();
   }
   {
     const { page, context } = await open("/ja/no-such-page", "ja-JP");

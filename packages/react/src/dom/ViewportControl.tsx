@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import type { ConsoleRoot } from "../root";
+import { defaultFocusPadMessages, resolveFocusPadMessages, type ViewportControlMessages } from "./messages";
 
 /** `"fit"` follows the docked DevTools console; a size pins the grid. */
 export type ViewportChoice = "fit" | { cols: number; rows: number };
@@ -101,6 +102,13 @@ export interface ViewportControlProps {
   /** Text colors: resting and hover/active. */
   color?: string;
   activeColor?: string;
+  /** Replace any of the control's strings (see `defaultFocusPadMessages`). */
+  messages?: Partial<ViewportControlMessages>;
+}
+
+/** `120×36`, isolated left to right so a right-to-left page doesn't show it as `36×120`. */
+function gridSize({ cols, rows }: { cols: number; rows: number }): string {
+  return `\u2066${cols}×${rows}\u2069`;
 }
 
 const MONO = '"Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menlo, monospace';
@@ -109,7 +117,8 @@ const MONO = '"Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menl
  * A one-line console size picker: "Fit console" (follow docked DevTools) or a
  * fixed grid. Renders as quiet text over a native `<select>`.
  */
-export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, presets = VIEWPORT_PRESETS, onChange, className, style, color = "#707070", activeColor = "#ededed" }: ViewportControlProps): ReactNode {
+export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, presets = VIEWPORT_PRESETS, onChange, className, style, color = "#707070", activeColor = "#ededed", messages }: ViewportControlProps): ReactNode {
+  const m = useMemo(() => resolveFocusPadMessages<ViewportControlMessages>(messages, defaultFocusPadMessages), [messages]);
   const state = useSyncExternalStore(root?.viewport.subscribe ?? NOOP_SUBSCRIBE, () => root?.viewport.getSnapshot() ?? null, () => null);
   const fit = useFitSize(root);
   const [custom, setCustom] = useState(false);
@@ -140,12 +149,9 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
     if (choice) choose(choice);
   };
 
-  const fitLabel = fit ? `Fit console · ${fit.cols}×${fit.rows}` : "Fit console";
-  const label = responsive ? fitLabel : state ? `${state.cols}×${state.rows}` : "";
-  const title =
-    responsive && fit && !fit.measurable
-      ? "Console size. Undocked DevTools can't be measured from the page, so this uses a default. Dock DevTools or pick a size."
-      : "Console size";
+  const fitLabel = fit ? `${m.fitConsole} · ${gridSize(fit)}` : m.fitConsole;
+  const label = responsive ? fitLabel : state ? gridSize(state) : "";
+  const title = responsive && fit && !fit.measurable ? m.consoleSizeUndocked : m.consoleSize;
 
   const text: CSSProperties = { fontFamily: MONO, fontSize: 12, lineHeight: "20px", color: hover ? activeColor : color, transition: "color .15s ease", whiteSpace: "nowrap" };
 
@@ -176,9 +182,9 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) commitCustom();
         }}
       >
-        <input ref={colsRef} id={`${id}-cols`} name="textjs-console-cols" aria-label="Columns" inputMode="numeric" value={draft.cols} onChange={(e) => setDraft((d) => ({ ...d, cols: e.target.value.replace(/\D/g, "") }))} onKeyDown={onKey} style={field} />
+        <input ref={colsRef} id={`${id}-cols`} name="textjs-console-cols" aria-label={m.columns} inputMode="numeric" value={draft.cols} onChange={(e) => setDraft((d) => ({ ...d, cols: e.target.value.replace(/\D/g, "") }))} onKeyDown={onKey} style={field} />
         ×
-        <input id={`${id}-rows`} name="textjs-console-rows" aria-label="Rows" inputMode="numeric" value={draft.rows} onChange={(e) => setDraft((d) => ({ ...d, rows: e.target.value.replace(/\D/g, "") }))} onKeyDown={onKey} style={field} />
+        <input id={`${id}-rows`} name="textjs-console-rows" aria-label={m.rows} inputMode="numeric" value={draft.rows} onChange={(e) => setDraft((d) => ({ ...d, rows: e.target.value.replace(/\D/g, "") }))} onKeyDown={onKey} style={field} />
       </span>
     );
   }
@@ -192,9 +198,9 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
       onMouseLeave={() => setHover(false)}
     >
       {/* Room for the longest label ("Fit console · 200×60") so the size arriving never shifts layout.
-          While fitting, it is left-aligned so the measured size is appended without moving "Fit console";
-          a fixed size gets a fresh node (a new node is not a layout shift) aligned next to the chevron. */}
-      <span key={responsive ? "fit" : "fixed"} aria-hidden="true" style={{ minWidth: 146, textAlign: responsive ? "left" : "right" }}>
+          While fitting, it is start-aligned so the measured size is appended without moving "Fit console";
+          a fixed size gets a fresh node (a new node is not a layout shift) end-aligned next to the chevron. */}
+      <span key={responsive ? "fit" : "fixed"} aria-hidden="true" style={{ minWidth: 146, textAlign: responsive ? "start" : "end" }}>
         {label}
       </span>
       <svg aria-hidden="true" width="8" height="8" viewBox="0 0 8 8" style={{ opacity: 0.8 }}>
@@ -203,7 +209,7 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
       <select
         id={id}
         name="textjs-console-size"
-        aria-label="Console size"
+        aria-label={m.consoleSize}
         value={value}
         disabled={!root}
         onChange={(e) => {
@@ -220,9 +226,9 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
       >
         <option value="fit">{fitLabel}</option>
         {presets.map((p) => (
-          <option key={`${p.cols}x${p.rows}`} value={`${p.cols}x${p.rows}`}>{`${p.cols}×${p.rows}`}</option>
+          <option key={`${p.cols}x${p.rows}`} value={`${p.cols}x${p.rows}`}>{gridSize(p)}</option>
         ))}
-        <option value="custom">{value === "custom" && state ? `Custom · ${state.cols}×${state.rows}` : "Custom…"}</option>
+        <option value="custom">{value === "custom" && state ? `${m.custom} · ${gridSize(state)}` : `${m.custom}…`}</option>
       </select>
     </span>
   );

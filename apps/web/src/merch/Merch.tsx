@@ -223,8 +223,8 @@ function Gallery({ product: p }: { product: Product }): ReactNode {
           ref={track}
           className="merch-track"
           role="region"
-          aria-roledescription="carousel"
-          aria-label={`${p.name} images`}
+          aria-roledescription={t("carousel")}
+          aria-label={t("{name} images", { name: p.name })}
           tabIndex={0}
           onKeyDown={(e) => {
             if (e.key === "ArrowRight") go(index + 1);
@@ -234,7 +234,7 @@ function Gallery({ product: p }: { product: Product }): ReactNode {
           }}
         >
           {p.images.map((image, i) => (
-            <div key={image.large} className="merch-slide" role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${count}`}>
+            <div key={image.large} className="merch-slide" role="group" aria-roledescription={t("slide")} aria-label={t("{n} of {count}", { n: i + 1, count })}>
               {i === 0 || extraLoaded ? (
                 <Img image={image} sizes="(min-width: 1000px) 624px, min(640px, calc(100vw - 32px))" eager={i === 0} priority={i === 0} alt={image.alt} />
               ) : null}

@@ -4,6 +4,7 @@ import { FocusPad } from "@textjs/react/dom";
 import { activateCompanion, companionReady, getCompanion, PLAYGROUND_VIEWPORT_KEY } from "../console-companion/bridge";
 import type { Hint } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
+import { PAD_MESSAGES, padHints, padText } from "./pad-messages";
 
 function useCompanionRoot(): ConsoleRoot | null {
   const [root, setRoot] = useState<ConsoleRoot | null>(() => getCompanion()?.root ?? null);
@@ -44,16 +45,18 @@ export function ConsolePad({ hints, action, top, banner, children }: ConsolePadP
   const root = useCompanionRoot();
   const site = useSite();
   return (
-    <div className="pad-stage" dir="ltr">
+    <div className="pad-stage">
       <FocusPad
         root={root}
-        hints={hints}
-        action={action}
+        hints={padHints(hints)}
+        action={padText(action)}
         capturing={site.consoleInput}
         onActivate={activateCompanion}
-        top={<div className="pad-slot pad-slot-top">{top}</div>}
+        // The demo picker scrolls horizontally and reads its scroll position as left-to-right.
+        top={<div className="pad-slot pad-slot-top" dir="ltr">{top}</div>}
         banner={<div className="pad-slot pad-slot-banner">{banner}</div>}
         className="pad"
+        messages={PAD_MESSAGES}
         sizeControl={{ storageKey: PLAYGROUND_VIEWPORT_KEY }}
       >
         <div className="pad-slot pad-slot-bottom">{children}</div>
