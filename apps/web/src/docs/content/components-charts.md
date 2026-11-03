@@ -75,7 +75,7 @@ Named gradients: `geist` `dusk` `ocean` `mono` `ember`.
 
 ## `<Image>`
 
-Renders an image as a pixelated sprite in Chromium and Firefox consoles, and falls back to `▀` half-blocks (two pixels per cell, top in the foreground and bottom in the background) in Safari, terminals and plain-text copies.
+Half-block pixels: each cell holds two, top in the foreground and bottom in the background.
 
 ```tsx
 <Image src="/avatar.png" width={24} />
@@ -105,6 +105,8 @@ const source: PixelSource = { width: 320, height: 200, data: new Uint32Array(320
 | `pixelAspect` | Displayed width divided by height of one source pixel (default `1`) |
 | `palette` | Optional `PackedColor[]` palette to quantize colors against |
 | `sample` | Half-block fallback filter: `nearest` (default) or `average` |
-| `renderMode` | `auto` (default) or `halfblock` |
+| `renderMode` | `auto` (default: sprite where supported, `▀` half-blocks elsewhere) or `halfblock` |
 
-For custom scene nodes without React, `@textjs/core/experimental` exports `drawPixels(buffer, options)` along with `DrawPixelsOptions`, `PixelSource` and `PixelFit`. Exports under `/experimental` may change in a minor release.
+`renderMode="auto"` draws a pixelated sprite in Chromium, and Firefox per its console's style rules (not benchmarked), and falls back to `▀` half-blocks in Safari, terminals and plain-text copies. Pass `renderMode="halfblock"` to draw half-blocks everywhere.
+
+To draw pixels without React, import `drawPixels` from `@textjs/core/experimental` along with `DrawPixelsOptions`, `PixelSource`, `PixelFit`, `PixelSample` and `PixelRenderMode`. See [Breaking changes](/docs/support-policy#breaking-changes) for how experimental exports are versioned.

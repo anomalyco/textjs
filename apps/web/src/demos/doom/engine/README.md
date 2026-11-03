@@ -8,6 +8,6 @@ loaded at runtime as its own asset and never imported into `packages/`.
 changes from upstream: the embedded shareware WAD is replaced by an empty stub (the IWAD is served
 separately), and the melt screen wipe is off (it spins the main thread for about a second).
 
-- Size: 329,012 bytes, 152,033 gzipped
+- Size: 329,012 bytes, about 150 KB gzipped
 - SHA-256: see `out/SHA256SUMS`
-- Interface: 10 imports, 4 exports (`initGame`, `tickGame`, `reportKeyDown`, `reportKeyUp`); host glue in `../host.ts`
+- Interface: 10 imports and 19 exports: `memory`, 4 functions (`initGame`, `tickGame`, `reportKeyDown`, `reportKeyUp`) and 14 `KEY_*` codes; host glue in `../host.ts`

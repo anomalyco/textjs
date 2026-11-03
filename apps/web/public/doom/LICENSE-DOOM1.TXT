@@ -1,5 +1,5 @@
-DOOM1.WAD — DOOM shareware v1.9, Episode 1 © 1993–1995 id Software
-DOOM is a trademark of id Software. Not affiliated with or endorsed by id Software.
+DOOM1.WAD: DOOM shareware v1.9, Episode 1 © 1993–1995 id Software
+DOOM is a trademark of id Software. Text.js is not affiliated with or endorsed by id Software.
 SHA-256 1d7d43be501e67d927e415e0b8f3e29c3bf33075e859721816f652a526cac771
 
 LIMITED USE SOFTWARE LICENSE AGREEMENT

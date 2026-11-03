@@ -2,9 +2,11 @@ import type { CellBuffer } from "./cell-buffer";
 import type { PackedColor } from "./color";
 
 export interface SpriteDriverContext {
-  readonly inline: boolean;
-  readonly rowHeight: number;
-  readonly defaultInlineFamily: string | undefined;
+  readonly _profile: {
+    readonly inline: boolean;
+    readonly rowHeight: number;
+    readonly typography: { readonly fontFamily?: string };
+  };
   readonly typography: {
     readonly fontFamily: string;
     readonly fontSize: number;
@@ -17,8 +19,8 @@ export interface SpriteDriverContext {
     readonly inverseFg: PackedColor;
     readonly inverseBg: PackedColor;
   };
-  getCellAdvance(): number;
-  nextUniqueStyleId(): number;
+  _getCellAdvance(): number;
+  _nextFitId(): number;
   compileRow(buffer: CellBuffer, y: number): Array<{
     styleId: number;
     styleKey: bigint;
@@ -33,6 +35,7 @@ export interface SpriteDriverContext {
 }
 
 export interface SpriteCodec {
+  release(buf: Uint32Array): void;
   materialize(buf: CellBuffer, sp: BufferSprite): void;
   encodePngDataUrl(sp: BufferSprite): string;
   stageKeyframe(

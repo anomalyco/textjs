@@ -141,28 +141,41 @@ describe("<Gradient>", () => {
 });
 
 describe("<Image>", () => {
-  test("uses crisp sprite path while keeping aspect ratio, fit='cover', and half-block fallback", async () => {
+  test("half-block pixels keep aspect ratio, colors, and modal overlays without using experimental sprites", async () => {
     // 2×2: red, green / blue, transparent
     const pixels = { width: 2, height: 2, data: [255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 0, 0, 0, 0] };
     const app = await render(<Image pixels={pixels} width={2} />, { cols: 4, rows: 2 });
-    expect(app.root.renderer.buffer._sprites.length).toBe(1);
+    expect(app.root.renderer.buffer._sprites.length).toBe(0);
     expect(app.lines()[0]).toBe("▀▀");
     expect(app.cell(0, 0)).toMatchObject({ fg: parseColor("#ff0000"), bg: parseColor("#0000ff") });
     expect(app.cell(1, 0)?.fg).toBe(parseColor("#00ff00"));
     expect(resamplePixels({ width: 2, height: 1, data: [0, 0, 0, 255, 255, 255, 255, 255] }, 1, 1)[0]).toBe(128);
 
-    // fit="cover" center-crops a wide 4×2 image into a 1×1 (1x2 subpixel) cell
-    const wide = {
-      width: 4,
-      height: 2,
-      data: [
-        255, 0, 0, 255,   0, 255, 0, 255,   0, 255, 0, 255,   255, 0, 0, 255,
-        255, 0, 0, 255,   0, 0, 255, 255,   0, 0, 255, 255,   255, 0, 0, 255,
-      ],
-    };
-    await app.rerender(<Image pixels={wide} width={2} height={1} fit="cover" />);
-    expect(app.root.renderer.buffer._sprites.length).toBe(1);
-    expect(app.cell(0, 0)).toMatchObject({ fg: parseColor("#00ff00"), bg: parseColor("#0000ff") });
+    // Modal overlay over <Image> keeps its interior background
+    const d = new Uint8ClampedArray(8 * 8 * 4);
+    for (let i = 0; i < 64; i++) {
+      d[i * 4] = 255;
+      d[i * 4 + 3] = 255;
+    }
+    await app.rerender(
+      <Box width={20} height={8}>
+        <Image pixels={{ width: 8, height: 8, data: d }} width={16} height={8} fit="fill" />
+        <Box position="absolute" left={4} top={2} width={8} height={3} bg="#222222">
+          <Text>hi</Text>
+        </Box>
+      </Box>,
+    );
+    const modalApp = await render(
+      <Box width={20} height={8}>
+        <Image pixels={{ width: 8, height: 8, data: d }} width={16} height={8} fit="fill" />
+        <Box position="absolute" left={4} top={2} width={8} height={3} bg="#222222">
+          <Text>hi</Text>
+        </Box>
+      </Box>,
+      { cols: 20, rows: 8 },
+    );
+    expect(modalApp.cell(10, 3)?.bg).toBe(parseColor("#222222"));
+    expect(modalApp.cell(5, 2)?.bg).toBe(parseColor("#222222"));
   });
 
   test("new pixels of the same size repaint", async () => {
@@ -256,6 +269,33 @@ describe("<Pixels> and @textjs/react/experimental", () => {
       preventDefault() {},
     });
     expect(seenDown).toBe(false);
+  });
+
+  test("overflow='hidden' parent clips Pixels via cell fallback, and ConsoleMirror paints underBg behind transparent sprites", async () => {
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { extractStyledFrame } = await import("@textjs/core");
+    const { ConsoleMirror } = await import("../src/dom/ConsoleMirror");
+
+    const red = parseColor("#ff0000");
+    const clippedApp = await render(
+      <Box width={3} height={2} overflow="hidden">
+        <Pixels source={{ width: 4, height: 4, data: new Uint32Array(16).fill(red) }} frame={0} width={8} height={2} fit="fill" />
+      </Box>,
+      { cols: 10, rows: 3 },
+    );
+    expect(clippedApp.root.renderer.buffer._sprites.length).toBe(0);
+    expect(clippedApp.cell(2, 0)?.fg).toBe(red);
+    expect(clippedApp.cell(3, 0)?.fg).not.toBe(red);
+
+    const transApp = await render(
+      <Box width={6} height={3} bg="#223344">
+        <Pixels source={{ width: 2, height: 2, data: new Uint32Array([0x00000000, red, red, 0x00000000]) }} frame={0} width={4} height={2} fit="fill" />
+      </Box>,
+      { cols: 6, rows: 3 },
+    );
+    const styled = extractStyledFrame(transApp.root.renderer.buffer);
+    const html = renderToStaticMarkup(<ConsoleMirror frame={styled} chrome={false} />);
+    expect(html).toContain("background:#223344");
   });
 });
 

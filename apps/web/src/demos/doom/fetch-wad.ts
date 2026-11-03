@@ -1,5 +1,5 @@
 // Verifies or refreshes id Software's shareware DOOM1.WAD (v1.9, Episode 1) in apps/web/public/doom/,
-// byte-identical to the 1995 release, with its README.TXT and id's shareware licence alongside.
+// byte-identical to the 1995 release, with its README.TXT and id's shareware license alongside.
 // Usage:
 //   bun apps/web/src/demos/doom/fetch-wad.ts --verify   # verify committed assets offline
 //   bun apps/web/src/demos/doom/fetch-wad.ts            # re-download from archive.org + Debian and verify
@@ -10,7 +10,7 @@ import { join } from "node:path";
 
 // The v1.9 shareware archive as preserved by the Internet Archive (id no longer hosts it).
 const ZIP = { url: "https://archive.org/download/DoomsharewareEpisode/DoomV1.9sw1995idSoftwareInc.action.zip", sha256: "63ad7609f2e951fb2198f682e1226f003946c75c00b9785fa967ffb12c6745f7" };
-// Debian's packaging, which records id's licence text and John Carmack's 1999 note that the WAD is freely distributable.
+// Debian's packaging, which records id's license text and John Carmack's 1999 note that the WAD is freely distributable.
 const DEBIAN = { url: "https://deb.debian.org/debian/pool/non-free/d/doom-wad-shareware/doom-wad-shareware_1.9.fixed-4.debian.tar.xz", sha256: "6c5ca875615ac9ce2dc24542ae7d3a7bb21475751c426530b636cb00952bcd96" };
 // Published hashes of DOOM1.WAD v1.9 (Doom Wiki, Wad Archive): 4,196,020 bytes, 1,264 lumps.
 export const WAD = {
@@ -20,7 +20,8 @@ export const WAD = {
   sha256: "1d7d43be501e67d927e415e0b8f3e29c3bf33075e859721816f652a526cac771",
 };
 
-export const TRADEMARK_NOTICE = "DOOM is a trademark of id Software. Not affiliated with or endorsed by id Software.";
+export const LICENSE_HEADER = "DOOM1.WAD: DOOM shareware v1.9, Episode 1 © 1993–1995 id Software";
+export const TRADEMARK_NOTICE = "DOOM is a trademark of id Software. Text.js is not affiliated with or endorsed by id Software.";
 
 const out = new URL("../../../public/doom/", import.meta.url).pathname;
 const hash = (algo: string, data: Uint8Array): string => createHash(algo).update(data).digest("hex");
@@ -41,9 +42,12 @@ export function verifyDoomAssets(dir = out): void {
   ) {
     throw new Error("DOOM1.WAD doesn't match the published v1.9 shareware hashes");
   }
-  const license = readFileSync(licensePath, "utf8");
-  if (!license.includes(TRADEMARK_NOTICE)) {
-    throw new Error("LICENSE-DOOM1.TXT is missing the trademark notice");
+  const licenseLines = readFileSync(licensePath, "utf8").split("\n");
+  if (licenseLines[0] !== LICENSE_HEADER) {
+    throw new Error("LICENSE-DOOM1.TXT line 1 doesn't match expected header");
+  }
+  if (licenseLines[1] !== TRADEMARK_NOTICE) {
+    throw new Error("LICENSE-DOOM1.TXT line 2 doesn't match expected trademark notice");
   }
 }
 
@@ -83,11 +87,11 @@ if (import.meta.main) {
   const copyright = run(["tar", "-xJOf", "debian.tar.xz", "debian/copyright"]);
   const lines = copyright.split("\n");
   const disclaimer = lines.slice(lines.findIndex((l) => l.startsWith("Disclaimer:")) + 1, lines.findIndex((l) => l.startsWith("Files: doom1.wad")));
-  const licence = lines.slice(lines.findIndex((l) => l.startsWith("License: id-software-license")) + 1, lines.findIndex((l) => l.startsWith("Files: debian")));
+  const license = lines.slice(lines.findIndex((l) => l.startsWith("License: id-software-license")) + 1, lines.findIndex((l) => l.startsWith("Files: debian")));
   const unfold = (ls: string[]): string => ls.map((l) => (l.trim() === "." ? "" : l.replace(/^ /, ""))).join("\n").trim();
   await Bun.write(
     join(out, "LICENSE-DOOM1.TXT"),
-    `DOOM1.WAD — DOOM shareware v1.9, Episode 1 © 1993–1995 id Software\n${TRADEMARK_NOTICE}\nSHA-256 ${WAD.sha256}\n\n${unfold(licence)}\n\n----\n\nDistribution (from Debian's doom-wad-shareware copyright file):\n\n${unfold(disclaimer)}\n`,
+    `${LICENSE_HEADER}\n${TRADEMARK_NOTICE}\nSHA-256 ${WAD.sha256}\n\n${unfold(license)}\n\n----\n\nDistribution (from Debian's doom-wad-shareware copyright file):\n\n${unfold(disclaimer)}\n`,
   );
   verifyDoomAssets();
   console.log(`DOOM1.WAD ${wad.length} bytes, sha256 ${WAD.sha256} ✓`);

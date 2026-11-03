@@ -19,7 +19,7 @@ export interface PixelsProps extends Omit<LayoutProps, "width" | "height"> {
   height?: number;
   /** `"contain"` (default) letterboxes at the source aspect, `"fill"` stretches. */
   fit?: PixelFit;
-  /** Width ÷ height of one source pixel as displayed (Doom's 320×200 is shown at 4:3, so 1.2 ÷ 1 → `5 / 6`). */
+  /** Width ÷ height of one source pixel as displayed (Doom's 320×200 is shown at 4:3, so each pixel is 1.2× taller than wide: `5 / 6`). */
   pixelAspect?: number;
   /**
    * Snap every pixel to the nearest of these packed colors. Shrinks indexed-PNG payloads in sprite
@@ -29,9 +29,9 @@ export interface PixelsProps extends Omit<LayoutProps, "width" | "height"> {
   /** Sampling filter for half-block fallback (`"nearest"` default, or `"average"` box filter). */
   sample?: PixelSample;
   /**
-   * `"auto"` (default) renders a full-resolution pixelated sprite in consoles that allow `data:`
-   * background images (Chromium, Firefox) and falls back to `▀` half-blocks in Safari, ANSI terminals
-   * and plain-text exports. Pass `"halfblock"` to pin half-block cells everywhere.
+   * `"auto"` (default) renders a full-resolution pixelated sprite where supported (Chromium, and
+   * Firefox per its console's style rules (not benchmarked)) and falls back to `▀` half-blocks in
+   * Safari, ANSI terminals and plain-text exports. Pass `"halfblock"` to pin half-block cells everywhere.
    */
   renderMode?: PixelRenderMode;
 }
@@ -67,5 +67,5 @@ export function Pixels({
     },
     [source, frame, fit, pixelAspect, palette, sample, renderMode],
   );
-  return <TxBox width={width} height={height} flexGrow={width === undefined ? 1 : 0} flexShrink={1} minWidth={1} minHeight={1} {...layout} customPaint={paint} />;
+  return <TxBox width={width} height={height} flexGrow={width === undefined ? 1 : 0} flexShrink={width === undefined ? 1 : 0} minWidth={1} minHeight={1} {...layout} customPaint={paint} />;
 }

@@ -60,7 +60,11 @@ export interface FocusChangeEvent {
   focused: boolean;
 }
 
-/** A physical key went down or up. Unlike `key`, it reports modifiers alone, releases and no repeats. */
+/**
+ * A physical key went down or up. Unlike `key` events, it fires for a modifier key on its own
+ * and when a key is released, and it never repeats.
+ * @experimental
+ */
 export interface KeyStateEvent {
   type: "keystate";
   /** Physical `KeyboardEvent.code` (`"KeyW"`, `"ArrowUp"`, `"ControlLeft"`), or `key` when the browser gives none. */
@@ -77,6 +81,7 @@ export interface InputEventMap {
   paste: PasteInputEvent;
   wheel: WheelInputEvent;
   focus: FocusChangeEvent;
+  /** @experimental */
   keystate: KeyStateEvent;
 }
 
@@ -351,11 +356,15 @@ export class InputEngine {
     return this.sink;
   }
 
-  /** Physical keys held right now, by `KeyboardEvent.code`. Cleared when the page loses focus. */
+  /**
+   * Physical keys held right now, by `KeyboardEvent.code`. Cleared when the page loses focus.
+   * @experimental
+   */
   get pressed(): ReadonlySet<string> {
     return this.pressedSet;
   }
 
+  /** @experimental */
   isDown(code: string): boolean {
     return this.held.has(code);
   }
@@ -381,7 +390,10 @@ export class InputEngine {
     }
   }
 
-  /** Release every held key (blur, hidden tab, detach), emitting `keystate` ups. */
+  /**
+   * Release every held key (blur, hidden tab, detach), emitting `keystate` ups.
+   * @experimental
+   */
   releaseAll(): void {
     for (const [code, key] of [...this.held]) {
       this.held.delete(code);
@@ -438,7 +450,10 @@ export class InputEngine {
     return prevent;
   }
 
-  /** Process a keyup: ends the key's `keystate`. Releases are never filtered, so no key sticks. */
+  /**
+   * Process a keyup: ends the key's `keystate`. Releases are never filtered, so no key sticks.
+   * @experimental
+   */
   handleKeyUp(e: KeyboardEventLike): void {
     this.trackKey(e, false);
   }

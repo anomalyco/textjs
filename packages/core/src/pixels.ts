@@ -198,8 +198,16 @@ export interface DrawPixelsOptions {
   palette?: readonly PackedColor[];
   /** Sampling filter for cell-grid fallback (`"nearest"` | `"average"`, default `"nearest"`). */
   sample?: PixelSample;
-  /** `"auto"` (default: crisp sprite in Chromium/Firefox consoles, half-blocks elsewhere) or `"halfblock"`. */
+  /** `"auto"` (default: sprite in Chromium, and Firefox per its console's style rules (not benchmarked); half-blocks elsewhere) or `"halfblock"`. */
   renderMode?: PixelRenderMode;
+}
+
+function sharesRowWithSibling(sprites: readonly BufferSprite[], sp: BufferSprite): boolean {
+  for (let i = 0; i < sprites.length; i++) {
+    const other = sprites[i]!;
+    if (other !== sp && other.y < sp.y + sp.height && other.y + other.height > sp.y) return true;
+  }
+  return false;
 }
 
 interface StagedFrame {
@@ -267,9 +275,9 @@ function resolveCleanBandBg(ctx: SpriteDriverContext, buffer: CellBuffer, sp: Bu
 
 function spriteTypoCss(ctx: SpriteDriverContext, lineHeightPx: number): string {
   const t = ctx.typography;
-  if (ctx.inline) {
+  if (ctx._profile.inline) {
     let css = `display:inline-block;font-family:${t.fontFamily};font-size:${t.fontSize}px;line-height:${lineHeightPx}px;text-wrap-mode:nowrap;`;
-    if (t.fontFamily !== ctx.defaultInlineFamily) css += "font-variant-ligatures:none;";
+    if (t.fontFamily !== ctx._profile.typography.fontFamily) css += "font-variant-ligatures:none;";
     if (t.extraCss) css += t.extraCss.endsWith(";") ? t.extraCss : `${t.extraCss};`;
     return css;
   }
@@ -356,11 +364,16 @@ function buildSpriteSvgUrl(
   return { url, visualFrames: 1 };
 }
 
+const spritePixelPool: Uint32Array[] = [];
+
 let codecInstance: SpriteCodec | null = null;
 
 function getSpriteCodec(): SpriteCodec {
   if (codecInstance !== null) return codecInstance;
   codecInstance = {
+    release(buf: Uint32Array): void {
+      releasePool(spritePixelPool, buf);
+    },
     materialize(buf: CellBuffer, sp: BufferSprite): void {
       paintHalfBlocks(
         buf,
@@ -378,7 +391,9 @@ function getSpriteCodec(): SpriteCodec {
     },
     stageKeyframe(staged, pool, buffer, atMs): boolean {
       let added = false;
-      for (const sp of buffer._sprites) {
+      const sprites = buffer._sprites;
+      for (const sp of sprites) {
+        if (sharesRowWithSibling(sprites, sp)) continue;
         if (hasTransparentPixels(sp.pixels, sp.sourceWidth * sp.sourceHeight)) continue;
         const key = slotKeyOf(sp);
         let list = staged.get(key);
@@ -407,11 +422,21 @@ function getSpriteCodec(): SpriteCodec {
       const hasStaged = staged.size > 0;
       let dirty = 0;
       let maxVisualFrames = 1;
-      const rowPitch = ctx.rowHeight;
-      const cellW = ctx.getCellAdvance();
-      const padY = ctx.inline ? 0 : ctx.typography.rowPaddingY;
+      const rowPitch = ctx._profile.rowHeight;
+      const cellW = ctx._getCellAdvance();
+      const padY = ctx._profile.inline ? 0 : ctx.typography.rowPaddingY;
 
-      for (const sp of buffer._sprites) {
+      const sprites = buffer._sprites;
+      let materializedShared = false;
+
+      for (const sp of sprites) {
+        if (sharesRowWithSibling(sprites, sp)) {
+          if (!materializedShared) {
+            buffer._ensureSpritesMaterialized();
+            materializedShared = true;
+          }
+          continue;
+        }
         let spriteDirty = full || hasStaged || force;
         if (!spriteDirty) {
           for (let y = sp.y; y < sp.y + sp.height; y++) {
@@ -434,8 +459,9 @@ function getSpriteCodec(): SpriteCodec {
         }
 
         if (bandBg !== null) {
+          nextSpanned[sp.y] = 2;
           for (let y = sp.y + 1; y < sp.y + sp.height; y++) nextSpanned[y] = 1;
-          if (!spriteDirty && prevSpanned[sp.y] === 0) {
+          if (!spriteDirty && prevSpanned[sp.y] === 2) {
             let spanMatch = true;
             for (let y = sp.y + 1; y < sp.y + sp.height; y++) {
               if (prevSpanned[y] !== 1) {
@@ -461,7 +487,7 @@ function getSpriteCodec(): SpriteCodec {
           }
           rowCache[sp.y] = [
             {
-              styleId: ctx.nextUniqueStyleId(),
+              styleId: ctx._nextFitId(),
               styleKey: 0n,
               css,
               text: " ".repeat(W),
@@ -478,15 +504,16 @@ function getSpriteCodec(): SpriteCodec {
             handled[y] = 1;
           }
         } else {
+          for (let y = sp.y; y < sp.y + sp.height; y++) nextSpanned[y] = 2;
           if (!spriteDirty) {
-            let unspanned = true;
+            let slicedMatch = true;
             for (let y = sp.y; y < sp.y + sp.height; y++) {
-              if (prevSpanned[y] !== 0) {
-                unspanned = false;
+              if (prevSpanned[y] !== 2) {
+                slicedMatch = false;
                 break;
               }
             }
-            if (unspanned) {
+            if (slicedMatch) {
               for (let y = sp.y; y < sp.y + sp.height; y++) handled[y] = 1;
               continue;
             }
@@ -518,7 +545,7 @@ function getSpriteCodec(): SpriteCodec {
               css += `background-image:url("${url}");background-repeat:no-repeat;background-size:${dw}px ${dh}px;background-position:${relX.toFixed(1)}px ${(baseRelY - (y - sp.y) * rowPitch).toFixed(1)}px;`;
             }
             out.push({
-              styleId: ctx.nextUniqueStyleId(),
+              styleId: ctx._nextFitId(),
               styleKey: 0n,
               css,
               text: " ".repeat(sp.width),
@@ -541,7 +568,7 @@ function getSpriteCodec(): SpriteCodec {
               out.push(...ctx.compileRow(rightBuf, 0));
             }
             rowCache[y] = out;
-            if (full || hashes[y] !== prevHashes[y] || prevSpanned[y] !== 0) dirty++;
+            if (full || hashes[y] !== prevHashes[y] || prevSpanned[y] !== 2) dirty++;
             prevHashes[y] = hashes[y] as number;
             handled[y] = 1;
           }
@@ -571,11 +598,87 @@ function getSpriteCodec(): SpriteCodec {
   return codecInstance;
 }
 
+function registerSprite(
+  buf: CellBuffer,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  srcWidth: number,
+  srcHeight: number,
+  srcData: Uint32Array,
+  fit: "contain" | "fill",
+  pixelAspect: number,
+  palette: readonly PackedColor[] | undefined,
+  sample: "nearest" | "average",
+): boolean {
+  if (!buf.intersectsScissor(x, y, w, h)) return false;
+  if (x < buf._sClipX0 || y < buf._sClipY0 || x + w > buf._sClipX1 || y + h > buf._sClipY1) return false;
+  const cx = Math.max(x, buf._clipX0);
+  const cy = Math.max(y, buf._clipY0);
+  let underBg = (buf._bg[cy * buf.width + cx] as number) >>> 0;
+  let inheritedDirty = x < buf._clipX0 || y < buf._clipY0 || x + w > buf._clipX1 || y + h > buf._clipY1;
+  if (buf._sprites.length > 0) {
+    for (const old of buf._sprites) {
+      if (cx >= old.x && cx < old.x + old.width && cy >= old.y && cy < old.y + old.height && old.cellsDirty) {
+        underBg = old.underBg;
+        inheritedDirty = true;
+        break;
+      }
+    }
+    buf._materializeSpritesInRect(x, y, x + w, y + h, true, true);
+  }
+  const len = srcWidth * srcHeight;
+  const pixels = acquirePool(spritePixelPool, len);
+  let opaque = true;
+  let hash = (0x811c9dc5 ^ x ^ (y << 8) ^ (w << 16) ^ (h << 24) ^ srcWidth ^ (srcHeight << 16)) >>> 0;
+  hash = Math.imul(hash ^ (fit === "fill" ? 1 : 2), 0x01000193);
+  hash = Math.imul(hash ^ (sample === "average" ? 1 : 2), 0x01000193);
+  hash = Math.imul(hash ^ Math.round(pixelAspect * 4096), 0x01000193);
+  hash = Math.imul(hash ^ underBg, 0x01000193);
+  if (palette !== undefined) {
+    hash = Math.imul(hash ^ (palette.length + 1), 0x01000193);
+    for (let i = 0; i < palette.length; i++) {
+      hash = Math.imul(hash ^ ((palette[i] as number) >>> 0), 0x01000193);
+    }
+  }
+  for (let i = 0; i < len; i++) {
+    const px = srcData[i] as number;
+    pixels[i] = px;
+    if ((px & 255) < 128) opaque = false;
+    hash = Math.imul(hash ^ px, 0x01000193);
+  }
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 0x85ebca6b) >>> 0;
+
+  buf._sprites.push({
+    x,
+    y,
+    width: w,
+    height: h,
+    sourceWidth: srcWidth,
+    sourceHeight: srcHeight,
+    pixels,
+    fit,
+    pixelAspect,
+    palette,
+    sample,
+    hash,
+    opaque,
+    underBg,
+    materialized: false,
+    cellsDirty: inheritedDirty,
+    codec: getSpriteCodec(),
+  });
+  buf.markRowsDirty(y, y + h);
+  return true;
+}
+
 /**
  * Blit a pixel framebuffer into `buf` at `(x, y, width, height)`.
- * Consoles that support data-URI background sprites (Chromium, Firefox) render
- * the full-resolution pixels in a single span; Safari, ANSI terminals, plain-text
- * exports and overlapped overlays automatically materialize `▀` half-blocks.
+ * Consoles that support data-URI background sprites (Chromium, and Firefox per its console's
+ * style rules (not benchmarked)) render the full-resolution pixels in a single span; Safari, ANSI
+ * terminals, plain-text exports and overlapped overlays automatically materialize `▀` half-blocks.
  */
 export function drawPixels(buf: CellBuffer, options: DrawPixelsOptions): void {
   const x = Math.floor(options.x);
@@ -588,7 +691,7 @@ export function drawPixels(buf: CellBuffer, options: DrawPixelsOptions): void {
   const pixelAspect = options.pixelAspect ?? 1;
   const sample = options.sample ?? "nearest";
   const mode = options.renderMode ?? "auto";
-  if (mode === "halfblock" || !buf._putSprite(x, y, w, h, src.width, src.height, src.data, fit, pixelAspect, options.palette, sample, getSpriteCodec())) {
-    paintHalfBlocks(buf, { x, y, width: w, height: h }, src, fit, pixelAspect, options.palette, sample);
+  if (mode === "halfblock" || !registerSprite(buf, x, y, w, h, src.width, src.height, src.data, fit, pixelAspect, options.palette, sample)) {
+    paintHalfBlocks(buf, { x: 0 + x, y: 0 + y, width: w, height: h }, src, fit, pixelAspect, options.palette, sample);
   }
 }

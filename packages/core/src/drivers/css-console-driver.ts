@@ -1,5 +1,5 @@
-import { blendOver, parseBannerColor } from "../color";
-import type { ConsoleBanner } from "../internal";
+import { blendOver } from "../color";
+import { parseBannerColor, type ConsoleBanner } from "../internal";
 import {
   ATTR_ALLOW_LINK,
   ATTR_INVERSE,
@@ -334,6 +334,16 @@ export class CssConsoleDriver {
     this.curtainCss = profile.curtainCss;
     if (options.initialClear === false) this.appended = 1;
     this.measureOption = options.measureText;
+  }
+
+  /** @internal */
+  get _profile(): Readonly<ConsoleProfile> {
+    return this.profile;
+  }
+
+  /** @internal */
+  _nextFitId(): number {
+    return this.nextFitId--;
   }
 
   /** @internal Whether this console supports multi-keyframe sprite batching (`true` in Chromium append mode). */
@@ -790,7 +800,8 @@ export class CssConsoleDriver {
    * margins are capped at half a cell, so only drift is corrected; a span
    * whose fallback font is much wider overflows rather than being overlapped.
    */
-  private getCellAdvance(): number {
+  /** @internal */
+  _getCellAdvance(): number {
     if (this.measurer === undefined) {
       const m = this.measureOption;
       this.measurer = m === false ? null : (m ?? createCanvasMeasurer(this.typography.fontFamily, this.typography.fontSize));
@@ -800,7 +811,7 @@ export class CssConsoleDriver {
   }
 
   private fitRtlSpans(spans: CompiledSpan[]): void {
-    this.getCellAdvance();
+    this._getCellAdvance();
     const measure = this.measurer;
     if (measure === null || measure === undefined || !(this.cellAdvance > 0)) return;
     for (const span of spans) {
@@ -1152,7 +1163,7 @@ export class CssConsoleDriver {
       const full = !this.rendered;
       for (let y = 0; y < H; y++) {
         const h = hashes[y] as number;
-        const wasSpanned = hadSpanned && spanned[y] === 1;
+        const wasSpanned = hadSpanned && spanned[y] !== 0;
         if (wasSpanned) spanned[y] = 0;
         if (full || wasSpanned || h !== prev[y]) {
           dirty++;
@@ -1167,18 +1178,8 @@ export class CssConsoleDriver {
       return { frame: this.assemble(), dirtyRows: dirty };
     }
 
-    const ctx: SpriteDriverContext = {
-      inline: this.profile.inline,
-      rowHeight: this.profile.rowHeight,
-      defaultInlineFamily: this.profile.typography.fontFamily,
-      typography: this.typography,
-      styleOptions: this.styleOptions,
-      getCellAdvance: () => this.getCellAdvance(),
-      nextUniqueStyleId: () => this.nextFitId--,
-      compileRow: (b, y) => this.compileRow(b, y),
-    };
     const { nextSpanned, dirty, maxVisualFrames } = buffer._sprites[0]!.codec.encodeSprites(
-      ctx,
+      this,
       buffer,
       buffer.getRowHashes(),
       this.prevHashes,
@@ -1197,7 +1198,7 @@ export class CssConsoleDriver {
       }
     }
     this.rowSpanned = nextSpanned;
-    this.hasSpannedRows = nextSpanned.some((v) => v === 1);
+    this.hasSpannedRows = nextSpanned.some((v) => v !== 0);
     this.lastVisualFrames = maxVisualFrames;
 
     if (dirty === 0 && maxVisualFrames <= 1 && !options.force && this.rendered) return { frame: null, dirtyRows: 0 };

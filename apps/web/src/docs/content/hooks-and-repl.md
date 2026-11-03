@@ -37,7 +37,7 @@ const keys = useKeyState((e) => {
 });
 ```
 
-Held keys are released automatically when the page loses focus. Exports under `/experimental` may change in a minor release.
+Held keys are released automatically when the page loses focus. See [Breaking changes](/docs/support-policy#breaking-changes) for how experimental exports are versioned.
 
 ## `useViewport`
 

@@ -43,6 +43,8 @@ interface StyledSprite {
   sourceHeight: number;
   fit: "contain" | "fill";
   pixelAspect: number;
+  /** CSS background under the sprite (`null` when transparent / theme default). */
+  bgCss: string | null;
   /** `data:image/png;base64,...` of the current frame. */
   dataUrl: string;
 }
@@ -169,6 +171,7 @@ export function extractStyledFrame(buffer: CellBuffer, style: Partial<StyleResol
         sourceHeight: sp.sourceHeight,
         fit: sp.fit,
         pixelAspect: sp.pixelAspect,
+        bgCss: (sp.underBg & 255) === 0 ? null : colorToCss(sp.underBg),
         dataUrl,
       });
     }

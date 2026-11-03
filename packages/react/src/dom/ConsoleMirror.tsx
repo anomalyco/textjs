@@ -129,7 +129,7 @@ export function ConsoleMirror({
                 top: sp.y * lineHeight,
                 width: `${(sp.width / Math.max(1, frame.width)) * 100}%`,
                 height: sp.height * lineHeight,
-                background: fill,
+                background: sp.bgCss ?? fill,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",

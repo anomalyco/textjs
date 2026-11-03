@@ -236,16 +236,6 @@ export function parseColor(input: ColorInput): PackedColor {
   return value;
 }
 
-/** @internal Parse a packed integer or `#hex` banner color without pulling in `NAMED_COLORS`. */
-export function parseBannerColor(input: ColorInput): PackedColor {
-  if (input === undefined || input === null) return COLOR_DEFAULT;
-  if (typeof input === "number") return Number.isFinite(input) ? input >>> 0 : COLOR_DEFAULT;
-  const s = input.trim();
-  if (s.charCodeAt(0) === 35 /* # */) return parseHex(s) ?? COLOR_DEFAULT;
-  if (/^0x[0-9a-fA-F]{1,8}$/.test(s)) return parseInt(s.slice(2), 16) >>> 0;
-  return COLOR_DEFAULT;
-}
-
 const cssCache = /* @__PURE__ */ new Map<number, string>();
 const CSS_CACHE_MAX = 8192;
 

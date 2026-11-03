@@ -28,6 +28,7 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
     expect("quantizer" in coreTopLevel).toBe(false);
     expect("encodeIndexedPng" in coreTopLevel).toBe(false);
     expect("deflateZlib" in coreTopLevel).toBe(false);
+    expect("parseBannerColor" in coreTopLevel).toBe(false);
     expect("paintHalfBlocks" in coreExperimental).toBe(false);
     expect("quantizer" in coreExperimental).toBe(false);
   });
@@ -127,24 +128,94 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
     expect(buf._writeVersion).not.toBe(wvBefore);
   });
 
-  test("partial-row band repaints preserve sprites that fit the unclipped buffer", () => {
-    const b = new CellBuffer(20, 6);
+  test("partial-row band repaints preserve sprites that fit the unclipped buffer, while partial fillRect overlays materialize and remove", () => {
+    const b = new CellBuffer(20, 8);
     const source = { width: 4, height: 4, data: new Uint32Array(16).fill(RED) };
-    drawPixels(b, { x: 0, y: 0, width: 4, height: 3, source });
+    b.fillRect(0, 0, 20, 8, DARK_BG);
+    drawPixels(b, { x: 0, y: 0, width: 4, height: 3, source, fit: "fill" });
     expect(b._sprites.length).toBe(1);
 
     // Emulate Painter.runBands for row 1 only
     b.resetScissor();
-    b.pushScissor(0, 1, 20, 1);
+    b._pushBandScissor(1, 1);
     b.fillRect(0, 1, 20, 1, DARK_BG, 0x20, 0, 0);
-    expect(b._sprites.length).toBe(1);
-    drawPixels(b, { x: 0, y: 0, width: 4, height: 3, source });
+    expect(b._sprites.length).toBe(0); // fillRect removed old sprite
+    drawPixels(b, { x: 0, y: 0, width: 4, height: 3, source, fit: "fill" });
     b.resetScissor();
-    expect(b._sprites.length).toBe(1);
+    expect(b._sprites.length).toBe(1); // _putSprite re-registered across band scissor
 
-    // Full-covering fillRect drops the sprite
-    b.fillRect(0, 0, 4, 3, DARK_BG);
+    // Modal / box fill partly overlapping a sprite materializes & removes the sprite so modal bg stays intact
+    b.fillRect(0, 0, 20, 8, 0x000000ff);
+    drawPixels(b, { x: 0, y: 0, width: 12, height: 6, source, fit: "fill" });
+    const MODAL = 0x222222ff;
+    const FG = 0xffffffff;
+    b.fillRect(4, 2, 10, 3, MODAL, 0x20, FG, 0);
+    b.drawText(6, 3, "hi", FG, MODAL);
     expect(b._sprites.length).toBe(0);
+    expect(b.getCell(5, 2)?.bg).toBe(MODAL);
+    expect(b.getCell(10, 4)?.bg).toBe(MODAL);
+    expect(b.getCell(13, 4)?.bg).toBe(MODAL);
+    expect(b.getCell(1, 1)?.bg).toBe(RED);
+    const d = new CssConsoleDriver({ console: new FakeConsole(), browser: "chromium", measureText: false });
+    const r = d.render(b);
+    expect(r.frame!.args.some((a) => a.includes("background-image"))).toBe(false);
+  });
+
+  test("parent clip honors scissor and falls back to cell rendering when cut, and two sprites sharing rows fall back to cells", () => {
+    // 1. Parent clip (3-cell clip over 8-cell sprite)
+    const clipped = new CellBuffer(10, 4);
+    clipped.clear(DARK_BG);
+    clipped.pushScissor(0, 0, 3, 3);
+    drawPixels(clipped, { x: 0, y: 0, width: 8, height: 3, source: { width: 4, height: 4, data: new Uint32Array(16).fill(RED) }, fit: "fill" });
+    clipped.popScissor();
+    expect(clipped._sprites.length).toBe(0);
+    expect(clipped.getCell(2, 0)?.fg).toBe(RED);
+    expect(clipped.getCell(3, 0)?.fg).toBe(0);
+
+    // 2. Two sprites sharing rows 1..2 fall back to cell rendering without overwriting each other, while solo sprite on rows 4..5 stays a sprite
+    const shared = new CellBuffer(20, 6);
+    shared.clear(DARK_BG);
+    drawPixels(shared, { x: 0, y: 0, width: 6, height: 3, source: { width: 2, height: 2, data: new Uint32Array(4).fill(RED) }, fit: "fill" });
+    drawPixels(shared, { x: 10, y: 1, width: 6, height: 2, source: { width: 2, height: 2, data: new Uint32Array(4).fill(BLUE) }, fit: "fill" });
+    drawPixels(shared, { x: 2, y: 4, width: 8, height: 2, source: { width: 2, height: 2, data: new Uint32Array(4).fill(GREEN) }, fit: "fill" });
+
+    const con = new FakeConsole();
+    const driver = new CssConsoleDriver({ console: con, browser: "chromium", measureText: false });
+    driver.render(shared);
+    // Rows 0..2 emit half-block cells for both RED and BLUE sprites; rows 4..5 emit 1 sprite span
+    const spriteSpans = con.last.args.filter((a) => a.includes("background-image:url("));
+    expect(spriteSpans.length).toBe(1);
+    expect(shared.getCell(1, 1)?.fg).toBe(RED);
+    expect(shared.getCell(11, 1)?.fg).toBe(BLUE);
+  });
+
+  test("sprite hash includes palette, sample, and underBg, and extractStyledFrame exposes underBg as bgCss", () => {
+    const con = new FakeConsole();
+    const driver = new CssConsoleDriver({ console: con, browser: "chromium", measureText: false });
+    const src = { width: 2, height: 2, data: new Uint32Array([0x00000000, RED, BLUE, GREEN]) };
+    const buf = new CellBuffer(8, 2);
+
+    buf.clear(0x223344ff);
+    drawPixels(buf, { x: 0, y: 0, width: 4, height: 2, source: src, fit: "fill" });
+    expect(extractStyledFrame(buf)._sprites?.[0]?.bgCss).toBe("#223344");
+    expect(driver.render(buf).skipped).toBe(false);
+    expect(driver.render(buf).skipped).toBe(true);
+
+    // Changing underBg triggers repaint
+    buf.clear(0x556677ff);
+    drawPixels(buf, { x: 0, y: 0, width: 4, height: 2, source: src, fit: "fill" });
+    expect(extractStyledFrame(buf)._sprites?.[0]?.bgCss).toBe("#556677");
+    expect(driver.render(buf).skipped).toBe(false);
+
+    // Changing palette triggers repaint
+    buf.clear(0x556677ff);
+    drawPixels(buf, { x: 0, y: 0, width: 4, height: 2, source: src, fit: "fill", palette: [RED, BLUE] });
+    expect(driver.render(buf).skipped).toBe(false);
+
+    // Changing sample triggers repaint
+    buf.clear(0x556677ff);
+    drawPixels(buf, { x: 0, y: 0, width: 4, height: 2, source: src, fit: "fill", palette: [RED, BLUE], sample: "average" });
+    expect(driver.render(buf).skipped).toBe(false);
   });
 
   test("IDLE_COMPACT_FRAMES stays 100 for idle console compaction", () => {

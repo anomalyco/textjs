@@ -9,9 +9,11 @@ export interface PresetViewProps {
   preset: PresetId;
   /** Rows used by surrounding chrome (for the Snake board size). */
   reserveRows?: number;
+  /** Whether the console companion is active (engaged on desktop). */
+  active?: boolean;
 }
 
-export function PresetView({ preset, reserveRows = 4 }: PresetViewProps): ReactNode {
+export function PresetView({ preset, reserveRows = 4, active = true }: PresetViewProps): ReactNode {
   switch (preset) {
     case "dashboard":
       return <DashboardDemo />;
@@ -20,6 +22,6 @@ export function PresetView({ preset, reserveRows = 4 }: PresetViewProps): ReactN
     case "snake":
       return <SnakeDemo reserveRows={reserveRows} />;
     case "doom":
-      return <DoomDemo reserveRows={reserveRows} />;
+      return <DoomDemo reserveRows={4} active={active} />;
   }
 }

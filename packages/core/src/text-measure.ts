@@ -559,16 +559,7 @@ export function truncateText(
   maxWidth: number,
   position: "end" | "middle" | "start" = "end",
 ): string {
-  const flat = text.includes("\n") || text.includes("\r") ? text.replace(/\r?\n/g, " ") : text;
-  const max = maxWidth === Infinity ? Infinity : Math.max(0, Math.floor(maxWidth));
-  if (isPrintableAscii(flat) && flat.length <= max) return flat;
-  const gs = segmentGraphemes(flat);
-  let total = 0;
-  for (let i = 0; i < gs.length; i++) total += (gs[i] as Grapheme).width;
-  if (total <= max) return flat;
-  const out: TextLine[] = [];
-  truncateHardLine(gs, 0, gs.length, total, max, `truncate-${position}`, out);
-  return out[0] ? lineToString(gs, out[0]) : "";
+  return wrapText(text.replace(/\r?\n/g, " "), maxWidth, `truncate-${position}`)[0] ?? "";
 }
 
 /**
