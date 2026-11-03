@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { packRGBA, txError, type CellBuffer, type ComputedRect, type LayoutProps } from "@textjs/core";
+import { drawPixels, type PixelEncoding, type PixelFit, type PixelRect, type PixelSource } from "@textjs/core/experimental";
 import { TxBox } from "../host";
 import { useTheme } from "../theme";
 import { Text } from "./Text";
@@ -83,6 +84,59 @@ export function loadImagePixels(src: string, maxWidth = 256, maxHeight = 256): P
   });
 }
 
+/** Sprite resolution cap per cell: about one source pixel per CSS pixel at the default console font. */
+const SPRITE_PX_PER_COL = 8;
+const SPRITE_PX_PER_ROW = 16;
+
+interface ImageSprite {
+  source: PixelSource;
+  fit: PixelFit;
+  encoding: PixelEncoding;
+}
+
+/**
+ * The pixels a `cols × rows` sprite shows: `cover` crops to the box first (in the same two-pixels-per-row
+ * space as the half-blocks), and large images shrink to the resolution cap. Images that fit a 256-color
+ * palette with on/off alpha stay indexed (smallest, and they can batch when they animate); anything else is RGBA.
+ */
+function spriteFor(img: PixelData, cols: number, rows: number, fit: "contain" | "cover" | "fill"): ImageSprite {
+  let sx = 0;
+  let sy = 0;
+  let sw = img.width;
+  let sh = img.height;
+  if (fit === "cover") {
+    const scale = Math.max(cols / img.width, (rows * 2) / img.height);
+    sw = Math.min(img.width, Math.max(1, Math.round(cols / scale)));
+    sh = Math.min(img.height, Math.max(1, Math.round((rows * 2) / scale)));
+    sx = Math.floor((img.width - sw) / 2);
+    sy = Math.floor((img.height - sh) / 2);
+  }
+  let crop: PixelData = img;
+  if (sx !== 0 || sy !== 0 || sw !== img.width || sh !== img.height) {
+    const data = new Uint8ClampedArray(sw * sh * 4);
+    for (let y = 0; y < sh; y++) {
+      for (let i = 0; i < sw * 4; i++) data[y * sw * 4 + i] = img.data[((sy + y) * img.width + sx) * 4 + i] as number;
+    }
+    crop = { width: sw, height: sh, data };
+  }
+  const shrink = Math.min(1, (cols * SPRITE_PX_PER_COL) / sw, (rows * SPRITE_PX_PER_ROW) / sh);
+  const tw = Math.max(1, Math.round(sw * shrink));
+  const th = Math.max(1, Math.round(sh * shrink));
+  const px = tw === sw && th === sh ? crop.data : resamplePixels(crop, tw, th);
+  const data = new Uint32Array(tw * th);
+  const colors = new Set<number>();
+  let indexed = true;
+  for (let i = 0; i < data.length; i++) {
+    const a = px[i * 4 + 3] as number;
+    // The half-blocks drop pixels below 16 alpha too.
+    if (a < 16) continue;
+    const c = packRGBA(px[i * 4] as number, px[i * 4 + 1] as number, px[i * 4 + 2] as number, a);
+    data[i] = c;
+    if (indexed && (a !== 255 || (colors.add(c), colors.size > 255))) indexed = false;
+  }
+  return { source: { width: tw, height: th, data }, fit: fit === "contain" ? "contain" : "fill", encoding: indexed ? "indexed" : "rgba" };
+}
+
 export interface ImageProps extends Omit<LayoutProps, "width" | "height"> {
   /** URL (browser; CORS-enabled). */
   src?: string;
@@ -98,7 +152,10 @@ export interface ImageProps extends Omit<LayoutProps, "width" | "height"> {
   alt?: string;
 }
 
-/** Half-block pixel art (`▀`: two pixels per cell) from a URL, canvas data or raw RGBA. */
+/**
+ * An image from a URL, canvas data or raw RGBA. Chromium and Firefox consoles show it as a crisp
+ * pixel sprite; Safari, terminals and text exports get `▀` half-blocks (two pixels per cell).
+ */
 export function Image({ src, pixels, width, height, fit = "contain", alt = "", ...layout }: ImageProps): ReactNode {
   const theme = useTheme();
   const [loaded, setLoaded] = useState<PixelData | null>(null);
@@ -117,6 +174,7 @@ export function Image({ src, pixels, width, height, fit = "contain", alt = "", .
   }, [src, pixels]);
   const img = pixels ?? loaded;
   const cache = useRef<{ key: string; img: PixelData; data: Uint8ClampedArray } | null>(null);
+  const spriteCache = useRef<{ key: string; img: PixelData; sprite: ImageSprite } | null>(null);
 
   let w = width;
   let h = height;
@@ -127,9 +185,9 @@ export function Image({ src, pixels, width, height, fit = "contain", alt = "", .
     h = Math.ceil(img.height / 2);
   }
 
-  const paint = useCallback(
-    (buf: CellBuffer, r: Readonly<ComputedRect>) => {
-      if (!img || r.width <= 0 || r.height <= 0) return;
+  const halfBlocks = useCallback(
+    (buf: CellBuffer, r: Readonly<PixelRect>) => {
+      if (!img) return;
       const boxW = r.width;
       const boxH = r.height * 2;
       let tw = boxW;
@@ -169,6 +227,19 @@ export function Image({ src, pixels, width, height, fit = "contain", alt = "", .
       }
     },
     [img, fit],
+  );
+
+  const paint = useCallback(
+    (buf: CellBuffer, r: Readonly<ComputedRect>) => {
+      if (!img || r.width <= 0 || r.height <= 0 || img.width <= 0 || img.height <= 0) return;
+      const key = `${r.width}x${r.height}:${fit}`;
+      if (spriteCache.current?.key !== key || spriteCache.current.img !== img) {
+        spriteCache.current = { key, img, sprite: spriteFor(img, r.width, r.height, fit) };
+      }
+      const { source, fit: spriteFit, encoding } = spriteCache.current.sprite;
+      drawPixels(buf, { x: r.x, y: r.y, width: r.width, height: r.height, source, fit: spriteFit, encoding, fallback: halfBlocks });
+    },
+    [img, fit, halfBlocks],
   );
 
   if (!img) {

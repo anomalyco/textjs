@@ -980,6 +980,57 @@ export function encodeIndexedPng(pixels: Uint32Array, width: number, height: num
 }
 
 /**
+ * Encode `width × height` packed RGBA pixels into a lossless 8-bit RGBA PNG (Sub filter): any number
+ * of colors and smooth alpha, for still images. Fully transparent pixels are written as `0` so they compress.
+ */
+export function encodeRgbaPng(pixels: Uint32Array, width: number, height: number): EncodedPng | null {
+  if (width <= 0 || height <= 0) return null;
+  const ws = getWorkspace();
+  const stride = width * 4 + 1;
+  ensurePngScratch(ws, height * stride, 0);
+  const { scanBuf, pngBuf, crcTable } = ws;
+  let sp = 0;
+  for (let y = 0; y < height; y++) {
+    scanBuf[sp++] = 1;
+    let pr = 0;
+    let pg = 0;
+    let pb = 0;
+    let pa = 0;
+    const ro = y * width;
+    for (let x = 0; x < width; x++) {
+      const c = pixels[ro + x] as number;
+      const a = c & 255;
+      const r = a === 0 ? 0 : c >>> 24;
+      const g = a === 0 ? 0 : (c >>> 16) & 255;
+      const b = a === 0 ? 0 : (c >>> 8) & 255;
+      scanBuf[sp++] = (r - pr) & 255;
+      scanBuf[sp++] = (g - pg) & 255;
+      scanBuf[sp++] = (b - pb) & 255;
+      scanBuf[sp++] = (a - pa) & 255;
+      pr = r;
+      pg = g;
+      pb = b;
+      pa = a;
+    }
+  }
+
+  pngBuf.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+  let p = 8;
+  writeU32BE(pngBuf, p + 8, width);
+  writeU32BE(pngBuf, p + 12, height);
+  pngBuf[p + 16] = 8;
+  pngBuf[p + 17] = 6;
+  pngBuf[p + 18] = 0;
+  pngBuf[p + 19] = 0;
+  pngBuf[p + 20] = 0;
+  p = writeChunk(crcTable, pngBuf, p, "IHDR", 13);
+  const zLen = deflateZlib(scanBuf, sp, pngBuf, p + 8);
+  p = writeChunk(crcTable, pngBuf, p, "IDAT", zLen);
+  p = writeChunk(crcTable, pngBuf, p, "IEND", 0);
+  return { base64: bytesToBase64(pngBuf.subarray(0, p)), y0: 0, width, height, byteLength: p, delta: false };
+}
+
+/**
  * Wrap one or more indexed-PNG keyframes into a crisp nearest-neighbour SVG `data:` URL.
  * Multiple keyframes step forward via compositor-driven CSS `@keyframes` (`forwards`, non-looping),
  * letting 35–60fps pixel streams play smoothly inside consoles whose DOM log list throttles at 20Hz.

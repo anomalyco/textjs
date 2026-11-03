@@ -38,3 +38,13 @@ test("@textjs/react keeps the terminal runner and testing kit out of the main bu
   expectBrowserSafe(terminal);
   expect(terminal).toContain("TerminalInputParser");
 }, 30_000);
+
+test("apps that only use Box and Text don't bundle the sprite PNG encoder; <Image> does", async () => {
+  const boxText = await bundle("./fixtures/bundle/box-text.tsx");
+  expect(boxText).toContain("tx-box");
+  expect(boxText).not.toContain("IHDR");
+  expect(boxText).not.toContain("function drawPixels");
+  const image = await bundle("./fixtures/bundle/image.tsx");
+  expect(image).toContain("IHDR");
+  expect(image).toContain("function drawPixels");
+}, 30_000);

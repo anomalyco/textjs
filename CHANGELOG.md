@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `@textjs/core/experimental`: `drawPixels` takes `encoding: "rgba"` for a lossless sprite with soft alpha and more than 256 colors, and a `fallback` function that paints the cells wherever the sprite can't be shown.
+
+### Changed
+
+- `@textjs/react`: `<Image>` looks different in Chromium and Firefox consoles. It draws a pixel sprite at up to 8 × 16 source pixels per cell, where it used to draw two pixels per cell with `▀` half-blocks. `<ConsoleMirror>` shows the sprite too. Safari, terminals (including `text run`), ANSI and plain-text output keep the 1.3.0 half-blocks. The [support policy](https://textjs.org/docs/support-policy) says frames stay visually identical across minor releases, and this change is an exception to it.
+
 ### Fixed
 
 - `@textjs/core`: charts and spinners keep their grid on Windows 10. Its console font is Consolas, which has no ▁▂▃▅▆▇ eighth blocks, quadrants, braille, ▶ or ✓, and their fallback glyphs ran rows past the frame's right edge. `CssConsoleDriver` now measures, once, which of these glyphs the console font draws more than a fifth of a cell off, and draws those as the nearest glyph Consolas has: `_` `▄` `▌` `█` for eighths, half blocks for quadrants and braille, `►` `◄` `√` `×` for arrows, checks and crosses. Fonts that fit them, such as Cascadia Mono on Windows 11 and Menlo on macOS, draw the originals. `measureText: false` turns this off.

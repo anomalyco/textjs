@@ -75,7 +75,7 @@ Named gradients: `geist` `dusk` `ocean` `mono` `ember`.
 
 ## `<Image>`
 
-Half-block pixels: each cell holds two, top in the foreground and bottom in the background.
+Chromium and Firefox consoles draw the image as a pixel sprite at up to 8 × 16 pixels per cell. Safari, terminals and plain-text copies get `▀` half-blocks: each cell holds two pixels, top in the foreground and bottom in the background.
 
 ```tsx
 <Image src="/avatar.png" width={24} />
@@ -109,4 +109,4 @@ const source: PixelSource = { width: 320, height: 200, data: new Uint32Array(320
 
 `renderMode="auto"` draws a pixelated sprite in Chromium, and Firefox per its console's style rules (not benchmarked), and falls back to `▀` half-blocks in Safari, terminals and plain-text copies. Pass `renderMode="halfblock"` to draw half-blocks everywhere.
 
-To draw pixels without React, import `drawPixels` from `@textjs/core/experimental` along with `DrawPixelsOptions`, `PixelSource`, `PixelFit`, `PixelSample` and `PixelRenderMode`. See [Breaking changes](/docs/support-policy#breaking-changes) for how experimental exports are versioned.
+To draw pixels without React, import `drawPixels` from `@textjs/core/experimental` along with `DrawPixelsOptions`, `PixelSource`, `PixelFit`, `PixelSample`, `PixelRenderMode`, `PixelEncoding` and `PixelRect`. Its `encoding: "rgba"` option keeps more than 256 colors and soft alpha for still images, and `fallback` paints your own cells wherever the sprite can't be shown. See [Breaking changes](/docs/support-policy#breaking-changes) for how experimental exports are versioned.
