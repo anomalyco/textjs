@@ -3,7 +3,7 @@
  * demand-driven animation-frame scheduler with rolling telemetry.
  */
 
-import { parseColor, type ColorInput } from "./color";
+import { colorToCss, parseColor, type ColorInput } from "./color";
 import { CellBuffer } from "./cell-buffer";
 import { CssConsoleDriver, type ClearMode, type ConsoleTarget, type DriverRenderOptions } from "./drivers/css-console-driver";
 import type { ConsoleBanner } from "./internal";
@@ -356,11 +356,24 @@ export class ConsoleRenderer {
    * `null`. It never enters {@link buffer}, so `copyText()` and DOM mirrors don't show it. @internal
    */
   _setBanner(banner: ConsoleBanner | null): void {
+    const normalized =
+      banner === null
+        ? null
+        : {
+            text: banner.text,
+            fg: colorToCss(parseColor(banner.fg)),
+            bg: colorToCss(parseColor(banner.bg)),
+          };
     const cur = this.currentBanner;
-    if (cur === banner || (cur !== null && banner !== null && cur.text === banner.text && cur.fg === banner.fg && cur.bg === banner.bg)) return;
-    this.currentBanner = banner;
-    this.driver._setBanner(banner);
-    for (const l of this.bannerListeners) l(banner);
+    if (
+      cur === normalized ||
+      (cur !== null && normalized !== null && cur.text === normalized.text && cur.fg === normalized.fg && cur.bg === normalized.bg)
+    ) {
+      return;
+    }
+    this.currentBanner = normalized;
+    this.driver._setBanner(normalized);
+    for (const l of this.bannerListeners) l(normalized);
     this.requestRender();
   }
 
