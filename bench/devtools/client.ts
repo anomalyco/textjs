@@ -51,7 +51,10 @@ export interface PageStreamResult {
   logsCalled: number;
   dirtyRowsMean: number;
   spanCountMean: number;
+  /** `console.log` characters per emitted frame, staged sprite keyframes included (a 2-keyframe log counts as 2 frames). */
   cssBytesMean: number;
+  /** `console.log` characters per log call: what `CssConsoleDriver`'s sprite budget counts. */
+  cssBytesPerLog: number;
   layoutPaintMs: MetricSummary;
   encodeMs: MetricSummary;
   consoleCallMs: MetricSummary;
@@ -617,6 +620,7 @@ async function boot(): Promise<void> {
             dirtyRowsMean: totalDirtyRows / n,
             spanCountMean: totalSpans / n,
             cssBytesMean: totalCssBytes / n,
+            cssBytesPerLog: totalCssBytes / n,
             layoutPaintMs: summarize(layoutPaintSamples),
             encodeMs: summarize(encodeSamples),
             consoleCallMs: summarize(consoleCallSamples),
@@ -701,6 +705,7 @@ async function boot(): Promise<void> {
     let totalDirtyRows = 0;
     let totalSpans = 0;
     let totalCssBytes = 0;
+    let loggedFrames = 0;
     let frameId = 0;
 
     // Prime driver's row cache with warmup frame 0 without emitting to console
@@ -772,6 +777,7 @@ async function boot(): Promise<void> {
           let bytes = res.frame.format.length;
           for (let i = 0; i < res.frame.args.length; i++) bytes += res.frame.args[i]!.length;
           totalCssBytes += bytes;
+          loggedFrames++;
         }
         window.__latestEmittedFrame = frameId;
       };
@@ -791,6 +797,7 @@ async function boot(): Promise<void> {
           dirtyRowsMean: totalDirtyRows / n,
           spanCountMean: totalSpans / n,
           cssBytesMean: totalCssBytes / n,
+          cssBytesPerLog: totalCssBytes / Math.max(1, loggedFrames),
           layoutPaintMs: summarize(layoutPaintSamples),
           encodeMs: summarize(encodeSamples),
           consoleCallMs: summarize(consoleCallSamples),
