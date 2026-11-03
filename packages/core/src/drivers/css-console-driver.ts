@@ -25,6 +25,7 @@ import {
 import { hasRtl, isRtlCodePoint, LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../bidi";
 import { LruCache } from "../text-measure";
 import { consoleProfile, inlineTypographyCss, type ConsoleBrowser, type ConsoleProfile } from "./console-browser";
+import { applyStandIns, measureStandIns, type GlyphStandIns } from "./stand-ins";
 
 /** Minimal console surface used by the driver; inject a fake for tests and benchmarks. */
 export interface ConsoleTarget {
@@ -95,8 +96,10 @@ export interface CssConsoleDriverOptions {
   initialClear?: boolean;
   /**
    * Measures text advance in CSS px with the console font, used to fit spans
-   * of right-to-left text to the cell grid (see `fitRtlSpans`). Defaults to a
-   * canvas measurer in browsers; `false` (and non-browser runtimes) disable fitting.
+   * of right-to-left text to the cell grid (see `fitRtlSpans`) and to find
+   * glyphs the font can't fit in a cell (see `measureStandIns`). Defaults
+   * to a canvas measurer in browsers; `false` (and non-browser runtimes)
+   * disable both.
    */
   measureText?: TextAdvanceMeasurer | false;
   /**
@@ -312,6 +315,7 @@ export class CssConsoleDriver {
   private readonly measureOption: TextAdvanceMeasurer | false | undefined;
   private measurer: TextAdvanceMeasurer | null | undefined;
   private cellAdvance = 0;
+  private standIns: GlyphStandIns | null | undefined;
   private readonly fitCache = new LruCache<string, string>(1024);
   private nextFitId = -2;
   private readonly blankScratch: EffectiveStyle = { fg: 0, bg: 0, flags: 0 };
@@ -785,8 +789,18 @@ export class CssConsoleDriver {
         cells,
       });
     }
+    const standIns = this.standIns === undefined ? this.measureStandIns() : this.standIns;
+    if (standIns !== null) for (const span of spans) if (!span.blank) span.text = applyStandIns(span.text, standIns);
     if (rowRtl) this.fitRtlSpans(spans);
     return spans;
+  }
+
+  /** Glyphs the console font can't fit in a cell, measured on the first row (see `measureStandIns`). */
+  private measureStandIns(): GlyphStandIns | null {
+    this._getCellAdvance();
+    const measure = this.measurer;
+    this.standIns = measure && this.cellAdvance > 0 ? measureStandIns(measure, this.cellAdvance) : null;
+    return this.standIns;
   }
 
   /**

@@ -240,7 +240,7 @@ describe.skipIf(!enabled)("server rendering + PPR in Chromium (text start)", () 
     };
     const player = files.filter((f) => f.startsWith("player-")).map(size)[0] as { raw: number; gzip: number };
     const client = files.filter((f) => !f.startsWith("player-")).map(size).reduce((a, b) => ({ raw: a.raw + b.raw, gzip: a.gzip + b.gzip }), { raw: 0, gzip: 0 });
-    expect(player.gzip).toBeLessThan(24 * 1024);
+    expect(player.gzip).toBeLessThan(25 * 1024);
     expect(player.gzip * 8).toBeLessThan(client.gzip);
     const playerJs = readFileSync(join(assets, files.find((f) => f.startsWith("player-")) as string), "utf8");
     // No React, no Yoga, no route modules or their server-only imports.

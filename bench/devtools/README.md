@@ -48,6 +48,12 @@ bun bench/devtools/bidi-shot.ts --out=/tmp/bidi-shots
 
 It logs the same 64×21 frame four ways (cells without pinning, pinned without width fitting, an all-Latin control with every RTL glyph replaced by `x`, and the shipping driver), saves `bidi-*.png`, and reports each frame's right-edge drift across rows, each row's offset from the top border (`rowOffsets`) and the rows where console background shows through between spans (hairlines). The shipping frame should match the Latin control, except on the emoji-in-Hebrew row, where it should do better (only right-to-left spans are fitted).
 
+Chart glyphs (eighth blocks, quadrants, braille, ▶, ✓) in the real DevTools frontend, in the default font stack and in Consolas alone (Windows 10's console font), with and without stand-ins. Reports every row's right-edge drift and the fonts DevTools drew it with; CI runs it on Windows with `--check`:
+
+```bash
+bun bench/devtools/glyph-shot.ts --out=/tmp/glyph-shots [--browser=chrome|edge] [--check]
+```
+
 > The results matrix below was recorded before the driver switched to append mode and longhand CSS; `clear` rows there use the old shorthand CSS.
 
 ---
