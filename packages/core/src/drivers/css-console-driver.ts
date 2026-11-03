@@ -415,17 +415,22 @@ export class CssConsoleDriver {
     let entry = this.cssCache.get(key);
     if (entry === undefined) {
       entry = { id: this.nextStyleId++, css: styleCss(this.baseCss, style) };
-      if (this.cssCache.size >= 4096) {
-        const oldest = this.cssCache.entries().next();
-        if (!oldest.done) {
-          this.cssCache.delete(oldest.value[0]);
-          this.styleById.delete(oldest.value[1].id);
-        }
-      }
-      this.cssCache.set(key, entry);
-      this.styleById.set(entry.id, entry);
+      this.storeStyle(key, entry);
     }
     return entry;
+  }
+
+  /** Adds a style to `cssCache` and `styleById`, evicting the oldest past 4,096. */
+  private storeStyle(key: bigint, entry: InternedStyle): void {
+    if (this.cssCache.size >= 4096) {
+      const oldest = this.cssCache.entries().next();
+      if (!oldest.done) {
+        this.cssCache.delete(oldest.value[0]);
+        this.styleById.delete(oldest.value[1].id);
+      }
+    }
+    this.cssCache.set(key, entry);
+    this.styleById.set(entry.id, entry);
   }
 
   /**
@@ -832,11 +837,14 @@ export class CssConsoleDriver {
       const s = spans[i] as CompiledSpan;
       if ((s.bg & 255) === 0) continue;
       const next = spans[i + 1];
-      const style = this.styleById.get(s.styleId);
-      if ((next !== undefined && (next.bg & 255) !== 255) || style === undefined) {
+      if (next !== undefined && (next.bg & 255) !== 255) {
         s.deco = true;
         continue;
       }
+      // The L1 and blank caches outlive `cssCache` evictions, so a hot style may come back with
+      // an id `cssCache` dropped (or re-interned under a new id): store it again.
+      let style = this.styleById.get(s.styleId) ?? this.cssCache.get(s.styleKey);
+      if (style === undefined) this.storeStyle(s.styleKey, (style = { id: s.styleId, css: s.css }));
       const sealed = (style.sealed ??= { id: this.nextStyleId++, css: style.css + SEAL_CSS });
       s.styleId = sealed.id;
       s.css = sealed.css;

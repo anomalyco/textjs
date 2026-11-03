@@ -346,6 +346,23 @@ describe("CssConsoleDriver", () => {
     expect((d as unknown as { styleById: Map<number, unknown> }).styleById.size).toBe(4096);
   });
 
+  test("a hot style evicted from the style cache still seals", () => {
+    const SEAL = "padding-right:1px;margin-right:-1px;";
+    const d = new CssConsoleDriver({ console: new FakeConsole() });
+    const b = new CellBuffer(4, 1);
+    b.clear(BG);
+    d.compileRow(b, 0);
+    for (let i = 0; i < 5000; i++) {
+      b.drawText(2, 0, "ab", 0xffffffff, ((i << 8) | 0xff) >>> 0);
+      d.compileRow(b, 0);
+    }
+    b.clear(BG);
+    const [blank] = d.compileRow(b, 0);
+    expect(blank?.css.endsWith(SEAL)).toBe(true);
+    expect(blank?.deco).toBe(false);
+    expect(d.internedStyles).toBeLessThanOrEqual(4096);
+  });
+
   test("sealed rows still merge across row boundaries", () => {
     const con = new FakeConsole();
     const b = new CellBuffer(6, 3);
