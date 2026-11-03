@@ -7,15 +7,39 @@ const BANNER = { text: "hint", fg: "#000000", bg: "#ffc53d" };
 const g = globalThis as { matchMedia?: (query: string) => { matches: boolean } };
 
 let reduce = false;
+let blinkTimers: ReturnType<typeof trackBlinkTimers>;
 beforeEach(() => {
   reduce = false;
   g.matchMedia = (query) => ({ matches: reduce && query === "(prefers-reduced-motion: reduce)" });
   jest.useFakeTimers();
+  blinkTimers = trackBlinkTimers();
 });
 afterEach(() => {
+  blinkTimers.restore();
   jest.useRealTimers();
   delete g.matchMedia;
 });
+
+/**
+ * Counts live 700ms intervals (the focus hint's blink timers) from `setInterval` / `clearInterval`
+ * calls, so other timers the renderer or React schedule don't count. Install after `useFakeTimers`.
+ */
+function trackBlinkTimers(): { live: () => number; restore: () => void } {
+  const g = globalThis as { setInterval: typeof setInterval; clearInterval: typeof clearInterval };
+  const { setInterval: set, clearInterval: clear } = g;
+  const live = new Set<unknown>();
+  g.setInterval = ((fn: () => void, ms?: number) => {
+    const id = set(fn, ms);
+    if (ms === 700) live.add(id);
+    return id;
+  }) as typeof setInterval;
+  g.clearInterval = ((id?: ReturnType<typeof setInterval>) => {
+    live.delete(id);
+    clear(id);
+  }) as typeof clearInterval;
+  return { live: () => live.size, restore: () => Object.assign(g, { setInterval: set, clearInterval: clear }) };
+}
+
 
 /** A driver over a 10×2 grid whose `repaint` logs a frame; `bar()` is the last logged bar's colors. */
 function setup() {
@@ -38,6 +62,7 @@ describe("banner blink", () => {
   test("swaps 8 times, 700ms apart, then holds the colors it was given", () => {
     const s = setup();
     s.driver._setBanner(BANNER, s.repaint);
+    expect(blinkTimers.live()).toBe(1);
     s.driver.render(s.buffer);
     expect(s.bar()).toBe("amber");
     expect(String(s.logs.at(-1)?.join("|"))).toContain("font-weight:700");
@@ -51,7 +76,7 @@ describe("banner blink", () => {
     expect(seen).toEqual(["ink", "amber", "ink", "amber", "ink", "amber", "ink", "amber"]);
     jest.advanceTimersByTime(10_000);
     expect(s.repaints()).toBe(8);
-    expect(jest.getTimerCount()).toBe(0);
+    expect(blinkTimers.live()).toBe(0);
   });
 
   test("stays steady with reduced motion, without a repaint callback, and outside a browser", () => {
@@ -64,7 +89,7 @@ describe("banner blink", () => {
     s.driver._setBanner(BANNER, s.repaint);
     jest.advanceTimersByTime(10_000);
     expect(s.repaints()).toBe(0);
-    expect(jest.getTimerCount()).toBe(0);
+    expect(blinkTimers.live()).toBe(0);
   });
 
   test("removing the banner stops the blink, and the next banner blinks again from the start", () => {
@@ -73,7 +98,7 @@ describe("banner blink", () => {
     jest.advanceTimersByTime(700);
     expect(s.bar()).toBe("ink");
     s.driver._setBanner(null, s.repaint);
-    expect(jest.getTimerCount()).toBe(0);
+    expect(blinkTimers.live()).toBe(0);
     s.driver.render(s.buffer);
     expect(s.bar()).toBe("none");
     jest.advanceTimersByTime(10_000);
@@ -90,12 +115,13 @@ describe("banner blink", () => {
     const logs: unknown[][] = [];
     const r = new ConsoleRenderer({ console: { log: (...a: unknown[]) => logs.push(a), clear() {} }, viewport: { width: 10, height: 2 }, input: false, registerGlobal: false, minFrameInterval: 0 } as never);
     r._setBanner(BANNER);
+    expect(blinkTimers.live()).toBe(1);
     r.renderNow();
     const before = logs.length;
     jest.advanceTimersByTime(700);
     r.renderNow();
     expect(logs.length).toBeGreaterThan(before);
     r.dispose();
-    expect(jest.getTimerCount()).toBe(0);
+    expect(blinkTimers.live()).toBe(0);
   });
 });
