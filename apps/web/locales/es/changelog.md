@@ -4,14 +4,19 @@ Todos los cambios destacados de Text.js se documentan en este archivo.
 <!-- s:1ab5f276ed -->
 El formato se basa en [Mantén un registro de cambios](https://keepachangelog.com/en/1.1.0/), y este proyecto sigue el [Versionado semántico](https://semver.org/spec/v2.0.0.html). Las versiones de la 0.1.0 a la 0.4.0 se etiquetaron en git y no se publicaron en npm.
 
+<!-- s:2e16922cfc -->
+Novedades
+
+<!-- s:fd5b09c2ec -->
+- `@textjs/react`: `<FocusPad messages>` sustituye cualquiera de las cadenas integradas del panel de foco para sitios traducidos. Abarca todas las líneas, las etiquetas para lectores de pantalla y el control de tamaño de la consola. `<TextCanvas>` y `<ViewportControl>` también aceptan `messages`. `<ViewportControl>` solo usa las claves del control de tamaño. Las cadenas que contienen un valor, como «Luego haz clic aquí y pulsa ↑ ↓.», son funciones que devuelven la frase completa. `defaultFocusPadMessages` contiene el texto en inglés. Consulta [Traducir el panel de foco](https://textjs.org/docs/internationalization#translating-the-focus-pad).
+- `@textjs/react`: en páginas de derecha a izquierda, el panel de foco mantiene de izquierda a derecha las teclas, como ⌘ ⌥ J, y los tamaños de consola, como 120×36, e invierte su control de tamaño y su barra de pasos. En páginas en chino y japonés, elimina el espacio entre sus dos frases; en coreano lo conserva.
+- textjs.org: en textjs.org/ja, el panel de foco está en japonés en todas las páginas, incluidas las etiquetas bajo las teclas de cada demo.
+
 <!-- s:5b88618770 -->
 Cambios
 
 <!-- s:f7da7bb6d2 -->
 - `@textjs/core`: las consolas de Chromium y Firefox borran la salida de sprites animados a los 16 MB en lugar de a los 4 MB, por lo que textjs.org/doom muestra «Se ha borrado la consola» aproximadamente cada 19 segundos en lugar de cada 4,5. Safari y los sprites dibujados como medios bloques `▀` mantienen los 4 MB. El pico de memoria heap de la página en textjs.org/doom pasa de 10,8 MB a unos 12–13 MB.
-
-<!-- s:2e16922cfc -->
-Novedades
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom reproduce los efectos de sonido de Doom, con su propio balance estéreo y atenuación por distancia. El sonido empieza con tu primer clic o pulsación de tecla en la página, se pausa con el juego y sigue el ajuste Sfx Volume del menú Options → Sound Volume de Doom. No hay música.
