@@ -87,7 +87,6 @@ export function ChapterVideo({ slug, title, video = learnVideo(slug) }: { slug: 
               controls={!(floating && compact)}
               preload="none"
               playsInline
-              crossOrigin="anonymous"
               poster={video.poster}
               aria-label={t("{title}, narrated video", { title })}
               onClick={floating && compact ? backToVideo : undefined}

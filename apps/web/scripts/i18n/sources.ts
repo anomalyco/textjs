@@ -9,7 +9,8 @@ import { execFileSync } from "node:child_process";
 
 export const WEB_DIR = join(import.meta.dirname, "..", "..");
 export const SRC_DIR = join(WEB_DIR, "src");
-export const LOCALES_DIR = join(WEB_DIR, "locales");
+/** Committed translations (`TEXTJS_LOCALES_DIR` points tests at a modified copy). */
+export const LOCALES_DIR = process.env.TEXTJS_LOCALES_DIR ?? join(WEB_DIR, "locales");
 const REPO_DIR = join(WEB_DIR, "..", "..");
 
 export interface DocumentSource {

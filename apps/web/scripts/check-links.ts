@@ -370,6 +370,7 @@ export async function checkSite(options: CheckOptions = {}): Promise<Report> {
 
   // Learn caption tracks render on the client too, from this site.
   for (const slug of Object.keys(PUBLISHED)) {
+    if (!isFile(join(dist, "learn", `${slug}.html`))) continue;
     internalRefs++;
     const path = captionsPath(slug, "en");
     if (!isFile(join(dist, path.slice(1)))) report("asset", path, "not found", `src/learn/video.ts PUBLISHED.${slug}`);

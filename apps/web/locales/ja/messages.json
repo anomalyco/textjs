@@ -15,7 +15,7 @@
   },
   "{count} of {total}": "{total}件中{count}件",
   "{count} questions": {
-    "other": "{count}件の質問"
+    "other": "{count}問"
   },
   "{course}: Build a Deploy Dashboard in the Console | Text.js": "{course}：コンソールでデプロイダッシュボードを構築 | Text.js",
   "{days} days ago": "{days}日前",
@@ -686,7 +686,7 @@
   "text run (terminal)": "text run（ターミナル）",
   "Text such as `src/app.tsx:12` and `http://localhost:3000` renders in DevTools' link color instead of its `%c` style.": "`src/app.tsx:12` や `http://localhost:3000` などのテキストが、`%c` のスタイルではなくDevToolsのリンク色で描画されます。",
   "Text.js {section}: {page}": "Text.js {section}：{page}",
-  "Text.js | The Console Framework": "Text.js | コンソールフレームワーク",
+  "Text.js | The Console Framework": "Text.js | コンソールのフレームワーク",
   "Text.js 0.1": "Text.js 0.1",
   "Text.js 0.1 brings a React 19 reconciler, Yoga layout and a file-system App Router to apps that render in the DevTools console.": "Text.js 0.1は、DevToolsコンソールに描画するアプリにReact 19のreconciler、Yogaレイアウト、ファイルシステムベースのApp Routerを提供します。",
   "Text.js 0.4 can render a page on the server and stream its frames to the console as cell deltas. Static routes also prerender their first frame into the HTML.": "Text.js 0.4はサーバーでページを描画し、フレームをセルの差分としてコンソールにストリーミングできます。静的ルートでは最初のフレームもHTMLに事前描画します。",
@@ -723,7 +723,7 @@
   "The app/ directory, text.config.ts and the text CLI.": "app/ディレクトリー、text.config.ts、text CLI。",
   "The benchmark could not run: {message}": "ベンチマークを実行できませんでした：{message}",
   "The chapter sidebar on Learn has the same issue.": "Learnの章サイドバーにも同じ問題があります。",
-  "The Console Framework": "コンソールフレームワーク",
+  "The Console Framework": "コンソールのフレームワーク",
   "The console size control appends the measured size to its label after hydration (`Fit console · 120×36`), which moves the “Fit console” text node. The pad's top and bottom rows also differ in height between the two pages, so the pad recenters on navigation.": "コンソールサイズのコントロールは、ハイドレーション後に測定サイズをラベルに追加するため（`Fit console · 120×36`）、「コンソールに合わせる」のテキストノードが動きます。また、パッドの上段と下段の高さが2つのページで異なるため、移動時にパッドの中央位置が変わります。",
   "The console.log arguments": "console.logの引数",
   "The console.log sticker on a black notebook cover": "黒いノートの表紙に貼ったconsole.logステッカー",
@@ -855,6 +855,6 @@
   "Your components": "コンポーネント",
   "Your Learn Text.js certificate, rendered on the page and in the console.": "Learn Text.jsの修了証をページとコンソールに表示します。",
   "Your models and sessions": "自分のモデルとセッション",
-  "Your team gets a shared Slack channel with Text.js engineers.": "チームにText.jsエンジニアとのshared Slackチャンネルを提供します。",
+  "Your team gets a shared Slack channel with Text.js engineers.": "Text.jsのエンジニアと共有するSlackチャンネルをチームに用意します。",
   "Yupoong 6245CM": "Yupoong 6245CM"
 }

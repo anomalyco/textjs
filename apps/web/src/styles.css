@@ -77,6 +77,8 @@
 }
 :root:lang(ja) body {
   word-break: auto-phrase;
+  /* A phrase longer than the line (a big heading on a phone) still breaks rather than running off the page. */
+  overflow-wrap: anywhere;
   text-autospace: normal;
   text-spacing-trim: trim-start;
 }
