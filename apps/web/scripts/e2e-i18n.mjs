@@ -18,10 +18,11 @@ const base = (process.env.BASE ?? "http://localhost:4173").replace(/\/$/, "");
 const port = new URL(base).port;
 const source = readFileSync(new URL("../src/i18n/locales.ts", import.meta.url), "utf8");
 const statusOf = (code) => new RegExp(`code: "${code}"[^}]*status: "(\\w+)"`).exec(source)?.[1] ?? "draft";
+const dirOf = (code) => new RegExp(`code: "${code}"[^}]*dir: "(\\w+)"`).exec(source)?.[1] ?? "ltr";
 const allLive = [...source.matchAll(/code: "([^"]+)"[^}]*status: "live"/g)].map((m) => m[1]).join(",");
 const locales = (process.env.LOCALES || allLive).split(",").map((item) => {
   const [code, status] = item.split(":");
-  return { code, path: code.toLowerCase(), live: (status ?? statusOf(code)) === "live" };
+  return { code, path: code.toLowerCase(), live: (status ?? statusOf(code)) === "live", dir: dirOf(code) };
 });
 const browser = await chromium.launch({ headless: true });
 const failures = [];
@@ -101,11 +102,11 @@ try {
       await ctx.close();
     }
   }
-  for (const { code, path: p, live } of locales) {
+  for (const { code, path: p, live, dir } of locales) {
     {
       const { page, context, errors } = await open(`/${p}/docs/routing`, code);
       check((await page.getAttribute("html", "lang")) === code, `/${p}/docs/routing has lang=${code}`);
-      check((await page.getAttribute("html", "dir")) === "ltr", `/${p}/docs/routing has dir=ltr`);
+      check((await page.getAttribute("html", "dir")) === dir, `/${p}/docs/routing has dir=${dir}`);
       const lead = async (pg) => ((await pg.locator("article p, .prose p").first().textContent()) ?? "").trim();
       const english = await context.newPage();
       await english.goto(`${base}/docs/routing`, { waitUntil: "networkidle" });
@@ -209,7 +210,36 @@ try {
       const { page, context } = await open(`/${p}/no-such-page`, code);
       check((await page.getAttribute("html", "lang")) === code, `an unknown /${p} path gets the ${code} 404`);
       check((await page.textContent("h1"))?.includes("404"), `${code}: with the 404 heading`);
+      if (dir === "rtl") check((await page.$eval(".notfound .rtl-flip", (el) => getComputedStyle(el).scale)) === "-1 1", `${code}: the back arrow on the 404 points right`);
       await context.close();
+    }
+    if (dir === "rtl") {
+      // Right-to-left: the drawer comes in from the right, code and console mocks stay left-to-right, Latin runs in
+      // the prose are isolated, Arabic text has no tracking, and the pad's keycaps still read ⌘ ⌥ J.
+      const ctx = await context(code, { width: 390, height: 844 });
+      const page = await ctx.newPage();
+      await page.goto(`${base}/${p}/docs/routing`, { waitUntil: "networkidle" });
+      await page.click("[aria-controls=docs-drawer]");
+      await page.waitForTimeout(600);
+      const drawer = await page.$eval("#docs-drawer", (el) => el.getBoundingClientRect().toJSON());
+      check(Math.round(drawer.right) === 390 && drawer.left > 0, `${code}: the docs drawer opens from the right edge (${Math.round(drawer.left)}–${Math.round(drawer.right)})`);
+      await page.keyboard.press("Escape");
+      const ltr = await page.$$eval(".prose pre, .prose code", (els) => els.every((el) => getComputedStyle(el).direction === "ltr"));
+      check(ltr, `${code}: code blocks and inline code are left-to-right`);
+      await page.goto(`${base}/${p}/docs/internationalization`, { waitUntil: "networkidle" });
+      check(await page.evaluate(() => document.querySelector(".prose").textContent.includes("\u2066")), `${code}: Latin runs in the prose are isolated`);
+      await page.goto(`${base}/${p}/errors/TX001`, { waitUntil: "networkidle" });
+      check((await page.$eval(".tx-error-message p", (el) => getComputedStyle(el).direction)) === "ltr", `${code}: the console message on an error page is left-to-right`);
+      await page.goto(`${base}/${p}`, { waitUntil: "networkidle" });
+      check((await page.$eval(".split-code", (el) => getComputedStyle(el).direction)) === "ltr", `${code}: the home page's code editor is left-to-right`);
+      if (/^(ar|fa|ur)$/.test(code)) {
+        const tracked = await page.$$eval("body *", (els) => els.filter((el) => el.closest(":lang(ar), :lang(fa), :lang(ur)") === el.closest("[lang]") && getComputedStyle(el).letterSpacing !== "normal" && getComputedStyle(el).letterSpacing !== "0px").length);
+        check(tracked === 0, `${code}: no Arabic-script text has letter-spacing (${tracked})`);
+      }
+      await page.goto(`${base}/${p}/playground`, { waitUntil: "networkidle" });
+      const keys = await page.$$eval("[data-textjs-focus-pad] .tx-key-lg", (ks) => ks.map((k) => [k.textContent, k.getBoundingClientRect().left]));
+      check(keys.length === 3 && keys.map((k) => k[0]).join("") === "⌘⌥J" && keys[0][1] < keys[1][1] && keys[1][1] < keys[2][1], `${code}: the pad's keycaps read ⌘ ⌥ J left to right (${keys.map((k) => k[0]).join(" ")})`);
+      await ctx.close();
     }
     // The focus pad is translated in every state: its lines, its labels for screen readers, the size control and the
     // demo's keys. Names (the picker, the chapter title), keycaps and browser names stay as written.

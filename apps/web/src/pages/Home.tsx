@@ -88,7 +88,7 @@ function Hero(): ReactNode {
             </div>
           </div>
           <div className="split">
-            <div className="split-code">
+            <div className="split-code" dir="ltr">
               <div className="file-tabs" role="tablist" aria-label={t("Example files")}>
                 {HERO_FILES.map((f, i) => (
                   <button key={f.name} type="button" role="tab" aria-selected={i === file} onClick={() => setFile(i)}>

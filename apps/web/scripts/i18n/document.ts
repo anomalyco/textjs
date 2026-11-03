@@ -104,7 +104,8 @@ export interface Assembled {
 
 const WARNING = /^>\s*\*\*(Warning|Caution)/;
 
-export function assemble(english: string, translations: ReadonlyMap<string, string>): Assembled {
+/** `transform` rewrites each translated block (right-to-left pages isolate their Latin runs, `bidi.ts`). */
+export function assemble(english: string, translations: ReadonlyMap<string, string>, transform: (text: string) => string = (t) => t): Assembled {
   const out: string[] = [];
   let total = 0;
   let translated = 0;
@@ -114,7 +115,8 @@ export function assemble(english: string, translations: ReadonlyMap<string, stri
       continue;
     }
     total++;
-    const text = translations.get(b.id);
+    const found = translations.get(b.id);
+    const text = found ? transform(found) : found;
     const flags: string[] = [];
     if (!text) flags.push("en");
     if (WARNING.test(b.text)) flags.push("warning");

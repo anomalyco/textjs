@@ -61,7 +61,9 @@ export function ErrorsIndexPage(): ReactNode {
         if (rows.length === 0) return null;
         return (
           <section key={pkg} className="tx-errors-group" aria-labelledby={`pkg-${pkg.replace(/\W+/g, "-")}`}>
-            <h2 id={`pkg-${pkg.replace(/\W+/g, "-")}`}>{pkg}</h2>
+            <h2 id={`pkg-${pkg.replace(/\W+/g, "-")}`}>
+              <span dir="ltr">{pkg}</span>
+            </h2>
             <ul>
               {rows.map((e) => (
                 <li key={e.code}>
@@ -71,7 +73,7 @@ export function ErrorsIndexPage(): ReactNode {
                       {e.title}
                       {e.kind === "warning" ? <span className="badge tx-warning-badge">{t("Warning")}</span> : null}
                     </span>
-                    <span className="tx-errors-msg">
+                    <span className="tx-errors-msg" lang="en" dir="ltr">
                       <Template text={e.message} />
                     </span>
                   </A>
@@ -98,7 +100,7 @@ export function ErrorPage({ code }: { code: string }): ReactNode {
       <div className="breadcrumbs">
         <A href="/errors">{t("Error Codes")}</A>
         <span>/</span>
-        <span>{e.package}</span>
+        <span dir="ltr">{e.package}</span>
       </div>
       <p className="tx-error-code">
         <code className="tx-code">{e.code}</code>
@@ -110,7 +112,7 @@ export function ErrorPage({ code }: { code: string }): ReactNode {
           <span>{t("Console")}</span>
           <CopyButton text={example} />
         </div>
-        <p>
+        <p lang="en" dir="ltr">
           <span className="tx-error-prefix">{e.kind === "warning" ? "Text.js warning" : "Text.js error"} {e.code}:</span> <Template text={e.message} />
         </p>
       </div>

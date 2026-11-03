@@ -53,6 +53,8 @@
 }
 :root:is(:lang(ar), :lang(fa), :lang(ur)) {
   --sans: "Geist", "Geist Fallback", "SF Arabic", "Geeza Pro", "Segoe UI", "Noto Sans Arabic", Tahoma, sans-serif;
+  /* Arabic in mono labels (breadcrumbs, size pickers) uses the page's Arabic font, not whatever the OS picks. */
+  --mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "SF Arabic", "Geeza Pro", "Segoe UI", "Noto Sans Arabic", Tahoma, monospace;
 }
 :root:lang(he) {
   --sans: "Geist", "Geist Fallback", "SF Hebrew", "Arial Hebrew", "Segoe UI", "Noto Sans Hebrew", sans-serif;
@@ -63,6 +65,10 @@
 /* Negative tracking breaks Arabic joining and crowds CJK and Devanagari. On the text itself, so the wordmark and
    English blocks (lang="en") keep theirs. */
 :is(h1, h2, h3, h4, h5, h6, p, li, a:not(.wordmark), button, small, strong, td, th):is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(hi)) {
+  letter-spacing: 0 !important;
+}
+/* Tracking pulls Arabic letters apart wherever it's set (mono labels, small caps), so Arabic-script text has none. */
+:is(:lang(ar), :lang(fa), :lang(ur)) {
   letter-spacing: 0 !important;
 }
 .prose:is(:lang(ja), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(hi)) {
@@ -201,8 +207,6 @@ pre {
   font-family: var(--mono);
 }
 
-/* Code and key chords read left to right in RTL pages too; isolate keeps them from reordering the text around them.
-   Scoped to RTL because isolation shifts line breaks in LTR prose. */
 /* Arrows and chevrons that point along the reading direction mirror in RTL. `scale`, so hover nudges that use
    `transform` still apply. */
 [dir="rtl"] .rtl-flip {
@@ -214,6 +218,8 @@ pre {
   display: inline-block;
 }
 
+/* Code and key chords read left to right in RTL pages too; isolate keeps them from reordering the text around them.
+   Scoped to RTL because isolation shifts line breaks in LTR prose. */
 [dir="rtl"] code,
 [dir="rtl"] kbd {
   direction: ltr;

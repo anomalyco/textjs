@@ -157,7 +157,8 @@
       "pl": "handler trasy",
       "id": "route handler",
       "vi": "route handler",
-      "hi": "रूट हैंडलर"
+      "hi": "रूट हैंडलर",
+      "ar": "معالج المسار"
     },
     "theme": {
       "ja": "テーマ",
@@ -174,7 +175,8 @@
       "pl": "motyw",
       "id": "tema",
       "vi": "theme",
-      "hi": "थीम"
+      "hi": "थीम",
+      "ar": "سمة"
     },
     "browser": {
       "ja": "ブラウザー",
@@ -191,7 +193,8 @@
       "pl": "przeglądarka",
       "id": "browser",
       "vi": "trình duyệt",
-      "hi": "ब्राउज़र"
+      "hi": "ब्राउज़र",
+      "ar": "متصفح"
     },
     "Preserve log": {
       "ja": "ログを保持",
@@ -208,7 +211,8 @@
       "pl": "Zachowaj dziennik",
       "id": "Simpan log",
       "vi": "Lưu giữ nhật ký",
-      "hi": "लॉग सेव करें"
+      "hi": "लॉग सेव करें",
+      "ar": "الاحتفاظ بالسجلّ"
     },
     "prerender": {
       "ja": "プリレンダリング",
@@ -225,7 +229,8 @@
       "pl": "prerenderowanie",
       "id": "prerender",
       "vi": "prerender",
-      "hi": "प्रीरेंडरिंग"
+      "hi": "प्रीरेंडरिंग",
+      "ar": "العرض المسبق"
     },
     "server rendering": {
       "ja": "サーバーレンダリング",
@@ -242,7 +247,8 @@
       "pl": "renderowanie po stronie serwera",
       "id": "rendering di server",
       "vi": "render phía máy chủ",
-      "hi": "सर्वर रेंडरिंग"
+      "hi": "सर्वर रेंडरिंग",
+      "ar": "العرض على الخادم"
     },
     "server-rendered": {
       "ja": "サーバーレンダリングされる",
@@ -259,7 +265,8 @@
       "pl": "renderowany po stronie serwera",
       "id": "di-render di server",
       "vi": "được render phía máy chủ",
-      "hi": "सर्वर पर रेंडर किया गया"
+      "hi": "सर्वर पर रेंडर किया गया",
+      "ar": "معروض على الخادم"
     },
     "utility": {
       "ja": "ユーティリティー"
@@ -279,7 +286,8 @@
       "pl": "katalog",
       "id": "direktori",
       "vi": "thư mục",
-      "hi": "डायरेक्टरी"
+      "hi": "डायरेक्टरी",
+      "ar": "دليل"
     },
     "query": {
       "ja": "クエリー",
@@ -296,7 +304,8 @@
       "pl": "zapytanie",
       "id": "kueri",
       "vi": "truy vấn",
-      "hi": "क्वेरी"
+      "hi": "क्वेरी",
+      "ar": "استعلام"
     },
     "binary": {
       "ja": "バイナリー",
@@ -313,7 +322,8 @@
       "pl": "plik binarny",
       "id": "biner",
       "vi": "tệp nhị phân",
-      "hi": "बाइनरी"
+      "hi": "बाइनरी",
+      "ar": "ملف ثنائي"
     },
     "edge function": {
       "ja": "エッジ関数",
@@ -330,7 +340,8 @@
       "pl": "funkcja edge",
       "id": "edge function",
       "vi": "edge function",
-      "hi": "एज फ़ंक्शन"
+      "hi": "एज फ़ंक्शन",
+      "ar": "دالة edge"
     },
     "edge middleware": {
       "ja": "エッジミドルウェア",
@@ -347,7 +358,8 @@
       "pl": "middleware edge",
       "id": "edge middleware",
       "vi": "edge middleware",
-      "hi": "एज मिडलवेयर"
+      "hi": "एज मिडलवेयर",
+      "ar": "edge middleware"
     },
     "span": {
       "ja": "スパン",
@@ -364,7 +376,8 @@
       "pl": "span",
       "id": "span",
       "vi": "span",
-      "hi": "span"
+      "hi": "span",
+      "ar": "span"
     },
     "chart": {
       "ja": "チャート",
@@ -381,7 +394,8 @@
       "pl": "wykres",
       "id": "grafik",
       "vi": "biểu đồ",
-      "hi": "चार्ट"
+      "hi": "चार्ट",
+      "ar": "مخطط"
     },
     "word joiner": {
       "ja": "ワードジョイナー",
@@ -398,7 +412,8 @@
       "pl": "word joiner",
       "id": "word joiner",
       "vi": "word joiner",
-      "hi": "word joiner"
+      "hi": "word joiner",
+      "ar": "word joiner"
     },
     "architecture": {
       "ja": "アーキテクチャー"
@@ -421,7 +436,8 @@
       "pl": "incydent",
       "id": "insiden",
       "vi": "sự cố",
-      "hi": "इंसिडेंट"
+      "hi": "इंसिडेंट",
+      "ar": "حادثة"
     },
     "Learn": {
       "ja": "学習",
@@ -438,7 +454,8 @@
       "pl": "Nauka",
       "id": "Belajar",
       "vi": "Học",
-      "hi": "सीखें"
+      "hi": "सीखें",
+      "ar": "تعلّم"
     },
     "shared": {
       "ja": "共通の"
@@ -458,7 +475,8 @@
       "pl": "mapa klawiszy",
       "id": "keymap",
       "vi": "keymap",
-      "hi": "कीमैप"
+      "hi": "कीमैप",
+      "ar": "خريطة المفاتيح"
     },
     "sparkline": {
       "ja": "スパークライン",
@@ -475,7 +493,8 @@
       "pl": "sparkline",
       "id": "sparkline",
       "vi": "sparkline",
-      "hi": "स्पार्कलाइन"
+      "hi": "स्पार्कलाइन",
+      "ar": "sparkline"
     },
     "append": {
       "ja": "追記",
@@ -492,7 +511,8 @@
       "pl": "dopisywać",
       "id": "menambahkan di akhir",
       "vi": "nối thêm",
-      "hi": "जोड़ना"
+      "hi": "जोड़ना",
+      "ar": "إلحاق"
     },
     "component": {
       "es": "componente",
@@ -508,7 +528,8 @@
       "pl": "komponent",
       "id": "komponen",
       "vi": "component",
-      "hi": "कंपोनेंट"
+      "hi": "कंपोनेंट",
+      "ar": "مكوّن"
     },
     "hook": {
       "es": "hook",
@@ -524,7 +545,8 @@
       "pl": "hook",
       "id": "hook",
       "vi": "hook",
-      "hi": "हुक"
+      "hi": "हुक",
+      "ar": "خطاف"
     },
     "deploy": {
       "es": "desplegar",
@@ -540,7 +562,8 @@
       "pl": "wdrożyć",
       "id": "deploy",
       "vi": "triển khai",
-      "hi": "डिप्लॉय"
+      "hi": "डिप्लॉय",
+      "ar": "نشر"
     },
     "shortcut": {
       "es": "atajo",
@@ -556,7 +579,8 @@
       "pl": "skrót klawiszowy",
       "id": "pintasan",
       "vi": "phím tắt",
-      "hi": "शॉर्टकट"
+      "hi": "शॉर्टकट",
+      "ar": "اختصار"
     },
     "terminal": {
       "es": "terminal",
@@ -572,7 +596,8 @@
       "pl": "terminal",
       "id": "terminal",
       "vi": "terminal",
-      "hi": "टर्मिनल"
+      "hi": "टर्मिनल",
+      "ar": "الطرفية"
     },
     "error boundary": {
       "de": "Error Boundary",
@@ -588,7 +613,8 @@
       "pl": "granica błędów",
       "id": "error boundary",
       "vi": "error boundary",
-      "hi": "एरर बाउंड्री"
+      "hi": "एरर बाउंड्री",
+      "ar": "حدود الأخطاء"
     },
     "focus pad": {
       "es": "panel de foco",
@@ -604,7 +630,8 @@
       "pl": "panel fokusu",
       "id": "focus pad",
       "vi": "vùng focus",
-      "hi": "फ़ोकस पैड"
+      "hi": "फ़ोकस पैड",
+      "ar": "لوحة التركيز"
     },
     "dynamic segment": {
       "zh-CN": "动态路由段",
@@ -615,7 +642,8 @@
       "pl": "segment dynamiczny",
       "id": "segmen dinamis",
       "vi": "phân đoạn động",
-      "hi": "डायनामिक सेगमेंट"
+      "hi": "डायनामिक सेगमेंट",
+      "ar": "مقطع ديناميكي"
     },
     "offscreen": {
       "zh-CN": "离屏"
@@ -629,7 +657,8 @@
       "pl": "klawisz potwierdzenia",
       "id": "tombol konfirmasi",
       "vi": "phím xác nhận",
-      "hi": "पुष्टि करने वाली कुंजी"
+      "hi": "पुष्टि करने वाली कुंजी",
+      "ar": "مفتاح التأكيد"
     },
     "deep link": {
       "de": "Deep-Link"
@@ -643,7 +672,8 @@
       "pl": "przydzielony inżynier",
       "id": "engineer khusus",
       "vi": "kỹ sư phụ trách riêng",
-      "hi": "नियुक्त इंजीनियर"
+      "hi": "नियुक्त इंजीनियर",
+      "ar": "مهندس مخصّص"
     },
     "kB": {
       "fr": "ko",
@@ -657,10 +687,12 @@
       "pl": "Następne kroki",
       "id": "Langkah berikutnya",
       "vi": "Bước tiếp theo",
-      "hi": "अगले कदम"
+      "hi": "अगले कदम",
+      "ar": "الخطوات التالية"
     },
     "framework": {
-      "tr": "framework"
+      "tr": "framework",
+      "ar": "إطار عمل"
     }
   },
   "notes": {
