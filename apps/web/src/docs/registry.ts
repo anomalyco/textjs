@@ -8,6 +8,7 @@ import serverRendering from "./content/server-rendering.md?raw";
 import middleware from "./content/middleware.md?raw";
 import caching from "./content/caching.md?raw";
 import deploying from "./content/deploying.md?raw";
+import curl from "./content/curl.md?raw";
 import releaseChannels from "./content/release-channels.md?raw";
 import supportPolicy from "./content/support-policy.md?raw";
 import styling from "./content/styling.md?raw";
@@ -49,6 +50,7 @@ const DOC_MARKDOWN: Record<string, string> = {
   middleware,
   caching,
   deploying,
+  curl,
   styling,
   internationalization,
   keyboard,

@@ -16,7 +16,7 @@ text build --adapter <name>
 
 The adapter can also come from `TEXTJS_ADAPTER`. When `text build` runs on Vercel (`VERCEL=1`) or Cloudflare Pages (`CF_PAGES=1`), the matching adapter is selected automatically.
 
-The server adapters (`bun`, `vercel` and `cloudflare`) run the same pipeline as `text start`: [middleware](/docs/middleware), `rewrites`, [route handlers](/docs/route-handlers) with the [route cache](/docs/caching), static assets, then the console document for page URLs. The server adapters serve hashed files under `/assets/` with `Cache-Control: public, max-age=31536000, immutable`.
+The server adapters (`bun`, `vercel` and `cloudflare`) run the same pipeline as `text start`: [middleware](/docs/middleware), `rewrites`, [route handlers](/docs/route-handlers) with the [route cache](/docs/caching), static assets, then the console document for page URLs. Terminal clients such as curl get the page's first frame as ANSI text instead (see [curl and Terminal Clients](/docs/curl)). The server adapters serve hashed files under `/assets/` with `Cache-Control: public, max-age=31536000, immutable`.
 
 ## Static
 
@@ -24,7 +24,7 @@ The server adapters (`bun`, `vercel` and `cloudflare`) run the same pipeline as 
 text build --adapter static
 ```
 
-Use it for hosts without a server, such as GitHub Pages, S3 or a CDN. `GET` route handlers with `dynamic = "force-static"` or `revalidate` are prerendered into files: `app/api/feed.json/route.ts` becomes `dist/api/feed.json`. A copy of `index.html` is written to `404.html` so deep links open the console app.
+Use it for hosts without a server, such as GitHub Pages, S3 or a CDN. `GET` route handlers with `dynamic = "force-static"` or `revalidate` are prerendered into files: `app/api/feed.json/route.ts` becomes `dist/api/feed.json`. A copy of `index.html` is written to `404.html` so deep links open the console app. Static hosts can't tell curl from a browser, so curl gets the HTML page.
 
 The build fails, listing every reason, if the app needs a server: `middleware.ts`, [server-rendered routes](/docs/server-rendering), dynamic route handlers, route handlers with dynamic segments, or non-`GET` methods. Configure `rewrites` on the host instead.
 

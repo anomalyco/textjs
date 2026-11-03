@@ -114,7 +114,7 @@ export default defineConfig({
 
 `text build` renders every static route once, at the configured `viewport` size, and inlines that first frame into the route's HTML as a small classic `<script>`. The console paints before any module loads:
 
-1. **The static shell.** Everything that renders synchronously. Every `<Suspense>` boundary that is still waiting shows its fallback, including async server components, `use()` and lazy modules. `fetch()` never resolves while the shell renders, so data loaded in effects stays in its loading state too.
+1. **The static shell.** Everything that renders synchronously. Every `<Suspense>` boundary that is still waiting shows its fallback, including async server components (which don't run while the shell renders), `use()` and lazy modules. `fetch()` never resolves while the shell renders, so data loaded in effects stays in its loading state too.
 2. **The dynamic holes.** When JavaScript boots, either the client renderer or the frame player streams the real frame. It is appended below the shell, and the hydrating frame's own curtain moves the shell out of view in the same DevTools paint. The shell records when it painted, so the first hydrating frame waits out DevTools' post-clear window instead of landing on its slow path.
 
 During load, only the shell clears the console. The hydrating renderer starts in append mode (`initialClear: false`), so nothing flashes, and the shell only paints on the path it was rendered for. Dynamic routes (`[id]`, `force-dynamic`) render no shell.
@@ -137,5 +137,6 @@ The shell is rendered at `viewport.width × viewport.height` (default `120 × 36
 | `assets/player-[hash].js` | The frame player. |
 | `.text/server/live.mjs` | Server routes, the App Router and the console renderer. |
 | `.text/pages/…`, `.text/live.html` | Server-route documents. |
+| `.text/ansi/…` | First frames for [curl and other terminal clients](/docs/curl). |
 
 `text start` and the [`bun` adapter](/docs/deploying#bun) serve all of them. Server routes need a long-lived process: the `static`, `vercel` and `cloudflare` adapters fail the build (`TX030`).
