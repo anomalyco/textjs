@@ -82,6 +82,18 @@ DevTools 以 `contain: paint` 繪製每個 `%c` span，並分別對齊裝置像�
 - **終端機。** 同時忽略 BDSM 和 `LRO` 並自行執行雙向演算法的終端機（例如在 iTerm2 中啟用雙向文字功能），可能會再次重新排列由右至左的行。
 - **DOM 鏡像。** `<ConsoleMirror>` 不會調整寬度，因此其中由右至左的區段可能偏移達自身寬度的 0.3%。
 
+<!-- s:f4d4dadbf6 -->
+翻譯焦點面板
+
+<!-- s:7791d4db4e -->
+`@textjs/react/dom` 的 `<FocusPad>`（也由 `<TextCanvas>` 渲染）會指示訪客開啟主控台、點擊頁面並按下按鍵。文字預設為英文。若要翻譯，請透過 `messages` 傳入要替換的字串。未提供的鍵會保留英文文字，這些文字列在 `defaultFocusPadMessages` 中。
+
+<!-- s:66c2b8e3e2 -->
+包含數值的字串以函式表示，函式會回傳完整句子，因此翻譯時可將數值放在句中的任何位置。`step`、`pressShortcut`、`then`、`defaultAction` 和 `shortcutOpens` 都是函式。`step` 接收步驟編號與總步驟數。`then` 接收 `action` prop，若沒有 `action`，則接收 `defaultAction` 的文字。`defaultAction` 接收第一個提示的按鍵，若沒有提示則接收 `null`。`pressShortcut` 接收供螢幕閱讀器使用的快速鍵按鍵，而 `shortcutOpens` 接收以 `<kbd>` 元素表示的快速鍵。
+
+<!-- s:e9475554da -->
+`messages` 也涵蓋螢幕閱讀器讀出的標籤，以及主控台尺寸控制項（`sizeControl`）。`<TextCanvas>` 接受相同的 `messages` prop。`<ViewportControl>` 也接受此 prop，並使用尺寸控制項的鍵。⌘⌥J、Ctrl+Shift+J 和 Enter 等鍵帽文字不翻譯。
+
 <!-- s:40caf66c4d -->
 API
 

@@ -4,14 +4,19 @@
 <!-- s:1ab5f276ed -->
 格式以 [維護變更記錄](https://keepachangelog.com/en/1.1.0/) 為基礎，本專案遵循 [語意化版本](https://semver.org/spec/v2.0.0.html)。0.1.0 至 0.4.0 版本已在 git 加上標籤，未發布至 npm。
 
+<!-- s:2e16922cfc -->
+新增
+
+<!-- s:fd5b09c2ec -->
+- `@textjs/react`：`<FocusPad messages>` 可替換面板的任何內建字串，供翻譯網站使用。涵蓋每一行文字、螢幕閱讀器標籤和主控台尺寸控制項。`<TextCanvas>` 和 `<ViewportControl>` 也接受 `messages`。`<ViewportControl>` 只使用尺寸控制項的鍵。包含值的字串，例如「接著點擊這裡並按 ↑ ↓。」，是回傳完整句子的函式。`defaultFocusPadMessages` 提供英文文字。請參閱[翻譯焦點面板](https://textjs.org/docs/internationalization#translating-the-focus-pad)。
+- `@textjs/react`：在由右至左的頁面中，焦點面板會讓 ⌘ ⌥ J 等按鍵圖示和 120×36 等主控台尺寸維持由左至右顯示，並將尺寸控制項和步驟列鏡像排列。在中文和日文頁面中，會移除兩個句子之間的空格；韓文則保留空格。
+- textjs.org：在 textjs.org/ja 上，每個頁面的焦點面板都以日文顯示，包括各個示範的按鍵下方標籤。
+
 <!-- s:5b88618770 -->
 變更
 
 <!-- s:f7da7bb6d2 -->
 - `@textjs/core`：Chromium 和 Firefox 主控台會在動畫精靈輸出達 16 MB 時清除，而非 4 MB，因此 textjs.org/doom 約每 19 秒顯示「主控台已清除」，而非每 4.5 秒。Safari 以及以 `▀` 半區塊繪製的精靈仍維持 4 MB。textjs.org/doom 頁面的堆積記憶體峰值從 10.8 MB 增至約 12～13 MB。
-
-<!-- s:2e16922cfc -->
-新增
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom 會播放 Doom 的音效，採用 Doom 本身的立體聲左右定位與距離衰減。音效會在你首次點擊頁面或按鍵時開始，隨遊戲暫停，並遵循 Doom 的「選項 → 音量」選單中的「音效音量」設定。沒有音樂。
