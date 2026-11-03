@@ -60,7 +60,7 @@ export interface SpriteCodec {
     full: boolean,
     force: boolean,
     renderAt: number,
-  ): { nextSpanned: Uint8Array; dirty: number; maxVisualFrames: number };
+  ): { nextSpanned: Uint8Array; dirty: number; maxVisualFrames: number; drewCells: boolean };
 }
 
 export interface BufferSprite {
