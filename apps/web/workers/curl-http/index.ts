@@ -5,14 +5,15 @@
  * Its route is `http://textjs.org/` (wrangler.toml), so https requests, browsers included, never invoke it, and the
  * zone's Redirect Rule sends every other plain-http request to https before Workers run. What's left is curl, Wget,
  * HTTPie and xh asking for http://textjs.org/. Anything else that slips through is passed on untouched.
+ *
+ * Detection is the framework's own (`@textjs/app/ansi`), imported by path: it has no dependencies, wrangler bundles
+ * it, and this Worker's deploy job doesn't install packages.
  */
-const TERMINAL_UA = /^(curl|Wget|HTTPie|xh)\//i;
+import { wantsAnsi } from "../../../../packages/app/src/ansi";
 
 export function isTerminalHttp(request: Request): boolean {
   const url = new URL(request.url);
-  const accept = request.headers.get("accept") ?? "";
-  if (request.method !== "GET" && request.method !== "HEAD") return false;
-  return url.protocol === "http:" && url.pathname === "/" && TERMINAL_UA.test(request.headers.get("user-agent") ?? "") && !accept.includes("text/html");
+  return url.protocol === "http:" && url.pathname === "/" && wantsAnsi(request);
 }
 
 export default {

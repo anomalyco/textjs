@@ -287,10 +287,11 @@ describe("curl textjs.org", () => {
   const req = (headers: Record<string, string>, method = "GET") => new Request("https://textjs.org/", { method, headers });
 
   test("only terminal clients that don't ask for HTML get ANSI", () => {
-    for (const ua of ["curl/8.7.1", "Wget/1.21.4", "HTTPie/3.2.2", "xh/0.22.0"]) {
+    for (const ua of ["curl/8.7.1", "Wget/1.21.4", "wget2/2.1.0", "HTTPie/3.2.2", "xh/0.22.0"]) {
       expect(wantsAnsi(req({ "User-Agent": ua, Accept: "*/*" }))).toBe(true);
       expect(wantsAnsi(req({ "User-Agent": ua, Accept: "*/*" }, "HEAD"))).toBe(true);
       expect(wantsAnsi(req({ "User-Agent": ua, Accept: "text/html" }))).toBe(false);
+      expect(wantsAnsi(req({ "User-Agent": ua, Accept: "TEXT/HTML" }))).toBe(false);
       expect(wantsAnsi(req({ "User-Agent": ua, Accept: "*/*" }, "POST"))).toBe(false);
     }
     const chrome = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36";
@@ -327,6 +328,10 @@ describe("curl textjs.org", () => {
     expect(isTerminalHttp(http(curl, "GET", "http://textjs.org/docs"))).toBe(false);
     expect(isTerminalHttp(http({ "User-Agent": "curl/8.7.1", Accept: "text/html" }))).toBe(false);
     expect(isTerminalHttp(http({ "User-Agent": "Mozilla/5.0", Accept: "*/*" }))).toBe(false);
+    // The framework's detection: wget2 counts, and HTML is asked for in any case.
+    expect(isTerminalHttp(http({ "User-Agent": "wget2/2.1.0", Accept: "*/*" }))).toBe(true);
+    expect(isTerminalHttp(http({ "User-Agent": "curl/8.7.1", Accept: "TEXT/HTML" }))).toBe(false);
+    expect(isTerminalHttp(http({ "User-Agent": "CURL/8.0", Accept: "TEXT/HTML" }))).toBe(false);
     // An https route would put the Worker in front of every browser's home page load.
     const toml = readFileSync(join(import.meta.dirname, "../workers/curl-http/wrangler.toml"), "utf8");
     expect([...toml.matchAll(/pattern\s*=\s*"([^"]+)"/g)].map((m) => m[1])).toEqual(["http://textjs.org/"]);
