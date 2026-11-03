@@ -14,9 +14,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
-import { assemble, parseTranslation } from "./document";
+import { assemble, blockId, parseTranslation } from "./document";
 import { getLocale } from "../../src/i18n/locales";
-import { CALL, documentForFile, LITERAL, parsePluralObject, PLURAL, readCatalog, readText, SRC_DIR, translationFile, USES_CATALOG, type Catalog } from "./sources";
+import { CALL, documentForFile, errorPageDocs, LITERAL, parsePluralObject, PLURAL, readCatalog, readText, SRC_DIR, translationFile, USES_CATALOG, type Catalog } from "./sources";
 
 export interface Units {
   translated: number;
@@ -31,6 +31,8 @@ export interface UnitsManifest {
 }
 
 const COMPANION = join(SRC_DIR, "console-companion") + "/";
+/** The error pages' translations, `{}` in source (`src/pages/error-docs.ts`). */
+const ERROR_DOCS = join(SRC_DIR, "pages", "error-docs.ts");
 const ENGLISH_ISLAND = [join(SRC_DIR, "docs") + "/", join(SRC_DIR, "blog") + "/", join(SRC_DIR, "learn") + "/"];
 /** Modules with state the page and the console share; copying them would split it. */
 const SHARED_STATE = /\/learn\/(progress|captions)\.ts$/;
@@ -64,6 +66,18 @@ export function i18nPlugin(locale: string): Plugin {
       return `${resolved.id}${resolved.id.includes("?") ? "&" : "?"}${EN_QUERY}`;
     },
     load(id) {
+      if (!source && clean(id) === ERROR_DOCS) {
+        const translations = parseTranslation(readText(translationFile(locale, "errors")));
+        const out: Record<string, { title: string; cause: string; fix: string }> = {};
+        for (const e of errorPageDocs()) {
+          const title = translations.get(blockId(e.title));
+          const cause = assemble(e.cause, translations);
+          const fix = assemble(e.fix, translations);
+          documents[`errors/${e.code}`] = { total: 1 + cause.total + fix.total, translated: (title ? 1 : 0) + cause.translated + fix.translated };
+          out[e.code] = { title: title ?? e.title, cause: cause.markdown, fix: fix.markdown };
+        }
+        return `export const ERROR_TRANSLATIONS = ${JSON.stringify(out)};`;
+      }
       if (source || isEnglishCopy(id) || !/[?&]raw(&|$)/.test(id)) return null;
       const doc = documentForFile(clean(id));
       if (!doc) return null;

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { formatPostDate } from "../blog/meta";
 import { TurbologLockup } from "../site/brand-marks";
 import { Inline } from "../site/Markdown";
 import { useInView } from "../site/useInView";
 import { useConsoleLogDown } from "../console-health";
+import { rich } from "../i18n/rich";
+import { formatDate, formatNumber, plural, t } from "../i18n/t";
 import { A } from "../router";
 import type { BenchResult, Summary } from "./status-bench";
 import { COMPONENTS, LAUNCH, type Component, type Tone } from "./status-components";
@@ -25,33 +26,33 @@ const LIVE_DAYS = DAY_LIST.filter((d) => d >= LAUNCH).length;
 
 const TODAY = DAY_LIST[DAY_LIST.length - 1];
 
-const IMPACT_DAY = { none: "Operational", minor: "Degraded performance", major: "Partial outage" } as const;
+const IMPACT_DAY = { none: t("Operational"), minor: t("Degraded performance"), major: t("Partial outage") } as const;
 
 /** `today` overrides the last bar (a `console.log` reassigned in this tab). */
 function UptimeBars({ name, tone, status, today }: { name: string; tone: Tone; status: string; today?: { tone: string; status: string } }): ReactNode {
   const incidents = incidentDays(name);
   let affected = 0;
   for (const d of DAY_LIST) if (incidents.has(d) && !(today && d === TODAY)) affected++;
-  const parts = [`${name}: ${status} on ${LIVE_DAYS - affected - (today ? 1 : 0)} of the last ${DAYS} days`];
-  if (affected > 0) parts.push(`${affected} ${affected === 1 ? "day" : "days"} with incidents`);
-  if (today) parts.push(`${today.status} today`);
-  if (LIVE_DAYS < DAYS) parts.push("no data before launch");
+  const parts = [t("{name}: {status} on {up} of the last {days} days", { name, status, up: LIVE_DAYS - affected - (today ? 1 : 0), days: DAYS })];
+  if (affected > 0) parts.push(plural(affected, { one: "{count} day with incidents", other: "{count} days with incidents" }));
+  if (today) parts.push(t("{status} today", { status: today.status }));
+  if (LIVE_DAYS < DAYS) parts.push(t("no data before launch"));
   return (
-    <div className="st-bars" dir="ltr" role="img" aria-label={parts.join(", ")}>
+    <div className="st-bars" dir="ltr" role="img" aria-label={parts.join(t(", "))}>
       {DAY_LIST.map((d) => {
         const incident = incidents.get(d);
         let day: { tone: string; status: string } | null = null;
         if (today && d === TODAY) day = today;
         else if (incident) day = { tone: incident.impact, status: `${IMPACT_DAY[incident.impact]}: ${incident.name}` };
         else if (d >= LAUNCH) day = { tone, status };
-        return <span key={d} className={day ? `st-bar st-bar-${day.tone}` : "st-bar"} title={`${formatPostDate(d)} · ${day ? day.status : "No data"}`} />;
+        return <span key={d} className={day ? `st-bar st-bar-${day.tone}` : "st-bar"} title={`${formatDate(d)} · ${day ? day.status : t("No data")}`} />;
       })}
     </div>
   );
 }
 
-const OUTAGE = { tone: "outage", status: "Major outage" } as const;
-const OUTAGE_DETAIL = "console.log was reassigned in this tab. Reload to restore.";
+const OUTAGE = { tone: "outage", status: t("Major outage") } as const;
+const OUTAGE_DETAIL = t("console.log was reassigned in this tab. Reload to restore.");
 
 function ComponentRow({ c, down }: { c: Component; down: boolean }): ReactNode {
   const out = down && c.name === "console.log";
@@ -63,9 +64,9 @@ function ComponentRow({ c, down }: { c: Component; down: boolean }): ReactNode {
       </div>
       <UptimeBars name={c.name} tone={c.tone} status={c.status} today={out ? OUTAGE : undefined} />
       <div className="st-axis" dir="ltr">
-        <span>{DAYS} days ago</span>
+        <span>{t("{days} days ago", { days: DAYS })}</span>
         <span className="st-axis-mid">{out ? OUTAGE_DETAIL : c.detail}</span>
-        <span>Today</span>
+        <span>{t("Today")}</span>
       </div>
     </div>
   );
@@ -120,23 +121,21 @@ function LiveBenchmark(): ReactNode {
   const dash = "—";
   const cell = (s: Summary | undefined): string => (s ? fmtMs(s.p50) : dash);
   const metrics: ReadonlyArray<{ label: string; value: string; sub: string }> = [
-    { label: "Full frame", value: cell(result?.fullFrame), sub: result ? `mean ${fmtMs(result.fullFrame.mean)} · p95 ${fmtMs(result.fullFrame.p95)}` : "layout + paint + encode" },
-    { label: "Typing", value: cell(result?.typing), sub: result ? `mean ${fmtMs(result.typing.mean)} · p95 ${fmtMs(result.typing.p95)}` : "one-row edit" },
-    { label: "Idle frame", value: cell(result?.idle), sub: result ? `${result.idleConsoleCalls} console calls` : "nothing changed" },
-    { label: "%c spans", value: result ? String(result.spans) : dash, sub: `${(100 * 32).toLocaleString("en-US")} cells` },
+    { label: t("Full frame"), value: cell(result?.fullFrame), sub: result ? t("mean {mean} · p95 {p95}", { mean: fmtMs(result.fullFrame.mean), p95: fmtMs(result.fullFrame.p95) }) : t("layout + paint + encode") },
+    { label: t("Typing"), value: cell(result?.typing), sub: result ? t("mean {mean} · p95 {p95}", { mean: fmtMs(result.typing.mean), p95: fmtMs(result.typing.p95) }) : t("one-row edit") },
+    { label: t("Idle frame"), value: cell(result?.idle), sub: result ? t("{calls} console calls", { calls: result.idleConsoleCalls }) : t("nothing changed") },
+    { label: t("%c spans"), value: result ? String(result.spans) : dash, sub: t("{cells} cells", { cells: formatNumber(100 * 32) }) },
   ];
 
   return (
     <section ref={cardRef} className="st-card st-live" aria-labelledby="st-live-title">
       <div className="st-card-head">
         <div>
-          <h2 id="st-live-title">Live benchmark</h2>
-          <p>
-            The <code>@textjs/core</code> pipeline runs in this tab on a 100×32 dashboard and writes frames to an in-memory console.
-          </p>
+          <h2 id="st-live-title">{t("Live benchmark")}</h2>
+          <p>{rich("The <c>@textjs/core</c> pipeline runs in this tab on a 100×32 dashboard and writes frames to an in-memory console.", code)}</p>
         </div>
         <button type="button" className="btn btn-secondary btn-sm" onClick={run} disabled={state.phase === "running"}>
-          {state.phase === "running" ? "Running…" : state.phase === "idle" ? "Run" : "Run again"}
+          {state.phase === "running" ? t("Running…") : state.phase === "idle" ? t("Run") : t("Run again")}
         </button>
       </div>
       <div className="st-progress" aria-hidden="true">
@@ -153,10 +152,10 @@ function LiveBenchmark(): ReactNode {
       </dl>
       <p className="st-foot">
         {state.phase === "error"
-          ? `The benchmark could not run: ${state.message}`
+          ? t("The benchmark could not run: {message}", { message: state.message })
           : result
-            ? `${result.frames.toLocaleString("en-US")} frames in batches of 10, measured on this device. Medians shown.`
-            : "Starts automatically once the page is idle."}
+            ? t("{frames} frames in batches of 10, measured on this device. Medians shown.", { frames: formatNumber(result.frames) })
+            : t("Starts automatically once the page is idle.")}
       </p>
     </section>
   );
@@ -166,7 +165,7 @@ const RUNS = history.pipeline.runs;
 
 /** `2025-03-25` → `Mar 2025`. */
 function formatMonth(date: string): string {
-  return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+  return formatDate(date, { month: "short", year: "numeric" });
 }
 const MAX_TYPING = Math.max(...RUNS.map((r) => r.typingMs));
 
@@ -175,21 +174,19 @@ function PerfHistory(): ReactNode {
     <section className="st-card" aria-labelledby="st-history-title">
       <div className="st-card-head">
         <div>
-          <h2 id="st-history-title">Performance history</h2>
-          <p>
-            <code>packages/core/test/perf.test.ts</code> at each milestone, same machine ({history.machine}). Mean of 1,000 frames.
-          </p>
+          <h2 id="st-history-title">{t("Performance history")}</h2>
+          <p>{rich("<c>packages/core/test/perf.test.ts</c> at each milestone, same machine ({machine}). Mean of 1,000 frames.", code, { machine: history.machine })}</p>
         </div>
       </div>
       <div className="st-table-wrap">
         <table className="st-table">
           <thead>
             <tr>
-              <th scope="col">Release</th>
-              <th scope="col">Full frame</th>
-              <th scope="col">Typing</th>
-              <th scope="col">Idle</th>
-              <th scope="col">%c spans</th>
+              <th scope="col">{t("Release")}</th>
+              <th scope="col">{t("Full frame")}</th>
+              <th scope="col">{t("Typing")}</th>
+              <th scope="col">{t("Idle")}</th>
+              <th scope="col">{t("%c spans")}</th>
             </tr>
           </thead>
           <tbody>
@@ -224,28 +221,25 @@ function DevToolsHistory(): ReactNode {
     <section className="st-card" aria-labelledby="st-dt-title">
       <div className="st-card-head">
         <div>
-          <h2 id="st-dt-title">DevTools frontend</h2>
-          <p>
-            <code>bench/devtools</code> in Chrome for Testing: blank paints, delivered frames and display lag, 5s per run.{" "}
-            <A href="/blog/turbolog-eliminating-the-flash">How we measure</A>.
-          </p>
+          <h2 id="st-dt-title">{t("DevTools frontend")}</h2>
+          <p>{rich("<c>bench/devtools</c> in Chrome for Testing: blank paints, delivered frames and display lag, 5s per run. <link>How we measure</link>.", { ...code, link: (c) => <A href="/blog/turbolog-eliminating-the-flash">{c}</A> })}</p>
         </div>
       </div>
       <div className="st-table-wrap">
         <table className="st-table">
           <thead>
             <tr>
-              <th scope="col">Driver</th>
+              <th scope="col">{t("Driver")}</th>
               <th scope="col">FPS</th>
-              <th scope="col">Blank paints</th>
-              <th scope="col">Painted / emitted</th>
-              <th scope="col">Lag p50</th>
+              <th scope="col">{t("Blank paints")}</th>
+              <th scope="col">{t("Painted / emitted")}</th>
+              <th scope="col">{t("Lag p50")}</th>
             </tr>
           </thead>
           <tbody>
             {history.devtools.runs.map((r) => (
               <tr key={`${r.strategy}-${r.fps}`} className={r.strategy === "append" && r.fps === 15 ? "st-ship" : undefined}>
-                <th scope="row">{r.strategy === "append" ? (r.fps === 15 ? "Append (shipping)" : "Append, unpaced") : "Clear per frame"}</th>
+                <th scope="row">{r.strategy === "append" ? (r.fps === 15 ? t("Append (shipping)") : t("Append, unpaced")) : t("Clear per frame")}</th>
                 <td>{r.fps}</td>
                 <td>{r.blankPct.toFixed(1)}%</td>
                 <td>
@@ -261,17 +255,19 @@ function DevToolsHistory(): ReactNode {
   );
 }
 
-const STATUS_LABEL: Record<IncidentStatus, string> = { investigating: "Investigating", identified: "Identified", monitoring: "Monitoring", resolved: "Resolved" };
+const STATUS_LABEL: Record<IncidentStatus, string> = { investigating: t("Investigating"), identified: t("Identified"), monitoring: t("Monitoring"), resolved: t("Resolved") };
+
+const code = { c: (c: ReactNode) => <code>{c}</code> };
 
 /** `2026-10-27T15:42:00Z` → `Oct 27, 2026 · 15:42 UTC`. */
 function formatUpdateTime(iso: string): string {
   const d = new Date(iso);
-  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+  const date = formatDate(iso, { month: "short", day: "numeric", year: "numeric" });
   return `${date} · ${iso.slice(11, 16)} UTC`;
 }
 
 function shortDay(iso: string, year: boolean): string {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: year ? "numeric" : undefined, timeZone: "UTC" });
+  return formatDate(iso, { month: "short", day: "numeric", year: year ? "numeric" : undefined });
 }
 
 /** `Oct 27, 2026` or `Oct 27 – Oct 28, 2026`. */
@@ -283,7 +279,7 @@ function incidentSpan(i: Incident): string {
 }
 
 function monthOf(i: Incident): string {
-  return new Date(i.updates[0]!.at).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  return formatDate(i.updates[0]!.at, { month: "long", year: "numeric" });
 }
 
 function IncidentItem({ incident: i }: { incident: Incident }): ReactNode {
@@ -292,7 +288,7 @@ function IncidentItem({ incident: i }: { incident: Incident }): ReactNode {
       <details>
         <summary>
           <span className={`st-incident-name st-impact-${i.impact}`}>{i.name}</span>
-          <span className="st-incident-when">{incidentSpan(i)} · Resolved</span>
+          <span className="st-incident-when">{t("{when} · Resolved", { when: incidentSpan(i) })}</span>
         </summary>
         <div className="st-incident-body">
           <ol className="st-updates">
@@ -306,16 +302,16 @@ function IncidentItem({ incident: i }: { incident: Incident }): ReactNode {
               </li>
             ))}
           </ol>
-          {i.components.length > 0 ? <p className="st-affected">This incident affected: {i.components.join(", ")}.</p> : null}
+          {i.components.length > 0 ? <p className="st-affected">{t("This incident affected: {components}.", { components: i.components.join(", ") })}</p> : null}
           <div className="st-postmortem">
-            <h4>Postmortem</h4>
+            <h4>{t("Postmortem")}</h4>
             <p>
               <Inline text={i.postmortem} />
             </p>
             <p className="st-fix">
               {i.commits.length > 0 ? (
                 <>
-                  {i.commits.length === 1 ? "Fix" : "Fixes"}:{" "}
+                  {i.commits.length === 1 ? t("Fix:") : t("Fixes:")}{" "}
                   {i.commits.map((c, n) => (
                     <span key={c}>
                       {n > 0 ? ", " : null}
@@ -363,8 +359,8 @@ function PastIncidents(): ReactNode {
     <section className="st-card" aria-labelledby="st-incidents-title">
       <div className="st-card-head">
         <div>
-          <h2 id="st-incidents-title">Past incidents</h2>
-          <p>Newest first. Times are in UTC.</p>
+          <h2 id="st-incidents-title">{t("Past incidents")}</h2>
+          <p>{t("Newest first. Times are in UTC.")}</p>
         </div>
       </div>
       {months.map((m) => (
@@ -387,16 +383,16 @@ export function StatusPage(): ReactNode {
     <div className="container st">
       <header className="rs-head">
         <TurbologLockup className="st-lockup" />
-        <h1>Status</h1>
+        <h1>{t("Status")}</h1>
       </header>
 
       <div className={`st-banner${down ? " st-banner-outage" : ""}`} role="status">
         <span className={`dot${down ? " dot-red" : ""}`} />
-        <strong>{down ? "Major outage" : "All systems operational"}</strong>
-        <span className="st-updated">Updated {formatPostDate(history.measuredAt)}</span>
+        <strong>{down ? t("Major outage") : t("All systems operational")}</strong>
+        <span className="st-updated">{t("Updated {date}", { date: formatDate(history.measuredAt) })}</span>
       </div>
 
-      <section className="st-card st-components" aria-label="Components">
+      <section className="st-card st-components" aria-label={t("Components")}>
         {COMPONENTS.map((c) => (
           <ComponentRow key={c.name} c={c} down={down} />
         ))}

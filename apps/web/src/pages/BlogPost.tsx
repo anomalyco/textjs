@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { formatPostDate, getPost, POSTS, postPath } from "../blog";
+import { getPost, POSTS, postPath } from "../blog";
+import { formatDate, t } from "../i18n/t";
 import { A } from "../router";
 import { TurbologLockup } from "../site/brand-marks";
 import { MarkdownDoc } from "../site/Markdown";
@@ -14,11 +15,11 @@ export function BlogPostPage({ slug }: { slug: string }): ReactNode {
   return (
     <article className="container blog-post">
       <A href="/blog" className="blog-back">
-        <span className="rtl-flip">←</span> Blog
+        <span className="rtl-flip">←</span>&nbsp;{t("Blog")}
       </A>
       <header className="blog-post-head">
         {post.brand === "turbolog" ? <TurbologLockup className="blog-brand" /> : null}
-        <time dateTime={post.date}>{formatPostDate(post.date)}</time>
+        <time dateTime={post.date}>{formatDate(post.date)}</time>
         <h1>{post.title}</h1>
         <p className="rs-lede">{post.summary}</p>
         <div className="blog-author">
@@ -29,16 +30,16 @@ export function BlogPostPage({ slug }: { slug: string }): ReactNode {
         </div>
       </header>
       <MarkdownDoc source={post.markdown} />
-      <nav className="docs-nav blog-nav" aria-label="More posts">
+      <nav className="docs-nav blog-nav" aria-label={t("More posts")}>
         {older ? (
           <A href={postPath(older.slug)}>
-            <small>Older</small>
+            <small>{t("Older")}</small>
             <span>{older.title}</span>
           </A>
         ) : null}
         {newer ? (
           <A href={postPath(newer.slug)} className="next">
-            <small>Newer</small>
+            <small>{t("Newer")}</small>
             <span>{newer.title}</span>
           </A>
         ) : null}

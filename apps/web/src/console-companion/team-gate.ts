@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useInput, type KeyEvent, type ThemeName } from "@textjs/react";
-import { siteStore } from "./store";
+import { presetForPath, siteStore } from "./store";
 
 type TeamModule = typeof import("./team");
 
@@ -11,10 +11,10 @@ export function fnv1a(s: string): number {
   return h >>> 0;
 }
 
-/** Every Playground route counts as `/playground`; trailing slashes don't count. */
+/** Every Playground route (and /doom) counts as `/playground`; trailing slashes don't count. */
 export function gatePath(pathname: string): string {
   const p = pathname.replace(/\/+$/, "") || "/";
-  return p.startsWith("/playground/") ? "/playground" : p;
+  return p.startsWith("/playground/") || presetForPath(p) ? "/playground" : p;
 }
 
 // fnv1a(`${gatePath}:${word}`) in base 36, one per name in ./team (test/team-eggs.test.tsx checks they match).

@@ -31,6 +31,10 @@
 /merch/cap /store 301
 /merch/sticker-sheet /store 301
 /merch/* /store/:splat 301
+/playground/doom /doom 301
+/playground/doom/ /doom 301
+/:locale/playground/doom /:locale/doom 301
+/:locale/playground/doom/ /:locale/doom 301
 
 # Locale paths are lowercase (src/i18n/locales.ts); the BCP 47 spelling redirects.
 /pt-BR /pt-br 301

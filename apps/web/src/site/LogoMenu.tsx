@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { t } from "../i18n/t";
 
 export const LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M2 4h20L12 21.5z" fill="#000"/></svg>\n';
 // "Text.js" is Geist Bold (18px, -0.04em tracking) converted to outlines, so the file renders anywhere.
@@ -12,10 +13,10 @@ interface Item {
 }
 
 const ITEMS: readonly Item[] = [
-  { label: "Copy Logo as SVG", copy: async () => LOGO_SVG },
-  { label: "Copy Wordmark as SVG", copy: async () => WORDMARK_SVG },
+  { label: t("Copy Logo as SVG"), copy: async () => LOGO_SVG },
+  { label: t("Copy Wordmark as SVG"), copy: async () => WORDMARK_SVG },
   {
-    label: "Copy Logo as console.log",
+    label: t("Copy Logo as console.log"),
     copy: async () => {
       const [logo, { detectConsoleBrowser }] = await Promise.all([import("./logo-console"), import("@textjs/core")]);
       const browser = detectConsoleBrowser();
@@ -107,7 +108,7 @@ export function LogoMenu({ state, onClose }: { state: LogoMenuState; onClose: ()
   };
 
   return createPortal(
-    <div ref={menu} className="logo-menu" role="menu" aria-label="Logo" style={pos} onKeyDown={onKeyDown} onContextMenu={(e) => e.preventDefault()} data-console-bypass="">
+    <div ref={menu} className="logo-menu" role="menu" aria-label={t("Logo")} style={pos} onKeyDown={onKeyDown} onContextMenu={(e) => e.preventDefault()} data-console-bypass="">
       {ITEMS.map((item, i) => (
         <button
           key={item.label}

@@ -37,6 +37,7 @@
   <url><loc>https://textjs.org/playground</loc><priority>0.8</priority></url>
   <url><loc>https://textjs.org/playground/streaming</loc><priority>0.6</priority></url>
   <url><loc>https://textjs.org/playground/snake</loc><priority>0.6</priority></url>
+  <url><loc>https://textjs.org/doom</loc><priority>0.6</priority></url>
   <url><loc>https://textjs.org/opencode</loc><priority>0.8</priority></url>
   <url><loc>https://textjs.org/coffee</loc><priority>0.7</priority></url>
   <url><loc>https://textjs.org/errors</loc><priority>0.5</priority></url>

@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- textjs.org/doom plays Doom's sound effects, with Doom's own stereo panning and distance falloff. Sound starts with your first click or keypress on the page, pauses with the game, and follows Sfx Volume in Doom's Options → Sound Volume menu. There's no music.
+
+### Changed
+
+- textjs.org: Doom moved to textjs.org/doom. textjs.org/playground/doom redirects there.
+
+### Fixed
+
+- textjs.org/doom runs at Doom's 35 tics per second. In a level it ran 3.8× fast on a 60Hz display (131 tics per second) and 5.5× at 120Hz (192), because the page mistook the extra clock reads Doom makes while drawing a level for a busy-wait, and moved Doom's clock a tic ahead on every animation frame and timer callback.
+
 ## [1.4.0] - 2026-11-03
 
 ### Added
@@ -18,7 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- `@textjs/react`: `<Image>` now draws a pixel sprite in Chromium and Firefox consoles, with up to 8 × 16 pixels per cell for pixel art and 4 × 8 for photos. This deliberately breaks the [support policy](https://textjs.org/docs/support-policy)'s promise that frames look the same between minor releases. Pass `renderMode="halfblock"` to keep the 1.3 half-blocks. Safari, terminals (including `text run`), ANSI and plain-text output, and the first frame of server-rendered live pages, still draw half-blocks.
+- `@textjs/react`: `<Image>` now draws a pixel sprite in Chromium and Firefox consoles, with up to 8 × 16 pixels per cell for pixel art and 4 × 8 for photos. This deliberately breaks the [support policy](https://textjs.org/docs/support-policy)'s promise that frames look the same between minor releases. Pass `renderMode="halfblock"` to keep the 1.3 half-blocks. Safari, terminals (including `text run`), ANSI and plain-text output, and server-rendered pages (`runtime = "server"`) still draw half-blocks.
 - `@textjs/app`: scripts and uptime checks that fetch pages with curl, Wget, HTTPie or xh now get ANSI text. To keep getting HTML, send `Accept: text/html`, or set `ansi: false` in `text.config.ts`.
 - `@textjs/app`: async server components no longer run while `text build` prerenders a page's shell. They show their `<Suspense>` fallback, as before, without starting their data requests at build time.
 - `@textjs/app`: the frame player for server-rendered pages is 3 KB smaller, 22.4 KB gzip instead of 25.4 KB for `examples/dashboard`. It no longer ships `CellBuffer`'s drawing methods, box borders or text truncation.

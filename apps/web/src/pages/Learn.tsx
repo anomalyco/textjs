@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { A } from "../router";
 import { rich } from "../i18n/rich";
+import { formatDate, t } from "../i18n/t";
 import { CONSOLE_TAGS, Footer } from "../site/Chrome";
 import { ArrowRight } from "../site/icons";
 import { certificateLines, formatCertificateDate, linkedInAddUrl, NAME_PLACEHOLDER } from "../learn/certificate";
@@ -22,10 +23,10 @@ function ProgressMeter({ progress }: { progress: Progress }): ReactNode {
   return (
     <div className="learn-meter">
       <div className="learn-meter-label">
-        <span>Progress</span>
+        <span>{t("Progress")}</span>
         <span className="mono">{`${n}/${CHAPTERS.length}`}</span>
       </div>
-      <div className="learn-meter-track" role="progressbar" aria-valuemin={0} aria-valuemax={CHAPTERS.length} aria-valuenow={n} aria-label="Chapters completed">
+      <div className="learn-meter-track" role="progressbar" aria-valuemin={0} aria-valuemax={CHAPTERS.length} aria-valuenow={n} aria-label={t("Chapters completed")}>
         <span style={{ transform: `scaleX(${n / CHAPTERS.length})` }} />
       </div>
     </div>
@@ -34,7 +35,7 @@ function ProgressMeter({ progress }: { progress: Progress }): ReactNode {
 
 function Check({ done, n }: { done: boolean; n: string }): ReactNode {
   return (
-    <span className={`learn-check${done ? " done" : ""}`} aria-label={done ? "Completed" : undefined}>
+    <span className={`learn-check${done ? " done" : ""}`} aria-label={done ? t("Completed") : undefined}>
       {done ? "✓" : n}
     </span>
   );
@@ -56,22 +57,20 @@ function Overview(): ReactNode {
   return (
     <div className="container learn-overview">
       <header className="learn-hero">
-        <h1>Build a deploy dashboard in your console</h1>
-        <p className="learn-lede">
-          {`This free course has ${CHAPTERS.length} chapters. You'll build ${COURSE_APP} from an empty page to a deployed app with routes, data and tests. Each chapter runs live in DevTools as you read it.`}
-        </p>
+        <h1>{t("Build a deploy dashboard in your console")}</h1>
+        <p className="learn-lede">{t("This free course has {chapters} chapters. You'll build {app} from an empty page to a deployed app with routes, data and tests. Each chapter runs live in DevTools as you read it.", { chapters: CHAPTERS.length, app: COURSE_APP })}</p>
         <div className="learn-cta">
           {complete ? (
             <A href={learnPath(COMPLETE_SLUG)} className="btn btn-primary">
-              View certificate <ArrowRight />
+              {t("View certificate")} <ArrowRight />
             </A>
           ) : (
             <A href={learnPath(next.slug)} className="btn btn-primary">
-              {started ? `Resume: ${next.title}` : "Start learning"} <ArrowRight />
+              {started ? t("Resume: {title}", { title: next.title }) : t("Start learning")} <ArrowRight />
             </A>
           )}
         </div>
-        <p className="learn-meta">{`${CHAPTERS.length} chapters · about ${ABOUT_MINUTES} minutes · Chrome, Edge, Firefox or Safari`}</p>
+        <p className="learn-meta">{t("{chapters} chapters · about {minutes} minutes · Chrome, Edge, Firefox or Safari", { chapters: CHAPTERS.length, minutes: ABOUT_MINUTES })}</p>
         <ProgressMeter progress={progress} />
       </header>
 
@@ -86,7 +85,7 @@ function Overview(): ReactNode {
                   <span className="learn-chapter-title">{c.title}</span>
                   <span className="learn-chapter-summary">{c.summary}</span>
                 </span>
-                <span className="learn-chapter-min">{`${c.minutes} min`}</span>
+                <span className="learn-chapter-min">{t("{minutes} min", { minutes: c.minutes })}</span>
               </A>
             </li>
           );
@@ -95,15 +94,15 @@ function Overview(): ReactNode {
           <A href={learnPath(COMPLETE_SLUG)} className="learn-chapter-card learn-chapter-cert">
             <Check done={complete} n="▼" />
             <span className="learn-chapter-text">
-              <span className="learn-chapter-title">Certificate</span>
-              <span className="learn-chapter-summary">Get a certificate with your name, rendered in the console.</span>
+              <span className="learn-chapter-title">{t("Certificate")}</span>
+              <span className="learn-chapter-summary">{t("Get a certificate with your name, rendered in the console.")}</span>
             </span>
           </A>
         </li>
       </ol>
 
       <section className="learn-section">
-        <h2>The course runs in your console</h2>
+        <h2>{t("The course runs in your console")}</h2>
         <p className="learn-section-lede">
           {rich("Open the console with <keys></keys><safari> (<link>turn on developer features</link> first)</safari>, click below and pick a chapter with the arrow keys.", CONSOLE_TAGS)}
         </p>
@@ -117,9 +116,9 @@ function Overview(): ReactNode {
 
 function ChapterNav({ current, progress }: { current: string; progress: Progress }): ReactNode {
   return (
-    <nav className="learn-sidebar" aria-label="Chapters">
+    <nav className="learn-sidebar" aria-label={t("Chapters")}>
       <A href="/learn" className="learn-sidebar-head">
-        Learn Text.js
+        {t("Learn Text.js")}
       </A>
       <ProgressMeter progress={progress} />
       <ol>
@@ -134,7 +133,7 @@ function ChapterNav({ current, progress }: { current: string; progress: Progress
         <li>
           <A href={learnPath(COMPLETE_SLUG)} aria-current={current === COMPLETE_SLUG ? "page" : undefined}>
             <Check done={isCourseComplete(progress)} n="▼" />
-            <span>Certificate</span>
+            <span>{t("Certificate")}</span>
           </A>
         </li>
       </ol>
@@ -158,9 +157,9 @@ function ChapterPage({ chapter }: { chapter: Chapter }): ReactNode {
       <div className="learn-body">
         <article className="learn-main">
           <div className="breadcrumbs">
-            <A href="/learn">Learn</A>
+            <A href="/learn">{t("Learn")}</A>
             <span>/</span>
-            <span>{`Chapter ${i + 1} of ${CHAPTERS.length}`}</span>
+            <span>{t("Chapter {n} of {total}", { n: i + 1, total: CHAPTERS.length })}</span>
           </div>
           <h1 className="docs-title">{chapter.title}</h1>
           <p className="docs-desc">{chapter.summary}</p>
@@ -175,7 +174,7 @@ function ChapterPage({ chapter }: { chapter: Chapter }): ReactNode {
           </div>
           <ChapterVideo slug={chapter.slug} title={chapter.title} />
           <div className="learn-outline">
-            <h2>In this chapter</h2>
+            <h2>{t("In this chapter")}</h2>
             <ul>
               {headings.map((h) => (
                 <li key={h}>{h}</li>
@@ -186,33 +185,33 @@ function ChapterPage({ chapter }: { chapter: Chapter }): ReactNode {
           <ChapterBody markdown={chapter.markdown} />
 
           <section className="learn-section" aria-labelledby="try-it">
-            <h2 id="try-it">Try it</h2>
-            <p className="learn-section-lede">{`This is ${COURSE_APP} at the end of the chapter, running in DevTools. Click the pad, then use the keys below.`}</p>
+            <h2 id="try-it">{t("Try it")}</h2>
+            <p className="learn-section-lede">{t("This is {app} at the end of the chapter, running in DevTools. Click the pad, then use the keys below.", { app: COURSE_APP })}</p>
             <LearnPad title={`${n} · ${chapter.title}`} hints={chapter.hints} action={chapter.action} />
           </section>
 
           <Quiz key={chapter.slug} chapter={chapter} />
 
-          <nav className="docs-nav" aria-label="Chapters">
+          <nav className="docs-nav" aria-label={t("Chapters")}>
             {prev ? (
               <A href={learnPath(prev.slug)}>
-                <small>Previous</small>
+                <small>{t("Previous")}</small>
                 <span>
-                  <span className="rtl-flip">←</span> {prev.title}
+                  <span className="rtl-flip">←</span>&nbsp;{prev.title}
                 </span>
               </A>
             ) : (
               <A href="/learn">
-                <small>Course</small>
+                <small>{t("Course")}</small>
                 <span>
-                  <span className="rtl-flip">←</span> Overview
+                  <span className="rtl-flip">←</span>&nbsp;{t("Overview")}
                 </span>
               </A>
             )}
             <A href={learnPath(next ? next.slug : COMPLETE_SLUG)} className="next">
-              <small>{next ? `Chapter ${i + 2}` : "Finish"}</small>
+              <small>{next ? t("Chapter {n}", { n: i + 2 }) : t("Finish")}</small>
               <span>
-                {next ? next.title : "Certificate"} <span className="rtl-flip">→</span>
+                {next ? next.title : t("Certificate")}&nbsp;<span className="rtl-flip">→</span>
               </span>
             </A>
           </nav>
@@ -236,18 +235,18 @@ function CertificatePage(): ReactNode {
       <div className="learn-body">
         <article className="learn-main">
           <div className="breadcrumbs">
-            <A href="/learn">Learn</A>
+            <A href="/learn">{t("Learn")}</A>
             <span>/</span>
-            <span>Certificate</span>
+            <span>{t("Certificate")}</span>
           </div>
-          <h1 className="docs-title">Certificate</h1>
-          <p className="docs-desc">{`Complete all ${CHAPTERS.length} chapters to get a certificate, printed on the page and in your console.`}</p>
+          <h1 className="docs-title">{t("Certificate")}</h1>
+          <p className="docs-desc">{t("Complete all {chapters} chapters to get a certificate, printed on the page and in your console.", { chapters: CHAPTERS.length })}</p>
           <p className={`learn-cert-status${complete ? " done" : ""}`}>
-            {complete ? `✓ Course complete. ${formatCertificateDate(progress.completedAt)}` : `${n} of ${CHAPTERS.length} chapters complete. Complete the rest to get your certificate.`}
+            {complete ? t("✓ Course complete. {date}", { date: progress.completedAt ? formatDate(progress.completedAt) : "—" }) : t("{done} of {chapters} chapters complete. Complete the rest to get your certificate.", { done: n, chapters: CHAPTERS.length })}
           </p>
 
           <label className="learn-name">
-            <span>Name on certificate</span>
+            <span>{t("Name on certificate")}</span>
             <input
               type="text"
               value={progress.name}
@@ -260,12 +259,12 @@ function CertificatePage(): ReactNode {
           </label>
 
           <div className={`learn-cert${complete ? "" : " pending"}`}>
-            <pre aria-label="Certificate">{lines.join("\n")}</pre>
+            <pre aria-label={t("Certificate")}>{lines.join("\n")}</pre>
           </div>
 
           <section className="learn-section" aria-labelledby="in-console">
-            <h2 id="in-console">In your console</h2>
-            <p className="learn-section-lede">Text.js renders the same certificate in the console. It updates as you type your name.</p>
+            <h2 id="in-console">{t("In your console")}</h2>
+            <p className="learn-section-lede">{t("Text.js renders the same certificate in the console. It updates as you type your name.")}</p>
             <LearnPad title="certificate" hints={CERTIFICATE_HINTS.hints} action={CERTIFICATE_HINTS.action} />
           </section>
 
@@ -274,10 +273,10 @@ function CertificatePage(): ReactNode {
               type="button"
               className="text-link"
               onClick={() => {
-                if (window.confirm("Reset your course progress?")) progressStore.reset();
+                if (window.confirm(t("Reset your course progress?"))) progressStore.reset();
               }}
             >
-              Reset progress
+              {t("Reset progress")}
             </button>
             <a
               className="text-link"
@@ -286,7 +285,7 @@ function CertificatePage(): ReactNode {
               rel="noreferrer"
               style={{ visibility: complete ? "visible" : "hidden" }}
             >
-              Add to LinkedIn
+              {t("Add to LinkedIn")}
             </a>
           </p>
         </article>

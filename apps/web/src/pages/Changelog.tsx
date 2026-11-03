@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import changelog from "../../../../CHANGELOG.md?raw";
-import { formatPostDate } from "../blog/meta";
+import { formatDate, t } from "../i18n/t";
 import { A } from "../router";
 import { Inline, MarkdownDoc } from "../site/Markdown";
 import "./resources.css";
@@ -41,7 +41,7 @@ export function ChangelogPage(): ReactNode {
   return (
     <div className="container cl">
       <header className="rs-head">
-        <h1>What’s new in Text.js</h1>
+        <h1>{t("What’s new in Text.js")}</h1>
         <div className="rs-lede prose">
           <p>
             <Inline text={PARSED.intro.split("\n\n")[0] ?? ""} />
@@ -50,7 +50,7 @@ export function ChangelogPage(): ReactNode {
         <div className="rs-head-links">
           <A href="/blog" className="text-link">
             <span>
-              Read the blog <span className="rtl-flip">→</span>
+              {t("Read the blog")}&nbsp;<span className="rtl-flip">→</span>
             </span>
           </A>
         </div>
@@ -60,10 +60,10 @@ export function ChangelogPage(): ReactNode {
           <li key={r.id} id={r.id} className="cl-release">
             <div className="cl-meta">
               <a href={`#${r.id}`} className="cl-version">
-                {r.version === "Unreleased" ? "Unreleased" : `v${r.version}`}
+                {r.version === "Unreleased" ? t("Unreleased") : `v${r.version}`}
               </a>
               <time className="cl-date" dateTime={r.date}>
-                {r.date ? formatPostDate(r.date) : "In progress"}
+                {r.date ? formatDate(r.date) : t("In progress")}
               </time>
             </div>
             <div className="cl-body">

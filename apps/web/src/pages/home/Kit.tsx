@@ -4,6 +4,7 @@ import { siteStore } from "../../console-companion/store";
 import { preloadCompanionTab } from "../../console-companion/tabs-loader";
 import { useSite } from "../../console-companion/useSite";
 import { exampleFrame, HOME_EXAMPLE_GRID, homeExampleHeader } from "../../docs/preview-meta";
+import { t } from "../../i18n/t";
 import { A } from "../../router";
 import { SandboxConsole } from "../../sandbox/SandboxConsole";
 import { useSandbox } from "../../sandbox/useSandbox";
@@ -45,18 +46,18 @@ function renderKitTab(mod: KitModule | null, id: string): ReactNode {
 }
 
 const TABS: Array<{ id: string; label: string; hint: string; href: string }> = [
-  { id: "table", label: "Table", hint: "↑ ↓ move · s sort · Space select", href: "/docs/components-data" },
-  { id: "charts", label: "Charts", hint: "Line charts, bar charts, sparklines and progress bars", href: "/docs/components-charts" },
-  { id: "controls", label: "Controls", hint: "Tab focus · Space toggle · ← → adjust", href: "/docs/components-forms" },
-  { id: "keymap", label: "useKeymap", hint: "? help · Ctrl+K command palette", href: "/docs/keyboard" },
+  { id: "table", label: t("Table"), hint: t("↑ ↓ move · s sort · Space select"), href: "/docs/components-data" },
+  { id: "charts", label: t("Charts"), hint: t("Line charts, bar charts, sparklines and progress bars"), href: "/docs/components-charts" },
+  { id: "controls", label: t("Controls"), hint: t("Tab focus · Space toggle · ← → adjust"), href: "/docs/components-forms" },
+  { id: "keymap", label: "useKeymap", hint: t("? help · Ctrl+K command palette"), href: "/docs/keyboard" },
 ];
 
 const GROUPS: Array<{ title: string; href: string; items: string[] }> = [
-  { title: "Layout", href: "/docs/components-layout", items: ["Box", "Stack", "Grid", "SplitPane", "ScrollBox", "Center"] },
-  { title: "Data", href: "/docs/components-data", items: ["List", "Table", "Tree", "Markdown", "Code", "Diff"] },
-  { title: "Charts", href: "/docs/components-charts", items: ["LineChart", "BarChart", "Sparkline", "ProgressBar", "Gradient", "Image"] },
-  { title: "Controls", href: "/docs/components-forms", items: ["Input", "Select", "Checkbox", "Switch", "Slider", "Dialog"] },
-  { title: "Keyboard", href: "/docs/keyboard", items: ["useKeymap", "KeyHelp", "KeyHints", "CommandPalette", "StatusBar", "useFocus"] },
+  { title: t("Layout"), href: "/docs/components-layout", items: ["Box", "Stack", "Grid", "SplitPane", "ScrollBox", "Center"] },
+  { title: t("Data"), href: "/docs/components-data", items: ["List", "Table", "Tree", "Markdown", "Code", "Diff"] },
+  { title: t("Charts"), href: "/docs/components-charts", items: ["LineChart", "BarChart", "Sparkline", "ProgressBar", "Gradient", "Image"] },
+  { title: t("Controls"), href: "/docs/components-forms", items: ["Input", "Select", "Checkbox", "Switch", "Slider", "Dialog"] },
+  { title: t("Keyboard"), href: "/docs/keyboard", items: ["useKeymap", "KeyHelp", "KeyHints", "CommandPalette", "StatusBar", "useFocus"] },
 ];
 
 /** The in-page sandbox, or, while this example runs in the console, a mirror of the console's frames. */
@@ -87,7 +88,7 @@ function Preview({ id, enabled, active, available }: { id: string; enabled: bool
           engage
           engaged={site.consoleInput}
           onActivate={() => runInConsole(id)}
-          activateLabel="Click to type"
+          activateLabel={t("Click to type")}
           cols={COLS}
           rows={ROWS}
         />
@@ -101,7 +102,7 @@ function Preview({ id, enabled, active, available }: { id: string; enabled: bool
       filter={`-url:preview://${id}`}
       cols={COLS}
       rows={ROWS}
-      activateLabel={available ? "Click to run in console" : undefined}
+      activateLabel={available ? t("Click to run in console") : undefined}
       onInspect={() => setWireframe((w) => !w)}
       inspecting={wireframe}
     />
@@ -159,43 +160,43 @@ export function KitSection(): ReactNode {
     <section className="section home-section">
       <div className="container">
         <div className="section-head">
-          <h2>Tables, charts, forms and shortcuts</h2>
+          <h2>{t("Tables, charts, forms and shortcuts")}</h2>
         </div>
         <div className="frame kit-frame" ref={ref}>
           <Crosses />
           <div className={`kit-live${inConsole ? " in-console" : ""}`} ref={liveRef}>
-            <div className="file-tabs kit-tabs" role="tablist" aria-label="Live components">
-              {TABS.map((t, i) => (
-                <button key={t.id} type="button" role="tab" aria-selected={i === tab} onClick={() => select(i)}>
-                  {t.label}
+            <div className="file-tabs kit-tabs" role="tablist" aria-label={t("Live components")}>
+              {TABS.map((item, i) => (
+                <button key={item.id} type="button" role="tab" aria-selected={i === tab} onClick={() => select(i)}>
+                  {item.label}
                 </button>
               ))}
               <span className="kit-live-badge">
-                <span className="dot" /> {inConsole ? "Live in your console" : "Live"}
+                <span className="dot" /> {inConsole ? t("Live in your console") : t("Live")}
               </span>
             </div>
             <div
               className="kit-stage"
               onMouseDownCapture={live ? onStageMouseDown : undefined}
               onFocusCapture={live ? onStageFocus : undefined}
-              title={live ? "Click to run in your console" : undefined}
+              title={live ? t("Click to run in your console") : undefined}
             >
               <Preview key={active.id} id={active.id} enabled={inView} active={inConsole} available={available} />
             </div>
             <div className="kit-foot">
-              <span>{inConsole ? `${active.hint} · Esc back to counter` : active.hint}</span>
+              <span>{inConsole ? t("{hint} · Esc back to counter", { hint: active.hint }) : active.hint}</span>
               <div className="kit-foot-actions">
                 {inConsole ? (
-                  <button type="button" className="preview-run desktop-only" onClick={() => siteStore.exitExample()} title="Show the counter in the console again">
-                    Back to counter
+                  <button type="button" className="preview-run desktop-only" onClick={() => siteStore.exitExample()} title={t("Show the counter in the console again")}>
+                    {t("Back to counter")}
                   </button>
                 ) : (
-                  <button type="button" className="preview-run desktop-only" onClick={() => runInConsole(active.id)} title="Runs this example in your DevTools console">
-                    Run in console
+                  <button type="button" className="preview-run desktop-only" onClick={() => runInConsole(active.id)} title={t("Runs this example in your DevTools console")}>
+                    {t("Run in console")}
                   </button>
                 )}
                 <A href={active.href} className="text-link">
-                  Docs <ArrowRight size={13} />
+                  {t("Docs")} <ArrowRight size={13} />
                 </A>
               </div>
             </div>

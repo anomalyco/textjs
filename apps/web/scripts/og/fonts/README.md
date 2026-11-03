@@ -7,7 +7,7 @@ The Open Graph renderer (`scripts/og/`) draws with the site's own Geist subsets 
 | `geist-og.woff2` | Geist 1.9.0 (`geist` on npm), `Geist-Variable.woff2` | Latin, punctuation, arrows, math, geometric shapes |
 | `geist-mono-og.woff2` | Geist 1.9.0, `GeistMono-Variable.woff2` | Latin, punctuation, arrows, math, technical, box drawing, blocks, geometric shapes |
 | `noto-symbols-og.woff2` | Noto Sans Symbols 2 (google/fonts) | Arrows, technical (⌘ ⌥ ⌫), geometric shapes (◆), symbols, dingbats, braille |
-| `noto-sans-jp-og.woff2` | Noto Sans JP (google/fonts), `NotoSansJP[wght].ttf` | The characters in `locales/ja/messages.json`, made by `scripts/og/subset-locale-fonts.ts` |
+| `noto-sans-jp-og.woff2` | Noto Sans JP (google/fonts), `NotoSansJP[wght].ttf` | The characters in `locales/ja/messages.json` and `errors.md`, made by `scripts/og/subset-locale-fonts.ts` |
 
 All three are licensed under the SIL Open Font License 1.1 ([OFL.txt](OFL.txt)).
 

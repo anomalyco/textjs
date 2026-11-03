@@ -1,18 +1,22 @@
 import type { ReactNode } from "react";
 import { ABOUT_MINUTES, CHAPTERS_META as CHAPTERS, learnPath } from "../../learn/meta";
+import { rich } from "../../i18n/rich";
+import { t } from "../../i18n/t";
 import { A } from "../../router";
 import { ArrowRight } from "../../site/icons";
 import { Crosses } from "./Crosses";
 
+const code = { c: (c: ReactNode) => <code>{c}</code> };
+
 const TOOLS: Array<{ label: string; title: string; body: ReactNode; href: string }> = [
-  { label: "Text.js panel", title: "DevTools extension", body: <>Adds a panel with the component tree, a frame inspector and a per-frame timeline.</>, href: "/docs/devtools-extension" },
-  { label: "⌘K V", title: "VS Code", body: <>Previews the frame next to your code and scaffolds App Router files.</>, href: "/docs/vscode" },
-  { label: "eslint-plugin-textjs", title: "ESLint", body: <>Catches DOM tags in console components, boxes inside text and glyphs Menlo doesn’t have.</>, href: "/docs/eslint" },
-  { label: "@textjs/app/testing", title: "Testing", body: <>Render offscreen, press keys and assert on <code>lastFrame()</code> in any test runner.</>, href: "/docs/testing" },
-  { label: "TX###", title: "Error codes", body: <>Errors and warnings with a <code>TX</code> code link to a page that explains the fix.</>, href: "/errors" },
-  { label: "window.text", title: "Console REPL", body: <>Pause, resize, wireframe and copy the running app from the console prompt.</>, href: "/docs/hooks-and-repl" },
-  { label: "UAX #9", title: "Right-to-left", body: <>Implements the Unicode Bidirectional Algorithm and passes all 770,241 <code>BidiTest.txt</code> cases.</>, href: "/docs/internationalization" },
-  { label: "@textjs/font", title: "FIGlet fonts", body: <>Parses <code>.flf</code> files and matches 273 outputs recorded from the <code>figlet</code> binary.</>, href: "/docs/fonts" },
+  { label: t("Text.js panel"), title: t("DevTools extension"), body: t("Adds a panel with the component tree, a frame inspector and a per-frame timeline."), href: "/docs/devtools-extension" },
+  { label: "⌘K V", title: "VS Code", body: t("Previews the frame next to your code and scaffolds App Router files."), href: "/docs/vscode" },
+  { label: "eslint-plugin-textjs", title: "ESLint", body: t("Catches DOM tags in console components, boxes inside text and glyphs Menlo doesn’t have."), href: "/docs/eslint" },
+  { label: "@textjs/app/testing", title: t("Testing"), body: rich("Render offscreen, press keys and assert on <c>lastFrame()</c> in any test runner.", code), href: "/docs/testing" },
+  { label: "TX###", title: t("Error codes"), body: rich("Errors and warnings with a <c>TX</c> code link to a page that explains the fix.", code), href: "/errors" },
+  { label: "window.text", title: t("Console REPL"), body: t("Pause, resize, wireframe and copy the running app from the console prompt."), href: "/docs/hooks-and-repl" },
+  { label: "UAX #9", title: t("Right-to-left"), body: rich("Implements the Unicode Bidirectional Algorithm and passes all 770,241 <c>BidiTest.txt</c> cases.", code), href: "/docs/internationalization" },
+  { label: "@textjs/font", title: t("FIGlet fonts"), body: rich("Parses <c>.flf</c> files and matches 273 outputs recorded from the <c>figlet</c> binary.", code), href: "/docs/fonts" },
 ];
 
 export function ToolingSection(): ReactNode {
@@ -20,18 +24,18 @@ export function ToolingSection(): ReactNode {
     <section className="section home-section">
       <div className="container">
         <div className="section-head">
-          <h2>Editor, lint and test tooling</h2>
+          <h2>{t("Editor, lint and test tooling")}</h2>
         </div>
         <div className="tool-grid">
-          {TOOLS.map((t) => (
-            <A key={t.title} href={t.href} className="tool-cell">
+          {TOOLS.map((tool) => (
+            <A key={tool.title} href={tool.href} className="tool-cell">
               <h3>
-                {t.title}
+                {tool.title}
                 <ArrowRight size={13} />
               </h3>
-              <p>{t.body}</p>
+              <p>{tool.body}</p>
               <span className="tool-label">
-                <span dir="ltr">{t.label}</span>
+                <span dir="ltr">{tool.label}</span>
               </span>
             </A>
           ))}
@@ -48,16 +52,14 @@ export function LearnSection(): ReactNode {
         <div className="frame home-learn">
           <Crosses />
           <div className="home-learn-copy">
-            <h2>Build a deploy dashboard in your console</h2>
-            <p className="muted">
-              The free course has {CHAPTERS.length} chapters and takes about {ABOUT_MINUTES} minutes.
-            </p>
+            <h2>{t("Build a deploy dashboard in your console")}</h2>
+            <p className="muted">{t("The free course has {chapters} chapters and takes about {minutes} minutes.", { chapters: CHAPTERS.length, minutes: ABOUT_MINUTES })}</p>
             <div className="home-learn-actions">
               <A href="/learn" className="btn btn-primary">
-                Start learning
+                {t("Start learning")}
               </A>
               <A href="/docs" className="btn btn-secondary">
-                Read the docs
+                {t("Read the docs")}
               </A>
             </div>
           </div>
@@ -67,7 +69,7 @@ export function LearnSection(): ReactNode {
                 <A href={learnPath(c.slug)}>
                   <span className="n">{String(i + 1).padStart(2, "0")}</span>
                   <span className="t">{c.title}</span>
-                  <span className="m">{c.minutes} min</span>
+                  <span className="m">{t("{minutes} min", { minutes: c.minutes })}</span>
                 </A>
               </li>
             ))}

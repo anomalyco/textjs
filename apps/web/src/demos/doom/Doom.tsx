@@ -4,6 +4,7 @@ import { Pixels, useKeyState, type PixelSource } from "@textjs/react/experimenta
 import { siteStore, type DoomStatus } from "../../console-companion/store";
 import wasmUrl from "./engine/out/doom.wasm?url";
 import { createDoom, type DoomHost, type DoomKeys } from "./host";
+import { DoomSound } from "./sound";
 
 // id's shareware DOOM1.WAD v1.9, gzipped from the unmodified file (see fetch-wad.ts) and verified by SHA-256 after decompression.
 export const WAD_URL = "/doom/DOOM1.WAD.gz";
@@ -137,6 +138,7 @@ export function DoomDemo({ reserveRows = 4, active = true, loadAssets }: DoomDem
   const [status, setStatus] = useState<DoomStatus>(() => (started ? "loading" : "idle"));
   const [loadedBytes, setLoadedBytes] = useState(0);
   const [frame, setFrame] = useState(0);
+  const [sound] = useState(() => new DoomSound());
   // Doom runs on its own clock, which stands still while the console is paused or the page is unfocused.
   const clock = useRef({ offset: 0, stoppedAt: 0 as number | null });
   const now = (): number => {
@@ -177,8 +179,10 @@ export function DoomDemo({ reserveRows = 4, active = true, loadAssets }: DoomDem
       if (live) setLoadedBytes(bytes);
     })
       .then(({ wasm, wad }) => {
-        clock.current = { offset: performance.now(), stoppedAt: null };
-        return createDoom({ wasm, wads: [wad], now });
+        // Start at 0 and stopped: the clock runs once the game is ready and the page is focused.
+        const t = performance.now();
+        clock.current = { offset: t, stoppedAt: t };
+        return createDoom({ wasm, wads: [wad], now, sound });
       })
       .then(
         (h) => {
@@ -199,7 +203,23 @@ export function DoomDemo({ reserveRows = 4, active = true, loadAssets }: DoomDem
   }, [started, attempt, loadAssets]);
 
   const running = status === "ready" && vp.focused && !vp.paused;
+
+  // Browsers only start audio from a user gesture, so a click or keypress on the page turns sound on. Keep
+  // listening: the first key may be ⌘⌥J or Escape, which don't count, and Safari can suspend audio later.
   useEffect(() => {
+    if (typeof window === "undefined" || isMobileTouchFallback()) return;
+    const onGesture = (e: MouseEvent | KeyboardEvent): void => sound.gesture(e, navigator.userActivation);
+    window.addEventListener("mousedown", onGesture, true);
+    window.addEventListener("keydown", onGesture, true);
+    return () => {
+      window.removeEventListener("mousedown", onGesture, true);
+      window.removeEventListener("keydown", onGesture, true);
+      sound.dispose();
+    };
+  }, [sound]);
+
+  useEffect(() => {
+    sound.setRunning(running);
     const c = clock.current;
     if (!running) {
       if (c.stoppedAt === null) c.stoppedAt = performance.now();

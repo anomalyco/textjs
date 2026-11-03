@@ -1,8 +1,12 @@
 // Host glue for jacobenget/doom.wasm (GPL-2.0, loaded at runtime from ./engine/, never bundled).
-// This file only implements the module's 10 imports, so it's ours to license.
+// This file only implements the module's 14 imports, so it's ours to license.
 import type { PixelSource } from "@textjs/react/experimental";
+import type { DoomSoundSink } from "./sound";
 
 const DOOM_TICRATE = 35;
+// A normal tickGame() reads the clock twice, once more per tic it runs, and 5 more times to draw a level frame
+// (NetUpdate in R_RenderPlayerView and D_Display). Only a busy-wait for the next tic reads it this often.
+const BUSY_WAIT_POLLS = 1000;
 
 export interface DoomKeys {
   left: number;
@@ -37,9 +41,26 @@ export interface DoomOptions {
   wads: Uint8Array[];
   now?: () => number;
   log?: (message: string) => void;
+  /** Where sound effects go. Without one, Doom runs silent. */
+  sound?: DoomSoundSink;
 }
 
-export async function createDoom({ wasm, wads, now = () => performance.now(), log }: DoomOptions): Promise<DoomHost> {
+/** The engine's 4 `sound` imports. A lump pointer or length outside wasm memory is ignored. */
+export function soundImports(mem: () => ArrayBuffer, sound: DoomSoundSink | undefined) {
+  return {
+    startSound: (lump: number, p: number, n: number, channel: number, vol: number, sep: number) => {
+      const buf = mem();
+      const ptr = p >>> 0;
+      if (!sound || n <= 0 || ptr + n > buf.byteLength) return;
+      sound.start(lump, new Uint8Array(buf, ptr, n), channel, vol, sep);
+    },
+    updateSound: (channel: number, vol: number, sep: number) => sound?.update(channel, vol, sep),
+    stopSound: (channel: number) => sound?.stop(channel),
+    isPlaying: (channel: number) => (sound?.isPlaying(channel) ? 1 : 0),
+  };
+}
+
+export async function createDoom({ wasm, wads, now = () => performance.now(), log, sound }: DoomOptions): Promise<DoomHost> {
   const total = wads.reduce((n, w) => n + w.length, 0);
   let memory: WebAssembly.Memory | null = null;
   const mem = (): ArrayBuffer => (memory as WebAssembly.Memory).buffer;
@@ -49,10 +70,20 @@ export async function createDoom({ wasm, wads, now = () => performance.now(), lo
   let fh = 0;
   let drawn = false;
   let baseMs: number | null = null;
-  let leadMs = 0;
+  // Milliseconds since startup, read once per initGame() or tick() so a slow frame can't cross into the next tic.
+  let tickMs = 0;
+  // The last time handed to the engine. It follows tickMs and only runs ahead of it to end a busy-wait,
+  // and the wall clock then catches up to it, so Doom stays at 35 tics per second.
+  let engineMs = 0;
   let pollsInTick = 0;
 
-  const clockMs = (): number => Math.floor(now() + leadMs);
+  const elapsedMs = (): number => {
+    const ms = Math.floor(now());
+    if (baseMs === null) baseMs = ms;
+    return Math.max(0, ms - baseMs);
+  };
+  // Doom's I_GetTime(): whole tics since startup.
+  const ticAt = (ms: number): number => Math.floor((ms * DOOM_TICRATE) / 1000);
 
   const imports = {
     console: {
@@ -81,16 +112,18 @@ export async function createDoom({ wasm, wads, now = () => performance.now(), lo
         });
       },
     },
+    sound: soundImports(mem, sound),
     runtimeControl: {
       timeInMilliseconds: () => {
-        // TryRunTics busy-waits on timeInMilliseconds() if called slightly before a 35Hz tic edge; nudge past it instead of spinning.
-        if (++pollsInTick > 6) {
-          leadMs += Math.ceil(1000 / DOOM_TICRATE);
+        engineMs = Math.max(engineMs, tickMs);
+        // TryRunTics busy-waits for the next tic edge when it has none to run (at startup). Skip to the edge
+        // instead of spinning; tick() then waits for the wall clock to reach it.
+        if (++pollsInTick > BUSY_WAIT_POLLS) {
+          engineMs = Math.ceil(((ticAt(engineMs) + 1) * 1000) / DOOM_TICRATE);
           pollsInTick = 0;
         }
-        const ms = clockMs();
-        if (baseMs === null) baseMs = ms;
-        return BigInt(ms);
+        // i_timer.c takes a first reading of 0 as "not read yet", which would put Doom's tic edges out of phase with ours.
+        return BigInt(engineMs + 1);
       },
     },
     ui: {
@@ -138,9 +171,9 @@ export async function createDoom({ wasm, wads, now = () => performance.now(), lo
     tab: g("KEY_TAB"),
     backspace: g("KEY_BACKSPACE"),
   };
+  tickMs = elapsedMs();
   pollsInTick = 0;
   ex.initGame();
-  let lastTic = Math.floor(((clockMs() - (baseMs ?? 0)) * DOOM_TICRATE) / 1000);
 
   // doom.wasm reports key *state* when the engine polls, so a tap that goes down and up between two
   // ticks would never be seen. Hold each release until a tick has observed the press.
@@ -150,9 +183,10 @@ export async function createDoom({ wasm, wads, now = () => performance.now(), lo
     source,
     keys,
     tick() {
-      const curTic = Math.floor(((clockMs() - (baseMs ?? 0)) * DOOM_TICRATE) / 1000);
-      if (curTic <= lastTic) return false;
-      lastTic = curTic;
+      // The engine has built tics up to the last time it read, so it only has new work once the wall clock passes that tic.
+      const nowMs = elapsedMs();
+      if (ticAt(nowMs) <= ticAt(engineMs)) return false;
+      tickMs = nowMs;
       drawn = false;
       pollsInTick = 0;
       ex.tickGame();

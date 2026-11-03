@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { t } from "../i18n/t";
 import { HighlightedCode } from "./highlight";
 import { CheckIcon, CopyIcon } from "./icons";
 
@@ -15,7 +16,7 @@ export function useCopy(): [boolean, (text: string) => void] {
 export function CopyButton({ text, className }: { text: string; className?: string }): ReactNode {
   const [copied, copy] = useCopy();
   return (
-    <button type="button" className={`copy-btn ${className ?? ""}`} onClick={() => copy(text)} aria-label={copied ? "Copied" : "Copy code"} title="Copy">
+    <button type="button" className={`copy-btn ${className ?? ""}`} onClick={() => copy(text)} aria-label={copied ? t("Copied") : t("Copy code")} title={t("Copy")}>
       {copied ? <CheckIcon /> : <CopyIcon />}
     </button>
   );

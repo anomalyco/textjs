@@ -1,3 +1,4 @@
+import { LOCALES } from "../src/i18n/locales";
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { act } from "react";
 import { readFileSync } from "node:fs";
@@ -329,21 +330,28 @@ describe("chapter videos", () => {
     expect(renderToStaticMarkup(<ChapterVideo slug="nope" title="Nope" />)).toBe("");
   });
 
-  test("published chapters point at the R2 layout", () => {
+  test("published chapters point at the R2 layout, with captions from this site", () => {
     const v = learnVideo("getting-started", { "getting-started": 239.5 }, "https://media.example", {});
     expect(v).toEqual({
       src: "https://media.example/learn/getting-started/getting-started-1080p.mp4",
       srcSmall: "https://media.example/learn/getting-started/getting-started-720p.mp4",
       poster: "https://media.example/learn/getting-started/getting-started-poster.jpg",
-      captions: "https://media.example/learn/getting-started/getting-started.vtt",
+      captions: [{ src: "/captions/learn/getting-started.en.vtt", lang: "en", label: "English" }],
       duration: 239.5,
     });
     // A re-rendered chapter lives beside the old files until the site deploys.
     expect(learnVideo("getting-started", { "getting-started": 239.5 }, "https://media.example", { "getting-started": 2 })).toMatchObject({
       src: "https://media.example/learn/getting-started/getting-started-v2-1080p.mp4",
       poster: "https://media.example/learn/getting-started/getting-started-v2-poster.jpg",
-      captions: "https://media.example/learn/getting-started/getting-started-v2.vtt",
+      captions: [{ src: "/captions/learn/getting-started-v2.en.vtt", lang: "en", label: "English" }],
     });
+    // A translated page lists its own language first, so it's the track captions turn on.
+    const ja = LOCALES.find((l) => l.code === "ja")!;
+    expect(learnVideo("getting-started", { "getting-started": 239.5 }, "https://media.example", { "getting-started": 2 }, ja, ["getting-started"])?.captions.map((c) => c.src)).toEqual([
+      "/captions/learn/getting-started-v2.ja.vtt",
+      "/captions/learn/getting-started-v2.en.vtt",
+    ]);
+    expect(learnVideo("getting-started", { "getting-started": 239.5 }, "https://media.example", {}, ja, [])?.captions.map((c) => c.lang)).toEqual(["en"]);
     expect(formatDuration(239.5)).toBe("4:00");
     // The frame reserves its box before the player loads (no layout shift); the video waits for the viewport.
     const html = renderToStaticMarkup(<ChapterVideo slug="getting-started" title="Getting Started" video={v} />);

@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { NOT_FOUND_PATH, ROUTES } from "../src/entry-server";
 import { OG_HEIGHT, OG_WIDTH, ogCards, ogSlug } from "../src/og";
 import { cardHtml, drawn, escapeHtml } from "../scripts/og/template";
 import { inlineScriptHashes } from "../scripts/csp";
+import { extractMessages, LOCALES_DIR } from "../scripts/i18n/sources";
 
 const ROOT = join(import.meta.dir, "..");
 
@@ -75,7 +76,14 @@ describe("Open Graph images in the build", () => {
     const set = { TEXTJS_LOCALES: "ja:draft" };
     run(["bun", "x", "vite", "build", "--outDir", join(out, "base", "dist"), "--emptyOutDir"], set);
     run(["bun", "x", "vite", "build", "--ssr", "src/entry-server.tsx", "--outDir", join(out, "base", "ssr"), "--emptyOutDir"], set);
-    const ja = { ...set, TEXTJS_LOCALE: "ja" };
+    // A copy of the translations without the Enterprise page's own strings, so the coverage gate has a page
+    // whose shared header and footer are Japanese but whose content isn't.
+    const catalog = join(out, "catalog");
+    cpSync(LOCALES_DIR, catalog, { recursive: true });
+    const messages = JSON.parse(readFileSync(join(catalog, "ja", "messages.json"), "utf8")) as Record<string, unknown>;
+    for (const m of extractMessages().values()) if (m.files.length === 1 && m.files[0] === "src/pages/Enterprise.tsx") delete messages[m.key];
+    writeFileSync(join(catalog, "ja", "messages.json"), JSON.stringify(messages));
+    const ja = { ...set, TEXTJS_LOCALE: "ja", TEXTJS_LOCALES_DIR: catalog };
     run(["bun", "x", "vite", "build", "--outDir", join(locales, "ja", "client"), "--emptyOutDir"], ja);
     run(["bun", "x", "vite", "build", "--ssr", "src/entry-server.tsx", "--outDir", join(locales, "ja", "ssr"), "--emptyOutDir"], ja);
     // The prerenderer twice: ja as a draft, and ja live (its links, hreflang, sitemap and headers).

@@ -71,14 +71,23 @@
 .prose:lang(ko) {
   line-height: 1.7;
 }
+/* Long code-ish runs in Chinese and Japanese prose (its tables included) break rather than widen the page. Other
+   tables keep whole phrases, so a cell never splits a word. */
 .prose:is(:lang(ja), :lang(zh-CN), :lang(zh-TW)) {
-  line-break: strict;
   overflow-wrap: anywhere;
 }
+.prose:is(:lang(zh-CN), :lang(zh-TW)) {
+  line-break: strict;
+}
+/* No line starts with ー, small kana or closing punctuation; headings break at phrases into even lines. */
 :root:lang(ja) body {
   word-break: auto-phrase;
+  line-break: strict;
   text-autospace: normal;
   text-spacing-trim: trim-start;
+}
+:is(h1, h2, h3):lang(ja) {
+  text-wrap: balance;
 }
 :root:lang(ko) body {
   word-break: keep-all;
@@ -165,12 +174,13 @@ pre {
    Scoped to RTL because isolation shifts line breaks in LTR prose. */
 /* Arrows and chevrons that point along the reading direction mirror in RTL. `scale`, so hover nudges that use
    `transform` still apply. */
-span.rtl-flip {
-  display: inline-block;
-}
-
 [dir="rtl"] .rtl-flip {
   scale: -1 1;
+}
+
+/* Only where it mirrors: an inline-block can start a line, which would leave a text arrow alone below its label. */
+[dir="rtl"] span.rtl-flip {
+  display: inline-block;
 }
 
 [dir="rtl"] code,

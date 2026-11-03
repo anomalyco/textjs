@@ -33,6 +33,11 @@
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
   Cross-Origin-Resource-Policy: same-origin
 
+# Learn captions: the file name carries the video's revision, but a retranslation keeps it.
+/captions/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+  Cross-Origin-Resource-Policy: same-origin
+
 /doom/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
   Cross-Origin-Resource-Policy: same-origin
@@ -75,6 +80,11 @@
   Cross-Origin-Resource-Policy: same-origin
 
 /coffee
+  Cache-Control: public, max-age=0, must-revalidate
+  Cross-Origin-Resource-Policy: same-origin
+
+# The Doom page. Its WAD and license files are under /doom/*.
+/doom
   Cache-Control: public, max-age=0, must-revalidate
   Cross-Origin-Resource-Policy: same-origin
 

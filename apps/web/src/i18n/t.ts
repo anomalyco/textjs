@@ -34,3 +34,19 @@ export function plural(count: number, forms: PluralForms, params?: Params): stri
   const text = forms[rules.select(count) as PluralCategory] ?? forms.other;
   return interpolate(text, { count, ...params });
 }
+
+// Dates and numbers: always UTC and Latin digits, so prerendered and hydrated text agree in every browser
+// and numbers match the code samples and benchmarks.
+
+const TAG = `${LOCALE.code === "en" ? "en-US" : LOCALE.code}-u-nu-latn`;
+
+/** `2026-10-31` or an ISO timestamp → `October 31, 2026` (English) / `2026年10月31日` (Japanese). */
+export function formatDate(iso: string, options: Intl.DateTimeFormatOptions = { year: "numeric", month: "long", day: "numeric" }): string {
+  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00Z` : iso);
+  return date.toLocaleDateString(TAG, { ...options, timeZone: "UTC" });
+}
+
+/** `3200` → `3,200`. */
+export function formatNumber(n: number): string {
+  return n.toLocaleString(TAG);
+}

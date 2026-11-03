@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { rich } from "../../i18n/rich";
+import { t } from "../../i18n/t";
 import { A } from "../../router";
 import { ArrowRight } from "../../site/icons";
 
@@ -16,9 +18,9 @@ function Frame({ dim = false }: { dim?: boolean }): ReactNode {
     <>
       {FRAME.map((row, i) => (
         <div key={i} className="aw-row">
-          {row.map(([t, tone], j) => (
+          {row.map(([text, tone], j) => (
             <span key={j} className={dim ? "dim" : tone}>
-              {t}
+              {text}
             </span>
           ))}
         </div>
@@ -83,10 +85,12 @@ function AgentPane(): ReactNode {
   );
 }
 
+const code = { c: (c: ReactNode) => <code>{c}</code> };
+
 const TARGETS: Array<{ pane: ReactNode; title: string; cmd: string; body: ReactNode; href: string }> = [
-  { pane: <DevToolsPane />, title: "DevTools", cmd: "text dev", body: <>Turbolog writes each frame as <code>%c</code> spans in one <code>console.log</code>.</>, href: "/docs/turbolog-engine" },
-  { pane: <TerminalPane />, title: "Terminal", cmd: "text run", body: <><code>text run</code> renders the same App Router app in truecolor ANSI and runs route handlers in-process.</>, href: "/docs/terminal" },
-  { pane: <AgentPane />, title: "Coding agents", cmd: "text mcp", body: <>Over MCP, agents navigate routes, press keys and read each frame as plain text.</>, href: "/docs/mcp" },
+  { pane: <DevToolsPane />, title: "DevTools", cmd: "text dev", body: rich("Turbolog writes each frame as <c>%c</c> spans in one <c>console.log</c>.", code), href: "/docs/turbolog-engine" },
+  { pane: <TerminalPane />, title: t("Terminal"), cmd: "text run", body: rich("<c>text run</c> renders the same App Router app in truecolor ANSI and runs route handlers in-process.", code), href: "/docs/terminal" },
+  { pane: <AgentPane />, title: t("Coding agents"), cmd: "text mcp", body: t("Over MCP, agents navigate routes, press keys and read each frame as plain text."), href: "/docs/mcp" },
 ];
 
 export function AnywhereSection(): ReactNode {
@@ -94,18 +98,18 @@ export function AnywhereSection(): ReactNode {
     <section className="section home-section">
       <div className="container">
         <div className="section-head">
-          <h2>Also runs in terminals and agents</h2>
+          <h2>{t("Also runs in terminals and agents")}</h2>
         </div>
         <div className="aw-grid">
-          {TARGETS.map((t) => (
-            <A key={t.title} href={t.href} className="aw-cell">
-              {t.pane}
+          {TARGETS.map((target) => (
+            <A key={target.title} href={target.href} className="aw-cell">
+              {target.pane}
               <div className="aw-copy">
                 <h3>
-                  {t.title}
-                  <code className="aw-cmd">{t.cmd}</code>
+                  {target.title}
+                  <code className="aw-cmd">{target.cmd}</code>
                 </h3>
-                <p>{t.body}</p>
+                <p>{target.body}</p>
               </div>
             </A>
           ))}

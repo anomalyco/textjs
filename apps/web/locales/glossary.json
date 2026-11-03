@@ -29,7 +29,9 @@
     "VS Code",
     "TypeScript",
     "▼",
-    "Playground"
+    "Playground",
+    "Enterprise",
+    "Learn Text.js"
   ],
   "terms": {
     "console": {
@@ -67,6 +69,66 @@
     },
     "Preserve log": {
       "ja": "ログを保持"
+    },
+    "prerender": {
+      "ja": "プリレンダリング"
+    },
+    "server rendering": {
+      "ja": "サーバーレンダリング"
+    },
+    "server-rendered": {
+      "ja": "サーバーレンダリングされる"
+    },
+    "utility": {
+      "ja": "ユーティリティー"
+    },
+    "directory": {
+      "ja": "ディレクトリー"
+    },
+    "query": {
+      "ja": "クエリー"
+    },
+    "binary": {
+      "ja": "バイナリー"
+    },
+    "edge function": {
+      "ja": "エッジ関数"
+    },
+    "edge middleware": {
+      "ja": "エッジミドルウェア"
+    },
+    "span": {
+      "ja": "スパン"
+    },
+    "chart": {
+      "ja": "チャート"
+    },
+    "word joiner": {
+      "ja": "ワードジョイナー"
+    },
+    "architecture": {
+      "ja": "アーキテクチャー"
+    },
+    "memory": {
+      "ja": "メモリー"
+    },
+    "incident": {
+      "ja": "インシデント"
+    },
+    "Learn": {
+      "ja": "学習"
+    },
+    "shared": {
+      "ja": "共通の"
+    },
+    "keymap": {
+      "ja": "キーマップ"
+    },
+    "sparkline": {
+      "ja": "スパークライン"
+    },
+    "append": {
+      "ja": "追記"
     }
   }
 }

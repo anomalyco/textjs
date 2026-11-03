@@ -72,38 +72,37 @@ export function matchRoute(pathname: string): Route {
 }
 
 export function titleFor(route: Route): string {
-  const suffix = "Text.js";
   switch (route.name) {
     case "home":
-      return "Text.js | The Console Framework";
+      return t("Text.js | The Console Framework");
     case "docs": {
       const doc = getDocMeta(route.slug);
       return t("{title} | Text.js Docs", { title: doc?.title ?? t("Docs") });
     }
     case "playground": {
       const preset = route.preset === PRESETS[0]?.id ? undefined : PRESETS.find((p) => p.id === route.preset);
-      return preset ? `${preset.label} | Text.js Playground` : `Playground | ${suffix}`;
+      return preset ? t("{demo} | Text.js Playground", { demo: preset.label }) : t("Playground | Text.js");
     }
     case "opencode":
-      return `OpenCode in the Console | ${suffix}`;
+      return t("OpenCode in the Console | Text.js");
     case "coffee":
-      return `terminal.shop in the Console | ${suffix}`;
+      return t("terminal.shop in the Console | Text.js");
     case "learn":
       return learnTitle(route.slug);
     case "errors":
-      return `Error Codes | ${suffix}`;
+      return t("Error Codes | Text.js");
     case "error":
-      return `${route.code}: ${getErrorPageDoc(route.code)?.title ?? "Error"} | ${suffix}`;
+      return t("{code}: {title} | Text.js", { code: route.code, title: getErrorPageDoc(route.code)?.title ?? t("Error") });
     case "changelog":
-      return `Changelog | ${suffix}`;
+      return t("Changelog | Text.js");
     case "blog":
-      return `Blog | ${suffix}`;
+      return t("Blog | Text.js");
     case "blog-post":
-      return `${getPostMeta(route.slug)?.title ?? "Blog"} | ${suffix}`;
+      return t("{title} | Text.js", { title: getPostMeta(route.slug)?.title ?? t("Blog") });
     case "enterprise":
-      return `Enterprise | ${suffix}`;
+      return t("Enterprise | Text.js");
     case "status":
-      return `Status | ${suffix}`;
+      return t("Status | Text.js");
     case "merch":
       return merchTitle(route.slug);
     case "not-found":
@@ -194,6 +193,11 @@ export function isInternalHref(href: string): boolean {
   return href.startsWith("/") && !href.startsWith("//");
 }
 
+/** A link to an id on the current page (`#foo`). The browser scrolls to it, as the docs TOC does. */
+export function isFragmentHref(href: string): boolean {
+  return href.startsWith("#");
+}
+
 /** Adds this build's locale prefix to links to site pages (`/docs` → `/ja/docs`); assets and APIs keep their paths. */
 export function localizeHref(href: string): string {
   if (!LOCALE.path || !isInternalHref(href)) return href;
@@ -209,8 +213,15 @@ export interface AProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
   children?: ReactNode;
 }
 
-/** An `<a>` that performs client-side navigation for internal links. */
+/** An `<a>` that performs client-side navigation for internal links and opens external ones in a new tab. */
 export function A({ href: source, onClick, onMouseEnter, onFocus, onPointerDown, children, ...rest }: AProps): ReactNode {
+  if (isFragmentHref(source)) {
+    return (
+      <a href={source} onClick={onClick} onMouseEnter={onMouseEnter} onFocus={onFocus} onPointerDown={onPointerDown} {...rest}>
+        {children}
+      </a>
+    );
+  }
   const href = localizeHref(source);
   const internal = isInternalHref(href);
   const handle = (e: MouseEvent<HTMLAnchorElement>): void => {

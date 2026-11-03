@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { siteStore } from "../console-companion/store";
-import { DOCS_META, docPath } from "../docs/meta";
+import { CATEGORY_LABELS, DOCS_META, docPath, type DocCategory } from "../docs/meta";
+import { rich } from "../i18n/rich";
+import { t } from "../i18n/t";
 import { navigate } from "../router";
 import { SearchIcon } from "./icons";
 import type { SearchItem } from "./search-aliases";
@@ -13,12 +15,18 @@ type SearchEngine = {
 };
 
 const PAGES: Item[] = [
-  { key: "p:/", group: "Pages", label: "Home", sub: "textjs.org", href: "/" },
-  { key: "p:/docs", group: "Pages", label: "Documentation", sub: "/docs", href: "/docs" },
+  { key: "p:/", group: "Pages", label: t("Home"), sub: "textjs.org", href: "/" },
+  { key: "p:/docs", group: "Pages", label: t("Documentation"), sub: "/docs", href: "/docs" },
   { key: "p:/playground", group: "Pages", label: "Playground", sub: "/playground", href: "/playground" },
-  { key: "p:/opencode", group: "Pages", label: "OpenCode in the Console", sub: "Playground · /opencode", href: "/opencode" },
-  { key: "p:/coffee", group: "Pages", label: "Coffee from terminal.shop", sub: "Playground · /coffee", href: "/coffee" },
+  { key: "p:/opencode", group: "Pages", label: t("OpenCode in the Console"), sub: "Playground · /opencode", href: "/opencode" },
+  { key: "p:/coffee", group: "Pages", label: t("Coffee from terminal.shop"), sub: "Playground · /coffee", href: "/coffee" },
 ];
+
+/** Group headings as shown; the ids stay English. */
+const GROUP_LABELS: Readonly<Record<string, string>> = { Pages: t("Pages"), Documentation: t("Documentation"), "Error Codes": t("Error Codes") };
+
+/** A doc's category id → its label; anything else (a page title) as is. */
+const subLabel = (sub: string | undefined): string | undefined => (sub && sub in CATEGORY_LABELS ? CATEGORY_LABELS[sub as DocCategory] : sub);
 
 const DEFAULT_DOCS: Item[] = DOCS_META.map((doc) => ({
   key: `d:${doc.slug}:`,
@@ -140,14 +148,14 @@ export function SearchModal(): ReactNode {
   let lastGroup = "";
   return (
     <div className="kbar-overlay" onMouseDown={(e) => e.target === e.currentTarget && setOpen(false)} data-console-bypass="">
-      <div className="kbar" role="dialog" aria-modal="true" aria-label="Search documentation">
+      <div className="kbar" role="dialog" aria-modal="true" aria-label={t("Search documentation")}>
         <div className="kbar-input">
           <SearchIcon size={16} />
           <input
             ref={input}
             value={query}
-            placeholder="Search documentation…"
-            aria-label="Search"
+            placeholder={t("Search documentation…")}
+            aria-label={t("Search")}
             type="search"
             enterKeyHint="go"
             autoComplete="off"
@@ -179,13 +187,13 @@ export function SearchModal(): ReactNode {
           />
           <kbd className="kbar-esc">esc</kbd>
           <button type="button" className="kbar-cancel" onClick={() => setOpen(false)}>
-            Cancel
+            {t("Cancel")}
           </button>
         </div>
         <div className="kbar-list" ref={list}>
-          {items.length === 0 ? <div className="kbar-group">No results for “{query}”.</div> : null}
+          {items.length === 0 ? <div className="kbar-group">{t("No results for “{query}”.", { query })}</div> : null}
           {items.map((item, i) => {
-            const header = item.group !== lastGroup ? <div className="kbar-group">{item.group}</div> : null;
+            const header = item.group !== lastGroup ? <div className="kbar-group">{GROUP_LABELS[item.group] ?? item.group}</div> : null;
             lastGroup = item.group;
             return (
               <div key={item.key}>
@@ -193,7 +201,7 @@ export function SearchModal(): ReactNode {
                 <button type="button" className="kbar-item" data-index={i} aria-selected={i === index} onMouseMove={() => setIndex(i)} onClick={() => go(item)}>
                   <span>{item.group === "Pages" ? "▼" : "#"}</span>
                   <span>{item.label}</span>
-                  {item.sub ? <span className="kbar-sub">{item.sub}</span> : null}
+                  {item.sub ? <span className="kbar-sub">{subLabel(item.sub)}</span> : null}
                 </button>
               </div>
             );
@@ -202,12 +210,12 @@ export function SearchModal(): ReactNode {
         <div className="kbar-foot">
           <span>
             <kbd>↑</kbd>
-            <kbd>↓</kbd> navigate
+            <kbd>↓</kbd> {t("navigate")}
           </span>
           <span>
-            <kbd>↵</kbd> open
+            <kbd>↵</kbd> {t("open")}
           </span>
-          <span style={{ marginInlineStart: "auto" }}>On docs pages, press <kbd>/</kbd> in the console to search</span>
+          <span style={{ marginInlineStart: "auto" }}>{rich("On docs pages, press <key>/</key> in the console to search", { key: (c) => <kbd>{c}</kbd> })}</span>
         </div>
       </div>
     </div>

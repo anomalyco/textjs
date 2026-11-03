@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { plural, t } from "../i18n/t";
 import { A } from "../router";
 import { CloseIcon } from "../site/icons";
 import { useScrollLock } from "../site/Sheet";
@@ -28,12 +29,12 @@ function Collection({ provider, bag }: { provider: CheckoutProvider | null; bag:
     <div className="merch-container">
       <header className="merch-head">
         <div>
-          <h1>Store</h1>
-          <p>{provider ? "Made to order." : "Made to order. Coming soon."}</p>
+          <h1>{t("Store")}</h1>
+          <p>{provider ? t("Made to order.") : t("Made to order. Coming soon.")}</p>
         </div>
         {bag}
       </header>
-      <ul className="merch-grid" aria-label="Products">
+      <ul className="merch-grid" aria-label={t("Products")}>
         {PRODUCTS.map((p, i) => (
           <li key={p.slug}>
             <ProductCard product={p} flag={flagFor(p, provider)} eager={i < 3} priority={i === 0} />
@@ -46,8 +47,8 @@ function Collection({ provider, bag }: { provider: CheckoutProvider | null; bag:
 
 /** The label on a product image, vercel.store style: Coming soon or Pre-order. */
 function flagFor(p: Product, provider: CheckoutProvider | null): string | null {
-  if (!onSale(provider, p.slug, p.sizes)) return "Coming soon";
-  return saleOf(p.slug).preorder ? "Pre-order" : null;
+  if (!onSale(provider, p.slug, p.sizes)) return t("Coming soon");
+  return saleOf(p.slug).preorder ? t("Pre-order") : null;
 }
 
 function ProductCard({
@@ -132,8 +133,8 @@ function ProductView({ product: p, provider, bag, onAdded }: { product: Product;
         <Gallery product={p} />
         <div className="merch-info">
           <div className="merch-info-top">
-            <nav aria-label="Breadcrumb" className="merch-crumbs">
-              <A href="/store">Store</A>
+            <nav aria-label={t("Breadcrumb")} className="merch-crumbs">
+              <A href="/store">{t("Store")}</A>
               <span aria-hidden="true">/</span>
               <span aria-current="page">{p.name}</span>
             </nav>
@@ -150,13 +151,13 @@ function ProductView({ product: p, provider, bag, onAdded }: { product: Product;
           <SizePicker product={p} provider={provider} value={size} onChange={setSize} />
           <BuyBox product={p} provider={provider} size={size} onAdded={onAdded} />
           <section className="merch-section" aria-labelledby="merch-description">
-            <h2 id="merch-description">Description</h2>
+            <h2 id="merch-description">{t("Description")}</h2>
             {p.description.map((d) => (
               <p key={d}>{d}</p>
             ))}
           </section>
           <section className="merch-section" aria-labelledby="merch-details">
-            <h2 id="merch-details">Details</h2>
+            <h2 id="merch-details">{t("Details")}</h2>
             <ul>
               {p.details.map((d) => (
                 <li key={d}>{d}</li>
@@ -164,7 +165,7 @@ function ProductView({ product: p, provider, bag, onAdded }: { product: Product;
             </ul>
           </section>
           <section className="merch-section" aria-labelledby="merch-care">
-            <h2 id="merch-care">Care</h2>
+            <h2 id="merch-care">{t("Care")}</h2>
             <ul>
               {p.care.map((d) => (
                 <li key={d}>{d}</li>
@@ -175,7 +176,7 @@ function ProductView({ product: p, provider, bag, onAdded }: { product: Product;
         </div>
       </div>
       <section className="merch-container merch-more" aria-labelledby="merch-more">
-        <h2 id="merch-more">More from the collection</h2>
+        <h2 id="merch-more">{t("More from the collection")}</h2>
         <ul className="merch-grid merch-grid-compact">
           {more.map((o) => (
             <li key={o.slug}>
@@ -242,10 +243,10 @@ function Gallery({ product: p }: { product: Product }): ReactNode {
         </div>
         {count > 1 ? (
           <>
-            <button type="button" className="merch-arrow merch-arrow-prev" onClick={() => go(index - 1)} aria-label="Previous image">
+            <button type="button" className="merch-arrow merch-arrow-prev" onClick={() => go(index - 1)} aria-label={t("Previous image")}>
               <Chevron dir="left" />
             </button>
-            <button type="button" className="merch-arrow merch-arrow-next" onClick={() => go(index + 1)} aria-label="Next image">
+            <button type="button" className="merch-arrow merch-arrow-next" onClick={() => go(index + 1)} aria-label={t("Next image")}>
               <Chevron dir="right" />
             </button>
           </>
@@ -254,7 +255,7 @@ function Gallery({ product: p }: { product: Product }): ReactNode {
       {count > 1 ? (
         <div className="merch-thumbs">
           {p.images.map((image, i) => (
-            <button key={image.small} type="button" className="merch-thumb" aria-label={`Show image ${i + 1} of ${count}`} aria-current={i === index ? "true" : undefined} onClick={() => go(i)}>
+            <button key={image.small} type="button" className="merch-thumb" aria-label={t("Show image {n} of {count}", { n: i + 1, count })} aria-current={i === index ? "true" : undefined} onClick={() => go(i)}>
               <img src={image.small} width={IMAGE_WIDTH} height={IMAGE_HEIGHT} alt="" loading="lazy" decoding="async" />
             </button>
           ))}
@@ -277,14 +278,14 @@ function SizePicker({ product: p, provider, value, onChange }: { product: Produc
   if (p.sizes.length === 0)
     return (
       <div className="merch-field">
-        <span className="merch-label">Size</span>
-        <p className="merch-onesize">One size</p>
+        <span className="merch-label">{t("Size")}</span>
+        <p className="merch-onesize">{t("One size")}</p>
         {p.fit ? <p className="merch-fit">{p.fit}</p> : null}
       </div>
     );
   return (
     <fieldset className="merch-field">
-      <legend className="merch-label">Size</legend>
+      <legend className="merch-label">{t("Size")}</legend>
       <div className="merch-sizes">
         {p.sizes.map((s) => {
           const out = provider !== null && onSale(provider, p.slug, p.sizes) && !provider.sells({ slug: p.slug, size: s });
@@ -292,7 +293,7 @@ function SizePicker({ product: p, provider, value, onChange }: { product: Produc
             <label key={s} className={`merch-size${out ? " is-out" : ""}`}>
               <input type="radio" name={name} value={s} checked={value === s} onChange={() => onChange(s)} disabled={out} />
               <span>{s}</span>
-              {out ? <span className="sr-only"> (sold out)</span> : null}
+              {out ? <span className="sr-only">{t(" (sold out)")}</span> : null}
             </label>
           );
         })}
@@ -310,21 +311,22 @@ function BuyBox({ product: p, provider, size, onAdded }: { product: Product; pro
     return (
       <div className="merch-buy">
         <button type="button" className="btn btn-secondary btn-lg merch-buy-btn" disabled>
-          Coming soon
+          {t("Coming soon")}
         </button>
       </div>
     );
   }
-  const label = sale.preorder ? "Pre-order" : provider.cart ? "Add to cart" : "Buy";
+  const label = sale.preorder ? t("Pre-order") : provider.cart ? t("Add to cart") : t("Buy");
   const needsSize = p.sizes.length > 0 && size === null;
   const line = { slug: p.slug, size: p.sizes.length ? (size ?? "") : "", quantity: 1 };
   const status = hint ? (
     <p id="merch-status" className="merch-status" role="status">
-      Select a size.
+      {t("Select a size.")}
     </p>
   ) : (
     <p id="merch-status" className="merch-status">
-      {sale.shipping ? `${sale.shipping} ` : ""}Checkout on {provider.name}.
+      {sale.shipping ? `${sale.shipping} ` : ""}
+      {t("Checkout on {provider}.", { provider: provider.name })}
     </p>
   );
   if (provider.cart) {
@@ -368,11 +370,11 @@ function SizeGuideTable({ product: p }: { product: Product }): ReactNode {
   if (!g) return null;
   return (
     <details className="merch-guide">
-      <summary>Size guide</summary>
+      <summary>{t("Size guide")}</summary>
       <table>
         <thead>
           <tr>
-            <th scope="col">Size</th>
+            <th scope="col">{t("Size")}</th>
             {g.columns.map((c) => (
               <th key={c} scope="col">
                 {c}
@@ -401,8 +403,8 @@ function SizeGuideTable({ product: p }: { product: Product }): ReactNode {
 function CartButton({ onClick }: { onClick: () => void }): ReactNode {
   const count = useCart().reduce((n, l) => n + l.quantity, 0);
   return (
-    <button type="button" className="merch-bag" onClick={onClick} aria-label={`Cart, ${count} ${count === 1 ? "item" : "items"}`}>
-      <span>Cart</span>
+    <button type="button" className="merch-bag" onClick={onClick} aria-label={plural(count, { one: "Cart, {count} item", other: "Cart, {count} items" })}>
+      <span>{t("Cart")}</span>
       <span className="merch-bag-count">{count}</span>
     </button>
   );
@@ -455,13 +457,13 @@ function CartDrawer({ open, onClose, provider }: { open: boolean; onClose: () =>
       <div className="sheet-scrim" onClick={onClose} aria-hidden="true" />
       <div ref={panel} className="merch-drawer" role="dialog" aria-modal="true" aria-labelledby={title} tabIndex={-1}>
         <div className="merch-drawer-head">
-          <h2 id={title}>Cart</h2>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close cart">
+          <h2 id={title}>{t("Cart")}</h2>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label={t("Close cart")}>
             <CloseIcon />
           </button>
         </div>
         {items.length === 0 ? (
-          <p className="merch-drawer-empty">Your cart is empty.</p>
+          <p className="merch-drawer-empty">{t("Your cart is empty.")}</p>
         ) : (
           <ul className="merch-lines">
             {items.map(({ line, product }) => (
@@ -471,17 +473,17 @@ function CartDrawer({ open, onClose, provider }: { open: boolean; onClose: () =>
         )}
         <div className="merch-drawer-foot">
           <div className="merch-subtotal">
-            <span>Subtotal</span>
+            <span>{t("Subtotal")}</span>
             <span>{formatPrice(subtotal)}</span>
           </div>
-          <p className="merch-status">Shipping and taxes at checkout.</p>
+          <p className="merch-status">{t("Shipping and taxes at checkout.")}</p>
           {checkout && items.length > 0 ? (
             <a href={checkout} className="btn btn-primary btn-lg merch-buy-btn">
-              Check out
+              {t("Check out")}
             </a>
           ) : (
             <button type="button" className="btn btn-primary btn-lg merch-buy-btn" disabled>
-              Check out
+              {t("Check out")}
             </button>
           )}
         </div>
@@ -493,7 +495,7 @@ function CartDrawer({ open, onClose, provider }: { open: boolean; onClose: () =>
 
 function CartRow({ line, product }: { line: CartLine; product: Product }): ReactNode {
   const image = product.images[0] as ProductImage;
-  const label = line.size ? `${product.name}, size ${line.size}` : product.name;
+  const label = line.size ? t("{name}, size {size}", { name: product.name, size: line.size }) : product.name;
   return (
     <li className="merch-line">
       <img src={image.small} width={IMAGE_WIDTH} height={IMAGE_HEIGHT} alt="" />
@@ -507,11 +509,11 @@ function CartRow({ line, product }: { line: CartLine; product: Product }): React
           {line.size ? ` · ${line.size}` : ""}
         </p>
         <div className="merch-qty">
-          <button type="button" onClick={() => cart.setQuantity(line, line.quantity - 1)} aria-label={`Remove one ${label}`}>
+          <button type="button" onClick={() => cart.setQuantity(line, line.quantity - 1)} aria-label={t("Remove one {item}", { item: label })}>
             −
           </button>
-          <span aria-label={`Quantity ${line.quantity}`}>{line.quantity}</span>
-          <button type="button" onClick={() => cart.setQuantity(line, line.quantity + 1)} aria-label={`Add one ${label}`}>
+          <span aria-label={t("Quantity {n}", { n: line.quantity })}>{line.quantity}</span>
+          <button type="button" onClick={() => cart.setQuantity(line, line.quantity + 1)} aria-label={t("Add one {item}", { item: label })}>
             +
           </button>
         </div>

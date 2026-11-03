@@ -5,8 +5,8 @@
 //   bun run build && bun run preview   (or: bun run dev)
 //   PLAYWRIGHT=/path/to/playwright-core BASE=http://localhost:3000 node scripts/e2e-miniplayer.mjs
 //
-// media.textjs.org only allows CORS from textjs.org and localhost:3000. On another port, point MEDIA at a folder with
-// getting-started-720p.mp4, getting-started-poster.jpg and getting-started.vtt and the requests are served from it.
+// Captions come from the site itself. To test without media.textjs.org, point MEDIA at a folder with
+// getting-started-720p.mp4 and getting-started-poster.jpg and the requests are served from it.
 // Playwright's Chromium has no H.264: CHANNEL=chrome runs the installed Google Chrome. SHOTS=dir saves screenshots.
 import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";

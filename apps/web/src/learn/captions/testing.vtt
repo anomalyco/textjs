@@ -1,0 +1,223 @@
+WEBVTT
+
+1
+00:00:01.300 --> 00:00:03.650
+Welcome back to Learn Text.js.
+
+2
+00:00:03.700 --> 00:00:06.740
+This is chapter eight: Testing.
+
+3
+00:00:07.660 --> 00:00:12.570
+@textjs/app/testing
+renders your app offscreen
+
+4
+00:00:12.620 --> 00:00:16.117
+and presses keys, into a
+grid of cells in memory.
+
+5
+00:00:16.167 --> 00:00:20.970
+Then you read the frame back as plain
+text: lastFrame returns all of it,
+
+6
+00:00:21.020 --> 00:00:26.437
+lines returns it row by row, and cell
+gives you one cell's character and colors.
+
+7
+00:00:26.487 --> 00:00:31.340
+It runs in Bun, Vitest or
+Jest, with no browser involved.
+
+8
+00:00:32.860 --> 00:00:35.340
+Let's write the first test.
+
+9
+00:00:37.260 --> 00:00:40.370
+Tests sit next to the page they test.
+
+10
+00:00:40.420 --> 00:00:46.863
+Import render and cleanup from
+@textjs/app/testing, along with the page.
+
+11
+00:00:46.913 --> 00:00:50.490
+afterEach cleanup unmounts
+whatever a test rendered.
+
+12
+00:00:50.540 --> 00:00:55.290
+render mounts the page in a grid
+80 cells wide and 12 rows tall.
+
+13
+00:00:55.340 --> 00:00:58.170
+Without options, it's 80 by 24.
+
+14
+00:00:58.220 --> 00:01:02.370
+The page fetches its deployments, so
+wait for the first one to show up,
+
+15
+00:01:02.420 --> 00:01:04.890
+then check that the
+frame has twelve lines.
+
+16
+00:01:04.940 --> 00:01:10.010
+To keep tests offline, stub
+globalThis.fetch in a beforeEach,
+
+17
+00:01:10.060 --> 00:01:13.340
+or pass the page its data as props.
+
+18
+00:01:15.260 --> 00:01:18.140
+Next, pressing keys.
+
+19
+00:01:19.660 --> 00:01:22.970
+press takes the same key
+strings as useKeymap.
+
+20
+00:01:23.020 --> 00:01:26.890
+Each call runs inside act and
+flushes the frames it causes,
+
+21
+00:01:26.940 --> 00:01:29.490
+so the next assertion sees the update.
+
+22
+00:01:29.540 --> 00:01:33.370
+Press down, and the highlight should
+move to the second deployment.
+
+23
+00:01:33.420 --> 00:01:38.490
+In the next test, pressing 4
+sorts by the fourth column, Build.
+
+24
+00:01:38.540 --> 00:01:40.250
+locate finds text in the frame,
+
+25
+00:01:40.300 --> 00:01:44.940
+so the 12-second build should
+now sit above the 52-second one.
+
+26
+00:01:46.860 --> 00:01:49.020
+Now, run it.
+
+27
+00:01:51.260 --> 00:01:53.530
+Run the suite with bun test.
+
+28
+00:01:53.580 --> 00:01:59.050
+Any runner that supports async
+tests works: Bun, Vitest or Jest.
+
+29
+00:01:59.100 --> 00:02:03.450
+On the lesson page, click the
+pad first, so the page has focus.
+
+30
+00:02:03.500 --> 00:02:05.530
+Press Enter to run the suite.
+
+31
+00:02:05.580 --> 00:02:07.610
+All five tests pass.
+
+32
+00:02:07.660 --> 00:02:11.170
+Press F to break one, and the
+failure shows the assertion,
+
+33
+00:02:11.220 --> 00:02:13.980
+and what the frame contained instead.
+
+34
+00:02:16.300 --> 00:02:18.810
+One more method, for snapshots.
+
+35
+00:02:18.860 --> 00:02:22.250
+toAnsi returns the
+frame as truecolor ANSI,
+
+36
+00:02:22.300 --> 00:02:25.690
+so a snapshot records the
+colors along with the text,
+
+37
+00:02:25.740 --> 00:02:28.540
+and catches color regressions too.
+
+38
+00:02:30.340 --> 00:02:31.410
+Quick check.
+
+39
+00:02:31.460 --> 00:02:36.820
+What does @textjs/app/testing need to run?
+
+40
+00:02:38.140 --> 00:02:40.730
+Any test runner with async tests.
+
+41
+00:02:40.780 --> 00:02:43.730
+It renders offscreen
+into a buffer of cells,
+
+42
+00:02:43.780 --> 00:02:47.500
+so there's no browser
+and no DevTools involved.
+
+43
+00:02:48.620 --> 00:02:52.300
+And what does app.lastFrame() return?
+
+44
+00:02:53.620 --> 00:02:56.110
+The frame, as plain text.
+
+45
+00:02:56.160 --> 00:02:58.910
+Frames are trimmed on the
+right and at the bottom,
+
+46
+00:02:58.960 --> 00:03:02.560
+so they make stable
+assertions and snapshots.
+
+47
+00:03:04.280 --> 00:03:06.070
+Next, in chapter nine,
+
+48
+00:03:06.120 --> 00:03:10.470
+you'll run the same dashboard
+full-screen in a terminal, with text run.
+
+49
+00:03:10.520 --> 00:03:12.120
+See you there.
