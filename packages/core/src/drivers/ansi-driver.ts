@@ -71,6 +71,7 @@ function sgr(fg: PackedColor, bg: PackedColor, attrs: number, assumedBg: PackedC
 
 /** Render a buffer to a truecolor ANSI string. */
 export function renderToAnsi(buffer: CellBuffer, options: AnsiRenderOptions = {}): string {
+  if (buffer.sprites.length > 0) buffer.ensureSpritesMaterialized();
   const sep = options.lineSeparator ?? "\n";
   const assumedBg = options.assumedBg ?? 0x09090bff;
   const W = buffer.width;

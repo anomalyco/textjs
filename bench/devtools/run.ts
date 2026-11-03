@@ -516,6 +516,8 @@ async function runSingleBenchmark(
           framesCaptured: 0,
           blankFrames: 0,
           renderedFrames: 0,
+          distinctVisualFrames: 0,
+          visualFps: 0,
           blankFramePct: 0,
           timeWeightedBlankPct: 0,
         };
@@ -698,7 +700,7 @@ function printComparisonTables(results: BenchmarkRunMetrics[], showScreencast: b
       : []),
     `${r.frontend.distinctFramesPainted} / ${r.page.emittedFrames}`,
     `${r.frontend.droppedFramePct.toFixed(1)}%`,
-    `${r.frontend.effectiveConsoleFps.toFixed(1)}`,
+    `${r.frontend.screencast.visualFps > r.frontend.effectiveConsoleFps ? `${r.frontend.screencast.visualFps.toFixed(1)} (${r.frontend.effectiveConsoleFps.toFixed(1)} dom)` : r.frontend.effectiveConsoleFps.toFixed(1)}`,
     `${r.frontend.lagFrames.p50.toFixed(0)} / ${r.frontend.lagFrames.p95.toFixed(0)}`,
     `${r.frontend.lagMs.p50.toFixed(1)} / ${r.frontend.lagMs.p95.toFixed(1)}ms`,
   ]);

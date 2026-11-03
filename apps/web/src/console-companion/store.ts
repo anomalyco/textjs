@@ -32,7 +32,7 @@ export const PRESETS: readonly Preset[] = [
   { id: "dashboard", label: "Dashboard", description: "Live metrics", action: "press ← →", hints: [{ keys: "← →", label: "switch region" }] },
   { id: "streaming", label: "Streaming", description: "Streaming Markdown and diffs", action: "press r", hints: [{ keys: "r", label: "stream again" }] },
   { id: "snake", label: "Snake", description: "A game loop", action: "press an arrow key", hints: [{ keys: "← ↑ → ↓", label: "steer" }, { keys: "Space", label: "pause" }] },
-  { id: "doom", label: "Doom", description: "The shareware episode", action: "press Enter", hints: [{ keys: "↑ ↓ ← →", label: "move" }, { keys: "Ctrl F", label: "fire" }, { keys: "Space", label: "open" }, { keys: "Enter", label: "menu" }] },
+  { id: "doom", label: "Doom", description: "The shareware episode", action: "press Enter", hints: [{ keys: "↑ ↓ ← →", label: "move" }, { keys: "Ctrl F", label: "fire" }, { keys: "Space", label: "open" }] },
 ];
 
 const DEFAULT_PRESET = (PRESETS[0] as Preset).id;

@@ -1,4 +1,5 @@
 import { colorToCss, type PackedColor } from "../color";
+import type { PixelFit } from "../pixels";
 import {
   ATTR_ALLOW_LINK,
   ATTR_BOLD,
@@ -33,10 +34,24 @@ export interface StyledSpan {
   allowLink: boolean;
 }
 
+export interface StyledSprite {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  sourceWidth: number;
+  sourceHeight: number;
+  fit: PixelFit;
+  pixelAspect: number;
+  /** `data:image/png;base64,...` of the current frame. */
+  dataUrl: string;
+}
+
 export interface StyledFrame {
   width: number;
   height: number;
   rows: StyledSpan[][];
+  sprites?: readonly StyledSprite[];
 }
 
 const ASCII_STRINGS: readonly string[] = Array.from({ length: 128 }, (_, i) => String.fromCharCode(i));
@@ -47,12 +62,14 @@ interface BufferSnapshotCache {
   styleKey: string;
   prevHashes: Uint32Array;
   rows: Array<StyledSpan[] | undefined>;
+  spriteUrls: Map<number, string>;
 }
 
 const snapshotCache = new WeakMap<CellBuffer, BufferSnapshotCache>();
 
 /** Extract a serializable styled snapshot of a buffer for DOM mirrors and docs playgrounds. */
 export function extractStyledFrame(buffer: CellBuffer, style: Partial<StyleResolveOptions> = {}): StyledFrame {
+  if (buffer.sprites.length > 0) buffer.ensureSpritesMaterialized();
   const hasCustomStyle =
     style.inverseFg !== undefined ||
     style.inverseBg !== undefined ||
@@ -71,6 +88,7 @@ export function extractStyledFrame(buffer: CellBuffer, style: Partial<StyleResol
       styleKey,
       prevHashes: new Uint32Array(H),
       rows: new Array<StyledSpan[] | undefined>(H),
+      spriteUrls: new Map<number, string>(),
     };
     snapshotCache.set(buffer, cache);
   }
@@ -130,5 +148,29 @@ export function extractStyledFrame(buffer: CellBuffer, style: Partial<StyleResol
     cachedRows[y] = spans;
     rows[y] = spans;
   }
-  return { width: W, height: H, rows };
+  if (buffer.sprites.length === 0) return { width: W, height: H, rows };
+
+  const sprites: StyledSprite[] = [];
+  for (const sp of buffer.sprites) {
+    let dataUrl = cache.spriteUrls.get(sp.hash);
+    if (dataUrl === undefined) {
+      dataUrl = sp.codec.encodePngDataUrl(sp);
+      if (cache.spriteUrls.size >= 16) cache.spriteUrls.clear();
+      cache.spriteUrls.set(sp.hash, dataUrl);
+    }
+    if (dataUrl) {
+      sprites.push({
+        x: sp.x,
+        y: sp.y,
+        width: sp.width,
+        height: sp.height,
+        sourceWidth: sp.sourceWidth,
+        sourceHeight: sp.sourceHeight,
+        fit: sp.fit,
+        pixelAspect: sp.pixelAspect,
+        dataUrl,
+      });
+    }
+  }
+  return sprites.length > 0 ? { width: W, height: H, rows, sprites } : { width: W, height: H, rows };
 }

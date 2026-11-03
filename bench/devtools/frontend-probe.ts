@@ -43,6 +43,8 @@ export interface ScreencastAnalysis {
   framesCaptured: number;
   blankFrames: number;
   renderedFrames: number;
+  distinctVisualFrames: number;
+  visualFps: number;
   blankFramePct: number;
   timeWeightedBlankPct: number;
 }
@@ -226,7 +228,8 @@ export async function runFrontendProbe(
                   }
                 }
                 const visibleHeight = Math.min(r.bottom, vpRect.bottom) - Math.max(r.top, vpRect.top);
-                if (lineBreaks + 1 >= expectedRows && visibleHeight >= 150) {
+                const fullHeight = r.height >= (expectedRows - 1) * 13;
+                if ((lineBreaks + 1 >= expectedRows || fullHeight) && visibleHeight >= 150) {
                   foundState = "valid";
                 } else {
                   foundState = "incomplete";
@@ -359,6 +362,8 @@ export async function analyzeScreencastFrames(
       framesCaptured: 0,
       blankFrames: 0,
       renderedFrames: 0,
+      distinctVisualFrames: 0,
+      visualFps: 0,
       blankFramePct: 0,
       timeWeightedBlankPct: 0,
     };
@@ -369,6 +374,8 @@ export async function analyzeScreencastFrames(
       const states: Array<{ epochMs: number; isBlank: boolean }> = [];
       let blankFrames = 0;
       let renderedFrames = 0;
+      let distinctVisualFrames = 0;
+      let prevSig = "";
 
       // Sample 4 horizontal scanlines inside the console messages area (avoiding the top 25px where "Console was cleared" sits)
       const yOffsets = [0.22, 0.4, 0.58, 0.75];
@@ -387,6 +394,7 @@ export async function analyzeScreencastFrames(
 
         let dashboardPixels = 0;
         let totalSampled = 0;
+        let sig = "";
         for (const frac of yOffsets) {
           const y = Math.min(
             bmp.height - 1,
@@ -403,13 +411,22 @@ export async function analyzeScreencastFrames(
             if (r < 90 && g < 90 && b < 90) {
               dashboardPixels++;
             }
+            if ((totalSampled & 3) === 1) {
+              sig += `${r >> 3},${g >> 3},${b >> 3};`;
+            }
           }
         }
         bmp.close();
 
         const isBlank = totalSampled === 0 || dashboardPixels / totalSampled < 0.25;
         if (isBlank) blankFrames++;
-        else renderedFrames++;
+        else {
+          renderedFrames++;
+          if (sig !== prevSig && f.epochMs >= startEpochMs && f.epochMs <= endEpochMs) {
+            distinctVisualFrames++;
+            prevSig = sig;
+          }
+        }
         states.push({ epochMs: f.epochMs, isBlank });
       }
 
@@ -426,10 +443,13 @@ export async function analyzeScreencastFrames(
       }
 
       const total = frames.length;
+      const durSec = Math.max(0.001, (endEpochMs - startEpochMs) / 1000);
       return {
         framesCaptured: total,
         blankFrames,
         renderedFrames,
+        distinctVisualFrames,
+        visualFps: distinctVisualFrames / durSec,
         blankFramePct: total > 0 ? (blankFrames / total) * 100 : 0,
         timeWeightedBlankPct: totalTimeMs > 0 ? (blankTimeMs / totalTimeMs) * 100 : 0,
       };

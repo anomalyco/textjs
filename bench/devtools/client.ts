@@ -4,6 +4,7 @@ import {
   CssConsoleDriver,
   createNode,
   createRawText,
+  drawPixels,
   initYoga,
   paintScene,
   type ConsoleTarget,
@@ -664,8 +665,32 @@ async function boot(): Promise<void> {
       for (let i = 0; i < label.length && i < opts.cols; i++) buf.setCell(i, 0, label[i] as string, 0xa1a1aaff, 0x000000ff);
       const src = { width: 320, height: 200, data: posterize(host.source.data, doomScratch, levels) };
       const q = new URLSearchParams(window.location.search);
-      const palette = q.get("palette") === "32" ? DOOM_PALETTE_32 : q.get("palette") === "64" ? DOOM_PALETTE_64 : undefined;
-      paintHalfBlocks(buf, { x: 0, y: 1, width: opts.cols, height: opts.rows - 1 }, src, "fill", 1, palette, q.get("sample") === "average" ? "average" : "nearest");
+      const mode = q.get("mode") === "halfblock" ? "halfblock" : q.get("mode") === "image" ? "image" : "auto";
+      const palette =
+        q.get("palette") === "32"
+          ? DOOM_PALETTE_32
+          : q.get("palette") === "64"
+            ? DOOM_PALETTE_64
+            : q.get("palette") === "256" || mode === "halfblock"
+              ? undefined
+              : DOOM_PALETTE_64;
+      const sample = q.get("sample") === "average" ? "average" : "nearest";
+      if (mode === "halfblock") {
+        paintHalfBlocks(buf, { x: 0, y: 1, width: opts.cols, height: opts.rows - 1 }, src, "fill", 1, palette, sample);
+      } else {
+        drawPixels(buf, {
+          x: 0,
+          y: 1,
+          width: opts.cols,
+          height: opts.rows - 1,
+          source: src,
+          fit: q.get("fit") === "fill" ? "fill" : "contain",
+          pixelAspect: q.get("fit") === "fill" ? 1 : 5 / 6,
+          palette,
+          sample,
+          renderMode: mode,
+        });
+      }
     };
     (window as unknown as { __doomTicks: number[] }).__doomTicks = tickSamples;
 
@@ -692,6 +717,8 @@ async function boot(): Promise<void> {
     return new Promise<PageStreamResult>((resolve) => {
       const startPerf = performance.now();
       const intervalMs = 1000 / opts.fps;
+      let lastLogAt = -Infinity;
+      let lastLogCleared = false;
 
       const emitOneFrame = (): void => {
         frameId++;
@@ -706,8 +733,28 @@ async function boot(): Promise<void> {
         }
         const afterPaint = performance.now();
 
+        const useTemporal =
+          doom !== null && buf.sprites.length > 0 && driver.supportsTemporalSprites && parsed.mode === "native" && intervalMs < 51;
+        const minEmitGap = lastLogCleared ? 110 : 51;
+        if (useTemporal && afterPaint - lastLogAt < minEmitGap) {
+          driver.stageKeyframe(buf, afterPaint);
+          const afterStage = performance.now();
+          layoutPaintSamples.push(afterPaint - f0);
+          encodeSamples.push(afterStage - afterPaint);
+          consoleCallSamples.push(0);
+          totalFrameSamples.push(afterStage - f0);
+          frameEmitEpochs.push(emitEpoch);
+          window.__latestEmittedFrame = frameId;
+          return;
+        }
+
+        const clearsBefore = target.clearsCalled;
         const res = driver.render(buf, { force: !doom });
         const afterRender = performance.now();
+        if (!res.skipped) {
+          lastLogAt = afterRender;
+          lastLogCleared = target.clearsCalled > clearsBefore;
+        }
 
         const lpMs = afterPaint - f0;
         const callMs = target.lastCallMs;
@@ -778,7 +825,8 @@ async function boot(): Promise<void> {
           const clearsBefore = target.clearsCalled;
           emitOneFrame();
           const didClear = target.clearsCalled > clearsBefore;
-          if (didClear && parsed.mode === "native") {
+          const spriteTemporal = doom !== null && buf.sprites.length > 0 && driver.supportsTemporalSprites;
+          if (didClear && parsed.mode === "native" && !spriteTemporal) {
             nextTarget = performance.now() + Math.max(intervalMs, 110);
           } else {
             nextTarget += intervalMs;

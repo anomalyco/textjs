@@ -109,13 +109,49 @@ export function ConsoleMirror({
         overflowX: "auto",
         overflowY: "hidden",
         userSelect: "text",
+        position: "relative",
         ...(frame === null ? null : { height: frame.height * lineHeight, contain: "layout paint style" }),
       }}
     >
       {frame === null ? (
         <div style={{ color: c.muted, padding: "8px 0" }}>Waiting for the first frame…</div>
       ) : (
-        frame.rows.map((row, y) => <Row key={y} spans={row} height={lineHeight} />)
+        <>
+          {frame.rows.map((row, y) => (
+            <Row key={y} spans={row} height={lineHeight} />
+          ))}
+          {frame.sprites?.map((sp, i) => (
+            <div
+              key={`sp-${i}`}
+              style={{
+                position: "absolute",
+                left: `${(sp.x / Math.max(1, frame.width)) * 100}%`,
+                top: sp.y * lineHeight,
+                width: `${(sp.width / Math.max(1, frame.width)) * 100}%`,
+                height: sp.height * lineHeight,
+                background: fill,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                pointerEvents: "none",
+              }}
+            >
+              <img
+                src={sp.dataUrl}
+                alt=""
+                style={{
+                  width: sp.fit === "fill" ? "100%" : "auto",
+                  height: sp.fit === "fill" ? "100%" : "100%",
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  aspectRatio: sp.fit === "fill" ? undefined : `${sp.sourceWidth * sp.pixelAspect} / ${sp.sourceHeight}`,
+                  objectFit: sp.fit === "fill" ? "fill" : "contain",
+                  imageRendering: "pixelated",
+                }}
+              />
+            </div>
+          ))}
+        </>
       )}
     </div>
   );

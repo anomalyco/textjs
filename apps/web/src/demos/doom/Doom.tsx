@@ -2,13 +2,10 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Box, Pixels, Text, useInput, useKeyState, useViewport, type PixelSource } from "@textjs/react";
 import wasmUrl from "./engine/out/doom.wasm?url";
 import { createDoom, type DoomHost, type DoomKeys } from "./host";
-import { DOOM_PALETTE_64 } from "./palette";
 
 // id's shareware DOOM1.WAD v1.9, unmodified (see fetch-wad.ts). Served from /public beside its README and licence.
 const WAD_URL = "/doom/DOOM1.WAD";
-// DevTools keeps up with ~1,300 %c spans a frame at 10fps; 80 columns of Doom is about that (see bench/doom).
-const MAX_COLS = 80;
-const FRAME_MS = 100;
+const TIC_MS = 1000 / 35;
 
 /** Physical key → Doom key. Letters and digits not listed here go through as themselves (menus, weapons, y/n). */
 const BINDINGS: Record<string, keyof DoomKeys> = {
@@ -41,7 +38,7 @@ function doomKeyFor(code: string, keys: DoomKeys): number | null {
   const bound = BINDINGS[code];
   if (bound) return keys[bound];
   const m = /^(?:Key([A-Z])|Digit(\d))$/.exec(code);
-  if (m) return (m[1] ?? m[2] as string).toLowerCase().charCodeAt(0);
+  if (m) return (m[1] ?? (m[2] as string)).toLowerCase().charCodeAt(0);
   return null;
 }
 
@@ -59,7 +56,10 @@ export function DoomDemo({ reserveRows = 4 }: { reserveRows?: number }): ReactNo
 
   useEffect(() => {
     let live = true;
-    Promise.all([fetch(wasmUrl).then((r) => r.arrayBuffer()), fetch(WAD_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`${r.status}`))))])
+    Promise.all([
+      fetch(wasmUrl).then((r) => r.arrayBuffer()),
+      fetch(WAD_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`${r.status}`)))),
+    ])
       .then(([wasm, wad]) => {
         clock.current = { offset: performance.now(), stoppedAt: null };
         return createDoom({ wasm, wads: [new Uint8Array(wad)], now });
@@ -89,26 +89,37 @@ export function DoomDemo({ reserveRows = 4 }: { reserveRows?: number }): ReactNo
       c.offset += performance.now() - c.stoppedAt;
       c.stoppedAt = null;
     }
-    // Doom simulates at 35Hz on its own clock; we only sample a frame as often as DevTools can paint one.
-    const id = setInterval(() => {
+    // Poll Doom's native 35Hz tic clock on animation frames, with a timer backup while DevTools holds focus.
+    let raf = 0;
+    const step = (): void => {
       if (host.current?.tick()) setFrame((f) => f + 1);
-    }, FRAME_MS);
-    return () => clearInterval(id);
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    const timer = setInterval(() => {
+      if (host.current?.tick()) setFrame((f) => f + 1);
+    }, TIC_MS);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearInterval(timer);
+    };
   }, [running]);
 
   useKeyState((e) => {
     const h = host.current;
     const k = h ? doomKeyFor(e.code, h.keys) : null;
     if (h === null || k === null) return;
-    if (e.down) h.keyDown(k);
-    else h.keyUp(k);
+    if (e.down) {
+      h.keyDown(k);
+      if (running && h.tick()) setFrame((f) => f + 1);
+    } else h.keyUp(k);
   });
   // Keep bound keys away from the site's own shortcuts.
   useInput((e) => {
     if (status === "ready" && host.current && doomKeyFor(e.code, host.current.keys) !== null) e.stopPropagation();
   });
 
-  const cols = Math.max(20, Math.min(MAX_COLS, vp.cols - 4));
+  const cols = Math.max(20, vp.cols - 4);
   const rows = Math.max(8, vp.rows - reserveRows - 3);
   if (status !== "ready" || host.current === null) {
     return (
@@ -120,7 +131,7 @@ export function DoomDemo({ reserveRows = 4 }: { reserveRows?: number }): ReactNo
   const source: PixelSource = host.current.source;
   return (
     <Box className="flex-col grow items-center">
-      <Pixels source={source} frame={frame} width={cols} height={rows} pixelAspect={5 / 6} palette={DOOM_PALETTE_64} sample="average" />
+      <Pixels source={source} frame={frame} width={cols} height={rows} pixelAspect={5 / 6} />
       <Text color="subtle">DOOM shareware © id Software</Text>
     </Box>
   );

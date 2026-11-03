@@ -14,6 +14,7 @@ import {
   Image,
   Kbd,
   LineChart,
+  Pixels,
   ProgressBar,
   resamplePixels,
   sampleGradient,
@@ -160,6 +161,31 @@ describe("<Image>", () => {
   test("shows alt text without pixels", async () => {
     const app = await render(<Image alt="logo.png" width={12} />, { cols: 12, rows: 1 });
     expect(app.lastFrame()).toContain("logo.png");
+  });
+});
+
+describe("<Pixels>", () => {
+  test("renders live framebuffers as sprites and materializes half-block cells on read", async () => {
+    const red = parseColor("#ff0000");
+    const blue = parseColor("#0000ff");
+    const green = parseColor("#00ff00");
+    const data = new Uint32Array([red, red, blue, blue]);
+    const source = { width: 2, height: 2, data };
+    const app = await render(<Pixels source={source} frame={0} width={2} height={1} fit="fill" />, { cols: 4, rows: 2 });
+    expect(app.root.renderer.buffer.sprites.length).toBe(1);
+    expect(app.lines()[0]).toBe("▀▀");
+    expect(app.cell(0, 0)).toMatchObject({ fg: red, bg: blue });
+
+    // Mutate data in place and bump `frame`
+    data[0] = green;
+    data[1] = green;
+    await app.rerender(<Pixels source={source} frame={1} width={2} height={1} fit="fill" />);
+    expect(app.cell(0, 0)).toMatchObject({ fg: green, bg: blue });
+
+    // Explicit halfblock mode skips sprite registration
+    await app.rerender(<Pixels source={source} frame={2} width={2} height={1} fit="fill" renderMode="halfblock" />);
+    expect(app.root.renderer.buffer.sprites.length).toBe(0);
+    expect(app.cell(0, 0)).toMatchObject({ fg: green, bg: blue });
   });
 });
 

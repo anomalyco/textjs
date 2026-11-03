@@ -399,7 +399,9 @@ export class InputEngine {
 
   emit<K extends keyof InputEventMap>(type: K, event: InputEventMap[K]): void {
     for (const l of this.listeners[type] as Set<Listener<InputEventMap[K]>>) l(event);
-    for (const l of this.anyListeners) l(event);
+    if (type !== "keystate") {
+      for (const l of this.anyListeners) l(event);
+    }
   }
 
   /**

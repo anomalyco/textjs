@@ -47,6 +47,8 @@ export interface ConsoleRendererOptions {
   clear?: ClearMode | boolean;
   /** In `"append"` mode, clear and start over after this many frames (default 300). */
   maxFrames?: number;
+  /** In `"append"` mode, clear once accumulated logged string chars exceed this budget (default 4 MB). */
+  maxBytes?: number;
   /** Clear before the first frame (default `true`; see `CssConsoleDriverOptions.initialClear`). */
   initialClear?: boolean;
   /** Lead each appended frame with the curtain span (see `CssConsoleDriverOptions.curtain`). */
@@ -99,6 +101,10 @@ const now: () => number =
 
 const SYNC_FLUSH_INTERVAL_MS = 8;
 const DEFAULT_FRAME_INTERVAL_MS = 66;
+/** Rasterize/stage sprite keyframes at up to ~60Hz, and flush batches once DevTools' 50ms throttler fast path reopens. */
+const SPRITE_STAGE_INTERVAL_MS = 16;
+const SPRITE_EMIT_INTERVAL_MS = 51;
+const SAFARI_SPRITE_INTERVAL_MS = 33;
 /**
  * After `console.clear() + console.log(frame)`, DevTools' synthetic "Console was
  * cleared" row takes `viewportThrottler`'s immediate slot and pushes `frame` onto
@@ -144,9 +150,27 @@ function makeFrameResult(t: RendererStats, skipped: boolean): FrameResult {
 
 export function createDefaultScheduler(): RendererScheduler {
   if (typeof requestAnimationFrame === "function") {
+    // An undocked DevTools window can occlude the host page and stall rAF; back it with a 24ms timer.
     return {
-      request: (cb) => requestAnimationFrame(cb),
-      cancel: (h) => cancelAnimationFrame(h as number),
+      request: (cb) => {
+        const state = { raf: 0, timer: null as ReturnType<typeof setTimeout> | null, done: false };
+        const fire = (): void => {
+          if (state.done) return;
+          state.done = true;
+          cancelAnimationFrame(state.raf);
+          if (state.timer !== null) clearTimeout(state.timer);
+          cb();
+        };
+        state.raf = requestAnimationFrame(fire);
+        state.timer = setTimeout(fire, 24);
+        return state;
+      },
+      cancel: (h) => {
+        const state = h as { raf: number; timer: ReturnType<typeof setTimeout> | null; done: boolean };
+        state.done = true;
+        cancelAnimationFrame(state.raf);
+        if (state.timer !== null) clearTimeout(state.timer);
+      },
     };
   }
   return {
@@ -175,10 +199,13 @@ export class ConsoleRenderer {
   private readonly background: number;
   private handle: unknown = null;
   private delay: ReturnType<typeof setTimeout> | null = null;
+  private emitFlushDelay: ReturnType<typeof setTimeout> | null = null;
   private scheduled = false;
+  private readonly defaultPacing: boolean;
   private readonly frameInterval: number;
   private readonly postClearInterval: number;
   private lastEmitAt = -Infinity;
+  private lastRasterAt = -Infinity;
   private lastEmitCleared = false;
   private pendingForce = false;
   private pendingWhileHidden = false;
@@ -209,6 +236,7 @@ export class ConsoleRenderer {
       console: options.console,
       clear: options.clear,
       maxFrames: options.maxFrames,
+      maxBytes: options.maxBytes,
       initialClear: options.initialClear,
       curtain: options.curtain,
       typography: options.typography,
@@ -216,9 +244,9 @@ export class ConsoleRenderer {
       browser: options.browser,
     });
     this.scheduler = options.scheduler ?? createDefaultScheduler();
+    this.defaultPacing = options.minFrameInterval === undefined && options.scheduler === undefined;
     this.frameInterval = Math.max(0, options.minFrameInterval ?? (options.scheduler ? 0 : DEFAULT_FRAME_INTERVAL_MS));
-    this.postClearInterval =
-      options.minFrameInterval === undefined && options.scheduler === undefined ? POST_CLEAR_INTERVAL_MS : this.frameInterval;
+    this.postClearInterval = this.defaultPacing ? POST_CLEAR_INTERVAL_MS : this.frameInterval;
     this.background = parseColor(options.background);
     this.wireframe = options.wireframe ?? false;
     if (options.previousFrameAt !== undefined && Number.isFinite(options.previousFrameAt)) {
@@ -373,8 +401,15 @@ export class ConsoleRenderer {
     }
     if (this.isPaused || this.scheduled) return;
     this.scheduled = true;
-    const interval = this.lastEmitCleared ? this.postClearInterval : this.frameInterval;
-    const wait = this.lastEmitAt + interval - now();
+    const nowMs = now();
+    let wait: number;
+    if (this.defaultPacing && this.buffer.sprites.length > 0) {
+      const stageInterval = this.driver.supportsTemporalSprites ? SPRITE_STAGE_INTERVAL_MS : SAFARI_SPRITE_INTERVAL_MS;
+      wait = this.lastRasterAt + stageInterval - nowMs;
+    } else {
+      const interval = this.lastEmitCleared ? this.postClearInterval : this.frameInterval;
+      wait = this.lastEmitAt + interval - nowMs;
+    }
     if (wait > 1) this.delay = setTimeout(this.runScheduled, wait);
     else this.handle = this.scheduler.request(this.runScheduled);
   }
@@ -388,12 +423,46 @@ export class ConsoleRenderer {
     this.renderNow(f);
   };
 
+  private readonly flushStagedSprites = (): void => {
+    this.emitFlushDelay = null;
+    if (this.disposed || this.isPaused || this.docHidden || this.scheduled) return;
+    if (this.driver.hasStagedKeyframes) this.renderNow(false);
+  };
+
+  private scheduleEmitFlush(waitMs: number): void {
+    if (this.emitFlushDelay !== null) return;
+    this.emitFlushDelay = setTimeout(this.flushStagedSprites, Math.max(1, Math.ceil(waitMs)));
+  }
+
   private cancelScheduled(): void {
     if (this.handle !== null) this.scheduler.cancel(this.handle);
     if (this.delay !== null) clearTimeout(this.delay);
+    if (this.emitFlushDelay !== null) clearTimeout(this.emitFlushDelay);
     this.handle = null;
     this.delay = null;
+    this.emitFlushDelay = null;
     this.scheduled = false;
+  }
+
+  private recordVisualFrameTime(atMs: number): number {
+    const ring = this.frameTimes;
+    let head = this.frameRingHead;
+    let size = this.frameRingSize;
+    const cutoff = atMs - 1000;
+    while (size > 0 && (ring[head] as number) < cutoff) {
+      head = (head + 1) & FRAME_RING_MASK;
+      size--;
+    }
+    if (size < FRAME_RING_CAP) {
+      ring[(head + size) & FRAME_RING_MASK] = atMs;
+      size++;
+    } else {
+      ring[head] = atMs;
+      head = (head + 1) & FRAME_RING_MASK;
+    }
+    this.frameRingHead = head;
+    this.frameRingSize = size;
+    return size;
   }
 
   /**
@@ -404,7 +473,11 @@ export class ConsoleRenderer {
   flushInputFrame(): FrameResult | null {
     if (this.disposed || this.isPaused) return null;
     const t = now();
-    const interval = this.lastEmitCleared ? this.postClearInterval : this.frameInterval;
+    const minEmit =
+      this.defaultPacing && this.buffer.sprites.length > 0 && this.driver.supportsTemporalSprites
+        ? SPRITE_EMIT_INTERVAL_MS
+        : this.frameInterval;
+    const interval = this.lastEmitCleared ? this.postClearInterval : minEmit;
     if (t - this.lastSyncFlushAt < SYNC_FLUSH_INTERVAL_MS || t - this.lastEmitAt < interval) {
       this.requestRender();
       return null;
@@ -431,6 +504,37 @@ export class ConsoleRenderer {
     const t1 = now();
     this.paint(root);
     const t2 = now();
+    this.lastRasterAt = t2;
+
+    if (!force && this.defaultPacing && buf.sprites.length > 0 && this.driver.supportsTemporalSprites) {
+      const emitInterval = this.lastEmitCleared ? this.postClearInterval : SPRITE_EMIT_INTERVAL_MS;
+      const untilEmit = this.lastEmitAt + emitInterval - t2;
+      if (untilEmit > 1) {
+        const staged = this.driver.stageKeyframe(buf, t2);
+        this.scheduleEmitFlush(untilEmit);
+        t.layoutMs = t1 - t0;
+        t.rasterMs = t2 - t1;
+        t.encodeMs = 0;
+        t.totalMs = t2 - t0;
+        t.cols = buf.width;
+        t.rows = buf.height;
+        if (staged) {
+          t.frameCount++;
+          t.fps = this.recordVisualFrameTime(t2);
+          if (root && t.frameCount % 30 === 1) t.yogaNodes = root.countYogaNodes();
+        } else {
+          t.skippedFrames++;
+        }
+        const frame = makeFrameResult(t, !staged);
+        this.options.onFrame?.(frame);
+        return frame;
+      }
+    }
+
+    if (this.emitFlushDelay !== null) {
+      clearTimeout(this.emitFlushDelay);
+      this.emitFlushDelay = null;
+    }
     const result = this.driver.render(buf, force ? DRIVER_FORCE : DRIVER_NORMAL);
     const t3 = now();
     t.layoutMs = t1 - t0;
@@ -446,24 +550,7 @@ export class ConsoleRenderer {
       t.frameCount++;
       t.dirtyRows = result.dirtyRows;
       t.spanCount = result.spanCount;
-      const ring = this.frameTimes;
-      let head = this.frameRingHead;
-      let size = this.frameRingSize;
-      const cutoff = t3 - 1000;
-      while (size > 0 && (ring[head] as number) < cutoff) {
-        head = (head + 1) & FRAME_RING_MASK;
-        size--;
-      }
-      if (size < FRAME_RING_CAP) {
-        ring[(head + size) & FRAME_RING_MASK] = t3;
-        size++;
-      } else {
-        ring[head] = t3;
-        head = (head + 1) & FRAME_RING_MASK;
-      }
-      this.frameRingHead = head;
-      this.frameRingSize = size;
-      t.fps = size;
+      t.fps = this.recordVisualFrameTime(t3);
       if (root && t.frameCount % 30 === 1) t.yogaNodes = root.countYogaNodes();
     }
     const frame = makeFrameResult(t, result.skipped);
