@@ -35,12 +35,12 @@ En un panel denso de `100×32` (46 nodos de texto, 149 spans `%c`), medido con `
 <!-- s:9729def172 -->
 | Fotograma | Media |
 | :-- | --: |
-| Repintado completo (layout, pintado, codificación) | 0,163 ms |
-| Edición de una fila (al escribir) | 0,011 ms |
-| Inactivo | 0,000 ms, 0 llamadas a la consola |
+| Repintado completo (layout, pintado, codificación) | 0,163 ms |
+| Edición de una fila (al escribir) | 0,011 ms |
+| Inactivo | 0,000 ms, 0 llamadas a la consola |
 
 <!-- s:2fee8c4c3d -->
-Un fotograma sin cambios retorna antes de asignar memoria para una cadena, por lo que los fotogramas inactivos registran 0,000 ms.
+Un fotograma sin cambios retorna antes de asignar memoria para una cadena, por lo que los fotogramas inactivos registran 0,000 ms.
 
 <!-- s:a0fa47c98f -->
 Probar

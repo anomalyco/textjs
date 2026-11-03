@@ -8,7 +8,7 @@ Text.js 0.4 añadió un segundo lugar donde renderizar una página. Por defecto,
 Lo que descarga el navegador
 
 <!-- s:6764f4bb25 -->
-Una página renderizada en el servidor no envía React, Yoga ni tus rutas. El navegador carga un reproductor de fotogramas de unos 21 kB con gzip, que contiene un `CellBuffer` y el mismo `CssConsoleDriver` que usa el renderizador del cliente. Mantiene la misma cadencia de 15 fps, por lo que un fotograma renderizado en el servidor produce la misma llamada a `console.log` que produciría el cliente.
+Una página renderizada en el servidor no envía React, Yoga ni tus rutas. El navegador carga un reproductor de fotogramas de unos 21 kB con gzip, que contiene un `CellBuffer` y el mismo `CssConsoleDriver` que usa el renderizador del cliente. Mantiene la misma cadencia de 15 fps, por lo que un fotograma renderizado en el servidor produce la misma llamada a `console.log` que produciría el cliente.
 
 <!-- s:c1c4090983 -->
 El protocolo
@@ -20,7 +20,7 @@ Cada pestaña abre su propia sesión en el servidor: una raíz de React, un hist
 El servidor solo envía las filas cuyo hash ha cambiado desde el último fotograma que recibió esa conexión. Cada fila se envía como segmentos de texto asociados a una tabla de estilos que solo permite añadir entradas al final. Los grafemas anchos, las agrupaciones de emojis y los colores translúcidos llegan intactos.
 
 <!-- s:bff22f361e -->
-Los fotogramas se separan al menos 66 ms, y cada uno se compara con lo último que aceptó el socket. Cuando una conexión lenta deja de vaciar su búfer, se omiten los estados intermedios y el siguiente fotograma salta al estado más reciente.
+Los fotogramas se separan al menos 66 ms, y cada uno se compara con lo último que aceptó el socket. Cuando una conexión lenta deja de vaciar su búfer, se omiten los estados intermedios y el siguiente fotograma salta al estado más reciente.
 
 <!-- s:f0809ea8c7 -->
 Si se interrumpe el flujo, el reproductor vuelve a conectarse con su identificador de sesión en la cabecera `x-textjs-live` y reanuda la misma sesión desde un nuevo fotograma clave, con su estado intacto. Los identificadores de sesión son valores aleatorios de 192 bits que se guardan en memoria, nunca en la URL. Una sesión sin conexión deja de renderizar y se desmonta tras 30 segundos.

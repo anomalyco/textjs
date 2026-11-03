@@ -34,7 +34,7 @@ Las respuestas almacenadas en caché incluyen:
 | `Cache-Control` | `s-maxage=N, stale-while-revalidate=<1 year − N>`, o `s-maxage=31536000` para `force-static` |
 
 <!-- s:c1fb73c64a -->
-Cuando el [middleware](/docs/middleware) establece cookies, aplica reescrituras o sobrescribe las cabeceras de la solicitud, la cabecera generada pasa a ser `private, no-cache, no-store, max-age=0, must-revalidate`, para que las cachés compartidas nunca reutilicen una decisión específica de un visitante. Se conserva cualquier cabecera `Cache-Control` establecida por el manejador.
+Cuando el [middleware](/docs/middleware) establece cookies, reescribe la solicitud o modifica sus encabezados, el encabezado generado pasa a ser `private, no-cache, no-store, max-age=0, must-revalidate`, de modo que las cachés compartidas nunca reutilizan una decisión específica de un visitante. Se conserva cualquier encabezado `Cache-Control` establecido por el manejador.
 
 <!-- s:ae27ba22c7 -->
 En `text dev`, se aplica la configuración del segmento, pero no se almacena nada, por lo que cada solicitud ejecuta el manejador.
@@ -84,7 +84,7 @@ Ambas devuelven una promesa. Con el almacén en memoria, la invalidación es inm
 Almacenes de caché personalizados
 
 <!-- s:7bee24a364 -->
-El almacén predeterminado es un LRU en memoria (1000 entradas, unos 50 MB) por instancia del servidor. Para compartir una caché entre instancias, apunta `cacheHandler` a un módulo que exporte un `CacheStore` como exportación predeterminada:
+El almacén predeterminado es un LRU en memoria (1000 entradas, unos 50 MB) por instancia del servidor. Para compartir una caché entre instancias, apunta `cacheHandler` a un módulo que exporte un `CacheStore` como exportación predeterminada:
 
 <!-- s:593c57fca5 -->
 Las entradas son JSON sin más. Como alternativa, `setCacheStore(store)` instala un almacén en tiempo de ejecución.
@@ -93,5 +93,5 @@ Las entradas son JSON sin más. Como alternativa, `setCacheStore(store)` instala
 Notas sobre plataformas
 
 <!-- s:5418a08901 -->
-- Cada instancia serverless (funciones de Vercel, isolates de Cloudflare) tiene su propia caché en memoria. `Cache-Control: s-maxage` permite que la CDN de la plataforma también almacene respuestas en caché; la revalidación bajo demanda no purga una CDN. Usa un `cacheHandler` compartido cuando `revalidateTag` deba llegar a todas las instancias.
+- Cada instancia serverless (funciones de Vercel, entornos aislados de Cloudflare) tiene su propia caché en memoria. `Cache-Control: s-maxage` permite que la CDN de la plataforma también almacene respuestas en caché; la revalidación bajo demanda no purga una CDN. Usa un `cacheHandler` compartido cuando `revalidateTag` deba llegar a todas las instancias.
 - Cloudflare requiere la opción `nodejs_compat` (la caché usa `AsyncLocalStorage`). Consulta [Desplegar](/docs/deploying).

@@ -8,7 +8,7 @@ Los archivos son rutas
 Mueve la lista a su propia ruta y añade una página de configuración:
 
 <!-- s:141a7c73d4 -->
-Un layout shared
+Un layout compartido
 
 <!-- s:cffa0eef2d -->
 `layout.tsx` envuelve cada página y mantiene su estado durante la navegación. Coloca la barra superior y la navegación en él.

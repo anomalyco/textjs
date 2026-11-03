@@ -51,7 +51,7 @@ Cada barra es un fotograma del renderizador:
 | Codificación | Construcción de la cadena de formato `%c` y llamada a `console.log()` |
 
 <!-- s:9b988f3cfb -->
-Los fotogramas omitidos se dibujan atenuados: nada cambió, así que no se registró nada. El gráfico de cadencia muestra el intervalo entre fotogramas emitidos frente al intervalo mínimo de 66 ms.
+Los fotogramas omitidos se dibujan atenuados: nada cambió, así que no se registró nada. El gráfico de cadencia muestra el intervalo entre fotogramas emitidos frente al intervalo mínimo de 66 ms.
 
 <!-- s:8abccb04ec -->
 La medición de tiempos termina en `console.log()`. El formato y el pintado del mensaje se procesan dentro de DevTools y no se pueden observar desde la página, por lo que la cronología no los muestra. Los renderizados concurrentes que se confirman entre fotogramas se cuentan como commits, pero no se mide su duración.
@@ -81,4 +81,4 @@ Limitaciones
 - Chrome y navegadores basados en Chromium, versión 111 o posterior.
 - Las apps que se iniciaron antes de instalar la extensión necesitan una recarga.
 - Solo se inspecciona el fotograma superior de una pestaña.
-- Los tiempos proceden de `performance.now()`, cuya precisión los navegadores reducen a unos 0,1 ms.
+- Los tiempos proceden de `performance.now()`, cuya precisión los navegadores reducen a unos 0,1 ms.

@@ -26,4 +26,4 @@ Una tarjeta de despliegue
 Temas
 
 <!-- s:8f993e0ab8 -->
-Text.js incluye cinco temas: Geist Dark, OpenCode Dark, Tokyo Night, Amber CRT y Geist Light. Pulsa `t` en la consola para alternar entre ellos. Todo el fotograma se vuelve a pintar con la nueva paleta, porque cada color anterior es un token.
+Text.js incluye cinco temas: Geist Dark, OpenCode Dark, Tokyo Night, Amber CRT y Geist Light. Pulsa `t` en la consola para alternar entre ellos. Todo el fotograma se vuelve a dibujar con la nueva paleta, porque cada color anterior es un token.

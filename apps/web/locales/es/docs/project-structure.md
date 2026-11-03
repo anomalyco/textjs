@@ -8,7 +8,7 @@ Carpetas
 | Carpeta | Propósito |
 | :-- | :-- |
 | `app` | Rutas, layouts y manejadores de ruta |
-| `lib` | Módulos compartidos, sin rutas asignadas |
+| `lib` | Módulos compartidos, sin ruta |
 | `public` | Recursos estáticos |
 
 <!-- s:25756fa68d -->
@@ -18,7 +18,7 @@ Archivos de enrutamiento
 | Archivo | Propósito |
 | :-- | :-- |
 | `layout.tsx` | Interfaz compartida para un segmento |
-| `page.tsx` | Una pantalla con ruta asignada |
+| `page.tsx` | Una pantalla accesible mediante una ruta |
 | `loading.tsx` | Contenido alternativo de Suspense |
 | `error.tsx` | Límite de errores |
 | `not-found.tsx` | URLs sin coincidencia |

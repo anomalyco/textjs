@@ -52,7 +52,7 @@ Diferencias
 <!-- s:56ed51fed3 -->
 | Función | DevTools | Terminal |
 | :-- | :-- | :-- |
-| Ritmo de fotogramas | ~15 fps | Hasta `fps` |
+| Ritmo de fotogramas | ~15 fps | Hasta `fps` |
 | Tamaño de la cuadrícula | Consola acoplada | Ventana de la terminal |
 | `<Image src>` | Carga mediante canvas | Uso de `pixels` |
 | `console.log` | Tus fotogramas | Retenido hasta salir |

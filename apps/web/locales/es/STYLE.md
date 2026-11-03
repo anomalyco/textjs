@@ -5,7 +5,7 @@
 - Headings and labels are noun phrases or infinitives without a period: «Instalación», «Abrir la consola», «Agrupar rutas». Sentence case: only the first word and proper names take a capital.
 - Questions and exclamations open with ¿ and ¡.
 - Quotes are «…», with “…” inside. Browser interface labels go in «…» and match Chrome's Spanish interface: «Conservar registro», «Configuración». The Console panel is «Consola».
-- Decimal comma, and a space before units and the percent sign in prose: 0,163 ms, 70,6 %, 66 ms, 21 kB. Four-digit numbers take no separator (3200 celdas); larger ones take a period (12.000 fotogramas). Never touch version numbers (Bun 1.2+, Node.js 22+, 1.4.1), numbers in code, paths or URLs.
+- Decimal comma, and a no-break space (U+00A0) before units and the percent sign in prose, so a number never wraps away from its unit: 0,163 ms, 70,6 %, 66 ms, 21 kB. Four-digit numbers take no separator (3200 celdas); larger ones take a period (12.000 fotogramas). Never touch version numbers (Bun 1.2+, Node.js 22+, 1.4.1), numbers in code, paths or URLs.
 - Dates read 3 de noviembre de 2026. Ranges use an en dash: 70–81 %.
 - Genders: la consola, el fotograma, la ruta, el layout, el hook, el componente, el tema, el span, la app.
 - Keep API names, components, hooks, file paths, CLI commands and keyboard shortcuts (⌘⌥J, Ctrl+Shift+J, Enter) exactly as written.

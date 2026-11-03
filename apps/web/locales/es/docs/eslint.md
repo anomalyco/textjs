@@ -49,7 +49,7 @@ Reglas
 `no-dom-elements`
 
 <!-- s:deb9e3c0ec -->
-`<div>`, `<span>`, los elementos personalizados y otras etiquetas DOM no existen en la consola. El reconciler solo conoce sus propios nodos anfitriones y lanza `TX003` ante cualquier otro.
+`<div>`, `<span>`, los elementos personalizados y otras etiquetas DOM no existen en la consola. El reconciliador solo reconoce sus propios nodos anfitriones y lanza `TX003` ante cualquier otro.
 
 <!-- s:bd7c3e0318 -->
 La sugerencia sustituye la etiqueta por el componente más cercano (`div` → `Box`, `span`/`p` → `Text`, `strong` → `Text bold`, `a` → `Link`, `input` → `Input`, `hr` → `Divider`, …) y añade la importación.
@@ -132,4 +132,4 @@ Metadata se combina a partir de los layouts y después de la página (o `not-fou
 `route-handler-exports`
 
 <!-- s:877bcc12b1 -->
-Los archivos `route.ts` solo responden a los métodos HTTP que exportan: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` y `OPTIONS`. Nunca se llama a `get` en minúsculas ni a `Post` (las solicitudes reciben `405`); la sugerencia les cambia el nombre. Se detectan las exportaciones por defecto, los manejadores que no son funciones y otras exportaciones, excepto `dynamic` y `revalidate` de la [configuración del segmento de ruta](/docs/caching). Mueve el código compartido a `lib/`, o enumera nombres adicionales con `{ allow: [...] }`.
+Los archivos `route.ts` solo responden a los métodos HTTP que exportan: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` y `OPTIONS`. Nunca se llama a `get` en minúsculas ni a `Post` (las solicitudes reciben `405`); la sugerencia cambia el nombre. Se notifican las exportaciones predeterminadas, los manejadores que no son funciones y otras exportaciones, salvo `dynamic` y `revalidate` de la [configuración del segmento de ruta](/docs/caching). Mueve el código compartido a `lib/`, o enumera los nombres adicionales con `{ allow: [...] }`.

@@ -50,4 +50,4 @@ La consola no recibe pulsaciones de teclas, así que la página las recoge. Un `
 Próximos pasos
 
 <!-- s:cb5f6bd294 -->
-Los prototipos 0.0.x de `@textjs/core` en npm incluyen todo en un solo paquete. Text.js 0.1 traslada el renderizador descrito aquí a `@textjs/core` y el reconciler de React a `@textjs/react`, y añade un App Router.
+Los prototipos 0.0.x de `@textjs/core` en npm incluyen todo en un solo paquete. Text.js 0.1 traslada el renderizador descrito aquí a `@textjs/core`, el reconciliador de React a `@textjs/react` y añade un App Router.

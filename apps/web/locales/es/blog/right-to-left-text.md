@@ -36,10 +36,10 @@ El último paso existe porque DevTools aplicaría bidi al texto una segunda vez 
 Un desfase de media celda
 
 <!-- s:1109446b98 -->
-Ni SF Mono ni Menlo tienen glifos hebreos o árabes, por lo que el navegador recurre a una fuente alternativa para cada carácter. En macOS es Courier New, también monoespaciada, con 7,2012 px por glifo a 12 px frente a los 7,2246 px de Menlo. Es un 0,3 % más estrecha, suficiente para desplazar una fila completa de hebreo alrededor de media celda.
+Ni SF Mono ni Menlo tienen glifos hebreos o árabes, por lo que el navegador recurre a una fuente alternativa para cada carácter. En macOS es Courier New, también monoespaciada, con 7,2012 px por glifo a 12 px frente a los 7,2246 px de Menlo. Es un 0,3 % más estrecha, suficiente para desplazar una fila completa de hebreo alrededor de media celda.
 
 <!-- s:dc26e96bdd -->
-`CssConsoleDriver` mide cada span de derecha a izquierda con un canvas que usa la fuente de la consola, con el mismo mecanismo de fuentes alternativas de Blink que DevTools, y añade al span la diferencia exacta en LayoutUnits (1/64 px). Cada span acaba teniendo el mismo ancho que las celdas de la cuadrícula que ocupa. Un span se reduce como máximo media celda, de modo que una fuente alternativa mucho más ancha se desborda en lugar de superponerse al siguiente span.
+`CssConsoleDriver` mide cada span de derecha a izquierda con un canvas que usa la fuente de la consola, con el mismo mecanismo de fuentes alternativas de Blink que DevTools, y añade al span la diferencia exacta en LayoutUnits (1/64 px). Cada span acaba teniendo el mismo ancho que las celdas de la cuadrícula que ocupa. Un span se reduce como máximo media celda, de modo que una fuente alternativa mucho más ancha se desborda en lugar de superponerse al siguiente span.
 
 <!-- s:b0d2e5e9d2 -->
 `bun bench/devtools/bidi-shot.ts` mide el resultado en la interfaz real de DevTools, en un fotograma de 64×21 con líneas en hebreo, en árabe, mixtas y con emojis dentro del hebreo:
@@ -47,10 +47,10 @@ Ni SF Mono ni Menlo tienen glifos hebreos o árabes, por lo que el navegador rec
 <!-- s:e6a33dfaa2 -->
 | Fotograma | Desfase del borde derecho entre filas |
 | :-- | --: |
-| Celdas registradas sin fijar el orden | 14,5 px |
-| Orden fijado, sin ajuste de ancho | 2,22 px |
-| Controlador distribuido | 0,156 px |
-| Control: cada glifo RTL sustituido por `x` | 1,67 px |
+| Celdas registradas sin fijar el orden | 14,5 px |
+| Orden fijado, sin ajuste de ancho | 2,22 px |
+| Controlador distribuido | 0,156 px |
+| Control: cada glifo RTL sustituido por `x` | 1,67 px |
 
 <!-- s:d03d5a84a3 -->
 El control es el mismo fotograma con texto latino. El controlador distribuido se alinea mejor que el control porque los emojis dentro de los spans de derecha a izquierda se ajustan junto con ellos.

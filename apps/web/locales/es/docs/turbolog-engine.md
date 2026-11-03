@@ -28,10 +28,10 @@ Se calcula el hash de cada fila. Si nada ha cambiado, el controlador retorna de 
 Intercambio de fotogramas
 
 <!-- s:3c7194b785 -->
-Turbolog añade fotogramas al final y solo limpia la consola en el primer fotograma, después de `invalidate()`, en reposo cuando se acumulan 100 fotogramas y al llegar a 300. DevTools elimina de inmediato los mensajes borrados, pero limita el pintado de los nuevos a intervalos de 50 ms, por lo que limpiar cada fotograma hace que la consola parpadee vacía. Los fotogramas añadidos al final se intercambian en un único pintado, y un span de cortina de ancho cero mantiene el fotograma anterior fuera de la vista. Desplázate hacia arriba para ver los fotogramas anteriores.
+Turbolog añade fotogramas al final y solo limpia la consola en el primer fotograma, después de `invalidate()`, en reposo cuando se acumulan 100 fotogramas y al llegar a 300. DevTools elimina de inmediato los mensajes borrados, pero limita el pintado de los nuevos a intervalos de 50 ms, por lo que limpiar cada fotograma hace que la consola parpadee vacía. Los fotogramas añadidos al final se intercambian en un único pintado, y un span de cortina de ancho cero mantiene el fotograma anterior fuera de la vista. Desplázate hacia arriba para ver los fotogramas anteriores.
 
 <!-- s:7845be2cbb -->
-Los fotogramas se regulan a unos 15 fps. Los fotogramas más rápidos reinician el límite de frecuencia de DevTools y se descartan.
+Los fotogramas se regulan a unos 15 fps. Los fotogramas más rápidos reinician el límite de frecuencia de DevTools y se descartan.
 
 <!-- s:a36177ad5b -->
 Codificación por longitud de secuencia
@@ -52,7 +52,7 @@ Detalles de Chromium
 Firefox y Safari
 
 <!-- s:8b2f3136a1 -->
-Chromium distribuye cada línea de un span `%c` como un bloque en línea. Firefox y Safari mantienen los spans en línea, por lo que ignoran los márgenes verticales y dividen las filas largas en varias líneas. `CssConsoleDriver` detecta el navegador mediante comprobaciones de compatibilidad con funciones CSS y, para esas dos consolas, establece una altura de línea de 14 px sin márgenes, desactiva el ajuste de línea con `text-wrap-mode: nowrap` y desplaza los fotogramas anteriores fuera de la vista con una cortina `line-height: 100vh`. El ajuste a la consola deja espacio para la columna de enlaces al código fuente de Firefox. Safari coloca Menlo primero en la lista de fuentes, porque sus páginas no pueden usar una SF Mono instalada por el usuario que Web Inspector sí puede usar para renderizar. Pasa `browser` a `createConsoleRoot` para elegir tú la consola.
+Chromium distribuye cada línea de un span `%c` como un bloque en línea. Firefox y Safari mantienen los spans en línea, por lo que ignoran los márgenes verticales y dividen las filas largas en varias líneas. `CssConsoleDriver` detecta el navegador mediante comprobaciones de compatibilidad con funciones CSS y, para esas dos consolas, establece una altura de línea de 14 px sin márgenes, desactiva el ajuste de línea con `text-wrap-mode: nowrap` y desplaza los fotogramas anteriores fuera de la vista con una cortina `line-height: 100vh`. El ajuste a la consola deja espacio para la columna de enlaces al código fuente de Firefox. Safari coloca Menlo primero en la lista de fuentes, porque sus páginas no pueden usar una SF Mono instalada por el usuario que Web Inspector sí puede usar para renderizar. Pasa `browser` a `createConsoleRoot` para elegir tú la consola.
 
 <!-- s:66b07a5809 -->
 Pruebas de rendimiento
@@ -63,9 +63,9 @@ Pruebas de rendimiento
 <!-- s:342771dd1f -->
 | Fotograma | Tiempo | Spans `%c` |
 | :-- | --: | --: |
-| Repintado completo (layout, pintado, codificación) | **0,163 ms** | 149 |
-| Edición de una fila | **0,011 ms** | 149 |
-| Reposo | **0,000 ms** | 0 |
+| Repintado completo (layout, pintado, codificación) | **0,163 ms** | 149 |
+| Edición de una fila | **0,011 ms** | 149 |
+| Reposo | **0,000 ms** | 0 |
 
 <!-- s:8c3bf89160 -->
 La página de [Estado](/status) ejecuta el mismo flujo de procesamiento en tu navegador. Ejecuta `text.stats()` en DevTools mientras se ejecuta una demo del [Playground](/playground).

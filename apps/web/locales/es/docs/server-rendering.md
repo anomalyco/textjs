@@ -11,14 +11,14 @@ Cada página se renderiza en uno de dos lugares:
 | | Cliente (predeterminado) | Servidor (`runtime = "server"`) |
 | --- | --- | --- |
 | El árbol de React se ejecuta en | La pestaña del navegador | `text dev` / `text start` / el adaptador `bun` (Bun o Node) |
-| El navegador descarga | La app completa: React, Yoga WASM, tus rutas | El reproductor de fotogramas, unos 21 kB con gzip |
+| El navegador descarga | La app completa: React, Yoga WASM, tus rutas | El reproductor de fotogramas, unos 21 kB con gzip |
 | Acceso a datos | `fetch()` a manejadores de ruta | Directamente: bases de datos, archivos, `node:*`, secretos |
 | Componentes asíncronos | Usa `use()` o efectos | Se admiten componentes `async function` |
 | Latencia de las pulsaciones | Misma tarea, síncrona | Un viaje de ida y vuelta al servidor |
 | Funciona en un alojamiento estático | Sí | No, necesita `text start` o `bun dist/server.js` |
 
 <!-- s:7b06d151a6 -->
-Ambos entornos de ejecución producen los mismos fotogramas. El reproductor de fotogramas codifica las celdas con el mismo `CssConsoleDriver` y mantiene el mismo ritmo de unos 15 fps, por lo que un fotograma renderizado en el servidor coincide byte por byte con la llamada a `console.log` del cliente.
+Ambos entornos de ejecución producen los mismos fotogramas. El reproductor de fotogramas codifica las celdas con el mismo `CssConsoleDriver` y mantiene el mismo ritmo de unos 15 fps, por lo que un fotograma renderizado en el servidor coincide byte por byte con la llamada a `console.log` del cliente.
 
 <!-- s:70a0b18bdd -->
 Activación
@@ -27,7 +27,7 @@ Activación
 Exporta `runtime` desde una página:
 
 <!-- s:567f4b3d2b -->
-`runtime` se lee por página, como una cadena estática exportada (se admiten una anotación de tipo, `as const` o una reexportación; un valor calculado no). Los layouts, `loading.tsx`, `error.tsx` y `not-found.tsx` se renderizan donde se renderiza su página: un layout compartido por páginas de cliente y de servidor se ejecuta en ambos lugares y se envía al navegador, mientras que los layouts y los límites de un segmento que solo contiene páginas de servidor permanecen en el servidor. Los hooks, el foco, `useInput`, `<Link>` y `useRouter()` se comportan igual que en el cliente.
+`runtime` se lee por página, como una exportación de cadena estática (se admite una anotación de tipo, `as const` o una reexportación; un valor calculado no). Los layouts, `loading.tsx`, `error.tsx` y `not-found.tsx` se renderizan donde se renderiza su página: un layout compartido por páginas de cliente y de servidor se ejecuta en ambos lugares y se envía al navegador, mientras que los layouts y los límites de un segmento que solo contiene páginas de servidor permanecen en el servidor. Los hooks, el foco, `useInput`, `<Link>` y `useRouter()` se comportan igual que en el cliente.
 
 <!-- s:43c4fa1dac -->
 Cuándo usar cada uno
@@ -46,7 +46,7 @@ Usa el entorno de ejecución de **servidor** para:
 <!-- s:bb8a20e6e2 -->
 - Paneles y vistas de administración que leen bases de datos, archivos, colas o API privadas. Las credenciales permanecen en el servidor.
 - Rutas con dependencias pesadas (SDK, analizadores, tablas de sintaxis) que no quieres incluir en el paquete del navegador.
-- Páginas que deben cargar rápido en redes lentas. El navegador descarga el reproductor de 21 kB (gzip) en lugar de la app completa.
+- Páginas que deben cargar rápido en redes lentas. El navegador descarga el reproductor de 21 kB (gzip) en lugar de la app completa.
 
 <!-- s:920f4ad7e8 -->
 Puedes combinar entornos de ejecución en una app. Al navegar entre ellos, la URL de destino se carga como un documento nuevo. El paquete del navegador sustituye cada página de servidor por un módulo mínimo, por lo que los módulos del servidor y todo lo que importan nunca se envían al cliente.
@@ -78,7 +78,7 @@ Funcionamiento
 <!-- s:ec3e56dbc6 -->
 - **Una sesión por pestaña.** Cada carga de página abre su propia sesión: una raíz de React, un historial del enrutador en memoria y un búfer de celdas en el servidor. Los identificadores de sesión son valores aleatorios de 192 bits que el navegador conserva solo en memoria.
 - **Deltas de celdas.** El servidor envía solo las filas cuyo hash ha cambiado desde el último fotograma que recibió esa conexión. Cada fila se envía como secuencias de texto que hacen referencia a una tabla de estilos que solo admite añadir al final, y los grafemas anchos, las secuencias de emojis y los colores translúcidos se conservan exactamente.
-- **Contrapresión.** Los fotogramas están separados por al menos 66 ms y cada uno se compara con lo último que aceptó el socket. Cuando una conexión lenta deja de consumir datos, se omiten los estados intermedios y el siguiente fotograma salta directamente al más reciente.
+- **Contrapresión.** Los fotogramas están separados por al menos 66 ms y cada uno se compara con lo último que aceptó el socket. Cuando una conexión lenta deja de consumir datos, se omiten los estados intermedios y el siguiente fotograma salta directamente al más reciente.
 - **Reconexiones.** Si se interrumpe el flujo, el reproductor se reconecta con su identificador de sesión en la cabecera `x-textjs-live` (nunca en la URL) y reanuda la misma sesión, con su estado intacto, desde un nuevo fotograma clave. Se vuelven a aplicar las actualizaciones de la barra de direcciones que no se recibieron. Una sesión sin conexión deja de renderizar y se desmonta tras 30 segundos; si el servidor la ha olvidado, el reproductor abre una nueva.
 - **Historial.** Atrás y Adelante desplazan ambos historiales el mismo número de entradas, y `router.back()` en el servidor también desplaza el historial del navegador.
 - **Seguridad.** Ambos endpoints rechazan las solicitudes entre sitios (`Sec-Fetch-Site` y `Origin`; `X-Forwarded-Host` solo se tiene en cuenta con `server.trustProxy`). Las solicitudes POST de entrada necesitan un cuerpo JSON y la cabecera `x-textjs-live`. Cada evento se valida con un esquema fijo, y los destinos de navegación deben ser rutas de tu origen. Solo se pueden renderizar las páginas de tu manifiesto `app/`. Las sesiones están vinculadas a las cookies con las que se abrieron.

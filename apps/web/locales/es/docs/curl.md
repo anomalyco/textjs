@@ -30,7 +30,7 @@ El fotograma es el primer renderizado de la página, como en una [estructura pre
 - **Estado:** `200`, o `404` con la página de recurso no encontrado de la app cuando no hay ninguna página que coincida o la página llama a `notFound()`. Una página que llama a `redirect()` durante el renderizado sirve HTML.
 
 <!-- s:1125803eb1 -->
-Las respuestas son `text/plain; charset=utf-8` con `Vary: User-Agent, Accept` y `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`, de modo que las cachés compartidas nunca almacenan un fotograma para servirlo a un navegador. La página HTML en una ruta donde curl recibe un fotograma lleva la misma cabecera `Vary`.
+Las respuestas son `text/plain; charset=utf-8` con `Vary: User-Agent, Accept` y `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`, por lo que las cachés compartidas nunca almacenan un fotograma para después servirlo a un navegador. La página HTML de una ruta en la que curl recibe un fotograma incluye la misma cabecera `Vary`.
 
 <!-- s:0e2aba0a67 -->
 Dónde funciona

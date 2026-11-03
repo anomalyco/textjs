@@ -8,10 +8,10 @@ El flujo de procesamiento
 Cada etapa existe porque la consola es una pantalla poco habitual. Es monoespaciada y está orientada a filas, recibe estilos mediante `%c` y DevTools decide cuándo se repinta.
 
 <!-- s:db7daa7cf2 -->
-reconciler
+Reconciliador
 
 <!-- s:f3cdc101e1 -->
-`@textjs/react` es un reconciler de React 19 (`react-reconciler@0.34.0`) con dos elementos anfitriones, `tx-box` y `tx-text`, además de instancias de texto para los hijos de tipo cadena. Todo lo que importas, desde `<Box>` hasta `<Markdown>`, se construye sobre ellos. Los commits se programan con `requestAnimationFrame`, y una pulsación de tecla o un pegado se renderiza de forma síncrona en la misma tarea.
+`@textjs/react` es un reconciliador de React 19 (`react-reconciler@0.34.0`) con dos elementos anfitriones, `tx-box` y `tx-text`, además de instancias de texto para los hijos de tipo cadena. Todo lo que importas, desde `<Box>` hasta `<Markdown>`, se basa en ellos. Los commits se programan con `requestAnimationFrame`, y una pulsación de tecla o una acción de pegado provoca un renderizado síncrono en la misma tarea.
 
 <!-- s:1ab8b509e0 -->
 Layout
@@ -47,7 +47,7 @@ Una llamada
 Cada fotograma modificado es una sola llamada:
 
 <!-- s:e3e37e3616 -->
-Los fotogramas se añaden al final, se sincronizan con el limitador de 50 ms de DevTools y se intercambian dentro de un único pintado. [Turbolog: eliminar el parpadeo](/blog/turbolog-eliminating-the-flash) explica esa parte.
+Los fotogramas se añaden al final, se sincronizan con el limitador de 50 ms de DevTools y se intercambian dentro de un único pintado. [Turbolog: eliminar el parpadeo](/blog/turbolog-eliminating-the-flash) explica esa parte.
 
 <!-- s:99a3c4d459 -->
 Entrada
@@ -59,4 +59,4 @@ La consola no puede recibir pulsaciones de teclas, así que las recibe la págin
 Lo que ve la página
 
 <!-- s:03e00f4b44 -->
-La página no puede leer el tamaño de la consola, solo el de su propia ventana, así que Text.js lo infiere: un panel acoplado reduce `innerWidth` o `innerHeight` mientras `outer*` permanece igual, y cada hipótesis de acoplamiento se resuelve para los niveles de zoom de Chrome. Gana la que mejor encaja. Las constantes (56 px de relleno horizontal, 104 px de interfaz de la consola y una separación entre filas de 14 px) se midieron en la interfaz real de DevTools.
+La página no puede leer el tamaño de la consola, solo el de su propia ventana, así que Text.js lo infiere: un panel acoplado reduce `innerWidth` o `innerHeight` mientras `outer*` permanece igual, y cada hipótesis de acoplamiento se resuelve para los niveles de zoom de Chrome. Gana la que mejor encaja. Las constantes (56 px de relleno horizontal, 104 px de interfaz de la consola y una separación entre filas de 14 px) se midieron en la interfaz real de DevTools.

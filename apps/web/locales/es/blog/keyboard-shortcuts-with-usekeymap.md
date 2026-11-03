@@ -27,7 +27,7 @@ Enrutamiento
 Cada mapa de teclas registra un manejador de `useInput`, por lo que se aplican las reglas de entrada existentes. Un `<Input>` con el foco gestiona las teclas primero, porque los editores escuchan con prioridad 10 y los mapas de teclas con prioridad 0. Una tecla que coincide detiene la propagación. Un `<Modal>` abierto desactiva las asignaciones externas, salvo que el mapa de teclas pase `global: true`.
 
 <!-- s:a6076c8127 -->
-Las secuencias se reconocen dentro de ese manejador. Una tecla que inicia una secuencia queda pendiente y detiene la propagación, y la secuencia se reinicia cuando la siguiente tecla llega después de más de `sequenceTimeout` (1000 ms de forma predeterminada):
+Las secuencias se reconocen dentro de ese manejador. Una tecla que inicia una secuencia queda pendiente y detiene la propagación, y la secuencia se reinicia cuando la siguiente tecla llega después de más de `sequenceTimeout` (1000 ms de forma predeterminada):
 
 <!-- s:aa0a9c8615 -->
 Un registro por raíz

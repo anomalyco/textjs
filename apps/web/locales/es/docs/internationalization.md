@@ -43,24 +43,24 @@ El texto sin caracteres de derecha a izquierda omite todo este proceso. Un model
 Anchos de celda
 
 <!-- s:552e751976 -->
-La pila de fuentes incluida es `"SF Mono", Menlo, "Cascadia Mono", Consolas, monospace`. Ninguna de estas fuentes tiene glifos hebreos o árabes, por lo que los navegadores recurren a una fuente alternativa para cada carácter. En macOS es Courier New, que es monoespaciada a 0,6 em: 7,2012 px por glifo a 12 px frente a los 7,2246 px de Menlo. Es un 0,3 % más estrecha, lo suficiente para desplazar una fila completa de hebreo aproximadamente media celda.
+La pila de fuentes incluida es `"SF Mono", Menlo, "Cascadia Mono", Consolas, monospace`. Ninguna de estas fuentes tiene glifos hebreos o árabes, por lo que los navegadores recurren a una fuente alternativa para cada carácter. En macOS es Courier New, que es monoespaciada a 0,6 em: 7,2012 px por glifo a 12 px frente a los 7,2246 px de Menlo. Es un 0,3 % más estrecha, lo suficiente para desplazar una fila completa de hebreo aproximadamente media celda.
 
 <!-- s:851f84e769 -->
-`CssConsoleDriver` mide cada span de derecha a izquierda con un canvas que usa la fuente de la consola (con la misma conformación de Blink y sustitución de fuentes que usa DevTools) y luego añade un relleno equivalente a la diferencia exacta en LayoutUnit (1/64 px). El span termina con el mismo ancho que las celdas de la cuadrícula que ocupa (un grafema ancho, como un emoji, cuenta como dos). Un span se contrae como máximo media celda, de modo que una fuente alternativa proporcional (Times New Roman junto a Cascadia Mono en Windows) desborda en vez de permitir que el siguiente span se superponga a sus glifos. Mediciones en la interfaz real de DevTools (Chromium 151) sobre un fotograma de 64×21 con líneas en hebreo, árabe, mixtas y con emojis en hebreo, y títulos de cajas RTL (`bun bench/devtools/bidi-shot.ts`):
+`CssConsoleDriver` mide cada span de derecha a izquierda con un canvas que usa la fuente de la consola (con la misma conformación de Blink y sustitución de fuentes que usa DevTools) y luego añade un relleno equivalente a la diferencia exacta en LayoutUnit (1/64 px). El span termina con el mismo ancho que las celdas de la cuadrícula que ocupa (un grafema ancho, como un emoji, cuenta como dos). Un span se contrae como máximo media celda, de modo que una fuente alternativa proporcional (Times New Roman junto a Cascadia Mono en Windows) desborda en vez de permitir que el siguiente span se superponga a sus glifos. Mediciones en la interfaz real de DevTools (Chromium 151) sobre un fotograma de 64×21 con líneas en hebreo, árabe, mixtas y con emojis en hebreo, y títulos de cajas RTL (`bun bench/devtools/bidi-shot.ts`):
 
 <!-- s:45d1be4db4 -->
 | Fotograma | Desviación del borde derecho entre filas |
 | :-- | --: |
-| Celdas registradas sin fijar el orden | 14,5 px (DevTools reordena y vuelve a dar forma) |
-| Orden fijado, sin ajuste de ancho | 2,22 px |
-| Controlador incluido | 0,156 px |
-| Control: mismas celdas, con cada glifo RTL sustituido por `x` | 1,67 px |
+| Celdas registradas sin fijar el orden | 14,5 px (DevTools reordena y vuelve a dar forma) |
+| Orden fijado, sin ajuste de ancho | 2,22 px |
+| Controlador incluido | 0,156 px |
+| Control: mismas celdas, con cada glifo RTL sustituido por `x` | 1,67 px |
 
 <!-- s:a7ec844aae -->
-El fotograma del controlador incluido coincide con el control íntegramente latino en todas las filas salvo la de emojis, donde obtiene un mejor resultado: los emojis se ajustan junto con el span de derecha a izquierda que los rodea (0,03 px), mientras que la fila de emojis de izquierda a derecha del control no se ajusta (1,66 px).
+El fotograma del controlador incluido coincide con el control íntegramente latino en todas las filas salvo la de emojis, donde obtiene un mejor resultado: los emojis se ajustan junto con el span de derecha a izquierda que los rodea (0,03 px), mientras que la fila de emojis de izquierda a derecha del control no se ajusta (1,66 px).
 
 <!-- s:318b8b5f4c -->
-DevTools dibuja cada span `%c` con `contain: paint` y ajusta cada uno a los píxeles del dispositivo por separado, por lo que, cuando dos fondos se encuentran en una posición fraccionaria, el píxel entre ambos puede no asignarse a ninguno y dejar una línea de 1 px. En Chrome y Edge, un span con fondo lo extiende 1 px por debajo de su vecino opaco de la derecha, y un span ajustado añade ese píxel a su relleno. Ninguno de los cuatro fotogramas anteriores muestra esa línea.
+DevTools dibuja cada span `%c` con `contain: paint` y ajusta cada uno a los píxeles del dispositivo por separado, por lo que, cuando dos fondos se encuentran en una posición fraccionaria, el píxel entre ambos puede no asignarse a ninguno y dejar una línea de 1 px. En Chrome y Edge, un span con fondo lo extiende 1 px por debajo de su vecino opaco de la derecha, y un span ajustado añade ese píxel a su relleno. Ninguno de los cuatro fotogramas anteriores muestra esa línea.
 
 <!-- s:7deafc8e74 -->
 Pasa `measureText: false` para desactivar el ajuste, o proporciona tu propia función de medición `(text, bold, italic) => px`.
@@ -80,7 +80,7 @@ Limitaciones
 - **Conformación.** Solo se da forma a las letras con formas de presentación: árabe, persa, urdu y las demás letras de U+FB50–U+FDFF y U+FE70–U+FEFF. Lam-alef se mantiene como dos letras unidas en dos celdas, en lugar de la ligadura de un solo glifo. El siríaco, el N'Ko y otras escrituras con letras unidas conservan sus formas nominales.
 - **Copia.** El texto copiado de la consola está en orden de visualización (con las marcas `LRO`/`PDF`), no en orden lógico.
 - **Terminales.** Las terminales que ignoran tanto BDSM como `LRO` y ejecutan su propio bidi (por ejemplo, con bidi activado en iTerm2) pueden volver a reordenar las filas de derecha a izquierda.
-- **Réplicas DOM.** `<ConsoleMirror>` no ajusta los anchos, por lo que los tramos de derecha a izquierda pueden desviarse hasta un 0,3 % de su ancho.
+- **Réplicas DOM.** `<ConsoleMirror>` no ajusta los anchos, por lo que los tramos de derecha a izquierda pueden desviarse hasta un 0,3 % de su ancho.
 
 <!-- s:40caf66c4d -->
 API

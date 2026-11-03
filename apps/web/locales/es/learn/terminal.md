@@ -1,5 +1,5 @@
 <!-- s:3ddc060411 -->
-`text run` ejecuta la misma app en una terminal. El layout, los componentes, los mapas de teclas y los manejadores de ruta se comparten, y la salida es ANSI de color verdadero en lugar de spans CSS con `%c`.
+`text run` ejecuta la misma app en una terminal. El layout, los componentes, los mapas de teclas y los manejadores de ruta se comparten, y la salida es ANSI de color verdadero en lugar de spans CSS `%c`.
 
 <!-- s:eed3d00ac7 -->
 `text run`
@@ -29,4 +29,4 @@ Ejecútalo con `bun cli.tsx`. `DeploymentsPage` obtiene sus filas, por lo que ne
 Diferencias
 
 <!-- s:505bd1bfa2 -->
-Las terminales repintan más rápido (hasta 60 fps en lugar de ~15) y ajustan la cuadrícula a la ventana en lugar de a la consola acoplada. Las imágenes necesitan datos de píxeles en lugar de una URL. Todo lo demás, incluido este panel, usa el mismo código.
+Las terminales repintan más rápido (hasta 60 fps en lugar de ~15) y ajustan la cuadrícula a la ventana en lugar de a la consola acoplada. Las imágenes necesitan datos de píxeles en lugar de una URL. Todo lo demás, incluido este panel, usa el mismo código.

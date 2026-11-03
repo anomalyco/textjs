@@ -52,7 +52,7 @@ Publicar una versión
 Los responsables del mantenimiento actualizan de forma sincronizada la versión de todos los paquetes del espacio de trabajo con los scripts de publicación:
 
 <!-- s:614a1ea872 -->
-`release:version` reescribe cada `package.json` y las constantes de versión que lo reflejan (`VERSION`, `rendererVersion` del reconciler), se niega a ejecutarse si las versiones de los paquetes han dejado de coincidir, y `--dry-run` muestra el plan. `release:publish` compila, empaqueta (resolviendo `workspace:*`), aplica `publishConfig`, se niega a publicar una versión preliminar en `latest` o una versión estable en `canary`, y omite las versiones que ya existen en npm.
+`release:version` reescribe cada `package.json` y las constantes que reflejan su versión (`VERSION`, `rendererVersion` del reconciliador), se niega a ejecutarse cuando las versiones de los paquetes han dejado de coincidir, y `--dry-run` muestra el plan. `release:publish` compila, empaqueta (resolviendo `workspace:*`), aplica `publishConfig`, se niega a publicar una versión preliminar en `latest` o una versión estable en `canary`, y omite las versiones que ya existen en npm.
 
 <!-- s:ec6955472a -->
 Consulta la [Política de soporte](/docs/support-policy) para saber durante cuánto tiempo se mantiene cada línea de versiones.

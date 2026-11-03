@@ -59,10 +59,10 @@ Un intercambio típico:
 Fotogramas e inactividad
 
 <!-- s:f2e8fe0f06 -->
-Antes de que cualquier herramienta lea un fotograma, espera a que la app quede inactiva: ningún fotograma programado, ningún `fetch` en curso y ningún commit ni fotograma durante 50 ms. Así, el agente ve el resultado de su entrada, en lugar de un fotograma a mitad de una actualización.
+Antes de que cualquier herramienta lea un fotograma, espera a que la app quede inactiva: ningún fotograma programado, ningún `fetch` en curso y ningún commit ni fotograma durante 50 ms. Así, el agente ve el resultado de su entrada, en lugar de un fotograma a mitad de una actualización.
 
 <!-- s:fbad6f5c1a -->
-Un `<Spinner>` o un gráfico que se actualiza una vez por segundo sigue contando como inactivo entre actualizaciones, por lo que las páginas con animaciones siguen siendo legibles. Una app que se renderiza con una frecuencia superior a una vez cada 50 ms nunca queda inactiva. Las lecturas dejan de esperar tras 1,5 segundos (`settleMs` cambia este valor), vuelcan el último fotograma y lo marcan como `busy`. `wait_for` sin texto espera a la inactividad, con su propio `quietMs`, y devuelve un error si nunca llega.
+Un `<Spinner>` o un gráfico que se actualiza una vez por segundo sigue contando como inactivo entre actualizaciones, por lo que las páginas con animaciones siguen siendo legibles. Una app que se renderiza con una frecuencia superior a una vez cada 50 ms nunca queda inactiva. Las lecturas dejan de esperar tras 1,5 segundos (`settleMs` cambia este valor), vuelcan el último fotograma y lo marcan como `busy`. `wait_for` sin texto espera a la inactividad, con su propio `quietMs`, y devuelve un error si nunca llega.
 
 <!-- s:c5250c2f7a -->
 Las coordenadas son celdas con índice desde cero: `x` es la columna, `y` la fila. Los caracteres anchos, como los CJK y los emojis, ocupan dos columnas.

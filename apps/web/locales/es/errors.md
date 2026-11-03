@@ -38,7 +38,7 @@ Para mostrar la misma interfaz en la página, usa `<TextCanvas>` de `@textjs/rea
 Elemento anfitrión desconocido
 
 <!-- s:a8bb5bc9a5 -->
-El reconciler solo reconoce dos elementos intrínsecos, `tx-box` y `tx-text`. Recibió un elemento en minúsculas como `<div>` o `<span>`.
+El reconciliador solo reconoce dos elementos intrínsecos, `tx-box` y `tx-text`. Recibió un elemento en minúsculas como `<div>` o `<span>`.
 
 <!-- s:407e421c11 -->
 Usa los componentes exportados en su lugar:
