@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { i18nPlugin } from "./scripts/i18n/vite-plugin";
 import { reportsDevMiddleware } from "./server/reports-dev";
 import { terminalDevMiddleware } from "./server/terminal-dev";
 import { VIEWPORT_SOURCE } from "./src/console-companion/viewport-console";
@@ -81,7 +82,9 @@ function prerenderedPages(): Plugin {
           req.url = `/${rel}${search}`;
           return next();
         }
-        const file = join(dist, "404.html");
+        // Like Pages, the nearest 404.html: /ja/missing gets dist/ja/404.html.
+        const localized = parts.length > 1 ? join(dist, parts[0] as string, "404.html") : "";
+        const file = localized && existsSync(localized) ? localized : join(dist, "404.html");
         if (!existsSync(file)) return next();
         res.statusCode = 404;
         res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -140,9 +143,27 @@ function doomWadGzip(isSsrBuild: boolean): Plugin {
   };
 }
 
+/** The locale this build compiles in (`scripts/build.ts` runs one build per locale). */
+const LOCALE = process.env.TEXTJS_LOCALE || "en";
+const SOURCE = LOCALE === "en";
+
 export default defineConfig(({ isSsrBuild }) => ({
-  plugins: [react(), viewportScript(), terminalFunctions(), reportFunction(), prerenderedPages(), doomWadGzip(Boolean(isSsrBuild))],
-  define: { __TEXTJS_RELEASE__: JSON.stringify(release()) },
+  plugins: [
+    i18nPlugin(LOCALE),
+    react(),
+    viewportScript(),
+    terminalFunctions(),
+    reportFunction(),
+    prerenderedPages(),
+    // Locale builds only contribute pages and chunks; English ships public/ and the Doom WAD.
+    ...(SOURCE ? [doomWadGzip(Boolean(isSsrBuild))] : []),
+  ],
+  define: {
+    __TEXTJS_RELEASE__: JSON.stringify(release()),
+    __TEXTJS_LOCALE__: JSON.stringify(LOCALE),
+    __TEXTJS_LOCALES__: JSON.stringify(process.env.TEXTJS_LOCALES ?? ""),
+  },
+  publicDir: SOURCE ? "public" : false,
   build: {
     target: "es2022",
     outDir: "dist",

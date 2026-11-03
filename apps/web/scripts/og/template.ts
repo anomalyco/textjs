@@ -7,6 +7,8 @@
  * the output is the same on any machine.
  */
 
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { OgCard } from "../../src/og";
 import { WORDMARK_SVG } from "../../src/site/LogoMenu";
 
@@ -19,15 +21,22 @@ export const OG_ORIGIN = "https://og.textjs.local";
  */
 export const CHROMIUM_ARGS = ["--disable-lcd-text", "--font-render-hinting=none"];
 
-/** Font files: URL path → file path relative to apps/web. */
-export const OG_FONTS: Record<string, string> = {
+/** Font files: URL path → file path relative to apps/web. Script fonts exist once a locale needs them (subset-locale-fonts.ts). */
+export const OG_FONTS: Record<string, string> = withExisting({
   "/fonts/geist-latin.woff2": "public/fonts/geist-latin.woff2",
   "/fonts/geist-mono-latin.woff2": "public/fonts/geist-mono-latin.woff2",
   "/fonts/geist-mono-symbols.woff2": "public/fonts/geist-mono-symbols.woff2",
   "/fonts/geist-og.woff2": "scripts/og/fonts/geist-og.woff2",
   "/fonts/geist-mono-og.woff2": "scripts/og/fonts/geist-mono-og.woff2",
   "/fonts/noto-symbols-og.woff2": "scripts/og/fonts/noto-symbols-og.woff2",
-};
+  "/fonts/noto-sans-jp-og.woff2": "scripts/og/fonts/noto-sans-jp-og.woff2",
+  "/fonts/noto-sans-arabic-og.woff2": "scripts/og/fonts/noto-sans-arabic-og.woff2",
+});
+
+function withExisting(fonts: Record<string, string>): Record<string, string> {
+  const web = join(import.meta.dirname, "..", "..");
+  return Object.fromEntries(Object.entries(fonts).filter(([, file]) => existsSync(join(web, file))));
+}
 
 // The site's unicode ranges (index.html), so the bundled subsets draw exactly what they draw on the site.
 const LATIN = "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD";
@@ -40,6 +49,8 @@ const FONT_CSS = `
 @font-face { font-family: "Geist OG"; font-weight: 100 900; src: url(/fonts/geist-og.woff2) format("woff2"); }
 @font-face { font-family: "Geist Mono OG"; font-weight: 100 900; src: url(/fonts/geist-mono-og.woff2) format("woff2"); }
 @font-face { font-family: "OG Symbols"; src: url(/fonts/noto-symbols-og.woff2) format("woff2"); }
+@font-face { font-family: "OG Japanese"; font-weight: 100 900; src: url(/fonts/noto-sans-jp-og.woff2) format("woff2"); }
+@font-face { font-family: "OG Arabic"; font-weight: 100 900; src: url(/fonts/noto-sans-arabic-og.woff2) format("woff2"); }
 `;
 
 const SANS = `"Geist", "Geist OG", "OG Symbols"`;
@@ -75,6 +86,17 @@ body { font-family: ${SANS}; color: #ededed; -webkit-font-smoothing: antialiased
 
 .photo { position: absolute; right: 0; top: 0; width: 504px; height: 630px; object-fit: cover; }
 .photo-fade { position: absolute; right: 344px; top: 0; width: 160px; height: 630px; background: linear-gradient(90deg, #000, rgba(0,0,0,0)); }
+
+/* Translated cards: the script's own font after Geist, no negative tracking, and room for taller glyphs. */
+.card:lang(ja) { font-family: "Geist", "OG Japanese", "Geist OG", "OG Symbols"; }
+.card:is(:lang(ar), :lang(fa), :lang(ur)) { font-family: "Geist", "OG Arabic", "Geist OG", "OG Symbols"; }
+.card[lang]:not(:lang(en)) :is(.title, .label) { letter-spacing: 0; }
+.card:is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(hi)) .title { line-height: 1.2; }
+.card[dir="rtl"] .brand { left: auto; right: ${EDGE}px; }
+.card[dir="rtl"] .label { padding-left: 0; padding-right: 24px; border-left: 0; border-right: 2px solid #333; }
+.card[dir="rtl"] .title { left: auto; right: ${EDGE}px; }
+.card[dir="rtl"] .photo { right: auto; left: 0; }
+.card[dir="rtl"] .photo-fade { right: auto; left: 344px; background: linear-gradient(270deg, #000, rgba(0,0,0,0)); }
 `;
 
 /**
@@ -113,11 +135,12 @@ export function documentHtml(body = ""): string {
 }
 
 /** What a card draws: the only fields that change its pixels (and so its cache key). */
-export function drawn(card: OgCard): { title: string; label: string; code: boolean; wordmark?: string; photo?: string } {
+export function drawn(card: OgCard): { title: string; label: string; code: boolean; wordmark?: string; photo?: string; lang?: string; dir?: "rtl" } {
   const code = card.template === "error" && Boolean(card.code);
   // One word for the section: `Docs · Getting Started` → `Docs`.
   const label = code ? (card.code as string) : (card.section.split(" · ")[0] ?? "");
-  return { title: card.title, label: card.wordmark ? "" : label, code, wordmark: card.wordmark, photo: card.photo };
+  const locale = card.lang && card.lang !== "en" ? { lang: card.lang, ...(card.dir === "rtl" ? { dir: "rtl" as const } : {}) } : {};
+  return { title: card.title, label: card.wordmark ? "" : label, code, wordmark: card.wordmark, photo: card.photo, ...locale };
 }
 
 /** Body markup of one card. */
@@ -127,5 +150,6 @@ export function cardHtml(card: OgCard): string {
   const width = d.photo ? 580 : 1024;
   const max = d.photo ? 96 : 112;
   const photo = d.photo ? `<img class="photo" src="${escapeHtml(d.photo)}"><div class="photo-fade"></div>` : "";
-  return `<div class="card"><div class="brand">${LOCKUP_SVG}${label}</div><div class="title" data-fit="${max},60" style="width:${width}px;font-size:${max}px">${escapeHtml(d.title)}</div>${photo}</div>`;
+  const locale = d.lang ? ` lang="${escapeHtml(d.lang)}"${d.dir ? ` dir="${d.dir}"` : ""}` : "";
+  return `<div class="card"${locale}><div class="brand">${LOCKUP_SVG}${label}</div><div class="title" data-fit="${max},60" style="width:${width}px;font-size:${max}px">${escapeHtml(d.title)}</div>${photo}</div>`;
 }

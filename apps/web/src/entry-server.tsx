@@ -11,6 +11,7 @@ import { TX_ERRORS } from "@textjs/core";
 import { LEARN_ROUTES } from "./learn/routes";
 import { MERCH_ROUTES } from "./merch/routes";
 import { presetPath } from "./console-companion/store";
+import { t } from "./i18n/t";
 import { Root } from "./Root";
 import { preloadAllRoutes, ROUTE_MANIFEST_SRC } from "./route-loader";
 import { matchRoute, resetLocation, titleFor } from "./router";
@@ -25,13 +26,15 @@ export interface PrerenderRoute {
   canonical?: string;
   /** Prerendered so the URL returns 200, but kept out of search indexes. */
   noindex?: boolean;
+  /** The page's own title for its share card, when `title` carries a suffix (`Routing` for `Routing | Text.js Docs`). */
+  cardTitle?: string;
 }
 
 export const ROUTES: readonly PrerenderRoute[] = [
   { path: "/", title: titleFor({ name: "home" }), description: "" },
-  { path: "/docs", title: "Documentation | Text.js", description: "Learn how to build React apps that render in the DevTools console." },
+  { path: "/docs", title: t("Documentation | Text.js"), description: t("Learn how to build React apps that render in the DevTools console.") },
   // Every page also lives at /docs/<slug> (/docs/introduction included).
-  ...DOCS.map((d) => ({ path: `/docs/${d.slug}`, title: titleFor(matchRoute(`/docs/${d.slug}`)), description: d.description, canonical: docPath(d.slug) })),
+  ...DOCS.map((d) => ({ path: `/docs/${d.slug}`, title: titleFor(matchRoute(`/docs/${d.slug}`)), description: d.description, canonical: docPath(d.slug), cardTitle: d.title })),
   // The Playground's demos, in picker order. OpenCode and terminal.shop have their own URLs.
   { path: "/playground", title: titleFor(matchRoute("/playground")), description: "Pick a Text.js demo, open the DevTools console and press a few keys." },
   { path: presetPath("streaming"), title: titleFor(matchRoute(presetPath("streaming"))), description: "Watch Markdown and a code diff stream into the DevTools console, then press r to replay it." },
@@ -45,7 +48,7 @@ export const ROUTES: readonly PrerenderRoute[] = [
   { path: "/errors/TX000", title: titleFor({ name: "error", code: "TX000" }), description: "TX000: Success.", noindex: true },
   { path: "/changelog", title: titleFor({ name: "changelog" }), description: "Release notes for every Text.js version." },
   { path: "/blog", title: titleFor({ name: "blog" }), description: "Releases and engineering notes from the Text.js team." },
-  ...POSTS.map((p) => ({ path: postPath(p.slug), title: titleFor({ name: "blog-post", slug: p.slug }), description: p.summary })),
+  ...POSTS.map((p) => ({ path: postPath(p.slug), title: titleFor({ name: "blog-post", slug: p.slug }), description: p.summary, cardTitle: p.title })),
   { path: "/enterprise", title: titleFor({ name: "enterprise" }), description: "Text.js Enterprise adds a 99.99% console.log SLA, a named console engineer and security reviews." },
   { path: "/status", title: titleFor({ name: "status" }), description: "Check Turbolog component status, run the pipeline benchmark in your browser and see performance history." },
   ...MERCH_ROUTES,

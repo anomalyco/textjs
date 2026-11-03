@@ -1,0 +1,36 @@
+/**
+ * UI strings. The English text is the key: `t("Docs")`, `msg("Getting Started")`. Each build compiles the
+ * locale's text in place of the literal (`scripts/i18n/vite-plugin.ts`), so no catalog ships to the browser
+ * and English keeps its plain strings. A string without a translation stays English.
+ */
+
+import { LOCALE } from "./locales";
+
+export type PluralCategory = "zero" | "one" | "two" | "few" | "many" | "other";
+export type PluralForms = Partial<Record<PluralCategory, string>> & { other: string };
+export type Params = Readonly<Record<string, string | number>>;
+
+/** `{name}` → `params.name`; unknown names stay as written. */
+export function interpolate(text: string, params?: Params): string {
+  if (!params) return text;
+  return text.replace(/\{(\w+)\}/g, (m, name: string) => (name in params ? String(params[name]) : m));
+}
+
+/** A translated UI string. Literal first argument only, so the build can find and replace it. */
+export function t(text: string, params?: Params): string {
+  return interpolate(text, params);
+}
+
+/** Marks a string in a data module for translation and returns it (the build swaps in the locale's text). */
+export function msg(text: string): string {
+  return text;
+}
+
+let rules: Intl.PluralRules | null = null;
+
+/** `plural(n, { one: "{count} frame", other: "{count} frames" })`, with `{count}` set to `n`. */
+export function plural(count: number, forms: PluralForms, params?: Params): string {
+  rules ??= new Intl.PluralRules(LOCALE.code);
+  const text = forms[rules.select(count) as PluralCategory] ?? forms.other;
+  return interpolate(text, { count, ...params });
+}

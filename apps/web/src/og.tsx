@@ -6,7 +6,9 @@
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TX_ERRORS } from "@textjs/core";
+import { CATEGORY_LABELS } from "./docs/meta";
 import { getDoc } from "./docs/registry";
+import { t } from "./i18n/t";
 import { chapterNumber, COMPLETE_SLUG } from "./learn/course";
 import { getProduct, PRODUCTS } from "./merch/products";
 import { PRESETS } from "./console-companion/store";
@@ -33,6 +35,9 @@ export interface OgCard {
   wordmark?: string;
   /** `og:image:alt`. */
   alt: string;
+  /** Language and direction of the card's text (English when absent). */
+  lang?: string;
+  dir?: "ltr" | "rtl";
 }
 
 /** `/` → `home`, `/docs/routing` → `docs-routing`. */
@@ -50,19 +55,19 @@ function pageTitle(title: string): string {
 /** The card for one prerendered route (or the 404 page). */
 export async function ogCard(route: PrerenderRoute): Promise<OgCard> {
   const { path } = route;
-  const title = pageTitle(route.title);
+  const title = route.cardTitle ?? pageTitle(route.title);
   const base = { path, slug: ogSlug(path), template: "page" as const, section: "", title };
   const m = matchRoute(path);
   const alt = (section: string, t: string): string => `Text.js${section ? ` ${section}` : ""}: ${t}`;
 
   switch (m.name) {
     case "home":
-      return { ...base, template: "home", title: "The Console Framework", alt: alt("", "The Console Framework") };
+      return { ...base, template: "home", title: t("The Console Framework"), alt: alt("", t("The Console Framework")) };
     case "docs": {
       const doc = getDoc(m.slug);
-      if (path === "/docs") return { ...base, title: "Documentation", alt: alt("", "Documentation") };
-      const section = `Docs · ${doc?.category ?? ""}`.replace(/ · $/, "");
-      return { ...base, section, alt: alt("Docs", title) };
+      if (path === "/docs") return { ...base, title: t("Documentation"), alt: alt("", t("Documentation")) };
+      const section = doc ? t("Docs · {category}", { category: CATEGORY_LABELS[doc.category] }) : t("Docs");
+      return { ...base, section, alt: alt(t("Docs"), title) };
     }
     case "playground": {
       const preset = PRESETS.find((p) => p.id === m.preset) ?? PRESETS[0];
@@ -115,7 +120,7 @@ export async function ogCard(route: PrerenderRoute): Promise<OgCard> {
       };
     }
     case "not-found":
-      return { ...base, slug: "404", template: "error", section: "", code: "404", title: "This page could not be found", alt: alt("404", "This page could not be found") };
+      return { ...base, slug: "404", template: "error", section: "", code: "404", title: t("This page could not be found"), alt: alt("404", t("This page could not be found")) };
   }
 }
 

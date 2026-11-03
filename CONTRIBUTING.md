@@ -84,6 +84,25 @@ Docs, READMEs, error messages and site copy follow [`apps/web/STYLE.md`](apps/we
 - Docs are instructional: "To do X, use Y."
 - Avoid em dashes, contrast templates ("not X, but Y"), lists of three for rhythm, closing morals and stock words such as seamless, powerful, effortless and simply.
 
+## Translations
+
+textjs.org is translated per language in `apps/web/locales/<code>/`: `messages.json` holds the interface strings, keyed by their English text, and `docs/*.md` holds translated docs pages. Each language's `STYLE.md` and the shared `glossary.json` (names that stay as written, preferred terms) guide every translation. Languages and their status (`planned`, `draft`, `live`) are listed in `apps/web/src/i18n/locales.ts`.
+
+Translations are generated on a maintainer's Mac, never in CI:
+
+```bash
+cd apps/web
+bun run i18n:translate --locale ja                              # everything missing or stale
+bun run i18n:translate --locale ja --only messages,docs/routing # some areas
+bun run i18n:translate --locale ja --dry-run                    # count what would be translated
+```
+
+The script reads `OPENAI_API_KEY` and `OPENAI_BASE_URL` from `~/.config/textjs/openai.env`.
+
+To correct a translation by hand, edit the text under its `<!-- s:… -->` line in `docs/*.md`, or the value in `messages.json`. Leave the marker as it is: it's the hash of the English paragraph, and when the English changes the paragraph shows in English until it's translated again.
+
+CI runs `bun run i18n:check`, which fails when a translation drops a placeholder, tag, link or table row, adds code that isn't in the English, or when a `t()`, `msg()`, `rich()` or `plural()` call doesn't take one double-quoted string. Missing and stale text is reported in the job summary and never fails the build.
+
 ## Deploys
 
 The repository has two long-lived branches. Pull requests merge into `dev`, and `production` holds what runs on textjs.org.

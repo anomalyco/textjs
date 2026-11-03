@@ -102,6 +102,11 @@ jobs:
             bun run --cwd "apps/$app" test --timings="$RUNNER_TEMP/timings/$app.json" --update-timings
           done
 
+      # Validates committed translations (no API key) and writes coverage to the job summary. Stale text
+      # never fails it: pages show English until someone runs `bun run i18n:translate` on a Mac.
+      - name: Translations
+        run: bun run --cwd apps/web i18n:check
+
   test:
     name: Typecheck and test
     needs: [typecheck, packages, apps]

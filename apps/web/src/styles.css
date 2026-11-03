@@ -37,6 +37,53 @@
   color-scheme: dark;
 }
 
+/* Scripts Geist doesn't cover use system fonts (no web font to wait for, so no layout shift). Geist stays first
+   for the Latin text and code inside them. */
+:root:lang(ja) {
+  --sans: "Geist", "Geist Fallback", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, "Noto Sans JP", sans-serif;
+}
+:root:lang(ko) {
+  --sans: "Geist", "Geist Fallback", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+}
+:root:lang(zh-CN) {
+  --sans: "Geist", "Geist Fallback", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+}
+:root:lang(zh-TW) {
+  --sans: "Geist", "Geist Fallback", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+}
+:root:is(:lang(ar), :lang(fa), :lang(ur)) {
+  --sans: "Geist", "Geist Fallback", "SF Arabic", "Geeza Pro", "Segoe UI", "Noto Sans Arabic", Tahoma, sans-serif;
+}
+:root:lang(he) {
+  --sans: "Geist", "Geist Fallback", "SF Hebrew", "Arial Hebrew", "Segoe UI", "Noto Sans Hebrew", sans-serif;
+}
+:root:lang(hi) {
+  --sans: "Geist", "Geist Fallback", "Kohinoor Devanagari", "Devanagari Sangam MN", "Nirmala UI", "Noto Sans Devanagari", sans-serif;
+}
+/* Negative tracking breaks Arabic joining and crowds CJK and Devanagari. On the text itself, so the wordmark and
+   English blocks (lang="en") keep theirs. */
+:is(h1, h2, h3, h4, h5, h6, p, li, a:not(.wordmark), button, small, strong, td, th):is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(hi)) {
+  letter-spacing: 0 !important;
+}
+.prose:is(:lang(ja), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(hi)) {
+  line-height: 1.8;
+}
+.prose:lang(ko) {
+  line-height: 1.7;
+}
+.prose:is(:lang(ja), :lang(zh-CN), :lang(zh-TW)) {
+  line-break: strict;
+  overflow-wrap: anywhere;
+}
+:root:lang(ja) body {
+  word-break: auto-phrase;
+  text-autospace: normal;
+  text-spacing-trim: trim-start;
+}
+:root:lang(ko) body {
+  word-break: keep-all;
+}
+
 *,
 *::before,
 *::after {
@@ -1522,6 +1569,106 @@ kbd {
 
 .footer nav a:hover {
   color: var(--fg);
+}
+
+/* The footer's right column when there's a language picker: the status line, then the picker. */
+.footer-end {
+  grid-area: status;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 20px;
+}
+
+.footer-end .footer-status {
+  align-self: center;
+}
+
+.locale-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: var(--subtle);
+  font-size: 13px;
+}
+
+.locale-menu select {
+  appearance: none;
+  padding-block: 2px;
+  padding-inline: 0 18px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.locale-menu select:focus-visible {
+  outline: 2px solid var(--blue-2);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.locale-menu svg {
+  position: absolute;
+  inset-inline-end: 0;
+  pointer-events: none;
+}
+
+.locale-menu:hover {
+  color: var(--fg);
+}
+
+/* Bottom start corner, across from the console pill; fixed, so it never moves the page. */
+.locale-suggestion {
+  position: fixed;
+  inset-inline-start: 20px;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 60;
+  max-width: calc(100vw - 40px);
+  padding: 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: rgba(10, 10, 10, 0.86);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.8);
+}
+
+.locale-suggestion-body {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.locale-suggestion-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--subtle);
+  cursor: pointer;
+}
+
+.locale-suggestion-close:hover {
+  background: var(--bg-2);
+  color: var(--fg);
+}
+
+/* While the offer is up, the footer leaves room for it, so the end of the page is never under it. Extra space
+   below everything else, so nothing moves. */
+body:has(.locale-suggestion) .footer {
+  padding-bottom: 104px;
+}
+
+@media (max-width: 640px) {
+  .locale-suggestion {
+    inset-inline-start: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
 }
 
 .footer-status {

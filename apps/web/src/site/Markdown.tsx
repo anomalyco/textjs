@@ -1,6 +1,6 @@
 import { Fragment, useMemo, type ReactNode } from "react";
 import { parseInline, parseMarkdown, type ListItem, type MarkdownBlock } from "@textjs/react";
-import { slugify } from "../docs/meta";
+import { sentinelFlag, slugify, splitHeadingId } from "../docs/meta";
 import { A } from "../router";
 import { CodeBlock } from "./CodeBlock";
 // Eager (not lazy): a Suspense fallback swapping to the taller preview would shift the page.
@@ -46,7 +46,7 @@ function nestList(items: readonly ListItem[]): ListNode[] {
   return root;
 }
 
-function List({ nodes }: { nodes: ListNode[] }): ReactNode {
+function List({ nodes, attrs }: { nodes: ListNode[]; attrs?: { lang?: string; dir?: "ltr" } }): ReactNode {
   const ordered = nodes[0]?.item.ordered ?? false;
   const items = nodes.map((n, i) => (
     <li key={i}>
@@ -55,7 +55,7 @@ function List({ nodes }: { nodes: ListNode[] }): ReactNode {
       {n.children.length > 0 ? <List nodes={n.children} /> : null}
     </li>
   ));
-  return ordered ? <ol>{items}</ol> : <ul>{items}</ul>;
+  return ordered ? <ol {...attrs}>{items}</ol> : <ul {...attrs}>{items}</ul>;
 }
 
 /** Parse a fence info token: `tsx`, `tsx@app/page.tsx` (filename) or `tsx#counter` (live preview). */
@@ -67,29 +67,51 @@ export function parseFence(info: string): { language: string; file?: string; pre
   return { language: info };
 }
 
-function Block({ block }: { block: MarkdownBlock }): ReactNode {
+/** Flags from the `<!-- i18n:… -->` lines before a block: `en` (not translated yet) and `warning`. */
+type Flags = ReadonlySet<string>;
+
+const NO_FLAGS: Flags = new Set();
+
+/** A block still in English on a translated page. */
+function englishAttrs(flags: Flags): { lang?: string; dir?: "ltr" } {
+  return flags.has("en") ? { lang: "en", dir: "ltr" } : {};
+}
+
+function Block({ block, flags = NO_FLAGS }: { block: MarkdownBlock; flags?: Flags }): ReactNode {
+  const attrs = englishAttrs(flags);
   switch (block.type) {
     case "heading": {
-      const id = slugify(block.text);
+      const heading = splitHeadingId(block.text);
+      const id = heading.id ?? slugify(heading.text);
       const content = (
         <>
           <a className="anchor" href={`#${id}`} aria-hidden="true" tabIndex={-1}>
             #
           </a>
-          <Inline text={block.text} />
+          <Inline text={heading.text} />
         </>
       );
-      if (block.level <= 2) return <h2 id={id}>{content}</h2>;
-      if (block.level === 3) return <h3 id={id}>{content}</h3>;
+      if (block.level <= 2)
+        return (
+          <h2 id={id} {...attrs}>
+            {content}
+          </h2>
+        );
+      if (block.level === 3)
+        return (
+          <h3 id={id} {...attrs}>
+            {content}
+          </h3>
+        );
       return (
-        <h4 id={id}>
-          <Inline text={block.text} />
+        <h4 id={id} {...attrs}>
+          <Inline text={heading.text} />
         </h4>
       );
     }
     case "paragraph":
       return (
-        <p>
+        <p {...attrs}>
           <Inline text={block.text} />
         </p>
       );
@@ -102,9 +124,9 @@ function Block({ block }: { block: MarkdownBlock }): ReactNode {
     }
     case "quote": {
       const first = block.blocks[0];
-      const warning = first?.type === "paragraph" && /^\*\*(Warning|Caution)/.test(first.text);
+      const warning = flags.has("warning") || (first?.type === "paragraph" && /^\*\*(Warning|Caution)/.test(first.text));
       return (
-        <div className={`callout${warning ? " warning" : ""}`}>
+        <div className={`callout${warning ? " warning" : ""}`} {...attrs}>
           {block.blocks.map((b, i) => (
             <Block key={i} block={b} />
           ))}
@@ -112,10 +134,10 @@ function Block({ block }: { block: MarkdownBlock }): ReactNode {
       );
     }
     case "list":
-      return <List nodes={nestList(block.items)} />;
+      return <List nodes={nestList(block.items)} attrs={attrs} />;
     case "table":
       return (
-        <div className="table-wrap">
+        <div className="table-wrap" {...attrs}>
           <table>
             <thead>
               <tr>
@@ -145,12 +167,27 @@ function Block({ block }: { block: MarkdownBlock }): ReactNode {
   }
 }
 
+/** Parsed blocks, each with the `<!-- i18n:… -->` flags written before it. */
+function flaggedBlocks(source: string): { block: MarkdownBlock; flags: Flags }[] {
+  const out: { block: MarkdownBlock; flags: Flags }[] = [];
+  let pending: Set<string> | null = null;
+  for (const block of parseMarkdown(source)) {
+    const flag = block.type === "paragraph" ? sentinelFlag(block.text) : null;
+    if (flag) (pending ??= new Set()).add(flag);
+    else {
+      out.push({ block, flags: pending ?? NO_FLAGS });
+      pending = null;
+    }
+  }
+  return out;
+}
+
 export function MarkdownDoc({ source }: { source: string }): ReactNode {
-  const blocks = useMemo(() => parseMarkdown(source), [source]);
+  const blocks = useMemo(() => flaggedBlocks(source), [source]);
   return (
     <div className="prose">
       {blocks.map((b, i) => (
-        <Block key={i} block={b} />
+        <Block key={i} block={b.block} flags={b.flags} />
       ))}
     </div>
   );

@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from "react";
+import { splitHeadingId } from "../docs/meta";
 import { MarkdownDoc } from "../site/Markdown";
 import { DiffCode } from "./DiffCode";
 
@@ -40,5 +41,5 @@ export function ChapterBody({ markdown }: { markdown: string }): ReactNode {
 
 /** `## Heading` titles of a chapter, in order (the "In this chapter" list). */
 export function chapterHeadings(markdown: string): string[] {
-  return [...markdown.replace(/```[\s\S]*?```/g, "").matchAll(/^## (.+)$/gm)].map((m) => m[1] as string);
+  return [...markdown.replace(/```[\s\S]*?```/g, "").matchAll(/^## (.+)$/gm)].map((m) => splitHeadingId(m[1] as string).text);
 }
