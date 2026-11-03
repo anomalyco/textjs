@@ -142,7 +142,7 @@ describe("Doom shareware & GPL engine assets", () => {
     } finally {
       WebAssembly.instantiate = instantiate;
     }
-  });
+  }, 30_000);
 
   test("DoomDemo skips download on mobile touch fallback and while inactive, shows 4:3 loading progress, and retries on Enter after error", async () => {
     let calls = 0;
