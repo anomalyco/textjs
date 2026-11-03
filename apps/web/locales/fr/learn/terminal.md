@@ -1,5 +1,5 @@
 <!-- s:3ddc060411 -->
-`text run` exécute la même application dans un terminal. Le layout, les composants, les keymaps et les gestionnaires de route sont partagés, et la sortie utilise des séquences ANSI truecolor au lieu de spans CSS `%c`.
+`text run` exécute la même application dans un terminal. Le layout, les composants, les keymaps et les gestionnaires de route sont partagés, et la sortie utilise l’ANSI en couleurs vraies au lieu de spans CSS `%c`.
 
 <!-- s:eed3d00ac7 -->
 `text run`

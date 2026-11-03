@@ -50,4 +50,4 @@ La console ne reçoit pas les frappes au clavier, c’est donc la page qui les r
 La suite
 
 <!-- s:cb5f6bd294 -->
-Les prototypes `@textjs/core` 0.0.x sur npm regroupent tout dans un seul paquet. Text.js 0.1 déplace le moteur de rendu décrit ici dans `@textjs/core`, le reconciler React dans `@textjs/react`, et ajoute un App Router.
+Les prototypes `@textjs/core` 0.0.x sur npm regroupent tout dans un seul paquet. Text.js 0.1 déplace le moteur de rendu décrit ici dans `@textjs/core`, le réconciliateur React dans `@textjs/react`, et ajoute un App Router.

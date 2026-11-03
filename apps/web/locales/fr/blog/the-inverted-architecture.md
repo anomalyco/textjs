@@ -8,10 +8,10 @@ Le pipeline
 Chaque étape existe parce que la console est un affichage inhabituel. Elle utilise une police à chasse fixe et s’organise en lignes, ses styles sont appliqués avec `%c`, et DevTools décide quand la redessiner.
 
 <!-- s:db7daa7cf2 -->
-reconciler
+Réconciliateur
 
 <!-- s:f3cdc101e1 -->
-`@textjs/react` est un reconciler React 19 (`react-reconciler@0.34.0`) doté de deux éléments hôtes, `tx-box` et `tx-text`, ainsi que d’instances de texte pour les enfants de type chaîne. Tout ce que vous importez, de `<Box>` à `<Markdown>`, repose sur ces éléments. Les commits sont planifiés avec `requestAnimationFrame`, et une pression de touche ou un collage déclenche un rendu synchrone dans la même tâche.
+`@textjs/react` est un réconciliateur React 19 (`react-reconciler@0.34.0`) avec deux éléments hôtes, `tx-box` et `tx-text`, ainsi que des instances de texte pour les enfants de type chaîne de caractères. Tout ce que vous importez, de `<Box>` à `<Markdown>`, repose sur ces éléments. Les commits sont planifiés sur `requestAnimationFrame`, et un appui sur une touche ou un collage déclenche un rendu synchrone dans la même tâche.
 
 <!-- s:1ab8b509e0 -->
 Layout

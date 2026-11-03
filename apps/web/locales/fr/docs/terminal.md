@@ -1,5 +1,5 @@
 <!-- s:e9f791b208 -->
-`text run` effectue le rendu d’une application App Router dans un terminal. Le layout, les composants, les keymaps et les gestionnaires de route sont partagés avec le navigateur. La sortie utilise ANSI en couleurs vraies au lieu de spans `%c`.
+`text run` affiche une application App Router dans un terminal. Le layout, les composants, les keymaps et les gestionnaires de route sont partagés avec le navigateur. La sortie utilise ANSI en couleurs vraies plutôt que des spans `%c`.
 
 <!-- s:7d8aa376e3 -->
 Appuyez sur `Ctrl+C` pour quitter. `text run` nécessite Bun.

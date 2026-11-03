@@ -74,7 +74,7 @@ Les consoles de Chromium et Firefox dessinent l’image sous forme de sprite de 
 | :-- | :-- |
 | `src` | URL de l’image (navigateur uniquement) |
 | `pixels` | RGBA brut sous la forme `{ width, height, data }`, 4 octets par pixel dans l’ordre des lignes |
-| `width` / `height` | Largeur en cellules, hauteur en lignes. Passez l’une des deux pour conserver les proportions, ou aucune pour 1 × 2 pixels par cellule (`src` redimensionne à 256 × 256 px maximum) |
+| `width` / `height` | Largeur en cellules, hauteur en lignes. Passez l’une des deux pour conserver les proportions, ou aucune pour 1 × 2 pixels par cellule (`src` redimensionne à 256 × 256 px maximum) |
 | `fit` | `contain` (par défaut), `cover` ou `fill` |
 | `alt` | Texte affiché pendant le chargement de `src` ou en cas d’échec |
 | `renderMode` | `auto` (par défaut : sprite si pris en charge, demi-blocs `▀` ailleurs) ou `halfblock` |

@@ -49,7 +49,7 @@ Règles
 `no-dom-elements`
 
 <!-- s:deb9e3c0ec -->
-`<div>`, `<span>`, les éléments personnalisés et les autres balises DOM n’existent pas dans la console. Le reconciler ne connaît que ses propres nœuds hôtes et lève `TX003` pour tout autre élément.
+`<div>`, `<span>`, les éléments personnalisés et les autres balises DOM n’existent pas dans la console. Le réconciliateur ne connaît que ses propres nœuds hôtes et lève `TX003` pour tout autre élément.
 
 <!-- s:bd7c3e0318 -->
 La suggestion remplace la balise par le composant le plus proche (`div` → `Box`, `span`/`p` → `Text`, `strong` → `Text bold`, `a` → `Link`, `input` → `Input`, `hr` → `Divider`, …) et ajoute l’import.
@@ -132,4 +132,4 @@ Metadata est fusionné à partir des layouts, puis de la page (ou de `not-found`
 `route-handler-exports`
 
 <!-- s:877bcc12b1 -->
-Les fichiers `route.ts` ne répondent qu’aux méthodes HTTP qu’ils exportent : `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` et `OPTIONS`. Les variantes `get` ou `Post` ne sont jamais appelées (les requêtes reçoivent `405`) ; la suggestion les renomme. Les exports par défaut, les gestionnaires qui ne sont pas des fonctions et les autres exports sont signalés, à l’exception de `dynamic` et `revalidate` dans la [configuration des segments de route](/docs/caching). Déplacez le code partagé dans `lib/`, ou listez les noms supplémentaires avec `{ allow: [...] }`.
+Les fichiers `route.ts` ne répondent qu’aux méthodes HTTP qu’ils exportent : `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` et `OPTIONS`. Les fonctions `get` ou `Post` avec une initiale minuscule ne sont jamais appelées (les requêtes reçoivent `405`) ; la suggestion les renomme. Les exports par défaut, les gestionnaires qui ne sont pas des fonctions et les autres exports sont signalés, à l’exception de `dynamic` et `revalidate` dans la [configuration du segment de route](/docs/caching). Déplacez le code partagé dans `lib/`, ou listez les noms supplémentaires avec `{ allow: [...] }`.

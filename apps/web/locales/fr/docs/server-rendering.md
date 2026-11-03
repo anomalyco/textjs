@@ -27,7 +27,7 @@ Activation
 Exportez `runtime` depuis une page :
 
 <!-- s:567f4b3d2b -->
-`runtime` est lu pour chaque page sous forme d’export de chaîne statique (une annotation de type, `as const` ou une réexportation conviennent ; une valeur calculée ne convient pas). Les layouts, `loading.tsx`, `error.tsx` et `not-found.tsx` sont rendus au même endroit que leur page : un layout partagé par des pages client et serveur s’exécute aux deux endroits et est envoyé au navigateur, tandis que les layouts et les limites d’un segment ne contenant que des pages serveur restent sur le serveur. Les hooks, le focus, `useInput`, `<Link>` et `useRouter()` se comportent comme sur le client.
+`runtime` est lu pour chaque page sous forme d’une chaîne exportée statiquement (une annotation de type, `as const` ou une réexportation conviennent ; une valeur calculée ne convient pas). Les layouts, `loading.tsx`, `error.tsx` et `not-found.tsx` sont rendus là où leur page est rendue : un layout partagé par des pages client et serveur s’exécute aux deux endroits et est envoyé au navigateur, tandis que les layouts et les limites d’un segment qui ne contient que des pages serveur restent sur le serveur. Les hooks, le focus, `useInput`, `<Link>` et `useRouter()` se comportent comme côté client.
 
 <!-- s:43c4fa1dac -->
 Choisir l’environnement d’exécution

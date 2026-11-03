@@ -38,7 +38,7 @@ Pour afficher la même interface sur la page, utilisez `<TextCanvas>` depuis `@t
 Élément hôte inconnu
 
 <!-- s:a8bb5bc9a5 -->
-Le reconciler ne reconnaît que deux éléments intrinsèques, `tx-box` et `tx-text`. Il a reçu un élément en minuscules tel que `<div>` ou `<span>`.
+Le réconciliateur ne reconnaît que deux éléments intrinsèques, `tx-box` et `tx-text`. Il a reçu un élément en minuscules tel que `<div>` ou `<span>`.
 
 <!-- s:407e421c11 -->
 Utilisez plutôt les composants exportés :

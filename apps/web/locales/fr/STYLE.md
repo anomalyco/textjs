@@ -4,7 +4,7 @@
 - Headings and labels are noun phrases or infinitives without a period: « Installation », « Ouvrir la console », « Regrouper les routes ». Sentence case: only the first word and proper names take a capital.
 - Put a narrow no-break space (U+202F) before : ; ! ? and inside « » guillemets: « Conserver le journal ». Never add these spaces inside code, paths, URLs or Markdown link targets. No space before a period or comma.
 - Browser interface labels go in « » and match Chrome's French interface: « Conserver le journal », « Paramètres ». The Console panel is « Console ».
-- Decimal comma, and a no-break space before units and the percent sign in prose: 0,163 ms, 70,6 %, 66 ms, 21 kB. Thousands take a narrow no-break space from five digits: 3200 cellules, 12 000 frames. Never touch version numbers (Bun 1.2+, Node.js 22+, 1.4.1), numbers in code, paths or URLs.
+- Decimal comma, and a no-break space (U+00A0) before units and the percent sign in prose: 0,163 ms, 70,6 %, 66 ms, 21 kB. Thousands take a narrow no-break space from five digits: 3200 cellules, 12 000 frames. Never touch version numbers (Bun 1.2+, Node.js 22+, 1.4.1), numbers in code, paths or URLs.
 - Dates read 3 novembre 2026. Ranges use an en dash: 70–81 %.
 - Accented capitals keep their accents (À, É).
 - Genders: la console, la frame (les frames), la route, le layout, le hook, le composant, le thème, le span, l’application.

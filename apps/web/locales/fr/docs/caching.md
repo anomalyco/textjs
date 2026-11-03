@@ -34,7 +34,7 @@ Les réponses mises en cache contiennent :
 | `Cache-Control` | `s-maxage=N, stale-while-revalidate=<1 year − N>`, ou `s-maxage=31536000` pour `force-static` |
 
 <!-- s:c1fb73c64a -->
-Quand le [middleware](/docs/middleware) définit des cookies, effectue des réécritures ou remplace des en-têtes de la requête, l’en-tête généré devient `private, no-cache, no-store, max-age=0, must-revalidate`, afin que les caches partagés ne réutilisent jamais une décision propre à un visiteur. Un en-tête `Cache-Control` défini par le gestionnaire est conservé.
+Lorsque le [middleware](/docs/middleware) définit des cookies, effectue une réécriture ou remplace des en-têtes de requête, l’en-tête généré devient `private, no-cache, no-store, max-age=0, must-revalidate`, afin que les caches partagés ne réutilisent jamais une décision propre à un visiteur. Un en-tête `Cache-Control` défini par le gestionnaire est conservé.
 
 <!-- s:ae27ba22c7 -->
 Avec `text dev`, la configuration du segment s’applique, mais rien n’est stocké : chaque requête exécute donc le gestionnaire.
@@ -93,5 +93,5 @@ Les entrées sont au format JSON brut. `setCacheStore(store)` installe un stocka
 Notes sur les plateformes
 
 <!-- s:5418a08901 -->
-- Chaque instance serverless (fonctions Vercel, isolats Cloudflare) possède son propre cache en mémoire. `Cache-Control: s-maxage` autorise aussi le CDN de la plateforme à mettre les réponses en cache ; la revalidation à la demande ne purge pas un CDN. Utilisez un `cacheHandler` partagé lorsque `revalidateTag` doit atteindre toutes les instances.
+- Chaque instance serverless (fonctions Vercel, isolats Cloudflare) possède son propre cache en mémoire. `Cache-Control: s-maxage` autorise aussi le CDN de la plateforme à mettre les réponses en cache ; la revalidation à la demande ne purge pas le CDN. Utilisez un `cacheHandler` partagé lorsque `revalidateTag` doit atteindre toutes les instances.
 - Cloudflare exige le flag `nodejs_compat` (le cache utilise `AsyncLocalStorage`). Consultez [Déployer](/docs/deploying).

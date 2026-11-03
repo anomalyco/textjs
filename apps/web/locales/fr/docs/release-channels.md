@@ -52,7 +52,7 @@ Publier une version
 Les responsables de maintenance incrémentent la version de tous les paquets du workspace de manière synchronisée avec les scripts de publication :
 
 <!-- s:614a1ea872 -->
-`release:version` réécrit chaque `package.json` et les constantes de version qui le reflètent (`VERSION`, `rendererVersion` du reconciler), refuse de s’exécuter lorsque les versions des paquets divergent, et `--dry-run` affiche le plan. `release:publish` compile, crée les archives (en résolvant `workspace:*`), applique `publishConfig`, refuse de publier une préversion sur `latest` ou une version stable sur `canary`, et ignore les versions qui existent déjà sur npm.
+`release:version` réécrit chaque `package.json` et les constantes de version qui le reflètent (`VERSION`, `rendererVersion` du réconciliateur), refuse de s’exécuter lorsque les versions des paquets divergent, et `--dry-run` affiche le plan. `release:publish` compile, crée les archives (en résolvant `workspace:*`), applique `publishConfig`, refuse de publier une préversion sur `latest` ou une version stable sur `canary`, et ignore les versions qui existent déjà sur npm.
 
 <!-- s:ec6955472a -->
 Consultez la [politique de support](/docs/support-policy) pour connaître la durée de maintenance de chaque branche de versions.

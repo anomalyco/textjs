@@ -43,7 +43,7 @@ Appuyez sur `` Ctrl+` `` ou `F2` dans une application en cours d’exécution po
 Également dans la version 0.1
 
 <!-- s:289b0a9973 -->
-`@textjs/react` fournit des composants en PascalCase (`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner`), des utilitaires `className` de style Tailwind qui fonctionnent en cellules, et des themes. Le layout s’exécute sur Yoga en WebAssembly.
+`@textjs/react` fournit des composants en PascalCase (`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner`), des utilitaires `className` de style Tailwind qui fonctionnent en cellules, et des thèmes. Le layout repose sur Yoga en WebAssembly.
 
 <!-- s:8ad0f2154c -->
 La liste complète se trouve dans le [journal des modifications](/changelog#v0-1-0).

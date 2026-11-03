@@ -30,7 +30,7 @@ La frame est le premier rendu de la page, comme dans une [coquille prérendue](/
 - **Statut :** `200`, ou `404` avec la page introuvable de l’application lorsqu’aucune page ne correspond ou que la page appelle `notFound()`. Une page qui appelle `redirect()` pendant le rendu sert du HTML.
 
 <!-- s:1125803eb1 -->
-Les réponses sont de type `text/plain; charset=utf-8`, avec `Vary: User-Agent, Accept` et `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`, afin que les caches partagés ne stockent jamais une frame pour la servir à un navigateur. La page HTML à un chemin où curl reçoit une frame porte le même en-tête `Vary`.
+Les réponses sont de type `text/plain; charset=utf-8` avec les en-têtes `Vary: User-Agent, Accept` et `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`, afin que les caches partagés ne stockent jamais une frame pour la servir à un navigateur. La page HTML à un chemin où curl reçoit une frame porte le même en-tête `Vary`.
 
 <!-- s:0e2aba0a67 -->
 Environnements compatibles

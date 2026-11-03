@@ -26,4 +26,4 @@ Une carte de déploiement
 Thèmes
 
 <!-- s:8f993e0ab8 -->
-Cinq thèmes sont fournis avec Text.js : Geist Dark, OpenCode Dark, Tokyo Night, Amber CRT et Geist Light. Appuyez sur `t` dans la console pour les faire défiler. Toute la frame est redessinée avec la nouvelle palette, car chaque couleur ci-dessus est un token.
+Cinq thèmes sont fournis avec Text.js : Geist Dark, OpenCode Dark, Tokyo Night, Amber CRT et Geist Light. Appuyez sur `t` dans la console pour passer de l’un à l’autre. Toute la frame est redessinée avec la nouvelle palette, car chaque couleur ci-dessus est un jeton de thème.

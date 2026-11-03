@@ -8,7 +8,7 @@ Dossiers
 | Dossier | Rôle |
 | :-- | :-- |
 | `app` | Routes, layouts et gestionnaires de route |
-| `lib` | Modules partagés, sans routage |
+| `lib` | Modules partagés, sans route associée |
 | `public` | Ressources statiques |
 
 <!-- s:25756fa68d -->
@@ -20,7 +20,7 @@ Fichiers de routage
 | `layout.tsx` | Interface partagée pour un segment |
 | `page.tsx` | Écran accessible par une route |
 | `loading.tsx` | Contenu de repli de Suspense |
-| `error.tsx` | Limite de gestion des erreurs |
+| `error.tsx` | Limite de capture des erreurs |
 | `not-found.tsx` | URL sans correspondance |
 | `route.ts` | Point de terminaison d’API |
 

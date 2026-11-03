@@ -28,7 +28,7 @@ Corrections
 - textjs.org : l’en-tête de console sur textjs.org/doom affiche « Text.js / doom » au lieu de « Text.js / playground / doom ».
 - textjs.org/doom : une fenêtre étroite ne laisse plus de « · » isolé après « Voir le code source ».
 - textjs.org : dans une fenêtre étroite, le sélecteur de démos du Playground s’estompe sur un bord lorsqu’il reste des démos à faire défiler, au lieu de couper la dernière au milieu d’un mot.
-- textjs.org/doom tourne aux 35 tics par seconde de Doom. Dans un niveau, il tournait 3,8× trop vite sur un écran à 60 Hz (131 tics par seconde) et 5,5× à 120 Hz (192), car la page prenait les lectures d’horloge supplémentaires effectuées par Doom lors du dessin d’un niveau pour une attente active et avançait l’horloge de Doom d’un tic à chaque frame d’animation et à chaque rappel de minuteur.
+- textjs.org/doom tourne aux 35 tics par seconde de Doom. Dans un niveau, il tournait 3,8× trop vite sur un écran à 60 Hz (131 tics par seconde) et 5,5× à 120 Hz (192), car la page prenait les lectures d’horloge supplémentaires effectuées par Doom lors du dessin d’un niveau pour une attente active et avançait l’horloge de Doom d’un tic à chaque frame d’animation et à chaque rappel de minuteur.
 
 <!-- s:14d523690c -->
 - `@textjs/react` : `<Image renderMode="halfblock">` dessine des demi-blocs `▀` partout, comme le faisait `<Image>` en 1.3.
@@ -45,8 +45,8 @@ Corrections
 
 <!-- s:ba0b1ea778 -->
 - `@textjs/core` : les graphiques et les indicateurs de chargement conservent leur grille sous Windows 10. Sa police de console est Consolas, qui ne possède ni blocs en huitièmes ▁▂▃▅▆▇, ni quadrants, ni braille, ni ▶, ni ✓, et leurs glyphes de repli faisaient dépasser les lignes du bord droit de la frame. `CssConsoleDriver` mesure désormais une fois lesquels de ces glyphes la police de console dessine avec un écart de plus d’un cinquième de cellule, et les remplace par le glyphe disponible dans Consolas le plus proche : `_` `▄` `▌` `█` pour les huitièmes, des demi-blocs pour les quadrants et le braille, `►` `◄` `√` `×` pour les flèches, coches et croix. Les polices qui les affichent aux bonnes dimensions, comme Cascadia Mono sous Windows 11 et Menlo sous macOS, dessinent les originaux. `measureText: false` désactive ce comportement.
-- `@textjs/core` : plus de traits verticaux de 1 px entre les arrière-plans voisins dans les DevTools de Chrome et Edge, par exemple à côté de « account » et « qty » sur textjs.org/coffee. Chromium aligne séparément chaque span `%c` sur les pixels physiques et pouvait n’attribuer à aucun le pixel où deux spans se rejoignaient. `CssConsoleDriver` étend désormais l’arrière-plan d’un span de 1 px sous son voisin opaque de droite (`padding-right:1px;margin-right:-1px`). Les frames de Firefox et Safari ne changent pas.
-- `@textjs/core` : les sprites `<Image>` dans Chrome et Edge suivent la même règle de 1 px que le texte. Le texte à gauche d’un sprite transparent ne dessine plus une bande de 1 px de son arrière-plan sur le bord gauche du sprite, et un sprite se joint sans interstice au texte opaque situé à sa droite, y compris au texte inversé. Un sprite seul sur ses lignes atteint désormais le bord droit de la frame, comme les lignes de texte au-dessus et au-dessous.
+- `@textjs/core` : plus de traits verticaux de 1 px entre les arrière-plans voisins dans les DevTools de Chrome et Edge, par exemple à côté de « account » et « qty » sur textjs.org/coffee. Chromium aligne séparément chaque span `%c` sur les pixels physiques et pouvait n’attribuer à aucun le pixel où deux spans se rejoignaient. `CssConsoleDriver` étend désormais l’arrière-plan d’un span de 1 px sous son voisin opaque de droite (`padding-right:1px;margin-right:-1px`). Les frames de Firefox et Safari ne changent pas.
+- `@textjs/core` : les sprites `<Image>` dans Chrome et Edge suivent la même règle de 1 px que le texte. Le texte à gauche d’un sprite transparent ne dessine plus une bande de 1 px de son arrière-plan sur le bord gauche du sprite, et un sprite se joint sans interstice au texte opaque situé à sa droite, y compris au texte inversé. Un sprite seul sur ses lignes atteint désormais le bord droit de la frame, comme les lignes de texte au-dessus et au-dessous.
 - `@textjs/react` : `<ConsoleMirror>` dessine une photo à côté du texte sous forme de demi-blocs, comme la console, au lieu d’afficher l’image.
 
 <!-- s:757b866128 -->
@@ -56,7 +56,7 @@ Corrections
 - `@textjs/react` : `usePageFocus()` indique si la page a le focus. Pour décider vous-même quand l’application souhaite utiliser le clavier, définissez `focusHint: false` et affichez `<FocusHint active={…}>`. `useInput(handler, { ambient: true })` marque un raccourci toujours actif qui ne déclenche pas à lui seul l’affichage de l’indication.
 
 <!-- s:c96685f5e0 -->
-- `@textjs/core` : pendant l’animation d’un sprite `<Pixels>`, `ConsoleRenderer` regroupe les images clés toutes les 51 ms dans Chromium, espace les frames de 33 ms dans Safari et efface la sortie ajoutée à la suite dans `CssConsoleDriver` à 4 Mo (`SPRITE_MAX_BYTES`). Les sprites statiques et les applications purement textuelles conservent le rythme existant et la limite d’effacement de 300 frames.
+- `@textjs/core` : pendant l’animation d’un sprite `<Pixels>`, `ConsoleRenderer` regroupe les images clés toutes les 51 ms dans Chromium, espace les frames de 33 ms dans Safari et efface la sortie ajoutée à la suite dans `CssConsoleDriver` à 4 Mo (`SPRITE_MAX_BYTES`). Les sprites statiques et les applications purement textuelles conservent le rythme existant et la limite d’effacement de 300 frames.
 
 <!-- s:34e1835d0a -->
 - `@textjs/core` : `bindTextSink(element, onText)` lit le texte validé par un IME ou une touche morte depuis une zone de texte ou un champ masqué, une fois par validation et jamais en cours de composition. `engine.bindTextSink(element)` relie une zone de texte que vous affichez vous-même à un `InputEngine`. Les deux renvoient une fonction qui supprime les écouteurs.
@@ -97,7 +97,7 @@ Sécurité
 - `text dev` ne sert pas les fichiers de `public/` sous `/public/…` ou `/@fs/…`, les sources réservées au serveur telles que `middleware.ts` et `text.config.ts` avec une autre casse, sous un chemin `/@fs/` encodé, comme requêtes de modules sans extension (`/text.config?import`) ou via une réécriture de configuration, ni les gestionnaires de route hors de `basePath`.
 
 <!-- s:a0125c854e -->
-- Text.js effectue le rendu dans les consoles Firefox et Safari. `CssConsoleDriver` détecte le navigateur par des tests de fonctionnalités CSS. Lorsque les spans `%c` restent en ligne, il définit des hauteurs de ligne de 14 px sans marges, désactive le retour automatique à la ligne et utilise un rideau `line-height: 100vh`.
+- Text.js effectue le rendu dans les consoles Firefox et Safari. `CssConsoleDriver` détecte le navigateur par des tests de fonctionnalités CSS. Lorsque les spans `%c` restent en ligne, il définit des hauteurs de ligne de 14 px sans marges, désactive le retour automatique à la ligne et utilise un rideau `line-height: 100vh`.
 - Le dimensionnement adaptatif laisse de la place pour la colonne des liens source de Firefox. Safari place Menlo en tête de la pile de polices : ses pages ne peuvent pas utiliser une police SF Mono installée par l’utilisateur, avec laquelle Web Inspector peut dessiner.
 - Passez `browser: "chromium" | "firefox" | "safari"` à `createConsoleRoot`, `ConsoleRenderer` ou `CssConsoleDriver` pour choisir une console.
 - Les structures initiales prérendues contiennent le CSS des deux types de console.
@@ -106,7 +106,7 @@ Sécurité
 
 <!-- s:74de7c87f7 -->
 - ⌘⌥K et Ctrl+Shift+K (le raccourci de console de Firefox) sont transmis au navigateur au lieu de parvenir à l’application.
-- Le dimensionnement adaptatif apprend la hauteur des barres d’outils du navigateur de moins de 60 px (celles de Safari et Firefox) lorsque DevTools est fermé, afin qu’une console ancrée en bas utilise toutes les lignes disponibles. `<FocusPad>` utilise la hauteur apprise pour déterminer si DevTools est ancré.
+- Le dimensionnement adaptatif apprend la hauteur des barres d’outils du navigateur de moins de 60 px (celles de Safari et Firefox) lorsque DevTools est fermé, afin qu’une console ancrée en bas utilise toutes les lignes disponibles. `<FocusPad>` utilise la hauteur apprise pour déterminer si DevTools est ancré.
 - `<FocusPad>` écrit les raccourcis Windows et Linux dans son état d’attente de clic sous la forme `Ctrl+Shift+J`.
 
 <!-- s:0e572baad1 -->
@@ -124,9 +124,9 @@ Sécurité
 Performances
 
 <!-- s:f59d215740 -->
-- `@textjs/react` : `Box` et `Text` transmettent au reconciler des props de scène déjà épurées au lieu de copier les objets de props au montage et à la mise à jour.
-- `@textjs/core` : `SceneNode.getTextModel()` évite les parcours de l’arbre en ligne sur les feuilles `<Text>` à chaîne unique et réutilise les tampons `runOf` de type `Uint16Array` mis à zéro et en cache. `CssConsoleDriver` parcourt les cellules BMP consécutives de même style dans une boucle interne, et `ConsoleRenderer` évite `countYogaNodes()` sur les frames inchangées.
-- textjs.org : les routes et les onglets du compagnon de console sont répartis en fragments JS et CSS par route. Les photos de la boutique sont réencodées à partir des originaux de `photos/final`, et les vues secondaires des produits se chargent au survol ou au changement de diapositive.
+- `@textjs/react` : `Box` et `Text` transmettent au réconciliateur les props de scène déjà filtrées au lieu de copier les objets de props au montage et à la mise à jour.
+- `@textjs/core` : `SceneNode.getTextModel()` évite les parcours de l’arbre inline pour les feuilles `<Text>` contenant une seule chaîne et réutilise les tampons `runOf` de type `Uint16Array`, mis en cache et remis à zéro. `CssConsoleDriver` parcourt les cellules BMP consécutives de même style dans une boucle interne, et `ConsoleRenderer` évite `countYogaNodes()` sur les frames inchangées.
+- textjs.org : les routes et les onglets du compagnon de console sont répartis en chunks JS et CSS par route. Les photos de la boutique sont réencodées à partir des originaux de `photos/final`, et les vues secondaires des produits se chargent au survol ou au changement de diapositive.
 
 <!-- s:6909c337fb -->
 - `<ViewportControl>` utilise un `minWidth` en pixels au lieu de `20ch` et répertorie les polices de repli aux métriques correspondantes comme `<FocusPad>`, afin que le sélecteur de taille conserve sa largeur au chargement de `Geist Mono`.
@@ -190,7 +190,7 @@ La première version stable. `▼ Text.js 1.0.0 (Turbolog)`.
 - textjs.org : Apprendre, un cours de 10 chapitres qui s’exécute dans la console. Prérendu à la compilation avec hydratation, polices auto-hébergées aux métriques correspondantes, routes `.html` sans barre oblique finale et nouvelles pages de documentation avec aperçus en direct.
 
 <!-- s:25c8658848 -->
-- Suppression du verrouillage de phase de la limitation DevTools après effacement. Après une frame qui efface la console, le moteur de rendu attend une fois 110 ms pour que les frames suivantes empruntent le chemin immédiat de DevTools. La latence d’affichage p50 est passée de 63 ms à 10 ms.
+- Suppression du verrouillage de phase de la limitation DevTools après effacement. Après une frame qui efface la console, le moteur de rendu attend une fois 110 ms pour que les frames suivantes empruntent le chemin immédiat de DevTools. La latence d’affichage p50 est passée de 63 ms à 10 ms.
 - Dessin partiel par bandes modifiées : seules les bandes de lignes touchées par une mutation sont redessinées.
 - Empreintes par ligne en cache, identifiants de style entiers et frames inactives sans allocation.
 - Aucun minuteur d’inactivité lorsque la page est masquée ou n’a pas le focus.
@@ -210,15 +210,15 @@ La première version stable. `▼ Text.js 1.0.0 (Turbolog)`.
 Frames sans clignotement et rendu côté serveur.
 
 <!-- s:f92fe85dce -->
-- Les frames sont ajoutées à la suite au lieu d’appeler `console.clear()` + `console.log()` par frame. DevTools applique un effacement de façon synchrone mais limite le dessin des nouveaux messages à un intervalle de 50 ms, si bien que l’effacement laissait la console vide dans 70,6 % des affichages de DevTools à 15 images/s et 81,1 % à 60 images/s. Un span de rideau de largeur nulle en tête masque les frames précédentes. La console est effacée uniquement à la première frame, après `invalidate()`, au repos une fois 100 frames empilées, ou à 300.
-- Les frames émises sont espacées d’au moins 66 ms (environ 15 images/s). Les frames plus rapides relancent la limitation de DevTools et sont abandonnées : à 60 images/s, DevTools a dessiné 67 des 295 frames émises.
+- Les frames sont ajoutées à la suite au lieu d’appeler `console.clear()` + `console.log()` par frame. DevTools applique un effacement de façon synchrone mais limite le dessin des nouveaux messages à un intervalle de 50 ms, si bien que l’effacement laissait la console vide dans 70,6 % des affichages de DevTools à 15 images/s et 81,1 % à 60 images/s. Un span de rideau de largeur nulle en tête masque les frames précédentes. La console est effacée uniquement à la première frame, après `invalidate()`, au repos une fois 100 frames empilées, ou à 300.
+- Les frames émises sont espacées d’au moins 66 ms (environ 15 images/s). Les frames plus rapides relancent la limitation de DevTools et sont abandonnées : à 60 images/s, DevTools a dessiné 67 des 295 frames émises.
 - Playground et OpenCode sont des panneaux de focus en plein écran.
 
 <!-- s:79bc055b31 -->
 - CSS des spans limité aux propriétés détaillées, ce qui réduit d’environ 33 à environ 7 les propriétés que DevTools copie sur chaque ligne. Couleurs hexadécimales et séquences vides indexées uniquement par arrière-plan.
 - Analyse Markdown incrémentale et lignes `Markdown`, `Code` et `Diff` mémoïsées.
 - Props hôtes traitées en un seul passage, mises à jour ciblées des props et aucun recalcul du layout Yoga lorsque la taille du texte ne peut pas changer.
-- Une frame en streaming est passée de 0,79 ms à 0,14 ms, une étape d’indicateur de chargement de 0,90 ms à 0,056 ms. La sortie est identique bit pour bit.
+- Une frame en streaming est passée de 0,79 ms à 0,14 ms, une étape d’indicateur de chargement de 0,90 ms à 0,056 ms. La sortie est identique bit pour bit.
 
 <!-- s:52e989e27d -->
 - Rendu côté serveur. Une page qui exporte `runtime = "server"` effectue son rendu sur le serveur, y compris pour les composants `async function`, et transmet en continu les deltas de cellules par ligne via des événements envoyés par le serveur à un lecteur de frames d’environ 19 kB gzip.
@@ -251,6 +251,6 @@ Le premier jalon.
 
 <!-- s:67e64392c2 -->
 - `@textjs/core` : `CellBuffer` sur des tableaux typés plats, layout Yoga WASM, mesure du texte avec `Intl.Segmenter` et pilote d’encodage par plages `%c`. Un `console.log` par frame modifiée et aucun au repos.
-- `@textjs/react` : un reconciler React 19, des composants PascalCase (`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner` et d’autres), des utilitaires `className` de style Tailwind à l’échelle de la cellule, des themes et le `FocusPad` DOM.
-- `textjs` : l’App Router fondé sur le système de fichiers (`layout`, `page`, `loading`, `error`, `not-found`, segments dynamiques, gestionnaires de route), `text dev`, `text build`, `text start` et l’inspecteur `[▼]` dans la console.
+- `@textjs/react` : un réconciliateur React 19, des composants PascalCase (`Box`, `Text`, `ScrollBox`, `Input`, `Textarea`, `Select`, `Tabs`, `Code`, `Markdown`, `Diff`, `Modal`, `Spinner` et d’autres), des utilitaires `className` de style Tailwind à l’échelle de la cellule, des thèmes et le `FocusPad` DOM.
+- `textjs` : l’App Router basé sur le système de fichiers (`layout`, `page`, `loading`, `error`, `not-found`, segments dynamiques, gestionnaires de route), `text dev`, `text build`, `text start` et l’inspecteur `[▼]` dans la console.
 - `create-text-app` avec les modèles `starter` et `dashboard`.
