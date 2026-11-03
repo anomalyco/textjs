@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-03
+
 ### Added
 
 - `@textjs/react`: `<Image renderMode="halfblock">` draws `▀` half-blocks everywhere, as `<Image>` did in 1.3.
