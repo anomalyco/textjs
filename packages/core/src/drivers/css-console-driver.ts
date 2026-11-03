@@ -2,6 +2,7 @@ import { blendOver } from "../color";
 import { parseBannerColor, type ConsoleBanner } from "../internal";
 import {
   ATTR_ALLOW_LINK,
+  ATTR_BOLD,
   ATTR_INVERSE,
   ATTR_STRIKETHROUGH,
   ATTR_UNDERLINE,
@@ -217,6 +218,9 @@ function unescapeConsoleText(escaped: string): string {
 const IDLE_COMPACT_FRAMES = 100;
 const IDLE_COMPACT_MS = 1000;
 const SPRITE_MAX_BYTES = 4 * 1024 * 1024;
+/** The banner swaps its colors every `BLINK_MS`, `BLINK_SWAPS` times (even, so it ends as set). */
+const BLINK_MS = 700;
+const BLINK_SWAPS = 8;
 
 const SKIPPED: DriverRenderResult = Object.freeze({
   skipped: true,
@@ -309,6 +313,8 @@ export class CssConsoleDriver {
   private readonly partsBuf: string[] = [];
   private rendered = false;
   private banner: ConsoleBanner | null = null;
+  private bannerSwapped = false;
+  private blinkTimer: ReturnType<typeof setInterval> | null = null;
   private lastSpanCount = 0;
   private lastVisualFrames = 1;
   /** Frames logged since the last `console.clear()`; 0 forces a clear on the next frame. */
@@ -1173,7 +1179,10 @@ export class CssConsoleDriver {
     if (banner === null || buffer.height === 0) return this.encodeRows(buffer, options);
     // Console-only: drawn over the last row for this frame, then put back, so the buffer never holds it.
     const y = buffer.height - 1;
-    const saved = buffer._overlayRow(y, banner.text, parseBannerColor(banner.fg), parseBannerColor(banner.bg));
+    let fg = parseBannerColor(banner.fg);
+    let bg = parseBannerColor(banner.bg);
+    if (this.bannerSwapped) [fg, bg] = [bg, fg];
+    const saved = buffer._overlayRow(y, banner.text, fg, bg, ATTR_BOLD);
     try {
       return this.encodeRows(buffer, options);
     } finally {
@@ -1183,10 +1192,26 @@ export class CssConsoleDriver {
 
   /**
    * A one-row bar drawn over the last row of every logged frame, never into the buffer, so inline
-   * mirrors and editors that read the buffer don't show it. `null` removes it. @internal
+   * mirrors and editors that read the buffer don't show it. `null` removes it. With `repaint`, in a
+   * browser without reduced motion, a new banner blinks (swaps fg and bg) a few times, calling
+   * `repaint` on each swap, then stays. @internal
    */
-  _setBanner(banner: ConsoleBanner | null): void {
+  _setBanner(banner: ConsoleBanner | null, repaint?: () => void): void {
     this.banner = banner;
+    this.bannerSwapped = false;
+    if (this.blinkTimer !== null) clearInterval(this.blinkTimer);
+    this.blinkTimer = null;
+    if (banner === null || repaint === undefined || typeof matchMedia !== "function" || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let swaps = 0;
+    const timer = setInterval(() => {
+      this.bannerSwapped = !this.bannerSwapped;
+      if (++swaps === BLINK_SWAPS) {
+        clearInterval(timer);
+        this.blinkTimer = null;
+      }
+      repaint();
+    }, BLINK_MS);
+    this.blinkTimer = timer;
   }
 
   private encodeRows(buffer: CellGrid, options: DriverRenderOptions): { frame: ConsoleFrame | null; dirtyRows: number } {

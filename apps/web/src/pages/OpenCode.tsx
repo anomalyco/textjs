@@ -201,6 +201,7 @@ export function ConnectPanel(): ReactNode {
             >
               <input
                 className="text-input code-input"
+                name="pairing-code"
                 value={code}
                 onChange={(e) => {
                   const value = e.target.value;
@@ -243,7 +244,7 @@ export function ConnectPanel(): ReactNode {
               }}
               className="connect-form"
             >
-              <input ref={urlInput} className="text-input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={DEFAULT_SERVER_URL} spellCheck={false} aria-label={t("OpenCode server URL")} aria-describedby={STATUS_ID} />
+              <input ref={urlInput} className="text-input" name="server-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={DEFAULT_SERVER_URL} spellCheck={false} aria-label={t("OpenCode server URL")} aria-describedby={STATUS_ID} />
               <button type="submit" className="btn btn-secondary btn-sm" disabled={conn.mode === "connecting"}>
                 {t("Connect")}
               </button>

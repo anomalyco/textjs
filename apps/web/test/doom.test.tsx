@@ -51,6 +51,14 @@ describe("Doom shareware & GPL engine assets", () => {
     expect(engineReadme).toContain("14 imports and 19 exports");
   });
 
+  test("the footer's dot sits between View source and the notice, glued to both so a wrap never leaves it dangling", () => {
+    const html = renderToStaticMarkup(<PlaygroundPage demo="doom" />);
+    const footer = /<p class="pad-footer">(.*?)<\/p>/s.exec(html)?.[1] ?? "";
+    expect(footer).toMatch(/^<button[^>]*>View source<\/button><span class="pad-sep" aria-hidden="true">\u2060·\u2060<\/span><a class="text-link pad-legal"[^>]*>DOOM is a trademark/);
+    // The other demos have a single item and no separator.
+    for (const demo of ["dashboard", "streaming", "snake", "opencode", "coffee"] as const) expect(renderToStaticMarkup(<PlaygroundPage demo={demo} />)).not.toContain("pad-sep");
+  });
+
   test("fetchVerifiedWad decompresses gzipped DOOM1.WAD.gz, reports progress to 4.2 MB, and rejects tampered bytes", async () => {
     const rawWad = readFileSync(join(WEB_ROOT, "public/doom/DOOM1.WAD"));
     const gzWad = gzipSync(rawWad, { level: 1 });

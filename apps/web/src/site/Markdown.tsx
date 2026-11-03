@@ -50,7 +50,7 @@ function List({ nodes, attrs }: { nodes: ListNode[]; attrs?: { lang?: string; di
   const ordered = nodes[0]?.item.ordered ?? false;
   const items = nodes.map((n, i) => (
     <li key={i}>
-      {n.item.checked !== undefined ? <input type="checkbox" checked={n.item.checked} readOnly disabled style={{ marginInlineEnd: 8 }} /> : null}
+      {n.item.checked !== undefined ? <input type="checkbox" name="task" checked={n.item.checked} readOnly disabled style={{ marginInlineEnd: 8 }} /> : null}
       <Inline text={n.item.text} />
       {n.children.length > 0 ? <List nodes={n.children} /> : null}
     </li>

@@ -1,6 +1,6 @@
 /** @jsxImportSource @textjs/app/server */
 // Like `text dev` / `text build`, route modules compile against the server JSX runtime (async components work).
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, jest, test } from "bun:test";
 import { createServer, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { EventEmitter } from "node:events";
@@ -87,6 +87,26 @@ function routes(): RouteManifest {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * Counts live 700ms intervals (the focus hint's blink timers) from `setInterval` / `clearInterval`
+ * calls, so other timers the renderer or React schedule don't count. Install after `useFakeTimers`.
+ */
+function trackBlinkTimers(): { live: () => number; restore: () => void } {
+  const g = globalThis as { setInterval: typeof setInterval; clearInterval: typeof clearInterval };
+  const { setInterval: set, clearInterval: clear } = g;
+  const live = new Set<unknown>();
+  g.setInterval = ((fn: () => void, ms?: number) => {
+    const id = set(fn, ms);
+    if (ms === 700) live.add(id);
+    return id;
+  }) as typeof setInterval;
+  g.clearInterval = ((id?: ReturnType<typeof setInterval>) => {
+    live.delete(id);
+    clear(id);
+  }) as typeof clearInterval;
+  return { live: () => live.size, restore: () => Object.assign(g, { setInterval: set, clearInterval: clear }) };
+}
 
 describe("live protocol", () => {
   test("cell codec round-trips every cell exactly (wide, pooled graphemes, controls, translucency)", () => {
@@ -292,6 +312,46 @@ describe("live app", () => {
       player.paint();
       expect(String(con.logs.at(-1)?.[0])).not.toContain("Click the page");
     });
+  });
+
+  test("the player blinks the hint, then holds it, and stops when it goes away", async () => {
+    const g = globalThis as { matchMedia?: (query: string) => { matches: boolean } };
+    jest.useFakeTimers();
+    const blinkTimers = trackBlinkTimers();
+    try {
+      await withoutActEnvironment(async () => {
+        const banners: unknown[] = [];
+        app = await createLiveApp({ routes: routes(), path: "/", cols: 60, rows: 14, focused: false, onBanner: (b) => banners.push(b) });
+        app.flush();
+        const buffer = JSON.parse(JSON.stringify(new LiveFrameEncoder().encode(app.buffer))) as LiveFrame;
+        const hint = JSON.parse(JSON.stringify(banners.at(-1))) as unknown;
+        // No matchMedia on the server: its renderer never blinks.
+        expect(blinkTimers.live()).toBe(0);
+        app.dispose();
+        app = null;
+        g.matchMedia = () => ({ matches: false });
+        const con = new FakeConsole();
+        const player = new FramePlayerCore({ console: con, schedule: (cb) => cb(), frameInterval: 0 });
+        player.applyFrame(buffer);
+        player.setBanner(hint);
+        expect(blinkTimers.live()).toBe(1);
+        const frames = player.frames;
+        jest.advanceTimersByTime(8 * 700);
+        expect(player.frames - frames).toBe(8);
+        expect(String(con.logs.at(-1)?.slice(1).join("|"))).toContain("background-color:#ffc53d");
+        expect(blinkTimers.live()).toBe(0);
+        player.setBanner(null);
+        player.setBanner(hint);
+        jest.advanceTimersByTime(700);
+        expect(String(con.logs.at(-1)?.slice(1).join("|"))).toContain("background-color:#000000");
+        player.setBanner(null);
+        expect(blinkTimers.live()).toBe(0);
+      });
+    } finally {
+      blinkTimers.restore();
+      jest.useRealTimers();
+      delete g.matchMedia;
+    }
   });
 
   test("a passive server route never sends the hint; an interactive one sends it while blurred and clears it", async () => {

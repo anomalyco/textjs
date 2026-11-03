@@ -372,7 +372,7 @@ export class ConsoleRenderer {
       return;
     }
     this.currentBanner = normalized;
-    this.driver._setBanner(normalized);
+    this.driver._setBanner(normalized, () => this.requestRender());
     for (const l of this.bannerListeners) l(normalized);
     this.requestRender();
   }
@@ -705,6 +705,7 @@ export class ConsoleRenderer {
     if (this.disposed) return;
     this.disposed = true;
     this.cancelScheduled();
+    this.driver._setBanner(null);
     for (const fn of this.cleanup) fn();
     if (this.input && !(this.options.input instanceof InputEngine)) this.input.detach();
     this.viewport.dispose();

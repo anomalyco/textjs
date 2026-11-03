@@ -65,11 +65,16 @@ export function SandboxConsole({ frame, engine, source, filter, className, captu
         <textarea
           ref={sink}
           className="sandbox-sink"
+          name="sandbox-input"
           aria-label="Sandbox console keyboard input"
           autoCapitalize="off"
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
+          data-1p-ignore=""
+          data-lpignore="true"
+          data-bwignore=""
+          data-form-type="other"
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           onKeyDown={(e) => {

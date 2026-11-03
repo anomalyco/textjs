@@ -2610,18 +2610,41 @@ body:has(.locale-suggestion) .footer {
 /* One row at every width (it scrolls when narrow), so the top slot keeps its height. */
 .pad-picker {
   display: inline-flex;
-  flex-wrap: nowrap;
   max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-  gap: 2px;
   padding: 3px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.5);
 }
 
-.pad-picker::-webkit-scrollbar {
+/* The demos scroll inside the pill; an edge with demos out of view fades (Playground.tsx sets the attributes). */
+.pad-picker-track {
+  --fade-left: 0px;
+  --fade-right: 0px;
+  display: flex;
+  min-width: 0;
+  gap: 2px;
+  /* Horizontal only: a 1px vertical overflow would make iOS Safari hand vertical swipes to the strip. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  /* Keyboard focus scrolls a tab clear of the 40px edge fades. */
+  scroll-padding-inline: 40px;
+  scrollbar-width: none;
+  border-radius: 999px;
+  mask-image: linear-gradient(to right, transparent, #000 var(--fade-left), #000 calc(100% - var(--fade-right)), transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--fade-left), #000 calc(100% - var(--fade-right)), transparent);
+}
+
+.pad-picker-track[data-more-left] {
+  --fade-left: 40px;
+}
+
+.pad-picker-track[data-more-right] {
+  --fade-right: 40px;
+}
+
+.pad-picker-track::-webkit-scrollbar {
   display: none;
 }
 
@@ -2691,13 +2714,7 @@ body:has(.locale-suggestion) .footer {
 }
 
 .pad-footer {
-  margin-top: auto;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: center;
-  column-gap: 10px;
-  row-gap: 4px;
+  margin: auto 0 0;
   font-size: 13px;
   line-height: 20px;
   color: var(--subtle);
@@ -2709,7 +2726,13 @@ body:has(.locale-suggestion) .footer {
   margin-top: 0;
 }
 
+.pad-sep {
+  margin-inline: 8px;
+}
+
+/* Inline, so the notice wraps word by word after "View source ·" instead of dropping to its own line. */
 .pad-legal {
+  display: inline;
   font-size: 13px;
   line-height: 20px;
   color: var(--subtle);
