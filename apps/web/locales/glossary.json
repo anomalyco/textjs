@@ -209,7 +209,7 @@
       "fr": "fonction edge",
       "de": "Edge-Funktion",
       "pt-BR": "função edge",
-      "ko": "엣지 함수",
+      "ko": "에지 함수",
       "zh-CN": "边缘函数",
       "zh-TW": "邊緣函式"
     },
@@ -219,7 +219,7 @@
       "fr": "middleware edge",
       "de": "Edge-Middleware",
       "pt-BR": "middleware edge",
-      "ko": "엣지 미들웨어",
+      "ko": "에지 미들웨어",
       "zh-CN": "边缘中间件",
       "zh-TW": "邊緣中介軟體"
     },
@@ -356,6 +356,48 @@
       "ko": "터미널",
       "zh-CN": "终端",
       "zh-TW": "終端機"
+    },
+    "error boundary": {
+      "de": "Error Boundary",
+      "fr": "périmètre d’erreurs",
+      "es": "límite de error",
+      "pt-BR": "error boundary",
+      "ko": "에러 바운더리",
+      "zh-CN": "错误边界",
+      "zh-TW": "錯誤邊界"
+    },
+    "focus pad": {
+      "es": "panel de foco",
+      "fr": "zone de focus",
+      "de": "Fokusfeld",
+      "pt-BR": "área de foco",
+      "ko": "포커스 패드",
+      "zh-CN": "焦点区",
+      "zh-TW": "焦點區"
+    },
+    "dynamic segment": {
+      "zh-CN": "动态路由段",
+      "zh-TW": "動態區段"
+    },
+    "offscreen": {
+      "zh-CN": "离屏"
+    },
+    "confirmation key": {
+      "de": "Bestätigungstaste",
+      "es": "tecla de confirmación"
+    },
+    "deep link": {
+      "de": "Deep-Link"
+    },
+    "named engineer": {
+      "zh-CN": "专属工程师",
+      "zh-TW": "專屬工程師"
+    },
+    "kB": {
+      "fr": "ko"
+    },
+    "Next steps": {
+      "es": "Próximos pasos"
     }
   },
   "notes": {

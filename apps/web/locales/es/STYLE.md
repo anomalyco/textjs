@@ -11,6 +11,8 @@
 - Keep API names, components, hooks, file paths, CLI commands and keyboard shortcuts (⌘⌥J, Ctrl+Shift+J, Enter) exactly as written.
 - In a list or table, keep items parallel: all noun phrases, or all full sentences.
 - Avoid translationese and filler: prefer «se renderiza» to «es renderizado», and a direct verb to «realizar», «llevar a cabo» or «proceder a». No «cabe destacar», «es importante tener en cuenta», «simplemente», «fácilmente», «de forma sencilla», «potente», «sin fisuras», «sin esfuerzo», «Vamos a…», the gerundio de posterioridad, rhetorical questions, dramatic rayas or «no solo… sino también».
+- Don't add adjectives, intensifiers, hedges or explanations that aren't in the English, and don't create colon reveals.
+- Table headers: `Prop` stays `Prop`.
 - Marketing copy keeps the deadpan tone: the console-as-production-UI premise is stated straight, never explained or winked at.
 - Names kept in English: the Enterprise plan, the Playground and the course Learn Text.js. The Learn section and nav are «Aprender»; Docs are «Documentación».
 - Merch print slogans stay in English: «YOU WOULDN’T RENDER A WEBSITE IN THE CONSOLE».

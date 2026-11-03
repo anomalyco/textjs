@@ -11,6 +11,8 @@
 - Keep API names, components, hooks, file paths, CLI commands and keyboard shortcuts (⌘⌥J, Ctrl+Shift+J, Enter) exactly as written.
 - In a list or table, keep items parallel: all noun phrases, or all full sentences.
 - Avoid translationese and filler: no „Es ist wichtig zu beachten“, „Beachte, dass“ as an opener, „einfach“, „ganz einfach“, „nahtlos“, „leistungsstark“, „mühelos“, „kinderleicht“, „im Handumdrehen“, „Lass uns …“, rhetorical questions, Gedankenstriche as dramatic pauses or „nicht nur …, sondern auch“. Prefer active voice over „wird … durchgeführt“.
+- Don't add adjectives, intensifiers, hedges or explanations that aren't in the English, and don't create colon reveals.
+- Table headers: `Prop` stays `Prop`.
 - Marketing copy keeps the deadpan tone: the console-as-production-UI premise is stated straight, never explained or winked at.
 - Names kept in English: the Enterprise plan, the Playground and the course Learn Text.js. The Learn section and nav are „Lernen“; Docs are „Dokumentation“.
 - Merch print slogans stay in English: „YOU WOULDN’T RENDER A WEBSITE IN THE CONSOLE“.

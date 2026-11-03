@@ -7,10 +7,12 @@
 - Browser interface labels go in ‘…’ and match Chrome's Korean interface: ‘로그 보존’, ‘설정’. The Console panel is 콘솔.
 - Arabic numerals with counters: 10개 장, 6장, 4줄, 1번, 3,200개 셀. Decimal point and comma thousands: 0.163ms, 70.6%, 12,000프레임. Units attach without a space: 66ms, 21kB. Never touch version numbers, numbers in code, paths or URLs.
 - Dates read 2026년 11월 3일. Ranges use ~: 70~81%.
-- Loanwords follow 외래어 표기법: 컴포넌트, 라우트, 레이아웃, 프레임, 브라우저, 디렉터리, 메시지, 렌더링, 프리렌더링, 서버 렌더링, 미들웨어, 엣지, 훅. Prefer a Korean word when it's the common one: 설정, 파일, 폴더, 단축키, 기본값.
+- Loanwords follow 외래어 표기법: 컴포넌트, 라우트, 레이아웃, 프레임, 브라우저, 디렉터리, 메시지, 렌더링, 프리렌더링, 서버 렌더링, 미들웨어, 에지, 훅. Prefer a Korean word when it's the common one: 설정, 파일, 폴더, 단축키, 기본값.
 - Keep API names, components, hooks, file paths, CLI commands and keyboard shortcuts (⌘⌥J, Ctrl+Shift+J, Enter) exactly as written.
 - In a list or table, keep items parallel: all noun phrases, or all 해요체 sentences.
 - Avoid translationese and filler: write 할 수 있어요, not 하는 것이 가능해요; no double passives (되어지다), no ~에 있어서, ~을 통해 and ~에 대해 where a plain particle works, and no pronouns translated from English (그것, 당신, 우리). No 매우, 쉽게, 간단하게, 강력한, 원활하게, 손쉽게, 혁신적인, 주목할 점은, 함께 ~해 봐요, rhetorical questions, —— or ~뿐만 아니라.
+- Don't add adjectives, intensifiers, hedges or explanations that aren't in the English, and don't create colon reveals.
+- Table headers: `Prop` stays `Prop`.
 - Marketing copy keeps the deadpan tone: the console-as-production-UI premise is stated straight, never explained or winked at.
 - Names kept in English: the Enterprise plan, the Playground and the course Learn Text.js. The Learn section and nav are 학습; Docs are 문서.
 - Merch print slogans stay in English, in “”: “YOU WOULDN’T RENDER A WEBSITE IN THE CONSOLE”.
