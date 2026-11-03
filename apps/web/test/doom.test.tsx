@@ -6,7 +6,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { cleanup, render } from "@textjs/react/testing";
 import { DOOM_CREDIT, DoomDemo, fetchVerifiedWad, WAD_BYTES, WAD_SHA256 } from "../src/demos/doom/Doom";
 import { LICENSE_HEADER, TRADEMARK_NOTICE, verifyDoomAssets, WAD } from "../src/demos/doom/fetch-wad";
-import { createDoom } from "../src/demos/doom/host";
+import { createDoom, soundImports } from "../src/demos/doom/host";
+import { canStartAudio, decodeDmx, DoomSound, gainFor, PageAudio, panFor, type DoomSoundSink } from "../src/demos/doom/sound";
 import { DOOM_ERROR_HINTS, DOOM_LOADING_HINTS, hintsFor, PRESETS, siteStore } from "../src/console-companion/store";
 import { PlaygroundPage } from "../src/pages/Playground";
 
@@ -47,7 +48,7 @@ describe("Doom shareware & GPL engine assets", () => {
     const engineReadme = readFileSync(join(WEB_ROOT, "src/demos/doom/engine/README.md"), "utf8");
     expect(engineReadme).toContain("https://github.com/jacobenget/doom.wasm");
     expect(engineReadme).toContain("about 150 KB gzipped");
-    expect(engineReadme).toContain("10 imports and 19 exports");
+    expect(engineReadme).toContain("14 imports and 19 exports");
   });
 
   test("fetchVerifiedWad decompresses gzipped DOOM1.WAD.gz, reports progress to 4.2 MB, and rejects tampered bytes", async () => {
@@ -206,5 +207,371 @@ describe("Doom shareware & GPL engine assets", () => {
     await app.press("return");
     expect(calls).toBe(2);
     expect(siteStore.getSnapshot().doomStatus).toBe("loading");
+  });
+});
+
+function readWad(): { bytes: Uint8Array; lumpName: (i: number) => string; lump: (name: string) => Uint8Array } {
+  const bytes = new Uint8Array(readFileSync(join(WEB_ROOT, "public/doom/DOOM1.WAD")));
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const count = view.getInt32(4, true);
+  const dir = view.getInt32(8, true);
+  const lumpName = (i: number): string => new TextDecoder().decode(bytes.subarray(dir + i * 16 + 8, dir + i * 16 + 16)).replace(/\0.*$/, "");
+  const lump = (name: string): Uint8Array => {
+    for (let i = 0; i < count; i++) {
+      if (lumpName(i) !== name) continue;
+      const pos = view.getInt32(dir + i * 16, true);
+      return bytes.subarray(pos, pos + view.getInt32(dir + i * 16 + 4, true));
+    }
+    throw new Error(`no ${name}`);
+  };
+  return { bytes, lumpName, lump };
+}
+
+class FakeParam {
+  value = 0;
+}
+class FakeNode {
+  connected: FakeNode[] = [];
+  connect<T extends FakeNode>(next: T): T {
+    this.connected.push(next);
+    return next;
+  }
+  disconnect(): void {
+    this.connected = [];
+  }
+}
+class FakeSource extends FakeNode {
+  buffer: { rate: number; length: number } | null = null;
+  onended: (() => void) | null = null;
+  started = false;
+  stopped = false;
+  start(): void {
+    this.started = true;
+  }
+  stop(): void {
+    this.stopped = true;
+  }
+}
+class FakeContext {
+  state = "suspended";
+  log: string[] = [];
+  sources: FakeSource[] = [];
+  panners: { pan: FakeParam }[] = [];
+  gains: { gain: FakeParam }[] = [];
+  destination = new FakeNode();
+  /** How many resume() calls the browser refuses, as Safari does outside a gesture. */
+  refuse = 0;
+  /** Hold resume() until `settle()`, like a real context starting up. */
+  defer = false;
+  settle: () => void = () => {};
+  buffersMade = 0;
+  failBuffers = false;
+  resume(): Promise<void> {
+    this.log.push("resume");
+    if (this.refuse > 0) {
+      this.refuse--;
+      return Promise.reject(new Error("NotAllowedError"));
+    }
+    if (this.defer) {
+      return new Promise((resolve) => {
+        this.settle = () => {
+          this.state = "running";
+          resolve();
+        };
+      });
+    }
+    this.state = "running";
+    return Promise.resolve();
+  }
+  suspend(): Promise<void> {
+    this.state = "suspended";
+    this.log.push("suspend");
+    return Promise.resolve();
+  }
+  createBuffer(_channels: number, length: number, rate: number) {
+    this.buffersMade++;
+    if (this.failBuffers) throw new Error("NotSupportedError");
+    const data = new Float32Array(length);
+    return { rate, length, getChannelData: () => data };
+  }
+  createBufferSource(): FakeSource {
+    const s = new FakeSource();
+    this.sources.push(s);
+    return s;
+  }
+  createGain() {
+    const g = Object.assign(new FakeNode(), { gain: new FakeParam() });
+    this.gains.push(g);
+    return g;
+  }
+  createStereoPanner() {
+    const p = Object.assign(new FakeNode(), { pan: new FakeParam() });
+    this.panners.push(p);
+    return p;
+  }
+}
+
+const settled = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+const click = { type: "mousedown", isTrusted: true };
+
+describe("Doom sound effects", () => {
+  test("decodeDmx skips the 16 padding samples at each end, keeps each lump's rate and rejects broken lumps", () => {
+    const wad = readWad();
+    const pistol = wad.lump("DSPISTOL");
+    const decoded = decodeDmx(pistol)!;
+    expect(decoded.rate).toBe(11_025);
+    expect(decoded.samples.length).toBe(pistol.length - 8 - 32);
+    expect(decoded.samples[0]).toBe(((pistol[8 + 16] as number) - 128) / 128);
+    expect(decodeDmx(wad.lump("DSITMBK"))!.rate).toBe(22_050);
+
+    const tiny = new Uint8Array(8 + 48);
+    tiny.set([3, 0, 0x11, 0x2b, 48, 0, 0, 0]);
+    expect(decodeDmx(tiny)).toBeNull();
+    expect(decodeDmx(new Uint8Array([2, 0, 0x11, 0x2b, 0, 1, 0, 0]))).toBeNull();
+    const truncated = pistol.slice(0, 100);
+    expect(decodeDmx(truncated)).toBeNull();
+  });
+
+  test("Doom's volume and separation map to gain and pan", () => {
+    expect(gainFor(127)).toBe(1);
+    expect(gainFor(64)).toBeCloseTo(0.504, 3);
+    expect(gainFor(-5)).toBe(0);
+    expect(panFor(128)).toBe(0);
+    expect(panFor(0)).toBe(-1);
+    expect(panFor(254)).toBeCloseTo(0.992, 3);
+    expect(panFor(255)).toBe(1);
+  });
+
+  test("the engine plays the player's pistol centred at the default volume, plus doors and pickups, in the first demo", async () => {
+    const wad = readWad();
+    const wasm = readFileSync(join(WEB_ROOT, "src/demos/doom/engine/out/doom.wasm"));
+    const started: { name: string; channel: number; vol: number; sep: number; rate: number }[] = [];
+    const playing = new Set<number>();
+    const sink: DoomSoundSink = {
+      start(lump, dmx, channel, vol, sep) {
+        started.push({ name: wad.lumpName(lump), channel, vol, sep, rate: decodeDmx(dmx)?.rate ?? 0 });
+        playing.add(channel);
+      },
+      update() {},
+      stop: (channel) => playing.delete(channel),
+      isPlaying: (channel) => playing.has(channel),
+    };
+    let t = 0;
+    const doom = await createDoom({ wasm: wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength) as ArrayBuffer, wads: [wad.bytes], now: () => t, sound: sink });
+    // The title screen is silent; the first demo, a level, starts after 170 tics.
+    for (; t < 4800; t += 1000 / 60) doom.tick();
+    expect(started).toEqual([]);
+    for (; t < 12_000; t += 1000 / 60) doom.tick();
+
+    const names = new Set(started.map((s) => s.name));
+    for (const name of ["DSPISTOL", "DSDOROPN", "DSITEMUP", "DSSHOTGN"]) expect(names).toContain(name);
+    // The player's own sounds play centred at the default volume (8 of 15 in the menu, 64 of 127).
+    expect(started.find((s) => s.name === "DSPISTOL")).toMatchObject({ vol: 64, sep: 128, rate: 11_025 });
+    // A monster's sounds come from where it stands.
+    expect(started.some((s) => s.sep !== 128 && s.vol < 64)).toBe(true);
+    expect(Math.max(...started.map((s) => s.channel))).toBeLessThan(8);
+  }, 30_000);
+
+  test("DoomSound stays silent until a gesture, plays each channel through a gain and a stereo panner, and follows Doom's clock", async () => {
+    const wad = readWad();
+    const pistol = wad.lump("DSPISTOL");
+    const ctx = new FakeContext();
+    let created = 0;
+    const sound = new DoomSound(
+      new PageAudio(() => {
+        created++;
+        return ctx as unknown as AudioContext;
+      }),
+    );
+
+    sound.setRunning(true);
+    sound.start(1, pistol, 0, 64, 128);
+    expect(created).toBe(0);
+    expect(sound.isPlaying(0)).toBe(false);
+
+    sound.unlock();
+    await settled();
+    sound.gesture(click);
+    expect(created).toBe(1);
+    expect(ctx.log).toEqual(["resume"]);
+
+    sound.start(1, pistol, 3, 127, 0);
+    const [source] = ctx.sources;
+    expect(source!.started).toBe(true);
+    expect(source!.buffer).toMatchObject({ rate: 11_025, length: pistol.length - 40 });
+    expect(ctx.gains[0]!.gain.value).toBe(1);
+    expect(ctx.panners[0]!.pan.value).toBe(-1);
+    expect(sound.isPlaying(3)).toBe(true);
+
+    sound.update(3, 0, 254);
+    expect(ctx.gains[0]!.gain.value).toBe(0);
+    expect(ctx.panners[0]!.pan.value).toBeCloseTo(0.992, 3);
+
+    // A new sound on the same channel cuts the old one off; the buffer is decoded once.
+    sound.start(1, pistol, 3, 64, 128);
+    expect(source!.stopped).toBe(true);
+    expect(ctx.sources[1]!.buffer).toBe(source!.buffer);
+    ctx.sources[1]!.onended?.();
+    expect(sound.isPlaying(3)).toBe(false);
+
+    sound.setRunning(false);
+    sound.setRunning(true);
+    expect(ctx.log.slice(1)).toEqual(["suspend", "resume"]);
+
+    sound.start(2, pistol, 5, 64, 128);
+    sound.dispose();
+    expect(ctx.sources[2]!.stopped).toBe(true);
+    expect(sound.isPlaying(5)).toBe(false);
+    expect(ctx.log.at(-1)).toBe("suspend");
+  });
+
+  test("DoomSound unlocked while the game is still loading suspends until Doom's clock runs", async () => {
+    const ctx = new FakeContext();
+    const sound = new DoomSound(new PageAudio(() => ctx as unknown as AudioContext));
+    sound.unlock();
+    await settled();
+    expect(ctx.log).toEqual(["resume", "suspend"]);
+    sound.setRunning(true);
+    expect(ctx.state).toBe("running");
+  });
+
+  test("Escape and ⌘⌥J (Meta and Alt keydowns) don't unlock sound, and the click after them does", () => {
+    const ctx = new FakeContext();
+    let created = 0;
+    const sound = new DoomSound(
+      new PageAudio(() => {
+        created++;
+        return ctx as unknown as AudioContext;
+      }),
+    );
+    sound.setRunning(true);
+    sound.gesture({ type: "keydown", isTrusted: true, key: "Escape" });
+    sound.gesture({ type: "keydown", isTrusted: true, key: "Meta", metaKey: true });
+    sound.gesture({ type: "keydown", isTrusted: true, key: "Alt", metaKey: true });
+    sound.gesture({ type: "keydown", isTrusted: true, key: "j", metaKey: true });
+    sound.gesture({ type: "mousedown", isTrusted: false });
+    sound.gesture(click, { isActive: false });
+    expect(created).toBe(0);
+    expect(sound.unlocked).toBe(false);
+
+    sound.gesture(click, { isActive: true });
+    expect(created).toBe(1);
+    expect(sound.active).toBe(true);
+
+    // Control fires, and arrows and letters play, so they count.
+    expect(canStartAudio({ type: "keydown", isTrusted: true, key: "Control" })).toBe(true);
+    expect(canStartAudio({ type: "keydown", isTrusted: true, key: "ArrowUp" })).toBe(true);
+    expect(canStartAudio({ type: "keyup", isTrusted: true, key: "ArrowUp" })).toBe(false);
+  });
+
+  test("a refused resume() is retried on the next gesture, without an unhandled rejection", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const ctx = new FakeContext();
+      ctx.refuse = 1;
+      const pistol = readWad().lump("DSPISTOL");
+      const sound = new DoomSound(new PageAudio(() => ctx as unknown as AudioContext));
+      sound.setRunning(true);
+      expect(ctx.log).toEqual([]);
+      sound.gesture(click);
+      await settled();
+      expect(sound.unlocked).toBe(false);
+      sound.start(1, pistol, 0, 64, 128);
+      expect(ctx.sources).toHaveLength(0);
+
+      sound.gesture(click);
+      await settled();
+      expect(sound.active).toBe(true);
+      sound.start(1, pistol, 0, 64, 128);
+      expect(ctx.sources).toHaveLength(1);
+
+      // Safari can suspend a running context on its own; the next gesture while the game runs resumes it.
+      ctx.state = "suspended";
+      sound.gesture(click);
+      expect(sound.active).toBe(true);
+      await settled();
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
+  test("a player remounted after the page unlocked audio plays without another gesture", async () => {
+    const ctx = new FakeContext();
+    const page = new PageAudio(() => ctx as unknown as AudioContext);
+    const pistol = readWad().lump("DSPISTOL");
+    const first = new DoomSound(page);
+    first.setRunning(true);
+    first.gesture(click);
+    await settled();
+    first.dispose();
+    expect(ctx.state).toBe("suspended");
+
+    const second = new DoomSound(page);
+    expect(second.unlocked).toBe(true);
+    second.setRunning(true);
+    second.start(1, pistol, 2, 64, 128);
+    expect(ctx.sources.at(-1)!.started).toBe(true);
+    expect(second.isPlaying(2)).toBe(true);
+  });
+
+  test("sounds started on a suspended context are dropped, except while the unlocking gesture's resume() is in flight", async () => {
+    const ctx = new FakeContext();
+    ctx.defer = true;
+    const pistol = readWad().lump("DSPISTOL");
+    const sound = new DoomSound(new PageAudio(() => ctx as unknown as AudioContext));
+    sound.setRunning(true);
+    // Enter on the title screen: the same keydown unlocks audio and plays the menu sound.
+    sound.gesture({ type: "keydown", isTrusted: true, key: "Enter" });
+    sound.start(1, pistol, 0, 64, 128);
+    expect(ctx.sources).toHaveLength(1);
+    ctx.settle();
+    await settled();
+
+    sound.setRunning(false);
+    sound.start(1, pistol, 1, 64, 128);
+    expect(ctx.sources).toHaveLength(1);
+    expect(sound.isPlaying(1)).toBe(false);
+
+    sound.setRunning(true);
+    ctx.settle();
+    for (const channel of [-1, 8, 64, 1.5]) sound.start(1, pistol, channel, 64, 128);
+    expect(ctx.sources).toHaveLength(1);
+  });
+
+  test("bad lump pointers, lengths, sample rates and buffers are ignored", async () => {
+    const started: number[] = [];
+    const sink: DoomSoundSink = { start: (lump) => started.push(lump), update() {}, stop() {}, isPlaying: () => false };
+    const memory = new ArrayBuffer(1024);
+    const imports = soundImports(() => memory, sink);
+    imports.startSound(1, 1000, 25, 0, 64, 128);
+    imports.startSound(2, -8, 16, 0, 64, 128);
+    imports.startSound(3, 0, 0, 0, 64, 128);
+    imports.startSound(4, 0, -4, 0, 64, 128);
+    imports.startSound(5, 1000, 24, 0, 64, 128);
+    expect(started).toEqual([5]);
+    expect(soundImports(() => memory, undefined).isPlaying(0)).toBe(0);
+
+    const pistol = readWad().lump("DSPISTOL");
+    const slow = pistol.slice();
+    slow.set([0x40, 0x1f], 2); // 8,000 Hz
+    expect(decodeDmx(slow)!.rate).toBe(8000);
+    slow.set([0x3f, 0x1f], 2); // 7,999 Hz
+    expect(decodeDmx(slow)).toBeNull();
+
+    const ctx = new FakeContext();
+    ctx.failBuffers = true;
+    const sound = new DoomSound(new PageAudio(() => ctx as unknown as AudioContext));
+    sound.setRunning(true);
+    sound.gesture(click);
+    await settled();
+    sound.start(1, pistol, 0, 64, 128);
+    sound.start(1, pistol, 1, 64, 128);
+    expect(ctx.buffersMade).toBe(1);
+    expect(ctx.sources).toHaveLength(0);
   });
 });
