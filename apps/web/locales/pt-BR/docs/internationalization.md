@@ -82,6 +82,18 @@ Limites
 - **Terminais.** Terminais que ignoram tanto BDSM quanto `LRO` e executam seu próprio bidi (por exemplo, com bidi ativado no iTerm2) podem reordenar novamente as linhas da direita para a esquerda.
 - **Espelhos DOM.** `<ConsoleMirror>` não ajusta larguras, então trechos da direita para a esquerda podem apresentar um desvio de até 0,3% de sua largura.
 
+<!-- s:f4d4dadbf6 -->
+Traduzir o painel de foco
+
+<!-- s:7791d4db4e -->
+O `<FocusPad>` de `@textjs/react/dom` (também renderizado por `<TextCanvas>`) orienta os visitantes a abrir o console, clicar na página e pressionar uma tecla. Seu texto é em inglês por padrão. Para traduzi-lo, passe `messages` com as strings que você quer substituir. As chaves que você omitir mantêm o texto em inglês, listado em `defaultFocusPadMessages`.
+
+<!-- s:66c2b8e3e2 -->
+Uma string que contém um valor é uma função que retorna a frase inteira, para que a tradução possa colocar o valor em qualquer posição nela. `step`, `pressShortcut`, `then`, `defaultAction` e `shortcutOpens` são funções. `step` recebe o número da etapa e a quantidade de etapas. `then` recebe a prop `action`, ou o texto de `defaultAction` quando não há `action`. `defaultAction` recebe as teclas da primeira dica, ou `null` quando não há dicas. `pressShortcut` recebe as teclas do atalho para leitores de tela, e `shortcutOpens` recebe o atalho como elementos `<kbd>`.
+
+<!-- s:e9475554da -->
+`messages` também abrange os rótulos anunciados pelos leitores de tela e o controle de tamanho do console (`sizeControl`). `<TextCanvas>` aceita a mesma prop `messages`. `<ViewportControl>` também a aceita e usa as chaves do controle de tamanho. As representações de teclas como ⌘⌥J, Ctrl+Shift+J e Enter não são traduzidas.
+
 <!-- s:40caf66c4d -->
 API
 

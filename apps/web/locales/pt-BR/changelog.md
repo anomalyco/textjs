@@ -4,14 +4,19 @@ Todas as mudanças relevantes no Text.js estão documentadas neste arquivo.
 <!-- s:1ab5f276ed -->
 O formato é baseado em [Mantenha um Changelog](https://keepachangelog.com/en/1.1.0/), e este projeto segue o [Versionamento Semântico](https://semver.org/spec/v2.0.0.html). As versões 0.1.0 a 0.4.0 receberam tags no git e não foram publicadas no npm.
 
+<!-- s:2e16922cfc -->
+Adições
+
+<!-- s:fd5b09c2ec -->
+- `@textjs/react`: `<FocusPad messages>` substitui qualquer string integrada do painel de foco, para sites traduzidos. Ele abrange todas as linhas, os rótulos para leitores de tela e o controle de tamanho do console. `<TextCanvas>` e `<ViewportControl>` também aceitam `messages`. `<ViewportControl>` usa apenas as chaves do controle de tamanho. Strings que contêm um valor, como “Depois clique aqui e pressione ↑ ↓.”, são funções que retornam a frase inteira. `defaultFocusPadMessages` contém o texto em inglês. Veja [Traduzir o painel de foco](https://textjs.org/docs/internationalization#translating-the-focus-pad).
+- `@textjs/react`: em páginas da direita para a esquerda, o painel de foco mantém teclas como ⌘ ⌥ J e tamanhos de console como 120×36 da esquerda para a direita, e espelha seu controle de tamanho e sua barra de etapas. Em páginas em chinês e japonês, ele remove o espaço entre suas duas frases; em coreano, o espaço é mantido.
+- textjs.org: em textjs.org/ja, o painel de foco está em japonês em todas as páginas, incluindo os rótulos sob as teclas de cada demo.
+
 <!-- s:5b88618770 -->
 Alterações
 
 <!-- s:f7da7bb6d2 -->
 - `@textjs/core`: os consoles do Chromium e do Firefox limpam a saída de sprites animados ao atingir 16 MB em vez de 4 MB, então textjs.org/doom mostra “O console foi limpo” a cada 19 segundos, aproximadamente, em vez de a cada 4,5. O Safari e os sprites desenhados como meios blocos `▀` mantêm 4 MB. O pico de heap da página em textjs.org/doom passa de 10,8 MB para cerca de 12–13 MB.
-
-<!-- s:2e16922cfc -->
-Adições
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom reproduz os efeitos sonoros do Doom, com o posicionamento estéreo e a atenuação por distância do próprio Doom. O som começa com seu primeiro clique ou pressionamento de tecla na página, pausa com o jogo e segue Sfx Volume no menu Options → Sound Volume do Doom. Não há música.
