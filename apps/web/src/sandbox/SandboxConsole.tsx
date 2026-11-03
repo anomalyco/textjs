@@ -56,7 +56,7 @@ export function SandboxConsole({ frame, engine, source, filter, className, captu
   };
 
   return (
-    <div ref={wrap} className={`sandbox ${className ?? ""}`} data-console-bypass="" data-textjs-interactive="" onMouseDown={(e) => {
+    <div ref={wrap} className={`sandbox ${className ?? ""}`} dir="ltr" data-console-bypass="" data-textjs-interactive="" onMouseDown={(e) => {
       if ((e.target as Element).closest(".dt-inspect")) return;
       e.preventDefault();
       activate();

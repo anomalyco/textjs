@@ -107,7 +107,7 @@ const STAGES: Array<{ step: string; title: ReactNode; body: ReactNode; glyph: Re
 
 function Pipeline({ play }: { play: boolean }): ReactNode {
   return (
-    <div className={`tl-pipe${play ? " play" : ""}`}>
+    <div className={`tl-pipe${play ? " play" : ""}`} dir="ltr">
       <div className="tl-stages-wrap">
       <div className="tl-track" aria-hidden="true">
         <span className="tl-progress dirty" />
@@ -183,7 +183,7 @@ function Throttle({ play }: { play: boolean }): ReactNode {
           Read the post <ArrowRight size={14} />
         </A>
       </div>
-      <div className="tl-lanes">
+      <div className="tl-lanes" dir="ltr">
         <Lane kind="clear" label="clear() + log()" blankPct={clear15.blankPct} />
         <Lane kind="append" label="log(), appended" blankPct={append15.blankPct} />
         <span className="tl-playhead" aria-hidden="true">

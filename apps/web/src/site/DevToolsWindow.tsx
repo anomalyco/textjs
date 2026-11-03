@@ -72,7 +72,7 @@ export function ScaledMirror({
   }, []);
 
   return (
-    <div ref={outer} className="mirror-scale" style={{ height: fit.height }}>
+    <div ref={outer} className="mirror-scale" dir="ltr" style={{ height: fit.height }}>
       <div ref={inner} style={{ position: "relative", transform: fit.scale === 1 ? undefined : `scale(${fit.scale})` }}>
         {/* The strut always sizes the box; live frames of any size (a responsive companion
             resizing, a stale frame from another page) paint over it without moving layout. */}
@@ -135,7 +135,7 @@ export function DevToolsWindow({
 }: DevToolsWindowProps): ReactNode {
   const decor = onInspect ? true : undefined;
   return (
-    <div className={`devtools ${className ?? ""}`} data-console-engage={engage ? "" : undefined}>
+    <div className={`devtools ${className ?? ""}`} dir="ltr" data-console-engage={engage ? "" : undefined}>
       <div className="dt-tabs" aria-hidden={onInspect ? undefined : true}>
         {onInspect ? (
           <button

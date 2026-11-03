@@ -35,7 +35,7 @@ export interface SheetProps {
   onClose: () => void;
   id?: string;
   label: string;
-  /** `top` drops below the site header; `left` slides over from the left edge. */
+  /** `top` drops below the site header; `left` slides over from the inline-start edge (the right edge in RTL). */
   side: "top" | "left";
   className?: string;
   children: ReactNode;

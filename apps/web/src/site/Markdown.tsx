@@ -22,6 +22,11 @@ export function Inline({ text }: { text: string }): ReactNode {
   );
 }
 
+type TableAlign = Extract<MarkdownBlock, { type: "table" }>["align"][number];
+
+/** Markdown's left and right alignment map to start and end, so tables mirror in RTL. */
+const cellAlign = (a: TableAlign = "left"): "start" | "center" | "end" => (a === "center" ? a : a === "right" ? "end" : "start");
+
 interface ListNode {
   item: ListItem;
   children: ListNode[];
@@ -45,7 +50,7 @@ function List({ nodes }: { nodes: ListNode[] }): ReactNode {
   const ordered = nodes[0]?.item.ordered ?? false;
   const items = nodes.map((n, i) => (
     <li key={i}>
-      {n.item.checked !== undefined ? <input type="checkbox" checked={n.item.checked} readOnly disabled style={{ marginRight: 8 }} /> : null}
+      {n.item.checked !== undefined ? <input type="checkbox" checked={n.item.checked} readOnly disabled style={{ marginInlineEnd: 8 }} /> : null}
       <Inline text={n.item.text} />
       {n.children.length > 0 ? <List nodes={n.children} /> : null}
     </li>
@@ -115,7 +120,7 @@ function Block({ block }: { block: MarkdownBlock }): ReactNode {
             <thead>
               <tr>
                 {block.header.map((h, i) => (
-                  <th key={i} style={{ textAlign: block.align[i] ?? "left" }}>
+                  <th key={i} style={{ textAlign: cellAlign(block.align[i]) }}>
                     <Inline text={h} />
                   </th>
                 ))}
@@ -125,7 +130,7 @@ function Block({ block }: { block: MarkdownBlock }): ReactNode {
               {block.rows.map((row, r) => (
                 <tr key={r}>
                   {block.header.map((_, c) => (
-                    <td key={c} style={{ textAlign: block.align[c] ?? "left" }}>
+                    <td key={c} style={{ textAlign: cellAlign(block.align[c]) }}>
                       <Inline text={row[c] ?? ""} />
                     </td>
                   ))}

@@ -67,6 +67,10 @@
   transition: transform 0.4s ease;
 }
 
+[dir="rtl"] .learn-meter-track > span {
+  transform-origin: right center;
+}
+
 .learn-chapters {
   list-style: none;
   margin: 56px 0 0;
@@ -193,7 +197,7 @@
 /* The mini player: the same <video>, pinned to a corner while its slot (which keeps its size) is out of view. */
 .learn-video-player.floating {
   position: fixed;
-  right: 20px;
+  inset-inline-end: 20px;
   /* Stacked above the Console pill (20px from the bottom, 40px tall). */
   bottom: 72px;
   z-index: 58;
@@ -240,7 +244,8 @@
   align-items: center;
   gap: 2px;
   height: 36px;
-  padding: 0 4px 0 2px;
+  padding-block: 0;
+  padding-inline: 2px 4px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -257,7 +262,7 @@
   background: none;
   color: var(--muted);
   font-size: 13px;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -312,10 +317,10 @@
   }
 }
 
-/* Phones: a compact bar along the bottom, with the video on the left. */
+/* Phones: a compact bar along the bottom, with the video at the start. */
 .learn-video-player.floating.compact {
-  left: 8px;
-  right: 8px;
+  inset-inline-start: 8px;
+  inset-inline-end: 8px;
   bottom: calc(8px + env(safe-area-inset-bottom));
   flex-direction: row;
   align-items: center;
@@ -333,7 +338,8 @@
   flex: 1;
   min-width: 0;
   height: 63px;
-  padding: 0 6px 0 4px;
+  padding-block: 0;
+  padding-inline: 4px 6px;
   border-bottom: 0;
 }
 
@@ -417,8 +423,9 @@
   top: var(--header-h);
   height: calc(100vh - var(--header-h));
   overflow-y: auto;
-  padding: 28px 16px 48px 24px;
-  border-right: 1px solid var(--line);
+  padding-block: 28px 48px;
+  padding-inline: 24px 16px;
+  border-inline-end: 1px solid var(--line);
   scrollbar-width: thin;
 }
 
@@ -530,7 +537,7 @@
 
 .learn-outline ul {
   margin: 0;
-  padding-left: 18px;
+  padding-inline-start: 18px;
   font-size: 14.5px;
   color: var(--muted);
 }
@@ -544,7 +551,7 @@
 .learn-diff-stat {
   display: inline-flex;
   gap: 6px;
-  margin-left: 4px;
+  margin-inline-start: 4px;
   font-size: 11.5px;
 }
 
@@ -563,7 +570,7 @@
 }
 
 .learn-diff .code .line {
-  padding-left: 0;
+  padding-inline-start: 0;
 }
 
 .learn-diff .code .mark {
@@ -667,7 +674,7 @@
   border-radius: var(--radius);
   background: var(--bg);
   font-size: 14.5px;
-  text-align: left;
+  text-align: start;
   color: var(--muted);
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
@@ -786,7 +793,7 @@
   font-size: min(13px, 2.55vw);
   line-height: 1.25;
   color: var(--fg);
-  text-align: left;
+  text-align: start;
 }
 
 .learn-cert.pending pre {
@@ -807,7 +814,7 @@
 }
 
 .learn-reset a {
-  margin-left: 20px;
+  margin-inline-start: 20px;
 }
 
 /* Responsive */
