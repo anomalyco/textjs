@@ -45,7 +45,7 @@ Pulsa `?` para ver todas las vinculaciones con etiqueta, agrupadas. La lista mue
 `Ctrl+K` (o `Ctrl+P`) abre un lanzador con búsqueda aproximada entre tus comandos y todas las vinculaciones con etiqueta, con las letras coincidentes resaltadas.
 
 <!-- s:e88bab4eab -->
-| Propiedad | Descripción |
+| Prop | Descripción |
 | :-- | :-- |
 | `commands` | `{ id, label, group?, keys?, keywords?, run }[]` |
 | `keys` | Atajo de apertura (por defecto `ctrl+k, ctrl+p`; `null` para desactivarlo) |

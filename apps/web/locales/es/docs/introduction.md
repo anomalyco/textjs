@@ -12,7 +12,7 @@ Qué incluye
 - **App Router**: layouts, páginas, segmentos dinámicos y manejadores de ruta.
 - **Layout de Yoga**: flexbox en WebAssembly, ajustado a celdas enteras.
 - **Turbolog**: una llamada a `console.log` por cada fotograma modificado.
-- **Interfaz de la consola**: la página aloja únicamente un panel de enfoque y un campo de entrada oculto.
+- **Interfaz de la consola**: la página aloja únicamente un panel de foco y un campo de entrada oculto.
 
 <!-- s:5ae438610c -->
 Funcionamiento
@@ -24,10 +24,10 @@ El estado fluye hacia abajo: React, luego el layout, luego un búfer de celdas y
 Los fotogramas sin cambios se omiten, así que las apps inactivas no registran nada en la consola.
 
 <!-- s:3a5d9cbc49 -->
-Siguientes pasos
+Próximos pasos
 
 <!-- s:b849362c77 -->
 - [Instalación](/docs/installation): crea tu primera app.
 - [Enrutamiento](/docs/routing): páginas, layouts y navegación.
 - [Turbolog](/docs/turbolog-engine): cómo se codifican los fotogramas.
-- [OpenCode](/docs/opencode): una interfaz de usuario de terminal para un agente, creada con Text.js.
+- [OpenCode](/docs/opencode): una TUI de agente creada con Text.js.

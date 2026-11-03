@@ -14,7 +14,7 @@ Markdown compatible con streaming. Pasa una cadena que crece y el fotograma se m
 Resaltado de sintaxis para `ts`, `tsx`, `json`, `bash`, `python`, `rust`, `go` y más.
 
 <!-- s:e75addc84e -->
-| Propiedad | Descripción |
+| Prop | Descripción |
 | :-- | :-- |
 | `language` | Identificador del lenguaje |
 | `showLineNumbers` | Margen para números de línea |

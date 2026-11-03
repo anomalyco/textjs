@@ -8,7 +8,7 @@ Los gráficos se dibujan con elementos de bloque. Las barras usan ocho niveles p
 Gráficos de líneas con matriz de puntos, eje Y y leyenda.
 
 <!-- s:977778a73f -->
-| Propiedad | Descripción |
+| Prop | Descripción |
 | :-- | :-- |
 | `series` | `{ data, label?, color? }[]` |
 | `data` | Forma abreviada para una serie |
@@ -43,7 +43,7 @@ Llena su ancho con los puntos más recientes. Un valor de `height` superior a `1
 `<ProgressBar>`
 
 <!-- s:5455ef1226 -->
-| Propiedad | Descripción |
+| Prop | Descripción |
 | :-- | :-- |
 | `value` / `max` | Progreso (omitir para indeterminado) |
 | `variant` | `block` (suave) `line` `thin` |
@@ -70,7 +70,7 @@ Gradientes con nombre: `geist` `dusk` `ocean` `mono` `ember`.
 Las consolas de Chromium y Firefox dibujan la imagen como un sprite de píxeles. El pixel art (256 colores o menos, sin píxeles parcialmente transparentes) conserva hasta 8 × 16 píxeles por celda, y las fotos hasta 4 × 8. Safari, las terminales, las copias en texto plano y las páginas con [`runtime = "server"`](/docs/server-rendering) reciben medios bloques `▀`: cada celda contiene dos píxeles, el superior en primer plano y el inferior en el fondo. Pasa `renderMode="halfblock"` para dibujar medios bloques en todas partes, como hacía `<Image>` en 1.3.
 
 <!-- s:70bb4fc454 -->
-| Propiedad | Descripción |
+| Prop | Descripción |
 | :-- | :-- |
 | `src` | URL de la imagen (solo en el navegador) |
 | `pixels` | RGBA sin procesar como `{ width, height, data }`, 4 bytes por píxel en orden de filas |
@@ -101,7 +101,7 @@ Una imagen también se dibuja con medios bloques en Chromium y Firefox cuando no
 `@textjs/react/experimental` exporta `<Pixels>` para búferes de fotogramas `0xRRGGBBAA` en tiempo real, como los de juegos, emuladores y vídeo. Escribe los píxeles empaquetados directamente en `source.data` e incrementa `frame` para volver a pintar.
 
 <!-- s:2d12b69e81 -->
-| Propiedad | Descripción |
+| Prop | Descripción |
 | :-- | :-- |
 | `source` | `{ width, height, data: Uint32Array }` en orden `0xRRGGBBAA` |
 | `frame` | Contador de fotogramas; incrementar después de modificar `source.data` |

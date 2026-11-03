@@ -5,7 +5,7 @@ El App Router asigna las carpetas de `app/` a URLs y las mantiene sincronizadas 
 Páginas
 
 <!-- s:c4bd849316 -->
-Exporta un componente como exportación predeterminada desde `page.tsx`:
+Exporta por defecto un componente desde `page.tsx`:
 
 <!-- s:66a6e1dc46 -->
 Layouts
@@ -26,10 +26,10 @@ Navegación
 `<Link>` puede recibir el foco y admite atajos de una sola tecla.
 
 <!-- s:328e16abd4 -->
-| Propiedad | Descripción |
+| Prop | Descripción |
 | :-- | :-- |
 | `href` | Ruta de destino |
-| `shortcut` | Tecla que sigue el enlace |
+| `shortcut` | Tecla que abre el enlace |
 | `replace` | Sustituir la entrada del historial |
 
 <!-- s:c6bd4ebc06 -->
@@ -45,4 +45,4 @@ Navega desde el código:
 Lee la ruta actual:
 
 <!-- s:a5386906c8 -->
-La navegación hacia atrás y hacia delante y los enlaces profundos funcionan. En un alojamiento estático, los segmentos dinámicos necesitan recurrir a `index.html` como alternativa. El adaptador `static` escribe esa alternativa como `404.html`.
+La navegación hacia atrás y hacia delante y los enlaces profundos funcionan. En un alojamiento estático, los segmentos dinámicos necesitan una página de respaldo que sirva `index.html`. El adaptador `static` la genera como `404.html`.

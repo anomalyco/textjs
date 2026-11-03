@@ -8,7 +8,7 @@ Estas primitivas organizan la cuadrícula de celdas con Yoga flexbox.
 El contenedor de layout.
 
 <!-- s:b2726c7ef5 -->
-| Propiedad | Descripción |
+| Prop | Descripción |
 | :-- | :-- |
 | `className` | Utilidades de celda |
 | `border` | `single` `rounded` `double` `heavy` `dashed` |
@@ -23,7 +23,7 @@ El contenedor de layout.
 Texto en línea. Los componentes `<Text>` anidados se convierten en spans con estilos.
 
 <!-- s:d078a242d3 -->
-| Propiedad | Descripción |
+| Prop | Descripción |
 | :-- | :-- |
 | `color` | Color del texto |
 | `bold` `italic` `underline` `dim` | Atributos |

@@ -26,7 +26,7 @@ Por defecto, ocupan todo el espacio de su contenedor padre. Pasa `height` para f
 Una lista virtualizada. Las filas tienen una altura de una celda.
 
 <!-- s:3408e68b29 -->
-| Propiedad | Descripción |
+| Prop | Descripción |
 | :-- | :-- |
 | `items` | Cualquier array |
 | `renderItem` | `(item, { highlighted, focused }) => ReactNode` |

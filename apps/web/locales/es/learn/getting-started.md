@@ -8,7 +8,7 @@ Crear la app
 `create-text-app` genera la estructura de un proyecto con App Router, TypeScript y la CLI `text`.
 
 <!-- s:9eee556b8f -->
-Abre `http://localhost:3000` y después [abre la consola del navegador](/docs/installation#open-the-console). La página muestra un área de enfoque. Tu app se renderiza en la consola.
+Abre `http://localhost:3000` y después [abre la consola del navegador](/docs/installation#open-the-console). La página muestra un panel de foco. Tu app se renderiza en la consola.
 
 <!-- s:7d69bcfbda -->
 Tu primera página
