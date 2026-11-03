@@ -9,7 +9,7 @@ import {
 } from "./cell-buffer";
 import { blendOver, colorToCss, type PackedColor } from "./color";
 import { encodeIndexedPng, encodeRgbaPng, encodeSpriteSvgDataUrl, hasTransparentPixels, type EncodedPng, type SpriteKeyframe } from "./drivers/png";
-import { DEFAULT_TYPOGRAPHY } from "./drivers/style";
+import { DEFAULT_TYPOGRAPHY, SEAL_CSS, sealsBefore } from "./drivers/style";
 import type { BufferSprite, SpriteCodec, SpriteDriverContext } from "./sprite-types";
 
 /** A live framebuffer: row-major packed `0xRRGGBBAA` colors, the format every Text.js color uses. */
@@ -246,16 +246,26 @@ function releasePool(pool: Uint32Array[], buf: Uint32Array): void {
   if (pool.length < 8) pool.push(buf);
 }
 
-function resolveCleanBandBg(ctx: SpriteDriverContext, buffer: CellBuffer, sp: BufferSprite): number | null {
-  for (const other of buffer._sprites) {
-    if (other !== sp && other.y < sp.y + sp.height && other.y + other.height > sp.y) return null;
-  }
+type InverseColors = SpriteDriverContext["styleOptions"];
+
+/**
+ * The background a sprite's whole row band shares, so its rows can be one
+ * span each, or `null` for rows sliced around text. `undefined` when consoles
+ * draw it as half-block cells: it shares rows with another sprite, or it's a
+ * photo beside text, whose sliced rows would each resend its whole data URL.
+ */
+function spriteBand(opts: InverseColors, buffer: CellBuffer, sp: BufferSprite): number | null | undefined {
+  if (sharesRowWithSibling(buffer._sprites, sp)) return undefined;
+  const bandBg = resolveCleanBandBg(opts, buffer, sp);
+  return bandBg === null && sp.encoding === "rgba" ? undefined : bandBg;
+}
+
+function resolveCleanBandBg(opts: InverseColors, buffer: CellBuffer, sp: BufferSprite): number | null {
   const W = buffer.width;
   const C = buffer._chars;
   const F = buffer._fg;
   const B = buffer._bg;
   const A = buffer._attrs;
-  const opts = ctx.styleOptions;
   let bandBg = -1;
   for (let y = sp.y, yEnd = sp.y + sp.height; y < yEnd; y++) {
     const rowOff = y * W;
@@ -282,6 +292,19 @@ function resolveCleanBandBg(ctx: SpriteDriverContext, buffer: CellBuffer, sp: Bu
     }
   }
   return bandBg === -1 ? 0 : bandBg;
+}
+
+/** Cells `x0..x1` of row `y` as a one-row buffer. */
+function rowSlice(buffer: CellBuffer, y: number, x0: number, x1: number): CellBuffer {
+  const out = new CellBuffer(x1 - x0, 1);
+  const a = y * buffer.width + x0;
+  const b = a + x1 - x0;
+  out._chars.set(buffer._chars.subarray(a, b));
+  out._fg.set(buffer._fg.subarray(a, b));
+  out._bg.set(buffer._bg.subarray(a, b));
+  out._attrs.set(buffer._attrs.subarray(a, b));
+  out.graphemePool = buffer.graphemePool;
+  return out;
 }
 
 function spriteTypoCss(ctx: SpriteDriverContext, lineHeightPx: number): string {
@@ -421,6 +444,9 @@ function getSpriteCodec(): SpriteCodec {
       const png = encodeSpritePng(sp);
       return png ? `data:image/png;base64,${png.base64}` : "";
     },
+    drawsAsCells(buffer, sp, style): boolean {
+      return spriteBand(style, buffer, sp) === undefined;
+    },
     stageKeyframe(staged, pool, buffer, atMs): boolean {
       let added = false;
       const sprites = buffer._sprites;
@@ -457,15 +483,10 @@ function getSpriteCodec(): SpriteCodec {
       const cellW = ctx._getCellAdvance();
       const padY = ctx._profile.inline ? 0 : ctx.typography.rowPaddingY;
 
-      const sprites = buffer._sprites;
-      let materializedShared = false;
-
-      for (const sp of sprites) {
-        if (sharesRowWithSibling(sprites, sp)) {
-          if (!materializedShared) {
-            buffer._ensureSpritesMaterialized();
-            materializedShared = true;
-          }
+      for (const sp of buffer._sprites) {
+        const bandBg = spriteBand(ctx.styleOptions, buffer, sp);
+        if (bandBg === undefined) {
+          buffer._materializeSpritesInRect(sp.x, sp.y, sp.x + sp.width, sp.y + sp.height, false, false);
           continue;
         }
         let spriteDirty = full || hasStaged || force;
@@ -476,13 +497,6 @@ function getSpriteCodec(): SpriteCodec {
               break;
             }
           }
-        }
-        const bandBg = resolveCleanBandBg(ctx, buffer, sp);
-        // Sliced rows each repeat the whole data URL. That's fine for small indexed pixel art; a
-        // photo beside text would resend hundreds of KB per frame, so it draws as half-blocks instead.
-        if (bandBg === null && sp.encoding === "rgba") {
-          buffer._materializeSpritesInRect(sp.x, sp.y, sp.x + sp.width, sp.y + sp.height, false, false);
-          continue;
         }
         const boxX = sp.x * cellW;
         const boxW = sp.width * cellW;
@@ -515,10 +529,13 @@ function getSpriteCodec(): SpriteCodec {
           const { url, visualFrames } = buildSpriteSvgUrl(sp, drawW, drawH, renderAt, staged, stagePool, svgCache);
           if (visualFrames > maxVisualFrames) maxVisualFrames = visualFrames;
           const posY = padY + (boxH - drawH) * 0.5;
+          const seal = !ctx._profile.inline && sealsBefore(bandBg, undefined);
           const centeredX = Math.abs(sp.x + sp.width * 0.5 - W * 0.5) < 0.01;
-          const posXStr = centeredX ? "center" : `${(boxX + (boxW - drawW) * 0.5).toFixed(1)}px`;
+          // The seal's 1px of padding widens the box that `center` is measured in.
+          const posXStr = centeredX ? (seal ? "calc(50% - 0.5px)" : "center") : `${(boxX + (boxW - drawW) * 0.5).toFixed(1)}px`;
           let css = spriteTypoCss(ctx, boxH + 2 * padY);
           if ((bandBg & 255) !== 0) css += `background-color:${colorToCss(bandBg)};`;
+          if (seal) css += SEAL_CSS;
           if (url) {
             css += `background-image:url("${url}");background-repeat:no-repeat;background-size:${Math.round(drawW)}px ${Math.round(drawH)}px;background-position:${posXStr} ${posY.toFixed(1)}px;`;
           }
@@ -565,26 +582,15 @@ function getSpriteCodec(): SpriteCodec {
           const dh = Math.round(drawH);
           const sliceW = sp.fit === "fill" ? "100%" : `${dw}px`;
 
+          const rx0 = sp.x + sp.width;
           for (let y = sp.y; y < sp.y + sp.height; y++) {
-            const out = [];
-            if (sp.x > 0) {
-              const leftBuf = new CellBuffer(sp.x, 1);
-              const srcOff = y * W;
-              leftBuf._chars.set(buffer._chars.subarray(srcOff, srcOff + sp.x));
-              leftBuf._fg.set(buffer._fg.subarray(srcOff, srcOff + sp.x));
-              leftBuf._bg.set(buffer._bg.subarray(srcOff, srcOff + sp.x));
-              leftBuf._attrs.set(buffer._attrs.subarray(srcOff, srcOff + sp.x));
-              leftBuf.graphemePool = buffer.graphemePool;
-              out.push(...ctx.compileRow(leftBuf, 0));
-            }
+            // The text either side is compiled on its own, so tell it what it meets to seal like one row.
+            const out = sp.x > 0 ? ctx.compileRow(rowSlice(buffer, y, 0, sp.x), 0, sliceBg) : [];
+            const right = rx0 < W ? ctx.compileRow(rowSlice(buffer, y, rx0, W), 0) : [];
             let css = rowTypo;
             if ((sliceBg & 255) !== 0) css += `background-color:${colorToCss(sliceBg)};`;
-            const rx0 = sp.x + sp.width;
-            // Chromium snaps each span to device pixels on its own, so at a fractional cell edge the
-            // console's background can show through between this slice and an opaque neighbour.
-            // Reach 1px under the neighbour, which paints over it.
-            const seal = !ctx._profile.inline && (sliceBg & 255) !== 0 && (rx0 >= W || ((buffer._bg[y * W + rx0] as number) & 255) === 255);
-            if (seal) css += "padding-right:1px;margin-right:-1px;";
+            const seal = !ctx._profile.inline && sealsBefore(sliceBg, right[0]?.bg);
+            if (seal) css += SEAL_CSS;
             if (url) {
               const size = seal && sliceW === "100%" ? "calc(100% - 1px)" : sliceW;
               css += `background-image:url("${url}");background-repeat:no-repeat;background-size:${size} ${dh}px;background-position:${relX.toFixed(1)}px ${(baseRelY - (y - sp.y) * rowPitch).toFixed(1)}px;`;
@@ -600,17 +606,7 @@ function getSpriteCodec(): SpriteCodec {
               deco: true,
               cells: sp.width,
             });
-            if (rx0 < W) {
-              const rw = W - rx0;
-              const rightBuf = new CellBuffer(rw, 1);
-              const srcOff = y * W + rx0;
-              rightBuf._chars.set(buffer._chars.subarray(srcOff, srcOff + rw));
-              rightBuf._fg.set(buffer._fg.subarray(srcOff, srcOff + rw));
-              rightBuf._bg.set(buffer._bg.subarray(srcOff, srcOff + rw));
-              rightBuf._attrs.set(buffer._attrs.subarray(srcOff, srcOff + rw));
-              rightBuf.graphemePool = buffer.graphemePool;
-              out.push(...ctx.compileRow(rightBuf, 0));
-            }
+            out.push(...right);
             rowCache[y] = out;
             if (full || hashes[y] !== prevHashes[y] || prevSpanned[y] !== 2) dirty++;
             prevHashes[y] = hashes[y] as number;

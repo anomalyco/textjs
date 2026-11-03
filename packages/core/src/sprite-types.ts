@@ -21,7 +21,7 @@ export interface SpriteDriverContext {
   };
   _getCellAdvance(): number;
   _nextFitId(): number;
-  compileRow(buffer: CellBuffer, y: number): Array<{
+  compileRow(buffer: CellBuffer, y: number, after?: number): Array<{
     styleId: number;
     styleKey: bigint;
     css: string;
@@ -38,6 +38,8 @@ export interface SpriteCodec {
   release(buf: Uint32Array): void;
   materialize(buf: CellBuffer, sp: BufferSprite): void;
   encodePngDataUrl(sp: BufferSprite): string;
+  /** Whether consoles that draw sprites still draw this one as half-block cells. */
+  drawsAsCells(buffer: CellBuffer, sp: BufferSprite, style: { readonly inverseFg: PackedColor; readonly inverseBg: PackedColor }): boolean;
   stageKeyframe(
     staged: Map<string, Array<{ hash: number; pixels: Uint32Array; atMs: number }>>,
     pool: Uint32Array[],

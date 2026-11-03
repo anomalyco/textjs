@@ -368,6 +368,46 @@ describe("<Image> sprite edge cases", () => {
     await t.unmount();
   });
 
+  test("<ConsoleMirror> draws an image the way the console does: half-blocks for a photo beside text, a sprite otherwise", async () => {
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { extractStyledFrame } = await import("@textjs/core");
+    const { ConsoleMirror } = await import("../src/dom/ConsoleMirror");
+    const photo = rgba(256, 256, (x, y) => [x, y, (x * y) & 255, 255]);
+    const t = await createTestRoot({ width: 40, height: 10 });
+    const mirror = (): string => renderToStaticMarkup(<ConsoleMirror frame={extractStyledFrame(t.root.renderer.buffer)} />);
+    const scenes: Array<[ReactNode, boolean]> = [
+      [
+        <Box flexDirection="row" gap={2}>
+          <Image pixels={photo} width={12} />
+          <Text>caption</Text>
+        </Box>,
+        false,
+      ],
+      [
+        <Box flexDirection="row" gap={2}>
+          <Image pixels={ART} width={8} />
+          <Text>caption</Text>
+        </Box>,
+        true,
+      ],
+      [
+        <Box flexDirection="column">
+          <Image pixels={photo} width={12} />
+          <Text>caption</Text>
+        </Box>,
+        true,
+      ],
+    ];
+    for (const [scene, sprite] of scenes) {
+      await t.render(scene);
+      expect(consoleArgs(t).some((a) => a.includes(SPRITE_URL))).toBe(sprite);
+      const html = mirror();
+      expect(html.includes("data:image/png;base64,")).toBe(sprite);
+      expect(html.includes("▀")).toBe(true);
+    }
+    await t.unmount();
+  });
+
   test("an isolated photo stays a single-span sprite", async () => {
     const t = await createTestRoot({ width: 40, height: 10 });
     await t.render(

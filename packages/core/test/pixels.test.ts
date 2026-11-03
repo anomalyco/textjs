@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import * as coreTopLevel from "../src/index";
 import {
+  ATTR_INVERSE,
   CellBuffer,
   ConsoleRenderer,
   CssConsoleDriver,
@@ -49,7 +50,9 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
     expect(spriteArgs.length).toBe(1);
     expect(spriteArgs[0]).toContain("line-height:58px;");
     expect(spriteArgs[0]).toContain("background-color:#09090b;");
-    expect(spriteArgs[0]).toContain("background-position:center ");
+    // Sealed like the text rows around it, with `center` moved back by half the seal's padding.
+    expect(spriteArgs[0]).toContain("padding-right:1px;margin-right:-1px;");
+    expect(spriteArgs[0]).toContain("background-position:calc(50% - 0.5px) ");
     expect(chromeCon.last.format.split("\n").length).toBe(4);
 
     // Firefox emits single-frame sprite URLs, with temporal batching disabled (Item 4)
@@ -61,6 +64,8 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
     const ffSprite = ffCon.last.args.find((a) => a.includes('background-image:url("data:image/svg+xml,')) ?? "";
     expect(ffSprite).toContain("display:inline-block;");
     expect(ffSprite).toContain("line-height:56px;");
+    expect(ffSprite).toContain("background-position:center ");
+    expect(ffSprite).not.toContain("margin-right:-1px");
 
     expect(chromeDriver.render(buf).skipped).toBe(true);
     expect(chromeCon.logs.length).toBe(1);
@@ -94,6 +99,57 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
     expect(sliceArgs.length).toBe(2);
     expect(con.last.format).toContain("┌");
     expect(con.last.format).toContain("┘");
+  });
+
+  test("full-band sprite rows seal like text rows, unless the band is transparent", () => {
+    const src = { width: 4, height: 4, data: new Uint32Array(16).fill(RED) };
+    const spriteCss = (bg: number): string => {
+      const buf = new CellBuffer(20, 6);
+      buf.clear(bg);
+      drawPixels(buf, { x: 0, y: 1, width: 8, height: 4, source: src });
+      const con = new FakeConsole();
+      new CssConsoleDriver({ console: con, browser: "chromium" }).render(buf);
+      return con.last.args.find((a) => a.includes("background-image:url(")) ?? "";
+    };
+    const opaque = spriteCss(DARK_BG);
+    expect(opaque).toContain("padding-right:1px;margin-right:-1px;");
+    expect(opaque).toMatch(/background-position:\d+\.\dpx /);
+    expect(spriteCss(0)).not.toContain("margin-right:-1px");
+  });
+
+  /** Each `%c` run of the last frame as `[text, css]`. */
+  function runs(con: FakeConsole): Array<[string, string]> {
+    return con.last.format.split("%c").slice(1).map((text, i) => [text, con.last.args[i] as string]);
+  }
+
+  test("sliced sprite rows seal across the text either side as one row", () => {
+    const SEAL = "padding-right:1px;margin-right:-1px;";
+    const src = { width: 4, height: 4, data: new Uint32Array(16).fill(BLUE) };
+    const buf = new CellBuffer(20, 4);
+    // A transparent sprite between coloured text: the left text must not reach under it.
+    buf.drawText(0, 1, "ab", GREEN, RED);
+    buf.drawText(10, 1, "cd        ", GREEN, RED);
+    drawPixels(buf, { x: 2, y: 0, width: 8, height: 4, source: src, fit: "fill" });
+    const con = new FakeConsole();
+    new CssConsoleDriver({ console: con, browser: "chromium" }).render(buf);
+    expect(con.last.args.filter((a) => a.includes("background-image:url(")).length).toBe(4);
+    const left = runs(con).find(([text]) => text.startsWith("ab"));
+    expect(left?.[1]).toContain("background-color:#ff0000;");
+    expect(left?.[1].endsWith(SEAL)).toBe(false);
+    expect(runs(con).find(([text]) => text.startsWith("cd"))?.[1].endsWith(SEAL)).toBe(true);
+
+    // An opaque sprite seals into opaque text on its right (here inverse text, whose own cell
+    // background is transparent), and not into the console background.
+    const card = new CellBuffer(20, 4);
+    for (let y = 0; y < 4; y++) card.drawText(0, y, " ".repeat(y === 1 ? 10 : 20), GREEN, DARK_BG);
+    card.drawText(10, 0, "      ", GREEN, 0, ATTR_INVERSE);
+    card.drawText(0, 2, "label", GREEN, DARK_BG);
+    drawPixels(card, { x: 2, y: 0, width: 8, height: 4, source: src, fit: "fill" });
+    const con2 = new FakeConsole();
+    new CssConsoleDriver({ console: con2, browser: "chromium" }).render(card);
+    const slices = con2.last.args.filter((a) => a.includes("background-image:url("));
+    expect(slices.length).toBe(4);
+    expect(slices.map((css) => css.includes(SEAL))).toEqual([true, false, true, true]);
   });
 
   test("readCells, getCell, plain text, ANSI, and extractStyledFrame materialize half-blocks without dirtying _writeVersion or row hashes", () => {
