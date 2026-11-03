@@ -12,7 +12,7 @@ export interface ConsoleBanner {
   bg: ColorInput;
 }
 
-/** A saved buffer row (see `CellBuffer._overlayRow`). */
+/** A saved buffer row (see `CellGrid._overlayRow`). */
 export interface RowSnapshot {
   chars: Uint32Array;
   fg: Uint32Array;

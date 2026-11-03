@@ -7,14 +7,14 @@
  * Frames are exact cell deltas: only rows whose hash changed since the last
  * message are sent, as runs of `[styleIndex, text]` against an append-only
  * per-connection style table of packed `[fg, bg, attrs]`. The player writes
- * them into its own `CellBuffer` and encodes `console.log` frames with the
+ * them into its own `CellGrid` and encodes `console.log` frames with the
  * same `CssConsoleDriver` the client renderer uses, so a server-rendered
  * frame is byte-for-byte the frame the client would have logged.
  *
  * Browser-safe and dependency-light: the frame player bundles this module.
  */
 
-import { ATTR_WIDE_CONT, CHAR_CONTINUATION, GRAPHEME_POOL_FLAG, type CellBuffer } from "@textjs/core";
+import { ATTR_WIDE_CONT, CHAR_CONTINUATION, GRAPHEME_POOL_FLAG, type CellGrid } from "@textjs/core";
 
 export const LIVE_PROTOCOL_VERSION = 1;
 /** SSE stream (GET) and input endpoint (POST), relative to `basePath`. */
@@ -175,7 +175,7 @@ const M_POOL = "\u0001";
 const M_ESC = "\u0002";
 const STYLE_TABLE_CAP = 4096;
 
-/** Server half: diffs a `CellBuffer` against what this connection has been sent. */
+/** Server half: diffs a `CellGrid` against what this connection has been sent. */
 export class LiveFrameEncoder {
   private styles = new Map<string, number>();
   private prev = new Uint32Array(0);
@@ -189,7 +189,7 @@ export class LiveFrameEncoder {
   }
 
   /** Encode rows changed since the last call, or `null` when nothing changed. */
-  encode(buf: CellBuffer): LiveFrame | null {
+  encode(buf: CellGrid): LiveFrame | null {
     const W = buf.width;
     const H = buf.height;
     if (W !== this.width || H !== this.height || this.styles.size > STYLE_TABLE_CAP) this.keyframe = true;
@@ -217,7 +217,7 @@ export class LiveFrameEncoder {
     return frame;
   }
 
-  private encodeRow(buf: CellBuffer, y: number, newStyles: LiveStyle[]): LiveRow {
+  private encodeRow(buf: CellGrid, y: number, newStyles: LiveStyle[]): LiveRow {
     const W = buf.width;
     const cells = buf.readCells();
     const C = cells.chars;
@@ -263,12 +263,12 @@ export class LiveFrameEncoder {
   }
 }
 
-/** Player half: applies {@link LiveFrame}s to a `CellBuffer`. */
+/** Player half: applies {@link LiveFrame}s to a `CellGrid`. */
 export class LiveFrameDecoder {
   private styles: LiveStyle[] = [];
 
   /** Apply a frame. Returns `false` when it can't be applied (a delta before any keyframe). */
-  apply(buf: CellBuffer, frame: LiveFrame): boolean {
+  apply(buf: CellGrid, frame: LiveFrame): boolean {
     if (frame.k === 1) {
       this.styles = [];
       if (buf.width !== frame.w || buf.height !== frame.h) buf.resize(frame.w, frame.h);

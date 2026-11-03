@@ -13,12 +13,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `@textjs/app`: curl, Wget, HTTPie and xh get a page's first frame as truecolor ANSI text instead of the HTML page, on `text dev`, `text start` and the `bun`, `vercel` and `cloudflare` adapters. `text build` prerenders frames for static pages. `text start` and `bun` render dynamic and server-rendered pages on request, and answer unknown paths with the app's not-found page and a `404`. Frames are 80 × 24 by default. Change the size, or turn frames off, with `ansi` in `text.config.ts` or `export const ansi` in a page. The `static` adapter serves curl the HTML page. See [curl and Terminal Clients](https://textjs.org/docs/curl).
 - `@textjs/app/ansi` exports `wantsAnsi` and `ansiResponse` for servers that don't use `text start` or an adapter, and `@textjs/react` exports `frameToAnsi`.
 - textjs.org: a draft Japanese version at textjs.org/ja, starting with the Introduction, Installation and Routing docs and the site interface. Untranslated paragraphs show in English. It isn't indexed or offered in the language picker yet.
+- `@textjs/core` exports `CellGrid`, the cell storage that `CellBuffer` extends, without its drawing methods. `CssConsoleDriver`, `AnsiDriver`, `renderToAnsi` and `extractStyledFrame` accept either.
 
 ### Changed
 
 - `@textjs/react`: `<Image>` now draws a pixel sprite in Chromium and Firefox consoles, with up to 8 × 16 pixels per cell for pixel art and 4 × 8 for photos. This deliberately breaks the [support policy](https://textjs.org/docs/support-policy)'s promise that frames look the same between minor releases. Pass `renderMode="halfblock"` to keep the 1.3 half-blocks. Safari, terminals (including `text run`), ANSI and plain-text output, and the first frame of server-rendered live pages, still draw half-blocks.
 - `@textjs/app`: scripts and uptime checks that fetch pages with curl, Wget, HTTPie or xh now get ANSI text. To keep getting HTML, send `Accept: text/html`, or set `ansi: false` in `text.config.ts`.
 - `@textjs/app`: async server components no longer run while `text build` prerenders a page's shell. They show their `<Suspense>` fallback, as before, without starting their data requests at build time.
+- `@textjs/app`: the frame player for server-rendered pages is 3 KB smaller, 22.4 KB gzip instead of 25.4 KB for `examples/dashboard`. It now writes frames into a `CellGrid`, so it no longer ships `CellBuffer`'s drawing methods, box borders or text truncation.
 
 ### Fixed
 
