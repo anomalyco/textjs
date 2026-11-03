@@ -312,7 +312,7 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
     }
   });
 
-  test("large 240x64 dense text frames stay unlimited by sprite byte budget, while sprites compact at 4 MB", () => {
+  test("large 240x64 dense text frames stay unlimited by sprite byte budget, under the 300-frame cap", () => {
     const textCon = new FakeConsole();
     const textDriver = new CssConsoleDriver({ console: textCon, browser: "chromium", measureText: false, maxFrames: 300 });
     let seed = 7;
@@ -340,24 +340,70 @@ describe("drawPixels & CssConsoleDriver sprites", () => {
     }
     expect(totalTextBytes).toBeGreaterThan(4 * 1024 * 1024);
     expect(textCon.clears).toBe(1); // only frame 0 cleared!
+  });
 
-    // With noisy 256-color sprites exceeding 4 MB before 300 frames, sprite byte budget compacts
-    const spCon = new FakeConsole();
-    const spDriver = new CssConsoleDriver({ console: spCon, browser: "chromium", measureText: false, maxFrames: 300 });
+  describe("sprite clear budget", () => {
+    const MB = 1024 * 1024;
     const pal256 = Uint32Array.from({ length: 256 }, (_, i) => ((((i * 73) & 255) << 24) | (((i * 151) & 255) << 16) | (((i * 211) & 255) << 8) | 255) >>> 0);
-    const px = new Uint32Array(320 * 200);
-    const spBuf = new CellBuffer(80, 25);
-    let ns = 1234567;
-    for (let f = 0; f < 60; f++) {
-      for (let i = 0; i < px.length; i++) {
-        ns = (Math.imul(ns, 1664525) + 1013904223) >>> 0;
-        px[i] = pal256[ns >>> 24]!;
+
+    /** Characters logged between each pair of clears, and the largest frame, over `frames` noisy 256-color frames. */
+    function run(browser: "chromium" | "safari", frames: number, paint: (buf: CellBuffer, src: { width: number; height: number; data: Uint32Array }) => void) {
+      const segments: number[] = [];
+      let since = 0;
+      let clears = 0;
+      let maxFrame = 0;
+      const target = {
+        clear(): void {
+          if (clears++ > 0) segments.push(since);
+          since = 0;
+        },
+        log(...args: unknown[]): void {
+          let n = 0;
+          for (const a of args) n += (a as string).length;
+          since += n;
+          maxFrame = Math.max(maxFrame, n);
+        },
+      };
+      const driver = new CssConsoleDriver({ console: target, browser, measureText: false });
+      const src = { width: 320, height: 200, data: new Uint32Array(320 * 200) };
+      const buf = new CellBuffer(80, 25);
+      let ns = 1234567;
+      for (let f = 0; f < frames; f++) {
+        for (let i = 0; i < src.data.length; i++) {
+          ns = (Math.imul(ns, 1664525) + 1013904223) >>> 0;
+          src.data[i] = pal256[ns >>> 24]!;
+        }
+        buf.clear(DARK_BG);
+        paint(buf, src);
+        driver.render(buf);
       }
-      spBuf.clear(DARK_BG);
-      drawPixels(spBuf, { x: 0, y: 0, width: 80, height: 25, source: { width: 320, height: 200, data: px }, fit: "fill" });
-      spDriver.render(spBuf);
+      return { segments, maxFrame };
     }
-    expect(spCon.clears).toBeGreaterThan(1);
+
+    test("Chromium sprite frames clear at 16 MB", () => {
+      const { segments, maxFrame } = run("chromium", 200, (buf, source) => drawPixels(buf, { x: 0, y: 0, width: 80, height: 25, source, fit: "fill" }));
+      expect(segments.length).toBe(1);
+      expect(segments[0]!).toBeLessThanOrEqual(16 * MB);
+      expect(segments[0]! + maxFrame).toBeGreaterThan(16 * MB);
+    });
+
+    test("Safari half-block fallbacks clear at 4 MB", () => {
+      const { segments, maxFrame } = run("safari", 40, (buf, source) => drawPixels(buf, { x: 0, y: 0, width: 80, height: 25, source, fit: "fill" }));
+      expect(segments.length).toBeGreaterThanOrEqual(1);
+      expect(segments[0]!).toBeLessThanOrEqual(4 * MB);
+      expect(segments[0]! + maxFrame).toBeGreaterThan(4 * MB);
+    });
+
+    test("Chromium sprites drawn as half-blocks clear at 4 MB", () => {
+      // Sprites sharing rows draw as cells.
+      const { segments, maxFrame } = run("chromium", 40, (buf, source) => {
+        drawPixels(buf, { x: 0, y: 0, width: 40, height: 25, source, fit: "fill" });
+        drawPixels(buf, { x: 40, y: 0, width: 40, height: 25, source, fit: "fill" });
+      });
+      expect(segments.length).toBeGreaterThanOrEqual(1);
+      expect(segments[0]!).toBeLessThanOrEqual(4 * MB);
+      expect(segments[0]! + maxFrame).toBeGreaterThan(4 * MB);
+    });
   });
 
   test("temporal staging handles A->B->A without double-releasing pooled buffers and discards stale moved/resized entries", () => {
