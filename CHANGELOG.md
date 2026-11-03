@@ -24,6 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `@textjs/core`: charts and spinners keep their grid on Windows 10. Its console font is Consolas, which has no ▁▂▃▅▆▇ eighth blocks, quadrants, braille, ▶ or ✓, and their fallback glyphs ran rows past the frame's right edge. `CssConsoleDriver` now measures, once, which of these glyphs the console font draws more than a fifth of a cell off, and draws those as the nearest glyph Consolas has: `_` `▄` `▌` `█` for eighths, half blocks for quadrants and braille, `►` `◄` `√` `×` for arrows, checks and crosses. Fonts that fit them, such as Cascadia Mono on Windows 11 and Menlo on macOS, draw the originals. `measureText: false` turns this off.
 - `@textjs/core`: no more 1px vertical hairlines between neighbouring backgrounds in Chrome and Edge DevTools, such as beside "account" and "qty" in textjs.org/coffee. Chromium snaps each `%c` span to device pixels separately and could leave the pixel where two spans met to neither. `CssConsoleDriver` now extends a span's background 1px under an opaque right neighbour (`padding-right:1px;margin-right:-1px`). Firefox and Safari frames don't change.
+- `@textjs/core`: `<Image>` sprites in Chrome and Edge follow the same 1px rule as text. Text to the left of a transparent sprite no longer paints a 1px strip of its background over the sprite's left edge, and a sprite seals against opaque text on its right, including inverse text. A sprite alone in its rows now reaches the frame's right edge, like the text rows above and below it.
+- `@textjs/react`: `<ConsoleMirror>` draws a photo beside text as half-blocks, as the console does, instead of as the image.
 
 ## [1.3.0] - 2026-11-03
 
