@@ -68,7 +68,14 @@ export function shouldRouteToConsole(active: Element | null, consoleInput: boole
 }
 
 /** Page controls that handle their own clicks: pressing one never engages the console by itself. */
-export const INTERACTIVE_SELECTOR = "a[href],button,input,textarea,select,label,summary,[contenteditable],[role=button],[data-textjs-interactive]";
+export const INTERACTIVE_SELECTOR =
+  'a[href],button,input,textarea,select,label,summary,[contenteditable],[role=button],[tabindex]:not([tabindex="-1"]),[data-textjs-interactive]';
+
+/** A press on something that handles its own clicks (links, buttons, fields, the Console pill, search). */
+export function isInteractivePress(target: EventTarget | null): boolean {
+  const el = target as Element | null;
+  return el !== null && typeof el.closest === "function" && el.closest(`${INTERACTIVE_SELECTOR},${BYPASS_SELECTOR}`) !== null;
+}
 
 /** A press that brings focus back counts within this long after the window's `focus` event. */
 const REFOCUS_MS = 300;

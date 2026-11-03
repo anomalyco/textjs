@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { CellBuffer, CssConsoleDriver, InputEngine } from "@textjs/core";
-import { Box, FocusHint, Text, themes, useFocus, useInput, usePageFocus } from "../src/index";
+import { Box, Button, FocusHint, Modal, ScrollBox, SplitPane, Tabs, Text, themes, useFocus, useInput, usePageFocus } from "../src/index";
 import * as api from "../src/index";
 import { focusHintLabel } from "../src/components/FocusHint";
 import { createTestRoot, FakeConsole, type TestRoot } from "./helpers";
@@ -87,9 +87,9 @@ describe("FocusHint", () => {
     expect(t.lines()).toEqual(["header", "keys"]);
     // Reverse video in the theme's colors.
     const theme = themes.geistDark;
-    expect(t.root.renderer.banner).toEqual({ text: HINT, fg: theme.bg, bg: theme.fg });
+    expect(t.root.renderer._banner).toEqual({ text: HINT, fg: theme.bg, bg: theme.fg });
     await t.act(() => t.engine.setFocused(true));
-    expect(t.root.renderer.banner).toBeNull();
+    expect(t.root.renderer._banner).toBeNull();
     expect(consoleLastRow(t)).toBe("keys");
     await t.unmount();
   });
@@ -99,7 +99,7 @@ describe("FocusHint", () => {
     await t.render(<FocusHint active />);
     await t.act(() => t.engine.setFocused(false));
     await t.act(() => t.root.setTheme("geistLight"));
-    expect(t.root.renderer.banner).toEqual({ text: HINT, fg: themes.geistLight.bg, bg: themes.geistLight.fg });
+    expect(t.root.renderer._banner).toEqual({ text: HINT, fg: themes.geistLight.bg, bg: themes.geistLight.fg });
     await t.unmount();
   });
 
@@ -112,13 +112,16 @@ describe("FocusHint", () => {
     const t = await createTestRoot({ width: 40, height: 2, focusHint: false });
     await t.render(<FocusHint active={false} />);
     await t.act(() => t.engine.setFocused(false));
-    expect(t.root.renderer.banner).toBeNull();
+    expect(t.root.renderer._banner).toBeNull();
     await t.unmount();
   });
 
-  test("the label helpers stay internal", () => {
+  test("the label helpers and banner API stay internal", async () => {
     expect("focusHintLabel" in api).toBe(false);
     expect("FOCUS_HINT_TEXT" in api).toBe(false);
+    const t = await createTestRoot({ width: 10, height: 2 });
+    for (const name of ["setBanner", "banner", "onBannerChange"]) expect(name in t.root.renderer).toBe(false);
+    await t.unmount();
   });
 });
 
@@ -128,7 +131,7 @@ describe("the root's default focus hint", () => {
     const t = await createTestRoot({ width: 40, height: 2, input: engine, ...options });
     await t.render(app);
     await t.act(() => engine.setFocused(false));
-    const banner = t.root.renderer.banner?.text ?? null;
+    const banner = t.root.renderer._banner?.text ?? null;
     await t.unmount();
     engine.detach();
     return banner;
@@ -145,16 +148,56 @@ describe("the root's default focus hint", () => {
     expect(await blurredBanner(<Interactive ambient />)).toBeNull();
   });
 
+  test("stays off for components that only register inactive focus targets", async () => {
+    expect(
+      await blurredBanner(
+        <ScrollBox height={2}>
+          <Text>line</Text>
+        </ScrollBox>,
+      ),
+    ).toBeNull();
+    expect(await blurredBanner(<SplitPane direction="row"><Text>a</Text><Text>b</Text></SplitPane>)).toBeNull();
+    expect(await blurredBanner(<Tabs tabs={[{ id: "a", label: "A" }]} activeTab="a" onChange={() => undefined} />)).toBeNull();
+    expect(await blurredBanner(<Button disabled>Go</Button>)).toBeNull();
+    expect(await blurredBanner(<Button>Go</Button>)).toBe(HINT);
+  });
+
+  test("follows targets turning active, Tab focus turning off and modal traps", async () => {
+    const engine = pageEngine();
+    const t = await createTestRoot({ width: 40, height: 6, input: engine });
+    await t.render(<Button disabled>Go</Button>);
+    await t.act(() => engine.setFocused(false));
+    expect(t.root.renderer._banner).toBeNull();
+    await t.render(<Button>Go</Button>);
+    expect(t.root.renderer._banner?.text).toBe(HINT);
+    await t.act(() => t.root.focus.disable());
+    expect(t.root.renderer._banner).toBeNull();
+    await t.act(() => t.root.focus.enable());
+    expect(t.root.renderer._banner?.text).toBe(HINT);
+    // A modal with no targets of its own traps focus away from the button. Its Esc handler still wants keys.
+    await t.render(
+      <>
+        <Button>Go</Button>
+        <Modal title="m" onClose={() => undefined} closeOnEscape={false}>
+          <Text>info</Text>
+        </Modal>
+      </>,
+    );
+    expect(t.root.focus.hasTargets()).toBe(false);
+    await t.unmount();
+    engine.detach();
+  });
+
   test("appears and goes away as handlers come and go", async () => {
     const engine = pageEngine();
     const t = await createTestRoot({ width: 40, height: 2, input: engine });
     await t.render(<Interactive isActive={false} />);
     await t.act(() => engine.setFocused(false));
-    expect(t.root.renderer.banner).toBeNull();
+    expect(t.root.renderer._banner).toBeNull();
     await t.render(<Interactive />);
-    expect(t.root.renderer.banner?.text).toBe(HINT);
+    expect(t.root.renderer._banner?.text).toBe(HINT);
     await t.render(<Interactive isActive={false} />);
-    expect(t.root.renderer.banner).toBeNull();
+    expect(t.root.renderer._banner).toBeNull();
     await t.unmount();
     engine.detach();
   });
@@ -188,14 +231,14 @@ describe("CssConsoleDriver banner", () => {
     const before = { text: buf.toPlainString(), version: buf._writeVersion, pool: buf.graphemePool.length, bg: buf.bg.slice() };
     const con = new FakeConsole();
     const driver = new CssConsoleDriver({ console: con, clear: "never" });
-    driver.setBanner({ text: "hint", fg: "#000000", bg: "#ffffff" });
+    driver._setBanner({ text: "hint", fg: "#000000", bg: "#ffffff" });
     driver.render(buf);
     expect(String(con.logs.at(-1)?.[0]).replace(/%c/g, "")).toContain("hint");
     expect(buf.toPlainString()).toBe(before.text);
     expect(buf._writeVersion).toBe(before.version);
     expect(buf.graphemePool.length).toBe(before.pool);
     expect(buf.bg).toEqual(before.bg);
-    driver.setBanner(null);
+    driver._setBanner(null);
     expect(driver.render(buf).skipped).toBe(false);
     expect(String(con.logs.at(-1)?.[0]).replace(/%c/g, "")).not.toContain("hint");
   });

@@ -1,4 +1,5 @@
-import { blendOver, parseColor, type ColorInput } from "../color";
+import { blendOver, parseColor } from "../color";
+import type { ConsoleBanner } from "../internal";
 import {
   ATTR_ALLOW_LINK,
   ATTR_INVERSE,
@@ -66,13 +67,6 @@ export interface ConsoleFrame {
  * - `"never"` (or `false`): never clear.
  */
 export type ClearMode = "append" | "frame" | "never";
-
-/** A one-row bar over the last row of console frames (see `CssConsoleDriver.setBanner`). */
-export interface ConsoleBanner {
-  text: string;
-  fg: ColorInput;
-  bg: ColorInput;
-}
 
 export interface CssConsoleDriverOptions {
   console?: ConsoleTarget;
@@ -1071,9 +1065,9 @@ export class CssConsoleDriver {
 
   /**
    * A one-row bar drawn over the last row of every logged frame, never into the buffer, so inline
-   * mirrors and editors that read the buffer don't show it. `null` removes it.
+   * mirrors and editors that read the buffer don't show it. `null` removes it. @internal
    */
-  setBanner(banner: ConsoleBanner | null): void {
+  _setBanner(banner: ConsoleBanner | null): void {
     this.banner = banner;
   }
 

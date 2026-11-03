@@ -462,6 +462,44 @@ describe("live server (SSE + POST)", () => {
     });
   });
 
+  test("a stream that re-attaches after focus came back clears the player's banner", async () => {
+    await withoutActEnvironment(async () => {
+      await start();
+      const a = await openStream(base, "path=/&cols=50&rows=12&focused=0");
+      await until(() => a.messages.some((m) => m.t === "banner" && m.banner !== null) && frames(a).length > 0);
+      const sid = (a.messages[0] as { sid: string }).sid;
+      a.close();
+      await sleep(30);
+      // Focus returns while the stream is down; the browser reports it on the next POST.
+      expect((await post(sid, [{ type: "focus", focused: true }])).status).toBe(204);
+      const b = await openStream(base, "path=/&cols=50&rows=12&focused=1", { "Last-Event-ID": sid });
+      await until(() => frames(b).length > 0);
+      expect(b.messages.some((m) => m.t === "banner" && m.banner !== null)).toBe(false);
+
+      // The player as the browser runs it: `hello` starts a stream, then banners and frames apply in order.
+      const con = new FakeConsole();
+      const player = new FramePlayerCore({ console: con, schedule: null });
+      const play = (msgs: LiveServerMessage[]): void => {
+        for (const m of msgs) {
+          if (m.t === "hello") player.startStream();
+          else if (m.t === "banner") player.setBanner(m.banner);
+          else if (m.t === "f") player.applyFrame(m);
+        }
+        player.paint();
+      };
+      play(a.messages);
+      expect(String(con.logs.at(-1)?.[0])).toContain("Click the page to use the keyboard");
+      play(b.messages);
+      expect(String(con.logs.at(-1)?.[0])).not.toContain("Click the page to use the keyboard");
+      // An unchanged banner doesn't repaint.
+      const logged = con.logs.length;
+      player.setBanner(null);
+      player.paint();
+      expect(con.logs.length).toBe(logged);
+      b.close();
+    });
+  });
+
   test("reconnect resumes the same session (Last-Event-ID) with a fresh keyframe", async () => {
     await withoutActEnvironment(async () => {
       await start();

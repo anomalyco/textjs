@@ -41,12 +41,14 @@ export class FocusManager {
 
   readonly getActiveId = (): string | null => this.activeId;
 
-  /** Number of registered focus targets. */
-  get size(): number {
-    return this.entries.size;
+  /** Whether Tab can reach any target: focus is enabled and a target is active and outside no other trap. */
+  hasTargets(): boolean {
+    if (!this.enabled) return false;
+    for (const e of this.entries.values()) if (this.eligible(e)) return true;
+    return false;
   }
 
-  /** Called when a focus target registers or unregisters. */
+  /** Called when the targets {@link hasTargets} looks at may have changed. */
   onEntriesChange(listener: () => void): () => void {
     this.entryListeners.add(listener);
     return () => this.entryListeners.delete(listener);
@@ -104,6 +106,7 @@ export class FocusManager {
     e.active = active;
     if (!active && this.activeId === id) this.setActiveId(null);
     else if (active && e.autoFocus && this.activeId === null && this.eligible(e)) this.setActiveId(id);
+    this.emitEntries();
   }
 
   focus(id: string): void {
@@ -115,11 +118,15 @@ export class FocusManager {
   }
 
   enable(): void {
+    if (this.enabled) return;
     this.enabled = true;
+    this.emitEntries();
   }
 
   disable(): void {
+    if (!this.enabled) return;
     this.enabled = false;
+    this.emitEntries();
   }
 
   /** Registered focus ids in Tab order; `tabbable` is false when inactive or outside the top focus trap. */
@@ -158,6 +165,7 @@ export class FocusManager {
       const target = list.find((e) => e.autoFocus) ?? list[0];
       this.setActiveId(target ? target.id : null);
     } else this.emit();
+    this.emitEntries();
     return () => {
       const i = this.traps.indexOf(trap);
       if (i < 0) return;
@@ -166,6 +174,7 @@ export class FocusManager {
       if (this.eligible(restore)) this.setActiveId(restore.id);
       else if (!this.eligible(this.activeId === null ? undefined : this.entries.get(this.activeId))) this.setActiveId(null);
       else this.emit();
+      this.emitEntries();
     };
   }
 }

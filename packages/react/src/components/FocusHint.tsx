@@ -31,8 +31,8 @@ function Banner({ active, pageInput }: { active: boolean | undefined; pageInput:
   const { fg, bg } = theme;
   useLayoutEffect(() => {
     if (!show || label === null) return;
-    rt.renderer.setBanner({ text: label, fg: bg, bg: fg });
-    return () => rt.renderer.setBanner(null);
+    rt.renderer._setBanner({ text: label, fg: bg, bg: fg });
+    return () => rt.renderer._setBanner(null);
   }, [rt, show, label, fg, bg]);
   return null;
 }

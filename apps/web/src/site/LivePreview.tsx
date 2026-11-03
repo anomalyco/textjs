@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
-import { activateCompanion, companionReady, getCompanion, isRefocusPress } from "../console-companion/bridge";
+import { activateCompanion, companionReady, getCompanion, isInteractivePress, isRefocusPress } from "../console-companion/bridge";
 import { PRESETS, siteStore } from "../console-companion/store";
 import { preloadCompanionTab } from "../console-companion/tabs-loader";
 import { useSite } from "../console-companion/useSite";
@@ -107,9 +107,9 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
     const onDown = (e: globalThis.MouseEvent): void => {
       const el = ref.current;
       if (!el || !(e.target instanceof Node) || el.contains(e.target)) return;
-      // Coming back from DevTools only returns the keyboard to the example.
-      if (isRefocusPress(e)) setTimeout(activateCompanion, 0);
-      else siteStore.exitExample(id);
+      // Coming back from DevTools only returns the keyboard to the example (boot focuses it on click).
+      if (isRefocusPress(e) && !isInteractivePress(e.target)) return;
+      siteStore.exitExample(id);
     };
     document.addEventListener("mousedown", onDown, true);
     return () => document.removeEventListener("mousedown", onDown, true);

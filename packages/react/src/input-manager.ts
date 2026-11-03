@@ -92,9 +92,9 @@ export class InputManager {
 
   /**
    * Whether the app wants the keyboard: a key or paste handler is registered (other than
-   * `ambient` ones), or a focus target is. Drives the default focus hint.
+   * `ambient` ones), or Tab can reach a focus target. Drives the default focus hint.
    */
-  readonly wantsKeys = (): boolean => this.wanting > 0 || this.focus.size > 0;
+  readonly wantsKeys = (): boolean => this.wanting > 0 || this.focus.hasTargets();
 
   /** Called when {@link wantsKeys} may have changed. */
   readonly subscribeWants = (listener: () => void): (() => void) => {

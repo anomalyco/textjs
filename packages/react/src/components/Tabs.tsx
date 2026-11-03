@@ -69,7 +69,8 @@ export const Tabs: NamedExoticComponent<TabsProps> = memo(function Tabs(props: T
         }
       }
     },
-    { isActive },
+    // Only while it can do something, so passive tabs don't count as the app wanting keys.
+    { isActive: isActive && onChange !== undefined && (isFocused || (shortcuts && tabs.some((t) => t.shortcut !== undefined))) },
   );
 
   return (

@@ -79,6 +79,11 @@ export class GatedInputEngine extends InputEngine {
   }
 }
 
+const selectionCollapsed = (): boolean => {
+  const s = typeof getSelection === "function" ? getSelection() : null;
+  return s === null || s.isCollapsed;
+};
+
 const finePointer = (): boolean => typeof matchMedia === "function" && matchMedia("(pointer: fine)").matches;
 
 let bootStarted: Promise<Companion> | null = null;
@@ -161,13 +166,25 @@ export function bootCompanion(): Promise<Companion> {
       }
     });
 
+    let focusOnClick = false;
     document.addEventListener("mousedown", (e) => {
       const t = e.target as Element | null;
+      focusOnClick = false;
       if (!t || typeof t.closest !== "function") return;
       const snap = siteStore.getSnapshot();
       if (!engagesConsole(t, snap.consoleInput, snap.pathname)) return;
       siteStore.set({ consoleInput: true });
-      if (finePointer()) setTimeout(() => engine.focus(), 0);
+      focusOnClick = finePointer();
+    });
+    // The hidden input takes focus once the click is over, and only without a text selection, so
+    // dragging or double-clicking to select text and ⌘C still work.
+    document.addEventListener("click", () => {
+      if (!focusOnClick) return;
+      focusOnClick = false;
+      // After the click: a click inside a selection collapses it only once the event is over.
+      setTimeout(() => {
+        if (selectionCollapsed()) engine.focus();
+      }, 0);
     });
     window.addEventListener("focus", (e) => {
       noteWindowFocus(e.timeStamp);

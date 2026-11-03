@@ -3,6 +3,7 @@
  */
 
 import { blendOver, type PackedColor } from "./color";
+import type { RowSnapshot } from "./internal";
 import {
   codePointWidth,
   graphemeWidth,
@@ -143,16 +144,6 @@ export type TitleTextDrawer = (buffer: CellBuffer, x: number, y: number, text: s
 
 /** Default foreground assumed for default-colored text when it must be blended (e.g. modal dimming). */
 export const ASSUMED_DEFAULT_FG: PackedColor = 0xd4d4d8ff;
-
-/** @internal A saved row (see `CellBuffer._overlayRow`). */
-export interface RowSnapshot {
-  chars: Uint32Array;
-  fg: Uint32Array;
-  bg: Uint32Array;
-  attrs: Uint16Array;
-  pool: number;
-  version: number;
-}
 
 export class CellBuffer {
   width: number;

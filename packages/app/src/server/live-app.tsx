@@ -165,7 +165,7 @@ export async function createLiveApp(options: LiveAppOptions): Promise<LiveApp> {
   });
   if (options.onBanner) {
     const onBanner = options.onBanner;
-    root.renderer.onBannerChange((b) => onBanner(b === null ? null : ({ text: b.text, fg: String(b.fg), bg: String(b.bg) } satisfies LiveBanner)));
+    root.renderer._onBannerChange((b) => onBanner(b === null ? null : ({ text: b.text, fg: String(b.fg), bg: String(b.bg) } satisfies LiveBanner)));
   }
   const inner = createMemoryHistory(options.path);
   const cache = new ServerComponentCache();
