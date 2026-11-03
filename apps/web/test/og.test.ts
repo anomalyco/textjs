@@ -63,6 +63,7 @@ describe("Open Graph images in the build", () => {
   const out = mkdtempSync(join(tmpdir(), "textjs-og-"));
   const dist = join(out, "dist");
   const ssr = join(out, "ssr");
+  const locales = join(out, "locales");
 
   beforeAll(() => {
     const run = (cmd: string[], env: Record<string, string> = {}): void => {
@@ -71,8 +72,12 @@ describe("Open Graph images in the build", () => {
     };
     run(["bun", "x", "vite", "build", "--outDir", dist, "--emptyOutDir"]);
     run(["bun", "x", "vite", "build", "--ssr", "src/entry-server.tsx", "--outDir", ssr, "--emptyOutDir"]);
-    run(["bun", "scripts/postbuild-pages.ts"], { TEXTJS_WEB_DIST: dist, TEXTJS_WEB_SSR: ssr });
-  }, 180_000);
+    // One locale build too, as scripts/build.ts does it.
+    const ja = { TEXTJS_LOCALE: "ja" };
+    run(["bun", "x", "vite", "build", "--outDir", join(locales, "ja", "client"), "--emptyOutDir"], ja);
+    run(["bun", "x", "vite", "build", "--ssr", "src/entry-server.tsx", "--outDir", join(locales, "ja", "ssr"), "--emptyOutDir"], ja);
+    run(["bun", "scripts/postbuild-pages.ts"], { TEXTJS_WEB_DIST: dist, TEXTJS_WEB_SSR: ssr, TEXTJS_WEB_LOCALES: locales, TEXTJS_LOCALES: "en,ja" });
+  }, 240_000);
 
   afterAll(() => rmSync(out, { recursive: true, force: true }));
 
@@ -164,5 +169,24 @@ describe("Open Graph images in the build", () => {
         .filter((u) => /^[a-z][a-z0-9+.-]*:|^\/\//i.test(u) && !/^https:\/\/(media\.)?textjs\.org\//.test(u));
       expect({ rel, external }).toEqual({ rel, external: [] });
     }
+  });
+
+  test("a draft locale's pages carry their language, stay out of indexes and get their own cards", () => {
+    const html = readFileSync(join(dist, "ja", "docs", "routing.html"), "utf8");
+    expect(html).toContain('<html lang="ja" dir="ltr"');
+    expect(html).toContain('<meta name="robots" content="noindex" />');
+    expect(html).toContain('data-route="/ja/docs/routing"');
+    expect(html).not.toContain('hreflang="');
+    expect(new URL(meta(html, "property", "og:image") as string).pathname).toBe("/og/ja-docs-routing.png");
+    expect(html).toContain('href="/ja/docs/installation"');
+    // Anchors keep their English ids.
+    expect(html).toContain('<h2 id="dynamic-segments">');
+    expect(existsSync(join(dist, "ja", "404.html"))).toBe(true);
+    expect(readFileSync(join(dist, "ja", "blog", "rss.xml"), "utf8")).toContain("<language>ja</language>");
+    const rule = headerRules().get("/ja/*");
+    expect(rule?.get("x-robots-tag")).toBe("noindex");
+    expect(rule?.get("content-language")).toBe("ja");
+    // Drafts add nothing to English pages.
+    expect(readFileSync(join(dist, "docs", "routing.html"), "utf8")).not.toContain('hreflang="');
   });
 });

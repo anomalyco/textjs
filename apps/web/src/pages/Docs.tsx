@@ -29,7 +29,7 @@ function DocLinks({ slug }: { slug: string }): ReactNode {
 
 function Sidebar({ slug }: { slug: string }): ReactNode {
   return (
-    <aside className="docs-sidebar" aria-label="Documentation">
+    <aside className="docs-sidebar" aria-label={t("Documentation")}>
       <DocLinks slug={slug} />
     </aside>
   );
