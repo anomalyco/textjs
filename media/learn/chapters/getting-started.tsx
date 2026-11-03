@@ -108,7 +108,7 @@ const script: ChapterScript = {
             cmd: commands[0],
             output: [
               "",
-              { text: "▼ create-text-app v1.0.0", color: "#ededed", bold: true },
+              { text: "▼ create-text-app v1.4.0", color: "#ededed", bold: true },
               "",
               "Creating a new Text.js app in ~/acme-deploys.",
               "",
@@ -127,14 +127,16 @@ const script: ChapterScript = {
             output: [
               { text: "$ text dev", color: "#707070" },
               "",
-              { text: "   ▼ Text.js 1.0.0 (Turbolog)", color: "#ededed", bold: true },
+              { text: "   ▼ Text.js 1.4.0 (Turbolog)", color: "#ededed", bold: true },
               "   - Local:        http://localhost:3000",
               "   - Config:       text.config.ts",
               "",
               { text: " ✓ Starting...", color: "#62c073" },
               { text: " ✓ Ready in 55ms", color: "#62c073" },
               "",
-              " ○ Open DevTools Console (⌘⌥J) to view your app",
+              // devtoolsHint() in packages/app/src/cli/ui.ts, wrapped before the URL to fit the window.
+              " ○ Open the browser console to view your app:",
+              "   https://textjs.org/docs/installation#open-the-console",
             ],
           },
         ],
@@ -144,7 +146,7 @@ const script: ChapterScript = {
       id: "open",
       kind: "live",
       narration:
-        "{open}Open localhost:3000. {keys}Then open the console with ⌘⌥J, or Ctrl+Shift+J on Windows and Linux. " +
+        "{open}Open localhost:3000. Then open the console. {chrome}In Chrome that's {keys}⌘⌥J, or Ctrl+Shift+J on Windows and Linux. " +
         "{blank}The page only shows a focus pad. {app}Your app is in the console.",
       tail: 2.4,
       live: {
@@ -155,8 +157,9 @@ const script: ChapterScript = {
       },
       props: {
         url: "localhost:3000",
-        open: "keys+0.9",
-        keys: [{ at: "keys+0.3", label: "⌘ ⌥ J" }],
+        open: "keys+0.6",
+        keys: [{ at: "keys", label: "⌘ ⌥ J" }],
+        badges: [{ at: "chrome", until: "app", text: "Other browsers: textjs.org/docs/installation#open-the-console" }],
         shots: [{ at: "app-0.3", target: "devtools" }],
       },
     },

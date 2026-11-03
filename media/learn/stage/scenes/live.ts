@@ -86,7 +86,8 @@ export const live: SceneFactory = (data, cue) => {
     const el = h("div", "pill", overlay);
     h("span", "dot", el);
     el.append(document.createTextNode(b.text));
-    Object.assign(el.style, { position: "absolute", right: "96px", top: "96px", fontSize: "20px", height: "46px", color: "#ededed" });
+    // Centred in the strip above the window, clear of its edges and the HUD marks.
+    Object.assign(el.style, { position: "absolute", left: "50%", top: "24px", fontSize: "18px", color: "#ededed" });
     return { el, at: cue(b.at), until: cue(b.until) };
   });
 
@@ -217,7 +218,7 @@ export const live: SceneFactory = (data, cue) => {
       for (const b of badges) {
         const vis = Math.min(ramp(t, b.at, 0.4), 1 - ramp(t, b.until - 0.4, 0.4));
         b.el.style.opacity = String(vis);
-        b.el.style.transform = `translate3d(0, ${((1 - vis) * -10).toFixed(2)}px, 0)`;
+        b.el.style.transform = `translate3d(-50%, ${((1 - vis) * -10).toFixed(2)}px, 0)`;
       }
       await Promise.all(waits);
     },
