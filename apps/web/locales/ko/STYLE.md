@@ -15,6 +15,12 @@
 - Names kept in English: the Enterprise plan, the Playground and the course Learn Text.js. The Learn section and nav are 학습; Docs are 문서.
 - Merch print slogans stay in English, in “”: “YOU WOULDN’T RENDER A WEBSITE IN THE CONSOLE”.
 
+## Focus pad
+
+- The console pad's actions finish the sentence “Then click here and {action}.” Translate each action as the form that fits that slot. “그다음 여기를 클릭하고 {action}.”: {action} ends the sentence in 해요체 imperative: 입력하세요, ↑ ↓를 누르세요, 프롬프트를 입력하세요.
+- “type” is the verb (type on the keyboard), never a data type. “Custom size” is the size picker's option for entering your own columns and rows.
+- Hint labels under the keycaps are short noun phrases: 뒤로, 상세 정보, 장바구니. Keep the space between the pad's two sentences.
+
 ## Captions
 
 - Subtitle style: about 8 Hangul syllables per second. Drop filler and repetition, keep every fact, number and code name.

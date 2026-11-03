@@ -171,7 +171,7 @@ html[data-browser=safari] .tx-pad .tx-pad-sub,.tx-pad[data-console=safari] .tx-p
 @keyframes tx-pad-pop{0%{opacity:0;transform:translateY(4px)}12%{opacity:1;transform:none}70%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.tx-pad *{animation:none!important;transition:none!important}.tx-pad-ring,.tx-pad-dot::after,.tx-pad-click::after{display:none}}
 .tx-pad-keys,.tx-pad-hint>span,.tx-pad-echo,.tx-pad-line kbd{direction:ltr;unicode-bidi:isolate}
-.tx-pad:is(:lang(ja),:lang(zh),:lang(ko)) .tx-pad-gap{display:none}
+.tx-pad:is(:lang(ja),:lang(zh)) .tx-pad-gap{display:none}
 .tx-pad:is(:lang(ar),:lang(fa),:lang(ur),:lang(he),:lang(hi),:lang(ja),:lang(ko),:lang(zh)) :is(.tx-pad-headline,.tx-pad-touch h2){letter-spacing:0}
 html:not([data-os=mac]) .tx-pad .tx-os-mac,html[data-os=mac] .tx-pad .tx-os-other,html:not([data-browser=firefox]) .tx-pad .tx-br-firefox,html:not([data-browser=safari]) .tx-pad .tx-br-safari,html[data-browser=firefox] .tx-pad .tx-br-chromium,html[data-browser=safari] .tx-pad .tx-br-chromium,html[data-browser=safari] .tx-pad .tx-not-safari{display:none!important}
 `;

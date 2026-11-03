@@ -14,6 +14,12 @@
 - Names kept in English: the Enterprise plan, the Playground and the course Learn Text.js. The Learn section and nav are “Aprender”; Docs are “Documentação”.
 - Merch print slogans stay in English: “YOU WOULDN’T RENDER A WEBSITE IN THE CONSOLE”.
 
+## Focus pad
+
+- The console pad's actions finish the sentence “Then click here and {action}.” Translate each action as the form that fits that slot. “Depois clique aqui e {action}.”: {action} é um imperativo com você que fecha a frase: “digite”, “pressione ↑ ↓”, “digite um prompt”.
+- “type” is the verb (type on the keyboard), never a data type. “Custom size” is the size picker's option for entering your own columns and rows.
+- Hint labels under the keycaps are one or two lowercase words: “voltar”, “detalhes”, “carrinho”.
+
 ## Captions
 
 - Subtitle style: about 17 characters per second. Drop filler and repetition, keep every fact, number and code name.

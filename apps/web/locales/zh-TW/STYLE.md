@@ -15,6 +15,12 @@
 - Names kept in English: the Enterprise plan, the Playground and the course Learn Text.js. The Learn section and nav are 學習; Docs are 文件.
 - Merch print slogans stay in English, in 「」: 「YOU WOULDN’T RENDER A WEBSITE IN THE CONSOLE」.
 
+## Focus pad
+
+- The console pad's actions finish the sentence “Then click here and {action}.” Translate each action as the form that fits that slot. 「接著點擊這裡並{action}。」：{action} is a verb phrase that ends the sentence: 輸入、按 ↑ ↓、輸入提示詞.
+- “type” is the verb (type on the keyboard), never a data type. “Custom size” is the size picker's option for entering your own columns and rows.
+- Hint labels under the keycaps are two to four characters: 返回、詳細資料、購物車.
+
 ## Captions
 
 - Subtitle style: about 7 Chinese characters per second. Drop filler and repetition, keep every fact, number and code name.

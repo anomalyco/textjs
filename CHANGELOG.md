@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - `@textjs/react`: `<FocusPad messages>` replaces any of the pad's built-in strings, for translated sites. It covers every line, the screen reader labels and the console size control. `<TextCanvas>` and `<ViewportControl>` also take `messages`. `<ViewportControl>` uses only the size control's keys. Strings that contain a value, such as "Then click here and press ↑ ↓.", are functions that return the whole sentence. `defaultFocusPadMessages` has the English text. See [Translating the focus pad](https://textjs.org/docs/internationalization#translating-the-focus-pad).
-- `@textjs/react`: on right-to-left pages, the focus pad keeps keycaps such as ⌘ ⌥ J and console sizes such as 120×36 left to right, and mirrors its size control and step bar. On Chinese, Japanese and Korean pages, it drops the space between its two sentences.
+- `@textjs/react`: on right-to-left pages, the focus pad keeps keycaps such as ⌘ ⌥ J and console sizes such as 120×36 left to right, and mirrors its size control and step bar. On Chinese and Japanese pages, it drops the space between its two sentences; Korean keeps it.
 - textjs.org: on textjs.org/ja, the focus pad is in Japanese on every page, including the labels under each demo's keys.
 
 ### Changed
