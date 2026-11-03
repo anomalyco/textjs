@@ -1250,6 +1250,7 @@ kbd {
 /* ScaledMirror's size reservation: measures exactly like a row of blank cells. */
 .mirror-strut {
   white-space: pre;
+  user-select: none;
   font-variant-ligatures: none;
   background: #0a0a0a;
 }
