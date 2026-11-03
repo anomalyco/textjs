@@ -54,7 +54,7 @@ export function measureStandIns(measure: TextAdvanceMeasurer, cell: number): Gly
   const verdict = new Map<string, boolean>();
   const fitsOnce = (glyph: string): boolean => {
     let ok = verdict.get(glyph);
-    if (ok === undefined) verdict.set(glyph, (ok = glyph === " " || fits(glyph)));
+    if (ok === undefined) verdict.set(glyph, (ok = fits(glyph)));
     return ok;
   };
   const used = new Map<string, string>();

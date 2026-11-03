@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- `@textjs/core`: charts and spinners keep their grid on Windows 10. Its console font is Consolas, which has no ▁▂▃▅▆▇ eighth blocks, quadrants, braille, ▶ or ✓, and their fallback glyphs ran rows past the frame's right edge. `CssConsoleDriver` now measures, once, which of these glyphs the console font draws more than a fifth of a cell off, and draws those as the nearest glyph Consolas has: `_` `▄` `▌` `█` for eighths, half blocks for quadrants and braille, `►` `◄` `√` `×` for arrows, checks and crosses. Fonts that fit them, such as Cascadia Mono on Windows 11 and Menlo on macOS, draw the originals. `measureText: false` turns this off.
+
 ## [1.3.0] - 2026-11-03
 
 ### Added
