@@ -67,7 +67,7 @@ export function Header(): ReactNode {
   return (
     <header className="header">
       <div className="container header-inner" style={{ maxWidth: 1440 }}>
-        <A href="/" className="wordmark" aria-label="Text.js home" onContextMenu={openLogoMenu}>
+        <A href="/" className="wordmark" aria-label="Text.js home" dir="ltr" lang="en" onContextMenu={openLogoMenu}>
           <Logo size={20} />
           <span>Text.js</span>
         </A>

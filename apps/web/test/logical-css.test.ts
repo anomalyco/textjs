@@ -6,12 +6,12 @@ import { join } from "node:path";
 // text-align: start). A deliberate physical value needs `physical: <reason>` in a comment on its line or the line above.
 const SRC = join(import.meta.dir, "../src");
 const CSS_FILES = ["styles.css", "pages/home/home.css", "pages/resources.css", "learn/learn.css", "merch/merch.css"];
-const TSX_FILES = new Bun.Glob("{pages,site,learn,merch}/**/*.tsx");
+const TSX_GLOBS = ["App.tsx", "{i18n,pages,site,learn,merch}/**/*.tsx"].map((g) => new Bun.Glob(g));
 const CSS = {
   physical: /margin-left|margin-right|padding-left|padding-right|border-left|border-right|(?<![-\w])left:|(?<![-\w])right:|text-align:\s*(left|right)|float:\s*(left|right)|border-(top|bottom)-(left|right)-radius/,
   escape: /\/\*\s*physical: \S/,
 };
-const TSX = { physical: /(?<![-\w.])(left|right):|marginLeft|marginRight|paddingLeft|paddingRight/, escape: /\/\/\s*physical: \S/ };
+const TSX = { physical: /(?<![-\w.])(left|right):|marginLeft|marginRight|paddingLeft|paddingRight|borderLeft|borderRight|textAlign:\s*["'](left|right)/, escape: /\/\/\s*physical: \S/ };
 
 function physicalLines(text: string, rule: { physical: RegExp; escape: RegExp }): string[] {
   const lines = text.split("\n");
@@ -26,7 +26,8 @@ describe("logical CSS", () => {
   });
 
   test("inline styles use logical properties", () => {
-    const files = [...TSX_FILES.scanSync(SRC)].sort();
+    const files = TSX_GLOBS.flatMap((g) => [...g.scanSync(SRC)]).sort();
+    expect(files).toContain("App.tsx");
     expect(files.length).toBeGreaterThan(20);
     expect(scan(files, TSX)).toEqual([]);
   });
@@ -40,6 +41,8 @@ describe("logical CSS", () => {
     }
     expect(physicalLines("  /* physical: a down chevron */\n  border-right: 1px solid;", CSS)).toEqual([]);
     expect(physicalLines("<span style={{ marginLeft: 4 }} />", TSX)).toHaveLength(1);
+    expect(physicalLines("<td style={{ textAlign: \"left\" }} />", TSX)).toHaveLength(1);
+    expect(physicalLines("<div style={{ borderRight: 0 }} />", TSX)).toHaveLength(1);
     expect(physicalLines("<span style={{ marginInlineStart: 4 }} />\nconst x = r.left;", TSX)).toEqual([]);
     expect(physicalLines("// physical: pointer coordinates\nsetPos({ left: x });", TSX)).toEqual([]);
   });

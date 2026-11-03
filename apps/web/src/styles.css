@@ -116,6 +116,16 @@ pre {
 
 /* Code and key chords read left to right in RTL pages too; isolate keeps them from reordering the text around them.
    Scoped to RTL because isolation shifts line breaks in LTR prose. */
+/* Arrows and chevrons that point along the reading direction mirror in RTL. `scale`, so hover nudges that use
+   `transform` still apply. */
+span.rtl-flip {
+  display: inline-block;
+}
+
+[dir="rtl"] .rtl-flip {
+  scale: -1 1;
+}
+
 [dir="rtl"] code,
 [dir="rtl"] kbd {
   direction: ltr;

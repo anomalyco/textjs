@@ -847,6 +847,6 @@
   .merch-card-media img,
   .merch-drawer {
     transition: none;
-    animation: none;
+    animation: none !important;
   }
 }
