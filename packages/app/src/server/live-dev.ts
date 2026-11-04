@@ -8,7 +8,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join, relative, resolve, sep } from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
-import { resolveAnsiSize, type AnsiConfig, type ViewportConfig } from "../config";
+import { resolveAnsiSize, type AnsiConfig, type TextConfig, type ViewportConfig } from "../config";
+import { LOOPBACK_ORIGINS, resolveEmbed } from "./cors";
 import { createAnsiHandler, NO_ANSI, type AnsiHandler } from "./ansi-server";
 import { staticFile } from "./static-file";
 import { LIVE_PATH } from "../live-protocol";
@@ -213,6 +214,8 @@ export interface LiveDevOptions {
   live?: { maxSessions?: number; reconnectGraceMs?: number };
   /** `text.config.ts` `ansi`. */
   ansi?: false | AnsiConfig;
+  /** `text.config.ts` `embed`: dev also accepts loopback origins on any port (without `credentials`). */
+  embed?: TextConfig["embed"];
   logger?: { info(message: string): void; error(message: string): void };
 }
 
@@ -244,10 +247,14 @@ export function createLiveDevHandler(vite: ViteDevServer, o: LiveDevOptions): Li
   const log = o.logger;
 
   const loadEntry = async (): Promise<LiveEntryModule> => (await vite.ssrLoadModule(VIRTUAL_LIVE)) as LiveEntryModule;
+  const embed = resolveEmbed(o);
 
   const live = new LiveServer({
     basePath: o.basePath,
     exposeErrors: true,
+    // A host page on another local port (a Next.js or Astro dev server) can run the embed.
+    allowOrigins: embed.enabled && !embed.allowCredentials ? [...embed.allowOrigins, ...LOOPBACK_ORIGINS] : embed.allowOrigins,
+    allowCredentials: embed.allowCredentials,
     // middleware.ts guards server routes a session renders (opening, in-app navigation, credential changes).
     authorize: createLiveAuthorizer(
       async () => {

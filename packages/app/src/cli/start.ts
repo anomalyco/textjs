@@ -13,6 +13,7 @@ import { loadServerRuntime } from "../server/adapters/runtime-node";
 import { runRouteHandlerWithCache } from "../server/cache-route";
 import { runNodeMiddleware } from "../server/middleware-node";
 import { staticFile } from "../server/static-file";
+import { EMBED_ASSET_HEADERS, isEmbedAsset, resolveEmbed } from "../server/cors";
 import { wantsAnsi } from "../ansi";
 import { appendVary, markAnsiFallthrough, pageCacheControl } from "../server/ansi-server";
 import { META_DIR } from "./build";
@@ -60,6 +61,7 @@ export async function startProductionServer(options: StartOptions): Promise<Star
     throw txError("TX017", config.outDir ?? "dist");
   }
   const basePath = normalizeBasePath(config.basePath);
+  const embed = resolveEmbed(config);
   const rewrites = (typeof config.rewrites === "function" ? await config.rewrites() : (config.rewrites ?? [])).map(compileRewrite);
   const proxies = Object.entries(config.proxy ?? {}).map(([prefix, v]) => [prefix, typeof v === "string" ? { target: v } : v] as [string, ProxyTarget]);
 
@@ -76,6 +78,8 @@ export async function startProductionServer(options: StartOptions): Promise<Star
     middleware: runtime?.middleware,
     trustProxy: config.server?.trustProxy ?? process.env.TRUST_PROXY === "1",
     origin: config.server?.origin ?? process.env.TEXTJS_ORIGIN,
+    allowOrigins: embed.allowOrigins,
+    allowCredentials: embed.allowCredentials,
   });
 
   const port = opts.port ?? 3000;
@@ -173,6 +177,7 @@ export async function startProductionServer(options: StartOptions): Promise<Star
         res.statusCode = 200;
         res.setHeader("Content-Type", MIME[extname(filePath)] ?? "application/octet-stream");
         res.setHeader("Cache-Control", pathname.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "public, max-age=0, must-revalidate");
+        if (embed.enabled && isEmbedAsset(pathname)) for (const [k, v] of Object.entries(EMBED_ASSET_HEADERS)) res.setHeader(k, v);
         if (req.method === "HEAD") return res.end();
         createReadStream(filePath).pipe(res);
         return;

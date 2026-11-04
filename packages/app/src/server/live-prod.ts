@@ -29,6 +29,10 @@ export interface LiveProductionOptions {
   trustProxy?: boolean;
   /** Fixed public origin for middleware's `request.url`. */
   origin?: string;
+  /** Other sites whose pages may open live sessions (`embed.allowOrigins`). */
+  allowOrigins?: LiveServerOptions["allowOrigins"];
+  /** `embed.credentials`. */
+  allowCredentials?: boolean;
 }
 
 export interface LiveProduction {
@@ -125,6 +129,8 @@ export async function loadLiveProduction(outDir: string, options: LiveProduction
       log: options.log,
       onError: options.onError,
       trustProxy: options.trustProxy,
+      allowOrigins: options.allowOrigins,
+      allowCredentials: options.allowCredentials,
       authorize:
         options.authorize ??
         (options.middleware ? createLiveAuthorizer(() => options.middleware, { basePath: manifest.basePath, trustProxy: options.trustProxy, origin: options.origin }) : undefined),

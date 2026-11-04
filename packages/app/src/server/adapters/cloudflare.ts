@@ -7,11 +7,12 @@
  * `AsyncLocalStorage`).
  */
 
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { MiddlewareModule } from "../middleware";
 import { bundleServerEntry, frameworkFile } from "./bundle";
-import { assertNoServerRoutes, readAnsiFrames, removeServerBundle, serverEntry, type AdapterContext, type AdapterResult } from "./shared";
+import { resolveEmbed } from "../cors";
+import { assertNoServerRoutes, headersNote, readAnsiFrames, removeServerBundle, serverEntry, staticHeadersRules, writeHeadersRules, type AdapterContext, type AdapterResult } from "./shared";
 
 export const CLOUDFLARE_COMPAT = { date: "2025-01-01", flags: ["nodejs_compat"] } as const;
 
@@ -35,6 +36,8 @@ const ansi = createAnsiHandler({ frames: ${JSON.stringify(frames)} });`;
 }
 
 const BODY = `
+import { EMBED_ASSET_HEADERS, isEmbedAsset } from ${JSON.stringify(frameworkFile("server/cors.ts"))};
+
 const fetchAsset = (env, url, request) => env.ASSETS.fetch(new Request(url, { method: request.method, headers: request.headers }));
 
 // \`pathname\` is canonical and percent-encoded: \`new URL()\` keeps it as is (decoding it again would undo the middleware match).
@@ -50,10 +53,14 @@ async function asset(env, url, request) {
       if (res.status === 404) return null;
     }
   }
-  if (!new URL(url).pathname.startsWith("/assets/") || !res.ok) return res;
-  // basePath apps serve hashed assets through the worker (they live at dist/assets, not dist/<base>/assets).
+  const pathname = new URL(url).pathname;
+  const hashed = pathname.startsWith("/assets/");
+  const shared = embed.enabled && isEmbedAsset(pathname);
+  if ((!hashed && !shared) || !res.ok) return res;
   const out = new Response(res.body, res);
-  out.headers.set("cache-control", "public, max-age=31536000, immutable");
+  // basePath apps serve hashed assets through the worker (they live at dist/assets, not dist/<base>/assets).
+  if (hashed) out.headers.set("cache-control", "public, max-age=31536000, immutable");
+  if (shared && !(out.headers.get("content-type") ?? "").includes("text/html")) for (const [k, v] of Object.entries(EMBED_ASSET_HEADERS)) out.headers.set(k, v);
   return out;
 }
 
@@ -95,20 +102,19 @@ export interface CloudflareRoutes {
  * `dist/`, under spellings (`/assets/../admin/x`) a matcher never sees.
  */
 export function cloudflareRoutes(ctx: AdapterContext, middleware: MiddlewareModule | null): CloudflareRoutes {
-  return { version: 1, include: ["/*"], exclude: middleware || ctx.basePath ? [] : ["/assets/*"] };
+  if (middleware || ctx.basePath) return { version: 1, include: ["/*"], exclude: [] };
+  return { version: 1, include: ["/*"], exclude: resolveEmbed(ctx.config).enabled ? ["/assets/*", "/embed.js"] : ["/assets/*"] };
 }
 
 export async function adaptCloudflare(ctx: AdapterContext, middleware: MiddlewareModule | null): Promise<AdapterResult> {
   assertNoServerRoutes(ctx, "cloudflare");
   const frames = readAnsiFrames(ctx.outDir);
   const workerFile = join(ctx.outDir, "_worker.js");
-  await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: `${ansiPrelude(frames)}\n${BODY}` }), outFile: workerFile, target: "webworker" });
+  const embed = `const embed = ${JSON.stringify({ enabled: resolveEmbed(ctx.config).enabled })};`;
+  await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: `${ansiPrelude(frames)}\n${embed}\n${BODY}` }), outFile: workerFile, target: "webworker" });
   const sizeNote = cloudflareWorkerNote(statSync(workerFile).size);
   writeFileSync(join(ctx.outDir, "_routes.json"), `${JSON.stringify(cloudflareRoutes(ctx, middleware), null, 2)}\n`);
-  const headersFile = join(ctx.outDir, "_headers");
-  const rule = "/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n";
-  if (!existsSync(headersFile)) writeFileSync(headersFile, rule);
-  else if (!/^\/assets\/\*\s*$/m.test(readFileSync(headersFile, "utf8"))) writeFileSync(headersFile, `${readFileSync(headersFile, "utf8").trimEnd()}\n\n${rule}`);
+  const headersNoteLine = headersNote(writeHeadersRules(ctx.outDir, staticHeadersRules(ctx.config)), ctx.config);
   // Without a top-level 404.html, Pages answers unknown files with index.html (200), and missing assets would render the app.
   const notFoundFile = join(ctx.outDir, "404.html");
   if (!existsSync(notFoundFile)) writeFileSync(notFoundFile, "404 | This page could not be found.\n");
@@ -119,6 +125,7 @@ export async function adaptCloudflare(ctx: AdapterContext, middleware: Middlewar
     output: ctx.outDir,
     notes: [
       ...(sizeNote ? [sizeNote] : []),
+      ...(headersNoteLine ? [headersNoteLine] : []),
       `Requires the ${CLOUDFLARE_COMPAT.flags.join(", ")} compatibility flag (Pages → Settings → Runtime, or wrangler.toml).`,
       `Preview: bunx wrangler pages dev ${ctx.config.outDir ?? "dist"} --compatibility-flags=nodejs_compat`,
       `Deploy:  bunx wrangler pages deploy ${ctx.config.outDir ?? "dist"}`,

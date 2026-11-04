@@ -92,6 +92,29 @@ export interface TextConfig {
    * whole app; a page can opt out or change its size with `export const ansi`.
    */
   ansi?: false | AnsiConfig;
+  /**
+   * @experimental Add the app to another site with one `<script type="module">`
+   * tag. `embed.js` and `/assets/*` are served with
+   * `Access-Control-Allow-Origin: *` and `Cross-Origin-Resource-Policy: cross-origin`.
+   */
+  embed?: boolean | EmbedConfig;
+}
+
+/** @experimental `text.config.ts` `embed`. */
+export interface EmbedConfig {
+  /**
+   * Origins of other sites whose pages may run server-rendered routes
+   * (`runtime = "server"`) from this server, such as `"https://www.example.com"`,
+   * `"https://*.example.com"` or `"http://localhost:*"`. `"*"` allows any site.
+   * Default: none, so only the app's own pages can open live sessions.
+   */
+  allowOrigins?: string[];
+  /**
+   * Let pages on `allowOrigins` send cookies and `Authorization` with live
+   * session requests (default `false`: those requests are anonymous). Needs
+   * exact origins: wildcards are rejected.
+   */
+  credentials?: boolean;
 }
 
 /** Frame size for terminal clients (`text.config.ts` `ansi`, or a page's `export const ansi`). */
@@ -132,12 +155,13 @@ export function pageAnsiSize(size: { cols: number; rows: number }, page: unknown
 export interface ServerConfig {
   /**
    * The public origin (`https://console.example.com`). When set, `request.url`
-   * always uses it instead of the `Host` header. Also `TEXTJS_ORIGIN`.
+   * always uses it instead of the `Host` header. `TEXTJS_ORIGIN` when not set here.
    */
   origin?: string;
   /**
    * Trust `X-Forwarded-Host` / `X-Forwarded-Proto` from a reverse proxy in
-   * front of `text start` (default `false`; also `TRUST_PROXY=1`).
+   * front of `text start` or the bun adapter (default `false`; `TRUST_PROXY=1`
+   * when not set here).
    */
   trustProxy?: boolean;
   /**

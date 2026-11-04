@@ -25,6 +25,7 @@ const CONFIG_KEYS: Record<keyof TextConfig, true> = {
   live: true,
   server: true,
   ansi: true,
+  embed: true,
 };
 
 /** Warn (once each) about keys Text.js does not read. */

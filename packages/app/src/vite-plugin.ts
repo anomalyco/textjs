@@ -436,7 +436,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
       const frames = attachFrameStream(server, root, { basePath });
       server.httpServer?.once("close", () => frames.close());
       // Server-rendered routes (`export const runtime = "server"`): live sessions + frame player HTML.
-      const live = createLiveDevHandler(server, { root, appDir: appDirName, basePath, title: title(), viewport: options.viewport, focusHint: options.focusHint, live: options.live, ansi: options.ansi, logger: log });
+      const live = createLiveDevHandler(server, { root, appDir: appDirName, basePath, title: title(), viewport: options.viewport, focusHint: options.focusHint, live: options.live, ansi: options.ansi, embed: options.embed, logger: log });
       server.httpServer?.once("close", () => live.close());
       const userHook = await options.configureServer?.(server as never);
 
