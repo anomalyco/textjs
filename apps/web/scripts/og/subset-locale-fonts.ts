@@ -23,6 +23,7 @@ const FONTS: Record<string, { file: string; locales: string[] }> = {
   "zh-CN": { file: "noto-sans-sc-og.woff2", locales: ["zh-CN"] },
   "zh-TW": { file: "noto-sans-tc-og.woff2", locales: ["zh-TW"] },
   hi: { file: "noto-sans-devanagari-og.woff2", locales: ["hi"] },
+  he: { file: "noto-sans-hebrew-og.woff2", locales: ["he"] },
   ar: { file: "noto-naskh-arabic-og.woff2", locales: ["ar", "fa", "ur"] },
 };
 

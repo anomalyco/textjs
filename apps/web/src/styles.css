@@ -64,6 +64,9 @@
 }
 :root:lang(he) {
   --sans: "Geist", "Geist Fallback", "SF Hebrew", "Arial Hebrew", "Segoe UI", "Noto Sans Hebrew", sans-serif;
+  /* Hebrew fonts ahead of Menlo, which has Hebrew glyphs: Hebrew in mono labels draws in Arial Hebrew, not Menlo's
+     cell-wide letters. Latin still comes from Geist Mono or its Menlo-based fallback. */
+  --mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", "SF Hebrew", "Arial Hebrew", "Segoe UI", "Noto Sans Hebrew", Menlo, Monaco, Consolas, monospace;
 }
 :root:lang(hi) {
   --sans: "Geist", "Geist Fallback", "Kohinoor Devanagari", "Devanagari Sangam MN", "Nirmala UI", "Noto Sans Devanagari", sans-serif;
