@@ -39,3 +39,26 @@ test("the frame player's imports check for RTL text without the Bidi_Class table
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("onConsoleIntent code-split from a ViewportController chunk keeps the renderer's modules out of the intent chunk", async () => {
+  const { build } = await import("vite");
+  const dir = mkdtempSync(join(tmpdir(), "textjs-intent-split-"));
+  const src = (p: string): string => JSON.stringify(fileURLToPath(new URL(p, import.meta.url)));
+  writeFileSync(join(dir, "entry.ts"), `import { onConsoleIntent } from ${src("../src/console-intent.ts")};\nonConsoleIntent(() => void import("./app"));\n`);
+  writeFileSync(join(dir, "app.ts"), `import { ViewportController } from ${src("../src/viewport.ts")};\nconsole.log(new ViewportController());\n`);
+  try {
+    const out = (await build({
+      configFile: false,
+      root: dir,
+      logLevel: "silent",
+      build: { write: false, minify: false, modulePreload: false, rollupOptions: { input: join(dir, "entry.ts"), preserveEntrySignatures: false } },
+    })) as { output: Array<{ type: string; isEntry?: boolean; code?: string }> };
+    const chunks = out.output.filter((c) => c.type === "chunk");
+    const entry = chunks.find((c) => c.isEntry)?.code ?? "";
+    expect(entry).toContain("analyzeDock");
+    for (const heavy of ["class CellGrid", "function segmentGraphemes", "class ViewportController"]) expect(entry).not.toContain(heavy);
+    expect(chunks.some((c) => !c.isEntry && c.code?.includes("class ViewportController"))).toBe(true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

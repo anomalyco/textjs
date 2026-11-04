@@ -4,7 +4,7 @@
  * before the app bundle has downloaded.
  */
 
-import { analyzeDock, CHROME_STORAGE_KEY, MAX_CHROME_PX } from "./viewport";
+import { analyzeDock, CHROME_STORAGE_KEY, MAX_CHROME_PX } from "./dock";
 
 /**
  * - `dock`: DevTools is docked, on load or after a window resize.
