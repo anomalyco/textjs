@@ -9,6 +9,7 @@
     "build": "bun scripts/build.ts",
     "i18n:translate": "bun scripts/i18n/translate.ts",
     "i18n:check": "bun scripts/i18n/check.ts",
+    "i18n:readme": "bun scripts/i18n/readme.ts",
     "preview": "vite preview --port 3000",
     "og": "bun scripts/generate-og.ts",
     "og:preview": "bun scripts/og/preview.ts",

@@ -11,10 +11,10 @@ export const WEB_DIR = join(import.meta.dirname, "..", "..");
 export const SRC_DIR = join(WEB_DIR, "src");
 /** Committed translations (`TEXTJS_LOCALES_DIR` points tests at a modified copy). */
 export const LOCALES_DIR = process.env.TEXTJS_LOCALES_DIR ?? join(WEB_DIR, "locales");
-const REPO_DIR = join(WEB_DIR, "..", "..");
+export const REPO_DIR = join(WEB_DIR, "..", "..");
 
 export interface DocumentSource {
-  /** `docs/routing`, `blog/text-js-1-0`, `learn/layout`, `changelog`, `errors`. */
+  /** `docs/routing`, `blog/text-js-1-0`, `learn/layout`, `changelog`, `errors`, `readme`. */
   id: string;
   /** The English Markdown file (empty for a document generated from data). */
   file: string;
@@ -61,6 +61,8 @@ export function documentSources(): DocumentSource[] {
     ...md(join(SRC_DIR, "learn", "content"), "learn"),
     { id: "changelog", file: join(REPO_DIR, "CHANGELOG.md") },
     { id: "errors", file: "", text: errorsMarkdown },
+    // Not on the site: `readme.ts` builds docs/readme/README.<code>.md from it.
+    { id: "readme", file: join(REPO_DIR, "README.md") },
   ];
 }
 

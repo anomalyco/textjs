@@ -2,7 +2,9 @@
 /**
  * `bun run i18n:check`: validates every committed translation against its English source (no API key needed)
  * and reports what's missing or stale per locale. Errors fail the run; staleness never does, so English copy
- * changes don't wait on translations. In CI the report goes to the job summary.
+ * changes don't wait on translations. README.md's language line and stray files in docs/readme/ are errors, since
+ * `bun run i18n:readme` fixes them without a key; a localized README that's behind is a warning. In CI the report
+ * goes to the job summary.
  */
 
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
@@ -10,6 +12,7 @@ import { LOCALES } from "../../src/i18n/locales";
 import { captionGroups, parseVtt } from "./captions";
 import { parseTranslation, segment } from "./document";
 import { ANY_CALL, CALL, captionSources, documentSources, englishText, extractMessages, LOCALES_DIR, PLURAL, readCaptions, readCatalog, readText, SRC_DIR, translationFile, USES_CATALOG } from "./sources";
+import { readmeStatus } from "./readme";
 import { validate, validatePlural } from "./validate";
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -103,6 +106,10 @@ if (import.meta.main) {
   const reports = LOCALES.filter((l) => l.status === "live" || l.status === "draft").map((l) => checkLocale(l.code));
   const unreadable = unreadableCalls();
   for (const u of unreadable) console.log(`error ${u}: the first argument must be one double-quoted string`);
+  const readmes = readmeStatus();
+  for (const e of readmes.errors) console.log(`error ${e}`);
+  const behind = readmes.stale.length ? `${readmes.stale.length} localized README${readmes.stale.length === 1 ? " is" : "s are"} behind README.md (${readmes.stale.join(", ")}). \`bun run i18n:translate --only readme\` on a Mac refreshes them.` : "";
+  if (behind) console.log(process.env.GITHUB_ACTIONS ? `::warning::${behind}` : `warning ${behind}`);
   const pct = (a: number, b: number): string => (b === 0 ? "–" : `${Math.round((100 * a) / b)}%`);
   const lines = [
     "| Locale | UI strings | Document blocks | Stale blocks | Caption sentences | Errors | Warnings |",
@@ -114,6 +121,6 @@ if (import.meta.main) {
     for (const e of r.errors) console.log(`error ${r.locale} ${e}`);
     if (process.argv.includes("--warnings")) for (const w of r.warnings) console.log(`warning ${r.locale} ${w}`);
   }
-  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Translations\n\n${lines.join("\n")}\n\nStale or missing text shows in English until \`bun run i18n:translate\` runs on a Mac.\n`);
-  if (unreadable.length || reports.some((r) => r.errors.length)) process.exit(1);
+  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Translations\n\n${lines.join("\n")}\n\nStale or missing text shows in English until \`bun run i18n:translate\` runs on a Mac.\n${behind ? `\n${behind}\n` : ""}`);
+  if (unreadable.length || readmes.errors.length || reports.some((r) => r.errors.length)) process.exit(1);
 }
