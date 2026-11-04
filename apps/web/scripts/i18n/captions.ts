@@ -83,10 +83,10 @@ export function captionGroups(cues: readonly Cue[]): CaptionGroup[] {
 }
 
 const WIDE = /[\u3000-\u30ff\u3400-\u9fff\uac00-\ud7af\uff00-\uffef]/;
-const BREAK_AFTER = /[、。，．！？,.;:!?)」』）।،؛؟]$/;
+const BREAK_AFTER = /[、。，．！？,.;:!?)」』）।،؛؟۔]$/;
 
 /** Never starts a line or cue: closing punctuation, the long vowel mark and small kana. */
-const NO_START = /^[、。，．！？!?,.:;」』）)\]।،؛؟ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ]/;
+const NO_START = /^[、。，．！？!?,.:;」』）)\]।،؛؟۔ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ]/;
 /** Never ends a line or cue: opening brackets. */
 const NO_END = /[「『（(\[]$/;
 /** Runs that stay whole: Latin words, numbers and code (`console.log`, `+`, `/docs`), and katakana words. */
