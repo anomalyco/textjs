@@ -1,5 +1,5 @@
 import "./console-baseline";
-import { canPrefetchConsole, onConsoleIntent } from "@textjs/core/experimental";
+import { canPrefetchConsole, CONSOLE_INTENT_KEY, onConsoleIntent, type ConsoleIntentHandle } from "@textjs/core/experimental";
 import { installCapture, isChunkLoadError, prefetchFailed, recoverFromChunkFailure, report, startReporter } from "./telemetry/capture";
 import { createRoot, hydrateRoot } from "react-dom/client";
 import { activateCompanion, COMPANION_CONTROLS, configureCompanionLoader, engagesConsole, ensureCompanion } from "./console-companion/bridge";
@@ -45,7 +45,7 @@ function warmCompanion(): Promise<typeof import("./console-companion/boot")> {
   return promise;
 }
 
-/** Warm the companion and the current page's console view, for a visitor likely to open the console. */
+/** Warm the companion and the current page's console view, for a visitor likely to open the console (once). */
 function prefetchCompanion(): void {
   if (warming) return;
   warmCompanion().then(() => preloadCompanionForPath?.(getLocation().pathname), prefetchFailed);
@@ -54,6 +54,16 @@ function prefetchCompanion(): void {
 // The companion (React's console renderer, Yoga and the console app) loads only once the visitor
 // shows they want the console; until then the hero mirrors a prerendered frame.
 configureCompanionLoader(() => {
+  // Started from a page control (the Console pill, "Run in console"): remember it for the tab, as an "engage" would be.
+  if (intent && !intent.triggered) {
+    intent.dispose();
+    stopNotingPresses();
+    try {
+      sessionStorage.setItem(CONSOLE_INTENT_KEY, "1");
+    } catch {
+      // Storage may be blocked.
+    }
+  }
   const promise = warmCompanion().then((m) => m.bootCompanion());
   promise.catch((error: unknown) => {
     // A chunk from an older deploy: reload once. Intent is remembered for the tab, so the console boots after it.
@@ -84,10 +94,15 @@ const pressEvents = [
   ["textjs:engage", forgetPress],
 ] as const;
 for (const [type, fn] of pressEvents) document.addEventListener(type, fn, true);
+function stopNotingPresses(): void {
+  for (const [type, fn] of pressEvents) document.removeEventListener(type, fn, true);
+}
 
-const intent = onConsoleIntent(
+// Assigned after the call: a docked panel or a remembered tab fires before `onConsoleIntent` returns.
+let intent: ConsoleIntentHandle | null = null;
+intent = onConsoleIntent(
   ({ reason }) => {
-    for (const [type, fn] of pressEvents) document.removeEventListener(type, fn, true);
+    stopNotingPresses();
     const { pathname } = getLocation();
     if (reason === "engage" && press !== null && engagesConsole(press, false, pathname)) activateCompanion();
     else void ensureCompanion();
@@ -97,14 +112,14 @@ const intent = onConsoleIntent(
 
 // Controls that start the console on click (the Console pill, "Run in console") warm it on hover, like console surfaces do.
 const warmOnHover = (e: Event): void => {
-  if (!intent.triggered && (e.target as Element | null)?.closest?.(COMPANION_CONTROLS) && canPrefetchConsole()) prefetchCompanion();
+  if ((e.target as Element | null)?.closest?.(COMPANION_CONTROLS) && canPrefetchConsole()) prefetchCompanion();
 };
 document.addEventListener("pointerover", warmOnHover, { capture: true, passive: true });
 document.addEventListener("focusin", warmOnHover, { capture: true, passive: true });
 
 // Landing on a pad or course by client-side navigation warms the companion on idle too.
 subscribeLocation(() => {
-  if (intent.triggered || !warmsOnIdle(getLocation().pathname) || !canPrefetchConsole()) return;
+  if (warming || !warmsOnIdle(getLocation().pathname) || !canPrefetchConsole()) return;
   if (typeof requestIdleCallback === "function") requestIdleCallback(prefetchCompanion, { timeout: 5000 });
   else setTimeout(prefetchCompanion, 1);
 });
