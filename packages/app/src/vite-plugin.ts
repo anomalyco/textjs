@@ -16,6 +16,8 @@ import { applyRewrites, canonicalRequestTarget, compileRewrite, proxyRequest, re
 import { attachFrameStream } from "./server/frames";
 import { appendVary } from "./server/ansi-server";
 import { createLiveDevHandler, textjsLivePlugin } from "./server/live-dev";
+import { textjsEmbedPlugin } from "./server/embed";
+import { createEmbedDevHandler } from "./server/embed-dev";
 import { withServerStubs } from "./server/live-routes";
 import { runRouteHandlerWithCache } from "./server/cache-route";
 import { createDevMiddleware, isServerOnlySource } from "./server/middleware-node";
@@ -458,6 +460,8 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
       // Server-rendered routes (`export const runtime = "server"`): live sessions + frame player HTML.
       const live = createLiveDevHandler(server, { root, appDir: appDirName, basePath, title: title(), viewport: options.viewport, focusHint: options.focusHint, live: options.live, ansi: options.ansi, embed: options.embed, logger: log });
       server.httpServer?.once("close", () => live.close());
+      // `embed.js` and its preview host page (`embed` in text.config.ts, or `text dev --embed`).
+      const embed = options.embed ? createEmbedDevHandler(server, { root, appDir: appDirName, config: options, logger: log }) : null;
       const userHook = await options.configureServer?.(server as never);
 
       server.middlewares.use(async (req, res, next) => {
@@ -497,6 +501,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
             }
           }
           const pathname = url.split("?")[0] ?? "/";
+          if (embed && (await embed.handle(req, res, url))) return;
           const api = matchApiRoute(apiManifest, pathname);
           if (!api) {
             // Terminal clients (curl) get the page's first frame as ANSI, wherever a page would be served.
@@ -544,7 +549,8 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
     },
   };
 
-  return [...(react() as Plugin[]), plugin, ...textjsLivePlugin({ appDir: appDirName, root })];
+  // Builds add the embed entries themselves (`text build --embed`).
+  return [...(react() as Plugin[]), plugin, ...textjsLivePlugin({ appDir: appDirName, root }), { ...textjsEmbedPlugin({ config: options }), apply: "serve" }];
 }
 
 export { scanApp, toStaticManifest, listApiRoutes, listPages, generateRoutesModule, type AppScan } from "./server/scan";

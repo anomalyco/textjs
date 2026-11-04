@@ -67,9 +67,10 @@ export async function adaptStatic(ctx: AdapterContext, middleware: MiddlewareMod
     const note = headersNote(writeHeadersRules(ctx.outDir, staticHeadersRules(ctx.config)), ctx.config);
     notes.push(note ?? "Other hosts must serve embed.js and /assets/* with Access-Control-Allow-Origin: * and Cross-Origin-Resource-Policy: cross-origin (_headers has them for Cloudflare Pages and Netlify).");
   }
-  // SPA fallback for hosts that serve 404.html for unknown paths (GitHub Pages, S3, …).
+  // SPA fallback for hosts that serve 404.html for unknown paths (GitHub Pages, S3, …). An embed build has no page to fall back to.
   const fallback = join(ctx.outDir, "404.html");
-  if (!existsSync(fallback)) copyFileSync(join(ctx.outDir, "index.html"), fallback);
+  const index = join(ctx.outDir, "index.html");
+  if (!existsSync(fallback) && existsSync(index)) copyFileSync(index, fallback);
   if (written.length > 0) notes.unshift(`Prerendered ${written.length} route handler${written.length === 1 ? "" : "s"}: ${written.join(", ")}`);
   return { adapter: "static", output: ctx.outDir, notes };
 }

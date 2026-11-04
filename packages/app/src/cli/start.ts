@@ -17,6 +17,7 @@ import { EMBED_ASSET_HEADERS, isEmbedAsset, resolveEmbed } from "../server/cors"
 import { wantsAnsi } from "../ansi";
 import { appendVary, markAnsiFallthrough, pageCacheControl } from "../server/ansi-server";
 import { META_DIR } from "./build";
+import { EMBED_MANIFEST } from "../server/embed";
 import { loadTextConfig } from "./config";
 import { banner, color, fail, ok } from "./ui";
 import { resolveRoot } from "../server/paths";
@@ -57,18 +58,21 @@ export async function startProductionServer(options: StartOptions): Promise<Star
   const { config } = await loadTextConfig(opts.root, "serve", "production");
   const outDir = resolve(opts.root, config.outDir ?? "dist");
   const indexFile = join(outDir, "index.html");
-  if (!existsSync(indexFile)) {
+  // An embed build has `embed.js` and no pages of its own (unless `embed.standalone`).
+  const embedBuild = existsSync(join(outDir, META_DIR, EMBED_MANIFEST));
+  if (!existsSync(indexFile) && !embedBuild) {
     throw txError("TX017", config.outDir ?? "dist");
   }
   const basePath = normalizeBasePath(config.basePath);
-  const embed = resolveEmbed(config);
+  // `text build --embed` doesn't change text.config.ts: its output turns the embed headers on too.
+  const embed = resolveEmbed(embedBuild && !config.embed ? { embed: true } : config);
   const rewrites = (typeof config.rewrites === "function" ? await config.rewrites() : (config.rewrites ?? [])).map(compileRewrite);
   const proxies = Object.entries(config.proxy ?? {}).map(([prefix, v]) => [prefix, typeof v === "string" ? { target: v } : v] as [string, ProxyTarget]);
 
   const apiFile = join(outDir, META_DIR, "server", "api.mjs");
   type ApiBundle = { manifest: RouteManifest; handlers: Record<string, RouteHandlerModule> };
   const api: ApiBundle | null = existsSync(apiFile) ? ((await import(pathToFileURL(apiFile).href)) as ApiBundle) : null;
-  const indexHtml = readFileSync(indexFile);
+  const indexHtml = existsSync(indexFile) ? readFileSync(indexFile) : null;
   // `middleware.ts` and `cacheHandler` (bundled by `text build`).
   const runtime = await loadServerRuntime(outDir);
   // Prerendered console shells (PPR) and server-rendered routes (`runtime = "server"`).
@@ -183,7 +187,7 @@ export async function startProductionServer(options: StartOptions): Promise<Star
         return;
       }
       const last = pathname.split("/").pop() ?? "";
-      if (last.includes(".") || hidden) return notFound(res);
+      if (last.includes(".") || hidden || indexHtml === null) return notFound(res);
       res.statusCode = 200;
       res.setHeader("Content-Type", MIME[".html"] as string);
       res.setHeader("Cache-Control", pageCacheControl(res));

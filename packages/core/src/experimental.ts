@@ -11,6 +11,7 @@ export {
 export {
   canPrefetchConsole,
   CONSOLE_INTENT_KEY,
+  CONSOLE_OWNER,
   onConsoleIntent,
   type ConsoleIntentEvent,
   type ConsoleIntentHandle,

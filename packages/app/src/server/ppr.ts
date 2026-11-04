@@ -115,7 +115,7 @@ export function createShellReplayCode(compiled: CompiledShell, options: ShellRep
       `function u(){if(d.visibilityState!=="hidden"){if(!t)t=setTimeout(k,${ms})}else if(t){clearTimeout(t);t=0}}` +
       `if(d){d.addEventListener("visibilitychange",u);u()}`;
   } else {
-    paint = `for(var i=0;i<s.length;i++){var o=s[i];if(o===0){console.clear();continue}${LOG}}`;
+    paint = `for(var i=0;i<s.length;i++){var o=s[i];${compiled.ops.includes(0) ? "if(o===0){console.clear();continue}" : ""}${LOG}}`;
   }
   const done = globalFlag ? `window.__TEXTJS_SHELL__=1;window.__TEXTJS_SHELL_AT__=${NOW}` : `return ${NOW}`;
   const params = path === undefined ? "c,s" : "p,c,s";

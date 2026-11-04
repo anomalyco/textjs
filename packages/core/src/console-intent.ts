@@ -57,6 +57,12 @@ export interface ConsoleIntentHandle {
 
 /** The `sessionStorage` key that remembers intent for a tab. */
 export const CONSOLE_INTENT_KEY = "textjs:console-intent";
+/**
+ * `globalThis[CONSOLE_OWNER]` is set by whatever renders into the page's
+ * console first: a `ConsoleRenderer` on the global console, or an embed
+ * script. Everything else checks it, so two apps never interleave frames.
+ */
+export const CONSOLE_OWNER: unique symbol = Symbol.for("textjs.consoleOwner");
 const DEFAULT_ENGAGE = "[data-textjs-engage], [data-textjs-focus-pad], text-console";
 const COARSE = "(hover: none) and (pointer: coarse)";
 /** Matches `activateFocusPad`: presses on a surface's own controls keep their defaults. */

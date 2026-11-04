@@ -15,6 +15,7 @@
 
 import { consoleProfile, type ConsoleBrowser } from "./drivers/console-browser";
 import { DEFAULT_TYPOGRAPHY } from "./drivers/style";
+import { applyStyle } from "./dom-style";
 import { analyzeDock, CHROME_STORAGE_KEY, DEFAULT_CHROME_PX, MAX_CHROME_PX, type WindowLike } from "./dock";
 
 export { analyzeDock, CHROME_STORAGE_KEY, MAX_CHROME_PX, snapZoom, type DockAnalysis, type WindowLike } from "./dock";
@@ -130,7 +131,7 @@ export function measureScrollbarWidth(): number {
   if (typeof document === "undefined" || !document.body) return 0;
   try {
     const el = document.createElement("div");
-    el.style.cssText = "position:absolute;top:-999px;left:-999px;width:100px;height:100px;overflow:scroll;visibility:hidden";
+    applyStyle(el, "position:absolute;top:-999px;left:-999px;width:100px;height:100px;overflow:scroll;visibility:hidden");
     document.body.appendChild(el);
     const w = el.offsetWidth - el.clientWidth;
     el.remove();

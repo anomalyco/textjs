@@ -46,6 +46,8 @@ export interface PrerenderJob {
   cols: number;
   rows: number;
   theme?: string;
+  /** Whether each shell clears the console first (default `true`). */
+  initialClear?: boolean;
   timeoutMs: number;
   /** Routes that get an ANSI frame, at the app's ANSI size. */
   ansi?: { cols: number; rows: number; paths: string[] } | null;
@@ -85,7 +87,7 @@ if (entry) {
   for (const path of job.paths) {
     const r = (out.routes[path] ??= {});
     try {
-      r.calls = await Promise.race([entry.prerenderShell({ routes: entry.routes, path, cols: job.cols, rows: job.rows, theme: job.theme }), timeout(job.timeoutMs)]);
+      r.calls = await Promise.race([entry.prerenderShell({ routes: entry.routes, path, cols: job.cols, rows: job.rows, theme: job.theme, initialClear: job.initialClear }), timeout(job.timeoutMs)]);
     } catch (error) {
       r.error = message(error);
     }
@@ -141,6 +143,11 @@ export interface LiveBuildOptions {
   prerenderTimeoutMs?: number;
   /** Render ANSI frames for terminal clients (default: unless `ansi: false`; the static adapter can't serve them). */
   ansi?: boolean;
+  /**
+   * Write the app's own documents: page shells and the frame player page for
+   * server routes (default `true`). An embed-only build has none.
+   */
+  documents?: boolean;
 }
 
 export interface LiveBuildResult {
@@ -163,20 +170,9 @@ function htmlFileFor(pattern: string, server: boolean): string {
   return dir ? posix.join(dir, "index.html") : "index.html";
 }
 
-/** Run after the client build. Returns `null` when there is nothing to do. */
-export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildResult | null> {
-  const { config, outDir, scan } = o;
-  const basePath = normalizeBasePath(config.basePath);
-  const serverPages = listServerPages(scan);
-  const serverSet = new Set(serverPages.map((p) => p.pattern));
-  const pages = listPages(scan);
-  const ppr = config.ppr !== false;
-  const staticPages = ppr ? pages.filter((p) => !p.dynamic) : [];
-  const ansiSize = o.ansi === false ? null : resolveAnsiSize(config);
-  const ansiPages = ansiSize ? pages.filter((p) => !p.dynamic) : [];
-  if (serverPages.length === 0 && staticPages.length === 0 && !(ansiSize && pages.length > 0)) return null;
-
-  const serverDir = join(outDir, META, "server");
+/** `.text/server/live.mjs`, the SSR bundle. Returns its directory. */
+export async function buildLiveBundle(o: Pick<LiveBuildOptions, "root" | "config" | "outDir" | "plugins">): Promise<string> {
+  const serverDir = join(o.outDir, META, "server");
   await build(
     withFrameworkEntry(
       {
@@ -189,14 +185,32 @@ export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildRes
         ssr: { noExternal: [/^@textjs\//] },
         plugins: o.plugins,
       },
-      config.vite,
+      o.config.vite,
       { input: VIRTUAL_LIVE, ssr: true },
     ),
   );
+  return serverDir;
+}
+
+/** Run after the client build. Returns `null` when there is nothing to do. */
+export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildResult | null> {
+  const { config, outDir, scan } = o;
+  const basePath = normalizeBasePath(config.basePath);
+  const serverPages = listServerPages(scan);
+  const serverSet = new Set(serverPages.map((p) => p.pattern));
+  const pages = listPages(scan);
+  const ppr = config.ppr !== false;
+  const staticPages = ppr ? pages.filter((p) => !p.dynamic) : [];
+  const ansiSize = o.ansi === false ? null : resolveAnsiSize(config);
+  const ansiPages = ansiSize ? pages.filter((p) => !p.dynamic) : [];
+  if (serverPages.length === 0 && staticPages.length === 0 && !(ansiSize && pages.length > 0)) return null;
+  const documents = o.documents !== false;
+
+  const serverDir = await buildLiveBundle(o);
 
   let player: LiveBuildResult["player"] = null;
   let playerUrl: string | null = null;
-  if (serverPages.length > 0) {
+  if (serverPages.length > 0 && documents) {
     const out = (await build(
       withFrameworkEntry(
         {
@@ -253,7 +267,7 @@ export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildRes
   const indexFile = join(outDir, "index.html");
   const template = existsSync(indexFile) ? readFileSync(indexFile, "utf8") : null;
   const vp = config.viewport ?? {};
-  const wanted = staticPages.filter((p) => serverSet.has(p.pattern) || template !== null);
+  const wanted = documents ? staticPages.filter((p) => serverSet.has(p.pattern) || template !== null) : [];
   const prerendered =
     wanted.length > 0 || ansiSize
       ? await prerenderInChild(join(serverDir, "live.mjs"), {

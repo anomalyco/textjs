@@ -1,0 +1,94 @@
+/**
+ * Keyboard input for an app embedded in someone else's page. Keys reach the
+ * app only once the visitor engages it, and never while they type in the
+ * page's own fields; until then the page keeps Tab, Space, the arrow keys,
+ * paste and the wheel.
+ */
+
+import { InputEngine } from "@textjs/core";
+
+/** Pressing one of these routes keys to the app. */
+export const ENGAGE_SELECTOR = "[data-textjs-engage], [data-textjs-focus-pad], text-console";
+/** Elements that keep their own keyboard input, and pressing one hands keys back to the page. */
+export const BYPASS_SELECTOR = "input, textarea, select, [contenteditable=''], [contenteditable='true'], [data-textjs-bypass]";
+const INTERACTIVE = `a[href], button, label, summary, [role=button], ${BYPASS_SELECTOR}`;
+/** A press within this long of the window regaining focus is the click that brings focus back from DevTools. */
+const REFOCUS_MS = 300;
+
+export interface HostInput {
+  readonly engine: InputEngine;
+  /** Whether keys go to the app. */
+  readonly engaged: boolean;
+  /** Route keys to the app and focus its input. */
+  engage(): void;
+  dispose(): void;
+}
+
+export interface HostInputOptions {
+  /** Start engaged (the visitor pressed a console surface to open it). Default `false`. */
+  engaged?: boolean;
+  document?: Document;
+}
+
+/**
+ * An attached `InputEngine` gated for a host page. The visitor engages it by
+ * pressing a {@link ENGAGE_SELECTOR} surface, or by clicking the page (not a
+ * link, button or field) to bring focus back from DevTools. Pressing anything
+ * else on the page while it has focus hands the keyboard back.
+ */
+export function createHostInput(options: HostInputOptions = {}): HostInput {
+  const doc = options.document ?? document;
+  const win = doc.defaultView;
+  let open = options.engaged === true;
+  const routes = (): boolean => {
+    if (!open) return false;
+    const active = doc.activeElement;
+    return active === null || active.hasAttribute("data-textjs-input-sink") || active.closest(BYPASS_SELECTOR) === null;
+  };
+  const engine = new InputEngine({ document: doc, autoFocus: false, refocusOnClick: false, wheel: false, shouldCapture: routes });
+  engine.attach();
+  let focusedAt = -Infinity;
+  let focusAfterClick = false;
+  const engage = (): void => {
+    open = true;
+    engine.focus();
+  };
+  const onFocus = (e: Event): void => {
+    focusedAt = e.timeStamp;
+  };
+  const onDown = (e: MouseEvent): void => {
+    focusAfterClick = false;
+    const t = e.target as Element | null;
+    if (e.button !== 0 || typeof t?.closest !== "function") return;
+    const refocus = !doc.hasFocus() || e.timeStamp - focusedAt < REFOCUS_MS;
+    open = t.closest(BYPASS_SELECTOR) === null && (t.closest(ENGAGE_SELECTOR) !== null || (refocus && t.closest(INTERACTIVE) === null));
+    focusAfterClick = open;
+  };
+  const onClick = (e: MouseEvent): void => {
+    // Enter or Space on a focused surface.
+    if (e.detail === 0 && (e.target as Element | null)?.closest?.(ENGAGE_SELECTOR)) return engage();
+    if (!focusAfterClick) return;
+    focusAfterClick = false;
+    // Once the click is over, and only without a text selection, so drag-to-select and copy still work.
+    setTimeout(() => {
+      if (open && win?.getSelection()?.isCollapsed !== false) engine.focus();
+    }, 0);
+  };
+  doc.addEventListener("mousedown", onDown, true);
+  doc.addEventListener("click", onClick, true);
+  win?.addEventListener("focus", onFocus);
+  if (open) engine.focus();
+  return {
+    engine,
+    get engaged() {
+      return open;
+    },
+    engage,
+    dispose() {
+      doc.removeEventListener("mousedown", onDown, true);
+      doc.removeEventListener("click", onClick, true);
+      win?.removeEventListener("focus", onFocus);
+      engine.detach();
+    },
+  };
+}
