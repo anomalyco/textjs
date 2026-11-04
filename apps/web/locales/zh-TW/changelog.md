@@ -11,21 +11,27 @@
 - textjs.org：西班牙文、法文、德文、巴西葡萄牙文、韓文、簡體中文和繁體中文版已結束草稿階段，分別位於 textjs.org/es、/fr、/de、/pt-br、/ko、/zh-cn 和 /zh-tw。頁尾的語言選單和瀏覽器語言按鈕會像日文一樣列出這些語言。搜尋引擎會索引翻譯後的頁面，並將各頁與對應的英文版配對。
 - textjs.org：義大利文、俄文、土耳其文、波蘭文、印尼文、越南文和印地文版已結束草稿階段，分別位於 textjs.org/it、/ru、/tr、/pl、/id、/vi 和 /hi。頁尾的語言選單和瀏覽器語言按鈕會像其他語言一樣列出這些語言。搜尋引擎會索引翻譯後的頁面，並將各頁與對應的英文版配對。
 
+<!-- s:5b88618770 -->
+變更
+
+<!-- s:33280e468a -->
+- `@textjs/react`：`<FocusPad>` 和 `<ViewportControl>` 的等寬標籤會使用頁面定義的 `--mono` 字型堆疊，未定義時則與先前一樣使用 Geist Mono。含有阿拉伯文或希伯來文標籤的頁面可將對應文字的字型加入 `--mono`。
+
+<!-- s:afe76b8d59 -->
+修正
+
+<!-- s:f0905efd51 -->
+- textjs.org：在手機上，超出行寬的行內程式碼會換行，不再撐寬頁面。textjs.org/docs/internationalization 在 390 px 的螢幕上曾超寬 92 px。
+
 <!-- s:f71df9184f -->
 - `@textjs/react`：`<FocusPad messages>` 可替換面板的任何內建字串，供翻譯網站使用。涵蓋每一行文字、螢幕閱讀器標籤和主控台尺寸控制項。`<TextCanvas>` 和 `<ViewportControl>` 也接受 `messages`。`<ViewportControl>` 只使用尺寸控制項的鍵。包含值的字串，例如「接著點擊這裡並按 ↑ ↓。」，是回傳完整句子的函式。`defaultFocusPadMessages` 提供英文文字。請參閱[翻譯焦點面板](https://textjs.org/docs/internationalization#translating-the-focus-pad)。
 - `@textjs/react`：在由右至左的頁面中，焦點面板會讓 ⌘ ⌥ J 等按鍵圖示和 120×36 等主控台尺寸維持由左至右顯示，並將尺寸控制項和步驟列鏡像排列。在中文和日文頁面中，會移除兩個句子之間的空格；韓文則保留空格。
 - textjs.org：textjs.org/ja 已結束草稿階段。頁尾的語言選單可開啟同一頁面的英文版或日文版。設為日文的瀏覽器會顯示「日本語で読む」按鈕，英文瀏覽器在 textjs.org/ja 則會顯示「Read in English」。選擇語言或關閉按鈕後，按鈕就不再出現。搜尋引擎會索引翻譯後的日文頁面，並將各頁與對應的英文版配對。
 - textjs.org：在 textjs.org/ja 上，每個頁面的焦點面板都以日文顯示，包括各個示範的按鍵下方標籤。
 
-<!-- s:5b88618770 -->
-變更
-
 <!-- s:27b507a9de -->
 - `@textjs/core`：Chromium 和 Firefox 主控台會在動畫精靈輸出達到 16 MB 時清除，而非 4 MB，因此 textjs.org/doom 約每 19 秒顯示一次「主控台已清除」，而非每 4.5 秒。Safari 以及以 `▀` 半區塊繪製的精靈仍維持 4 MB。textjs.org/doom 頁面的堆積記憶體峰值從 10.8 MB 增至約 12～13 MB。
 - textjs.org：文件頁面只下載自己的 Markdown，而非全部 33 頁，因此英文文件頁面少載入 43～47 KB 的 JavaScript（gzip），/ja 文件頁面則少載入 60～64 KB。將游標停在其他文件頁面的連結上，或讓連結取得焦點時，會提前擷取該頁面，因此仍能立即開啟。
-
-<!-- s:afe76b8d59 -->
-修正
 
 <!-- s:b3d1adfa39 -->
 - textjs.org/ja：⌘K 搜尋會顯示日文文件標題，並以日文查詢比對這些標題。先前會在日文頁面標題下列出英文標題。英文名稱仍可找到頁面：`routing` 可找到「ルーティング」，`open the console` 可找到「コンソールを開く」。

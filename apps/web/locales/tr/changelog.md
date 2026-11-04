@@ -11,21 +11,27 @@ Eklenenler
 - textjs.org: İspanyolca, Fransızca, Almanca, Brezilya Portekizcesi, Korece, Basitleştirilmiş ve Geleneksel Çince sürümleri textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn ve /zh-tw adreslerinde taslak aşamasından çıktı. Alt bilgideki dil seçici ve tarayıcı dili düğmesi, Japoncanın yanı sıra bu dilleri de sunuyor. Arama motorları çevrilmiş sayfaları dizine ekliyor ve her birini İngilizce sürümüyle eşleştiriyor.
 - textjs.org: İtalyanca, Rusça, Türkçe, Lehçe, Endonezce, Vietnamca ve Hintçe sürümleri textjs.org/it, /ru, /tr, /pl, /id, /vi ve /hi adreslerinde taslak aşamasından çıktı. Alt bilgideki dil seçici ve tarayıcı dili düğmesi, diğer dillerin yanı sıra bu dilleri de sunuyor. Arama motorları çevrilmiş sayfaları dizine ekliyor ve her birini İngilizce sürümüyle eşleştiriyor.
 
+<!-- s:5b88618770 -->
+Değiştirilenler
+
+<!-- s:33280e468a -->
+- `@textjs/react`: `<FocusPad>` ve `<ViewportControl>`, sayfada bir `--mono` yazı tipi yığını tanımlıysa eş aralıklı etiketlerinde bu yığını kullanır, yoksa önceki gibi Geist Mono’ya döner. Arapça veya İbranice etiketleri olan bir sayfa, yazı sistemine ait yazı tiplerini `--mono` yığınına ekleyebilir.
+
+<!-- s:afe76b8d59 -->
+Düzeltilenler
+
+<!-- s:f0905efd51 -->
+- textjs.org: telefonlarda, satırdan uzun satır içi kodlar sayfayı genişletmek yerine alt satıra geçer. textjs.org/docs/internationalization, 390 px genişliğindeki bir ekranda 92 px fazla genişti.
+
 <!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>`, çevrilmiş siteler için odak alanının yerleşik metinlerinden herhangi birini değiştirir. Her satırı, ekran okuyucu etiketlerini ve konsol boyutu denetimini kapsar. `<TextCanvas>` ve `<ViewportControl>` da `messages` alır. `<ViewportControl>` yalnızca boyut denetiminin anahtarlarını kullanır. “Sonra buraya tıklayın ve ↑ ↓ tuşlarına basın.” gibi bir değer içeren metinler, cümlenin tamamını döndüren işlevlerdir. `defaultFocusPadMessages` İngilizce metni içerir. [Odak alanını çevirme](https://textjs.org/docs/internationalization#translating-the-focus-pad) bölümüne bakın.
 - `@textjs/react`: sağdan sola yazılan sayfalarda odak alanı, ⌘ ⌥ J gibi tuş etiketlerini ve 120×36 gibi konsol boyutlarını soldan sağa tutar; boyut denetimini ve adım çubuğunu aynalar. Çince ve Japonca sayfalarda iki cümlesi arasındaki boşluğu kaldırır; Korecede korur.
 - textjs.org: textjs.org/ja artık taslak değil. Altbilgideki dil seçici aynı sayfayı İngilizce veya Japonca açar. Japoncaya ayarlanmış bir tarayıcıda “Japonca oku” düğmesi, textjs.org/ja üzerindeki İngilizce bir tarayıcıda ise “İngilizce oku” düğmesi görünür. Bir dil seçtiğinizde veya düğmeyi kapattığınızda düğme artık görünmez. Arama motorları çevrilmiş Japonca sayfaları dizine ekler ve her birini İngilizce sürümüyle eşleştirir.
 - textjs.org: textjs.org/ja üzerinde odak alanı, her demonun tuşlarının altındaki etiketler dahil her sayfada Japoncadır.
 
-<!-- s:5b88618770 -->
-Değiştirilenler
-
 <!-- s:27b507a9de -->
 - `@textjs/core`: Chromium ve Firefox konsolları, animasyonlu sprite çıktısını 4 MB yerine 16 MB sınırında temizler; böylece textjs.org/doom, “Konsol temizlendi” mesajını 4,5 saniyede bir yerine yaklaşık 19 saniyede bir gösterir. Safari ve `▀` yarım bloklarıyla çizilen sprite’lar 4 MB sınırını korur. textjs.org/doom sayfasının en yüksek yığın belleği kullanımı 10,8 MB’tan yaklaşık 12–13 MB’a çıkar.
 - textjs.org: bir belge sayfası, 33 sayfanın tamamı yerine yalnızca kendi Markdown içeriğini indirir; böylece İngilizce belge sayfaları 43–47 KB, /ja belge sayfaları ise 60–64 KB daha az JavaScript (gzip) yükler. Başka bir belge sayfasının bağlantısının üzerine gelmek veya bağlantıya odaklanmak, o sayfayı önceden getirir; böylece sayfa yine hemen açılır.
-
-<!-- s:afe76b8d59 -->
-Düzeltilenler
 
 <!-- s:b3d1adfa39 -->
 - textjs.org/ja: ⌘K araması, Japonca belge başlıklarını gösterir ve Japonca sorguları bunlarla eşleştirir. Önceden Japonca sayfa başlıklarının altında İngilizce başlıkları listeliyordu. İngilizce adlar hâlâ sayfaları bulur: `routing`, ルーティング sayfasını; `open the console`, コンソールを開く sayfasını bulur.
