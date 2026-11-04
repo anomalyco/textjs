@@ -135,6 +135,15 @@ describe("analyzeDock", () => {
     expect(snapZoom(0.79)).toBe(0.8);
     expect(snapZoom(1.766)).toBe(1.75);
     expect(snapZoom(1.4)).toBeNull();
+    expect(snapZoom(1.15)).toBe(1.15);
+    expect(snapZoom(0.85)).toBe(0.85);
+  });
+
+  test("Safari's 115% zoom with DevTools closed isn't a side dock", () => {
+    // 1440×900 window, Safari's 52px toolbar: ⌘+ once makes the page 1252×737 CSS pixels.
+    const zoomed = { innerWidth: 1252, innerHeight: 737, outerWidth: 1440, outerHeight: 900, devicePixelRatio: 2.3 };
+    expect(analyzeDock(zoomed, 120)).toMatchObject({ dock: "undocked", zoom: 1.15 });
+    expect(analyzeDock({ ...zoomed, devicePixelRatio: undefined }, 52).dock).toBe("undocked");
   });
 
   test("consoleGridFor accounts for a classic scrollbar", () => {
