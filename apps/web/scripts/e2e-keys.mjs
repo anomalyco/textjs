@@ -14,6 +14,8 @@ const port = new URL(base).port;
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 await page.addInitScript(() => {
+  // A tab that has shown console intent: the companion boots on load, so frames can be read before any click.
+  sessionStorage.setItem("textjs:console-intent", "1");
   window.__frames = [];
   const orig = console.log.bind(console);
   console.log = (...a) => {

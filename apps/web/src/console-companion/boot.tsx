@@ -1,6 +1,7 @@
 /**
  * Boots the live console companion: a real `@textjs/react` ConsoleRoot that
- * renders into the visitor's DevTools console the moment textjs.org loads.
+ * renders into the visitor's DevTools console. `main.tsx` loads and boots it
+ * once the visitor shows they want the console (`onConsoleIntent`).
  */
 
 import { extractStyledFrame, InputEngine, type StyledFrame } from "@textjs/core";
@@ -93,28 +94,34 @@ export function bootCompanion(): Promise<Companion> {
   if (bootStarted) return bootStarted;
   const promise = (async () => {
     const engine = new GatedInputEngine(() => shouldRouteToConsole(document.activeElement, siteStore.getSnapshot().consoleInput));
-    engine.attach();
     const initialSnap = siteStore.getSnapshot();
     const choice = viewportChoiceFor(initialSnap.tab);
     const limits = viewportLimitsFor(initialSnap.tab, initialSnap.example);
     const target = viewportConsole();
+    const rootReady = createConsoleRoot({
+      ...(choice === "fit" ? { responsive: true } : { width: choice.cols, height: choice.rows }),
+      // The driver only turns the curtain on by default for the global console.
+      ...(target ? { console: target, curtain: true } : {}),
+      viewport: limits,
+      input: engine,
+      theme: initialSnap.theme,
+      tabFocus: false,
+      // CompanionFocusHint shows it only where clicking the page gives the console the keyboard.
+      focusHint: false,
+      identifierPrefix: "txc",
+      ...consoleRootErrors,
+    });
     const [root] = await Promise.all([
-      createConsoleRoot({
-        ...(choice === "fit" ? { responsive: true } : { width: choice.cols, height: choice.rows }),
-        // The driver only turns the curtain on by default for the global console.
-        ...(target ? { console: target, curtain: true } : {}),
-        viewport: limits,
-        input: engine,
-        theme: initialSnap.theme,
-        tabFocus: false,
-        // CompanionFocusHint shows it only where clicking the page gives the console the keyboard.
-        focusHint: false,
-        identifierPrefix: "txc",
-        ...consoleRootErrors,
-      }),
+      rootReady,
       preloadCompanionTab(initialSnap.tab),
       initialSnap.example !== null ? preloadCompanionTab("example") : Promise.resolve(),
-    ]);
+    ]).catch((error: unknown) => {
+      // A view that failed to load (a dropped connection, say): drop the root so a later boot starts clean.
+      void rootReady.then((r) => r.unmount(), () => undefined);
+      throw error;
+    });
+    // Only now: a boot that failed above leaves no keyboard sink or listeners on the page.
+    engine.attach();
 
     let wireframe = siteStore.getSnapshot().wireframe;
     root.renderer.setWireframe(wireframe);
@@ -242,6 +249,9 @@ export function bootCompanion(): Promise<Companion> {
     return c;
   })();
   bootStarted = promise;
+  promise.catch(() => {
+    if (bootStarted === promise) bootStarted = null;
+  });
   setBootingCompanion(promise);
   return promise;
 }

@@ -61,6 +61,8 @@ const context = await browser.newContext({ viewport: { width: 1280, height: 800 
 const port = new URL(base).port;
 await context.route((url) => /^(127\.0\.0\.1|localhost|\[::1\])$/.test(url.hostname) && url.port !== port, (r) => r.abort());
 await context.addInitScript(() => {
+  // A tab that has shown console intent: the companion boots on every load, as it did before it loaded on intent.
+  sessionStorage.setItem("textjs:console-intent", "1");
   window.__frame = null;
   window.__otherLogs = [];
   window.__cls = 0;
@@ -107,6 +109,7 @@ async function engage(path) {
   const pad = page.locator("[data-textjs-focus-pad]").first();
   if (path.startsWith("/playground") || path.startsWith("/opencode")) await pad.click({ position: { x: 40, y: 40 } });
   else await page.locator(".console-pill").click();
+  await page.waitForFunction(() => window.__frame !== null, null, { timeout: 8000 }).catch(() => undefined);
   await page.waitForTimeout(200);
 }
 

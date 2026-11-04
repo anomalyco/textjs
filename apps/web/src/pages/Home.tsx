@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { StyledFrame } from "@textjs/core";
-import { activateCompanion, COMPANION_COLS, COMPANION_ROWS, subscribeCompanionFrame } from "../console-companion/bridge";
+import { activateCompanion, COMPANION_COLS, COMPANION_ROWS, ensureCompanion, subscribeCompanionFrame } from "../console-companion/bridge";
 import { isHomeExampleFrame } from "../docs/preview-meta";
 import { useSite } from "../console-companion/useSite";
 import { A } from "../router";
@@ -10,6 +10,8 @@ import { CONSOLE_TAGS } from "../site/Chrome";
 import { CopyCommand } from "../site/CodeBlock";
 import { DevToolsWindow } from "../site/DevToolsWindow";
 import { HighlightedCode } from "../site/highlight";
+import { useNoConsole } from "../site/LivePreview";
+import { unpackStyledFrame, type PackedFrame } from "../site/packed-frame";
 import { siteStore } from "../console-companion/store";
 import { HERO_FILES } from "./home-files";
 import { Crosses } from "./home/Crosses";
@@ -19,11 +21,15 @@ import { OpenCodeBand } from "./home/OpenCodeBand";
 import { ServerSection } from "./home/Server";
 import { LearnSection, ToolingSection } from "./home/Tooling";
 import { TurbologSection } from "./home/Turbolog";
+import homeFrame from "./home/home-frame.json";
 import "./home/home.css";
 
+/** The companion's first Home frame, prerendered (scripts/generate-home-frame.ts) so the hero paints before it boots. */
+const INITIAL_HOME_FRAME = unpackStyledFrame(homeFrame as unknown as PackedFrame);
+
 /** The companion's latest Home frame. While a Components example runs in the console, the hero keeps the counter. */
-function useHomeFrame(): StyledFrame | null {
-  const [frame, setFrame] = useState<StyledFrame | null>(null);
+function useHomeFrame(): StyledFrame {
+  const [frame, setFrame] = useState<StyledFrame>(INITIAL_HOME_FRAME);
   useEffect(
     () =>
       subscribeCompanionFrame((f) => {
@@ -37,6 +43,8 @@ function useHomeFrame(): StyledFrame | null {
 function LiveConsole({ source = "viewport:3" }: { source?: string }): ReactNode {
   const frame = useHomeFrame();
   const site = useSite();
+  // Phones have no console: the mirror stays a picture (prerendered pages hide the button with CSS until hydration).
+  const noConsole = useNoConsole();
   return (
     <DevToolsWindow
       frame={frame}
@@ -44,12 +52,19 @@ function LiveConsole({ source = "viewport:3" }: { source?: string }): ReactNode 
       cols={COMPANION_COLS}
       rows={COMPANION_ROWS}
       engaged={site.consoleInput && site.example === null}
-      engage
-      onActivate={() => {
-        siteStore.exitExample();
-        activateCompanion();
+      engage={!noConsole}
+      onActivate={
+        noConsole
+          ? undefined
+          : () => {
+              siteStore.exitExample();
+              activateCompanion();
+            }
+      }
+      onInspect={() => {
+        siteStore.set({ wireframe: !site.wireframe });
+        void ensureCompanion();
       }}
-      onInspect={() => siteStore.set({ wireframe: !site.wireframe })}
       inspecting={site.wireframe}
     />
   );

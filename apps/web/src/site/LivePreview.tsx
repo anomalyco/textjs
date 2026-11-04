@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
-import { activateCompanion, companionReady, getCompanion, isInteractivePress, isRefocusPress } from "../console-companion/bridge";
+import { activateCompanion, companionReady, isCompanionConfigured, isInteractivePress, isRefocusPress } from "../console-companion/bridge";
 import { PRESETS, siteStore } from "../console-companion/store";
 import { preloadCompanionTab } from "../console-companion/tabs-loader";
 import { useSite } from "../console-companion/useSite";
@@ -32,27 +32,29 @@ function loadPreviews(): Promise<Record<string, PreviewSpec>> {
   return previewsPromise;
 }
 
-/** Whether this device has a live console companion to run examples in (always `false` while hydrating). */
-export function useConsoleAvailable(): boolean {
-  const [available, setAvailable] = useState(false);
+/** Whether this device has a live console companion to run examples in, or `null` while server rendering and hydrating. */
+function useConsoleState(): boolean | null {
+  const [available, setAvailable] = useState<boolean | null>(null);
   useEffect(() => {
     if (typeof matchMedia !== "function") return;
     const mq = matchMedia(CONSOLE_MEDIA);
-    let booted = getCompanion() !== null;
-    const update = (): void => setAvailable(booted && !mq.matches);
+    // The companion boots on the first click, so a desktop visitor can run an example before it has.
+    const update = (): void => setAvailable(isCompanionConfigured() && !mq.matches);
     update();
-    let alive = true;
-    void companionReady()?.then(() => {
-      booted = true;
-      if (alive) update();
-    });
     mq.addEventListener("change", update);
-    return () => {
-      alive = false;
-      mq.removeEventListener("change", update);
-    };
+    return () => mq.removeEventListener("change", update);
   }, []);
   return available;
+}
+
+/** Whether this device has a live console companion to run examples in (always `false` while hydrating). */
+export function useConsoleAvailable(): boolean {
+  return useConsoleState() === true;
+}
+
+/** Whether this device has no console companion (phones, tablets, narrow windows). Always `false` while hydrating. */
+export function useNoConsole(): boolean {
+  return useConsoleState() === false;
 }
 
 /** Make an example the console companion's app and send keystrokes to it. */
@@ -76,7 +78,8 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
 
   useEffect(() => {
     if ((!inView && !active) || meta === undefined) return;
-    preloadCompanionTab("example").catch(prefetchFailed);
+    // The console's example view, once the companion has started. A click loads it otherwise.
+    if (companionReady()) preloadCompanionTab("example").catch(prefetchFailed);
     if (previews) return;
     let alive = true;
     void loadPreviews().then((p) => {

@@ -60,6 +60,8 @@ const context = await browser.newContext({ viewport: { width: 1280, height: 800 
 // Documents served through page.route have no server address, so Chrome treats them as public and
 // asks before they reach loopback (Local Network Access). Grant it, as a user connecting would.
 await context.grantPermissions(["local-network-access"]).catch((e) => console.log(`(no local-network-access permission: ${e.message.split("\n")[0]})`));
+// A tab that has shown console intent: the companion (Yoga's WebAssembly included) boots on every page under the policy.
+await context.addInitScript(() => sessionStorage.setItem("textjs:console-intent", "1"));
 const allowedPorts = new Set([new URL(base).port, process.env.MOCK_PORT ?? "8790", new URL(bridge.url).port]);
 // Never reach a real local OpenCode server: loopback is only the site, the terminal mock and the mock bridge.
 await context.route((url) => /^(127\.0\.0\.1|localhost|\[::1\])$/.test(url.hostname) && !allowedPorts.has(url.port), (r) => r.abort());
@@ -149,7 +151,7 @@ console.log(`mode: ${mode}`);
   check("script-src allows 'wasm-unsafe-eval'", directive("script-src").includes("'wasm-unsafe-eval'"), directive("script-src").join(" "));
   const wasm = page.waitForResponse((r) => /\/assets\/yoga-[\w-]+\.wasm$/.test(new URL(r.url()).pathname), { timeout: 15000 }).catch(() => null);
   await page.goto(`${base}/`, { waitUntil: "load" });
-  // Reading window.text also boots a companion that waits for console intent.
+  // The tab has shown console intent (the init script above), so the companion boots on load.
   const booted = await page.waitForFunction(() => typeof window.text?.stats === "function" && window.text.stats().frameCount > 0, undefined, { timeout: 15000 }).then(() => true, () => false);
   const res = await wasm;
   check("yoga.wasm loads as application/wasm", res?.status() === 200 && res.headers()["content-type"] === "application/wasm", `${res?.status()} ${res?.headers()["content-type"]}`);

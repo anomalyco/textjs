@@ -1,7 +1,8 @@
 // Firefox and WebKit smoke test: the main routes load without page errors and without layout shifts,
 // the focus pad shows the right console shortcut for the browser, and frames reach the console with
 // the CSS for that browser's console (inline spans, a line-height curtain).
-// Also loads the main routes on an iPhone viewport in WebKit, where the pad asks for a desktop.
+// Also loads the main routes on an iPhone viewport in WebKit, where the pad asks for a desktop and the
+// companion never boots. Desktop pages load as a tab that has already shown console intent.
 //
 // Neither browser has the Layout Instability API, so shifts are measured directly: every rendered
 // element's layout box (offsetLeft/offsetTop/offsetWidth/offsetHeight, which ignore transforms and
@@ -141,6 +142,8 @@ function padRows() {
 async function newPage(browser, options) {
   const context = await browser.newContext(options);
   const page = await context.newPage();
+  // The companion boots once the visitor shows they want the console. A tab that already has boots on every load.
+  await page.addInitScript(() => sessionStorage.setItem("textjs:console-intent", "1"));
   await page.route("**/*", async (route) => {
     if (latency > 0) await new Promise((r) => setTimeout(r, latency));
     const req = route.request();
@@ -235,6 +238,7 @@ for (const name of browsers) {
     }
 
     for (const route of MOBILE_ROUTES) {
+      // Phones never boot the companion by themselves, not even in a tab that remembers it.
       const { context, page, errors } = await newPage(browser, { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
       await page.goto(base + route, { waitUntil: "commit", timeout: 60_000 });
       const shifts = await settle(page);
@@ -243,6 +247,7 @@ for (const name of browsers) {
       if (shifts.score > 0) fail(`${label}: layout shift ${shifts.score.toFixed(4)}: ${shifts.shifts.join("; ")}`);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
       if (overflow > 0) fail(`${label}: page is ${overflow}px wider than the screen`);
+      if (shifts.frames.length > 0) fail(`${label}: the companion booted on a phone`);
       if (route === "/playground") {
         const touch = await page.evaluate(() => document.querySelector(".tx-pad-touch")?.offsetParent !== null);
         if (!touch) fail(`${label}: the pad doesn't show the desktop notice`);
