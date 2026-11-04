@@ -103,7 +103,7 @@ Text.js apps load Yoga, the layout engine, from `assets/yoga-[hash].wasm` (72 KB
 - Send `Content-Type: application/wasm`, so the browser compiles the file while it downloads. With another type, it compiles after the download.
 - Cache the file like the other hashed files in `assets/`. `Cache-Control: public, max-age=31536000, immutable` is safe there because the name changes with the content. Don't use `immutable` for paths without a hash.
 - If you set a Content Security Policy, add `'wasm-unsafe-eval'` to `script-src` and allow the file's origin in `connect-src` (`'self'`).
-- If unknown paths fall back to `index.html`, exclude `/assets/` from that rewrite. Otherwise a missing file returns HTML and `initYoga()` rejects with [TX032](/errors/TX032).
+- If unknown paths fall back to `index.html`, exclude `/assets/` from that rewrite. Otherwise a missing file returns HTML and `initYoga()` rejects with `TX032`.
 
 ### Your own Vite or webpack build
 
