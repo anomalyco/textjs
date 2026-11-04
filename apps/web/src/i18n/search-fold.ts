@@ -6,8 +6,9 @@ const IGNORED = /[\u0591-\u05bd\u05bf\u05c1\u05c2\u05c4\u05c5\u05c7\u0610-\u061a
 
 /**
  * Text as search compares it (docs search, the search dialog, the error index): lowercase, without ignorable marks,
- * and alef with hamza or madda as a bare alef (أ إ آ ٱ → ا).
+ * alef with hamza or madda as a bare alef (أ إ آ ٱ → ا), and the Arabic yeh and kaf as the Persian ones (ي → ی,
+ * ك → ک), so a query typed on either keyboard layout matches.
  */
 export function searchFold(text: string): string {
-  return text.toLowerCase().replace(IGNORED, "").replace(/[\u0622\u0623\u0625\u0671]/g, "\u0627");
+  return text.toLowerCase().replace(IGNORED, "").replace(/[\u0622\u0623\u0625\u0671]/g, "\u0627").replace(/\u064a/g, "\u06cc").replace(/\u0643/g, "\u06a9");
 }

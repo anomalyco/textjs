@@ -46,7 +46,7 @@ export const LOCALES: readonly Locale[] = [
   { code: "zh-TW", path: "zh-tw", name: "繁體中文", dir: "ltr", status: "live" },
   { code: "ar", path: "ar", name: "العربية", dir: "rtl", status: "draft" },
   { code: "he", path: "he", name: "עברית", dir: "rtl", status: "draft" },
-  { code: "fa", path: "fa", name: "فارسی", dir: "rtl", status: "planned" },
+  { code: "fa", path: "fa", name: "فارسی", dir: "rtl", status: "draft" },
   { code: "ur", path: "ur", name: "اردو", dir: "rtl", status: "planned" },
 ];
 

@@ -30,7 +30,7 @@ describe("locales", () => {
     expect(splitLocale("/ja")).toEqual({ locale: ja, path: "/" });
     expect(splitLocale("/docs").locale.code).toBe("en");
     // Only built locales are prefixes; others are ordinary (unknown) paths.
-    expect(splitLocale("/fa/blog").locale.code).toBe("en");
+    expect(splitLocale("/ur/blog").locale.code).toBe("en");
     expect(localePath(ja, "/")).toBe("/ja");
     expect(localePath(ja, "/docs")).toBe("/ja/docs");
     expect(localePath(LOCALES[0]!, "/docs")).toBe("/docs");
@@ -135,14 +135,18 @@ describe("right-to-left text", () => {
     expect(normalizePunctuation("ar", "افتحه, ثم شغّل React, Vite; هل يعمل?")).toBe("افتحه، ثم شغّل React، Vite؛ هل يعمل؟");
     expect(normalizePunctuation("ar", "استدعِ `a, b` في [الرابط](/x?a=1, b) لـ 3,200 خلية")).toBe("استدعِ `a, b` في [الرابط](/x?a=1, b) لـ 3,200 خلية");
     expect(normalizePunctuation("he", "שלום, עולם?")).toBe("שלום, עולם?");
+    // Persian and Urdu: ی and ک, never the Arabic ي and ك (Arabic itself keeps them).
+    expect(normalizePunctuation("fa", "كامپوننت يك فايل")).toBe("کامپوننت یک فایل");
+    expect(normalizePunctuation("ar", "يك")).toBe("يك");
     expect(validate("ar", "Open it, then go.", "افتحه, ثم اذهب.").errors).toEqual(["Latin , ; or ? in Arabic text (use ، ؛ ؟)"]);
   });
 
   test("search ignores tashkeel, tatweel, niqqud, hamza on alef and bidi isolates", () => {
-    expect(searchFold("مُكَوِّن")).toBe("مكون");
+    expect(searchFold("مُكَوِّن")).toBe(searchFold("مكون"));
     expect(searchFold("الـمسار")).toBe("المسار");
     expect(searchFold("אֶפְלִיקַצְיָה")).toBe("אפליקציה");
     expect(searchFold("إطار")).toBe("اطار");
+    expect(fuzzyScore("كامپوننت", "کامپوننت‌ها")).toBeGreaterThan(900);
     expect(fuzzyScore("bun 1.2", "يتطلب \u2066Bun 1.2+\u2069")).toBeGreaterThan(900);
     expect(fuzzyScore("مكوّن", "المكونات")).toBeGreaterThan(900);
   });
