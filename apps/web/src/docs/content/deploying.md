@@ -77,7 +77,7 @@ The output uses Pages advanced mode:
 
 | File | Purpose |
 | :-- | :-- |
-| `_worker.js` | Middleware, rewrites, route handlers and the console document |
+| `_worker.js` | Middleware, rewrites, route handlers and the console document. A directory (`index.js` and `yoga.wasm`) when a route handler uses Yoga |
 | `_routes.json` | Sends every request to the worker. Without middleware or a `basePath`, `/assets/*` stays on Pages' static CDN |
 | `_headers` | Immutable caching for `/assets/*` (appended to yours) |
 | `404.html` | Makes Pages answer missing files with `404` instead of the app (kept if you have one) |
@@ -86,7 +86,7 @@ The output uses Pages advanced mode:
 
 Enable the `nodejs_compat` compatibility flag in the Pages project (Settings → Runtime) or in `wrangler.toml`; the data cache uses `AsyncLocalStorage`. Static files are served through the `ASSETS` binding, and background revalidation uses `ctx.waitUntil()`.
 
-With middleware, every request runs the worker, including hashed assets, so that middleware sees every path a file can be reached by. Each request that runs the worker is one Functions invocation and counts toward your Workers request quota. For a page load, that's the document plus each file it fetches (2 for a small test app with one JavaScript bundle; more for apps with more files). On the Workers Free plan, Pages serves static files without the worker once the daily quota runs out, which skips middleware. If middleware guards anything in `dist/`, set Settings → Runtime → Fail open / closed to **Fail closed**.
+With middleware, every request runs the worker, including hashed assets, so that middleware sees every path a file can be reached by. Each request that runs the worker is one Functions invocation and counts toward your Workers request quota. For a page load, that's the document plus each file it fetches (3 for a small test app: the document, one JavaScript bundle and `yoga-[hash].wasm`; more for apps with more files). On the Workers Free plan, Pages serves static files without the worker once the daily quota runs out, which skips middleware. If middleware guards anything in `dist/`, set Settings → Runtime → Fail open / closed to **Fail closed**.
 
 ```toml@wrangler.toml
 name = "my-console"
@@ -97,17 +97,17 @@ compatibility_flags = ["nodejs_compat"]
 
 ## WebAssembly
 
-Text.js apps load Yoga, the layout engine, from `assets/yoga-[hash].wasm` (72 KB, 29 KB with gzip). `text build` preloads it from every page. Server bundles and `text run` use the copy inside the `yoga-layout` package and need no file.
+Text.js apps load Yoga, the layout engine, from `assets/yoga-[hash].wasm` (72 kB, 29 kB with gzip). `text build` preloads it from every page. Server bundles and `text run` use the inline copy from `yoga-layout`. The Cloudflare worker is the exception: when a route handler uses Yoga, `dist/_worker.js/` holds `yoga.wasm` next to `index.js`.
 
-- Serve `.wasm` files compressed, as you serve JavaScript. Vercel compresses `application/wasm` by default; nginx needs `application/wasm` in `gzip_types`. If your host compresses JavaScript but not `.wasm`, pages download about 32 KB more than with the inline copy.
+- Serve `.wasm` files compressed, as you serve JavaScript. Vercel compresses `application/wasm` by default; nginx needs `application/wasm` in `gzip_types`. If your host compresses JavaScript but not `.wasm`, pages download about 32 kB more than with the inline copy.
 - Send `Content-Type: application/wasm`, so the browser compiles the file while it downloads. With another type, it compiles after the download.
-- Cache the file like the other hashed files in `assets/`. `Cache-Control: public, max-age=31536000, immutable` is safe there because the name changes with the content. Don't use `immutable` for paths without a hash.
-- If you set a Content Security Policy, add `'wasm-unsafe-eval'` to `script-src` and allow the file's origin in `connect-src` (`'self'`).
+- Cache it like the other hashed files in `assets/` (`Cache-Control: public, max-age=31536000, immutable`). That's safe because the name changes with the content. Don't use `immutable` for paths without a hash.
+- If you set a Content Security Policy, add `'wasm-unsafe-eval'` to `script-src` and the file's origin (usually `'self'`) to `connect-src`.
 - If unknown paths fall back to `index.html`, exclude `/assets/` from that rewrite. Otherwise a missing file returns HTML and `initYoga()` rejects with `TX032`.
 
 ### Your own Vite or webpack build
 
-Builds of `@textjs/core` and `@textjs/react` outside `text dev` and `text build` keep Yoga inline, which works in every bundler. To load the `.wasm` file instead, add the `@textjs/wasm-asset` resolve condition to your client build. Vite needs it for the dev pre-bundler too:
+When you bundle `@textjs/core` and `@textjs/react` yourself, Yoga stays inline and needs no bundler setup. Bundles that resolve the `workerd` condition, such as Wrangler, import `@textjs/core/yoga.wasm` as a module instead. To load the `.wasm` file in a browser build, add the `@textjs/wasm-asset` resolve condition to your client build. In Vite 6, which exports `defaultClientConditions`, the dev pre-bundler needs it too:
 
 ```ts@vite.config.ts
 import { defaultClientConditions, defineConfig } from "vite";
