@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `@textjs/app`: `text build`'s First Load JS includes `.wasm` files.
 - `@textjs/app`: with `--adapter cloudflare`, a worker whose route handlers use Yoga is written as a `dist/_worker.js/` directory holding `index.js` and `yoga.wasm`, which Cloudflare loads as a compiled module. Workers that don't use Yoga are still a single `dist/_worker.js` file.
 - textjs.org: the console loads Yoga as a `.wasm` file, which makes its download 9.3 KB smaller (gzip), and the Content Security Policy no longer allows `data:` in `connect-src`.
+- textjs.org: the DevTools console app loads when you ask for it: when DevTools is docked, when you press a DevTools shortcut, when you click the home page's console preview, a focus pad, the Console pill or Run in console, or when you reload a tab where you did one of those. Until then the home page's console preview shows the app's first frame, rendered at build time, so it appears with the page instead of after the app boots. Home loads 143.6 KB of JavaScript and WebAssembly up front instead of 293.7 KB (gzip), in 11 files instead of 37, and /docs/routing 140.4 KB instead of 301.4 KB. Phones don't load the app on their own. In headless Chromium with the CPU throttled 4×, Home runs 165 ms of script instead of 241 ms and its JavaScript heap is 2.6 MB instead of 4.2 MB.
 
 ### Fixed
 
