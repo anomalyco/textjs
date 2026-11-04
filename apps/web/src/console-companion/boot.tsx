@@ -1,6 +1,7 @@
 /**
  * Boots the live console companion: a real `@textjs/react` ConsoleRoot that
- * renders into the visitor's DevTools console the moment textjs.org loads.
+ * renders into the visitor's DevTools console. `main.tsx` loads and boots it
+ * once the visitor shows they want the console (`onConsoleIntent`).
  */
 
 import { extractStyledFrame, InputEngine, type StyledFrame } from "@textjs/core";

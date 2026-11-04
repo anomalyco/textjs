@@ -97,7 +97,10 @@ export function isRefocusPress(e: { timeStamp: number }): boolean {
 }
 
 /** Explicit console surfaces (live DevTools mirrors) that route keystrokes into the companion when clicked. */
-export const ENGAGE_SELECTOR = "[data-console-engage]";
+export const ENGAGE_SELECTOR = "[data-textjs-engage]";
+
+/** Buttons that start the console when clicked (the Console pill, "Run in console"). Hovering one downloads the companion. */
+export const COMPANION_CONTROLS = ".console-pill,.preview-run";
 
 /**
  * Whether pressing `target` routes keys into the console: an explicit console surface, or any
@@ -124,31 +127,63 @@ export interface Companion {
 
 let companion: Companion | null = null;
 let booting: Promise<Companion> | null = null;
-const pending = new Set<FrameListener>();
+let loader: (() => Promise<Companion>) | null = null;
+const booted = new Set<(c: Companion) => void>();
 
 export function getCompanion(): Companion | null {
   return companion;
 }
 
-/** Resolves once the companion has booted (`null` when it was never started, e.g. in tests). */
+/** Resolves once the companion has booted (`null` until something starts it, and always in tests). */
 export function companionReady(): Promise<Companion> | null {
   return booting;
 }
 
+/** @internal `main.tsx` registers how to load and boot the companion, which happens on the visitor's first sign of intent. */
+export function configureCompanionLoader(load: () => Promise<Companion>): void {
+  loader = load;
+}
+
+/** Whether this page can boot a companion (the site's client registered a loader, or one is already booting). */
+export function isCompanionConfigured(): boolean {
+  return loader !== null || booting !== null;
+}
+
+/** Start the companion if it hasn't started, and resolve once it has booted (`null` without a loader). */
+export function ensureCompanion(): Promise<Companion> | null {
+  if (booting || !loader) return booting;
+  const promise = loader();
+  booting = promise;
+  // A failed load (a chunk gone after a deploy, say) can be retried by the next intent.
+  promise.catch(() => {
+    if (booting === promise) booting = null;
+  });
+  return promise;
+}
+
 export function activateCompanion(): void {
   if (companion) companion.activate();
-  else void booting?.then((c) => c.activate());
+  else void ensureCompanion()?.then((c) => c.activate(), () => undefined);
+}
+
+/** Call `listener` with the companion once it has booted (now, if it already has). Doesn't start it. */
+export function subscribeCompanion(listener: (c: Companion) => void): () => void {
+  if (companion) {
+    listener(companion);
+    return () => undefined;
+  }
+  booted.add(listener);
+  return () => booted.delete(listener);
 }
 
 export function subscribeCompanionFrame(listener: FrameListener): () => void {
   if (companion) return companion.subscribeFrame(listener);
-  pending.add(listener);
   let off: (() => void) | null = null;
-  void booting?.then((c) => {
-    if (pending.delete(listener)) off = c.subscribeFrame(listener);
+  const unsubscribe = subscribeCompanion((c) => {
+    off = c.subscribeFrame(listener);
   });
   return () => {
-    pending.delete(listener);
+    unsubscribe();
     off?.();
   };
 }
@@ -159,9 +194,10 @@ export function setBootingCompanion(promise: Promise<Companion>): Promise<Compan
   return booting;
 }
 
-/** @internal Publish the booted companion instance and attach pending frame subscribers. */
+/** @internal Publish the booted companion instance and notify everything waiting for it. */
 export function registerBootedCompanion(c: Companion): void {
   companion = c;
-  for (const l of pending) c.subscribeFrame(l);
-  pending.clear();
+  const waiting = [...booted];
+  booted.clear();
+  for (const l of waiting) l(c);
 }

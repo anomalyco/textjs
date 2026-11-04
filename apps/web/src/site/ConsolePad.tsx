@@ -1,25 +1,10 @@
-import { useEffect, useState, type ReactNode } from "react";
-import type { ConsoleRoot } from "@textjs/react";
+import type { ReactNode } from "react";
 import { FocusPad } from "@textjs/react/dom";
-import { activateCompanion, companionReady, getCompanion, PLAYGROUND_VIEWPORT_KEY } from "../console-companion/bridge";
+import { activateCompanion, PLAYGROUND_VIEWPORT_KEY } from "../console-companion/bridge";
 import type { Hint } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
 import { PAD_MESSAGES, padHints, padText } from "./pad-messages";
-
-function useCompanionRoot(): ConsoleRoot | null {
-  const [root, setRoot] = useState<ConsoleRoot | null>(() => getCompanion()?.root ?? null);
-  useEffect(() => {
-    if (root) return;
-    let alive = true;
-    void companionReady()?.then((c) => {
-      if (alive) setRoot(c.root);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [root]);
-  return root;
-}
+import { useCompanionRoot } from "./useCompanion";
 
 export interface ConsolePadProps {
   hints: readonly Hint[];
@@ -45,7 +30,7 @@ export function ConsolePad({ hints, action, top, banner, children }: ConsolePadP
   const root = useCompanionRoot();
   const site = useSite();
   return (
-    <div className="pad-stage">
+    <div className="pad-stage" data-textjs-engage="">
       <FocusPad
         root={root}
         hints={padHints(hints)}

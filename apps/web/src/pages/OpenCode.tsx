@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { getCompanion } from "../console-companion/boot";
+import { activateCompanion } from "../console-companion/bridge";
 import { siteStore, type OpenCodeConnection } from "../console-companion/store";
 import { useSite } from "../console-companion/useSite";
 import { autoConnectTarget, BRIDGE_COMMAND, DEFAULT_SERVER_URL, discoverServer, normalizeServerUrl, pairBridge, PAIRING_PROMPT, PairingRequired, rememberBridgeToken, rememberServer, WrongCode } from "../demos/opencode/live";
@@ -138,7 +138,7 @@ export function ConnectPanel(): ReactNode {
       <>
         <span className="dot dot-idle" />
         <span className="status-text">{t("OpenCode exited.")}</span>
-        <button type="button" className="text-link status-action" onClick={() => getCompanion()?.activate()}>
+        <button type="button" className="text-link status-action" onClick={activateCompanion}>
           {t("Restart")}
         </button>
       </>

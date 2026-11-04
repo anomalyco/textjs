@@ -36,6 +36,8 @@ async function open(path) {
     if (/\/assets\/doc-[\w-]+\.js$/.test(r.url())) docChunks.push(new URL(r.url()).pathname);
   });
   await page.addInitScript(() => {
+    // A tab that has shown console intent, so the companion boots and its Docs view can be read.
+    sessionStorage.setItem("textjs:console-intent", "1");
     window.__cls = 0;
     new PerformanceObserver((l) => {
       for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value;

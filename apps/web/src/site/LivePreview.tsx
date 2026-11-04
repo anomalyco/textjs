@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
-import { activateCompanion, companionReady, getCompanion, isInteractivePress, isRefocusPress } from "../console-companion/bridge";
+import { activateCompanion, isCompanionConfigured, isInteractivePress, isRefocusPress } from "../console-companion/bridge";
 import { PRESETS, siteStore } from "../console-companion/store";
 import { preloadCompanionTab } from "../console-companion/tabs-loader";
 import { useSite } from "../console-companion/useSite";
@@ -38,19 +38,11 @@ export function useConsoleAvailable(): boolean {
   useEffect(() => {
     if (typeof matchMedia !== "function") return;
     const mq = matchMedia(CONSOLE_MEDIA);
-    let booted = getCompanion() !== null;
-    const update = (): void => setAvailable(booted && !mq.matches);
+    // The companion boots on the first click, so a desktop visitor can run an example before it has.
+    const update = (): void => setAvailable(isCompanionConfigured() && !mq.matches);
     update();
-    let alive = true;
-    void companionReady()?.then(() => {
-      booted = true;
-      if (alive) update();
-    });
     mq.addEventListener("change", update);
-    return () => {
-      alive = false;
-      mq.removeEventListener("change", update);
-    };
+    return () => mq.removeEventListener("change", update);
   }, []);
   return available;
 }

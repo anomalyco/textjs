@@ -178,7 +178,7 @@ describe("docs examples in the console: page preview", () => {
     expect(live).toContain("Live in your console");
     expect(live).toContain("Back to docs");
     // Mirrors the companion: a console surface that engages console input, not a private sandbox.
-    expect(live).toContain("data-console-engage");
+    expect(live).toContain("data-textjs-engage");
     expect(live).not.toContain("data-console-bypass");
 
     // Only the active example switches; the others keep their own sandboxes.
@@ -319,7 +319,7 @@ describe("Home examples in the console: Components section", () => {
     expect(live).toContain("Live in your console");
     expect(live).toContain("Back to counter");
     expect(live).toContain("Esc back to counter");
-    expect(live).toContain("data-console-engage");
+    expect(live).toContain("data-textjs-engage");
     expect(live).not.toContain("data-console-bypass");
   });
 });

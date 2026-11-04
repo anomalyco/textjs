@@ -1,6 +1,9 @@
 import { afterAll, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { DOCS_META } from "../src/docs/registry";
 import { NOT_FOUND_PATH, PREFIT_MIRRORS_SCRIPT, render, ROUTES } from "../src/entry-server";
+import { renderHomeFrame } from "../src/pages/home/home-frame-gen";
 import { resetLocation } from "../src/router";
 
 describe("build-time prerender", () => {
@@ -29,6 +32,18 @@ describe("build-time prerender", () => {
     expect(home).toContain("⌘⌥J");
     expect(home).toContain("Ctrl+Shift+J");
     expect(home).toContain("mirror-scale");
+  });
+
+  test("the hero mirrors the companion's first Home frame before it boots", async () => {
+    // Run `bun scripts/generate-home-frame.ts` (the build does) after changing HomeTab or CompanionApp.
+    const committed = readFileSync(join(import.meta.dirname, "../src/pages/home/home-frame.json"), "utf8");
+    expect(committed).toBe(`${JSON.stringify(await renderHomeFrame())}\n`);
+    const home = await render("/");
+    const hero = home.slice(home.indexOf('class="hero"'), home.indexOf("</section>", home.indexOf('class="hero"')));
+    expect(hero).toContain("data-textjs-mirror");
+    expect(hero).toContain("React 19 in console.log");
+    expect(hero).toContain("data-textjs-engage");
+    expect(hero).not.toContain("Waiting for the first frame");
   });
 
   test("pad pages and the 404 render", async () => {

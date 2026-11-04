@@ -136,7 +136,7 @@ export function DevToolsWindow({
 }: DevToolsWindowProps): ReactNode {
   const decor = onInspect ? true : undefined;
   return (
-    <div className={`devtools ${className ?? ""}`} dir="ltr" data-console-engage={engage ? "" : undefined}>
+    <div className={`devtools ${className ?? ""}`} dir="ltr" data-textjs-engage={engage ? "" : undefined}>
       <div className="dt-tabs" aria-hidden={onInspect ? undefined : true}>
         {onInspect ? (
           <button

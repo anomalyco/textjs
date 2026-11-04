@@ -1,11 +1,12 @@
 import "./console-baseline";
-import { installCapture, prefetchFailed, recoverFromChunkFailure, report, startReporter } from "./telemetry/capture";
+import { canPrefetchConsole, onConsoleIntent } from "@textjs/core/experimental";
+import { installCapture, isChunkLoadError, prefetchFailed, recoverFromChunkFailure, report, startReporter } from "./telemetry/capture";
 import { createRoot, hydrateRoot } from "react-dom/client";
-import { setBootingCompanion } from "./console-companion/bridge";
-import { tabForPath } from "./console-companion/store";
+import { activateCompanion, COMPANION_CONTROLS, configureCompanionLoader, engagesConsole, ensureCompanion } from "./console-companion/bridge";
+import { isPadRoute, tabForPath } from "./console-companion/store";
 import { Root } from "./Root";
 import { preloadRoute } from "./route-loader";
-import { getLocation, matchRoute, normalizePath, registerHrefPrefetcher } from "./router";
+import { getLocation, matchRoute, normalizePath, registerHrefPrefetcher, subscribeLocation } from "./router";
 import "./styles.css";
 
 installCapture();
@@ -26,18 +27,86 @@ registerHrefPrefetcher((pathname) => {
   preloadCompanionForPath?.(pathname);
 });
 
-// Start booting the console companion in parallel without blocking DOM hydration or first paint.
-const companionPromise = import("./console-companion/boot").then(async (m) => {
-  const tabs = await import("./console-companion/tabs-loader");
-  preloadCompanionForPath = (pathname) => {
-    tabs.preloadCompanionTab(tabForPath(pathname)).catch(prefetchFailed);
-  };
-  return m.bootCompanion();
+let warming: Promise<typeof import("./console-companion/boot")> | null = null;
+
+/** Download the console companion's code without booting it. */
+function warmCompanion(): Promise<typeof import("./console-companion/boot")> {
+  if (warming) return warming;
+  const promise = Promise.all([import("./console-companion/boot"), import("./console-companion/tabs-loader")]).then(([boot, tabs]) => {
+    preloadCompanionForPath = (pathname) => {
+      tabs.preloadCompanionTab(tabForPath(pathname)).catch(prefetchFailed);
+    };
+    return boot;
+  });
+  warming = promise;
+  promise.catch(() => {
+    if (warming === promise) warming = null;
+  });
+  return promise;
+}
+
+/** Warm the companion and the current page's console view, for a visitor likely to open the console. */
+function prefetchCompanion(): void {
+  if (warming) return;
+  warmCompanion().then(() => preloadCompanionForPath?.(getLocation().pathname), prefetchFailed);
+}
+
+// The companion (React's console renderer, Yoga and the console app) loads only once the visitor
+// shows they want the console; until then the hero mirrors a prerendered frame.
+configureCompanionLoader(() => {
+  const promise = warmCompanion().then((m) => m.bootCompanion());
+  promise.catch((error: unknown) => {
+    // A chunk from an older deploy: reload once. Intent is remembered for the tab, so the console boots after it.
+    if (isChunkLoadError(error)) return recoverFromChunkFailure(error);
+    console.error("▼ Text.js companion failed to boot", error);
+    report(error, "console");
+  });
+  return promise;
 });
-setBootingCompanion(companionPromise);
-companionPromise.catch((error: unknown) => {
-  console.error("▼ Text.js companion failed to boot", error);
-  report(error, "console");
+
+/** Pads and courses: visitors there are about to use the console, so its code downloads on idle. */
+function warmsOnIdle(pathname: string): boolean {
+  return isPadRoute(pathname) || pathname === "/learn" || pathname.startsWith("/learn/");
+}
+
+// The press that signalled "engage", so a click on a console surface also gives it the keyboard
+// (boot's own listener for that isn't attached yet). A size picked in a pad's menu doesn't count.
+let press: Element | null = null;
+const notePress = (e: Event): void => {
+  press = e.target instanceof Element ? e.target : null;
+};
+const forgetPress = (): void => {
+  press = null;
+};
+const pressEvents = [
+  ["mousedown", notePress],
+  ["click", notePress],
+  ["textjs:engage", forgetPress],
+] as const;
+for (const [type, fn] of pressEvents) document.addEventListener(type, fn, true);
+
+const intent = onConsoleIntent(
+  ({ reason }) => {
+    for (const [type, fn] of pressEvents) document.removeEventListener(type, fn, true);
+    const { pathname } = getLocation();
+    if (reason === "engage" && press !== null && engagesConsole(press, false, pathname)) activateCompanion();
+    else void ensureCompanion();
+  },
+  { prefetch: prefetchCompanion, idlePrefetch: warmsOnIdle(getLocation().pathname) },
+);
+
+// Controls that start the console on click (the Console pill, "Run in console") warm it on hover, like console surfaces do.
+const warmOnHover = (e: Event): void => {
+  if (!intent.triggered && (e.target as Element | null)?.closest?.(COMPANION_CONTROLS) && canPrefetchConsole()) prefetchCompanion();
+};
+document.addEventListener("pointerover", warmOnHover, { capture: true, passive: true });
+document.addEventListener("focusin", warmOnHover, { capture: true, passive: true });
+
+// Landing on a pad or course by client-side navigation warms the companion on idle too.
+subscribeLocation(() => {
+  if (intent.triggered || !warmsOnIdle(getLocation().pathname) || !canPrefetchConsole()) return;
+  if (typeof requestIdleCallback === "function") requestIdleCallback(prefetchCompanion, { timeout: 5000 });
+  else setTimeout(prefetchCompanion, 1);
 });
 
 // Preload the matched route's chunks (modulepreloaded in HTML, so they resolve in a microtask) before hydrating.

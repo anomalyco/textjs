@@ -4,7 +4,8 @@
 //   bun run build && bun run preview -- --port 4173 --strictPort
 //   BASE=http://localhost:4173 OUT=/tmp/cls node scripts/cls.mjs
 //
-// Env: BASE, OUT (screenshots), WIDTH/HEIGHT (viewport), THROTTLE=0 to disable throttling, ROUTES=/a,/b (empty: navigations only), FILMSTRIP=0.
+// Env: BASE, OUT (screenshots), WIDTH/HEIGHT (viewport), THROTTLE=0 to disable throttling, ROUTES=/a,/b (empty: navigations only), FILMSTRIP=0,
+// INTENT=1 to load as a tab that has shown console intent, so the companion boots and replaces the prerendered frames.
 import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,6 +18,7 @@ const width = Number(process.env.WIDTH ?? 1440);
 const height = Number(process.env.HEIGHT ?? 900);
 const throttle = process.env.THROTTLE !== "0";
 const filmstrip = process.env.FILMSTRIP !== "0";
+const intent = process.env.INTENT === "1";
 const docs = readdirSync(fileURLToPath(new URL("../src/docs/content/", import.meta.url))).filter((f) => f.endsWith(".md")).map((f) => f.slice(0, -3)).sort();
 const routes = process.env.ROUTES !== undefined ? process.env.ROUTES.split(",").filter(Boolean) : ["/", "/docs", ...docs.map((d) => `/docs/${d}`), "/playground", "/playground/streaming", "/playground/snake", "/opencode", "/coffee", "/does-not-exist"];
 mkdirSync(out, { recursive: true });
@@ -46,6 +48,7 @@ async function newPage() {
   const page = await context.newPage();
   await page.route((url) => /^(127\.0\.0\.1|localhost|\[::1\])$/.test(url.hostname) && url.port !== port, (r) => r.abort());
   await page.addInitScript(observe);
+  if (intent) await page.addInitScript(() => sessionStorage.setItem("textjs:console-intent", "1"));
   const cdp = await context.newCDPSession(page);
   await cdp.send("Network.enable");
   await cdp.send("Network.setCacheDisabled", { cacheDisabled: true });
