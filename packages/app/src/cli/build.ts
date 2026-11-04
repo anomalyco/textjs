@@ -47,14 +47,15 @@ const errorText = (error: unknown): string => (error instanceof Error ? (error.s
 /** `.text/` inside the output directory holds build metadata and the API server bundle. */
 export const META_DIR = ".text";
 
-function jsFiles(dir: string): string[] {
+/** Client scripts and the WebAssembly they load (Yoga's `yoga-[hash].wasm`). */
+function clientFiles(dir: string): string[] {
   const out: string[] = [];
   const walk = (d: string): void => {
     for (const name of readdirSync(d)) {
       const p = join(d, name);
       if (name === META_DIR) continue;
       if (statSync(p).isDirectory()) walk(p);
-      else if (name.endsWith(".js")) out.push(p);
+      else if (name.endsWith(".js") || name.endsWith(".wasm")) out.push(p);
     }
   };
   walk(dir);
@@ -149,7 +150,7 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
 
     let bytes = 0;
     let gzip = 0;
-    for (const f of jsFiles(outDir)) {
+    for (const f of clientFiles(outDir)) {
       const buf = readFileSync(f);
       bytes += buf.length;
       gzip += gzipSync(buf).length;

@@ -1,6 +1,6 @@
 import { VERSION } from "@textjs/core";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { buildApp } from "../src/cli/build";
 import { resolveAdapter } from "../src/server/adapters/build-step";
@@ -178,6 +178,71 @@ describe("deploy adapters (middleware + route handlers + cache)", () => {
       try {
         await waitForLine(proc.stdout, /(Ready on http:\/\/\S+)/, 90_000);
         await exerciseEdgeApp(`http://127.0.0.1:${port}`, { cache: true });
+      } finally {
+        proc.kill();
+        await proc.exited;
+      }
+    },
+    150_000,
+  );
+});
+
+describe("cloudflare: a worker that lays out with Yoga", () => {
+  let dir = "";
+  beforeAll(async () => {
+    dir = createFixture(
+      {
+        "app/page.tsx": `import { Text } from "@textjs/app";
+export default function Page() { return <Text>home</Text>; }
+`,
+        "app/api/frame/route.ts": `import { CellBuffer, createNode, createRawText, initYoga, paintScene } from "@textjs/core";
+export async function GET() {
+  await initYoga();
+  const box = createNode("box", { width: 24, border: "rounded", paddingX: 1 });
+  const text = createNode("text", {});
+  text.appendChild(createRawText("edge frame"));
+  box.appendChild(text);
+  box.calculateLayout(30, 3);
+  const buffer = new CellBuffer(30, 3);
+  paintScene(box, buffer);
+  return new Response(buffer.toPlainString(), { headers: { "content-type": "text/plain; charset=utf-8" } });
+}
+`,
+      },
+      "textjs-adapters-wasm-",
+    );
+    symlinkSync(join(import.meta.dir, "../../core"), join(dir, "node_modules/@textjs/core"));
+    await buildApp({ root: dir, log: false });
+    await adapt(dir, "cloudflare");
+  }, 120_000);
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("_worker.js is a directory with yoga.wasm as a module", () => {
+    const worker = join(dir, "dist/_worker.js");
+    expect(readdirSync(worker).sort()).toEqual(["index.js", "yoga.wasm"]);
+    const code = readFileSync(join(worker, "index.js"), "utf8");
+    expect(code).toMatch(/import \w+ from "\.\/yoga\.wasm";/);
+    expect(code).not.toContain("AGFzbQ");
+    expect(Buffer.compare(readFileSync(join(worker, "yoga.wasm")), readFileSync(join(import.meta.dir, "../../core/yoga.wasm")))).toBe(0);
+  });
+
+  test.skipIf(process.env.TEXTJS_TEST_WRANGLER !== "1")(
+    "renders under `wrangler pages dev` (TEXTJS_TEST_WRANGLER=1)",
+    async () => {
+      const port = 38900 + Math.floor(Math.random() * 100);
+      const proc = Bun.spawn(["bunx", "wrangler", "pages", "dev", "dist", "--port", String(port), "--compatibility-date=2025-01-01", "--compatibility-flags=nodejs_compat", "--show-interactive-dev-session=false"], {
+        cwd: dir,
+        stdout: "pipe",
+        stderr: "pipe",
+        env: { ...process.env, WRANGLER_SEND_METRICS: "false", CI: "1" },
+      });
+      try {
+        await waitForLine(proc.stdout, /(Ready on http:\/\/\S+)/, 90_000);
+        const res = await fetch(`http://127.0.0.1:${port}/api/frame`);
+        expect(res.status).toBe(200);
+        expect(await res.text()).toContain("│ edge frame           │");
       } finally {
         proc.kill();
         await proc.exited;

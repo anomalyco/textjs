@@ -3,7 +3,7 @@
  * `text start` runtime) into single self-contained ES modules with Vite.
  */
 
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync, realpathSync } from "node:fs";
 import { builtinModules } from "node:module";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,9 +41,14 @@ export interface BundleOptions {
   target: BundleTarget;
 }
 
+export interface BundleResult {
+  /** `.wasm` modules the bundle imports, copied next to `outFile` (worker targets only). */
+  wasm: string[];
+}
+
 const ENTRY = "virtual:textjs/server-entry";
 
-export async function bundleServerEntry(opts: BundleOptions): Promise<void> {
+export async function bundleServerEntry(opts: BundleOptions): Promise<BundleResult> {
   const worker = opts.target === "webworker" || opts.target === "edge";
   const entryPlugin: Plugin = {
     name: "textjs:server-entry",
@@ -63,6 +68,32 @@ export async function bundleServerEntry(opts: BundleOptions): Promise<void> {
       if (!worker) return null;
       if (id.startsWith("node:")) return { id, external: true };
       return builtinModules.includes(id) && !id.startsWith("_") ? { id: `node:${id}`, external: true } : null;
+    },
+  };
+  // Workers compile WebAssembly only at deploy time, from `.wasm` modules uploaded with the worker
+  // (`import yoga from "./yoga.wasm"` is a `WebAssembly.Module`): keep those imports and copy the files.
+  const wasm = new Map<string, string>();
+  const wasmModules: Plugin = {
+    name: "textjs:worker-wasm",
+    enforce: "pre",
+    async resolveId(id, importer) {
+      if (!worker || !/\.wasm$/.test(id)) return null;
+      const resolved = await this.resolve(id, importer, { skipSelf: true });
+      if (!resolved || resolved.external) return null;
+      const file = resolved.id;
+      let name = [...wasm].find(([, f]) => f === file)?.[0];
+      if (name === undefined) {
+        const base = basename(file, ".wasm");
+        name = `${base}.wasm`;
+        for (let i = 2; wasm.has(name); i++) name = `${base}-${i}.wasm`;
+        wasm.set(name, file);
+      }
+      return { id: `./${name}`, external: "absolute" };
+    },
+    generateBundle(_options, output) {
+      // Resolved before tree-shaking: keep only the modules the output still imports.
+      const imported = new Set(Object.values(output).flatMap((chunk) => (chunk.type === "chunk" ? chunk.imports : [])));
+      for (const name of wasm.keys()) if (!imported.has(`./${name}`)) wasm.delete(name);
     },
   };
   const inline: InlineConfig = {
@@ -91,7 +122,9 @@ export async function bundleServerEntry(opts: BundleOptions): Promise<void> {
         output: { entryFileNames: basename(opts.outFile), format: "es", inlineDynamicImports: true },
       },
     },
-    plugins: [entryPlugin, builtins],
+    plugins: [entryPlugin, builtins, wasmModules],
   };
   await build(withFrameworkEntry(inline, opts.config.vite, { input: ENTRY, ssr: true }));
+  for (const [name, file] of wasm) copyFileSync(file, join(dirname(opts.outFile), name));
+  return { wasm: [...wasm.keys()] };
 }

@@ -184,7 +184,6 @@ export default defineConfig(({ isSsrBuild }) => ({
         : {
             moduleSideEffects(id) {
               if (
-                id.includes("yoga-layout") ||
                 id.includes("react-reconciler") ||
                 id.includes("/packages/core/") ||
                 id.includes("/packages/react/")
@@ -202,7 +201,7 @@ export default defineConfig(({ isSsrBuild }) => ({
             chunkFileNames: (info) =>
               info.name === "Errors" ? "assets/tx-codes-[hash].js" : info.facadeModuleId?.includes("/src/docs/content/") ? "assets/doc-[hash].js" : "assets/[name]-[hash].js",
             manualChunks(id) {
-              if (id.includes("yoga-layout")) return "yoga";
+              if (id.includes("/packages/core/src/yoga-")) return "yoga";
               if (id.includes("node_modules/react-reconciler/")) return "reconciler";
               if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return "react";
               return undefined;

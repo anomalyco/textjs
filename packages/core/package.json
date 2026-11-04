@@ -28,7 +28,17 @@
       "types": "./src/internal.ts",
       "default": "./src/internal.ts"
     },
+    "./yoga.wasm": "./yoga.wasm",
     "./package.json": "./package.json"
+  },
+  "imports": {
+    "#yoga-loader": {
+      "workerd": "./src/yoga-loader.workerd.ts",
+      "edge-light": "./src/yoga-loader.workerd.ts",
+      "bun": "./src/yoga-loader.node.ts",
+      "node": "./src/yoga-loader.node.ts",
+      "default": "./src/yoga-loader.browser.ts"
+    }
   },
   "publishConfig": {
     "main": "./dist/index.js",
@@ -45,12 +55,23 @@
       "./internal": {
         "types": "./dist/internal.d.ts",
         "default": "./dist/internal.js"
+      },
+      "./yoga.wasm": "./yoga.wasm"
+    },
+    "imports": {
+      "#yoga-loader": {
+        "workerd": "./dist/yoga-loader.workerd.js",
+        "edge-light": "./dist/yoga-loader.workerd.js",
+        "bun": "./dist/yoga-loader.node.js",
+        "node": "./dist/yoga-loader.node.js",
+        "default": "./dist/yoga-loader.browser.js"
       }
     }
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "yoga.wasm"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && bun ../../scripts/esm-specifiers.ts dist",

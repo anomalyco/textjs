@@ -38,6 +38,9 @@ describe("text build (examples/dashboard)", () => {
       expect(html).toContain("<title>Edge Console</title>");
       expect(html).toMatch(/<script type="module" crossorigin src="\/assets\/index-[\w-]+\.js"><\/script>/);
       const assets = readdirSync(join(dist, "assets"));
+      // Yoga's WebAssembly is preloaded, so it downloads alongside the entry script.
+      const wasm = assets.find((f) => /^yoga-[\w-]+\.wasm$/.test(f));
+      expect(html).toContain(`<link rel="preload" href="/assets/${wasm}" as="fetch" type="application/wasm" crossorigin>`);
       const js = assets.filter((f) => f.endsWith(".js"));
       expect(js.length).toBeGreaterThan(0);
       const bundle = js.map((f) => readFileSync(join(dist, "assets", f), "utf8")).join("\n");

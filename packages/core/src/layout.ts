@@ -2,38 +2,34 @@
  * Yoga WASM loader and incremental layout-prop application.
  */
 
-import {
-  Align,
-  Direction,
-  Display,
-  Edge,
-  FlexDirection,
-  Gutter,
-  Justify,
-  loadYoga,
-  MeasureMode,
-  Overflow,
-  PositionType,
-  Wrap,
-  type Config as YogaConfig,
-  type MeasureFunction,
-  type Node as YogaNode,
-  type Yoga,
-} from "yoga-layout/load";
+import { loadPlatformYoga } from "#yoga-loader";
+import type { Config as YogaConfig, MeasureFunction, Node as YogaNode, Yoga } from "yoga-layout/load";
 import { txError } from "./errors";
+import { Align, Direction, Display, Edge, FlexDirection, Gutter, Justify, MeasureMode, Overflow, PositionType, Wrap } from "./yoga-enums";
+import type { YogaWasmSource } from "./yoga-wasm";
 
-export type { Yoga, YogaConfig, YogaNode, MeasureFunction };
+export type { Yoga, YogaConfig, YogaNode, MeasureFunction, YogaWasmSource };
 export { MeasureMode, Direction, Edge };
 
 let yoga: Yoga | null = null;
 let yogaConfig: YogaConfig | null = null;
 let yogaPromise: Promise<Yoga> | null = null;
 
-/** Load the Yoga WASM module once (works in Bun, Node and browser ESM bundles). */
-export function initYoga(): Promise<Yoga> {
+export interface InitYogaOptions {
+  /**
+   * Where Yoga's WebAssembly comes from, for platforms the default can't
+   * reach. Browsers fetch `@textjs/core/yoga.wasm` (bundlers emit it as an
+   * asset), Node and Bun use the copy inside `yoga-layout`, and Workers import
+   * it as a module. Only the first call loads Yoga; later options are ignored.
+   */
+  wasm?: YogaWasmSource;
+}
+
+/** Load the Yoga WASM module once (works in browsers, Node, Bun and Workers). */
+export function initYoga(options?: InitYogaOptions): Promise<Yoga> {
   if (yoga !== null) return Promise.resolve(yoga);
   if (yogaPromise === null) {
-    yogaPromise = loadYoga().then((instance) => {
+    yogaPromise = loadPlatformYoga(options?.wasm).then((instance) => {
       yoga = instance;
       const config = instance.Config.create();
       config.setPointScaleFactor(1);

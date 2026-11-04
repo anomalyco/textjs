@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-test("bundles for browser ESM with inlined Yoga WASM and no Node built-ins", async () => {
+test("bundles for browser ESM with no Node built-ins, fetching yoga.wasm as an asset", async () => {
   const entry = fileURLToPath(new URL("../src/index.ts", import.meta.url));
   const result = await Bun.build({ entrypoints: [entry], target: "browser", format: "esm", minify: false });
   expect(result.success).toBe(true);
@@ -13,10 +13,13 @@ test("bundles for browser ESM with inlined Yoga WASM and no Node built-ins", asy
   const code = (await output?.text()) ?? "";
   expect(code).not.toMatch(/from\s+["']node:/);
   expect(code).not.toMatch(/\brequire\(["'](fs|path|module)["']\)/);
-  expect(code).toContain("loadYoga");
+  expect(code).toContain('new URL("@textjs/core/yoga.wasm", import.meta.url)');
+  // "\0asm" in base64: no inlined copy of the WebAssembly.
+  expect(code).not.toContain("AGFzbQ");
   expect(code).not.toContain("@keyframes s");
   expect(code).not.toMatch(/0xedb88320|3988292384/);
   expect(code.length).toBeGreaterThan(50_000);
+  expect(code.length).toBeLessThan(400_000);
 });
 
 test("the frame player's imports check for RTL text without the Bidi_Class table", async () => {

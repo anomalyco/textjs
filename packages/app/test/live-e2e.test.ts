@@ -253,7 +253,7 @@ describe.skipIf(!enabled)("server rendering + PPR in Chromium (text start)", () 
 
   test("the frame player is a fraction of the client bundle", () => {
     const assets = join(DASHBOARD, "dist", "assets");
-    const files = readdirSync(assets).filter((f) => f.endsWith(".js"));
+    const files = readdirSync(assets).filter((f) => /\.(js|wasm)$/.test(f));
     const size = (f: string): { raw: number; gzip: number } => {
       const buf = readFileSync(join(assets, f));
       return { raw: buf.length, gzip: gzipSync(buf).length };
@@ -270,7 +270,13 @@ describe.skipIf(!enabled)("server rendering + PPR in Chromium (text start)", () 
     // A `CellGrid`, not a `CellBuffer`: no drawing API (box borders, truncation).
     expect(playerJs).not.toContain("╭");
     expect(playerJs).not.toContain("truncate-");
-    const clientJs = files.filter((f) => !f.startsWith("player-")).map((f) => readFileSync(join(assets, f), "utf8")).join("\n");
+    // Yoga's WebAssembly is its own asset, fetched and compiled while it streams.
+    const wasm = files.filter((f) => f.endsWith(".wasm"));
+    expect(wasm).toEqual([expect.stringMatching(/^yoga-[\w-]+\.wasm$/)]);
+    expect(playerJs).not.toContain(".wasm");
+    const clientJs = files.filter((f) => f.endsWith(".js") && !f.startsWith("player-")).map((f) => readFileSync(join(assets, f), "utf8")).join("\n");
+    expect(clientJs).toContain(`/assets/${wasm[0]}`);
+    expect(clientJs).not.toContain("AGFzbQ");
     expect(clientJs).not.toContain("loadavg");
     expect(clientJs).not.toContain("probing…");
   });

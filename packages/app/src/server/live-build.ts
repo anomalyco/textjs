@@ -307,14 +307,14 @@ export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildRes
   return { manifest, shells, staticRoutes: staticPages.length, skipped, player, ansi };
 }
 
-/** Bytes of every client `.js` asset except the frame player (for size comparisons). */
+/** Bytes of every client `.js` and `.wasm` asset except the frame player (for size comparisons). */
 export function clientBundleBytes(outDir: string): { bytes: number; gzip: number } {
   let bytes = 0;
   let gzip = 0;
   const dir = join(outDir, "assets");
   if (!existsSync(dir)) return { bytes, gzip };
   for (const name of readdirSync(dir)) {
-    if (!name.endsWith(".js") || name.startsWith("player-")) continue;
+    if (!/\.(js|wasm)$/.test(name) || name.startsWith("player-")) continue;
     const buf = readFileSync(join(dir, name));
     bytes += buf.length;
     gzip += gzipSync(buf).length;

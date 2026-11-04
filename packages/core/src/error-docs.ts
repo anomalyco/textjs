@@ -454,6 +454,24 @@ export const dynamic = "force-static";
 
 Use \`"force-dynamic"\`, or remove the export, if the handler reads the request. See [Caching](/docs/caching).`,
   },
+  TX032: {
+    package: "@textjs/core",
+    title: "Yoga's WebAssembly failed to load",
+    cause: `In the browser, \`initYoga()\` fetches \`yoga.wasm\`, which your bundler emits next to your scripts (\`/assets/yoga-[hash].wasm\` in Vite builds). The request failed or returned an error status. Common causes are a server or CDN that doesn't serve the file, a bundler that doesn't emit \`new URL(…, import.meta.url)\` assets, and a Content Security Policy whose \`connect-src\` blocks the request.`,
+    fix: `Serve the file the bundler emitted, and allow it in your Content Security Policy. Compiling WebAssembly also needs \`'wasm-unsafe-eval'\` in \`script-src\`:
+
+~~~text
+Content-Security-Policy: script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'
+~~~
+
+If your bundler doesn't handle \`new URL(…, import.meta.url)\`, copy \`@textjs/core/yoga.wasm\` to your static files and pass its URL, its bytes or a compiled \`WebAssembly.Module\` before the first render:
+
+~~~ts
+import { initYoga } from "@textjs/core";
+
+await initYoga({ wasm: "/yoga.wasm" });
+~~~`,
+  },
 };
 
 export const TX_ERRORS: readonly TxErrorDoc[] = (Object.keys(TX_MESSAGES) as TxCode[]).map((code) => {
