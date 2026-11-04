@@ -477,8 +477,7 @@ function posterize(src: Uint32Array, out: Uint32Array, levels: number): Uint32Ar
 }
 
 async function boot(): Promise<void> {
-  // Bun.build doesn't emit `new URL(…, import.meta.url)` assets, so the harness serves yoga.wasm itself.
-  await initYoga({ wasm: "/yoga.wasm" });
+  await initYoga();
   let doom: DoomHost | null = null;
   if (new URLSearchParams(window.location.search).get("scenario") === "doom") {
     const [wasm, wad] = await Promise.all([fetch("/doom.wasm").then((r) => r.arrayBuffer()), fetch("/doom.wad").then((r) => r.arrayBuffer())]);

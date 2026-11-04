@@ -99,6 +99,8 @@ describe("deploy adapters (middleware + route handlers + cache)", () => {
       expect(JSON.parse(readFileSync(join(out, "functions/_middleware.func/.vc-config.json"), "utf8"))).toEqual({ runtime: "edge", entrypoint: "index.js" });
       const edgeSrc = readFileSync(join(out, "functions/_middleware.func/index.js"), "utf8");
       expect(edgeSrc).not.toMatch(/from ["']node:/);
+      // Vercel's Edge Runtime resolves `edge-light`, not `workerd`: no `.wasm` module imports.
+      expect(edgeSrc).not.toMatch(/\.wasm["']/);
       expect(existsSync(join(out, "static/index.html"))).toBe(true);
       expect(existsSync(join(out, "static/.text"))).toBe(false);
       expect(readdirSync(join(out, "static/assets")).some((f) => f.endsWith(".js"))).toBe(true);

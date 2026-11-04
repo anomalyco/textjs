@@ -34,6 +34,6 @@
     "scheduler": "^0.27.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
-    "yoga-layout": "^3.2.1"
+    "yoga-layout": "3.2.1"
   }
 }

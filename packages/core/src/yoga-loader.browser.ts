@@ -1,8 +1,9 @@
 /**
- * `#yoga-loader` for browsers (and every bundler without a more specific
- * condition): fetch `yoga.wasm` as an asset and compile it while it streams.
- * The package self-reference lets Vite, webpack and Rspack find and emit the
- * file, also from Vite's pre-bundled `node_modules/.vite/deps`.
+ * `#yoga-loader` under the `@textjs/wasm-asset` condition, which `text dev`
+ * and `text build` set for client builds: fetch `yoga.wasm` as an asset and
+ * compile it while it streams. The package self-reference lets Vite and
+ * webpack find and emit the file, also from Vite's pre-bundled
+ * `node_modules/.vite/deps`.
  */
 
 import type { Yoga } from "yoga-layout/load";

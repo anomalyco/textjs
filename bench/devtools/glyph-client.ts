@@ -46,8 +46,7 @@ function scene(title: string): SceneNode {
   );
 }
 
-// Bun.build doesn't emit `new URL(…, import.meta.url)` assets, so the harness serves yoga.wasm itself.
-await initYoga({ wasm: "/yoga.wasm" });
+await initYoga();
 
 function frameFor(title: string): CellBuffer {
   const root = scene(title);

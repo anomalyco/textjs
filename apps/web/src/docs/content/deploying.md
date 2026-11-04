@@ -95,6 +95,37 @@ compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 ```
 
+## WebAssembly
+
+Text.js apps load Yoga, the layout engine, from `assets/yoga-[hash].wasm` (72 KB, 29 KB with gzip). `text build` preloads it from every page. Server bundles and `text run` use the copy inside the `yoga-layout` package and need no file.
+
+- Serve `.wasm` files compressed, as you serve JavaScript. Vercel compresses `application/wasm` by default; nginx needs `application/wasm` in `gzip_types`. If your host compresses JavaScript but not `.wasm`, pages download about 32 KB more than with the inline copy.
+- Send `Content-Type: application/wasm`, so the browser compiles the file while it downloads. With another type, it compiles after the download.
+- Cache the file like the other hashed files in `assets/`. `Cache-Control: public, max-age=31536000, immutable` is safe there because the name changes with the content. Don't use `immutable` for paths without a hash.
+- If you set a Content Security Policy, add `'wasm-unsafe-eval'` to `script-src` and allow the file's origin in `connect-src` (`'self'`).
+- If unknown paths fall back to `index.html`, exclude `/assets/` from that rewrite. Otherwise a missing file returns HTML and `initYoga()` rejects with [TX032](/errors/TX032).
+
+### Your own Vite or webpack build
+
+Builds of `@textjs/core` and `@textjs/react` outside `text dev` and `text build` keep Yoga inline, which works in every bundler. To load the `.wasm` file instead, add the `@textjs/wasm-asset` resolve condition to your client build. Vite needs it for the dev pre-bundler too:
+
+```ts@vite.config.ts
+import { defaultClientConditions, defineConfig } from "vite";
+
+export default defineConfig({
+  resolve: { conditions: ["@textjs/wasm-asset", ...defaultClientConditions] },
+  optimizeDeps: { esbuildOptions: { conditions: ["@textjs/wasm-asset"] } },
+});
+```
+
+```js@webpack.config.js
+module.exports = {
+  resolve: { conditionNames: ["@textjs/wasm-asset", "..."] },
+};
+```
+
+Leave the condition out of server, prerender and test builds (Vitest, jsdom), which run fine with the inline copy.
+
 ## Upgrading
 
 Security fixes in `@textjs/app` reach a deployment only after you rebuild and redeploy it:

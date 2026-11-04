@@ -193,14 +193,21 @@ function wrapAssembly(lib) {
   };
 }
 
-/** Run Yoga's loader, with `instantiate` turning the loader's imports into a WebAssembly instance. */
+/**
+ * Run Yoga's loader, with `instantiate` turning the loader's imports into a WebAssembly instance.
+ * Rejects on any failure, including an instance that isn't Yoga's (the loader would wait forever).
+ */
 export function createYoga(instantiate: (imports: WebAssembly.Imports) => Promise<WebAssembly.Instance>): Promise<Yoga> {
   return new Promise((resolve, reject) => {
     loadYoga({
       instantiateWasm(imports, receiveInstance) {
-        instantiate(imports).then((instance) => receiveInstance(instance), reject);
+        instantiate(imports)
+          .then((instance) => receiveInstance(instance))
+          .catch(reject);
         return {};
       },
-    }).then((lib) => resolve(wrapAssembly(lib)), reject);
+    })
+      .then((lib) => resolve(wrapAssembly(lib)))
+      .catch(reject);
   });
 }

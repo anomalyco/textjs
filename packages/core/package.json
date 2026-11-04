@@ -34,10 +34,8 @@
   "imports": {
     "#yoga-loader": {
       "workerd": "./src/yoga-loader.workerd.ts",
-      "edge-light": "./src/yoga-loader.workerd.ts",
-      "bun": "./src/yoga-loader.node.ts",
-      "node": "./src/yoga-loader.node.ts",
-      "default": "./src/yoga-loader.browser.ts"
+      "@textjs/wasm-asset": "./src/yoga-loader.browser.ts",
+      "default": "./src/yoga-loader.inline.ts"
     }
   },
   "publishConfig": {
@@ -61,10 +59,8 @@
     "imports": {
       "#yoga-loader": {
         "workerd": "./dist/yoga-loader.workerd.js",
-        "edge-light": "./dist/yoga-loader.workerd.js",
-        "bun": "./dist/yoga-loader.node.js",
-        "node": "./dist/yoga-loader.node.js",
-        "default": "./dist/yoga-loader.browser.js"
+        "@textjs/wasm-asset": "./dist/yoga-loader.browser.js",
+        "default": "./dist/yoga-loader.inline.js"
       }
     }
   },
@@ -80,6 +76,6 @@
     "bench": "bun test test/perf.test.ts"
   },
   "dependencies": {
-    "yoga-layout": "^3.2.1"
+    "yoga-layout": "3.2.1"
   }
 }

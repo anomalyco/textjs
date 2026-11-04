@@ -63,11 +63,6 @@ export async function startBenchServer(port = 0): Promise<BenchServer> {
           },
         });
       }
-      if (url.pathname === "/yoga.wasm") {
-        return new Response(Bun.file(fileURLToPath(new URL("../../packages/core/yoga.wasm", import.meta.url))), {
-          headers: { "content-type": "application/wasm" },
-        });
-      }
       if (url.pathname === "/doom.wasm" || url.pathname === "/doom.wad") {
         const defaultPath = fileURLToPath(
           new URL(

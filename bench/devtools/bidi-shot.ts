@@ -54,7 +54,6 @@ const server = Bun.serve({
   port: 0,
   fetch(req) {
     if (new URL(req.url).pathname === "/bundle.js") return new Response(bundle, { headers: { "content-type": "application/javascript; charset=utf-8" } });
-    if (new URL(req.url).pathname === "/yoga.wasm") return new Response(Bun.file(fileURLToPath(new URL("../../packages/core/yoga.wasm", import.meta.url))), { headers: { "content-type": "application/wasm" } });
     return new Response(`<!doctype html><meta charset="utf-8"><title>bidi</title><div id="status">loading</div><script type="module" src="/bundle.js"></script>`, {
       headers: { "content-type": "text/html; charset=utf-8" },
     });

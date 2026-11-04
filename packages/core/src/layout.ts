@@ -17,10 +17,11 @@ let yogaPromise: Promise<Yoga> | null = null;
 
 export interface InitYogaOptions {
   /**
-   * Where Yoga's WebAssembly comes from, for platforms the default can't
-   * reach. Browsers fetch `@textjs/core/yoga.wasm` (bundlers emit it as an
-   * asset), Node and Bun use the copy inside `yoga-layout`, and Workers import
-   * it as a module. Only the first call loads Yoga; later options are ignored.
+   * Where Yoga's WebAssembly comes from. By default Yoga loads from the
+   * base64 copy inside `yoga-layout`; Cloudflare Workers import
+   * `@textjs/core/yoga.wasm` as a module, and builds that set the
+   * `@textjs/wasm-asset` resolve condition (`text dev`, `text build`) fetch it
+   * as an asset. Only the first call loads Yoga; later options are ignored.
    */
   wasm?: YogaWasmSource;
 }
@@ -29,16 +30,23 @@ export interface InitYogaOptions {
 export function initYoga(options?: InitYogaOptions): Promise<Yoga> {
   if (yoga !== null) return Promise.resolve(yoga);
   if (yogaPromise === null) {
-    yogaPromise = loadPlatformYoga(options?.wasm).then((instance) => {
-      yoga = instance;
+    let loading: Promise<Yoga>;
+    try {
+      loading = loadPlatformYoga(options?.wasm);
+    } catch (error) {
+      loading = Promise.reject(error);
+    }
+    const p = loading.then((instance) => {
       const config = instance.Config.create();
       config.setPointScaleFactor(1);
       config.setUseWebDefaults(false);
       yogaConfig = config;
+      yoga = instance;
       return instance;
     });
-    yogaPromise.catch(() => {
-      yogaPromise = null;
+    yogaPromise = p;
+    p.catch(() => {
+      if (yogaPromise === p) yogaPromise = null;
     });
   }
   return yogaPromise;

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { gzipSync } from "node:zlib";
-import { defineConfig, type Plugin } from "vite";
+import { defaultClientConditions, defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { translatedCaptions } from "./scripts/i18n/sources";
 import { i18nPlugin } from "./scripts/i18n/vite-plugin";
@@ -176,7 +176,6 @@ export default defineConfig(({ isSsrBuild }) => ({
     emptyOutDir: true,
     sourcemap: false,
     manifest: !isSsrBuild,
-    // Yoga 3.2 ships its WebAssembly inlined as base64 inside the engine chunk.
     chunkSizeWarningLimit: 1600,
     rollupOptions: {
       treeshake: isSsrBuild
@@ -209,6 +208,13 @@ export default defineConfig(({ isSsrBuild }) => ({
           },
     },
   },
+  // The client loads Yoga's WebAssembly as a hashed .wasm asset (@textjs/core's #yoga-loader); the prerenderer keeps the inline copy.
+  ...(isSsrBuild || process.env.VITEST
+    ? {}
+    : {
+        resolve: { conditions: ["@textjs/wasm-asset", ...defaultClientConditions] },
+        optimizeDeps: { esbuildOptions: { conditions: ["@textjs/wasm-asset"] } },
+      }),
   // The build-time prerenderer bundles the workspace packages (TypeScript sources) and keeps React external.
   ssr: { noExternal: [/^@textjs\//, "@textjs/app"] },
   server: { port: 3000 },

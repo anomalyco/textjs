@@ -42,7 +42,7 @@ export interface BundleOptions {
 }
 
 export interface BundleResult {
-  /** `.wasm` modules the bundle imports, copied next to `outFile` (worker targets only). */
+  /** `.wasm` modules the bundle imports, copied next to `outFile` (Cloudflare's `webworker` target only). */
   wasm: string[];
 }
 
@@ -50,6 +50,8 @@ const ENTRY = "virtual:textjs/server-entry";
 
 export async function bundleServerEntry(opts: BundleOptions): Promise<BundleResult> {
   const worker = opts.target === "webworker" || opts.target === "edge";
+  // Cloudflare's runtime is workerd; Vercel's Edge Runtime is not, and resolves `edge-light`.
+  const runtimeConditions = opts.target === "webworker" ? ["workerd", "worker", "edge-light"] : ["edge-light", "worker"];
   const entryPlugin: Plugin = {
     name: "textjs:server-entry",
     enforce: "pre",
@@ -70,14 +72,14 @@ export async function bundleServerEntry(opts: BundleOptions): Promise<BundleResu
       return builtinModules.includes(id) && !id.startsWith("_") ? { id: `node:${id}`, external: true } : null;
     },
   };
-  // Workers compile WebAssembly only at deploy time, from `.wasm` modules uploaded with the worker
+  // Cloudflare Workers compile WebAssembly only at deploy time, from `.wasm` modules uploaded with the worker
   // (`import yoga from "./yoga.wasm"` is a `WebAssembly.Module`): keep those imports and copy the files.
   const wasm = new Map<string, string>();
   const wasmModules: Plugin = {
     name: "textjs:worker-wasm",
     enforce: "pre",
     async resolveId(id, importer) {
-      if (!worker || !/\.wasm$/.test(id)) return null;
+      if (opts.target !== "webworker" || !/\.wasm$/.test(id)) return null;
       const resolved = await this.resolve(id, importer, { skipSelf: true });
       if (!resolved || resolved.external) return null;
       const file = resolved.id;
@@ -104,11 +106,11 @@ export async function bundleServerEntry(opts: BundleOptions): Promise<BundleResu
     clearScreen: false,
     publicDir: false,
     define: worker ? { "process.env.NODE_ENV": JSON.stringify("production") } : undefined,
-    resolve: worker ? { conditions: ["workerd", "worker", "edge-light", "browser", "import", "module", "default"] } : undefined,
+    resolve: worker ? { conditions: [...runtimeConditions, "browser", "import", "module", "default"] } : undefined,
     ssr: {
       target: worker ? "webworker" : "node",
       noExternal: true,
-      ...(worker ? { resolve: { conditions: ["workerd", "worker", "edge-light", "import", "module", "default"], externalConditions: ["workerd", "worker"] } } : {}),
+      ...(worker ? { resolve: { conditions: [...runtimeConditions, "import", "module", "default"], externalConditions: runtimeConditions.slice(0, 2) } } : {}),
     },
     build: {
       outDir: dirname(opts.outFile),

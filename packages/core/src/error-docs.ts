@@ -457,20 +457,22 @@ Use \`"force-dynamic"\`, or remove the export, if the handler reads the request.
   TX032: {
     package: "@textjs/core",
     title: "Yoga's WebAssembly failed to load",
-    cause: `In the browser, \`initYoga()\` fetches \`yoga.wasm\`, which your bundler emits next to your scripts (\`/assets/yoga-[hash].wasm\` in Vite builds). The request failed or returned an error status. Common causes are a server or CDN that doesn't serve the file, a bundler that doesn't emit \`new URL(…, import.meta.url)\` assets, and a Content Security Policy whose \`connect-src\` blocks the request.`,
-    fix: `Serve the file the bundler emitted, and allow it in your Content Security Policy. Compiling WebAssembly also needs \`'wasm-unsafe-eval'\` in \`script-src\`:
+    cause: `\`initYoga()\` loads Yoga's WebAssembly from a \`.wasm\` file in Text.js apps (\`text dev\`, \`text build\`), in builds that set the \`@textjs/wasm-asset\` resolve condition, and when you pass \`initYoga({ wasm })\`. The request failed, returned an error status, or what came back wasn't valid WebAssembly. The error names the URL and the \`Content-Type\` the server sent. The two common causes are a server that answers the \`.wasm\` URL with an HTML fallback page, and a Content Security Policy without \`'wasm-unsafe-eval'\` in \`script-src\`.`,
+    fix: `Make the URL from the error return the file, ideally with \`Content-Type: application/wasm\`. A rewrite that serves \`index.html\` for unknown paths has to skip \`/assets/\`. Allow WebAssembly in your Content Security Policy:
 
 ~~~text
 Content-Security-Policy: script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'
 ~~~
 
-If your bundler doesn't handle \`new URL(…, import.meta.url)\`, copy \`@textjs/core/yoga.wasm\` to your static files and pass its URL, its bytes or a compiled \`WebAssembly.Module\` before the first render:
+To serve the file from somewhere else, pass \`initYoga()\` its URL, its bytes or a compiled \`WebAssembly.Module\` before the first render:
 
 ~~~ts
 import { initYoga } from "@textjs/core";
 
 await initYoga({ wasm: "/yoga.wasm" });
-~~~`,
+~~~
+
+See [WebAssembly](/docs/deploying#webassembly).`,
   },
 };
 

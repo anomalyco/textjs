@@ -22,7 +22,7 @@ import {
 import { keyEventFromCombo } from "./keys";
 import { createConsoleRootSync, type ConsoleRoot, type ConsoleRootOptions } from "./root";
 
-// Yoga's WebAssembly loads through `fetch` (a data: URL on Node and Bun, yoga.wasm in browsers). Start it on import, before a test can stub `fetch`.
+// Yoga's WebAssembly loads through `fetch` (a data: URL, or yoga.wasm in Text.js app builds). Start it on import, before a test can stub `fetch`.
 void initYoga();
 
 function enableActEnvironment(): void {
