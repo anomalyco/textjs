@@ -6,13 +6,13 @@
 
 Text.js là một framework React dành cho ứng dụng render trong console của trình duyệt.
 
-<!-- i18n:languages -->
-[English](../../README.md) · [Bahasa Indonesia](README.id.md) · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md) · [Italiano](README.it.md) · [Polski](README.pl.md) · [Português (Brasil)](README.pt-BR.md) · Tiếng Việt · [Türkçe](README.tr.md) · [Русский](README.ru.md) · [हिन्दी](README.hi.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [⁨العربية⁩](README.ar.md) · [⁨עברית⁩](README.he.md) · [⁨فارسی⁩](README.fa.md) · [⁨اردو⁩](README.ur.md)
-<!-- /i18n:languages -->
-
 [Tài liệu](https://textjs.org/vi/docs) · [Học](https://textjs.org/vi/learn) · [Playground](https://textjs.org/vi/playground) · [OpenCode](https://textjs.org/vi/opencode)
 
-<img src="../../brand/share/2-console-frame.png" alt="A Text.js app rendered in the Chrome DevTools console" width="720" />
+<img src="../../brand/share/2-console-frame.png" alt="Ứng dụng Text.js render trong console của Chrome DevTools" width="720" />
+
+<!-- i18n:languages -->
+[English](../../README.md) · [Bahasa Indonesia](README.id.md) · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md) · [Italiano](README.it.md) · [Polski](README.pl.md) · [Português (Brasil)](README.pt-BR.md) · Tiếng Việt · [Türkçe](README.tr.md) · [Русский](README.ru.md) · [हिन्दी](README.hi.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [<span dir="rtl">العربية</span>](README.ar.md) · [<span dir="rtl">עברית</span>](README.he.md) · [<span dir="rtl">فارسی</span>](README.fa.md) · [<span dir="rtl">اردو</span>](README.ur.md)
+<!-- /i18n:languages -->
 
 </div>
 

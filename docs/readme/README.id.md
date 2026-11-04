@@ -6,13 +6,13 @@
 
 Text.js adalah framework React untuk aplikasi yang di-render di konsol browser.
 
-<!-- i18n:languages -->
-[English](../../README.md) · Bahasa Indonesia · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md) · [Italiano](README.it.md) · [Polski](README.pl.md) · [Português (Brasil)](README.pt-BR.md) · [Tiếng Việt](README.vi.md) · [Türkçe](README.tr.md) · [Русский](README.ru.md) · [हिन्दी](README.hi.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [⁨العربية⁩](README.ar.md) · [⁨עברית⁩](README.he.md) · [⁨فارسی⁩](README.fa.md) · [⁨اردو⁩](README.ur.md)
-<!-- /i18n:languages -->
-
 [Dokumentasi](https://textjs.org/id/docs) · [Belajar](https://textjs.org/id/learn) · [Playground](https://textjs.org/id/playground) · [OpenCode](https://textjs.org/id/opencode)
 
-<img src="../../brand/share/2-console-frame.png" alt="A Text.js app rendered in the Chrome DevTools console" width="720" />
+<img src="../../brand/share/2-console-frame.png" alt="Aplikasi Text.js yang di-render di konsol Chrome DevTools" width="720" />
+
+<!-- i18n:languages -->
+[English](../../README.md) · Bahasa Indonesia · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md) · [Italiano](README.it.md) · [Polski](README.pl.md) · [Português (Brasil)](README.pt-BR.md) · [Tiếng Việt](README.vi.md) · [Türkçe](README.tr.md) · [Русский](README.ru.md) · [हिन्दी](README.hi.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [<span dir="rtl">العربية</span>](README.ar.md) · [<span dir="rtl">עברית</span>](README.he.md) · [<span dir="rtl">فارسی</span>](README.fa.md) · [<span dir="rtl">اردو</span>](README.ur.md)
+<!-- /i18n:languages -->
 
 </div>
 

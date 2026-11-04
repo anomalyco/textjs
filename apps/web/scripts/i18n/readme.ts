@@ -14,7 +14,7 @@ import { join, relative } from "node:path";
 import { LOCALES, localePath, SOURCE_LOCALE, type Locale } from "../../src/i18n/locales";
 import { matchRoute } from "../../src/router";
 import { isolateLatin } from "./bidi";
-import { parseTranslation, segment } from "./document";
+import { parseTranslation, segment, withAlt } from "./document";
 import { readText, REPO_DIR, translationFile } from "./sources";
 
 export const README = join(REPO_DIR, "README.md");
@@ -23,31 +23,31 @@ const LANGUAGES = /<!-- i18n:languages -->[\s\S]*?<!-- \/i18n:languages -->/;
 const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 const GENERATED = "<!-- Built from README.md by apps/web/scripts/i18n/readme.ts. Edit README.md, then run `bun run i18n:translate` in apps/web. -->";
 
-/** Every live and draft locale has a README. */
+/**
+ * Live locales have a README. Draft locales don't: a file in the repo is public and indexed, while draft pages on
+ * the site are `noindex`.
+ */
 export function readmeLocales(): Locale[] {
-  return LOCALES.filter((l) => l.status === "live" || l.status === "draft");
+  return LOCALES.filter((l) => l.status === "live");
 }
 
 export function readmeFile(code: string): string {
   return join(README_DIR, `README.${code}.md`);
 }
 
-/**
- * English and the live locales, each linking to its README. The current README's language is plain text, and is
- * listed even while it's a draft.
- */
+/** English and the live locales, each linking to its README. The current README's language is plain text. */
 export function languageLine(current: Locale): string {
   const href = (l: Locale): string => (l === SOURCE_LOCALE ? "../../README.md" : current === SOURCE_LOCALE ? `docs/readme/README.${l.code}.md` : `README.${l.code}.md`);
   return LOCALES.filter((l) => l === current || l.status === "source" || l.status === "live")
     .map((l) => {
-      // A name written in the other direction is isolated, or neighbours like العربية · עברית swap places.
-      const name = l.dir === current.dir ? l.name : `\u2068${l.name}\u2069`;
+      // A name written in the other direction gets its own `dir`, or neighbours like العربية · עברית swap places.
+      const name = l.dir === current.dir ? l.name : `<span dir="${l.dir}">${l.name}</span>`;
       return l === current ? name : `[${name}](${href(l)})`;
     })
     .join(" · ");
 }
 
-const languages = (locale: Locale): string => `<!-- i18n:languages -->\n${locale.dir === "rtl" ? "\u200f" : ""}${languageLine(locale)}\n<!-- /i18n:languages -->`;
+const languages = (locale: Locale): string => `<!-- i18n:languages -->\n${languageLine(locale)}\n<!-- /i18n:languages -->`;
 
 const SITE = /^https:\/\/textjs\.org(\/[^?#]*)?([?#].*)?$/;
 
@@ -67,22 +67,20 @@ export function readmeLink(target: string, locale: Locale): string {
 }
 
 const CODE = /(`+)(?!`)(.+?)(?<!`)\1(?!`)/g;
-const LIST_ITEM = /^(\s*(?:[-*+]|\d+[.)])\s+)(.*)$/gm;
-const RTL_LETTER = /[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufefc]/;
-/** A right-to-left mark for text whose first letter isn't right-to-left (link targets aside). */
-const mark = (text: string): string => (RTL_LETTER.test(/\p{L}/u.exec(text.replace(/\]\([^)]*\)/g, "]"))?.[0] ?? "") ? "" : "\u200f");
+/** Bidi controls (marks, embeddings, isolates). GitHub flags a file that has any as "hidden or bidirectional Unicode text". */
+const BIDI_CONTROLS = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
 
 /**
- * A translated block in a right-to-left README. GitHub gives every paragraph, heading and list `dir="auto"`, which
- * follows the first strong letter, so a block that opens with Latin (`@textjs/app`, `MIT`) starts with a
- * right-to-left mark. Latin runs and code spans are isolated, or `%c` reads `c%` and `@textjs/app` reads
- * `textjs/app@`.
+ * A translated block in a right-to-left README, with no bidi control characters. Latin runs (`bidi.ts`) and code
+ * spans go in `<span dir="ltr">`, or `%c` reads `c%` and `@textjs/app` reads `textjs/app@`. GitHub gives every
+ * paragraph, heading and list `dir="auto"`, which skips elements with their own `dir`, so a block that opens with a
+ * package name still reads right to left.
  */
 function rtlBlock(text: string): string {
-  const isolated = isolateLatin(text).replace(CODE, (code) => `\u2066${code}\u2069`);
-  if (/^\s*\|/.test(isolated)) return isolated;
-  if (/^\s*([-*+]|\d+[.)])\s/.test(isolated)) return isolated.replace(LIST_ITEM, (_m, marker: string, item: string) => marker + mark(item) + item);
-  return mark(isolated) + isolated;
+  return isolateLatin(text.replace(BIDI_CONTROLS, ""))
+    .replace(/!\[[^\]]*\]/g, (alt) => alt.replace(BIDI_CONTROLS, ""))
+    .replace(CODE, (code) => `\u2066${code}\u2069`)
+    .replace(/\u2066([^\u2069]*)\u2069/g, '<span dir="ltr">$1</span>');
 }
 
 const links = (text: string, locale: Locale): string => text.replace(/(\]\(|\bsrc=")([^)"\s]+)/g, (_m, lead: string, target: string) => lead + readmeLink(target, locale));
@@ -90,7 +88,7 @@ const links = (text: string, locale: Locale): string => text.replace(/(\]\(|\bsr
 /**
  * One locale's README. Code fences, HTML and the H1 come from English; prose without a current translation stays
  * English after an `<!-- i18n:en -->` line. GitHub renders Markdown left to right, so a right-to-left README wraps
- * everything but code fences in `<div dir="rtl">` (`rtlBlock`).
+ * everything but code fences in `<div dir="rtl">` (`rtlBlock`), and English fallback blocks in `<div dir="ltr">`.
  */
 export function renderReadme(locale: Locale, english = readFileSync(README, "utf8")): string {
   const translations = parseTranslation(readText(translationFile(locale.code, "readme")));
@@ -108,8 +106,13 @@ export function renderReadme(locale: Locale, english = readFileSync(README, "utf
       continue;
     }
     const found = translations.get(b.id);
+    if (b.kind === "alt") {
+      out.push(links(found ? withAlt(b, found.replace(BIDI_CONTROLS, "")) : (b.html as string), locale));
+      continue;
+    }
     if (!found) {
-      out.push("<!-- i18n:en -->", links(b.text, locale));
+      // Nested rather than closing the wrapper, which may sit outside an open `<div align="center">`.
+      out.push("<!-- i18n:en -->", rtl ? `<div dir="ltr">\n\n${links(b.text, locale)}\n\n</div>` : links(b.text, locale));
       continue;
     }
     const hashes = b.kind === "heading" ? `${/^\s{0,3}(#{1,6})/.exec(b.text)?.[1]} ` : "";
@@ -126,19 +129,27 @@ export function renderRoot(english = readFileSync(README, "utf8")): string {
 }
 
 /** Every README this writes, by path. */
-export function readmeOutputs(): Map<string, string> {
-  const english = readFileSync(README, "utf8");
+export function readmeOutputs(english = readFileSync(README, "utf8")): Map<string, string> {
   const out = new Map([[README, renderRoot(english)]]);
   for (const l of readmeLocales()) out.set(readmeFile(l.code), renderReadme(l, english));
   return out;
 }
 
-/** READMEs that differ from what `i18n:readme` writes, are missing, or belong to no locale (repo-relative). */
-export function staleReadmes(): string[] {
-  const outputs = readmeOutputs();
-  const stale = [...outputs].filter(([file, text]) => readText(file) !== text).map(([file]) => file);
-  const extra = existsSync(README_DIR) ? readdirSync(README_DIR).map((f) => join(README_DIR, f)).filter((f) => !outputs.has(f)) : [];
-  return [...stale, ...extra].map((f) => relative(REPO_DIR, f));
+export interface ReadmeStatus {
+  /** Fixable without an API key by `bun run i18n:readme`: README.md's language line, and files of no live locale. */
+  errors: string[];
+  /** Localized READMEs behind README.md or their translations; a Mac `i18n:translate` run refreshes them. */
+  stale: string[];
+}
+
+/** `english` is README.md as committed; tests pass an edited copy. */
+export function readmeStatus(english = readFileSync(README, "utf8")): ReadmeStatus {
+  const outputs = readmeOutputs(english);
+  const errors: string[] = [];
+  if (renderRoot(english) !== english) errors.push("README.md: the language line is out of date (bun run i18n:readme)");
+  if (existsSync(README_DIR)) for (const f of readdirSync(README_DIR)) if (!outputs.has(join(README_DIR, f))) errors.push(`docs/readme/${f} isn't a live locale's README (bun run i18n:readme)`);
+  const stale = [...outputs].filter(([file, text]) => file !== README && readText(file) !== text).map(([file]) => relative(REPO_DIR, file));
+  return { errors, stale };
 }
 
 export function writeReadmes(): void {

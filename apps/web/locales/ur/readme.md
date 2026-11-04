@@ -4,6 +4,9 @@ Text.js ان ایپس کے لیے React کا فریم ورک ہے جو براؤ�
 <!-- s:814ee9e9d7 -->
 [دستاویزات](https://textjs.org/docs) · [سیکھیں](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
+<!-- s:bc834fc57b -->
+Chrome DevTools کونسول میں رینڈر کردہ Text.js ایپ
+
 <!-- s:9535b10be9 -->
 فوری آغاز
 

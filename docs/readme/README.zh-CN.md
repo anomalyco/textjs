@@ -6,13 +6,13 @@
 
 Text.js 是一个 React 框架，用于构建在浏览器控制台中渲染的应用。
 
-<!-- i18n:languages -->
-[English](../../README.md) · [Bahasa Indonesia](README.id.md) · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md) · [Italiano](README.it.md) · [Polski](README.pl.md) · [Português (Brasil)](README.pt-BR.md) · [Tiếng Việt](README.vi.md) · [Türkçe](README.tr.md) · [Русский](README.ru.md) · [हिन्दी](README.hi.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · 简体中文 · [繁體中文](README.zh-TW.md) · [⁨العربية⁩](README.ar.md) · [⁨עברית⁩](README.he.md) · [⁨فارسی⁩](README.fa.md) · [⁨اردو⁩](README.ur.md)
-<!-- /i18n:languages -->
-
 [文档](https://textjs.org/zh-cn/docs) · [学习](https://textjs.org/zh-cn/learn) · [Playground](https://textjs.org/zh-cn/playground) · [OpenCode](https://textjs.org/zh-cn/opencode)
 
-<img src="../../brand/share/2-console-frame.png" alt="A Text.js app rendered in the Chrome DevTools console" width="720" />
+<img src="../../brand/share/2-console-frame.png" alt="在 Chrome DevTools 控制台中渲染的 Text.js 应用" width="720" />
+
+<!-- i18n:languages -->
+[English](../../README.md) · [Bahasa Indonesia](README.id.md) · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md) · [Italiano](README.it.md) · [Polski](README.pl.md) · [Português (Brasil)](README.pt-BR.md) · [Tiếng Việt](README.vi.md) · [Türkçe](README.tr.md) · [Русский](README.ru.md) · [हिन्दी](README.hi.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · 简体中文 · [繁體中文](README.zh-TW.md) · [<span dir="rtl">العربية</span>](README.ar.md) · [<span dir="rtl">עברית</span>](README.he.md) · [<span dir="rtl">فارسی</span>](README.fa.md) · [<span dir="rtl">اردو</span>](README.ur.md)
+<!-- /i18n:languages -->
 
 </div>
 

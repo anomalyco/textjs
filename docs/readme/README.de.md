@@ -6,13 +6,13 @@
 
 Text.js ist ein React-Framework für Apps, die in der Browser-Konsole rendern.
 
-<!-- i18n:languages -->
-[English](../../README.md) · [Bahasa Indonesia](README.id.md) · Deutsch · [Español](README.es.md) · [Français](README.fr.md) · [Italiano](README.it.md) · [Polski](README.pl.md) · [Português (Brasil)](README.pt-BR.md) · [Tiếng Việt](README.vi.md) · [Türkçe](README.tr.md) · [Русский](README.ru.md) · [हिन्दी](README.hi.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [⁨العربية⁩](README.ar.md) · [⁨עברית⁩](README.he.md) · [⁨فارسی⁩](README.fa.md) · [⁨اردو⁩](README.ur.md)
-<!-- /i18n:languages -->
-
 [Dokumentation](https://textjs.org/de/docs) · [Lernen](https://textjs.org/de/learn) · [Playground](https://textjs.org/de/playground) · [OpenCode](https://textjs.org/de/opencode)
 
-<img src="../../brand/share/2-console-frame.png" alt="A Text.js app rendered in the Chrome DevTools console" width="720" />
+<img src="../../brand/share/2-console-frame.png" alt="Eine Text.js-App, gerendert in der Konsole der Chrome DevTools" width="720" />
+
+<!-- i18n:languages -->
+[English](../../README.md) · [Bahasa Indonesia](README.id.md) · Deutsch · [Español](README.es.md) · [Français](README.fr.md) · [Italiano](README.it.md) · [Polski](README.pl.md) · [Português (Brasil)](README.pt-BR.md) · [Tiếng Việt](README.vi.md) · [Türkçe](README.tr.md) · [Русский](README.ru.md) · [हिन्दी](README.hi.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [<span dir="rtl">العربية</span>](README.ar.md) · [<span dir="rtl">עברית</span>](README.he.md) · [<span dir="rtl">فارسی</span>](README.fa.md) · [<span dir="rtl">اردو</span>](README.ur.md)
+<!-- /i18n:languages -->
 
 </div>
 
@@ -65,8 +65,8 @@ Jeder Frame erhält sein Layout mit Yoga, wird per Lauflängenkodierung in `%c`-
 
 Auch die Editor- und Browser-Erweiterungen liegen hier:
 
-- [`packages/vscode-textjs`](../../packages/vscode-textjs): die [VS Code-Erweiterung](https://textjs.org/de/docs/vscode), mit Live-Vorschau, Gerüsten für den App Router und Links zu Fehlercodes
-- [`packages/devtools-extension`](../../packages/devtools-extension): die [Chrome DevTools-Erweiterung](https://textjs.org/de/docs/devtools-extension), mit Komponentenbaum, Frame-Inspektor und Zeitleiste
+- [`packages/vscode-textjs`](../../packages/vscode-textjs): die [VS-Code-Erweiterung](https://textjs.org/de/docs/vscode), mit Live-Vorschau, Gerüsten für den App Router und Links zu Fehlercodes
+- [`packages/devtools-extension`](../../packages/devtools-extension): die [Chrome-DevTools-Erweiterung](https://textjs.org/de/docs/devtools-extension), mit Komponentenbaum, Frame-Inspektor und Zeitleiste
 
 ## Entwicklung
 

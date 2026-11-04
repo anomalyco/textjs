@@ -4,6 +4,9 @@ Text.js هو إطار عمل React لتطبيقات تُعرض في وحدة ا�
 <!-- s:814ee9e9d7 -->
 [التوثيق](https://textjs.org/docs) · [تعلّم](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
+<!-- s:bc834fc57b -->
+تطبيق Text.js معروض في وحدة التحكم في Chrome DevTools
+
 <!-- s:9535b10be9 -->
 البدء السريع
 

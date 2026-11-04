@@ -4,6 +4,9 @@ Text.js הוא פריימוורק React לאפליקציות שמרנדרות ב
 <!-- s:814ee9e9d7 -->
 [תיעוד](https://textjs.org/docs) · [למידה](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
+<!-- s:bc834fc57b -->
+אפליקציית Text.js מרונדרת במסוף של Chrome DevTools
+
 <!-- s:9535b10be9 -->
 התחלה מהירה
 

@@ -4,6 +4,9 @@ Text.js — это React-фреймворк для приложений, кот
 <!-- s:814ee9e9d7 -->
 [Документация](https://textjs.org/docs) · [Обучение](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
+<!-- s:bc834fc57b -->
+Приложение Text.js, отображённое в консоли Chrome DevTools
+
 <!-- s:9535b10be9 -->
 Быстрый старт
 

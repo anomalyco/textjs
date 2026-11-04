@@ -4,6 +4,9 @@ Text.js, tarayıcı konsolunda render edilen uygulamalar için bir React framewo
 <!-- s:814ee9e9d7 -->
 [Belgeler](https://textjs.org/docs) · [Öğren](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
+<!-- s:bc834fc57b -->
+Chrome DevTools konsolunda render edilen bir Text.js uygulaması
+
 <!-- s:9535b10be9 -->
 Hızlı başlangıç
 

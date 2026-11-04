@@ -6,13 +6,13 @@
 
 Text.js ब्राउज़र कंसोल में रेंडर होने वाले ऐप्स के लिए एक React फ़्रेमवर्क है।
 
-<!-- i18n:languages -->
-[English](../../README.md) · [Bahasa Indonesia](README.id.md) · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md) · [Italiano](README.it.md) · [Polski](README.pl.md) · [Português (Brasil)](README.pt-BR.md) · [Tiếng Việt](README.vi.md) · [Türkçe](README.tr.md) · [Русский](README.ru.md) · हिन्दी · [日本語](README.ja.md) · [한국어](README.ko.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [⁨العربية⁩](README.ar.md) · [⁨עברית⁩](README.he.md) · [⁨فارسی⁩](README.fa.md) · [⁨اردو⁩](README.ur.md)
-<!-- /i18n:languages -->
-
 [डॉक्स](https://textjs.org/hi/docs) · [सीखें](https://textjs.org/hi/learn) · [Playground](https://textjs.org/hi/playground) · [OpenCode](https://textjs.org/hi/opencode)
 
-<img src="../../brand/share/2-console-frame.png" alt="A Text.js app rendered in the Chrome DevTools console" width="720" />
+<img src="../../brand/share/2-console-frame.png" alt="Chrome DevTools कंसोल में रेंडर हुआ एक Text.js ऐप" width="720" />
+
+<!-- i18n:languages -->
+[English](../../README.md) · [Bahasa Indonesia](README.id.md) · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md) · [Italiano](README.it.md) · [Polski](README.pl.md) · [Português (Brasil)](README.pt-BR.md) · [Tiếng Việt](README.vi.md) · [Türkçe](README.tr.md) · [Русский](README.ru.md) · हिन्दी · [日本語](README.ja.md) · [한국어](README.ko.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [<span dir="rtl">العربية</span>](README.ar.md) · [<span dir="rtl">עברית</span>](README.he.md) · [<span dir="rtl">فارسی</span>](README.fa.md) · [<span dir="rtl">اردو</span>](README.ur.md)
+<!-- /i18n:languages -->
 
 </div>
 
@@ -49,7 +49,7 @@ export default function Page() {
 }
 ```
 
-हर फ़्रेम का लेआउट Yoga से बनता है, उसे `%c` span में रन-लेंथ एन्कोड किया जाता है और एक `console.log` कॉल में लिखा जाता है। जिस फ़्रेम में कोई सेल नहीं बदला हो, वह कुछ लॉग नहीं करता। [`ARCHITECTURE.md`](../../ARCHITECTURE.md) फ़ाइल में रेंडरिंग पाइपलाइन की जानकारी है।
+Yoga हर फ़्रेम का लेआउट बनाता है, Text.js उसे `%c` span में रन-लेंथ एन्कोड करता है और एक `console.log` कॉल में लिखता है। जिस फ़्रेम में कोई सेल नहीं बदला हो, वह कुछ लॉग नहीं करता। [`ARCHITECTURE.md`](../../ARCHITECTURE.md) फ़ाइल में रेंडरिंग पाइपलाइन की जानकारी है।
 
 ## पैकेज
 

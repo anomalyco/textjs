@@ -4,6 +4,9 @@ Text.jsは、ブラウザーのコンソールに描画するアプリのため�
 <!-- s:814ee9e9d7 -->
 [ドキュメント](https://textjs.org/docs) · [学習](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
+<!-- s:bc834fc57b -->
+Chrome DevToolsのコンソールに描画されたText.jsアプリ
+
 <!-- s:9535b10be9 -->
 クイックスタート
 

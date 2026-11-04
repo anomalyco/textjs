@@ -4,6 +4,9 @@ Text.js ist ein React-Framework für Apps, die in der Browser-Konsole rendern.
 <!-- s:814ee9e9d7 -->
 [Dokumentation](https://textjs.org/docs) · [Lernen](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
+<!-- s:bc834fc57b -->
+Eine Text.js-App, gerendert in der Konsole der Chrome DevTools
+
 <!-- s:9535b10be9 -->
 Schnellstart
 
@@ -34,8 +37,8 @@ Pakete
 Auch die Editor- und Browser-Erweiterungen liegen hier:
 
 <!-- s:cbba2b4208 -->
-- [`packages/vscode-textjs`](packages/vscode-textjs): die [VS Code-Erweiterung](https://textjs.org/docs/vscode), mit Live-Vorschau, Gerüsten für den App Router und Links zu Fehlercodes
-- [`packages/devtools-extension`](packages/devtools-extension): die [Chrome DevTools-Erweiterung](https://textjs.org/docs/devtools-extension), mit Komponentenbaum, Frame-Inspektor und Zeitleiste
+- [`packages/vscode-textjs`](packages/vscode-textjs): die [VS-Code-Erweiterung](https://textjs.org/docs/vscode), mit Live-Vorschau, Gerüsten für den App Router und Links zu Fehlercodes
+- [`packages/devtools-extension`](packages/devtools-extension): die [Chrome-DevTools-Erweiterung](https://textjs.org/docs/devtools-extension), mit Komponentenbaum, Frame-Inspektor und Zeitleiste
 
 <!-- s:08b48c3d0b -->
 Entwicklung

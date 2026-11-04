@@ -4,6 +4,9 @@ Text.js ब्राउज़र कंसोल में रेंडर ह�
 <!-- s:814ee9e9d7 -->
 [डॉक्स](https://textjs.org/docs) · [सीखें](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
+<!-- s:bc834fc57b -->
+Chrome DevTools कंसोल में रेंडर हुआ एक Text.js ऐप
+
 <!-- s:9535b10be9 -->
 शुरुआत
 
@@ -14,7 +17,7 @@ Text.js ब्राउज़र कंसोल में रेंडर ह�
 उदाहरण
 
 <!-- s:3f1f0605f9 -->
-हर फ़्रेम का लेआउट Yoga से बनता है, उसे `%c` span में रन-लेंथ एन्कोड किया जाता है और एक `console.log` कॉल में लिखा जाता है। जिस फ़्रेम में कोई सेल नहीं बदला हो, वह कुछ लॉग नहीं करता। [`ARCHITECTURE.md`](ARCHITECTURE.md) फ़ाइल में रेंडरिंग पाइपलाइन की जानकारी है।
+Yoga हर फ़्रेम का लेआउट बनाता है, Text.js उसे `%c` span में रन-लेंथ एन्कोड करता है और एक `console.log` कॉल में लिखता है। जिस फ़्रेम में कोई सेल नहीं बदला हो, वह कुछ लॉग नहीं करता। [`ARCHITECTURE.md`](ARCHITECTURE.md) फ़ाइल में रेंडरिंग पाइपलाइन की जानकारी है।
 
 <!-- s:8b78543399 -->
 पैकेज

@@ -4,6 +4,9 @@ Text.js는 브라우저 콘솔에서 렌더링하는 앱을 위한 React 프레�
 <!-- s:814ee9e9d7 -->
 [문서](https://textjs.org/docs) · [학습](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
+<!-- s:bc834fc57b -->
+Chrome DevTools 콘솔에 렌더링된 Text.js 앱
+
 <!-- s:9535b10be9 -->
 빠른 시작
 

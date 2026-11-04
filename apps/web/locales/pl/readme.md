@@ -4,6 +4,9 @@ Text.js to framework React do aplikacji renderowanych w konsoli przeglądarki.
 <!-- s:814ee9e9d7 -->
 [Dokumentacja](https://textjs.org/docs) · [Nauka](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
+<!-- s:bc834fc57b -->
+Aplikacja Text.js wyrenderowana w konsoli DevTools przeglądarki Chrome
+
 <!-- s:9535b10be9 -->
 Szybki start
 

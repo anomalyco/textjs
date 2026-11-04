@@ -11,13 +11,21 @@
 import { createHash } from "node:crypto";
 import { slugify } from "../../src/docs/meta";
 
-export type BlockKind = "verbatim" | "heading" | "prose";
+export type BlockKind = "verbatim" | "heading" | "prose" | "alt";
 
 export interface Block {
   kind: BlockKind;
+  /** The English text; for `alt`, the attribute's value. */
   text: string;
-  /** Hash of the English text (prose and headings). */
+  /** Hash of the English text (prose, headings and alt text). */
   id: string;
+  /** `alt`: the HTML block the text came from, which stays verbatim. */
+  html?: string;
+}
+
+/** An `alt` block's markup with the alt text replaced. */
+export function withAlt(block: Block, alt: string): string {
+  return (block.html as string).replace(/\balt="[^"]*"/, `alt="${alt.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"`);
 }
 
 export function blockId(text: string): string {
@@ -28,8 +36,12 @@ const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 const HEADING = /^\s{0,3}#{1,6}\s/;
 /** `## [1.3.0] - 2026-11-03` and `## Unreleased`: release headers are data, not prose. */
 const VERSION_HEADER = /^##\s+\[?(\d[\w.-]*|Unreleased)\]?(\s+-\s+\d{4}-\d{2}-\d{2})?\s*$/i;
-/** A block of HTML tags and nothing else (`<div align="center">`, `<img … />`, `</div>`), as in README.md. */
+/**
+ * A block of HTML tags and nothing else (`<div align="center">`, `<img … />`, `</div>`), as in README.md. It's
+ * verbatim, except that one `alt="…"` in it is translated as an `alt` block.
+ */
 const HTML_ONLY = /^\s*(<\/?[a-z][a-z0-9]*(\s[^<>]*)?\/?>\s*)+$/;
+const ALT = /\balt="([^"]*[A-Za-z][^"]*)"/g;
 
 /** Splits Markdown into blocks: fences, frontmatter, headings and blank-line separated prose. */
 export function segment(markdown: string): Block[] {
@@ -50,7 +62,9 @@ export function segment(markdown: string): Block[] {
   const flush = (): void => {
     if (para.length === 0) return;
     const text = para.join("\n");
-    push(/^\s*(<!--[\s\S]*-->|[-*_]{3,})\s*$/.test(text) || HTML_ONLY.test(text) ? "verbatim" : "prose", text);
+    const alts = HTML_ONLY.test(text) ? [...text.matchAll(ALT)] : [];
+    if (alts.length === 1) blocks.push({ kind: "alt", text: alts[0]?.[1] as string, id: blockId(alts[0]?.[1] as string), html: text });
+    else push(/^\s*(<!--[\s\S]*-->|[-*_]{3,})\s*$/.test(text) || HTML_ONLY.test(text) ? "verbatim" : "prose", text);
     para = [];
   };
   while (i < lines.length) {
@@ -124,7 +138,8 @@ export function assemble(english: string, translations: ReadonlyMap<string, stri
     if (WARNING.test(b.text)) flags.push("warning");
     for (const f of flags) out.push(`<!-- i18n:${f} -->`);
     if (text) translated++;
-    if (b.kind === "heading") {
+    if (b.kind === "alt") out.push(text ? withAlt(b, text) : (b.html as string));
+    else if (b.kind === "heading") {
       const [, hashes = "##", english = ""] = /^\s{0,3}(#{1,6})\s+(.*)$/.exec(b.text) ?? [];
       const own = /\{#([\w-]+)\}\s*$/.exec(english);
       const id = own ? own[1] : slugify(english);

@@ -10,7 +10,7 @@ import { CALL, extractMessages, PLURAL } from "../scripts/i18n/sources";
 import { withGeistSubsets } from "../scripts/i18n/fonts";
 import { i18nPlugin } from "../scripts/i18n/vite-plugin";
 import { normalizePunctuation, validate, validatePlural } from "../scripts/i18n/validate";
-import { languageLine, readmeLink, readmeLocales, readmeOutputs, README, README_DIR, staleReadmes } from "../scripts/i18n/readme";
+import { languageLine, readmeLink, readmeLocales, readmeOutputs, readmeStatus, README, renderReadme } from "../scripts/i18n/readme";
 import { isolateLatin, isolateString } from "../scripts/i18n/bidi";
 import { fuzzyScore, searchFold } from "../src/docs/search";
 import { headingsOf, toConsoleMarkdown } from "../src/docs/registry";
@@ -366,9 +366,16 @@ describe("captions", () => {
 describe("README", () => {
   const es = getLocale("es")!;
   const ar = getLocale("ar")!;
+  const english = readFileSync(README, "utf8");
+  const BIDI_CONTROLS = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/;
 
-  test("HTML-only blocks are verbatim, so README.md's layout tags aren't sent for translation", () => {
-    expect(segment('<div align="center">\n\n<img src="a.png" alt="A" width="720" />\n\nText.js renders.\n\n</div>\n').map((b) => b.kind)).toEqual(["verbatim", "verbatim", "prose", "verbatim"]);
+  test("HTML-only blocks are verbatim except their alt text, which is translated", () => {
+    const md = '<div align="center">\n\n<img src="a.png" alt="A &quot;console&quot; app" width="720" />\n\nText.js renders.\n\n</div>\n';
+    const blocks = segment(md);
+    expect(blocks.map((b) => b.kind)).toEqual(["verbatim", "alt", "prose", "verbatim"]);
+    expect(blocks[1]!.text).toBe("A &quot;console&quot; app");
+    const out = assemble(md, new Map([[blocks[1]!.id, 'Une app « console » "x"']])).markdown;
+    expect(out).toContain('<img src="a.png" alt="Une app « console » &quot;x&quot;" width="720" />');
   });
 
   test("the language line lists English and live locales, in registry order, linked from where it's read", () => {
@@ -376,11 +383,13 @@ describe("README", () => {
     const root = languageLine(LOCALES[0]!);
     expect(root.startsWith(`English · [${live[0]!.name}](docs/readme/README.${live[0]!.code}.md)`)).toBe(true);
     expect(root.split(" · ")).toHaveLength(1 + live.length);
+    // A name in the other direction gets its own dir, so العربية · עברית keep their order without bidi controls.
+    expect(root).toContain('[<span dir="rtl">العربية</span>](docs/readme/README.ar.md)');
     const line = languageLine(es);
     expect(line).toStartWith("[English](../../README.md) · ");
     expect(line).toContain(" · Español · ");
-    // A right-to-left name in a left-to-right line (and the reverse) is isolated, so neighbours keep their order.
-    expect(languageLine({ ...ar, status: "live" })).toContain(`[\u2068Español\u2069](README.es.md)`);
+    expect(languageLine(ar)).toContain('[<span dir="ltr">Español</span>](README.es.md) · ');
+    expect(languageLine(ar)).toContain(" · العربية · [עברית](README.he.md)");
   });
 
   test("links from docs/readme/ climb to the repo root, and textjs.org pages go to the live locale's pages", () => {
@@ -393,9 +402,26 @@ describe("README", () => {
     expect(readmeLink("http://localhost:3000", es)).toBe("http://localhost:3000");
   });
 
-  test("every live and draft locale has a current README, and README.md's language line is current", () => {
-    expect(readmeLocales().length).toBe(LOCALES.filter((l) => l.status === "live" || l.status === "draft").length);
-    expect(staleReadmes()).toEqual([]);
+  test("live locales have a README, draft locales don't, and README.md's language line is current", () => {
+    expect(readmeLocales()).toEqual(LOCALES.filter((l) => l.status === "live"));
+    // Localized READMEs that are behind are a CI warning (`i18n:check`), never a failure.
+    expect(readmeStatus().errors).toEqual([]);
+  });
+
+  test("an untranslated README.md edit only warns; a stale language line or a stray file fails", () => {
+    const edited = `${english}\nA new paragraph.\n`;
+    const status = readmeStatus(edited);
+    expect(status.errors).toEqual([]);
+    expect(status.stale).toHaveLength(readmeLocales().length);
+    // The new English paragraph renders left to right inside a right-to-left README.
+    expect(renderReadme(ar, edited)).toContain('<!-- i18n:en -->\n\n<div dir="ltr">\n\nA new paragraph.\n\n</div>');
+    expect(renderReadme(es, edited)).toContain("<!-- i18n:en -->\n\nA new paragraph.");
+    const staleLine = english.replace(/(<!-- i18n:languages -->\n)[^\n]*/, "$1English · [Español](docs/readme/README.es.md)");
+    expect(readmeStatus(staleLine).errors).toEqual(["README.md: the language line is out of date (bun run i18n:readme)"]);
+  });
+
+  test("READMEs have no bidi control characters, so GitHub shows no hidden-Unicode banner", () => {
+    for (const [file, text] of readmeOutputs()) expect([file, BIDI_CONTROLS.test(text)]).toEqual([file, false]);
   });
 
   test("every link in the READMEs resolves: repo files, textjs.org pages and docs anchors", () => {
@@ -410,7 +436,7 @@ describe("README", () => {
           expect([target, route.name]).not.toEqual([target, "not-found"]);
           if (site[2] && route.name === "docs") expect(DOC_HEADINGS[route.slug]?.map((h) => h.id)).toContain(site[2]);
           const code = file === README ? "en" : (/README\.([\w-]+)\.md$/.exec(file)?.[1] as string);
-          expect([target, splitLocale(path).locale.code]).toEqual([target, getLocale(code)!.status === "live" ? code : "en"]);
+          expect([target, splitLocale(path).locale.code]).toEqual([target, code]);
         } else if (!/^[a-z]+:/.test(target)) {
           expect([target, existsSync(resolve(dirname(file), target))]).toEqual([target, true]);
         }
@@ -418,19 +444,27 @@ describe("README", () => {
     }
   });
 
-  test("right-to-left READMEs keep code fences outside the right-to-left wrapper", () => {
-    for (const l of readmeLocales().filter((l) => l.dir === "rtl")) {
-      const text = readFileSync(join(README_DIR, `README.${l.code}.md`), "utf8");
+  test("right-to-left READMEs keep code fences outside the wrapper, and every line of prose starts right to left", () => {
+    const RTL = /[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufefc]/;
+    for (const [file, text] of readmeOutputs()) {
+      const l = getLocale(/README\.([\w-]+)\.md$/.exec(file)?.[1] ?? "en")!;
+      if (l.dir !== "rtl") continue;
+      expect(text).toContain('<div dir="rtl">');
       const divs: string[] = [];
       let fence = false;
       for (const line of text.split("\n")) {
         if (/^```/.test(line)) {
           expect([l.code, divs]).toEqual([l.code, []]);
           fence = !fence;
-        } else if (!fence && line.startsWith("<div")) divs.push(line);
-        else if (!fence && line === "</div>") divs.pop();
+        } else if (fence) continue;
+        else if (line.startsWith("<div")) divs.push(line);
+        else if (line === "</div>") divs.pop();
+        else if (line && !divs.includes('<div dir="ltr">') && !/^(<|# |\|)/.test(line)) {
+          // GitHub's dir="auto" skips elements with their own dir, so the first other letter decides the direction.
+          const first = /\p{L}/u.exec(line.replace(/<span dir="\w+">[^<]*<\/span>/g, "").replace(/\]\([^)]*\)/g, "]"))?.[0];
+          expect([l.code, line, RTL.test(first ?? "")]).toEqual([l.code, line, true]);
+        }
       }
-      expect(text).toContain('<div dir="rtl">');
     }
   });
 });

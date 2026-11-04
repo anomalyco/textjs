@@ -4,6 +4,9 @@ Text.js 是一个 React 框架，用于构建在浏览器控制台中渲染的�
 <!-- s:814ee9e9d7 -->
 [文档](https://textjs.org/docs) · [学习](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
+<!-- s:bc834fc57b -->
+在 Chrome DevTools 控制台中渲染的 Text.js 应用
+
 <!-- s:9535b10be9 -->
 快速开始
 

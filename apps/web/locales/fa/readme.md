@@ -4,6 +4,9 @@ Text.js یک فریم‌ورک React برای اپ‌هایی است که در �
 <!-- s:814ee9e9d7 -->
 [مستندات](https://textjs.org/docs) · [آموزش](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
 
+<!-- s:bc834fc57b -->
+یک اپلیکیشن Text.js رندرشده در کنسول DevTools مرورگر Chrome
+
 <!-- s:9535b10be9 -->
 شروع سریع
 
