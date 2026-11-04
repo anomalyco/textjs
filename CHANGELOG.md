@@ -22,7 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `@textjs/core`, `@textjs/app`: Text.js apps (`text dev`, `text build`) load Yoga as a separate `.wasm` file instead of a base64 copy inside the JavaScript. `text build` emits `assets/yoga-[hash].wasm` and preloads it from the HTML. With gzip on both files, the starter app downloads 11.3 KB less and parses 95 KB less JavaScript. Other bundlers keep the inline copy. Vite and webpack builds of `@textjs/core` can load the `.wasm` file too by adding the `@textjs/wasm-asset` resolve condition. See [WebAssembly](https://textjs.org/docs/deploying#webassembly).
 - `@textjs/app`: `text build`'s First Load JS includes `.wasm` files.
 - `@textjs/app`: with `--adapter cloudflare`, a worker whose route handlers use Yoga is written as a `dist/_worker.js/` directory holding `index.js` and `yoga.wasm`, which Cloudflare loads as a compiled module. Workers that don't use Yoga are still a single `dist/_worker.js` file.
-- textjs.org: the console loads Yoga as a `.wasm` file, and the Content Security Policy no longer allows `data:` in `connect-src`.
+- textjs.org: the console loads Yoga as a `.wasm` file, which makes its download 9.3 KB smaller (gzip), and the Content Security Policy no longer allows `data:` in `connect-src`.
 
 ### Fixed
 
