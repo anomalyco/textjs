@@ -1,48 +1,19 @@
 import type { ReactNode } from "react";
-import type { StyledFrame, StyledSpan } from "@textjs/core";
+import type { StyledFrame } from "@textjs/core";
 import { rich } from "../../i18n/rich";
 import { t } from "../../i18n/t";
 import { A } from "../../router";
 import { OpenCodeWordmark } from "../../site/brand-marks";
 import { DevToolsWindow } from "../../site/DevToolsWindow";
+import { unpackStyledFrame, type PackedFrame } from "../../site/packed-frame";
 import { Crosses } from "./Crosses";
 import packed from "./opencode-frames.json";
 
 /**
  * A real OpenCode Lite frame: the /opencode sandbox at 100×38 after the prompt "The reconnect test is
- * flaky. Can you fix it?", mirrored from the console companion. Rows are packed as
- * [text, fg palette index, bg palette index, flags?], with flags bold 1, italic 2, underline 4 and
- * strikethrough 8, and -1 for no color.
+ * flaky. Can you fix it?", mirrored from the console companion.
  */
-type PackedSpan = [string, number, number, number?];
-const PACKED = packed as unknown as { palette: string[]; width: number; height: number; rows: PackedSpan[][] };
-
-const color = (i: number): string | null => (i < 0 ? null : (PACKED.palette[i] ?? null));
-
-const FRAME: StyledFrame = {
-  width: PACKED.width,
-  height: PACKED.height,
-  rows: PACKED.rows.map((row) =>
-    row.map(
-      ([text, fg, bg, flags = 0]): StyledSpan => ({
-        text,
-        width: text.length,
-        fg: 0,
-        bg: 0,
-        attrs: 0,
-        fgCss: color(fg),
-        bgCss: color(bg),
-        bold: (flags & 1) !== 0,
-        dim: false,
-        italic: (flags & 2) !== 0,
-        underline: (flags & 4) !== 0,
-        strikethrough: (flags & 8) !== 0,
-        inverse: false,
-        allowLink: false,
-      }),
-    ),
-  ),
-};
+const FRAME: StyledFrame = unpackStyledFrame(packed as unknown as PackedFrame);
 
 const FACTS: Array<{ title: string; body: ReactNode }> = [
   { title: t("Sandbox"), body: t("A scripted agent answers any prompt, with nothing to install.") },
@@ -78,7 +49,7 @@ export function OpenCodeBand(): ReactNode {
         <div className="oc-stage" dir="ltr" aria-hidden="true">
           <div className="oc-glow" />
           <div className="oc-crop">
-            <DevToolsWindow frame={FRAME} source="opencode:1" cols={PACKED.width} rows={PACKED.height} fontSize={14} lineHeight={17} className="oc-window" />
+            <DevToolsWindow frame={FRAME} source="opencode:1" cols={FRAME.width} rows={FRAME.height} fontSize={14} lineHeight={17} className="oc-window" />
           </div>
         </div>
         <div className="frame oc-facts">

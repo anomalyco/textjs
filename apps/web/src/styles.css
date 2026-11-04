@@ -1350,6 +1350,13 @@ kbd {
   opacity: 1;
 }
 
+/* Touch screens have no DevTools console: the hero's mirror is a picture there. */
+@media (hover: none) and (pointer: coarse) {
+  .hero .dt-focus {
+    display: none;
+  }
+}
+
 .dt-focus span {
   display: inline-flex;
   align-items: center;

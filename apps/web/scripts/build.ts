@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 /**
- * `bun run build`: one Vite client + SSR build per locale, then the prerenderer (postbuild-pages.ts).
+ * `bun run build`: the hero's prerendered console frame (generate-home-frame.ts), one Vite client + SSR
+ * build per locale, then the prerenderer (postbuild-pages.ts).
  *
  * English builds into dist/ as before. Other locales build into node_modules/.cache/textjs-locales/<code>/ and
  * the prerenderer merges their chunks into dist/assets and writes their pages under dist/<path>/.
@@ -36,6 +37,9 @@ async function build(code: string): Promise<void> {
   await run(["build", "--outDir", join(dir, "client"), "--emptyOutDir", "--logLevel", "warn"], env);
   await run(["build", "--ssr", "src/entry-server.tsx", "--outDir", join(dir, "ssr"), "--emptyOutDir", "--logLevel", "warn"], env);
 }
+
+const frame = Bun.spawn(["bun", "scripts/generate-home-frame.ts"], { cwd: WEB_DIR, stdout: "inherit", stderr: "inherit" });
+if ((await frame.exited) !== 0) process.exit(1);
 
 const queue = ["en", ...locales.map((l) => l.code)];
 const workers = Math.max(1, Math.min(4, cpus().length));

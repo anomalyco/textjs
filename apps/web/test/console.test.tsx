@@ -212,7 +212,7 @@ describe("demo logic", () => {
     expect(engagesConsole(el("a[href]"), false, "/playground")).toBe(false);
     expect(engagesConsole(el("button"), true, "/docs")).toBe(false);
     expect(engagesConsole(el("input"), true, "/playground")).toBe(false);
-    expect(engagesConsole(el("[data-console-engage]"), false, "/docs")).toBe(true);
+    expect(engagesConsole(el("[data-textjs-engage]"), false, "/docs")).toBe(true);
     expect(engagesConsole(el('[tabindex]:not([tabindex="-1"])'), true, "/docs")).toBe(false);
   });
 

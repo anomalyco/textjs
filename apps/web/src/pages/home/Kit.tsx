@@ -1,5 +1,5 @@
 import { createElement, useEffect, useMemo, useRef, useState, type ComponentType, type FocusEvent, type MouseEvent, type ReactNode } from "react";
-import { isInteractivePress, isRefocusPress } from "../../console-companion/bridge";
+import { companionReady, isInteractivePress, isRefocusPress } from "../../console-companion/bridge";
 import { siteStore } from "../../console-companion/store";
 import { preloadCompanionTab } from "../../console-companion/tabs-loader";
 import { useSite } from "../../console-companion/useSite";
@@ -66,7 +66,8 @@ function Preview({ id, enabled, active, available }: { id: string; enabled: bool
   const [kit, setKit] = useState<KitModule | null>(kitCache);
   useEffect(() => {
     if (!enabled && !active) return;
-    preloadCompanionTab("example").catch(prefetchFailed);
+    // The console's example view, once the companion has started. A click loads it otherwise.
+    if (companionReady()) preloadCompanionTab("example").catch(prefetchFailed);
     if (kit) return;
     let alive = true;
     void loadKit().then((m) => {

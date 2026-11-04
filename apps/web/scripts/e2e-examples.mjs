@@ -34,6 +34,8 @@ const isolate = (page) => page.route((url) => /^(127\.0\.0\.1|localhost|\[::1\])
 
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 await page.addInitScript(capture);
+// A tab that has shown console intent: the companion boots on load, so frames can be read before any click.
+await page.addInitScript(() => sessionStorage.setItem("textjs:console-intent", "1"));
 await isolate(page);
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
@@ -383,6 +385,7 @@ await mobile.waitForTimeout(400);
 const mh = await mobile.evaluate(() => window.__frames[window.__frames.length - 1] ?? "");
 check("mobile: tapping the Components example keeps it on the page", !mh.includes("Components ›") && (await mobile.locator(".kit-live.in-console").count()) === 0, mh.slice(0, 400));
 check("mobile: no Run in console button on Home", !(await mobile.locator(".kit-foot .preview-run").isVisible()));
+check("mobile: the companion never booted", (await mobile.evaluate(() => window.__frames.length)) === 0);
 
 await browser.close();
 process.exit(failures ? 1 : 0);

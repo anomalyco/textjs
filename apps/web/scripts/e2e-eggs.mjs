@@ -70,7 +70,8 @@ check("nothing logged unprompted (besides the visitor's paste and frames)", logs
 const inspect = page.locator(".hero .dt-inspect");
 const box = await inspect.boundingBox();
 await inspect.click();
-await page.waitForTimeout(300);
+// The companion hasn't booted on this cold visit: the inspect button starts it.
+await page.waitForFunction(() => window.text?.renderer?.wireframe === true, null, { timeout: 8000 }).catch(() => undefined);
 check("inspect is pressed", (await inspect.getAttribute("aria-pressed")) === "true");
 check("wireframe on in the store and renderer", await page.evaluate(() => window.text?.renderer?.wireframe === true));
 check("clicking inspect didn't engage console input", !(await page.locator(".dt-log.engaged").count()));
