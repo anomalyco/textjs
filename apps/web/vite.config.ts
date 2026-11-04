@@ -200,7 +200,9 @@ export default defineConfig(({ isSsrBuild }) => ({
             chunkFileNames: (info) =>
               info.name === "Errors" ? "assets/tx-codes-[hash].js" : info.facadeModuleId?.includes("/src/docs/content/") ? "assets/doc-[hash].js" : "assets/[name]-[hash].js",
             manualChunks(id) {
-              if (id.includes("/packages/core/src/yoga-")) return "yoga";
+              // Only the Emscripten glue: the loader imports Text.js's error table, which the site's entry also needs,
+              // and a manual chunk takes its modules' dependencies with it.
+              if (/\/packages\/core\/src\/yoga-(glue|enums)\./.test(id)) return "yoga";
               if (id.includes("node_modules/react-reconciler/")) return "reconciler";
               if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return "react";
               return undefined;
