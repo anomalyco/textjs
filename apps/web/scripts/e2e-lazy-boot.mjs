@@ -184,21 +184,26 @@ for (const [name, act] of ways) {
   await context.close();
 }
 
-// A prefetch that fails (a dropped connection) is retried by the boot, without reloading the page.
+// A boot that fails on a dropped connection (Yoga's WebAssembly here) is retried by the next click without a
+// reload, and leaves no second keyboard sink behind. A failed *chunk* can't be retried in place: Chromium, Firefox
+// and WebKit all keep a failed module fetch in their module map, so that path reloads once (see crash-reports.md).
 {
-  const { context, page, errors } = await open(DESKTOP, null);
+  const { context, page } = await open(DESKTOP, null);
   let aborted = 0;
-  await page.route(/\/assets\/HomeTab-[\w-]+\.js$/, (r) => (aborted++ === 0 ? r.abort() : r.continue()));
+  await page.route(/\/assets\/yoga-[\w-]+\.wasm$/, (r) => (aborted++ === 0 ? r.abort() : r.continue()));
   await page.goto(base + "/", { waitUntil: "load" });
   await page.waitForTimeout(1500);
   await page.evaluate(() => (window.__sameDocument = true));
-  await page.locator(".hero .dt-log").hover();
-  await page.waitForTimeout(1500);
-  check("desktop /: the hover prefetch's console view failed to load", aborted === 1, `${aborted} requests`);
   await page.locator(".hero .dt-log").click();
-  check("desktop /: a click after the failed prefetch boots the companion", await booted(page));
+  await page.waitForTimeout(2500);
+  check("desktop /: a boot whose WebAssembly failed to load logs no frames", aborted === 1 && (await frames(page)) === 0, `${aborted} requests, ${await frames(page)} frames`);
+  check("desktop /: and hands the hero back (not engaged)", (await page.locator(".hero .dt-log.engaged").count()) === 0);
+  check("desktop /: and leaves no keyboard sink", (await page.locator("[data-textjs-input-sink]").count()) === 0);
+  await page.locator(".hero .dt-log").click();
+  check("desktop /: the next click boots the companion", await booted(page));
+  await page.waitForTimeout(400);
   check("desktop /: without reloading the page", (await page.evaluate(() => window.__sameDocument)) === true);
-  check("desktop /: the failed prefetch threw no page errors", errors.length === 0, errors.join(" | "));
+  check("desktop /: with one keyboard sink", (await page.locator("[data-textjs-input-sink]").count()) === 1, String(await page.locator("[data-textjs-input-sink]").count()));
   await context.close();
 }
 
