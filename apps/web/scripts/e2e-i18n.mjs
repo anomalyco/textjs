@@ -184,7 +184,7 @@ try {
     }
     // The banner never covers the footer's picker, status line or copyright, even scrolled to the very end.
     for (const [width, height] of [[390, 844], [1440, 900]]) {
-      for (const path of [`/${p}`, `/${p}/docs/routing`]) {
+      for (const path of [`/${p}`, `/${p}/docs/routing`, `/${p}/docs/internationalization`]) {
         const ctx = await context("en-US", { width, height });
         const page = await ctx.newPage();
         await page.goto(`${base}${path}`, { waitUntil: "networkidle" });

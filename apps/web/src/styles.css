@@ -2356,6 +2356,15 @@ body:has(.locale-suggestion) .footer {
   white-space: nowrap;
 }
 
+/* On a phone, a code span longer than the line (a font stack, a long path) wraps instead of widening the page, which
+   on right-to-left pages also scrolled the whole page sideways. */
+@media (max-width: 640px) {
+  .prose :not(pre) > code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
 .prose ul,
 .prose ol {
   margin: 16px 0;
