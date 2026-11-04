@@ -13,9 +13,15 @@
  * so a slow socket (`write()` returning `false`) just skips intermediate
  * states until `drain`. Disconnected sessions survive `reconnectGraceMs`, then
  * unmount. Session ids are 192-bit random capabilities, bound to the
- * credentials (cookies, `Authorization`) they were opened with; requests must
- * be same-origin; only routes in the app manifest can be rendered, and
- * `authorize` (middleware) runs for every server route a session renders.
+ * credentials (cookies, `Authorization`) they were opened with; only routes in
+ * the app manifest can be rendered, and `authorize` (middleware) runs for every
+ * server route a session renders.
+ *
+ * Requests must be same-origin unless `allowOrigins` lists the requesting
+ * page's origin (embeds on other sites). Each session is bound to the origin
+ * that opened it: requests from any other origin, the app's own included, get
+ * a 403 and leave the session alone. Cross-origin requests are anonymous
+ * (cookies and `Authorization` are ignored) unless `allowCredentials` is on.
  */
 
 import { createHash, randomBytes } from "node:crypto";
@@ -23,6 +29,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { isAppPath, LIVE_PATH, LIVE_PROTOCOL_VERSION, LIVE_SESSION_HEADER, LiveFrameEncoder, MAX_COLS, MAX_ROWS, parseLiveInput, sseEvent, type LiveBanner, type LiveInput, type LiveServerMessage } from "../live-protocol";
 import type { LiveApp, LiveAppOptions, RouteRuntime } from "./live-app";
 import { canonicalPathname, readRequestBody } from "./http";
+import { compileAllowOrigins } from "./cors";
 
 export type LiveAppInit = Omit<LiveAppOptions, "routes" | "theme" | "defaultTitle">;
 
@@ -53,6 +60,13 @@ export interface LiveServerOptions {
   trustProxy?: boolean;
   /** Concurrent sessions per client address (default 32). */
   maxSessionsPerClient?: number;
+  /**
+   * Origins of other sites whose pages may open and drive sessions (see
+   * `EmbedConfig.allowOrigins`). Default: none (same-origin only).
+   */
+  allowOrigins?: readonly string[];
+  /** Accept cookies and `Authorization` from `allowOrigins` (exact origins only; default `false`). */
+  allowCredentials?: boolean;
   log?(message: string): void;
   onError?(error: unknown): void;
 }
@@ -64,6 +78,20 @@ const BODY_TIMEOUT_MS = 5000;
 const INPUT_RATE = 240;
 const INPUT_BURST = 480;
 const SID_RE = /^[A-Za-z0-9_-]{32}$/;
+/** How long a browser may cache a preflight answer, in seconds. */
+const PREFLIGHT_MAX_AGE = 600;
+const CORS_METHODS = "GET, POST";
+const CORS_HEADERS = `Accept, Content-Type, Last-Event-ID, ${LIVE_SESSION_HEADER}`;
+
+/**
+ * Who a request acts for: `origin` is `""` for the app's own pages or an
+ * allowed origin, and `anonymous` requests don't carry their cookies or
+ * `Authorization` into the session.
+ */
+interface RequestScope {
+  origin: string;
+  anonymous: boolean;
+}
 
 function first(value: string | string[] | undefined): string | undefined {
   const v = Array.isArray(value) ? value[0] : value;
@@ -89,11 +117,11 @@ export function isSameOriginRequest(req: Pick<IncomingMessage, "headers">, trust
   }
 }
 
-/** The request headers of a Node request as Web `Headers`. */
-function headersOf(req: Pick<IncomingMessage, "headers">): Headers {
+/** The request headers of a Node request as Web `Headers` (without cookies and `Authorization` when `anonymous`). */
+function headersOf(req: Pick<IncomingMessage, "headers">, anonymous = false): Headers {
   const out = new Headers();
   for (const [k, v] of Object.entries(req.headers)) {
-    if (v === undefined) continue;
+    if (v === undefined || (anonymous && (k === "cookie" || k === "authorization"))) continue;
     if (Array.isArray(v)) for (const item of v) out.append(k, item);
     else out.set(k, v);
   }
@@ -101,10 +129,10 @@ function headersOf(req: Pick<IncomingMessage, "headers">): Headers {
 }
 
 /** What a session's identity is bound to. */
-function credentialsOf(req: Pick<IncomingMessage, "headers">): string {
+function credentialsOf(req: Pick<IncomingMessage, "headers">, anonymous = false): string {
   const h = req.headers;
   return createHash("sha256")
-    .update(`${h.cookie ?? ""}\u0000${h.authorization ?? ""}`)
+    .update(anonymous ? "\u0000" : `${h.cookie ?? ""}\u0000${h.authorization ?? ""}`)
     .digest("base64url");
 }
 
@@ -157,6 +185,8 @@ export class LiveSession {
   headers = new Headers();
   /** Client address (per-client session cap). */
   client = "";
+  /** The origin that opened the session (`""`: the app's own pages). Only it may resume or drive the session. */
+  origin = "";
   /** When the browser detached (`0` while connected). */
   detachedAt = 0;
   private tokens = INPUT_BURST;
@@ -303,9 +333,11 @@ export class LiveServer {
   private readonly interval: number;
   private readonly heartbeatTimer: ReturnType<typeof setInterval>;
   private readonly basePath: string;
+  private readonly allowed: ((origin: string) => boolean) | null;
 
   constructor(options: LiveServerOptions) {
     this.options = options;
+    this.allowed = compileAllowOrigins(options.allowOrigins ?? [], { credentials: options.allowCredentials });
     this.maxSessions = options.maxSessions ?? 256;
     this.maxPerClient = options.maxSessionsPerClient ?? 32;
     this.reconnectGraceMs = options.reconnectGraceMs ?? 30_000;
@@ -317,21 +349,55 @@ export class LiveServer {
     (this.heartbeatTimer as { unref?: () => void }).unref?.();
   }
 
+  /** The scope of a request from the app's own pages or an allowed origin, or `null` (refused). */
+  private scopeOf(req: IncomingMessage): RequestScope | null {
+    if (isSameOriginRequest(req, this.options.trustProxy)) return { origin: "", anonymous: false };
+    const origin = req.headers.origin;
+    if (this.allowed === null || typeof origin !== "string" || !this.allowed(origin)) return null;
+    return { origin, anonymous: this.options.allowCredentials !== true };
+  }
+
   /**
-   * Handle `GET` / `POST` on {@link LIVE_PATH}. `url` is the request URL with
-   * `basePath` already stripped. Returns `false` for other requests.
+   * Handle `GET` / `POST` (and, for allowed origins, `OPTIONS`) on
+   * {@link LIVE_PATH}. `url` is the request URL with `basePath` already
+   * stripped. Returns `false` for other requests.
    */
   async handle(req: IncomingMessage, res: ServerResponse, url: string): Promise<boolean> {
     const q = url.indexOf("?");
     const pathname = q < 0 ? url : url.slice(0, q);
     if (pathname !== LIVE_PATH) return false;
-    if (!isSameOriginRequest(req, this.options.trustProxy)) {
+    const scope = this.scopeOf(req);
+    // Answers depend on the Origin header once other origins are allowed.
+    if (this.allowed !== null) {
+      const vary = res.getHeader("Vary");
+      res.setHeader("Vary", vary ? `${String(vary)}, Origin` : "Origin");
+    }
+    if (scope === null) {
       res.statusCode = 403;
       res.end();
       return true;
     }
-    if (req.method === "GET") await this.openStream(req, res, new URLSearchParams(q < 0 ? "" : url.slice(q + 1)));
-    else if (req.method === "POST") await this.receiveInput(req, res);
+    if (scope.origin !== "") {
+      // On every answer, errors included, so the player can tell a 410 from a network error.
+      res.setHeader("Access-Control-Allow-Origin", scope.origin);
+      if (this.options.allowCredentials) res.setHeader("Access-Control-Allow-Credentials", "true");
+      if (req.method === "OPTIONS") {
+        res.statusCode = 204;
+        res.setHeader("Access-Control-Allow-Methods", CORS_METHODS);
+        res.setHeader("Access-Control-Allow-Headers", CORS_HEADERS);
+        res.setHeader("Access-Control-Max-Age", String(PREFLIGHT_MAX_AGE));
+        res.end();
+        return true;
+      }
+      // Only a script reading an event stream opens a session from another site (not an <img>, <script> or navigation).
+      if (req.method === "GET" && !(req.headers.accept ?? "").includes("text/event-stream")) {
+        res.statusCode = 403;
+        res.end();
+        return true;
+      }
+    }
+    if (req.method === "GET") await this.openStream(req, res, new URLSearchParams(q < 0 ? "" : url.slice(q + 1)), scope);
+    else if (req.method === "POST") await this.receiveInput(req, res, scope);
     else {
       res.statusCode = 405;
       res.setHeader("Allow", "GET, POST");
@@ -376,10 +442,10 @@ export class LiveServer {
    * A session's cookies or `Authorization` changed since it was authorized:
    * re-run `authorize` for what it currently shows before trusting the request.
    */
-  private async recheck(session: LiveSession, req: IncomingMessage): Promise<boolean> {
-    const credentials = credentialsOf(req);
+  private async recheck(session: LiveSession, req: IncomingMessage, scope: RequestScope): Promise<boolean> {
+    const credentials = credentialsOf(req, scope.anonymous);
     if (credentials === session.credentials) return true;
-    const headers = headersOf(req);
+    const headers = headersOf(req, scope.anonymous);
     const href = session.app?.history.location.href ?? "/";
     if (!(await this.authorized(href, headers))) return false;
     session.credentials = credentials;
@@ -396,11 +462,17 @@ export class LiveServer {
     return true;
   }
 
-  private async openStream(req: IncomingMessage, res: ServerResponse, params: URLSearchParams): Promise<void> {
+  private async openStream(req: IncomingMessage, res: ServerResponse, params: URLSearchParams, scope: RequestScope): Promise<void> {
     const lastId = first(req.headers["last-event-id"]) ?? first(req.headers[LIVE_SESSION_HEADER]);
     const existing = lastId !== undefined && SID_RE.test(lastId) ? this.sessions.get(lastId) : undefined;
     if (existing && !existing.disposed) {
-      if (!(await this.recheck(existing, req))) {
+      if (existing.origin !== scope.origin) {
+        // Another origin learned the id: refuse it, and leave the session to its own page.
+        res.statusCode = 403;
+        res.end();
+        return;
+      }
+      if (!(await this.recheck(existing, req, scope))) {
         const href = existing.app?.history.location.href ?? "/";
         this.dispose(existing);
         this.sendLoad(res, href);
@@ -425,16 +497,17 @@ export class LiveServer {
       res.end();
       return;
     }
-    const headers = headersOf(req);
+    const headers = headersOf(req, scope.anonymous);
     if (!(await this.authorized(href, headers))) {
       // Middleware would redirect / reject this route: let the browser ask for it over HTTP.
       this.sendLoad(res, href);
       return;
     }
     const session = new LiveSession(this, this.interval);
-    session.credentials = credentialsOf(req);
+    session.credentials = credentialsOf(req, scope.anonymous);
     session.headers = headers;
     session.client = client;
+    session.origin = scope.origin;
     this.sessions.set(session.id, session);
     let closedEarly = false;
     res.once("close", () => {
@@ -480,7 +553,7 @@ export class LiveServer {
     this.options.log?.(` ◇ live session ${session.id.slice(0, 6)}… ${href} (${this.sessions.size} open)`);
   }
 
-  private async receiveInput(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  private async receiveInput(req: IncomingMessage, res: ServerResponse, scope: RequestScope): Promise<void> {
     const sid = req.headers[LIVE_SESSION_HEADER];
     const type = req.headers["content-type"] ?? "";
     if (typeof sid !== "string" || !SID_RE.test(sid) || !type.startsWith("application/json")) {
@@ -491,6 +564,11 @@ export class LiveServer {
     const session = this.sessions.get(sid);
     if (!session || session.disposed) {
       res.statusCode = 410;
+      res.end();
+      return;
+    }
+    if (session.origin !== scope.origin) {
+      res.statusCode = 403;
       res.end();
       return;
     }
@@ -519,7 +597,7 @@ export class LiveServer {
       res.end();
       return;
     }
-    if (!(await this.recheck(session, req))) {
+    if (!(await this.recheck(session, req, scope))) {
       const href = session.app?.history.location.href ?? "/";
       session.send({ t: "load", href: this.basePath + href });
       this.dispose(session);

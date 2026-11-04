@@ -92,6 +92,29 @@ export interface TextConfig {
    * whole app; a page can opt out or change its size with `export const ansi`.
    */
   ansi?: false | AnsiConfig;
+  /**
+   * @experimental Add the app to another site with one `<script type="module">`
+   * tag. `embed.js` and `/assets/*` are served with
+   * `Access-Control-Allow-Origin: *` and `Cross-Origin-Resource-Policy: cross-origin`.
+   */
+  embed?: boolean | EmbedConfig;
+}
+
+/** @experimental `text.config.ts` `embed`. */
+export interface EmbedConfig {
+  /**
+   * Origins of other sites whose pages may run server-rendered routes
+   * (`runtime = "server"`) from this server, such as `"https://www.example.com"`,
+   * `"https://*.example.com"` or `"http://localhost:*"`. `"*"` allows any site.
+   * Default: none, so only the app's own pages can open live sessions.
+   */
+  allowOrigins?: string[];
+  /**
+   * Let pages on `allowOrigins` send cookies and `Authorization` with live
+   * session requests (default `false`: those requests are anonymous). Needs
+   * exact origins: wildcards are rejected.
+   */
+  credentials?: boolean;
 }
 
 /** Frame size for terminal clients (`text.config.ts` `ansi`, or a page's `export const ansi`). */

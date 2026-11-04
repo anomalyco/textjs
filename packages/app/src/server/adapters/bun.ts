@@ -4,6 +4,7 @@
  */
 
 import { join } from "node:path";
+import { resolveEmbed } from "../cors";
 import { bundleServerEntry, frameworkFile } from "./bundle";
 import { serverEntry, type AdapterContext, type AdapterResult } from "./shared";
 
@@ -15,6 +16,7 @@ import { join, sep } from "node:path";
 import { staticFile } from ${JSON.stringify(frameworkFile("server/static-file.ts"))};
 import { loadLiveProduction } from ${JSON.stringify(frameworkFile("server/live-prod.ts"))};
 import { runNodeStyle } from ${JSON.stringify(frameworkFile("server/live-web.ts"))};
+import { EMBED_ASSET_HEADERS, isEmbedAsset } from ${JSON.stringify(frameworkFile("server/cors.ts"))};
 
 const dir = import.meta.dir;
 const self = join(dir, ${JSON.stringify(BUN_SERVER_FILE)});
@@ -25,6 +27,8 @@ const live = existsSync(join(dir, ".text", "live-manifest.json"))
       middleware: options.middleware,
       trustProxy: process.env.TRUST_PROXY === "1",
       origin: process.env.TEXTJS_ORIGIN,
+      allowOrigins: embed.allowOrigins,
+      allowCredentials: embed.allowCredentials,
       onError: (error) => console.error(error),
     })
   : null;
@@ -49,6 +53,7 @@ export const handler = createRequestHandler({
     if (!path || path === self) return null;
     const res = fileResponse(path, path.startsWith(join(dir, "assets") + sep));
     if (path.endsWith(".html")) res.headers.set("content-type", "text/html; charset=utf-8");
+    else if (embed.enabled && isEmbedAsset(pathname)) for (const [k, v] of Object.entries(EMBED_ASSET_HEADERS)) res.headers.set(k, v);
     return res;
   },
   document() {
@@ -83,6 +88,8 @@ if (import.meta.main) {
 `;
 
 export async function adaptBun(ctx: AdapterContext): Promise<AdapterResult> {
-  await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: BODY }), outFile: join(ctx.outDir, BUN_SERVER_FILE), target: "bun" });
+  // `text.config.ts` isn't read at run time: bake in `embed` (validated here, so a bad `allowOrigins` fails the build).
+  const embed = `const embed = ${JSON.stringify(resolveEmbed(ctx.config))};`;
+  await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: `${embed}\n${BODY}` }), outFile: join(ctx.outDir, BUN_SERVER_FILE), target: "bun" });
   return { adapter: "bun", output: ctx.outDir, notes: [`Run with: bun ${join(ctx.config.outDir ?? "dist", BUN_SERVER_FILE)}`] };
 }
