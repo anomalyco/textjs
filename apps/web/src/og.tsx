@@ -48,7 +48,7 @@ const svg = (node: ReactNode): string => renderToStaticMarkup(node);
 
 /** `Routing | Text.js Docs` → `Routing`. */
 export function pageTitle(title: string): string {
-  return title.replace(/\s+\|\s+(Text\.js( Docs| Playground| Store)?|Learn Text\.js)$/, "");
+  return title.replace(/\s+\|\s+\u2066?(Text\.js( Docs| Playground| Store)?|Learn Text\.js)\u2069?$/, "");
 }
 
 /** The card for one prerendered route (or the 404 page). */

@@ -53,6 +53,14 @@
 }
 :root:is(:lang(ar), :lang(fa), :lang(ur)) {
   --sans: "Geist", "Geist Fallback", "SF Arabic", "Geeza Pro", "Segoe UI", "Noto Sans Arabic", Tahoma, sans-serif;
+  --mono-code: "Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "SF Arabic", "Geeza Pro", "Segoe UI", "Noto Sans Arabic", Tahoma, monospace;
+  /* Translated labels set in mono elsewhere (breadcrumbs, size pickers, the 404 line) use the sans stack: Geist Mono's
+     cell-wide spaces pull Arabic words apart. Code, key chords, English text and LTR islands (consoles, editors)
+     keep the monospace stack. */
+  --mono: var(--sans);
+}
+:root:is(:lang(ar), :lang(fa), :lang(ur)) :is(code, pre, kbd, samp, [dir="ltr"], [lang="en"]) {
+  --mono: var(--mono-code);
 }
 :root:lang(he) {
   --sans: "Geist", "Geist Fallback", "SF Hebrew", "Arial Hebrew", "Segoe UI", "Noto Sans Hebrew", sans-serif;
@@ -63,6 +71,10 @@
 /* Negative tracking breaks Arabic joining and crowds CJK and Devanagari. On the text itself, so the wordmark and
    English blocks (lang="en") keep theirs. */
 :is(h1, h2, h3, h4, h5, h6, p, li, a:not(.wordmark), button, small, strong, td, th):is(:lang(ja), :lang(ko), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(he), :lang(hi)) {
+  letter-spacing: 0 !important;
+}
+/* Tracking pulls Arabic letters apart wherever it's set (mono labels, small caps), so Arabic-script text has none. */
+:is(:lang(ar), :lang(fa), :lang(ur)) {
   letter-spacing: 0 !important;
 }
 .prose:is(:lang(ja), :lang(zh-CN), :lang(zh-TW), :lang(ar), :lang(fa), :lang(ur), :lang(hi)) {
@@ -201,8 +213,6 @@ pre {
   font-family: var(--mono);
 }
 
-/* Code and key chords read left to right in RTL pages too; isolate keeps them from reordering the text around them.
-   Scoped to RTL because isolation shifts line breaks in LTR prose. */
 /* Arrows and chevrons that point along the reading direction mirror in RTL. `scale`, so hover nudges that use
    `transform` still apply. */
 [dir="rtl"] .rtl-flip {
@@ -214,6 +224,8 @@ pre {
   display: inline-block;
 }
 
+/* Code and key chords read left to right in RTL pages too; isolate keeps them from reordering the text around them.
+   Scoped to RTL because isolation shifts line breaks in LTR prose. */
 [dir="rtl"] code,
 [dir="rtl"] kbd {
   direction: ltr;
@@ -2340,6 +2352,14 @@ body:has(.locale-suggestion) .footer {
   opacity: 1;
 }
 
+/* Inside the 20px phone gutter, so the # never pokes past the screen edge (the right edge on RTL pages). */
+@media (max-width: 640px) {
+  .prose h2 a.anchor,
+  .prose h3 a.anchor {
+    inset-inline-start: -18px;
+  }
+}
+
 .prose :not(pre) > code {
   font-size: 0.86em;
   padding: 0.15em 0.4em;
@@ -2348,6 +2368,15 @@ body:has(.locale-suggestion) .footer {
   border: 1px solid var(--line);
   color: var(--fg);
   white-space: nowrap;
+}
+
+/* On a phone, a code span longer than the line (a font stack, a long path) wraps instead of widening the page, which
+   on right-to-left pages also scrolled the whole page sideways. */
+@media (max-width: 640px) {
+  .prose :not(pre) > code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
 
 .prose ul,

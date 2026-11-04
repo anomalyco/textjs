@@ -52,10 +52,13 @@ export function LocaleMenu(): ReactNode {
   );
 }
 
+/** Retired language codes that old Android WebViews still report: Hebrew `iw`, Indonesian `in`. */
+const LEGACY: Readonly<Record<string, string>> = { iw: "he", in: "id" };
+
 /** The offered locale that best matches `languages` (`navigator.languages`), or `null`. */
 export function suggestedLocale(languages: readonly string[], locales: readonly Locale[] = offeredLocales()): Locale | null {
   for (const raw of languages) {
-    const tag = raw.toLowerCase();
+    const tag = raw.toLowerCase().replace(/^(iw|in)(?=-|$)/, (code) => LEGACY[code] as string);
     const exact = locales.find((l) => l.code.toLowerCase() === tag);
     if (exact) return exact;
     const [lang, ...rest] = tag.split("-");

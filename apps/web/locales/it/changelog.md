@@ -11,21 +11,27 @@ Aggiunte
 - textjs.org: le versioni in spagnolo, francese, tedesco, portoghese brasiliano, coreano e cinese semplificato e tradizionale non sono più in bozza su textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn e /zh-tw. Il selettore della lingua nel piè di pagina e il pulsante della lingua del browser le propongono, come già fanno per il giapponese. I motori di ricerca indicizzano le pagine tradotte e associano ciascuna alla sua versione inglese.
 - textjs.org: le versioni in italiano, russo, turco, polacco, indonesiano, vietnamita e hindi non sono più in bozza su textjs.org/it, /ru, /tr, /pl, /id, /vi e /hi. Il selettore della lingua nel piè di pagina e il pulsante della lingua del browser le propongono, come già fanno per le altre lingue. I motori di ricerca indicizzano le pagine tradotte e associano ciascuna alla sua versione inglese.
 
+<!-- s:5b88618770 -->
+Modifiche
+
+<!-- s:33280e468a -->
+- `@textjs/react`: `<FocusPad>` e `<ViewportControl>` usano per le etichette a spaziatura fissa lo stack di font `--mono` della pagina, se definito, e altrimenti usano Geist Mono come prima. Una pagina con etichette in arabo o ebraico può aggiungere a `--mono` i font del proprio sistema di scrittura.
+
+<!-- s:afe76b8d59 -->
+Correzioni
+
+<!-- s:f0905efd51 -->
+- textjs.org: sui telefoni, il codice inline più lungo della riga va a capo invece di allargare la pagina. textjs.org/docs/internationalization era più larga di 92 px su uno schermo da 390 px.
+
 <!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>` sostituisce qualsiasi stringa predefinita del pannello, per i siti tradotti. Copre ogni riga, le etichette per gli screen reader e il controllo delle dimensioni della console. Anche `<TextCanvas>` e `<ViewportControl>` accettano `messages`. `<ViewportControl>` usa solo le chiavi del controllo delle dimensioni. Le stringhe che contengono un valore, come «Poi fai clic qui e premi ↑ ↓.», sono funzioni che restituiscono l’intera frase. `defaultFocusPadMessages` contiene il testo inglese. Vedi [Tradurre il pannello del focus](https://textjs.org/docs/internationalization#translating-the-focus-pad).
 - `@textjs/react`: nelle pagine da destra a sinistra, il pannello del focus mantiene da sinistra a destra i tasti come ⌘ ⌥ J e le dimensioni della console come 120×36, e rispecchia il controllo delle dimensioni e la barra dei passaggi. Nelle pagine in cinese e giapponese, elimina lo spazio tra le sue due frasi; in coreano lo mantiene.
 - textjs.org: textjs.org/ja non è più una bozza. Il selettore della lingua nel piè di pagina apre la stessa pagina in inglese o 日本語. Un browser impostato in giapponese mostra un pulsante 日本語で読む, mentre un browser in inglese su textjs.org/ja mostra Read in English. Il pulsante smette di apparire quando scegli una lingua o lo chiudi. I motori di ricerca indicizzano le pagine tradotte in giapponese e associano ciascuna alla sua versione inglese.
 - textjs.org: su textjs.org/ja, il pannello del focus è in giapponese in ogni pagina, comprese le etichette sotto i tasti di ogni demo.
 
-<!-- s:5b88618770 -->
-Modifiche
-
 <!-- s:27b507a9de -->
 - `@textjs/core`: le console di Chromium e Firefox cancellano l’output degli sprite animati a 16 MB anziché a 4 MB, quindi textjs.org/doom mostra «La console è stata cancellata» circa ogni 19 secondi anziché ogni 4,5. Safari e gli sprite disegnati con mezzi blocchi `▀` mantengono 4 MB. Il picco di heap della pagina su textjs.org/doom passa da 10,8 MB a circa 12–13 MB.
 - textjs.org: una pagina della documentazione scarica solo il proprio Markdown anziché tutte le 33 pagine, quindi le pagine della documentazione inglese caricano 43–47 KB di JavaScript (gzip) in meno e quelle /ja 60–64 KB in meno. Passare il puntatore su un link a un’altra pagina della documentazione o dargli il focus scarica quella pagina in anticipo, così continua ad aprirsi subito.
-
-<!-- s:afe76b8d59 -->
-Correzioni
 
 <!-- s:b3d1adfa39 -->
 - textjs.org/ja: la ricerca ⌘K mostra i titoli della documentazione giapponese e li confronta con le query in giapponese. Prima elencava titoli inglesi sotto i titoli delle pagine giapponesi. I nomi inglesi continuano a trovare le pagine: `routing` trova ルーティング e `open the console` trova コンソールを開く.

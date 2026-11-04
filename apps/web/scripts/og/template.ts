@@ -36,7 +36,7 @@ export const OG_FONTS: Record<string, string> = withExisting({
   "/fonts/noto-sans-kr-og.woff2": "scripts/og/fonts/noto-sans-kr-og.woff2",
   "/fonts/noto-sans-sc-og.woff2": "scripts/og/fonts/noto-sans-sc-og.woff2",
   "/fonts/noto-sans-tc-og.woff2": "scripts/og/fonts/noto-sans-tc-og.woff2",
-  "/fonts/noto-sans-arabic-og.woff2": "scripts/og/fonts/noto-sans-arabic-og.woff2",
+  "/fonts/noto-naskh-arabic-og.woff2": "scripts/og/fonts/noto-naskh-arabic-og.woff2",
   "/fonts/noto-sans-devanagari-og.woff2": "scripts/og/fonts/noto-sans-devanagari-og.woff2",
 });
 
@@ -65,7 +65,7 @@ const FONT_CSS = `
 @font-face { font-family: "OG Korean"; font-weight: 100 900; src: url(/fonts/noto-sans-kr-og.woff2) format("woff2"); }
 @font-face { font-family: "OG Simplified Chinese"; font-weight: 100 900; src: url(/fonts/noto-sans-sc-og.woff2) format("woff2"); }
 @font-face { font-family: "OG Traditional Chinese"; font-weight: 100 900; src: url(/fonts/noto-sans-tc-og.woff2) format("woff2"); }
-@font-face { font-family: "OG Arabic"; font-weight: 100 900; src: url(/fonts/noto-sans-arabic-og.woff2) format("woff2"); }
+@font-face { font-family: "OG Arabic"; font-weight: 400 700; src: url(/fonts/noto-naskh-arabic-og.woff2) format("woff2"); }
 @font-face { font-family: "OG Devanagari"; font-weight: 100 900; src: url(/fonts/noto-sans-devanagari-og.woff2) format("woff2"); }
 `;
 

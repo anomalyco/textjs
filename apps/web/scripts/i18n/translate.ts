@@ -21,7 +21,7 @@ import { getLocale } from "../../src/i18n/locales";
 import { formatTranslation, parseTranslation, segment } from "./document";
 import { captionBudget, captionGroups, parseVtt } from "./captions";
 import { captionFile, captionSources, catalogFile, documentSources, englishText, extractMessages, LOCALES_DIR, readCaptions, readCatalog, readText, translationFile, WEB_DIR, type Catalog, type CatalogValue } from "./sources";
-import { pluralSamples, validate, validatePlural } from "./validate";
+import { normalizePunctuation, pluralSamples, validate, validatePlural } from "./validate";
 
 const { values } = parseArgs({
   options: {
@@ -205,8 +205,9 @@ async function translate(job: Job): Promise<{ ok: Map<string, string>; failed: s
     const retry: Item[] = [];
     for (const item of pending) {
       const raw = out.get(item.id);
-      // Subtitles are plain text: code names without backticks.
-      const target = raw !== undefined && job.kind === "captions" ? raw.replace(/`+/g, "") : raw;
+      // Subtitles are plain text: code names without backticks. Arabic-script prose gets ، ؛ ؟.
+      const plain = raw !== undefined && job.kind === "captions" ? raw.replace(/`+/g, "") : raw;
+      const target = plain === undefined ? undefined : normalizePunctuation(job.locale, plain);
       const verdict = target === undefined ? { errors: ["missing"], warnings: [] } : validate(job.locale, item.text, target, keep);
       if (verdict.errors.length === 0 && target !== undefined) ok.set(item.id, target);
       else {

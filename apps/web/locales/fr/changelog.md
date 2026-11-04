@@ -11,21 +11,27 @@ Ajouts
 - textjs.org : les versions en espagnol, français, allemand, portugais brésilien, coréen, chinois simplifié et chinois traditionnel ne sont plus en brouillon sur textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn et /zh-tw. Le sélecteur de langue du pied de page et le bouton de langue du navigateur les proposent, comme le japonais. Les moteurs de recherche indexent les pages traduites et associent chacune à sa version anglaise.
 - textjs.org : les versions en italien, russe, turc, polonais, indonésien, vietnamien et hindi ne sont plus en brouillon sur textjs.org/it, /ru, /tr, /pl, /id, /vi et /hi. Le sélecteur de langue du pied de page et le bouton de langue du navigateur les proposent, comme les autres langues. Les moteurs de recherche indexent les pages traduites et associent chacune à sa version anglaise.
 
+<!-- s:5b88618770 -->
+Modifications
+
+<!-- s:33280e468a -->
+- `@textjs/react` : `<FocusPad>` et `<ViewportControl>` affichent leurs libellés à chasse fixe avec la pile de polices `--mono` de la page lorsqu’elle en définit une, et utilisent Geist Mono par défaut comme auparavant. Une page avec des libellés en arabe ou en hébreu peut ajouter les polices de son écriture à `--mono`.
+
+<!-- s:afe76b8d59 -->
+Corrections
+
+<!-- s:f0905efd51 -->
+- textjs.org : sur téléphone, le code en ligne qui dépasse la largeur d’une ligne passe à la ligne au lieu d’élargir la page. textjs.org/docs/internationalization dépassait de 92 px la largeur d’un écran de 390 px.
+
 <!-- s:f71df9184f -->
 - `@textjs/react` : `<FocusPad messages>` remplace les chaînes intégrées du pavé de focus pour les sites traduits. Cela couvre chaque ligne, les libellés pour les lecteurs d’écran et le contrôle de taille de la console. `<TextCanvas>` et `<ViewportControl>` acceptent aussi `messages`. `<ViewportControl>` utilise uniquement les clés du contrôle de taille. Les chaînes contenant une valeur, comme « Puis cliquez ici et appuyez sur ↑ ↓. », sont des fonctions qui renvoient la phrase entière. `defaultFocusPadMessages` contient le texte anglais. Consultez [Traduire le pavé de focus](https://textjs.org/docs/internationalization#translating-the-focus-pad).
 - `@textjs/react` : sur les pages de droite à gauche, le pavé de focus conserve de gauche à droite les touches telles que ⌘ ⌥ J et les tailles de console telles que 120×36, et inverse son contrôle de taille et sa barre d’étapes. Sur les pages en chinois et en japonais, il supprime l’espace entre ses deux phrases ; le coréen le conserve.
 - textjs.org : textjs.org/ja n’est plus en brouillon. Le sélecteur de langue du pied de page ouvre la même page en anglais ou en 日本語. Un navigateur configuré en japonais affiche un bouton 日本語で読む, et un navigateur en anglais sur textjs.org/ja affiche Read in English. Le bouton cesse d’apparaître une fois que vous choisissez une langue ou le fermez. Les moteurs de recherche indexent les pages traduites en japonais et associent chacune à sa version anglaise.
 - textjs.org : sur textjs.org/ja, le pavé de focus est en japonais sur chaque page, y compris les libellés sous les touches de chaque démo.
 
-<!-- s:5b88618770 -->
-Modifications
-
 <!-- s:27b507a9de -->
 - `@textjs/core` : les consoles Chromium et Firefox effacent la sortie des sprites animés à 16 Mo au lieu de 4 Mo, donc textjs.org/doom affiche « La console a été effacée » environ toutes les 19 secondes au lieu de toutes les 4,5 secondes. Safari et les sprites dessinés en demi-blocs `▀` conservent la limite de 4 Mo. Le pic d’utilisation du tas de la page textjs.org/doom passe de 10,8 Mo à environ 12–13 Mo.
 - textjs.org : une page de documentation télécharge uniquement son propre Markdown au lieu des 33 pages, donc les pages de documentation en anglais chargent 43–47 ko de JavaScript en moins (gzip), et les pages de documentation /ja 60–64 ko de moins. Survoler un lien vers une autre page de documentation ou lui donner le focus déclenche le chargement anticipé de cette page, qui s’ouvre donc toujours immédiatement.
-
-<!-- s:afe76b8d59 -->
-Corrections
 
 <!-- s:b3d1adfa39 -->
 - textjs.org/ja : la recherche ⌘K affiche les titres de la documentation en japonais et y recherche les requêtes en japonais. Elle affichait auparavant des titres de section en anglais sous les titres de page en japonais. Les noms en anglais trouvent toujours les pages : `routing` trouve ルーティング et `open the console` trouve コンソールを開く.

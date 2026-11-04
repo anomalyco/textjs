@@ -130,6 +130,29 @@
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.4));
 }
 
+/* Right to left, the frame runs from React 19 on the right to console.log on the left. */
+@media (min-width: 861px) {
+  [dir="rtl"] .tl-progress {
+    transform-origin: right center; /* physical: the inline start in RTL */
+    background: linear-gradient(270deg, rgba(50, 145, 255, 0.15), var(--accent));
+  }
+  [dir="rtl"] .tl-progress.idle {
+    background: linear-gradient(270deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.4));
+  }
+  [dir="rtl"] .tl-packet i {
+    background: linear-gradient(270deg, transparent, var(--accent));
+  }
+  [dir="rtl"] .tl-packet.idle i {
+    background: linear-gradient(270deg, transparent, rgba(255, 255, 255, 0.55));
+  }
+  [dir="rtl"] .tl-pipe.play .tl-packet.dirty {
+    animation-name: tl-run-dirty-rtl;
+  }
+  [dir="rtl"] .tl-pipe.play .tl-packet.idle {
+    animation-name: tl-run-idle-rtl;
+  }
+}
+
 .tl-pipe.play .tl-progress.dirty {
   animation: tl-fill-dirty var(--T) linear infinite;
 }
@@ -593,6 +616,43 @@
   78%,
   100% {
     transform: translateX(60%);
+    opacity: 0;
+  }
+}
+
+@keyframes tl-run-dirty-rtl {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  40% {
+    transform: translateX(-100%);
+    opacity: 1;
+  }
+  44%,
+  100% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes tl-run-idle-rtl {
+  0%,
+  49.9% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  50% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  74% {
+    transform: translateX(-60%);
+    opacity: 1;
+  }
+  78%,
+  100% {
+    transform: translateX(-60%);
     opacity: 0;
   }
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { siteStore } from "../console-companion/store";
 import { CATEGORY_LABELS, DOCS_META, docPath, type DocCategory } from "../docs/meta";
 import { rich } from "../i18n/rich";
+import { searchFold } from "../i18n/search-fold";
 import { t } from "../i18n/t";
 import { navigate } from "../router";
 import { SearchIcon } from "./icons";
@@ -109,11 +110,11 @@ export function SearchModal(): ReactNode {
 
   const items = useMemo<Item[]>(() => {
     if (!open) return [];
-    const q = query.trim().toLowerCase();
+    const q = searchFold(query.trim());
     if (!q) return [...PAGES, ...DEFAULT_DOCS];
-    const pages = PAGES.filter((p) => p.label.toLowerCase().includes(q) || p.href.includes(q));
+    const pages = PAGES.filter((p) => searchFold(p.label).includes(q) || p.href.includes(q));
     if (!engine) {
-      const fallbackDocs = DEFAULT_DOCS.filter((d) => d.label.toLowerCase().includes(q) || (d.sub ?? "").toLowerCase().includes(q));
+      const fallbackDocs = DEFAULT_DOCS.filter((d) => searchFold(d.label).includes(q) || searchFold(d.sub ?? "").includes(q));
       return [...pages, ...fallbackDocs];
     }
     const aliases = engine.aliasResults(query);

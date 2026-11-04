@@ -33,7 +33,8 @@ describe("/errors", () => {
 
   test("the index lists every code, grouped by package", () => {
     const html = renderToStaticMarkup(<RouteView route={{ name: "errors" }} />);
-    for (const pkg of TX_PACKAGES) expect(html).toContain(`>${pkg}</h2>`);
+    // Package names stay left-to-right on RTL pages (`@textjs/core`, not `textjs/core@`).
+    for (const pkg of TX_PACKAGES) expect(html).toContain(`<span dir="ltr">${pkg}</span></h2>`);
     for (const e of TX_ERRORS) expect(html).toContain(`href="/errors/${e.code}"`);
     expect(html).toContain(`${TX_ERRORS.length} of ${TX_ERRORS.length}`);
   });

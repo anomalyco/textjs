@@ -11,6 +11,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - textjs.org: Spanish, French, German, Brazilian Portuguese, Korean, and Simplified and Traditional Chinese are out of draft at textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn and /zh-tw. The footer's language picker and the browser-language button offer them, as they do Japanese. Search engines index the translated pages and match each to its English version.
 - textjs.org: Italian, Russian, Turkish, Polish, Indonesian, Vietnamese and Hindi are out of draft at textjs.org/it, /ru, /tr, /pl, /id, /vi and /hi. The footer's language picker and the browser-language button offer them, as they do the other languages. Search engines index the translated pages and match each to its English version.
 
+### Changed
+
+- `@textjs/react`: `<FocusPad>` and `<ViewportControl>` set their monospace labels in the page's `--mono` font stack when it defines one, and fall back to Geist Mono as before. A page with Arabic or Hebrew labels can add its script's fonts to `--mono`.
+
+### Fixed
+
+- textjs.org: on phones, inline code longer than the line wraps instead of widening the page. textjs.org/docs/internationalization was 92px too wide on a 390px screen.
+
 ## [1.5.0] - 2026-11-03
 
 ### Added

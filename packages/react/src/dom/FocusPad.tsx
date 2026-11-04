@@ -101,7 +101,8 @@ const PALETTE = {
 } as const;
 
 const FONT = 'Geist, "Geist Fallback", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
-const MONO = '"Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menlo, monospace';
+/** The host page's `--mono` when it sets one, so its script fonts (Arabic, Hebrew) apply to translated labels. */
+const MONO = 'var(--mono, "Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menlo, monospace)';
 const EASE = "cubic-bezier(.2,.8,.2,1)";
 
 /*

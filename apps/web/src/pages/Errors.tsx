@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { TX_PACKAGES, txMessage, type TxCode, type TxErrorDoc } from "@textjs/core";
 import { rich } from "../i18n/rich";
+import { searchFold } from "../i18n/search-fold";
 import { t } from "../i18n/t";
 import { A } from "../router";
 import { CopyButton } from "../site/CodeBlock";
@@ -29,11 +30,11 @@ function Template({ text }: { text: string }): ReactNode {
 }
 
 export function matchesErrorQuery(e: TxErrorDoc, query: string): boolean {
-  const q = query.trim().toLowerCase();
+  const q = searchFold(query.trim());
   if (!q) return true;
   const digits = q.replace(/^tx/, "");
   if (/^\d+$/.test(digits) && (Number(digits) === Number(e.code.slice(2)) || e.code.slice(2).includes(digits))) return true;
-  return [e.code, e.title, e.message, e.package, e.cause].some((s) => s.toLowerCase().includes(q));
+  return [e.code, e.title, e.message, e.package, e.cause].some((s) => searchFold(s).includes(q));
 }
 
 export function ErrorsIndexPage(): ReactNode {
@@ -61,7 +62,9 @@ export function ErrorsIndexPage(): ReactNode {
         if (rows.length === 0) return null;
         return (
           <section key={pkg} className="tx-errors-group" aria-labelledby={`pkg-${pkg.replace(/\W+/g, "-")}`}>
-            <h2 id={`pkg-${pkg.replace(/\W+/g, "-")}`}>{pkg}</h2>
+            <h2 id={`pkg-${pkg.replace(/\W+/g, "-")}`}>
+              <span dir="ltr">{pkg}</span>
+            </h2>
             <ul>
               {rows.map((e) => (
                 <li key={e.code}>
@@ -71,7 +74,7 @@ export function ErrorsIndexPage(): ReactNode {
                       {e.title}
                       {e.kind === "warning" ? <span className="badge tx-warning-badge">{t("Warning")}</span> : null}
                     </span>
-                    <span className="tx-errors-msg">
+                    <span className="tx-errors-msg" lang="en" dir="ltr">
                       <Template text={e.message} />
                     </span>
                   </A>
@@ -98,7 +101,7 @@ export function ErrorPage({ code }: { code: string }): ReactNode {
       <div className="breadcrumbs">
         <A href="/errors">{t("Error Codes")}</A>
         <span>/</span>
-        <span>{e.package}</span>
+        <span dir="ltr">{e.package}</span>
       </div>
       <p className="tx-error-code">
         <code className="tx-code">{e.code}</code>
@@ -110,7 +113,7 @@ export function ErrorPage({ code }: { code: string }): ReactNode {
           <span>{t("Console")}</span>
           <CopyButton text={example} />
         </div>
-        <p>
+        <p lang="en" dir="ltr">
           <span className="tx-error-prefix">{e.kind === "warning" ? "Text.js warning" : "Text.js error"} {e.code}:</span> <Template text={e.message} />
         </p>
       </div>
