@@ -22,6 +22,8 @@ export const VIRTUAL_EMBED_PLAYER = "virtual:textjs/embed-player";
 /** Their URLs in `text dev`. */
 export const EMBED_CLIENT_URL = "/@textjs/embed-client";
 export const EMBED_PLAYER_URL = "/@textjs/embed-player";
+/** `startEmbed` in `text dev`. */
+export const EMBED_LOADER_URL = "/@textjs/embed-loader";
 
 const here = dirname(realpathSync(fileURLToPath(import.meta.url)));
 
@@ -78,6 +80,7 @@ export function embedPlayerConfig(config: TextConfig, s: EmbedSettings): EmbedPl
 
 const RESOLVED_CLIENT = `\0${VIRTUAL_EMBED_CLIENT}`;
 const RESOLVED_PLAYER = `\0${VIRTUAL_EMBED_PLAYER}`;
+const RESOLVED_LOADER = "\0virtual:textjs/embed-loader";
 
 export interface EmbedPluginOptions {
   config: TextConfig;
@@ -97,10 +100,13 @@ export function textjsEmbedPlugin(options: EmbedPluginOptions): Plugin {
     resolveId(id) {
       if (id === VIRTUAL_EMBED_CLIENT || id.endsWith(EMBED_CLIENT_URL)) return RESOLVED_CLIENT;
       if (id === VIRTUAL_EMBED_PLAYER || id.endsWith(EMBED_PLAYER_URL)) return RESOLVED_PLAYER;
+      if (id.endsWith(EMBED_LOADER_URL)) return RESOLVED_LOADER;
       if (options.embeddedStubs && id === LIVE_STUB_MODULE) return embedModule("server-stub");
       return null;
     },
     load(id) {
+      // A re-export, so Vite serves the framework file even where `server.fs.allow` doesn't list it (a linked package).
+      if (id === RESOLVED_LOADER) return `export { startEmbed } from ${JSON.stringify(embedModule("loader"))};\n`;
       if (id === RESOLVED_CLIENT) {
         return `import { bootEmbedClient } from ${JSON.stringify(embedModule("boot-client"))};
 import routes from "virtual:textjs/routes";

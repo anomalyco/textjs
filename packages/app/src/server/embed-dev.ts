@@ -10,7 +10,7 @@ import type { ViteDevServer } from "vite";
 import type { TextConfig } from "../config";
 import type { ThemeName } from "@textjs/react";
 import { EMBED_ASSET_HEADERS } from "./cors";
-import { createEmbedEntry, EMBED_CLIENT_URL, EMBED_FILE, EMBED_PLAYER_URL, embedModule, resolveEmbedSettings } from "./embed";
+import { createEmbedEntry, EMBED_CLIENT_URL, EMBED_FILE, EMBED_LOADER_URL, EMBED_PLAYER_URL, resolveEmbedSettings } from "./embed";
 import type { LiveEntryModule } from "./live-dev";
 import { createRuntimeMatcher, VIRTUAL_LIVE } from "./live-routes";
 import { compileShellCalls, createShellReplayCode } from "./ppr";
@@ -45,6 +45,7 @@ export function createEmbedPreviewHtml(o: { title: string; src: string }): strin
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(o.title)} · embed preview</title>
+    <link rel="icon" href="data:," />
     <style>
       body { margin: 0; font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; color: #171717; background: #fafafa; }
       main { max-width: 640px; margin: 0 auto; padding: 72px 24px 50vh; }
@@ -100,12 +101,11 @@ export function createEmbedDevHandler(vite: ViteDevServer, o: EmbedDevOptions): 
       if (pathname === `/${EMBED_FILE}`) {
         const server = createRuntimeMatcher(scanApp(o.root, o.appDir))(settings.initialPath.split(/[?#]/)[0] as string) === "server";
         const shell = await renderShell(settings.initialPath, settings.initialClear);
-        const loader = embedModule("loader");
         const code = createEmbedEntry({
           shell,
           runtime: `${base}${(server ? EMBED_PLAYER_URL : EMBED_CLIENT_URL).slice(1)}`,
           ...(server ? { endpoint: `.${LIVE_PATH}` } : {}),
-          loader: `${base}@fs/${loader.replace(/^\//, "")}`,
+          loader: `${base}${EMBED_LOADER_URL.slice(1)}`,
           // Components compiled for Fast Refresh expect its runtime on the page, which the host page doesn't have.
           prelude: server
             ? ""
