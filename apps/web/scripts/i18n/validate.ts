@@ -105,7 +105,8 @@ export function validate(locale: string, source: string, target: string, keep: r
   if (tableRows(source) !== tableRows(target)) errors.push(`table rows differ: ${tableRows(source)} → ${tableRows(target)}`);
   if (listItems(source) !== listItems(target)) warnings.push(`list items differ: ${listItems(source)} → ${listItems(target)}`);
   for (const term of keep) {
-    const n = (s: string): number => s.split(term).length - 1;
+    // German joins a multiword name into a compound with hyphens: VS-Code-Erweiterung.
+    const n = (s: string): number => s.split(term).length - 1 + (term.includes(" ") ? s.split(term.replaceAll(" ", "-")).length - 1 : 0);
     if (n(source) !== n(target)) warnings.push(`"${term}" appears ${n(source)}× in English, ${n(target)}× here`);
   }
   const script = SCRIPT[locale];

@@ -818,6 +818,12 @@
     },
     "navigation": {
       "fa": "ناوبری"
+    },
+    "VS Code extension": {
+      "de": "VS-Code-Erweiterung"
+    },
+    "Chrome DevTools extension": {
+      "de": "Chrome-DevTools-Erweiterung"
     }
   },
   "notes": {
