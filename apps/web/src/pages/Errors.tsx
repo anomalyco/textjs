@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { TX_PACKAGES, txMessage, type TxCode, type TxErrorDoc } from "@textjs/core";
 import { rich } from "../i18n/rich";
+import { searchFold } from "../i18n/search-fold";
 import { t } from "../i18n/t";
 import { A } from "../router";
 import { CopyButton } from "../site/CodeBlock";
@@ -29,11 +30,11 @@ function Template({ text }: { text: string }): ReactNode {
 }
 
 export function matchesErrorQuery(e: TxErrorDoc, query: string): boolean {
-  const q = query.trim().toLowerCase();
+  const q = searchFold(query.trim());
   if (!q) return true;
   const digits = q.replace(/^tx/, "");
   if (/^\d+$/.test(digits) && (Number(digits) === Number(e.code.slice(2)) || e.code.slice(2).includes(digits))) return true;
-  return [e.code, e.title, e.message, e.package, e.cause].some((s) => s.toLowerCase().includes(q));
+  return [e.code, e.title, e.message, e.package, e.cause].some((s) => searchFold(s).includes(q));
 }
 
 export function ErrorsIndexPage(): ReactNode {

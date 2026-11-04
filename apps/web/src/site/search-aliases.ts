@@ -1,6 +1,7 @@
 import { getTxError } from "@textjs/core";
 import { docPath, getDocMeta } from "../docs/meta";
 import { DOC_HEADINGS } from "../docs/search-index";
+import { getErrorPageTitle } from "../pages/tx000";
 
 export interface SearchItem {
   key: string;
@@ -23,7 +24,7 @@ const ALIASES: ReadonlyArray<{ terms: readonly string[]; to: { error: string } |
 function errorItem(code: string): SearchItem | null {
   const e = getTxError(code);
   if (!e) return null;
-  return { key: `e:${e.code}`, group: "Error Codes", label: `${e.code}: ${e.title}`, sub: e.package, href: `/errors/${e.code}` };
+  return { key: `e:${e.code}`, group: "Error Codes", label: `${e.code}: ${getErrorPageTitle(e.code) ?? e.title}`, sub: e.package, href: `/errors/${e.code}` };
 }
 
 function docItem(slug: string, heading?: string): SearchItem | null {

@@ -105,6 +105,18 @@ describe("right-to-left text", () => {
     expect(shown(isolateLatin("يتطلب Node.js 22+ أو Bun 1.2+."))).toBe("يتطلب ⟨Node.js 22+⟩ أو ⟨Bun 1.2+⟩.");
     expect(shown(isolateLatin("اضغط ⌘⌥J لفتح وحدة التحكم"))).toBe("اضغط ⟨⌘⌥J⟩ لفتح وحدة التحكم");
     expect(shown(isolateLatin("الحروف من U+FB50–U+FDFF"))).toBe("الحروف من ⟨U+FB50–U+FDFF⟩");
+    // Numbers with a sign read "32 × 100", "81% – 70" and "+22" unless isolated; format tokens read "c%".
+    expect(shown(isolateLatin("حجم 100×32 خلية"))).toBe("حجم ⟨100×32⟩ خلية");
+    expect(shown(isolateLatin("حجم 10 × 32 خلية"))).toBe("حجم ⟨10 × 32⟩ خلية");
+    expect(shown(isolateLatin("بين 70–81% من"))).toBe("بين ⟨70–81%⟩ من");
+    expect(shown(isolateLatin("يتطلب 22+ إطارًا"))).toBe("يتطلب ⟨22+⟩ إطارًا");
+    expect(shown(isolateLatin("يطبّق %c تنسيق CSS"))).toBe("يطبّق ⟨%c⟩ تنسيق CSS");
+    expect(shown(isolateLatin("עם %s ו-%% כאן"))).toBe("עם ⟨%s⟩ ו-⟨%%⟩ כאן");
+    expect(shown(isolateLatin("خلال 0.163 ms فقط"))).toBe("خلال ⟨0.163 ms⟩ فقط");
+    expect(shown(isolateLatin("الطلبات على /coffee والمجلد app/ هنا"))).toBe("الطلبات على ⟨/coffee⟩ والمجلد ⟨app/⟩ هنا");
+    // Plain numbers, versions and list markers keep their order and stay unwrapped.
+    expect(isolateLatin("حتى 300 إطار و 3,200 خلية")).toBe("حتى 300 إطار و 3,200 خلية");
+    expect(isolateLatin("1. الإصدار 1.4.1 متاح")).toBe("1. الإصدار 1.4.1 متاح");
     expect(shown(isolateLatin("يعرض React و Vite"))).toBe("يعرض React و Vite");
     expect(shown(isolateLatin("شغّل `bun dev 1+` ثم [Learn Text.js](/learn?x=1 2) {count}"))).toBe("شغّل `bun dev 1+` ثم [⟨Learn Text.js⟩](/learn?x=1 2) {count}");
     expect(shown(isolateLatin("## التثبيت على Bun 1.2+ {#install-it}"))).toBe("## التثبيت على ⟨Bun 1.2+⟩ {#install-it}");

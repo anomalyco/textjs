@@ -111,7 +111,8 @@ function gridSize({ cols, rows }: { cols: number; rows: number }): string {
   return `\u2066${cols}×${rows}\u2069`;
 }
 
-const MONO = '"Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menlo, monospace';
+/** The host page's `--mono` when it sets one, so its script fonts (Arabic, Hebrew) apply to translated labels. */
+const MONO = 'var(--mono, "Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menlo, monospace)';
 
 /**
  * A one-line console size picker: "Fit console" (follow docked DevTools) or a

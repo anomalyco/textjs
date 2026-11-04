@@ -53,8 +53,14 @@
 }
 :root:is(:lang(ar), :lang(fa), :lang(ur)) {
   --sans: "Geist", "Geist Fallback", "SF Arabic", "Geeza Pro", "Segoe UI", "Noto Sans Arabic", Tahoma, sans-serif;
-  /* Arabic in mono labels (breadcrumbs, size pickers) uses the page's Arabic font, not whatever the OS picks. */
-  --mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "SF Arabic", "Geeza Pro", "Segoe UI", "Noto Sans Arabic", Tahoma, monospace;
+  --mono-code: "Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "SF Arabic", "Geeza Pro", "Segoe UI", "Noto Sans Arabic", Tahoma, monospace;
+  /* Translated labels set in mono elsewhere (breadcrumbs, size pickers, the 404 line) use the sans stack: Geist Mono's
+     cell-wide spaces pull Arabic words apart. Code, key chords, English text and LTR islands (consoles, editors)
+     keep the monospace stack. */
+  --mono: var(--sans);
+}
+:root:is(:lang(ar), :lang(fa), :lang(ur)) :is(code, pre, kbd, samp, [dir="ltr"], [lang="en"]) {
+  --mono: var(--mono-code);
 }
 :root:lang(he) {
   --sans: "Geist", "Geist Fallback", "SF Hebrew", "Arial Hebrew", "Segoe UI", "Noto Sans Hebrew", sans-serif;
@@ -2344,6 +2350,14 @@ body:has(.locale-suggestion) .footer {
 .prose h2:hover a.anchor,
 .prose h3:hover a.anchor {
   opacity: 1;
+}
+
+/* Inside the 20px phone gutter, so the # never pokes past the screen edge (the right edge on RTL pages). */
+@media (max-width: 640px) {
+  .prose h2 a.anchor,
+  .prose h3 a.anchor {
+    inset-inline-start: -18px;
+  }
 }
 
 .prose :not(pre) > code {
