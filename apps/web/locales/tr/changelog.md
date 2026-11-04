@@ -7,9 +7,10 @@ Biçim, [Değişiklik günlüğü tutma](https://keepachangelog.com/en/1.1.0/) t
 <!-- s:2e16922cfc -->
 Eklenenler
 
-<!-- s:63133817e6 -->
+<!-- s:01d85a9a48 -->
 - textjs.org: İspanyolca, Fransızca, Almanca, Brezilya Portekizcesi, Korece, Basitleştirilmiş ve Geleneksel Çince sürümleri textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn ve /zh-tw adreslerinde taslak aşamasından çıktı. Alt bilgideki dil seçici ve tarayıcı dili düğmesi, Japoncanın yanı sıra bu dilleri de sunuyor. Arama motorları çevrilmiş sayfaları dizine ekliyor ve her birini İngilizce sürümüyle eşleştiriyor.
 - textjs.org: İtalyanca, Rusça, Türkçe, Lehçe, Endonezce, Vietnamca ve Hintçe sürümleri textjs.org/it, /ru, /tr, /pl, /id, /vi ve /hi adreslerinde taslak aşamasından çıktı. Alt bilgideki dil seçici ve tarayıcı dili düğmesi, diğer dillerin yanı sıra bu dilleri de sunuyor. Arama motorları çevrilmiş sayfaları dizine ekliyor ve her birini İngilizce sürümüyle eşleştiriyor.
+- textjs.org: Arapça, İbranice, Farsça ve Urduca sürümleri textjs.org/ar, /he, /fa ve /ur adreslerinde taslak aşamasından çıktı. Alt bilgideki dil seçici ve tarayıcı dili düğmesi, diğer dillerin yanı sıra bu dilleri de sunuyor. Arama motorları çevrilmiş sayfaları dizine ekliyor ve her birini İngilizce sürümüyle eşleştiriyor.
 
 <!-- s:5b88618770 -->
 Değiştirilenler

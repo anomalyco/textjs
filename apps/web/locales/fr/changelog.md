@@ -7,9 +7,10 @@ Le format repose sur [Tenir un journal des modifications](https://keepachangelog
 <!-- s:2e16922cfc -->
 Ajouts
 
-<!-- s:63133817e6 -->
+<!-- s:01d85a9a48 -->
 - textjs.org : les versions en espagnol, français, allemand, portugais brésilien, coréen, chinois simplifié et chinois traditionnel ne sont plus en brouillon sur textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn et /zh-tw. Le sélecteur de langue du pied de page et le bouton de langue du navigateur les proposent, comme le japonais. Les moteurs de recherche indexent les pages traduites et associent chacune à sa version anglaise.
 - textjs.org : les versions en italien, russe, turc, polonais, indonésien, vietnamien et hindi ne sont plus en brouillon sur textjs.org/it, /ru, /tr, /pl, /id, /vi et /hi. Le sélecteur de langue du pied de page et le bouton de langue du navigateur les proposent, comme les autres langues. Les moteurs de recherche indexent les pages traduites et associent chacune à sa version anglaise.
+- textjs.org : les versions en arabe, hébreu, persan et ourdou ne sont plus en brouillon sur textjs.org/ar, /he, /fa et /ur. Le sélecteur de langue du pied de page et le bouton de langue du navigateur les proposent, comme les autres langues. Les moteurs de recherche indexent les pages traduites et associent chacune à sa version anglaise.
 
 <!-- s:5b88618770 -->
 Modifications

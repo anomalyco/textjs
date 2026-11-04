@@ -7,9 +7,10 @@ Formatnya didasarkan pada [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 <!-- s:2e16922cfc -->
 Ditambahkan
 
-<!-- s:63133817e6 -->
+<!-- s:01d85a9a48 -->
 - textjs.org: versi bahasa Spanyol, Prancis, Jerman, Portugis Brasil, Korea, serta Mandarin Sederhana dan Tradisional telah keluar dari status draf di textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn dan /zh-tw. Pemilih bahasa di footer dan tombol bahasa browser menawarkan bahasa tersebut, seperti halnya bahasa Jepang. Mesin pencari mengindeks halaman terjemahan dan mencocokkan masing-masing dengan versi bahasa Inggrisnya.
 - textjs.org: versi bahasa Italia, Rusia, Turki, Polandia, Indonesia, Vietnam, dan Hindi telah keluar dari status draf di textjs.org/it, /ru, /tr, /pl, /id, /vi dan /hi. Pemilih bahasa di footer dan tombol bahasa browser menawarkan bahasa tersebut, seperti halnya bahasa lainnya. Mesin pencari mengindeks halaman terjemahan dan mencocokkan masing-masing dengan versi bahasa Inggrisnya.
+- textjs.org: versi bahasa Arab, Ibrani, Persia, dan Urdu telah keluar dari status draf di textjs.org/ar, /he, /fa dan /ur. Pemilih bahasa di footer dan tombol bahasa browser menawarkan bahasa tersebut, seperti halnya bahasa lainnya. Mesin pencari mengindeks halaman terjemahan dan mencocokkan masing-masing dengan versi bahasa Inggrisnya.
 
 <!-- s:5b88618770 -->
 Diubah
