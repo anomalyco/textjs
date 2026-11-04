@@ -59,6 +59,10 @@ const LITERAL_SPANS = /(`+)(?!`)(.+?)(?<!`)\1(?!`)|\]\([^)]*\)|\{#?[\w-]+\}|<[^<
  */
 const LATIN_PUNCTUATION = /[,;](?=\s|$)|(?<=\S|^)\?(?=[\s*_»”)\]]|$)/g;
 const ARABIC_FORM: Record<string, string> = { ",": "،", ";": "؛", "?": "؟" };
+/** Persian (and Urdu) write ی and ک; the Arabic ي and ك look alike but break search, sorting and spell-checking. */
+const PERSIAN_LETTERS = new Set(["fa", "ur"]);
+const ARABIC_LETTERS = /[\u064a\u0643]/g;
+const PERSIAN_FORM: Record<string, string> = { "\u064a": "\u06cc", "\u0643": "\u06a9" };
 
 /** Applies `fn` to the text between literal spans (code, link targets, placeholders, tags, URLs). */
 function outsideLiterals(text: string, fn: (s: string) => string): string {
@@ -71,10 +75,16 @@ function outsideLiterals(text: string, fn: (s: string) => string): string {
   return out + fn(text.slice(at));
 }
 
-/** `ar`, `fa`, `ur`: Latin commas, semicolons and question marks in Arabic text become ، ؛ ؟ (code and URLs untouched). */
+/**
+ * `ar`, `fa`, `ur`: Latin commas, semicolons and question marks in Arabic text become ، ؛ ؟, and Persian and Urdu get
+ * ی and ک for the Arabic ي and ك (code and URLs untouched).
+ */
 export function normalizePunctuation(locale: string, text: string): string {
   if (!ARABIC_PUNCTUATION.has(locale) || !new RegExp(ARABIC_LETTER).test(text)) return text;
-  return outsideLiterals(text, (s) => s.replace(LATIN_PUNCTUATION, (p) => ARABIC_FORM[p] as string));
+  return outsideLiterals(text, (s) => {
+    const punctuated = s.replace(LATIN_PUNCTUATION, (p) => ARABIC_FORM[p] as string);
+    return PERSIAN_LETTERS.has(locale) ? punctuated.replace(ARABIC_LETTERS, (c) => PERSIAN_FORM[c] as string) : punctuated;
+  });
 }
 
 export function validate(locale: string, source: string, target: string, keep: readonly string[] = []): Verdict {
@@ -98,7 +108,7 @@ export function validate(locale: string, source: string, target: string, keep: r
   const prose = noCode(source).replace(/\]\([^)]*\)/g, "](");
   const keptOnly = keep.reduce((s, k) => s.split(k).join(""), prose);
   if (script && /[A-Za-z]{3,}\s+[A-Za-z]{3,}/.test(keptOnly) && !script.test(target)) warnings.push("no characters of the target script");
-  if (normalizePunctuation(locale, target) !== target) errors.push("Latin , ; or ? in Arabic text (use ، ؛ ؟)");
+  if (normalizePunctuation(locale, target) !== target) errors.push(PERSIAN_LETTERS.has(locale) ? "Latin , ; or ? or Arabic ي ك in Persian-script text (use ، ؛ ؟ and ی ک)" : "Latin , ; or ? in Arabic text (use ، ؛ ؟)");
   return { errors, warnings };
 }
 
