@@ -15,7 +15,9 @@ describe("text build (examples/dashboard)", () => {
   test(
     "builds dist/ cleanly and prints the route summary",
     async () => {
-      const proc = Bun.spawn(["bun", BIN, "build"], { cwd: DASHBOARD, stdout: "pipe", stderr: "pipe", env: { ...process.env, NO_COLOR: "1" } });
+      // As users run it: `bun test` sets NODE_ENV=test, which would make a development build.
+      const { NODE_ENV: _, ...env } = process.env;
+      const proc = Bun.spawn(["bun", BIN, "build"], { cwd: DASHBOARD, stdout: "pipe", stderr: "pipe", env: { ...env, NO_COLOR: "1" } });
       const [stdout, stderr, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
       expect(stderr.trim()).toBe("");
       expect(code).toBe(0);
@@ -42,6 +44,8 @@ describe("text build (examples/dashboard)", () => {
       expect(bundle).toContain("Edge Console");
       expect(bundle).toContain("console.log (%c)");
       expect(bundle).not.toContain("virtual:textjs");
+      // The Dev Overlay, Redbox and HMR frame mirror only ship in `text dev`.
+      for (const devOnly of ["Dev Overlay", "Unhandled Runtime Error", "Component Stack", "vite:error", "unhandledrejection", "textjs:mirror", "textjs:frame"]) expect(bundle).not.toContain(devOnly);
       expect(existsSync(join(dist, ".text/server/api.mjs"))).toBe(true);
       const manifest = JSON.parse(readFileSync(join(dist, ".text/routes-manifest.json"), "utf8"));
       expect(manifest.routes.map((r: { pattern: string }) => r.pattern)).toEqual(["/", "/deployments", "/deployments/[id]", "/logs", "/settings", "/status"]);
