@@ -101,3 +101,40 @@ text.stats()
 text.wireframe()
 text.copyText()
 ```
+
+## Loading on console intent (experimental)
+
+`@textjs/core/experimental` exports `onConsoleIntent` for pages that download their console app only when a visitor wants it. It calls your function once, with the reason:
+
+| Reason | When |
+| :-- | :-- |
+| `dock` | DevTools is docked when the page loads, or docks later. Text.js reads it from the window size |
+| `shortcut` | The visitor presses `F12`, `⌘⌥J`, `⌘⌥I`, `⌘⌥C` or `⌘⌥K` on macOS, or `Ctrl+Shift+J`, `I`, `C` or `K` elsewhere. The browser still opens DevTools |
+| `engage` | A primary click, or Enter or Space, on an element matching `engageSelector`. Clicks on links, buttons and form fields inside it don't count unless they have `data-textjs-engage` too |
+| `session` | One of the above already happened in this tab, so a reload boots at once |
+| `manual` | You called `trigger()` on the returned handle |
+
+```ts
+import { onConsoleIntent } from "@textjs/core/experimental";
+
+onConsoleIntent(
+  async (e) => {
+    const { start } = await import("./console");
+    start({ focus: e.reason === "engage" });
+  },
+  { prefetch: () => void import("./console") },
+);
+```
+
+DevTools opened in its own window from a browser menu doesn't show up in the window size. Those visitors start the app from an `engage` element, and `session` keeps it starting on reloads in that tab. On touch screens only `engage` fires, since the on-screen keyboard shrinks the page the same way a docked panel does.
+
+| Option | Description |
+| :-- | :-- |
+| `engageSelector` | Elements that start the app when clicked (default `[data-textjs-engage], [data-textjs-focus-pad]`). `false` adds no listeners |
+| `persist` | Remember intent for the tab in `sessionStorage` (default `true`) |
+| `prefetch` | Called at most once, when the pointer or focus enters an `engageSelector` element |
+| `idlePrefetch` | Also call `prefetch` when the browser is idle after `load` (default `false`) |
+
+`prefetch` never runs on touch screens, with Data Saver on, or on connections slower than 4G. `canPrefetchConsole()` returns the same check. The handle's `dispose()` removes every listener.
+
+`<ViewportControl>` with `onChange` works before the console root exists. It saves the choice, calls `onChange`, where you can start the app, and applies the choice once `root` is set. See [Breaking changes](/docs/support-policy#breaking-changes) for how experimental exports are versioned.

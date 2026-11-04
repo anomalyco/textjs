@@ -1001,6 +1001,11 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
       "depth": 2,
       "text": "The window.text REPL",
       "id": "the-windowtext-repl"
+    },
+    {
+      "depth": 2,
+      "text": "Loading on console intent (experimental)",
+      "id": "loading-on-console-intent-experimental"
     }
   ],
   "utility-hooks": [

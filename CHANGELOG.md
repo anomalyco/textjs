@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `@textjs/core/experimental`: `onConsoleIntent(onIntent, options)` calls `onIntent` once when a visitor wants the console, so a page can download its console app only then. It fires when DevTools is docked on load or docks later (`"dock"`), and on a DevTools shortcut (`"shortcut"`): F12 and Ctrl+Shift+J, I, C or K, or ⌘⌥J, I, C or K on a Mac. It also fires on a click on a `[data-textjs-engage]` element, a `<text-console>` element or a `<FocusPad>`, on Enter or Space on a `[data-textjs-engage]` button, and when a size is picked in `<ViewportControl>` before the console starts (`"engage"`). Reloads in a tab where one of those already happened fire `"session"`. Nothing fires automatically on touch screens. Call `trigger()`. `prefetch` warms the app's chunks when the pointer reaches a console surface, and `canPrefetchConsole()` reports whether prefetching suits the device and connection. `CONSOLE_INTENT_KEY` is the `sessionStorage` key it uses. See [Loading on console intent](https://textjs.org/docs/hooks-and-repl#loading-on-console-intent-experimental).
+- `@textjs/react`: `<ViewportControl onChange>` works before the console root exists. Picking a size saves it, calls `onChange` and applies the size once `root` is set. `<FocusPad sizeControl>` gets this too, so its size menu no longer sits disabled until the console starts.
+
 ### Changed
 
 - `@textjs/core`: the console driver checks whether the console font fits a glyph that may need a stand-in (eighth blocks, quadrants, braille, ▶, ✓ and similar) the first time that glyph appears, instead of measuring all of them on the first frame. Drivers that use the same font size and family share the results. A frame without those glyphs makes no stand-in measurements, so the first frame of textjs.org's home console takes 1.2 ms instead of 9.2 ms in headless Chromium on an M5 Pro Mac mini, and 4.8 ms instead of 38.4 ms with the CPU throttled 4×. On Windows 10, where Consolas lacks those glyphs, frames that use them get the same stand-ins as before, from the first frame.

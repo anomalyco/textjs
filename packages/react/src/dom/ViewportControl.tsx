@@ -95,7 +95,11 @@ export interface ViewportControlProps {
   /** localStorage key for the choice (default `"textjs:viewport"`, `null` to not persist). */
   storageKey?: string | null;
   presets?: ReadonlyArray<{ cols: number; rows: number }>;
-  /** Called after the size changes (e.g. hand the keyboard back to the app). */
+  /**
+   * Called after the size changes (e.g. hand the keyboard back to the app). With `onChange`, the control
+   * also works while `root` is `null`: it saves the choice and applies it once `root` arrives, so
+   * `onChange` can boot the console.
+   */
   onChange?: (choice: ViewportChoice) => void;
   className?: string;
   style?: CSSProperties;
@@ -120,8 +124,11 @@ const MONO = 'var(--mono, "Geist Mono", "Geist Mono Fallback", ui-monospace, "SF
  */
 export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, presets = VIEWPORT_PRESETS, onChange, className, style, color = "#707070", activeColor = "#ededed", messages }: ViewportControlProps): ReactNode {
   const m = useMemo(() => resolveFocusPadMessages<ViewportControlMessages>(messages, defaultFocusPadMessages), [messages]);
-  const state = useSyncExternalStore(root?.viewport.subscribe ?? NOOP_SUBSCRIBE, () => root?.viewport.getSnapshot() ?? null, () => null);
+  const live = useSyncExternalStore(root?.viewport.subscribe ?? NOOP_SUBSCRIBE, () => root?.viewport.getSnapshot() ?? null, () => null);
   const fit = useFitSize(root);
+  // A size picked before the console boots shows here and applies once `root` arrives.
+  const [pending, setPending] = useState<ViewportChoice | null>(null);
+  const state = live ?? (pending !== null && pending !== "fit" ? { responsive: false, ...pending } : null);
   const [custom, setCustom] = useState(false);
   const [hover, setHover] = useState(false);
   const [draft, setDraft] = useState({ cols: "", rows: "" });
@@ -132,14 +139,21 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
     if (custom) colsRef.current?.select();
   }, [custom]);
 
+  useEffect(() => {
+    if (!root || pending === null) return;
+    applyViewportChoice(root, pending);
+    setPending(null);
+  }, [root, pending]);
+
   const responsive = state?.responsive ?? true;
   const current = state ? `${state.cols}x${state.rows}` : "";
   const isPreset = presets.some((p) => `${p.cols}x${p.rows}` === current);
   const value = responsive ? "fit" : isPreset ? current : "custom";
 
   const choose = (choice: ViewportChoice): void => {
-    if (!root) return;
-    applyViewportChoice(root, choice);
+    if (root) applyViewportChoice(root, choice);
+    else if (onChange) setPending(choice);
+    else return;
     if (storageKey !== null) saveViewportChoice(choice, storageKey);
     onChange?.(choice);
   };
@@ -212,7 +226,7 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
         name="textjs-console-size"
         aria-label={m.consoleSize}
         value={value}
-        disabled={!root}
+        disabled={!root && !onChange}
         onChange={(e) => {
           const v = e.target.value;
           if (v === "custom") {

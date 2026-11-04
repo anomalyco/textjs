@@ -195,6 +195,13 @@ describe("DOM companion", () => {
     expect(renderToStaticMarkup(<ViewportControl root={null} />)).toContain("Fit console");
   });
 
+  test("before the console boots, the size select works only when onChange can boot it", () => {
+    const select = (html: string) => /<select\b[^>]*>/.exec(html)?.[0] ?? "";
+    expect(select(renderToStaticMarkup(<ViewportControl root={null} />))).toContain("disabled");
+    expect(select(renderToStaticMarkup(<ViewportControl root={null} onChange={() => undefined} />))).not.toContain("disabled");
+    expect(select(renderToStaticMarkup(<FocusPad root={null} sizeControl />))).not.toContain("disabled");
+  });
+
   test("the size select has an id and a name, so Chrome's Issues panel doesn't flag it", () => {
     const html = renderToStaticMarkup(
       <>
