@@ -2,7 +2,7 @@ import type { StyledFrame } from "@textjs/core";
 import type { ConsoleRoot } from "@textjs/react";
 import { loadViewportChoice, VIEWPORT_CHOICE_KEY, type ViewportChoice } from "@textjs/react/dom";
 import { exampleGrid, runsExamples } from "../docs/preview-meta";
-import { isPadRoute, type CompanionTab } from "./store";
+import { isPadRoute, siteStore, type CompanionTab } from "./store";
 
 /** The Home hero mirrors the console on the page, so Home keeps (at most) this shape. */
 export const COMPANION_COLS = 100;
@@ -99,8 +99,8 @@ export function isRefocusPress(e: { timeStamp: number }): boolean {
 /** Explicit console surfaces (live DevTools mirrors) that route keystrokes into the companion when clicked. */
 export const ENGAGE_SELECTOR = "[data-textjs-engage]";
 
-/** Buttons that start the console when clicked (the Console pill, "Run in console"). Hovering one downloads the companion. */
-export const COMPANION_CONTROLS = ".console-pill,.preview-run";
+/** Buttons that start the console when clicked (the Console pill, "Run in console", the hero's inspect button). Hovering one downloads the companion. */
+export const COMPANION_CONTROLS = ".console-pill,.preview-run,.dt-inspect";
 
 /**
  * Whether pressing `target` routes keys into the console: an explicit console surface, or any
@@ -140,7 +140,7 @@ export function companionReady(): Promise<Companion> | null {
 }
 
 /** @internal `main.tsx` registers how to load and boot the companion, which happens on the visitor's first sign of intent. */
-export function configureCompanionLoader(load: () => Promise<Companion>): void {
+export function configureCompanionLoader(load: (() => Promise<Companion>) | null): void {
   loader = load;
 }
 
@@ -162,8 +162,15 @@ export function ensureCompanion(): Promise<Companion> | null {
 }
 
 export function activateCompanion(): void {
-  if (companion) companion.activate();
-  else void ensureCompanion()?.then((c) => c.activate(), () => undefined);
+  if (companion) return companion.activate();
+  const boot = ensureCompanion();
+  if (!boot) return;
+  // Engaged from the click on: the overlay hides and keys pressed while it loads are kept (main.tsx).
+  siteStore.set({ consoleInput: true });
+  void boot.then(
+    (c) => c.activate(),
+    () => siteStore.set({ consoleInput: false }),
+  );
 }
 
 /** Call `listener` with the companion once it has booted (now, if it already has). Doesn't start it. */

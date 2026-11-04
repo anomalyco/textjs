@@ -142,7 +142,8 @@ for (const [name, act] of ways) {
   await page.waitForTimeout(600);
   const size = await page.evaluate(() => (window.text ? `${window.text.stats().cols}x${window.text.stats().rows}` : null));
   check("desktop /playground: it boots at the picked size", size === "80x24", String(size));
-  check("desktop /playground: picking a size doesn't take the keyboard", (await page.getAttribute("[data-textjs-focus-pad]", "data-state")) !== "live");
+  // As before lazy loading: a size picked in a focus pad also gives the console the keyboard (FocusPad's onChange activates it).
+  check("desktop /playground: picking a size gives the console the keyboard", (await page.evaluate(() => document.activeElement?.hasAttribute("data-textjs-input-sink"))) === true);
   check("desktop /playground: no page errors", errors.length === 0, errors.join(" | "));
   await context.close();
 }
@@ -154,6 +155,19 @@ for (const [name, act] of ways) {
   check("desktop /playground: a click on the pad boots it", await booted(page));
   await page.waitForTimeout(500);
   check("desktop /playground: and gives it the keyboard", (await page.evaluate(() => document.activeElement?.hasAttribute("data-textjs-input-sink"))) === true);
+  await context.close();
+}
+
+// Localized pads: the locale prefix doesn't hide the route from idle prefetch or engaging.
+{
+  const { context, page, chunks, errors } = await open(DESKTOP, "/ja/playground");
+  check("desktop /ja/playground: the companion downloads on idle", chunks.includes("/assets/boot"), chunks.join(" "));
+  check("desktop /ja/playground: but doesn't boot", (await frames(page)) === 0);
+  await page.locator(".pad-stage").click({ position: { x: 8, y: 8 } });
+  check("desktop /ja/playground: a click beside the pad boots it", await booted(page));
+  await page.waitForTimeout(500);
+  check("desktop /ja/playground: and gives it the keyboard", (await page.evaluate(() => document.activeElement?.hasAttribute("data-textjs-input-sink"))) === true);
+  check("desktop /ja/playground: no page errors", errors.length === 0, errors.join(" | "));
   await context.close();
 }
 
@@ -170,6 +184,47 @@ for (const [name, act] of ways) {
   await context.close();
 }
 
+// A prefetch that fails (a dropped connection) is retried by the boot, without reloading the page.
+{
+  const { context, page, errors } = await open(DESKTOP, null);
+  let aborted = 0;
+  await page.route(/\/assets\/HomeTab-[\w-]+\.js$/, (r) => (aborted++ === 0 ? r.abort() : r.continue()));
+  await page.goto(base + "/", { waitUntil: "load" });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => (window.__sameDocument = true));
+  await page.locator(".hero .dt-log").hover();
+  await page.waitForTimeout(1500);
+  check("desktop /: the hover prefetch's console view failed to load", aborted === 1, `${aborted} requests`);
+  await page.locator(".hero .dt-log").click();
+  check("desktop /: a click after the failed prefetch boots the companion", await booted(page));
+  check("desktop /: without reloading the page", (await page.evaluate(() => window.__sameDocument)) === true);
+  check("desktop /: the failed prefetch threw no page errors", errors.length === 0, errors.join(" | "));
+  await context.close();
+}
+
+// Keys pressed right after the click, while the companion is still loading on a slow network, reach it.
+{
+  const { context, page } = await open(DESKTOP, "/");
+  const mirror = () => page.locator(".hero [data-textjs-mirror]").innerText();
+  const zero = await mirror();
+  const cdp = await context.newCDPSession(page);
+  await cdp.send("Network.enable");
+  await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 400, downloadThroughput: (400 * 1024) / 8, uploadThroughput: (400 * 1024) / 8 });
+  await page.locator(".hero .dt-log").click();
+  check("desktop /: the click shows the console as engaged before it loads", (await page.locator(".hero .dt-log.engaged").count()) === 1 && (await frames(page)) === 0);
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowUp");
+  check("desktop /: the companion boots on the slow network", await page.waitForFunction(() => window.__frames > 0, null, { timeout: 60000 }).then(() => true, () => false));
+  await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  await page.waitForTimeout(500);
+  const two = await mirror();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  await page.waitForTimeout(400);
+  check("desktop /: ↑ ↑ pressed while it loaded count to 2", two !== zero && (await mirror()) === zero, two.slice(0, 600));
+  await context.close();
+}
+
 // Hovering a console surface downloads the companion without booting it.
 {
   const { context, page, chunks } = await open(DESKTOP, "/");
@@ -180,12 +235,18 @@ for (const [name, act] of ways) {
   await context.close();
 }
 
-// Phones: a tap on a console surface doesn't boot it (only the explicit buttons do).
+// Phones: the hero's console is a picture. Taps on it don't boot anything; the inspect button still works.
 {
   const { context, page, chunks } = await open(PHONE, "/");
+  check("phone /: no Click to focus button", (await page.locator(".hero .dt-focus").count()) === 0);
+  await page.locator(".hero .dt-log").tap();
   await page.locator(".hero .dt-prompt").tap();
   await page.waitForTimeout(1500);
-  check("phone /: a tap on the hero's DevTools window doesn't boot the companion", (await frames(page)) === 0 && chunks.length === 0, `${await frames(page)} frames, ${chunks.join(" ")}`);
+  check("phone /: taps on the hero's console don't boot the companion", (await frames(page)) === 0 && chunks.length === 0, `${await frames(page)} frames, ${chunks.join(" ")}`);
+  await page.locator(".hero .dt-inspect").tap();
+  check("phone /: the inspect button still boots it for the wireframe", await booted(page));
+  await page.waitForTimeout(400);
+  check("phone /: and the hero shows the wireframe", (await page.locator(".hero .dt-inspect.active").count()) === 1 && (await page.evaluate(() => window.text?.renderer?.wireframe)) === true);
   await context.close();
 }
 

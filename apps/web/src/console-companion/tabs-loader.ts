@@ -80,10 +80,12 @@ export function preloadCompanionTab(key: CompanionTab | "example"): Promise<void
       });
       break;
   }
-  const tracked = p.then(() => {
-    inflight.delete(key);
-    notify();
-  });
+  // A failed import is forgotten too, so the next call tries again.
+  const tracked = p
+    .finally(() => {
+      inflight.delete(key);
+    })
+    .then(notify);
   inflight.set(key, tracked);
   return tracked;
 }

@@ -1,9 +1,10 @@
 import "./console-baseline";
+import type { InputEngine } from "@textjs/core";
 import { canPrefetchConsole, CONSOLE_INTENT_KEY, onConsoleIntent, type ConsoleIntentHandle } from "@textjs/core/experimental";
 import { installCapture, isChunkLoadError, prefetchFailed, recoverFromChunkFailure, report, startReporter } from "./telemetry/capture";
 import { createRoot, hydrateRoot } from "react-dom/client";
-import { activateCompanion, COMPANION_CONTROLS, configureCompanionLoader, engagesConsole, ensureCompanion } from "./console-companion/bridge";
-import { isPadRoute, tabForPath } from "./console-companion/store";
+import { activateCompanion, BYPASS_SELECTOR, COMPANION_CONTROLS, configureCompanionLoader, engagesConsole, ensureCompanion, shouldRouteToConsole } from "./console-companion/bridge";
+import { isPadRoute, siteStore, tabForPath } from "./console-companion/store";
 import { Root } from "./Root";
 import { preloadRoute } from "./route-loader";
 import { getLocation, matchRoute, normalizePath, registerHrefPrefetcher, subscribeLocation } from "./router";
@@ -48,7 +49,7 @@ function warmCompanion(): Promise<typeof import("./console-companion/boot")> {
 /** Warm the companion and the current page's console view, for a visitor likely to open the console (once). */
 function prefetchCompanion(): void {
   if (warming) return;
-  warmCompanion().then(() => preloadCompanionForPath?.(getLocation().pathname), prefetchFailed);
+  warmCompanion().then(() => preloadCompanionForPath?.(getLocation().path), prefetchFailed);
 }
 
 // The companion (React's console renderer, Yoga and the console app) loads only once the visitor
@@ -64,7 +65,13 @@ configureCompanionLoader(() => {
       // Storage may be blocked.
     }
   }
+  const stopKeeping = keepKeys();
   const promise = warmCompanion().then((m) => m.bootCompanion());
+  // Registered before activateCompanion's own `then`, so kept keys reach the app before it takes focus.
+  promise.then(
+    (c) => stopKeeping(c.engine as InputEngine),
+    () => stopKeeping(null),
+  );
   promise.catch((error: unknown) => {
     // A chunk from an older deploy: reload once. Intent is remembered for the tab, so the console boots after it.
     if (isChunkLoadError(error)) return recoverFromChunkFailure(error);
@@ -74,9 +81,38 @@ configureCompanionLoader(() => {
   return promise;
 });
 
-/** Pads and courses: visitors there are about to use the console, so its code downloads on idle. */
-function warmsOnIdle(pathname: string): boolean {
-  return isPadRoute(pathname) || pathname === "/learn" || pathname.startsWith("/learn/");
+/**
+ * Keys pressed while the companion loads after a click engaged it (↑ right after clicking the hero) would
+ * be lost, as its input engine isn't listening yet. Keep the ones it would take and replay them once it boots.
+ */
+function keepKeys(): (engine: InputEngine | null) => void {
+  const kept: KeyboardEvent[] = [];
+  const keep = (e: KeyboardEvent): void => {
+    if (e.type === "keyup") {
+      if (kept.some((k) => k.code === e.code)) kept.push(e);
+      return;
+    }
+    if (e.metaKey || e.ctrlKey || e.altKey || e.isComposing || /^F\d+$/.test(e.key)) return;
+    const target = e.target instanceof Element ? e.target : null;
+    if (target?.closest(BYPASS_SELECTOR) || !shouldRouteToConsole(document.activeElement, siteStore.getSnapshot().consoleInput)) return;
+    if (e.key !== "Tab" && e.key !== "Escape") e.preventDefault();
+    kept.push(e);
+  };
+  document.addEventListener("keydown", keep, true);
+  document.addEventListener("keyup", keep, true);
+  return (engine) => {
+    document.removeEventListener("keydown", keep, true);
+    document.removeEventListener("keyup", keep, true);
+    for (const e of kept) {
+      if (e.type === "keyup") engine?.handleKeyUp(e);
+      else engine?.handleKeyDown(e);
+    }
+  };
+}
+
+/** Pads and courses: visitors there are about to use the console, so its code downloads on idle. `path` has no locale prefix. */
+function warmsOnIdle(path: string): boolean {
+  return isPadRoute(path) || path === "/learn" || path.startsWith("/learn/");
 }
 
 // The press that signalled "engage", so a click on a console surface also gives it the keyboard
@@ -103,11 +139,10 @@ let intent: ConsoleIntentHandle | null = null;
 intent = onConsoleIntent(
   ({ reason }) => {
     stopNotingPresses();
-    const { pathname } = getLocation();
-    if (reason === "engage" && press !== null && engagesConsole(press, false, pathname)) activateCompanion();
+    if (reason === "engage" && press !== null && engagesConsole(press, false, getLocation().path)) activateCompanion();
     else void ensureCompanion();
   },
-  { prefetch: prefetchCompanion, idlePrefetch: warmsOnIdle(getLocation().pathname) },
+  { prefetch: prefetchCompanion, idlePrefetch: warmsOnIdle(getLocation().path) },
 );
 
 // Controls that start the console on click (the Console pill, "Run in console") warm it on hover, like console surfaces do.
@@ -119,7 +154,7 @@ document.addEventListener("focusin", warmOnHover, { capture: true, passive: true
 
 // Landing on a pad or course by client-side navigation warms the companion on idle too.
 subscribeLocation(() => {
-  if (warming || !warmsOnIdle(getLocation().pathname) || !canPrefetchConsole()) return;
+  if (warming || !warmsOnIdle(getLocation().path) || !canPrefetchConsole()) return;
   if (typeof requestIdleCallback === "function") requestIdleCallback(prefetchCompanion, { timeout: 5000 });
   else setTimeout(prefetchCompanion, 1);
 });

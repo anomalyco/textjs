@@ -10,6 +10,7 @@ import { CONSOLE_TAGS } from "../site/Chrome";
 import { CopyCommand } from "../site/CodeBlock";
 import { DevToolsWindow } from "../site/DevToolsWindow";
 import { HighlightedCode } from "../site/highlight";
+import { useNoConsole } from "../site/LivePreview";
 import { unpackStyledFrame, type PackedFrame } from "../site/packed-frame";
 import { siteStore } from "../console-companion/store";
 import { HERO_FILES } from "./home-files";
@@ -42,6 +43,8 @@ function useHomeFrame(): StyledFrame {
 function LiveConsole({ source = "viewport:3" }: { source?: string }): ReactNode {
   const frame = useHomeFrame();
   const site = useSite();
+  // Phones have no console: the mirror stays a picture (prerendered pages hide the button with CSS until hydration).
+  const noConsole = useNoConsole();
   return (
     <DevToolsWindow
       frame={frame}
@@ -49,11 +52,15 @@ function LiveConsole({ source = "viewport:3" }: { source?: string }): ReactNode 
       cols={COMPANION_COLS}
       rows={COMPANION_ROWS}
       engaged={site.consoleInput && site.example === null}
-      engage
-      onActivate={() => {
-        siteStore.exitExample();
-        activateCompanion();
-      }}
+      engage={!noConsole}
+      onActivate={
+        noConsole
+          ? undefined
+          : () => {
+              siteStore.exitExample();
+              activateCompanion();
+            }
+      }
       onInspect={() => {
         siteStore.set({ wireframe: !site.wireframe });
         void ensureCompanion();

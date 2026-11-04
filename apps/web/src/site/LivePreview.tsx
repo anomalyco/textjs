@@ -32,9 +32,9 @@ function loadPreviews(): Promise<Record<string, PreviewSpec>> {
   return previewsPromise;
 }
 
-/** Whether this device has a live console companion to run examples in (always `false` while hydrating). */
-export function useConsoleAvailable(): boolean {
-  const [available, setAvailable] = useState(false);
+/** Whether this device has a live console companion to run examples in, or `null` while server rendering and hydrating. */
+function useConsoleState(): boolean | null {
+  const [available, setAvailable] = useState<boolean | null>(null);
   useEffect(() => {
     if (typeof matchMedia !== "function") return;
     const mq = matchMedia(CONSOLE_MEDIA);
@@ -45,6 +45,16 @@ export function useConsoleAvailable(): boolean {
     return () => mq.removeEventListener("change", update);
   }, []);
   return available;
+}
+
+/** Whether this device has a live console companion to run examples in (always `false` while hydrating). */
+export function useConsoleAvailable(): boolean {
+  return useConsoleState() === true;
+}
+
+/** Whether this device has no console companion (phones, tablets, narrow windows). Always `false` while hydrating. */
+export function useNoConsole(): boolean {
+  return useConsoleState() === false;
 }
 
 /** Make an example the console companion's app and send keystrokes to it. */
