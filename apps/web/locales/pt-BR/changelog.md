@@ -7,9 +7,10 @@ O formato é baseado em [Mantenha um Changelog](https://keepachangelog.com/en/1.
 <!-- s:2e16922cfc -->
 Adições
 
-<!-- s:63133817e6 -->
+<!-- s:01d85a9a48 -->
 - textjs.org: espanhol, francês, alemão, português brasileiro, coreano e chinês simplificado e tradicional saíram do rascunho em textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn e /zh-tw. O seletor de idioma no rodapé e o botão de idioma do navegador oferecem esses idiomas, como já fazem com o japonês. Os mecanismos de busca indexam as páginas traduzidas e associam cada uma à sua versão em inglês.
 - textjs.org: italiano, russo, turco, polonês, indonésio, vietnamita e hindi saíram do rascunho em textjs.org/it, /ru, /tr, /pl, /id, /vi e /hi. O seletor de idioma no rodapé e o botão de idioma do navegador oferecem esses idiomas, como já fazem com os outros. Os mecanismos de busca indexam as páginas traduzidas e associam cada uma à sua versão em inglês.
+- textjs.org: árabe, hebraico, persa e urdu saíram do rascunho em textjs.org/ar, /he, /fa e /ur. O seletor de idioma no rodapé e o botão de idioma do navegador oferecem esses idiomas, como já fazem com os outros. Os mecanismos de busca indexam as páginas traduzidas e associam cada uma à sua versão em inglês.
 
 <!-- s:5b88618770 -->
 Alterações

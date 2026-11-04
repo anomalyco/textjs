@@ -7,9 +7,10 @@ El formato se basa en [Mantén un registro de cambios](https://keepachangelog.co
 <!-- s:2e16922cfc -->
 Novedades
 
-<!-- s:63133817e6 -->
+<!-- s:01d85a9a48 -->
 - textjs.org: las versiones en español, francés, alemán, portugués de Brasil, coreano y chino simplificado y tradicional dejan de ser borradores en textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn y /zh-tw. El selector de idioma del pie de página y el botón de idioma del navegador las ofrecen, igual que el japonés. Los motores de búsqueda indexan las páginas traducidas y vinculan cada una con su versión en inglés.
 - textjs.org: las versiones en italiano, ruso, turco, polaco, indonesio, vietnamita e hindi dejan de ser borradores en textjs.org/it, /ru, /tr, /pl, /id, /vi y /hi. El selector de idioma del pie de página y el botón de idioma del navegador las ofrecen, igual que los demás idiomas. Los motores de búsqueda indexan las páginas traducidas y vinculan cada una con su versión en inglés.
+- textjs.org: las versiones en árabe, hebreo, persa y urdu dejan de ser borradores en textjs.org/ar, /he, /fa y /ur. El selector de idioma del pie de página y el botón de idioma del navegador las ofrecen, igual que los demás idiomas. Los motores de búsqueda indexan las páginas traducidas y vinculan cada una con su versión en inglés.
 
 <!-- s:5b88618770 -->
 Cambios

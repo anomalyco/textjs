@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - textjs.org: Spanish, French, German, Brazilian Portuguese, Korean, and Simplified and Traditional Chinese are out of draft at textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn and /zh-tw. The footer's language picker and the browser-language button offer them, as they do Japanese. Search engines index the translated pages and match each to its English version.
 - textjs.org: Italian, Russian, Turkish, Polish, Indonesian, Vietnamese and Hindi are out of draft at textjs.org/it, /ru, /tr, /pl, /id, /vi and /hi. The footer's language picker and the browser-language button offer them, as they do the other languages. Search engines index the translated pages and match each to its English version.
+- textjs.org: Arabic, Hebrew, Persian and Urdu are out of draft at textjs.org/ar, /he, /fa and /ur. The footer's language picker and the browser-language button offer them, as they do the other languages. Search engines index the translated pages and match each to its English version.
 
 ### Changed
 
