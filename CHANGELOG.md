@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - `@textjs/core`: the console driver checks whether the console font fits a glyph that may need a stand-in (eighth blocks, quadrants, braille, ▶, ✓ and similar) the first time that glyph appears, instead of measuring all of them on the first frame. Drivers that use the same font size and family share the results. A frame without those glyphs makes no stand-in measurements, so the first frame of textjs.org's home console takes 1.2 ms instead of 9.2 ms in headless Chromium on an M5 Pro Mac mini, and 4.8 ms instead of 38.4 ms with the CPU throttled 4×. On Windows 10, where Consolas lacks those glyphs, frames that use them get the same stand-ins as before, from the first frame.
+- `@textjs/core`: `isRtlCodePoint` and `hasRtl` look up 59 right-to-left ranges generated from the Unicode 18.0 data, and no longer load the bidi tables. They return the same result for every code point. `<ConsoleMirror>` on its own bundles 2.1 KB less JavaScript (gzip), and the frame player for server-rendered routes 1.6 KB less.
+- textjs.org: the home page and docs pages load 12.9 KB less JavaScript up front (gzip). Their console mirrors used to preload the 13.5 KB bidi chunk and now preload 0.6 KB.
 
 ## [1.5.0] - 2026-11-03
 
