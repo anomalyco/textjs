@@ -28,4 +28,4 @@
 ## Captions
 
 - Subtitle style: about 17 characters per second. Drop filler and repetition, keep every fact, number and code name.
-- “See you there.” at the end of a chapter is «آنجا می‌بینمتان.» “Welcome back to Learn Text.js.” is «به Learn Text.js خوش برگشتید.»
+- “See you there.” at the end of a chapter is «آنجا می‌بینمتان.» “Welcome back to Learn Text.js.” is «دوباره به Learn Text.js خوش آمدید.»

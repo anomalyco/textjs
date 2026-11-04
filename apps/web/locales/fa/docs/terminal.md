@@ -25,13 +25,13 @@
 <!-- s:082b75dda7 -->
 | گزینه | توضیحات |
 | :-- | :-- |
-| `stdin` / `stdout` | پیش‌فرض `process.stdin` / `process.stdout` |
+| `stdin` / `stdout` | پیش‌فرض: `process.stdin` / `process.stdout` |
 | `cols` / `rows` | اندازهٔ ثابت (پیش‌فرض: مطابق ترمینال) |
 | `altScreen` | بازیابی تاریخچهٔ پیمایش هنگام خروج (پیش‌فرض `true`) |
 | `mouse` | پیمایش با چرخ ماوس (پیش‌فرض `true`) |
 | `exitOnCtrlC` | پیش‌فرض `true` |
 | `fps` | سقف نرخ فریم (پیش‌فرض `60`) |
-| `patchConsole` | نگه داشتن `console.*` تا زمان خروج (پیش‌فرض `true`) |
+| `patchConsole` | نگه‌داشتن خروجی `console.*` تا زمان خروج (پیش‌فرض `true`) |
 | `theme` / `transparent` | مانند `createConsoleRoot` |
 
 <!-- s:e34e364b9c -->
