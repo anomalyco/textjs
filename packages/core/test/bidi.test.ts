@@ -2,9 +2,11 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import {
   applyLineRules,
   ATTR_BOLD,
+  BIDI_AL,
   BIDI_AN,
   BIDI_L,
   BIDI_NSM,
+  BIDI_R,
   bidiClass,
   CellBuffer,
   createCanvasMeasurer,
@@ -12,6 +14,7 @@ import {
   drawLogicalText,
   hasRtl,
   initYoga,
+  isRtlCodePoint,
   joiningType,
   paintScene,
   paragraphDirection,
@@ -500,5 +503,21 @@ describe("drivers pin visual order", () => {
     expect(hasRtl("a ש")).toBe(true);
     expect(hasRtl("٣")).toBe(true);
     expect(hasRtl("𐤀")).toBe(true);
+    // Neutrals, marks and European digits inside RTL blocks: no strong right-to-left character.
+    expect(hasRtl("Chrome، Edge")).toBe(false);
+    expect(hasRtl("۱۲۳")).toBe(false);
+    expect(hasRtl("\u05B0")).toBe(false);
+    expect(hasRtl("\uD802")).toBe(false);
+  });
+
+  test("isRtlCodePoint and hasRtl match the Bidi_Class table on every code point", () => {
+    const misses: string[] = [];
+    for (let cp = 0; cp <= 0x10ffff; cp++) {
+      const c = bidiClass(cp);
+      const rtl = c === BIDI_R || c === BIDI_AL || c === BIDI_AN;
+      if (isRtlCodePoint(cp) !== rtl) misses.push(cp.toString(16));
+      else if (!(cp >= 0xd800 && cp <= 0xdfff) && hasRtl(String.fromCodePoint(cp)) !== rtl) misses.push(cp.toString(16));
+    }
+    expect(misses).toEqual([]);
   });
 });

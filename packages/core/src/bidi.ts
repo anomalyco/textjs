@@ -13,6 +13,7 @@
 import { ARABIC_FORMS, BIDI_BRACKETS, BIDI_CLASS_RANGES, BIDI_MIRRORS, JOINING_TYPE_RANGES } from "./bidi-data";
 import type { CellBuffer } from "./cell-buffer";
 import type { PackedColor } from "./color";
+import { isRtlCodePoint } from "./rtl";
 import { LruCache, segmentGraphemes, type Grapheme } from "./text-measure";
 
 export { BIDI_UNICODE_VERSION } from "./bidi-data";
@@ -167,17 +168,6 @@ function brackets(): Map<number, { pair: number; open: boolean; canon: number }>
   return bracketMap;
 }
 
-/** True for code points whose presence can make the browser or a terminal reorder text (R, AL, AN). */
-export function isRtlCodePoint(cp: number): boolean {
-  if (cp < 0x0590) return false;
-  if (cp > 0x08ff && cp < 0xfb1d) return cp === 0x200f;
-  if (cp > 0xfefe && cp < 0x10800) return false;
-  if (cp > 0x10fff && cp < 0x1e800) return false;
-  if (cp > 0x1efff) return false;
-  const c = bidiClass(cp);
-  return c === BIDI_R || c === BIDI_AL || c === BIDI_AN;
-}
-
 /** Code points that can change display order of otherwise-LTR text (R, AL, AN and explicit RTL/override controls). */
 function isBidiTrigger(cp: number): boolean {
   if (cp < 0x0590) return false;
@@ -204,17 +194,6 @@ export function textNeedsBidi(text: string): boolean {
     const c = text.charCodeAt(i);
     if (c < 0x0590) continue;
     if (isReorderTrigger(c >= 0xd800 && c <= 0xdbff ? (text.codePointAt(i) as number) : c)) return true;
-  }
-  return false;
-}
-
-/** True when `text` contains any R, AL or AN character (the strings that need bidi neutralization when emitted). */
-export function hasRtl(text: string): boolean {
-  for (let i = 0; i < text.length; i++) {
-    const c = text.charCodeAt(i);
-    if (c < 0x0590) continue;
-    const cp = c >= 0xd800 && c <= 0xdbff ? (text.codePointAt(i) as number) : c;
-    if (isRtlCodePoint(cp)) return true;
   }
   return false;
 }
@@ -981,11 +960,13 @@ export function resolveGraphemeBidi(gs: readonly Grapheme[], dir: TextDirection 
   return { levels, paragraphLevels, types: gTypes };
 }
 
-const graphemeCache = new LruCache<string, Grapheme>(2048);
+// Created on first use, so a bundle that imports only a constant or `bidiClass` from here doesn't keep `LruCache`.
+let graphemeCache: LruCache<string, Grapheme> | null = null;
 
 function substituted(g: Grapheme, cp: number): Grapheme {
   const rest = g.grapheme.slice(g.codePoint > 0xffff ? 2 : 1);
   const s = String.fromCodePoint(cp) + rest;
+  graphemeCache ??= new LruCache<string, Grapheme>(2048);
   let out = graphemeCache.get(s);
   if (out === undefined) {
     out = Object.freeze({ grapheme: s, width: g.width, codePoint: cp, isMulti: g.isMulti });

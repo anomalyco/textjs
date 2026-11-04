@@ -1,6 +1,7 @@
 export * from "./color";
 export * from "./text-measure";
 export * from "./bidi";
+export * from "./rtl";
 export * from "./cell-buffer";
 export * from "./drivers/style";
 export { detectConsoleBrowser, type ConsoleBrowser, type DetectGlobals } from "./drivers/console-browser";

@@ -39,6 +39,15 @@ test("@textjs/react keeps the terminal runner and testing kit out of the main bu
   expect(terminal).toContain("TerminalInputParser");
 }, 30_000);
 
+test("<ConsoleMirror> checks for RTL text without bundling the bidi tables or grapheme segmenter", async () => {
+  const code = await bundle("./fixtures/bundle/mirror.tsx");
+  expect(code).toContain("bidi-override");
+  expect(code).toContain("RTL_RANGES");
+  expect(code).not.toContain("BIDI_CLASS_RANGES");
+  expect(code).not.toContain("BIDI_UNICODE_VERSION");
+  expect(code).not.toContain("Segmenter");
+}, 30_000);
+
 test("apps that only use Box and Text don't bundle the sprite PNG encoder; <Image> does", async () => {
   const boxText = await bundle("./fixtures/bundle/box-text.tsx");
   expect(boxText).toContain("tx-box");
