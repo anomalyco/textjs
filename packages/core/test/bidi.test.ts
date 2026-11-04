@@ -31,6 +31,7 @@ import {
   type SceneNodeProps,
   visualizeLine,
 } from "../src/index";
+import { RTL_RANGES } from "../src/rtl-data";
 import { box, text } from "./fixtures";
 
 beforeAll(async () => {
@@ -508,6 +509,29 @@ describe("drivers pin visual order", () => {
     expect(hasRtl("۱۲۳")).toBe(false);
     expect(hasRtl("\u05B0")).toBe(false);
     expect(hasRtl("\uD802")).toBe(false);
+  });
+
+  test("left-to-right, CJK and TUI text never decodes the right-to-left ranges", async () => {
+    const split = String.prototype.split;
+    let decodes = 0;
+    String.prototype.split = function (this: string, ...args: Parameters<typeof split>) {
+      if (this === RTL_RANGES) decodes++;
+      return split.apply(this, args);
+    } as typeof split;
+    try {
+      // A fresh copy of the module, with its table not yet decoded.
+      const fresh = "../src/rtl.ts?ltr-only";
+      const rtl = (await import(fresh)) as typeof import("../src/rtl");
+      for (const s of ["hello, мир", "─│╭╮╰╯┼", "█▀▄▌▐░▒▓", "⣿⠿▁▂▃▅▇", "↑↓←→▼▲►◄✓", "日本語のテキスト", "한국어", "हिन्दी", "😀👨‍👩‍👧"]) {
+        expect(rtl.hasRtl(s)).toBe(false);
+        for (const ch of s) expect(rtl.isRtlCodePoint(ch.codePointAt(0) as number)).toBe(false);
+      }
+      expect(decodes).toBe(0);
+      expect(rtl.hasRtl("שלום")).toBe(true);
+      expect(decodes).toBe(1);
+    } finally {
+      String.prototype.split = split;
+    }
   });
 
   test("isRtlCodePoint and hasRtl match the Bidi_Class table on every code point", () => {

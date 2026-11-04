@@ -10,7 +10,10 @@ let ranges: Uint32Array | null = null;
 
 /** True for code points whose presence can make the browser or a terminal reorder text (R, AL, AN). */
 export function isRtlCodePoint(cp: number): boolean {
-  if (cp < 0x0590) return false;
+  // Outside the right-to-left blocks (Latin, box drawing, CJK, emoji) without touching the table. The test
+  // against the Bidi_Class table on every code point keeps these bounds honest across Unicode updates.
+  if (cp < 0x0590 || cp > 0x1efff) return false;
+  if (cp > 0x08ff && cp < 0xfb1d) return cp === 0x200f;
   ranges ??= Uint32Array.from(RTL_RANGES.split(","), (s) => Number.parseInt(s, 36));
   // Last range starting at or before cp.
   let lo = 0;
@@ -30,6 +33,7 @@ export function hasRtl(text: string): boolean {
     if (c < 0x0590) continue;
     const cp = c >= 0xd800 && c <= 0xdbff ? (text.codePointAt(i) as number) : c;
     if (isRtlCodePoint(cp)) return true;
+    if (cp > 0xffff) i++;
   }
   return false;
 }
