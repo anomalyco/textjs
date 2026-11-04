@@ -16,6 +16,9 @@ import { isNavigationError } from "./navigation-errors";
 import { AppRouter } from "./router";
 import type { RouteManifest } from "./routing";
 
+// Types only, so apps without @types/node typecheck. Bundlers replace `process.env.NODE_ENV`.
+declare const process: { env: { NODE_ENV?: string } };
+
 export interface BootOptions {
   routes: RouteManifest;
   config?: Partial<ClientConfig>;

@@ -44,6 +44,9 @@ import {
   type SearchParamsRecord,
 } from "./routing";
 
+// Types only, so apps without @types/node typecheck. Bundlers replace `process.env.NODE_ENV`.
+declare const process: { env: { NODE_ENV?: string } };
+
 export * from "./routing";
 export * from "./history";
 export { useAppTheme, type AppRouterInstance, type AppShellState, type RouterState, type NavigateOptions } from "./context";
