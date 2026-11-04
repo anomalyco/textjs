@@ -7,9 +7,10 @@ Format opiera się na [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), 
 <!-- s:2e16922cfc -->
 Dodano
 
-<!-- s:63133817e6 -->
+<!-- s:01d85a9a48 -->
 - textjs.org: wersje hiszpańska, francuska, niemiecka, portugalska brazylijska, koreańska oraz chińska uproszczona i tradycyjna nie są już wersjami roboczymi pod adresami textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn i /zh-tw. Wybór języka w stopce i przycisk języka przeglądarki oferują je tak samo jak wersję japońską. Wyszukiwarki indeksują przetłumaczone strony i wiążą każdą z jej angielską wersją.
 - textjs.org: wersje włoska, rosyjska, turecka, polska, indonezyjska i wietnamska oraz wersja w języku hindi nie są już wersjami roboczymi pod adresami textjs.org/it, /ru, /tr, /pl, /id, /vi i /hi. Wybór języka w stopce i przycisk języka przeglądarki oferują je tak samo jak pozostałe wersje językowe. Wyszukiwarki indeksują przetłumaczone strony i wiążą każdą z jej angielską wersją.
+- textjs.org: wersje arabska, hebrajska i perska oraz wersja w języku urdu nie są już wersjami roboczymi pod adresami textjs.org/ar, /he, /fa i /ur. Wybór języka w stopce i przycisk języka przeglądarki oferują je tak samo jak pozostałe wersje językowe. Wyszukiwarki indeksują przetłumaczone strony i wiążą każdą z jej angielską wersją.
 
 <!-- s:5b88618770 -->
 Zmieniono

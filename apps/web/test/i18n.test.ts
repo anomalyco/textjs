@@ -45,7 +45,8 @@ describe("locales", () => {
   test("a deploy's locale set comes from TEXTJS_LOCALES, with optional status overrides", () => {
     expect(parseLocaleSet("en").map((l) => l.code)).toEqual(["en"]);
     expect(parseLocaleSet("ja:live").map((l) => `${l.code}:${l.status}`)).toEqual(["en:source", "ja:live"]);
-    expect(parseLocaleSet("ar").find((l) => l.code === "ar")?.status).toBe("draft");
+    expect(parseLocaleSet("ar").find((l) => l.code === "ar")?.status).toBe("live");
+    expect(parseLocaleSet("ar:draft").find((l) => l.code === "ar")?.status).toBe("draft");
     expect(() => parseLocaleSet("xx")).toThrow();
     // Listed in any order, built in LOCALES order.
     expect(parseLocaleSet("zh-TW,ja,de:live").map((l) => l.code)).toEqual(["en", "de", "ja", "zh-TW"]);
@@ -58,13 +59,13 @@ describe("locales", () => {
     expect(groups).toEqual([...groups].sort((a, b) => a - b));
     const latin = LOCALES.filter((l) => script(l) === 1).map((l) => l.name);
     expect(latin).toEqual([...latin].sort(new Intl.Collator("und").compare));
-    expect(LOCALES.filter((l) => l.status === "live" || l.status === "source").map((l) => l.name)).toEqual(["English", "Bahasa Indonesia", "Deutsch", "Español", "Français", "Italiano", "Polski", "Português (Brasil)", "Tiếng Việt", "Türkçe", "Русский", "हिन्दी", "日本語", "한국어", "简体中文", "繁體中文"]);
+    expect(LOCALES.filter((l) => l.status === "live" || l.status === "source").map((l) => l.name)).toEqual(["English", "Bahasa Indonesia", "Deutsch", "Español", "Français", "Italiano", "Polski", "Português (Brasil)", "Tiếng Việt", "Türkçe", "Русский", "हिन्दी", "日本語", "한국어", "简体中文", "繁體中文", "العربية", "עברית", "فارسی", "اردو"]);
   });
 
-  test("production builds the fifteen reviewed locales live", () => {
+  test("production builds the nineteen reviewed locales live", () => {
     // The deploy sets no TEXTJS_LOCALES, so these are the locales textjs.org indexes and offers in the picker and banner.
     const built = parseLocaleSet(undefined);
-    expect(built.filter((l) => l.status === "live").map((l) => l.code)).toEqual(["id", "de", "es", "fr", "it", "pl", "pt-BR", "vi", "tr", "ru", "hi", "ja", "ko", "zh-CN", "zh-TW"]);
+    expect(built.filter((l) => l.status === "live").map((l) => l.code)).toEqual(["id", "de", "es", "fr", "it", "pl", "pt-BR", "vi", "tr", "ru", "hi", "ja", "ko", "zh-CN", "zh-TW", "ar", "he", "fa", "ur"]);
     expect(built.every((l) => ["source", "live", "draft"].includes(l.status))).toBe(true);
   });
 

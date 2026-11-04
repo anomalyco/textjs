@@ -41,8 +41,9 @@ export function LocaleMenu(): ReactNode {
           if (next && next !== LOCALE) switchTo(next);
         }}
       >
+        {/* Each name in its own direction, so "Português (Brasil)" keeps its parentheses on a right-to-left page. */}
         {locales.map((l) => (
-          <option key={l.code} value={l.code} lang={l.code}>
+          <option key={l.code} value={l.code} lang={l.code} dir={l.dir}>
             {l.name}
           </option>
         ))}

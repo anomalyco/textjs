@@ -90,6 +90,9 @@ try {
       await page.goto(`${base}/docs/routing`, { waitUntil: "networkidle" });
       const options = await page.$$eval(".locale-menu option", (os) => os.map((o) => o.value));
       check(JSON.stringify(options) === JSON.stringify(live.length ? ["en", ...live] : []), `English picker at ${width}px lists ${["en", ...live].join(", ")} (${options.join(", ")})`);
+      // Each name reads in its own direction: العربية right to left here, Português (Brasil) left to right on /ar.
+      const dirs = await page.$$eval(".locale-menu option", (os) => os.map((o) => getComputedStyle(o).direction));
+      check(options.every((code, i) => dirs[i] === (code === "en" ? "ltr" : dirOf(code))), `English picker at ${width}px sets each name's direction (${dirs.join(" ")})`);
       if (live.length) {
         const fit = await page.evaluate(() => {
           const menu = document.querySelector(".locale-menu").getBoundingClientRect();
@@ -248,9 +251,9 @@ try {
       const { page, context, errors } = await open(`/${p}${path}`, code);
       const leftover = async () => {
         const text = await padStrings(page);
-        // Scripts without Latin letters (CJK, Cyrillic, Devanagari): no English words at all; Latin-script locales: no
-        // English line verbatim.
-        return /^(ja|ko|zh|ru|hi)/.test(code) ? [...new Set(text.join(" ").match(/[A-Za-z]{2,}/g) ?? [])].filter((w) => !PAD_KEEP.has(w)) : text.filter((s) => s.length > 12 && english.open.concat(english.next).includes(s));
+        // Scripts without Latin letters (CJK, Cyrillic, Devanagari, Arabic, Hebrew): no English words at all;
+        // Latin-script locales: no English line verbatim.
+        return /^(ja|ko|zh|ru|hi|ar|he|fa|ur)/.test(code) ? [...new Set(text.join(" ").match(/[A-Za-z]{2,}/g) ?? [])].filter((w) => !PAD_KEEP.has(w)) : text.filter((s) => s.length > 12 && english.open.concat(english.next).includes(s));
       };
       const first = await leftover();
       check(first.length === 0, `/${p}${path}: the pad's first step is translated (${first.join(" | ")})`);
