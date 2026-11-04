@@ -25,9 +25,9 @@ const self = join(dir, ${JSON.stringify(BUN_SERVER_FILE)});
 const live = existsSync(join(dir, ".text", "live-manifest.json"))
   ? await loadLiveProduction(dir, {
       middleware: options.middleware,
-      // \`server\` from text.config.ts, unless the environment says otherwise.
-      trustProxy: process.env.TRUST_PROXY !== undefined ? process.env.TRUST_PROXY === "1" : serverConfig.trustProxy === true,
-      origin: process.env.TEXTJS_ORIGIN ?? serverConfig.origin,
+      // As in \`text start\`: \`server\` from text.config.ts, then the environment.
+      trustProxy: serverConfig.trustProxy ?? process.env.TRUST_PROXY === "1",
+      origin: serverConfig.origin ?? process.env.TEXTJS_ORIGIN,
       allowOrigins: embed.allowOrigins,
       allowCredentials: embed.allowCredentials,
       onError: (error) => console.error(error),

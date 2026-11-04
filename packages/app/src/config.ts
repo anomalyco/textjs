@@ -155,12 +155,13 @@ export function pageAnsiSize(size: { cols: number; rows: number }, page: unknown
 export interface ServerConfig {
   /**
    * The public origin (`https://console.example.com`). When set, `request.url`
-   * always uses it instead of the `Host` header. Also `TEXTJS_ORIGIN`.
+   * always uses it instead of the `Host` header. `TEXTJS_ORIGIN` when not set here.
    */
   origin?: string;
   /**
    * Trust `X-Forwarded-Host` / `X-Forwarded-Proto` from a reverse proxy in
-   * front of `text start` (default `false`; also `TRUST_PROXY=1`).
+   * front of `text start` or the bun adapter (default `false`; `TRUST_PROXY=1`
+   * when not set here).
    */
   trustProxy?: boolean;
   /**

@@ -183,11 +183,11 @@ async function expectCrossOriginLive(base: string): Promise<void> {
   }
 }
 
-/** `server.trustProxy` from text.config.ts: a page on the proxy's public origin is the app's own. */
-async function expectTrustedProxy(base: string): Promise<void> {
+/** With `trustProxy`, a page on the proxy's public origin is the app's own (`200`); without it, another site (`403`). */
+async function expectTrustedProxy(base: string, trusted = true): Promise<void> {
   const s = await stream(base, "/pub", { origin: "https://console.example", "x-forwarded-host": "console.example", "x-forwarded-proto": "https", accept: "text/event-stream" });
   try {
-    expect(s.status).toBe(200);
+    expect(s.status).toBe(trusted ? 200 : 403);
     expect(s.headers.get("access-control-allow-origin")).toBeNull();
   } finally {
     s.close();
@@ -272,21 +272,37 @@ describe("embed: server-rendered routes from other sites", () => {
   test(
     "bun adapter",
     async () => {
-      await adapt(dir, "bun");
       const { TRUST_PROXY: _proxy, TEXTJS_ORIGIN: _origin, ...env } = process.env;
-      const proc = Bun.spawn(["bun", join(dir, "dist/server.js")], { cwd: dir, env: { ...env, PORT: "0", HOSTNAME: "127.0.0.1" }, stdout: "pipe", stderr: "inherit" });
-      try {
-        const base = new URL(await waitForLine(proc.stdout, /ready on (http:\/\/\S+)/, 15_000)).origin;
+      const serve = async (trustProxyEnv: string | undefined, check: (base: string) => Promise<void>): Promise<void> => {
+        const proc = Bun.spawn(["bun", join(dir, "dist/server.js")], { cwd: dir, env: { ...env, PORT: "0", HOSTNAME: "127.0.0.1", ...(trustProxyEnv === undefined ? {} : { TRUST_PROXY: trustProxyEnv }) }, stdout: "pipe", stderr: "inherit" });
+        try {
+          await check(new URL(await waitForLine(proc.stdout, /ready on (http:\/\/\S+)/, 15_000)).origin);
+        } finally {
+          proc.kill();
+          await proc.exited;
+        }
+      };
+      await adapt(dir, "bun");
+      await serve(undefined, async (base) => {
         await expectAssetHeaders(base, hashedAsset(dir));
         await expectCrossOriginLive(base);
-        // Baked in from text.config.ts: no TRUST_PROXY in the environment.
         await expectTrustedProxy(base);
+      });
+      // As in `text start`: `server.trustProxy` from text.config.ts (baked in at build time) wins, TRUST_PROXY is the fallback.
+      await serve("0", (base) => expectTrustedProxy(base, true));
+      try {
+        writeFileSync(join(dir, "text.config.ts"), config(`{ embed: { allowOrigins: [${JSON.stringify(HOST)}] }, server: { trustProxy: false } }`));
+        await adapt(dir, "bun");
+        await serve("1", (base) => expectTrustedProxy(base, false));
+        writeFileSync(join(dir, "text.config.ts"), config(`{ embed: { allowOrigins: [${JSON.stringify(HOST)}] } }`));
+        await adapt(dir, "bun");
+        await serve("1", (base) => expectTrustedProxy(base, true));
+        await serve(undefined, (base) => expectTrustedProxy(base, false));
       } finally {
-        proc.kill();
-        await proc.exited;
+        writeFileSync(join(dir, "text.config.ts"), LIVE_APP["text.config.ts"] as string);
       }
     },
-    60_000,
+    120_000,
   );
 
   test(
