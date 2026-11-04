@@ -10,7 +10,7 @@ import { CALL, extractMessages, PLURAL } from "../scripts/i18n/sources";
 import { withGeistSubsets } from "../scripts/i18n/fonts";
 import { i18nPlugin } from "../scripts/i18n/vite-plugin";
 import { normalizePunctuation, validate, validatePlural } from "../scripts/i18n/validate";
-import { isolateLatin } from "../scripts/i18n/bidi";
+import { isolateLatin, isolateString } from "../scripts/i18n/bidi";
 import { fuzzyScore, searchFold } from "../src/docs/search";
 import { headingsOf, toConsoleMarkdown } from "../src/docs/registry";
 import { DOC_HEADINGS, type Heading } from "../src/docs/search-index";
@@ -114,6 +114,10 @@ describe("right-to-left text", () => {
     expect(shown(isolateLatin("עם %s ו-%% כאן"))).toBe("עם ⟨%s⟩ ו-⟨%%⟩ כאן");
     expect(shown(isolateLatin("خلال 0.163 ms فقط"))).toBe("خلال ⟨0.163 ms⟩ فقط");
     expect(shown(isolateLatin("الطلبات على /coffee والمجلد app/ هنا"))).toBe("الطلبات على ⟨/coffee⟩ والمجلد ⟨app/⟩ هنا");
+    // A UI string kept entirely in Latin is isolated whole; plain words are left alone.
+    expect(shown(isolateString("%c spans"))).toBe("⟨%c spans⟩");
+    expect(shown(isolateString("عناصر %c"))).toBe("عناصر ⟨%c⟩");
+    expect(isolateString("3,200")).toBe("3,200");
     // Plain numbers, versions and list markers keep their order and stay unwrapped.
     expect(isolateLatin("حتى 300 إطار و 3,200 خلية")).toBe("حتى 300 إطار و 3,200 خلية");
     expect(isolateLatin("1. الإصدار 1.4.1 متاح")).toBe("1. الإصدار 1.4.1 متاح");

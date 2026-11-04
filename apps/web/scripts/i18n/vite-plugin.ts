@@ -14,7 +14,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
-import { isolateLatin } from "./bidi";
+import { isolateLatin, isolateString } from "./bidi";
 import { assemble, blockId, parseTranslation } from "./document";
 import { withGeistSubsets } from "./fonts";
 import { headingsOf, type Heading } from "../../src/docs/outline";
@@ -65,10 +65,11 @@ export function i18nPlugin(locale: string): Plugin {
   // Right-to-left pages keep Latin runs (`Node.js 22+`, `⌘⌥J`) whole in their translated text (bidi.ts).
   const rtl = !source && getLocale(locale)?.dir === "rtl";
   const own = (text: string): string => (rtl ? isolateLatin(text) : text);
+  const ownString = (text: string): string => (rtl ? isolateString(text) : text);
 
   const lookup = (key: string): string => {
     const v = catalog[key];
-    return typeof v === "string" && v ? own(v) : key;
+    return typeof v === "string" && v ? ownString(v) : key;
   };
 
   /** A document in this locale: the English with its translated blocks swapped in. */
@@ -158,7 +159,7 @@ export function i18nPlugin(locale: string): Plugin {
         const key = forms.other as string;
         count(key, true);
         const translated = catalog[key];
-        const value = !english && typeof translated === "object" ? Object.fromEntries(Object.entries(translated).map(([c, v]) => [c, own(v)])) : forms;
+        const value = !english && typeof translated === "object" ? Object.fromEntries(Object.entries(translated).map(([c, v]) => [c, ownString(v)])) : forms;
         return `plural(${count_}, ${JSON.stringify(value)}`;
       });
       // Numbers known at build time ship formatted, like dates (src/i18n/intl.ts).

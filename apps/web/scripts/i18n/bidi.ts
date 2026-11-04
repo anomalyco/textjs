@@ -55,3 +55,13 @@ export function isolateLatin(text: string): string {
   }
   return out + isolate(text.slice(at));
 }
+
+/**
+ * A translated UI string on a right-to-left page. One kept entirely in Latin (`%c spans`, `OpenCode`) is isolated
+ * whole, like an untranslated one, so its own neutrals stay put; anything else gets `isolateLatin`. Not for Markdown,
+ * where a whole-block isolate would hide list markers and table pipes.
+ */
+export function isolateString(text: string): string {
+  if (RTL_LETTER.test(text)) return isolateLatin(text);
+  return LATIN.test(text) || SIGN.test(text) ? `${LRI}${text}${PDI}` : text;
+}
