@@ -8,8 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- `@textjs/core/experimental`: `onConsoleIntent(onIntent, options)` calls `onIntent` once when a visitor wants the console, so a page can download its console app only then. It fires when DevTools is docked on load or docks later (`"dock"`), and on a DevTools shortcut (`"shortcut"`): F12 and Ctrl+Shift+J, I, C or K, or ⌘⌥J, I, C or K on a Mac. It also fires on a click on a `[data-textjs-engage]` element, a `<text-console>` element or a `<FocusPad>`, on Enter or Space on a `[data-textjs-engage]` button, and when a size is picked in `<ViewportControl>` before the console starts (`"engage"`). Reloads in a tab where one of those already happened fire `"session"`. Nothing fires automatically on touch screens. Call `trigger()`. `prefetch` warms the app's chunks when the pointer reaches a console surface, and `canPrefetchConsole()` reports whether prefetching suits the device and connection. `CONSOLE_INTENT_KEY` is the `sessionStorage` key it uses. See [Loading on console intent](https://textjs.org/docs/hooks-and-repl#loading-on-console-intent-experimental).
-- `@textjs/react`: `<ViewportControl onChange>` works before the console root exists. Picking a size saves it, calls `onChange` and applies the size once `root` is set. `<FocusPad sizeControl>` gets this too, so its size menu no longer sits disabled until the console starts.
+- `@textjs/core/experimental`: `onConsoleIntent(onIntent, options)` calls `onIntent` once when a visitor wants the console, so a page can download its console app only then. It fires when DevTools is docked on load or docks later (`"dock"`), and on the DevTools shortcuts F12, Ctrl+Shift+J, I, C or K, and ⌘⌥J, I, C or K on a Mac (`"shortcut"`). It also fires on a click on a `[data-textjs-engage]` element, a `<text-console>` element or a `<FocusPad>`, on Enter or Space on a `[data-textjs-engage]` button, and when a size is picked in `<ViewportControl>` before the console starts (`"engage"`). Reloads in a tab where one of those already happened fire `"session"`. Nothing fires automatically on touch screens. Call `trigger()`. `prefetch` warms the app's chunks when the pointer reaches a console surface, and `canPrefetchConsole()` reports whether prefetching suits the device and connection. `CONSOLE_INTENT_KEY` is the `sessionStorage` key it uses. See [Loading on console intent](https://textjs.org/docs/hooks-and-repl#loading-on-console-intent-experimental).
+- `@textjs/react`: `<ViewportControl>` works before the console root exists. Picking a size saves it, fires `"engage"` for `onConsoleIntent` and applies the size once `root` is set. `<FocusPad sizeControl>` gets this too, so its size menu no longer sits disabled until the console starts.
 
 ### Changed
 
@@ -17,6 +17,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `@textjs/core`: `isRtlCodePoint` and `hasRtl` look up 59 right-to-left ranges generated from the Unicode 18.0 data, and no longer load the bidi tables. They return the same result for every code point. `<ConsoleMirror>` on its own bundles 2.1 KB less JavaScript (gzip), and the frame player for server-rendered routes 1.6 KB less.
 - `@textjs/app`: `text build` leaves the Dev Overlay and the Redbox out of production builds. They only appear in `text dev`, but every build used to bundle them. The starter template's client JavaScript is 4.3 KB smaller (gzip) and `examples/dashboard`'s is 3.0 KB smaller. An app that renders `<AppRouter>` itself drops them too when its bundler sets `process.env.NODE_ENV` to `"production"` (the default in `vite build` and webpack, `esbuild --minify`, and `bun build --production`). In those builds, `<AppRouter devOverlay>` renders nothing (pass `devOverlay={<TextDevOverlay />}` to keep it), `errorStore` defaults to `null`, and `bootTextApp` ignores `dev: true`.
 - textjs.org: the home page and docs pages load 12.9 KB less JavaScript up front (gzip). Their console mirrors used to preload the 13.5 KB bidi chunk and now preload 0.6 KB.
+
+### Fixed
+
+- `@textjs/core`: Safari at 115% page zoom with DevTools closed no longer looks like DevTools docked at the side, so responsive sizing keeps its fallback size instead of fitting a panel that isn't there.
 
 ## [1.5.0] - 2026-11-03
 

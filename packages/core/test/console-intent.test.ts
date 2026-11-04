@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { CHROME_STORAGE_KEY } from "../src/index";
-import { canPrefetchConsole, onConsoleIntent, type ConsoleIntentOptions, type ConsoleIntentReason } from "../src/experimental";
+import { canPrefetchConsole, CONSOLE_INTENT_KEY, onConsoleIntent, type ConsoleIntentOptions, type ConsoleIntentReason } from "../src/experimental";
 import { isDevToolsShortcut } from "../src/console-intent";
 
 type Listener = { fn: (e: unknown) => void; capture: boolean };
@@ -33,7 +33,9 @@ class Target {
 
 class Memory {
   data = new Map<string, string>();
+  reads = 0;
   getItem(k: string): string | null {
+    this.reads++;
     return this.data.get(k) ?? null;
   }
   setItem(k: string, v: string): void {
@@ -132,14 +134,42 @@ describe("onConsoleIntent: dock", () => {
     expect(win.count).toBe(0);
   });
 
-  test("touch screens ignore a shrinking viewport (the soft keyboard), a remembered session and shortcuts", () => {
-    const { win } = fakeWindow({ coarse: true, inner: [390, 664], outer: [390, 664] });
+  test("touch screens attach nothing and read no storage; only trigger() fires", () => {
+    const { win, doc } = fakeWindow({ coarse: true, inner: [390, 364], outer: [390, 664] });
     win.sessionStorage.setItem("textjs:console-intent", "1");
-    const { reasons } = watch(win);
-    win.innerHeight = 364;
+    const { reasons, handle } = watch(win, { prefetch: () => undefined, idlePrefetch: true });
+    expect(win.count + doc.count).toBe(0);
+    expect(win.sessionStorage.reads + win.localStorage.reads).toBe(0);
+    // The soft keyboard shrinks the page like a docked panel; VoiceOver double-taps click with detail 0.
     win.emit("resize");
     win.emit("keydown", key({ key: "F12", code: "F12" }));
+    doc.emit("click", { target: new El("button", ["data-textjs-engage"]), detail: 0 });
+    doc.emit("textjs:engage", {});
     expect(reasons).toEqual([]);
+    handle.trigger();
+    expect(reasons).toEqual(["manual"]);
+  });
+
+  test("a docked reload reports dock, not session", () => {
+    const { win } = fakeWindow({ inner: [1440, 400] });
+    win.sessionStorage.setItem("textjs:console-intent", "1");
+    expect(watch(win).reasons).toEqual(["dock"]);
+  });
+
+  test("a page restored from the back/forward cache checks again", () => {
+    const docked = fakeWindow();
+    const a = watch(docked.win);
+    docked.win.innerHeight = 400;
+    docked.win.emit("pageshow", { persisted: false });
+    expect(a.reasons).toEqual([]);
+    docked.win.emit("pageshow", { persisted: true });
+    expect(a.reasons).toEqual(["dock"]);
+
+    const remembered = fakeWindow();
+    const b = watch(remembered.win);
+    remembered.win.sessionStorage.setItem("textjs:console-intent", "1");
+    remembered.win.emit("pageshow", { persisted: true });
+    expect(b.reasons).toEqual(["session"]);
   });
 });
 
@@ -192,6 +222,8 @@ describe("onConsoleIntent: shortcut", () => {
       key({ key: "∆", code: "KeyJ", metaKey: true, altKey: true, ctrlKey: true }),
       key({ key: "π", code: "KeyP", metaKey: true, altKey: true }),
       key({ key: "F12", code: "F12", metaKey: true }),
+      key({ key: "F12", code: "F12", shiftKey: true }),
+      key({ key: "∆", code: "KeyJ", metaKey: true, altKey: true, shiftKey: true }),
     ];
     for (const e of mac) expect(isDevToolsShortcut(e, true)).toBe(false);
     const other = [key({ key: "∆", code: "KeyJ", metaKey: true, altKey: true }), key({ key: "J", code: "KeyJ", ctrlKey: true, shiftKey: true, altKey: true }), key({ key: "j", code: "KeyJ", ctrlKey: true })];
@@ -219,6 +251,10 @@ describe("onConsoleIntent: session", () => {
     expect(engaged.win.sessionStorage.getItem("textjs:console-intent")).toBe("1");
   });
 
+  test("the key is exported", () => {
+    expect(CONSOLE_INTENT_KEY).toBe("textjs:console-intent");
+  });
+
   test("manual triggers and persist: false remember nothing", () => {
     const a = fakeWindow();
     watch(a.win).handle.trigger();
@@ -244,7 +280,7 @@ describe("onConsoleIntent: engage", () => {
 
   test("a primary press on a surface fires engage", () => {
     const p = page();
-    for (const target of [p.pad, p.padText, p.engage, p.padButton]) {
+    for (const target of [p.pad, p.padText, p.engage, p.padButton, new El("text-console")]) {
       const { win, doc } = fakeWindow();
       const { reasons } = watch(win);
       doc.emit("mousedown", press(target));
@@ -279,12 +315,14 @@ describe("onConsoleIntent: engage", () => {
     expect(reasons).toEqual(["engage"]);
   });
 
-  test("touch presses don't engage, and engageSelector: false adds no listeners", () => {
-    const p = page();
-    const touch = fakeWindow({ coarse: true });
-    const t = watch(touch.win);
-    touch.doc.emit("mousedown", press(p.pad));
-    expect(t.reasons).toEqual([]);
+  test("a textjs:engage event (a size picked before boot) fires engage", () => {
+    const { win, doc } = fakeWindow();
+    const { reasons } = watch(win);
+    doc.emit("textjs:engage", { target: new El("span") });
+    expect(reasons).toEqual(["engage"]);
+  });
+
+  test("engageSelector: false adds no listeners", () => {
     const off = fakeWindow();
     watch(off.win, { engageSelector: false });
     expect(off.doc.count).toBe(0);
@@ -363,7 +401,7 @@ test("onConsoleIntent bundles without Yoga, the cell buffer or the renderer", as
     const code = (await result.outputs[0]?.text()) ?? "";
     for (const s of ["loadYoga", "CellBuffer", "ConsoleRenderer", "Intl.Segmenter"]) expect(code).not.toContain(s);
     expect(code).toContain("textjs:console-intent");
-    expect(gzipSync(code).length).toBeLessThan(2500);
+    expect(gzipSync(code).length).toBeLessThan(2100);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
