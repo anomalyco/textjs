@@ -29,8 +29,8 @@ describe("locales", () => {
     expect(splitLocale("/ja/docs/routing")).toEqual({ locale: ja, path: "/docs/routing" });
     expect(splitLocale("/ja")).toEqual({ locale: ja, path: "/" });
     expect(splitLocale("/docs").locale.code).toBe("en");
-    // Only built locales are prefixes; others are ordinary (unknown) paths.
-    expect(splitLocale("/ur/blog").locale.code).toBe("en");
+    // Only locales are prefixes; other two-letter segments are ordinary (unknown) paths.
+    expect(splitLocale("/xx/blog").locale.code).toBe("en");
     expect(localePath(ja, "/")).toBe("/ja");
     expect(localePath(ja, "/docs")).toBe("/ja/docs");
     expect(localePath(LOCALES[0]!, "/docs")).toBe("/docs");
@@ -138,6 +138,9 @@ describe("right-to-left text", () => {
     // Persian and Urdu: ی and ک, never the Arabic ي and ك (Arabic itself keeps them).
     expect(normalizePunctuation("fa", "كامپوننت يك فايل")).toBe("کامپوننت یک فایل");
     expect(normalizePunctuation("ar", "يك")).toBe("يك");
+    // Urdu sentences end with ۔, after a name or code too; numbers, versions and list markers keep their period.
+    expect(normalizePunctuation("ur", "کونسول کھولیں. پھر Text.js چلائیں.")).toBe("کونسول کھولیں۔ پھر Text.js چلائیں۔");
+    expect(normalizePunctuation("ur", "1. ورژن 1.4.1 اور 3.5 ms دیکھیں `a.b`.")).toBe("1. ورژن 1.4.1 اور 3.5 ms دیکھیں `a.b`۔");
     expect(validate("ar", "Open it, then go.", "افتحه, ثم اذهب.").errors).toEqual(["Latin , ; or ? in Arabic text (use ، ؛ ؟)"]);
   });
 

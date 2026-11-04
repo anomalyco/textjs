@@ -47,7 +47,7 @@ export const LOCALES: readonly Locale[] = [
   { code: "ar", path: "ar", name: "العربية", dir: "rtl", status: "draft" },
   { code: "he", path: "he", name: "עברית", dir: "rtl", status: "draft" },
   { code: "fa", path: "fa", name: "فارسی", dir: "rtl", status: "draft" },
-  { code: "ur", path: "ur", name: "اردو", dir: "rtl", status: "planned" },
+  { code: "ur", path: "ur", name: "اردو", dir: "rtl", status: "draft" },
 ];
 
 export const SOURCE_LOCALE = LOCALES[0] as Locale;
