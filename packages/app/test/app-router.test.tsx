@@ -4,7 +4,7 @@ import { Box, Input, Text, themes, useInput } from "@textjs/react";
 import { AppRouter, createMemoryHistory, type ErrorComponentProps, type LayoutProps, type PageProps, type RouteManifest } from "../src/router";
 import { Link } from "../src/link";
 import { notFound, redirect, useParams, usePathname, useRouter, useSearchParams } from "../src/navigation";
-import { connectViteHmr, DevErrorStore, TextDevOverlay } from "../src/devtools";
+import { connectViteHmr, DevErrorStore, devErrors, TextDevOverlay } from "../src/devtools";
 import { useAppTheme } from "../src/context";
 import { createTestRoot, type TestRoot } from "./helpers";
 
@@ -279,6 +279,50 @@ describe("error.tsx, loading.tsx and the root error boundary", () => {
     await t!.act(() => listeners.get("vite:beforeUpdate")?.({}));
     expect(t!.frame()).not.toContain("Build Error");
     expect(t!.frame()).toContain("[▼]");
+  });
+});
+
+describe("production builds", () => {
+  async function inProduction(fn: () => Promise<void>): Promise<void> {
+    const prev = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      await fn();
+    } finally {
+      if (prev === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = prev;
+    }
+  }
+  const render = async (page: () => ReactNode, devOverlay: ReactNode | boolean): Promise<void> => {
+    t = await createTestRoot({ width: 60, height: 8, onCaughtError: () => undefined });
+    await t.render(<AppRouter routes={{ segment: "", page: { default: page } }} history={createMemoryHistory("/")} documentTitle={false} devOverlay={devOverlay} />);
+  };
+
+  test("devOverlay={true} draws no [▼] pill", async () => {
+    await inProduction(async () => {
+      await render(() => <Text>prod home</Text>, true);
+      expect(t!.frame()).toContain("prod home");
+      expect(t!.frame()).not.toContain("[▼]");
+    });
+  });
+
+  test("errors don't reach the global Redbox store", async () => {
+    await inProduction(async () => {
+      const before = devErrors.getSnapshot().errors.length;
+      await render(() => {
+        throw new Error("prod exploded");
+      }, true);
+      expect(t!.frame()).toContain("Application error: a client-side exception has occurred");
+      expect(devErrors.getSnapshot().errors.length).toBe(before);
+    });
+  });
+
+  test("an explicit devOverlay={<TextDevOverlay />} still renders", async () => {
+    await inProduction(async () => {
+      // Its own store, so errors other tests left in the global one can't open a Redbox over the pill.
+      await render(() => <Text>prod home</Text>, <TextDevOverlay store={new DevErrorStore()} />);
+      expect(t!.lines().at(-1)?.startsWith("[▼]")).toBe(true);
+    });
   });
 });
 

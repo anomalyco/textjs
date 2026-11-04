@@ -3,8 +3,8 @@
  * exercise `.vercel/output` from `text build --adapter vercel` without a
  * deploy: `config.json` routes (`src`, `dest`, `headers`, `continue`,
  * `middlewarePath`, `has` / `missing` (string or `{ eq, re, pre, suf, inc }` values), `methods`,
- * `status`, `transforms`, `handle: "filesystem"`,
- * external `dest` proxying), static files, Node.js functions
+ * `status`, `transforms`, `handle: "filesystem"`, headers in the `handle: "hit"` phase
+ * (applied when a static file answers), external `dest` proxying), static files, Node.js functions
  * (`launcherType: "Nodejs"`) and Edge middleware speaking `x-middleware-*`.
  * Functions are part of the filesystem: a request for a function's path
  * invokes it directly (as on Vercel) unless a route stops it first.
@@ -130,6 +130,18 @@ export interface VercelHarness {
 export async function startVercelHarness(outputDir: string): Promise<VercelHarness> {
   const config = JSON.parse(readFileSync(join(outputDir, "config.json"), "utf8")) as { version: number; routes: Route[] };
   if (config.version !== 3) throw new Error("expected Build Output API v3");
+  // Phases after the main and filesystem routes: only "hit" (headers once a file matched) is emulated.
+  const later = config.routes.findIndex((r) => r.handle !== undefined && r.handle !== "filesystem");
+  const mainRoutes = later < 0 ? config.routes : config.routes.slice(0, later);
+  const hitRoutes: Route[] = [];
+  if (later >= 0) {
+    let phase = "";
+    for (const r of config.routes.slice(later)) {
+      if (r.handle) phase = r.handle;
+      else if (phase === "hit") hitRoutes.push(r);
+      else throw new Error(`unsupported routing phase ${JSON.stringify(phase)}`);
+    }
+  }
   const functionUrls = new Map<string, string>();
   const servers: Server[] = [];
   const edge = new Map<string, EdgeHandler>();
@@ -195,6 +207,7 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
       const serveStatic = async (): Promise<boolean> => {
         const file = staticFile(pathname);
         if (!file) return false;
+        for (const r of hitRoutes) if (r.headers && new RegExp(r.src ?? "^$", r.caseSensitive ? "" : "i").test(pathname)) for (const [k, v] of Object.entries(r.headers)) out.set(k, v);
         await send(new Response(readFileSync(file), { headers: { "content-type": MIME[extname(file)] ?? "application/octet-stream" } }));
         return true;
       };
@@ -214,7 +227,7 @@ export async function startVercelHarness(outputDir: string): Promise<VercelHarne
         await send(new Response("NOT_FOUND", { status: 404 }));
       };
 
-      for (const route of config.routes) {
+      for (const route of mainRoutes) {
         if (route.handle) {
           if (route.handle === "filesystem") {
             phase = "filesystem";

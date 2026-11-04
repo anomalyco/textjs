@@ -3,7 +3,7 @@
  * route-pattern → regular-expression helpers.
  */
 
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Rewrite, TextConfig } from "../../config";
 import { encodePathSegment } from "../../path-text";
@@ -14,6 +14,7 @@ import { txError } from "@textjs/core";
 import { compileMatcherSource, matcherKeys } from "../middleware-runtime";
 import { listServerPages } from "../live-routes";
 import { LIVE_MANIFEST, type LiveManifest } from "../live-manifest";
+import { EMBED_ASSET_HEADERS, resolveEmbed } from "../cors";
 import { frameworkFile } from "./bundle";
 
 export const ADAPTERS = ["static", "bun", "vercel", "cloudflare"] as const;
@@ -147,6 +148,52 @@ export function copyStatic(from: string, to: string, skip: (rel: string) => bool
 export function removeServerBundle(outDir: string): void {
   const dir = join(outDir, ".text");
   if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
+}
+
+/** A `_headers` rule (Cloudflare Pages, Netlify): a path pattern and the headers its responses get. */
+export interface HeadersRule {
+  path: string;
+  headers: Record<string, string>;
+}
+
+const IMMUTABLE = "public, max-age=31536000, immutable";
+
+/**
+ * `_headers` rules for the client build: hashed assets are immutable, and
+ * with `embed` on, `embed.js` and `/assets/*` can be loaded by any site.
+ */
+export function staticHeadersRules(config: Pick<TextConfig, "embed">): HeadersRule[] {
+  const embed = resolveEmbed(config).enabled ? EMBED_ASSET_HEADERS : null;
+  const rules: HeadersRule[] = [{ path: "/assets/*", headers: { "Cache-Control": IMMUTABLE, ...embed } }];
+  if (embed) rules.push({ path: "/embed.js", headers: { "Cache-Control": "public, max-age=0, must-revalidate", ...embed } });
+  return rules;
+}
+
+/** The build note for `_headers` rules the app's own file already had, or `null`. */
+export function headersNote(skipped: readonly string[], config: Pick<TextConfig, "embed">): string | null {
+  if (skipped.length === 0 || !resolveEmbed(config).enabled) return null;
+  const lines = Object.entries(EMBED_ASSET_HEADERS).map(([k, v]) => `${k}: ${v}`).join(", ");
+  return `_headers already has rules for ${skipped.join(" and ")}, so Text.js left them as they are. Other sites can only load the embed when they include ${lines}.`;
+}
+
+/**
+ * Append `rules` to `dist/_headers`. A path the file already has a rule for
+ * is the app's own and stays as it is: returns those paths.
+ */
+export function writeHeadersRules(outDir: string, rules: readonly HeadersRule[]): string[] {
+  const file = join(outDir, "_headers");
+  const current = existsSync(file) ? readFileSync(file, "utf8") : "";
+  const skipped: string[] = [];
+  const blocks: string[] = [];
+  for (const rule of rules) {
+    if (new RegExp(`^${escapeRegex(rule.path)}\\s*$`, "m").test(current)) {
+      skipped.push(rule.path);
+      continue;
+    }
+    blocks.push(`${rule.path}\n${Object.entries(rule.headers).map(([k, v]) => `  ${k}: ${v}\n`).join("")}`);
+  }
+  if (blocks.length > 0) writeFileSync(file, current.trim() ? `${current.trimEnd()}\n\n${blocks.join("\n")}` : blocks.join("\n"));
+  return skipped;
 }
 
 /** Patterns of `export const runtime = "server"` pages. */

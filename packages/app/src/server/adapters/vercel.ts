@@ -16,6 +16,7 @@ import { ANSI_CACHE_CONTROL, ANSI_VARY, TERMINAL_UA } from "../../ansi";
 import { encodePathSegment } from "../../path-text";
 import type { MiddlewareModule } from "../middleware";
 import { middlewareMatchers } from "../middleware-runtime";
+import { EMBED_ASSET_HEADERS, resolveEmbed } from "../cors";
 import { bundleServerEntry, frameworkFile } from "./bundle";
 import { assertNoServerRoutes, copyStatic, escapeRegex, matcherRegex, patternRegex, readAnsiFrames, rewriteRoute, serverEntry, type AdapterContext, type AdapterResult } from "./shared";
 
@@ -185,6 +186,11 @@ export interface VercelConfig {
   framework: { version: string };
 }
 
+/** `embed.js` and files under `/assets/` (with an extension, not HTML), as a route `src`. */
+export function vercelEmbedSource(basePath = ""): string {
+  return `^${escapeRegex(basePath)}\\/(?:embed\\.js|assets\\/(?:[^/]+\\/)*[^/]*\\.(?![Hh][Tt][Mm][Ll]?$)[^/.]+)$`;
+}
+
 /** `ansi`: route patterns with a prerendered frame (see {@link vercelAnsiRoute}). */
 export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule | null, ansi: readonly string[] = []): VercelConfig {
   const base = ctx.basePath;
@@ -228,6 +234,8 @@ export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule |
   routes.push({ handle: "filesystem" });
   // Extensionless paths are console pages: serve the SPA document.
   routes.push({ src: `^${escapeRegex(base)}(?:\\/(?:[^/]+\\/)*[^/.]*)?$`, dest: `${base}/index.html`, caseSensitive: true });
+  // Only when a static file answers (the "hit" phase): never on documents, function responses or 404s.
+  if (resolveEmbed(ctx.config).enabled) routes.push({ handle: "hit" }, { src: vercelEmbedSource(base), headers: { ...EMBED_ASSET_HEADERS }, continue: true, caseSensitive: true });
   return { version: 3, routes, framework: { version: VERSION } };
 }
 

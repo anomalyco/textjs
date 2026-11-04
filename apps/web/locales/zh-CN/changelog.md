@@ -7,36 +7,28 @@
 <!-- s:2e16922cfc -->
 新增
 
-<!-- s:01d85a9a48 -->
-- textjs.org：西班牙语、法语、德语、巴西葡萄牙语、韩语、简体中文和繁体中文版已结束草稿阶段，分别位于 textjs.org/es、/fr、/de、/pt-br、/ko、/zh-cn 和 /zh-tw。页脚的语言选择器和浏览器语言按钮会像日语一样列出这些语言。搜索引擎会索引翻译后的页面，并将各页与对应的英文版关联。
-- textjs.org：意大利语、俄语、土耳其语、波兰语、印度尼西亚语、越南语和印地语版已结束草稿阶段，分别位于 textjs.org/it、/ru、/tr、/pl、/id、/vi 和 /hi。页脚的语言选择器和浏览器语言按钮会像其他语言一样列出这些语言。搜索引擎会索引翻译后的页面，并将各页与对应的英文版关联。
-- textjs.org：阿拉伯语、希伯来语、波斯语和乌尔都语版已结束草稿阶段，分别位于 textjs.org/ar、/he、/fa 和 /ur。页脚的语言选择器和浏览器语言按钮会像其他语言一样列出这些语言。搜索引擎会索引翻译后的页面，并将各页与对应的英文版关联。
+<!-- s:b3ea6ef7f1 -->
+- `@textjs/react`：`<FocusPad messages>` 可替换焦点区的任意内置字符串，用于翻译后的网站。它涵盖每一行、屏幕阅读器标签和控制台尺寸控件。`<TextCanvas>` 和 `<ViewportControl>` 也接受 `messages`。`<ViewportControl>` 只使用尺寸控件的键。包含值的字符串（例如“然后点击这里并按 ↑ ↓。”）是返回完整句子的函数。`defaultFocusPadMessages` 包含英文文本。参见[翻译焦点区](https://textjs.org/docs/internationalization#translating-the-focus-pad)。
+- `@textjs/react`：在从右到左的页面上，焦点区保持 ⌘ ⌥ J 等键帽和 120×36 等控制台尺寸从左到右显示，并镜像显示尺寸控件和步骤栏。在中文和日文页面上，移除两句话之间的空格；韩文则保留。
+- textjs.org：textjs.org/ja 已结束草稿阶段。页脚的语言选择器可打开同一页面的英文版或日文版。浏览器语言设为日语时会显示“日本語で読む”按钮，使用英语浏览器访问 textjs.org/ja 时会显示“Read in English”。选择语言或关闭按钮后，按钮不再出现。搜索引擎会索引翻译后的日文页面，并将各页面与其英文版本关联。
+- textjs.org：在 textjs.org/ja 上，每个页面的焦点区都使用日语，包括各演示按键下方的标签。
+- textjs.org：西班牙语、法语、德语、巴西葡萄牙语、意大利语、俄语、土耳其语、波兰语、印度尼西亚语、越南语、印地语、韩语、简体中文、繁体中文、阿拉伯语、希伯来语、波斯语和乌尔都语版本已结束草稿阶段，地址分别为 textjs.org/es、/fr、/de、/pt-br、/it、/ru、/tr、/pl、/id、/vi、/hi、/ko、/zh-cn、/zh-tw、/ar、/he、/fa 和 /ur。页脚的语言选择器和浏览器语言按钮像提供日语一样提供这些语言。搜索引擎会索引翻译后的页面，并将各页面与其英文版本关联。
 
 <!-- s:5b88618770 -->
 变更
 
-<!-- s:33280e468a -->
-- `@textjs/react`：`<FocusPad>` 和 `<ViewportControl>` 的等宽标签在页面定义了 `--mono` 字体栈时使用该字体栈，否则仍回退到 Geist Mono。带有阿拉伯语或希伯来语标签的页面可以将相应文字的字体添加到 `--mono`。
+<!-- s:cb13a45198 -->
+- `@textjs/core`：Chromium 和 Firefox 控制台在动画精灵输出达到 16 MB 时清除输出，原先为 4 MB，因此 textjs.org/doom 约每 19 秒显示一次“控制台已清空”，原先为每 4.5 秒一次。Safari 以及使用 `▀` 半块绘制的精灵仍保持 4 MB。textjs.org/doom 页面的堆内存峰值从 10.8 MB 增至约 12～13 MB。
+- textjs.org：文档页面只下载自身的 Markdown，不再下载全部 33 页，因此英文文档页面加载的 JavaScript（gzip）减少了 43～47 KB，/ja 文档页面减少了 60～64 KB。将鼠标悬停在其他文档页面的链接上或使其获得焦点时，会提前获取该页面，因此仍能立即打开。
+- `@textjs/react`：如果页面定义了 `--mono` 字体栈，`<FocusPad>` 和 `<ViewportControl>` 会使用它显示等宽标签，否则仍回退到 Geist Mono。包含阿拉伯语或希伯来语标签的页面可以将对应文字的字体添加到 `--mono`。
 
 <!-- s:afe76b8d59 -->
 修复
 
-<!-- s:f0905efd51 -->
-- textjs.org：在手机上，超出行宽的行内代码会换行，不再撑宽页面。textjs.org/docs/internationalization 在 390 px 宽的屏幕上曾超宽 92 px。
-
-<!-- s:f71df9184f -->
-- `@textjs/react`：`<FocusPad messages>` 可替换焦点区的任意内置字符串，用于翻译后的网站。它涵盖每一行文字、屏幕阅读器标签和控制台尺寸控件。`<TextCanvas>` 和 `<ViewportControl>` 也接受 `messages`。`<ViewportControl>` 仅使用尺寸控件的键。包含变量值的字符串（例如“然后点击这里并按 ↑ ↓。”）是返回完整句子的函数。`defaultFocusPadMessages` 包含英文文本。参见[翻译焦点区](https://textjs.org/docs/internationalization#translating-the-focus-pad)。
-- `@textjs/react`：在从右到左的页面上，焦点区让 ⌘ ⌥ J 等键帽和 120×36 等控制台尺寸保持从左到右显示，并镜像显示尺寸控件和步骤栏。在中文和日文页面上，两句话之间不留空格；韩文页面则保留空格。
-- textjs.org：textjs.org/ja 已结束草稿阶段。页脚的语言选择器可打开同一页面的英文版或日文版。浏览器语言设为日语时会显示“日本語で読む”按钮，使用英语浏览器访问 textjs.org/ja 时则会显示“Read in English”。选择语言或关闭按钮后，按钮便不再出现。搜索引擎会索引翻译后的日文页面，并将各页与对应的英文版关联。
-- textjs.org：在 textjs.org/ja 上，每个页面的焦点区均使用日文，包括各个演示的按键下方标签。
-
-<!-- s:27b507a9de -->
-- `@textjs/core`：Chromium 和 Firefox 控制台在动画精灵输出达到 16 MB 时清除输出，原先为 4 MB，因此 textjs.org/doom 大约每 19 秒显示一次“控制台已清除”，原先为每 4.5 秒。Safari 和以 `▀` 半块绘制的精灵仍使用 4 MB。textjs.org/doom 页面的堆内存峰值从 10.8 MB 增至约 12～13 MB。
-- textjs.org：文档页面只下载自身的 Markdown，不再下载全部 33 个页面，因此英文文档页面加载的 JavaScript（gzip）减少了 43～47 KB，/ja 文档页面减少了 60～64 KB。将鼠标悬停在另一篇文档页面的链接上或使链接获得焦点时，会提前获取该页面，因此仍能立即打开。
-
-<!-- s:b3d1adfa39 -->
-- textjs.org/ja：⌘K 搜索显示日文文档标题，并用日文查询匹配这些标题。此前会在日文页面标题下列出英文标题。英文名称仍能找到页面：`routing` 可找到ルーティング，`open the console` 可找到コンソールを開く。
-- textjs.org：在 textjs.org/ja 上，以及 textjs.org/docs/internationalization 的双向文本示例中，控制台里运行的文档示例再次能将变化显示在页面预览中。控制台中示例上方的一行现在显示“▼ Docs › Counter”，而不是“▼ Docs › Introduction › Counter”。
+<!-- s:965b020b1d -->
+- textjs.org/ja：⌘K 搜索显示日文文档标题，并用日文查询匹配这些标题。此前会在日文页面标题下列出英文标题。英文名称仍能找到页面：`routing` 能找到“ルーティング”，`open the console` 能找到“コンソールを開く”。
+- textjs.org：在 textjs.org/ja 上，以及 textjs.org/docs/internationalization 的双向文本示例中，控制台内运行的文档示例再次能在页面预览中显示其更改。控制台中示例上方的一行现在显示“▼ 文档 › 计数器”，原先为“▼ 文档 › 简介 › 计数器”。
+- textjs.org：在手机上，超出行宽的行内代码会换行，不再撑宽页面。textjs.org/docs/internationalization 此前在 390 px 屏幕上超宽了 92 px。
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom 播放 Doom 音效，使用 Doom 自带的立体声声像和距离衰减。首次在页面上点击或按键后开始播放声音，随游戏暂停，音量遵循 Doom 的 Options → Sound Volume 菜单中的 Sfx Volume 设置。没有音乐。

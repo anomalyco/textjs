@@ -6,19 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-### Added
-
-- textjs.org: Spanish, French, German, Brazilian Portuguese, Korean, and Simplified and Traditional Chinese are out of draft at textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn and /zh-tw. The footer's language picker and the browser-language button offer them, as they do Japanese. Search engines index the translated pages and match each to its English version.
-- textjs.org: Italian, Russian, Turkish, Polish, Indonesian, Vietnamese and Hindi are out of draft at textjs.org/it, /ru, /tr, /pl, /id, /vi and /hi. The footer's language picker and the browser-language button offer them, as they do the other languages. Search engines index the translated pages and match each to its English version.
-- textjs.org: Arabic, Hebrew, Persian and Urdu are out of draft at textjs.org/ar, /he, /fa and /ur. The footer's language picker and the browser-language button offer them, as they do the other languages. Search engines index the translated pages and match each to its English version.
-
 ### Changed
 
-- `@textjs/react`: `<FocusPad>` and `<ViewportControl>` set their monospace labels in the page's `--mono` font stack when it defines one, and fall back to Geist Mono as before. A page with Arabic or Hebrew labels can add its script's fonts to `--mono`.
-
-### Fixed
-
-- textjs.org: on phones, inline code longer than the line wraps instead of widening the page. textjs.org/docs/internationalization was 92px too wide on a 390px screen.
+- `@textjs/core`: the console driver checks whether the console font fits a glyph that may need a stand-in (eighth blocks, quadrants, braille, ▶, ✓ and similar) the first time that glyph appears, instead of measuring all of them on the first frame. Drivers that use the same font size and family share the results. A frame without those glyphs makes no stand-in measurements, so the first frame of textjs.org's home console takes 1.2 ms instead of 9.2 ms in headless Chromium on an M5 Pro Mac mini, and 4.8 ms instead of 38.4 ms with the CPU throttled 4×. On Windows 10, where Consolas lacks those glyphs, frames that use them get the same stand-ins as before, from the first frame.
+- `@textjs/core`: `isRtlCodePoint` and `hasRtl` look up 59 right-to-left ranges generated from the Unicode 18.0 data, and no longer load the bidi tables. They return the same result for every code point. `<ConsoleMirror>` on its own bundles 2.1 KB less JavaScript (gzip), and the frame player for server-rendered routes 1.6 KB less.
+- `@textjs/app`: `text build` leaves the Dev Overlay and the Redbox out of production builds. They only appear in `text dev`, but every build used to bundle them. The starter template's client JavaScript is 4.3 KB smaller (gzip) and `examples/dashboard`'s is 3.0 KB smaller. An app that renders `<AppRouter>` itself drops them too when its bundler sets `process.env.NODE_ENV` to `"production"` (the default in `vite build` and webpack, `esbuild --minify`, and `bun build --production`). In those builds, `<AppRouter devOverlay>` renders nothing (pass `devOverlay={<TextDevOverlay />}` to keep it), `errorStore` defaults to `null`, and `bootTextApp` ignores `dev: true`.
+- textjs.org: the home page and docs pages load 12.9 KB less JavaScript up front (gzip). Their console mirrors used to preload the 13.5 KB bidi chunk and now preload 0.6 KB.
 
 ## [1.5.0] - 2026-11-03
 
@@ -28,16 +21,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `@textjs/react`: on right-to-left pages, the focus pad keeps keycaps such as ⌘ ⌥ J and console sizes such as 120×36 left to right, and mirrors its size control and step bar. On Chinese and Japanese pages, it drops the space between its two sentences; Korean keeps it.
 - textjs.org: textjs.org/ja is out of draft. The footer's language picker opens the same page in English or 日本語. A browser set to Japanese gets a 日本語で読む button, and an English browser on textjs.org/ja gets Read in English. The button stops appearing once you pick a language or close it. Search engines index the translated Japanese pages and match each to its English version.
 - textjs.org: on textjs.org/ja, the focus pad is in Japanese on every page, including the labels under each demo's keys.
+- textjs.org: Spanish, French, German, Brazilian Portuguese, Italian, Russian, Turkish, Polish, Indonesian, Vietnamese, Hindi, Korean, Simplified and Traditional Chinese, Arabic, Hebrew, Persian and Urdu are out of draft at textjs.org/es, /fr, /de, /pt-br, /it, /ru, /tr, /pl, /id, /vi, /hi, /ko, /zh-cn, /zh-tw, /ar, /he, /fa and /ur. The footer's language picker and the browser-language button offer them, as they do Japanese. Search engines index the translated pages and match each to its English version.
 
 ### Changed
 
 - `@textjs/core`: Chromium and Firefox consoles clear animated sprite output at 16 MB instead of 4 MB, so textjs.org/doom shows "Console was cleared" about every 19 seconds instead of every 4.5. Safari, and sprites drawn as `▀` half-blocks, keep 4 MB. The page's peak heap on textjs.org/doom goes from 10.8 MB to about 12–13 MB.
 - textjs.org: a docs page downloads only its own Markdown instead of all 33 pages, so English docs pages load 43–47 KB less JavaScript (gzip) and /ja docs pages 60–64 KB less. Hovering over or focusing a link to another docs page fetches that page early, so it still opens at once.
+- `@textjs/react`: `<FocusPad>` and `<ViewportControl>` set their monospace labels in the page's `--mono` font stack when it defines one, and fall back to Geist Mono as before. A page with Arabic or Hebrew labels can add its script's fonts to `--mono`.
 
 ### Fixed
 
 - textjs.org/ja: ⌘K search shows the Japanese docs headings and matches Japanese queries against them. It used to list English headings under Japanese page titles. English names still find pages: `routing` finds ルーティング and `open the console` finds コンソールを開く.
 - textjs.org: a docs example running in your console shows its changes in the page's preview again on textjs.org/ja, and for the Bidirectional text example on textjs.org/docs/internationalization. The line above an example in the console now reads "▼ Docs › Counter" instead of "▼ Docs › Introduction › Counter".
+- textjs.org: on phones, inline code longer than the line wraps instead of widening the page. textjs.org/docs/internationalization was 92px too wide on a 390px screen.
 
 ## [1.4.1] - 2026-11-03
 

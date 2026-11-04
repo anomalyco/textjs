@@ -11,7 +11,8 @@ import { isDynamicPattern, matchAppRoutes, type RouteManifest, type RouteSegment
 import { routeCacheConfig, runRouteHandlerWithCache } from "../cache-route";
 import type { RouteHandlerModule } from "../http";
 import type { MiddlewareModule } from "../middleware";
-import { removeServerBundle, serverRoutePatterns, type AdapterContext, type AdapterResult } from "./shared";
+import { resolveEmbed } from "../cors";
+import { headersNote, removeServerBundle, serverRoutePatterns, staticHeadersRules, writeHeadersRules, type AdapterContext, type AdapterResult } from "./shared";
 
 export async function adaptStatic(ctx: AdapterContext, middleware: MiddlewareModule | null, apiBundle: string): Promise<AdapterResult> {
   const problems: string[] = [];
@@ -61,6 +62,11 @@ export async function adaptStatic(ctx: AdapterContext, middleware: MiddlewareMod
     throw new Error(`▼ Text.js: the static adapter can't export this app:\n${problems.map((p) => `  - ${p}`).join("\n")}`);
   }
   removeServerBundle(ctx.outDir);
+  if (resolveEmbed(ctx.config).enabled) {
+    // Hosts that read `_headers` (Cloudflare Pages, Netlify) let other sites load the embed.
+    const note = headersNote(writeHeadersRules(ctx.outDir, staticHeadersRules(ctx.config)), ctx.config);
+    notes.push(note ?? "Other hosts must serve embed.js and /assets/* with Access-Control-Allow-Origin: * and Cross-Origin-Resource-Policy: cross-origin (_headers has them for Cloudflare Pages and Netlify).");
+  }
   // SPA fallback for hosts that serve 404.html for unknown paths (GitHub Pages, S3, …).
   const fallback = join(ctx.outDir, "404.html");
   if (!existsSync(fallback)) copyFileSync(join(ctx.outDir, "index.html"), fallback);

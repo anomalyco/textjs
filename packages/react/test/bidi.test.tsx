@@ -121,6 +121,16 @@ describe("<ConsoleMirror>", () => {
     expect(html).toContain("direction:ltr");
   });
 
+  test("overrides spans with Hebrew, Arabic or historic RTL letters, and nothing else", () => {
+    const override = (text: string): boolean => {
+      const buf = new CellBuffer(24, 1);
+      buf.drawText(0, 0, text, 0xffffffff, 0x000000ff);
+      return renderToStaticMarkup(<ConsoleMirror frame={extractStyledFrame(buf)} />).includes("bidi-override");
+    };
+    for (const s of ["שלום", "مرحبا", "ܐܒܓ", "ދިވެ", "ߒߞߏ", "\uFEFB", "٣", "\u{10900}", "\u{1E900}"]) expect(override(s)).toBe(true);
+    for (const s of ["abc", "─│╭╮", "日本語", "Chrome، Edge", "۱۲۳", "😀"]) expect(override(s)).toBe(false);
+  });
+
   test("the mirror flows left to right even on an RTL host page", () => {
     const buf = new CellBuffer(4, 1);
     buf.drawText(0, 0, "ab", 0xffffffff, 0x000000ff);

@@ -7,36 +7,28 @@ El formato se basa en [Mantén un registro de cambios](https://keepachangelog.co
 <!-- s:2e16922cfc -->
 Novedades
 
-<!-- s:01d85a9a48 -->
-- textjs.org: las versiones en español, francés, alemán, portugués de Brasil, coreano y chino simplificado y tradicional dejan de ser borradores en textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn y /zh-tw. El selector de idioma del pie de página y el botón de idioma del navegador las ofrecen, igual que el japonés. Los motores de búsqueda indexan las páginas traducidas y vinculan cada una con su versión en inglés.
-- textjs.org: las versiones en italiano, ruso, turco, polaco, indonesio, vietnamita e hindi dejan de ser borradores en textjs.org/it, /ru, /tr, /pl, /id, /vi y /hi. El selector de idioma del pie de página y el botón de idioma del navegador las ofrecen, igual que los demás idiomas. Los motores de búsqueda indexan las páginas traducidas y vinculan cada una con su versión en inglés.
-- textjs.org: las versiones en árabe, hebreo, persa y urdu dejan de ser borradores en textjs.org/ar, /he, /fa y /ur. El selector de idioma del pie de página y el botón de idioma del navegador las ofrecen, igual que los demás idiomas. Los motores de búsqueda indexan las páginas traducidas y vinculan cada una con su versión en inglés.
+<!-- s:b3ea6ef7f1 -->
+- `@textjs/react`: `<FocusPad messages>` sustituye cualquiera de las cadenas integradas del panel en los sitios traducidos. Abarca todas las líneas, las etiquetas para lectores de pantalla y el control de tamaño de la consola. `<TextCanvas>` y `<ViewportControl>` también aceptan `messages`. `<ViewportControl>` solo usa las claves del control de tamaño. Las cadenas que contienen un valor, como «Luego haz clic aquí y pulsa ↑ ↓.», son funciones que devuelven la frase completa. `defaultFocusPadMessages` contiene el texto en inglés. Consulta [Traducir el panel de foco](https://textjs.org/docs/internationalization#translating-the-focus-pad).
+- `@textjs/react`: en las páginas de derecha a izquierda, el panel de foco mantiene de izquierda a derecha las teclas, como ⌘ ⌥ J, y los tamaños de consola, como 120×36, e invierte su control de tamaño y su barra de pasos. En las páginas en chino y japonés, elimina el espacio entre sus dos frases; en coreano lo conserva.
+- textjs.org: textjs.org/ja ya no es un borrador. El selector de idioma del pie de página abre la misma página en inglés o 日本語. Un navegador configurado en japonés muestra un botón 日本語で読む, y un navegador en inglés en textjs.org/ja muestra Read in English. El botón deja de aparecer cuando eliges un idioma o lo cierras. Los buscadores indexan las páginas traducidas al japonés y vinculan cada una con su versión en inglés.
+- textjs.org: en textjs.org/ja, el panel de foco está en japonés en todas las páginas, incluidas las etiquetas bajo las teclas de cada demo.
+- textjs.org: las versiones en español, francés, alemán, portugués de Brasil, italiano, ruso, turco, polaco, indonesio, vietnamita, hindi, coreano, chino simplificado y tradicional, árabe, hebreo, persa y urdu ya no son borradores en textjs.org/es, /fr, /de, /pt-br, /it, /ru, /tr, /pl, /id, /vi, /hi, /ko, /zh-cn, /zh-tw, /ar, /he, /fa y /ur. El selector de idioma del pie de página y el botón de idioma del navegador las ofrecen, al igual que el japonés. Los buscadores indexan las páginas traducidas y vinculan cada una con su versión en inglés.
 
 <!-- s:5b88618770 -->
 Cambios
 
-<!-- s:33280e468a -->
-- `@textjs/react`: `<FocusPad>` y `<ViewportControl>` usan la pila de fuentes `--mono` de la página para sus etiquetas monoespaciadas cuando está definida, y recurren a Geist Mono como antes si no lo está. Una página con etiquetas en árabe o hebreo puede añadir las fuentes de su sistema de escritura a `--mono`.
+<!-- s:cb13a45198 -->
+- `@textjs/core`: las consolas de Chromium y Firefox borran la salida de sprites animados a los 16 MB en lugar de a los 4 MB, por lo que textjs.org/doom muestra «Se ha borrado la consola» aproximadamente cada 19 segundos en lugar de cada 4,5. Safari y los sprites dibujados como medios bloques `▀` mantienen los 4 MB. El pico de memoria heap de la página en textjs.org/doom pasa de 10,8 MB a unos 12–13 MB.
+- textjs.org: una página de documentación descarga solo su propio Markdown en lugar de las 33 páginas, por lo que las páginas de documentación en inglés cargan entre 43–47 KB menos de JavaScript (gzip) y las de /ja entre 60–64 KB menos. Al pasar el cursor sobre un enlace a otra página de documentación o darle el foco, esa página se descarga por adelantado, por lo que sigue abriéndose al instante.
+- `@textjs/react`: `<FocusPad>` y `<ViewportControl>` usan la pila de fuentes `--mono` de la página para sus etiquetas monoespaciadas cuando está definida, y recurren a Geist Mono como antes si no lo está. Una página con etiquetas en árabe o hebreo puede añadir las fuentes de su escritura a `--mono`.
 
 <!-- s:afe76b8d59 -->
 Correcciones
 
-<!-- s:f0905efd51 -->
-- textjs.org: en teléfonos, el código en línea que supera la longitud de la línea se ajusta en lugar de ensanchar la página. textjs.org/docs/internationalization era 92 px más ancha de lo debido en una pantalla de 390 px.
-
-<!-- s:f71df9184f -->
-- `@textjs/react`: `<FocusPad messages>` sustituye cualquiera de las cadenas integradas del panel de foco para sitios traducidos. Abarca todas las líneas, las etiquetas para lectores de pantalla y el control de tamaño de la consola. `<TextCanvas>` y `<ViewportControl>` también aceptan `messages`. `<ViewportControl>` solo usa las claves del control de tamaño. Las cadenas que contienen un valor, como «Luego haz clic aquí y pulsa ↑ ↓.», son funciones que devuelven la frase completa. `defaultFocusPadMessages` contiene el texto en inglés. Consulta [Traducir el panel de foco](https://textjs.org/docs/internationalization#translating-the-focus-pad).
-- `@textjs/react`: en páginas de derecha a izquierda, el panel de foco mantiene de izquierda a derecha las teclas, como ⌘ ⌥ J, y los tamaños de consola, como 120×36, e invierte su control de tamaño y su barra de pasos. En páginas en chino y japonés, elimina el espacio entre sus dos frases; en coreano lo conserva.
-- textjs.org: textjs.org/ja deja de ser un borrador. El selector de idioma del pie de página abre la misma página en inglés o 日本語. Un navegador configurado en japonés muestra un botón «日本語で読む», y un navegador en inglés en textjs.org/ja muestra «Read in English». El botón deja de aparecer cuando eliges un idioma o lo cierras. Los motores de búsqueda indexan las páginas traducidas al japonés y vinculan cada una con su versión en inglés.
-- textjs.org: en textjs.org/ja, el panel de foco está en japonés en todas las páginas, incluidas las etiquetas bajo las teclas de cada demo.
-
-<!-- s:27b507a9de -->
-- `@textjs/core`: las consolas de Chromium y Firefox borran la salida de sprites animados a los 16 MB en lugar de 4 MB, por lo que textjs.org/doom muestra «Se ha borrado la consola» aproximadamente cada 19 segundos en lugar de cada 4,5. Safari y los sprites dibujados como medios bloques `▀` mantienen los 4 MB. El pico de memoria heap de la página en textjs.org/doom pasa de 10,8 MB a unos 12–13 MB.
-- textjs.org: una página de documentación descarga solo su propio Markdown en lugar de las 33 páginas, por lo que las páginas de documentación en inglés cargan 43–47 KB menos de JavaScript (gzip) y las de /ja, 60–64 KB menos. Al pasar el cursor por un enlace a otra página de documentación o darle el foco, esa página se descarga por adelantado, por lo que sigue abriéndose al instante.
-
-<!-- s:b3d1adfa39 -->
-- textjs.org/ja: la búsqueda con ⌘K muestra los encabezados de la documentación en japonés y busca coincidencias con las consultas en japonés. Antes mostraba encabezados en inglés bajo los títulos de las páginas en japonés. Los nombres en inglés siguen encontrando páginas: `routing` encuentra ルーティング y `open the console` encuentra コンソールを開く.
-- textjs.org: los cambios de un ejemplo de la documentación que se ejecuta en tu consola vuelven a mostrarse en la vista previa de la página en textjs.org/ja, y también para el ejemplo de texto bidireccional en textjs.org/docs/internationalization. La línea sobre un ejemplo en la consola ahora dice «▼ Docs › Counter» en lugar de «▼ Docs › Introduction › Counter».
+<!-- s:965b020b1d -->
+- textjs.org/ja: la búsqueda con ⌘K muestra los encabezados de la documentación en japonés y busca coincidencias con las consultas en japonés. Antes mostraba encabezados en inglés bajo títulos de páginas en japonés. Los nombres en inglés siguen encontrando páginas: `routing` encuentra ルーティング y `open the console` encuentra コンソールを開く.
+- textjs.org: los ejemplos de documentación que se ejecutan en tu consola vuelven a mostrar sus cambios en la vista previa de la página en textjs.org/ja, y también en el ejemplo de texto bidireccional de textjs.org/docs/internationalization. La línea sobre un ejemplo en la consola ahora dice «▼ Documentación › Contador» en lugar de «▼ Documentación › Introducción › Contador».
+- textjs.org: en los teléfonos, el código en línea que supera la longitud de la línea se ajusta en lugar de ensanchar la página. textjs.org/docs/internationalization era 92 px demasiado ancha en una pantalla de 390 px.
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom reproduce los efectos de sonido de Doom, con su propio balance estéreo y atenuación por distancia. El sonido empieza con tu primer clic o pulsación de tecla en la página, se pausa con el juego y sigue el ajuste Sfx Volume del menú Options → Sound Volume de Doom. No hay música.
