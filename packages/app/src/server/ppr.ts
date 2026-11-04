@@ -77,7 +77,7 @@ export interface ShellReplayOptions {
   globalFlag?: boolean;
   /**
    * Milliseconds between frames when the shell has more than one (default
-   * 200). The frames loop while the page is visible and focused.
+   * 200). The frames loop while the page isn't hidden.
    */
   intervalMs?: number;
 }
@@ -95,8 +95,8 @@ const LOOP_MAX_FRAMES = 300;
  * A self-contained JavaScript expression that replays a compiled shell. One
  * frame logs once. Several frames log the first, then cycle through all of
  * them every `intervalMs` while `document.visibilityState` isn't `"hidden"`
- * and `document.hasFocus()` (like `<Spinner>`), clearing only on the first
- * pass and then every 300 frames.
+ * (focus doesn't matter: DevTools has it while the visitor watches the
+ * console), clearing only on the first pass and then every 300 frames.
  */
 export function createShellReplayCode(compiled: CompiledShell, options: ShellReplayOptions = {}): string {
   const { path, globalFlag = false } = options;
@@ -110,11 +110,10 @@ export function createShellReplayCode(compiled: CompiledShell, options: ShellRep
     if (!Number.isFinite(ms)) throw new Error(`intervalMs must be a finite number of milliseconds, got ${options.intervalMs}`);
     // g(q) logs the next frame (and on the first pass, q, the clears before it).
     paint =
-      `var i=0,m=1,t=0;function g(q){for(;;){var o=s[i];i=(i+1)%s.length;if(o===0){if(q)console.clear();continue}${LOG};return}}g(1);` +
-      `function v(){return document.visibilityState!=="hidden"&&document.hasFocus()}` +
-      `function k(){t=0;if(!v())return;if(m++>=${LOOP_MAX_FRAMES}){console.clear();m=1}g(0);t=setTimeout(k,${ms})}` +
-      `function u(){if(v()){if(!t)t=setTimeout(k,${ms})}else if(t){clearTimeout(t);t=0}}` +
-      `document.addEventListener("visibilitychange",u);addEventListener("focus",u);addEventListener("blur",u);u();`;
+      `var i=0,m=1,t=0,d=typeof document!=="undefined"?document:null;function g(q){for(;;){var o=s[i];i=(i+1)%s.length;if(o===0){if(q)console.clear();continue}${LOG};return}}g(1);` +
+      `function k(){t=0;if(d.visibilityState==="hidden")return;if(m++>=${LOOP_MAX_FRAMES}){console.clear();m=1}g(0);t=setTimeout(k,${ms})}` +
+      `function u(){if(d.visibilityState!=="hidden"){if(!t)t=setTimeout(k,${ms})}else if(t){clearTimeout(t);t=0}}` +
+      `if(d){d.addEventListener("visibilitychange",u);u()}`;
   } else {
     paint = `for(var i=0;i<s.length;i++){var o=s[i];if(o===0){console.clear();continue}${LOG}}`;
   }

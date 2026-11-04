@@ -362,6 +362,9 @@ interface FirstFrameOptions extends PrerenderOptions {
 
 type TimerCallback = (...args: unknown[]) => void;
 
+/** Stepped timer ids start far above the small integers real (Bun) timer handles coerce to. */
+const STEPPED_TIMER_START_ID = 1_000_000_000;
+
 /**
  * Swap the global timers and `performance.now()` for a clock that only moves
  * on `advance(ms)`, which runs due callbacks in order as discrete updates (so
@@ -375,7 +378,7 @@ function installSteppedClock(): { advance(ms: number): void; restore(): void } {
   const ownNow = perf !== null && Object.prototype.hasOwnProperty.call(perf, "now");
   const realNow = perf?.now;
   let now = perf !== null ? perf.now() : 0;
-  let nextId = 1;
+  let nextId = STEPPED_TIMER_START_ID;
   const timers = new Map<number, { at: number; every: number | null; cb: TimerCallback; args: unknown[] }>();
   const add = (every: boolean) => (cb: TimerCallback, delay?: number, ...args: unknown[]): number => {
     const ms = Math.max(every ? 1 : 0, Number(delay) || 0);
@@ -384,7 +387,11 @@ function installSteppedClock(): { advance(ms: number): void; restore(): void } {
     return id;
   };
   const clear = (id: unknown): void => {
-    if (!timers.delete(id as number)) (saved.clearTimeout as (id: unknown) => void)(id);
+    if (typeof id === "number" && id >= STEPPED_TIMER_START_ID && id < nextId) {
+      timers.delete(id);
+      return;
+    }
+    (saved.clearTimeout as (id: unknown) => void)(id);
   };
   g.setTimeout = add(false);
   g.setInterval = add(true);

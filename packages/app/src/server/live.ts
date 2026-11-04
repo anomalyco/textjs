@@ -454,7 +454,7 @@ export class LiveServer {
             // The browser loads the route as a new document (client route, or middleware's call); this session is done.
             session.send({ t: "load", href: this.basePath + to });
             setTimeout(() => this.dispose(session), 0);
-          } else if (action === "pop" && delta !== undefined && delta !== 0) session.send({ t: "go", delta });
+          } else if (action === "pop" && delta !== undefined && delta !== 0) session.send({ t: "go", delta, href: this.basePath + to });
           else session.send({ t: "url", href: this.basePath + to, replace: action === "replace" || action === "pop" });
         },
         onTitle: (title) => session.send({ t: "title", title }),

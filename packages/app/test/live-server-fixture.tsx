@@ -19,18 +19,31 @@ import { createLiveApp } from "../src/server/live-app";
 
 function Counter(): ReactNode {
   const [n, setN] = useState(0);
-  const router = useRouter();
   useInput((e) => {
     if (e.input === "+") setN((v) => v + 1);
-    if (e.input === "o") router.push("/other");
   });
   return <Text>{`count ${n}`}</Text>;
 }
 
+/** Navigation keys work on every page. */
+function Layout({ children }: { children?: ReactNode }): ReactNode {
+  const router = useRouter();
+  useInput((e) => {
+    if (e.input === "o") router.push("/other");
+    if (e.input === "b") router.back();
+    if (e.input === "c") router.push("/client");
+  });
+  return children;
+}
+
 const routes: RouteManifest = {
   segment: "",
+  layout: { default: Layout },
   page: { default: Counter, runtime: "server", metadata: { title: "Home" } },
-  children: [{ segment: "other", page: { default: () => <Text>other server page</Text>, runtime: "server", metadata: { title: "Other" } } }],
+  children: [
+    { segment: "other", page: { default: () => <Text>other server page</Text>, runtime: "server", metadata: { title: "Other" } } },
+    { segment: "client", page: { default: () => <Text>client page</Text> } },
+  ],
 };
 
 export interface LiveServerProcess {

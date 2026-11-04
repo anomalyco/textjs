@@ -4,7 +4,7 @@ import { afterEach, describe, expect, jest, test } from "bun:test";
 import { createServer, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { EventEmitter } from "node:events";
-import { act, Suspense, useState, type ReactNode } from "react";
+import { act, Suspense, useEffect, useState, type ReactNode } from "react";
 import { ATTR_BOLD, ATTR_UNDERLINE, CellBuffer, initYoga, InputEngine } from "@textjs/core";
 import { drawPixels } from "@textjs/core/experimental";
 import { Box, Image, Text, useInput, useInterval } from "@textjs/react";
@@ -753,27 +753,31 @@ describe("frame player pacing", () => {
 });
 
 describe("frame player boot options", () => {
-  test("streams from another endpoint with the given credentials and input, and leaves the page alone", async () => {
-    // The server runs in its own process: rendering here would see the browser globals stubbed below.
-    const server = await spawnLiveServer();
-    const { origin, lines } = server;
-    const endpoint = `${origin}${LIVE_PATH}`;
-
-    // A host page on another origin: anything the player touches on it is recorded.
+  /** A host page on another origin: anything the player touches on it is recorded. Restore with `restore()`. */
+  function hostPage() {
     const touched: string[] = [];
     const touch = (name: string) => () => void touched.push(name);
-    const listeners: string[] = [];
+    // Live listeners by target and type.
+    const listeners = new Map<string, number>();
+    const on = (target: string) => ({
+      addEventListener: (type: string) => void listeners.set(`${target}:${type}`, (listeners.get(`${target}:${type}`) ?? 0) + 1),
+      removeEventListener: (type: string) => {
+        const n = listeners.get(`${target}:${type}`) ?? 0;
+        if (n <= 1) listeners.delete(`${target}:${type}`);
+        else listeners.set(`${target}:${type}`, n - 1);
+      },
+    });
     const doc = {
       title: "Acme",
       visibilityState: "visible",
       hasFocus: () => true,
-      addEventListener: (type: string) => listeners.push(type),
-      removeEventListener: () => undefined,
+      ...on("document"),
       documentElement: { dataset: {} as Record<string, string> },
       querySelector: touch("querySelector"),
     };
+    const win: Record<string, unknown> = { ...on("window") };
     const stubs: Record<string, unknown> = {
-      window: { addEventListener: (type: string) => listeners.push(type), removeEventListener: () => undefined },
+      window: win,
       document: doc,
       location: { pathname: "/pricing", search: "", hash: "", href: "https://acme.example/pricing", assign: touch("location.assign") },
       history: { state: null, replaceState: touch("replaceState"), pushState: touch("pushState"), go: touch("history.go") },
@@ -789,7 +793,37 @@ describe("frame player boot options", () => {
     }) as typeof fetch;
     const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
     const clear = jest.spyOn(console, "clear").mockImplementation(() => undefined);
+    const error = jest.spyOn(console, "error").mockImplementation(() => undefined);
     Object.assign(g, stubs);
+    return {
+      doc,
+      win,
+      touched,
+      listeners,
+      fetches,
+      error,
+      realFetch,
+      restore() {
+        for (const [k, v] of Object.entries(saved)) {
+          if (v === undefined) delete g[k];
+          else g[k] = v;
+        }
+        globalThis.fetch = realFetch;
+        log.mockRestore();
+        clear.mockRestore();
+        error.mockRestore();
+      },
+    };
+  }
+
+  const keyEvent = (k: string) => ({ type: "key", key: k, input: k, ctrl: false, alt: false, shift: false, meta: false }) as never;
+
+  test("streams from another endpoint with the given credentials and input, and leaves the page alone", async () => {
+    // The server runs in its own process: rendering here would see the browser globals stubbed below.
+    const server = await spawnLiveServer();
+    const { origin, lines } = server;
+    const endpoint = `${origin}${LIVE_PATH}`;
+    const host = hostPage();
     const engine = new InputEngine({ document: null });
     const attach = jest.spyOn(engine, "attach");
     const detach = jest.spyOn(engine, "detach");
@@ -804,8 +838,15 @@ describe("frame player boot options", () => {
       viewport: { width: 40, height: 8, responsive: false },
     });
     const screen = (): string => player.core.buffer.toPlainString();
-    const key = (k: string): void => engine.emit("key", { type: "key", key: k, input: k, ctrl: false, alt: false, shift: false, meta: false } as never);
+    const key = (k: string): void => engine.emit("key", keyEvent(k));
     const streams = (): string[] => lines.filter((l) => l.startsWith(`request GET ${LIVE_PATH}?`));
+    /** Drop every connection; the player resumes the session with a new stream. Returns the `path` it asked for. */
+    const drop = async (): Promise<string | null> => {
+      const before = streams().length;
+      await host.realFetch(`${origin}/__drop`).catch(() => undefined);
+      await until(() => streams().length > before, 10_000);
+      return new URLSearchParams(streams().at(-1)?.split("?")[1]).get("path");
+    };
     try {
       await until(() => screen().includes("count 0"), 10_000);
       expect(new URLSearchParams(streams()[0]?.split("?")[1]).get("path")).toBe("/");
@@ -815,32 +856,63 @@ describe("frame player boot options", () => {
       key("o");
       await until(() => screen().includes("other server page"));
       // A dropped stream resumes where the session is, not where the page is.
-      const before = streams().length;
-      await realFetch(`${origin}/__drop`).catch(() => undefined);
-      await until(() => streams().length > before, 10_000);
-      expect(new URLSearchParams(streams().at(-1)?.split("?")[1]).get("path")).toBe("/other");
+      expect(await drop()).toBe("/other");
+      // `router.back()` sends `go` (with the href it landed on), never touching the page's history.
+      key("b");
+      await until(() => screen().includes("count 0"));
+      expect(await drop()).toBe("/");
 
-      expect(fetches.length).toBeGreaterThan(3);
-      expect(fetches.every((f) => f.url.startsWith(endpoint) && f.credentials === "include")).toBe(true);
+      expect(host.fetches.length).toBeGreaterThan(3);
+      expect(host.fetches.every((f) => f.url.startsWith(endpoint) && f.credentials === "include")).toBe(true);
       expect(lines.some((l) => l.startsWith(`request POST ${LIVE_PATH}`))).toBe(true);
-      expect(touched).toEqual([]);
-      expect(doc.title).toBe("Acme");
-      expect(doc.documentElement.dataset).toEqual({});
-      expect(listeners).not.toContain("popstate");
-      expect("text" in (g.window as object)).toBe(false);
+      expect(host.touched).toEqual([]);
+      expect(host.doc.title).toBe("Acme");
+      expect(host.doc.documentElement.dataset).toEqual({});
+      expect(host.listeners.has("window:popstate")).toBe(false);
+      expect("text" in host.win).toBe(false);
       player.dispose();
       // The caller's engine stays the caller's: never attached to (or detached from) the page.
       expect(attach).not.toHaveBeenCalled();
       expect(detach).not.toHaveBeenCalled();
     } finally {
       player.dispose();
-      for (const [k, v] of Object.entries(saved)) {
-        if (v === undefined) delete g[k];
-        else g[k] = v;
-      }
-      globalThis.fetch = realFetch;
-      log.mockRestore();
-      clear.mockRestore();
+      host.restore();
+      await server.close();
+    }
+  }, 30_000);
+
+  test("a route that needs a page load stops the player and releases everything it attached", async () => {
+    const server = await spawnLiveServer();
+    const host = hostPage();
+    const engine = new InputEngine({ document: null });
+    const player = bootFramePlayer({
+      basePath: "",
+      endpoint: `${server.origin}${LIVE_PATH}`,
+      input: engine,
+      path: "/",
+      syncDocument: false,
+      registerGlobal: "acmeConsole",
+      viewport: { width: 40, height: 8, responsive: false },
+    });
+    try {
+      expect(typeof host.win.acmeConsole).toBe("object");
+      expect(host.listeners.get("document:visibilitychange")).toBe(1);
+      await until(() => player.core.buffer.toPlainString().includes("count 0"), 10_000);
+      // `/client` renders on the client: the server asks for a document load, which an embed can't do.
+      engine.emit("key", keyEvent("c"));
+      await until(() => host.error.mock.calls.length > 0);
+      expect(String(host.error.mock.calls[0]?.[0])).toContain("/client");
+      expect(host.touched).toEqual([]);
+      expect(host.listeners.size).toBe(0);
+      expect("acmeConsole" in host.win).toBe(false);
+      // Input after the stop goes nowhere.
+      const sent = host.fetches.length;
+      engine.emit("key", keyEvent("+"));
+      await sleep(50);
+      expect(host.fetches.length).toBe(sent);
+    } finally {
+      player.dispose();
+      host.restore();
       await server.close();
     }
   }, 30_000);
@@ -946,7 +1018,7 @@ describe("partial prerendering", () => {
     expect(Object.keys(win)).toEqual([]);
   });
 
-  test("a multi-frame shell captures the app's timers and loops only while the page is visible and focused", async () => {
+  test("a multi-frame shell captures the app's timers and loops only while the page isn't hidden", async () => {
     const realSetTimeout = globalThis.setTimeout;
     const realNow = performance.now;
     function Ticker(): ReactNode {
@@ -970,11 +1042,10 @@ describe("partial prerendering", () => {
     const listeners = new Map<string, () => void>();
     const timers: Array<{ id: number; cb: () => void }> = [];
     let nextId = 1;
-    const doc = { visibilityState: "visible", focused: true, hasFocus: () => doc.focused, addEventListener: (type: string, fn: () => void) => listeners.set(type, fn) };
+    const doc = { visibilityState: "visible", hasFocus: () => false, addEventListener: (type: string, fn: () => void) => listeners.set(type, fn) };
     const env = {
       console: con,
       document: doc,
-      addEventListener: (type: string, fn: () => void) => listeners.set(type, fn),
       setTimeout: (cb: () => void, ms: number) => {
         expect(ms).toBe(250);
         timers.push({ id: nextId, cb });
@@ -1000,20 +1071,53 @@ describe("partial prerendering", () => {
     listeners.get("visibilitychange")?.();
     tick();
     expect(shown().at(-1)).toBe("tick 1");
-    // Unfocused (DevTools or another window has focus): paused until the page gets focus back.
-    doc.focused = false;
-    listeners.get("blur")?.();
-    expect(timers.length).toBe(0);
-    doc.focused = true;
-    listeners.get("focus")?.();
-    expect(timers.length).toBe(1);
+    // Focus never pauses it (DevTools has focus while the visitor watches the console): only visibility listens.
+    expect([...listeners.keys()]).toEqual(["visibilitychange"]);
     tick();
     expect(shown().at(-1)).toBe("tick 2");
-    // A timer that fires after the page lost focus (no blur event yet) doesn't log either.
+    // A timer that fires after the page was hidden (before visibilitychange) doesn't log either.
     const before = con.logs.length;
-    doc.focused = false;
+    doc.visibilityState = "hidden";
     tick();
     expect(con.logs.length).toBe(before);
+
+    // Without a document (not a browser), it paints the first frame and stops.
+    const bare = new FakeConsole();
+    new Function("console", "setTimeout", `return ${code}`)(bare, () => {
+      throw new Error("no loop without a document");
+    });
+    expect(bare.logs.length).toBe(1);
+  });
+
+  test("capturing frames never cancels a real timer", async () => {
+    // A timeout that fires during the capture, then is cleared again on unmount (as most effects do).
+    function Once(): ReactNode {
+      const [done, setDone] = useState(false);
+      useEffect(() => {
+        const id = setTimeout(() => setDone(true), 100);
+        return () => clearTimeout(id);
+      }, []);
+      return <Text>{done ? "done" : "wait"}</Text>;
+    }
+    const realClear = globalThis.clearTimeout;
+    const forwarded: unknown[] = [];
+    globalThis.clearTimeout = ((id?: ReturnType<typeof setTimeout>) => {
+      forwarded.push(id);
+      realClear(id);
+    }) as typeof clearTimeout;
+    let fired = false;
+    const real = setTimeout(() => (fired = true), 30);
+    try {
+      const calls = await withoutActEnvironment(() => prerenderShell({ routes: { segment: "", page: { default: Once } }, path: "/", cols: 8, rows: 1, frames: 2, intervalMs: 200 }));
+      expect(calls.filter((c) => c.method === "log").map((c) => (c.args[0] ?? "").replace(/%c/g, "").trim().slice(-4))).toEqual(["wait", "done"]);
+    } finally {
+      globalThis.clearTimeout = realClear;
+    }
+    // The stepped timer's id never reached the real clearTimeout (Bun's handles coerce to small integers).
+    expect(forwarded).toEqual([]);
+    await sleep(60);
+    expect(fired).toBe(true);
+    clearTimeout(real);
   });
 
   test("the client's first frame after a shell appends below it and matches the shell", async () => {

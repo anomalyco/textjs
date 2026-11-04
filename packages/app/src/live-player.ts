@@ -56,8 +56,11 @@ export interface FramePlayerConfig {
   shell?: boolean;
   /** @experimental When the shell painted, from `performance.now()` (default: `window.__TEXTJS_SHELL_AT__`). */
   shellPaintedAt?: number;
-  /** @experimental Install the `window.text` console API (default `true`). */
-  registerGlobal?: boolean;
+  /**
+   * @experimental Install the console API as `window.text` (default `true`),
+   * or under another name. Removed on `dispose()`.
+   */
+  registerGlobal?: boolean | string;
 }
 
 export interface FramePlayerCoreOptions {
@@ -286,6 +289,10 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
   const appPath = (): string => toAppPath(location.pathname, location.search);
   // Where the session is, for new sessions after a reconnect.
   let current = config.path ?? appPath();
+  const follow = (href: string): void => {
+    const url = new URL(href, "http://x");
+    current = toAppPath(url.pathname, url.search);
+  };
 
   const flushInput = (): void => {
     if (inFlight || queue.length === 0 || sid === null || disposed) return;
@@ -312,6 +319,7 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
   };
 
   const send = (event: LiveInput): void => {
+    if (disposed) return;
     const last = queue[queue.length - 1];
     if (event.type === "wheel" && last?.type === "wheel") {
       last.deltaX += event.deltaX;
@@ -324,8 +332,7 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
   };
 
   const stop = (): void => {
-    disposed = true;
-    stream?.abort();
+    player.dispose();
     core.setBanner(null);
     setStatus("unavailable");
   };
@@ -377,19 +384,21 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
       case "url": {
         const href = safeHref(msg.href, base);
         if (href === null) break;
-        const url = new URL(href, "http://x");
-        current = toAppPath(url.pathname, url.search);
+        follow(href);
         if (!sync || href === location.pathname + location.search + location.hash) break;
         if (msg.replace) history.replaceState({ textjsIdx: index }, "", href);
         else history.pushState({ textjsIdx: ++index }, "", href);
         break;
       }
-      case "go":
+      case "go": {
+        const href = safeHref(msg.href, base);
+        if (href !== null) follow(href);
         if (sync && Number.isInteger(msg.delta) && msg.delta !== 0) {
           expectedPops++;
           history.go(msg.delta);
         }
         break;
+      }
       case "title":
         if (sync) document.title = msg.title;
         break;
@@ -477,9 +486,15 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
   core.setHidden(document.visibilityState === "hidden");
   connect();
 
+  const g = window as unknown as Record<string, unknown>;
+  const globalName = config.registerGlobal === false ? null : typeof config.registerGlobal === "string" ? config.registerGlobal : "text";
+  let api: object | null = null;
+  let released = false;
   const player: FramePlayer = {
     core,
     dispose() {
+      if (released) return;
+      released = true;
       disposed = true;
       core.driver._setBanner(null);
       stream?.abort();
@@ -490,6 +505,7 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
       viewport.dispose();
       window.removeEventListener("popstate", onPop);
       document.removeEventListener("visibilitychange", onVisibility);
+      if (globalName !== null && g[globalName] === api) delete g[globalName];
     },
   };
   const HELP = `▼ Text.js console API (server-rendered route)
@@ -500,8 +516,8 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
   text.copyText()           copy the current frame as plain text
   text.help()               this message`;
   const stats = () => ({ cols: core.buffer.width, rows: core.buffer.height, frames: core.frames, bytes: core.bytes, paused: core.paused, runtime: "server" as const });
-  if (config.registerGlobal === false) return player;
-  (window as unknown as { text?: unknown }).text = {
+  if (globalName === null) return player;
+  api = {
     stats,
     copyText: () => {
       const text = core.buffer.toPlainString(true).replace(/\n+$/, "");
@@ -528,5 +544,6 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
       return HELP;
     },
   };
+  g[globalName] = api;
   return player;
 }
