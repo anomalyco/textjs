@@ -47,9 +47,10 @@ export const SCRIPT_FONTS: Readonly<Record<string, string>> = {
   vi: "/fonts/geist-latin-ext.woff2",
   ru: "/fonts/geist-cyrillic.woff2",
   hi: "/fonts/noto-sans-devanagari-og.woff2",
-  ar: "/fonts/noto-sans-arabic-og.woff2",
-  fa: "/fonts/noto-sans-arabic-og.woff2",
-  ur: "/fonts/noto-sans-arabic-og.woff2",
+  he: "/fonts/noto-sans-hebrew-og.woff2",
+  ar: "/fonts/noto-naskh-arabic-og.woff2",
+  fa: "/fonts/noto-naskh-arabic-og.woff2",
+  ur: "/fonts/noto-naskh-arabic-og.woff2",
 };
 const isScriptFont = (url: string): boolean => Object.values(SCRIPT_FONTS).includes(url);
 
@@ -150,8 +151,8 @@ function glyphsByFamily(page: Page): Promise<Record<string, string>> {
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
       const family = getComputedStyle(n.parentElement as Element).fontFamily;
       const set = (out[family] ??= new Set());
-      // Bidi isolates (around untranslated text on RTL cards) draw nothing.
-      for (const ch of n.textContent ?? "") if (ch.trim() && !/[\u2066-\u2069]/.test(ch)) set.add(ch);
+      // Bidi marks and isolates (around Latin and untranslated text on RTL cards) draw nothing.
+      for (const ch of n.textContent ?? "") if (ch.trim() && !/[\u061c\u200e\u200f\u2066-\u2069]/.test(ch)) set.add(ch);
     }
     return Object.fromEntries(Object.entries(out).map(([f, s]) => [f, [...s].join("")]));
   });

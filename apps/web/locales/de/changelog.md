@@ -11,21 +11,27 @@ Hinzugefügt
 - textjs.org: Spanisch, Französisch, Deutsch, brasilianisches Portugiesisch, Koreanisch sowie vereinfachtes und traditionelles Chinesisch sind unter textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn und /zh-tw nicht mehr im Entwurfsstadium. Die Sprachauswahl im Footer und die Schaltfläche zur Browsersprache bieten sie an, wie schon Japanisch. Suchmaschinen indexieren die übersetzten Seiten und ordnen jede ihrer englischen Version zu.
 - textjs.org: Italienisch, Russisch, Türkisch, Polnisch, Indonesisch, Vietnamesisch und Hindi sind unter textjs.org/it, /ru, /tr, /pl, /id, /vi und /hi nicht mehr im Entwurfsstadium. Die Sprachauswahl im Footer und die Schaltfläche zur Browsersprache bieten sie an, wie schon die anderen Sprachen. Suchmaschinen indexieren die übersetzten Seiten und ordnen jede ihrer englischen Version zu.
 
+<!-- s:5b88618770 -->
+Geändert
+
+<!-- s:33280e468a -->
+- `@textjs/react`: `<FocusPad>` und `<ViewportControl>` verwenden für ihre Monospace-Beschriftungen den `--mono`-Schriftstapel der Seite, wenn sie einen definiert, und greifen sonst wie bisher auf Geist Mono zurück. Eine Seite mit arabischen oder hebräischen Beschriftungen kann die Schriftarten ihres Schriftsystems zu `--mono` hinzufügen.
+
+<!-- s:afe76b8d59 -->
+Behoben
+
+<!-- s:f0905efd51 -->
+- textjs.org: Auf Smartphones bricht Inline-Code, der länger als die Zeile ist, um, statt die Seite zu verbreitern. textjs.org/docs/internationalization war auf einem 390 px breiten Bildschirm 92 px zu breit.
+
 <!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>` ersetzt für übersetzte Websites beliebige integrierte Zeichenfolgen des Pads. Es deckt jede Zeile, die Screenreader-Beschriftungen und die Steuerung der Konsolengröße ab. `<TextCanvas>` und `<ViewportControl>` akzeptieren ebenfalls `messages`. `<ViewportControl>` verwendet nur die Schlüssel der Größensteuerung. Zeichenfolgen, die einen Wert enthalten, etwa „Klicke dann hier und drücke ↑ ↓.“, sind Funktionen, die den ganzen Satz zurückgeben. `defaultFocusPadMessages` enthält den englischen Text. Siehe [Das Fokus-Pad übersetzen](https://textjs.org/docs/internationalization#translating-the-focus-pad).
 - `@textjs/react`: Auf Seiten mit Schreibrichtung von rechts nach links behält das Fokus-Pad für Tastenkappen wie ⌘ ⌥ J und Konsolengrößen wie 120×36 die Richtung von links nach rechts bei und spiegelt seine Größensteuerung und Schrittleiste. Auf chinesischen und japanischen Seiten entfernt es das Leerzeichen zwischen seinen beiden Sätzen; auf koreanischen bleibt es erhalten.
 - textjs.org: textjs.org/ja ist nicht mehr im Entwurfsstadium. Die Sprachauswahl im Footer öffnet dieselbe Seite auf Englisch oder 日本語. Ein auf Japanisch eingestellter Browser zeigt eine Schaltfläche „日本語で読む“, ein englischer Browser auf textjs.org/ja zeigt „Read in English“. Die Schaltfläche erscheint nicht mehr, sobald du eine Sprache auswählst oder sie schließt. Suchmaschinen indexieren die übersetzten japanischen Seiten und ordnen jede ihrer englischen Version zu.
 - textjs.org: Auf textjs.org/ja ist das Fokus-Pad auf jeder Seite auf Japanisch, einschließlich der Beschriftungen unter den Tasten jeder Demo.
 
-<!-- s:5b88618770 -->
-Geändert
-
 <!-- s:27b507a9de -->
 - `@textjs/core`: Die Konsolen von Chromium und Firefox löschen animierte Sprite-Ausgaben bei 16 MB statt bei 4 MB, sodass textjs.org/doom etwa alle 19 Sekunden statt alle 4,5 Sekunden „Konsole wurde gelöscht“ anzeigt. Safari und Sprites aus `▀`-Halbblöcken bleiben bei 4 MB. Die maximale Heap-Belegung der Seite auf textjs.org/doom steigt von 10,8 MB auf etwa 12–13 MB.
 - textjs.org: Eine Dokumentationsseite lädt nur ihr eigenes Markdown statt aller 33 Seiten herunter, sodass englische Dokumentationsseiten 43–47 KB weniger JavaScript (gzip) laden und /ja-Dokumentationsseiten 60–64 KB weniger. Wenn du den Mauszeiger über einen Link zu einer anderen Dokumentationsseite bewegst oder ihn fokussierst, wird diese Seite vorab geladen, sodass sie sich weiterhin sofort öffnet.
-
-<!-- s:afe76b8d59 -->
-Behoben
 
 <!-- s:b3d1adfa39 -->
 - textjs.org/ja: Die ⌘K-Suche zeigt die japanischen Überschriften der Dokumentation und gleicht japanische Abfragen mit ihnen ab. Zuvor listete sie englische Überschriften unter japanischen Seitentiteln auf. Englische Namen finden weiterhin Seiten: `routing` findet ルーティング und `open the console` findet コンソールを開く.

@@ -12,6 +12,8 @@ The Open Graph renderer (`scripts/og/`) draws with the site's own Geist subsets 
 | `noto-sans-sc-og.woff2` | Noto Sans SC (google/fonts), `NotoSansSC[wght].ttf` | The characters in `locales/zh-CN/messages.json` and `errors.md`, made by `scripts/og/subset-locale-fonts.ts` |
 | `noto-sans-tc-og.woff2` | Noto Sans TC (google/fonts), `NotoSansTC[wght].ttf` | The characters in `locales/zh-TW/messages.json` and `errors.md`, made by `scripts/og/subset-locale-fonts.ts` |
 | `noto-sans-devanagari-og.woff2` | Noto Sans Devanagari (google/fonts), `NotoSansDevanagari[wdth,wght].ttf` pinned to `wdth=100` | The characters in `locales/hi/messages.json` and `errors.md` with every conjunct they form, made by `scripts/og/subset-locale-fonts.ts` |
+| `noto-naskh-arabic-og.woff2` | Noto Naskh Arabic (google/fonts), `NotoNaskhArabic[wght].ttf` | The characters in `locales/{ar,fa,ur}/messages.json` and `errors.md` with their joining forms and ligatures, made by `scripts/og/subset-locale-fonts.ts`. Naskh, the style of the system Arabic fonts the pages use (Urdu included, which the site sets in Naskh rather than Nastaliq) |
+| `noto-sans-hebrew-og.woff2` | Noto Sans Hebrew (google/fonts), `NotoSansHebrew[wdth,wght].ttf` pinned to `wdth=100` | The characters in `locales/he/messages.json` and `errors.md`, made by `scripts/og/subset-locale-fonts.ts` |
 
 Polish, Turkish and Vietnamese cards draw with the site's `public/fonts/geist-latin-ext.woff2`, and Russian cards with `geist-cyrillic.woff2` (Geist 1.9.0, the ranges in `scripts/i18n/fonts.ts`), the same files those pages preload.
 
@@ -38,4 +40,5 @@ pyftsubset Geist-Variable.woff2 --flavor=woff2 --layout-features='*' \
 # The same two ranges from GeistMono-Variable.woff2 make geist-mono-latin-ext.woff2 and geist-mono-cyrillic.woff2.
 # Devanagari: pin the width axis first, then subset-locale-fonts.ts --font hi=NotoSansDevanagari-wdth100.ttf
 fonttools varLib.instancer "NotoSansDevanagari[wdth,wght].ttf" wdth=100 -o NotoSansDevanagari-wdth100.ttf
+# Hebrew the same way: NotoSansHebrew[wdth,wght].ttf pinned to wdth=100, then --font he=NotoSansHebrew-wdth100.ttf
 ```

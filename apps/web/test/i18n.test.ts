@@ -9,10 +9,12 @@ import { checkLocale, unreadableCalls } from "../scripts/i18n/check";
 import { CALL, extractMessages, PLURAL } from "../scripts/i18n/sources";
 import { withGeistSubsets } from "../scripts/i18n/fonts";
 import { i18nPlugin } from "../scripts/i18n/vite-plugin";
-import { validate, validatePlural } from "../scripts/i18n/validate";
+import { normalizePunctuation, validate, validatePlural } from "../scripts/i18n/validate";
+import { isolateLatin, isolateString } from "../scripts/i18n/bidi";
+import { fuzzyScore, searchFold } from "../src/docs/search";
 import { headingsOf, toConsoleMarkdown } from "../src/docs/registry";
 import { DOC_HEADINGS, type Heading } from "../src/docs/search-index";
-import { LOCALES, localePath, parseLocaleSet, splitLocale } from "../src/i18n/locales";
+import { getLocale, LOCALES, localePath, parseLocaleSet, splitLocale, type Locale } from "../src/i18n/locales";
 import { rich } from "../src/i18n/rich";
 import { DATE_STYLES, datePatterns, formatWith, intlTag, type DateStyle } from "../src/i18n/intl";
 import { formatDate, interpolate, plural } from "../src/i18n/t";
@@ -27,8 +29,8 @@ describe("locales", () => {
     expect(splitLocale("/ja/docs/routing")).toEqual({ locale: ja, path: "/docs/routing" });
     expect(splitLocale("/ja")).toEqual({ locale: ja, path: "/" });
     expect(splitLocale("/docs").locale.code).toBe("en");
-    // Only built locales are prefixes; others are ordinary (unknown) paths.
-    expect(splitLocale("/ar/blog").locale.code).toBe("en");
+    // Only locales are prefixes; other two-letter segments are ordinary (unknown) paths.
+    expect(splitLocale("/xx/blog").locale.code).toBe("en");
     expect(localePath(ja, "/")).toBe("/ja");
     expect(localePath(ja, "/docs")).toBe("/ja/docs");
     expect(localePath(LOCALES[0]!, "/docs")).toBe("/docs");
@@ -77,11 +79,79 @@ describe("locales", () => {
     expect(suggestedLocale(["fr"], offered)).toBeNull();
   });
 
+  test("the banner reads the retired codes old Android WebViews report (iw for Hebrew, in for Indonesian)", () => {
+    const he = getLocale("he") as Locale;
+    const id = getLocale("id") as Locale;
+    const offered = [LOCALES[0]!, he, id];
+    expect(suggestedLocale(["iw-IL", "en"], offered)?.code).toBe("he");
+    expect(suggestedLocale(["iw"], offered)?.code).toBe("he");
+    expect(suggestedLocale(["in-ID"], offered)?.code).toBe("id");
+    expect(suggestedLocale(["in"], offered)?.code).toBe("id");
+    expect(suggestedLocale(["inh", "iwx"], offered)).toBeNull();
+  });
+
   test("the banner's match doesn't depend on the order locales are listed in", () => {
     const offered = LOCALES.filter((l) => l.status !== "planned");
     for (const langs of [["de-AT", "en"], ["zh-Hans"], ["zh-HK"], ["zh-Hant-TW"], ["ko-KR"], ["pt-PT"], ["es-MX"], ["it", "fr"], ["en-GB", "de"], ["ru"]]) {
       expect(suggestedLocale(langs, [...offered].reverse())?.code, langs.join()).toBe(suggestedLocale(langs, offered)?.code as string);
     }
+  });
+});
+
+describe("right-to-left text", () => {
+  const shown = (s: string): string => s.replace(/\u2066/g, "⟨").replace(/\u2069/g, "⟩");
+
+  test("Latin runs that the bidi algorithm would reorder are isolated; plain names, code and links are left alone", () => {
+    expect(shown(isolateLatin("يتطلب Node.js 22+ أو Bun 1.2+."))).toBe("يتطلب ⟨Node.js 22+⟩ أو ⟨Bun 1.2+⟩.");
+    expect(shown(isolateLatin("اضغط ⌘⌥J لفتح وحدة التحكم"))).toBe("اضغط ⟨⌘⌥J⟩ لفتح وحدة التحكم");
+    expect(shown(isolateLatin("الحروف من U+FB50–U+FDFF"))).toBe("الحروف من ⟨U+FB50–U+FDFF⟩");
+    // Numbers with a sign read "32 × 100", "81% – 70" and "+22" unless isolated; format tokens read "c%".
+    expect(shown(isolateLatin("حجم 100×32 خلية"))).toBe("حجم ⟨100×32⟩ خلية");
+    expect(shown(isolateLatin("حجم 10 × 32 خلية"))).toBe("حجم ⟨10 × 32⟩ خلية");
+    expect(shown(isolateLatin("بين 70–81% من"))).toBe("بين ⟨70–81%⟩ من");
+    expect(shown(isolateLatin("يتطلب 22+ إطارًا"))).toBe("يتطلب ⟨22+⟩ إطارًا");
+    expect(shown(isolateLatin("يطبّق %c تنسيق CSS"))).toBe("يطبّق ⟨%c⟩ تنسيق CSS");
+    expect(shown(isolateLatin("עם %s ו-%% כאן"))).toBe("עם ⟨%s⟩ ו-⟨%%⟩ כאן");
+    expect(shown(isolateLatin("خلال 0.163 ms فقط"))).toBe("خلال ⟨0.163 ms⟩ فقط");
+    expect(shown(isolateLatin("الطلبات على /coffee والمجلد app/ هنا"))).toBe("الطلبات على ⟨/coffee⟩ والمجلد ⟨app/⟩ هنا");
+    // A UI string kept entirely in Latin is isolated whole; plain words are left alone.
+    expect(shown(isolateString("%c spans"))).toBe("⟨%c spans⟩");
+    expect(shown(isolateString("عناصر %c"))).toBe("عناصر ⟨%c⟩");
+    expect(isolateString("3,200")).toBe("3,200");
+    // Plain numbers, versions and list markers keep their order and stay unwrapped.
+    expect(isolateLatin("حتى 300 إطار و 3,200 خلية")).toBe("حتى 300 إطار و 3,200 خلية");
+    expect(isolateLatin("1. الإصدار 1.4.1 متاح")).toBe("1. الإصدار 1.4.1 متاح");
+    expect(shown(isolateLatin("يعرض React و Vite"))).toBe("يعرض React و Vite");
+    expect(shown(isolateLatin("شغّل `bun dev 1+` ثم [Learn Text.js](/learn?x=1 2) {count}"))).toBe("شغّل `bun dev 1+` ثم [⟨Learn Text.js⟩](/learn?x=1 2) {count}");
+    expect(shown(isolateLatin("## التثبيت على Bun 1.2+ {#install-it}"))).toBe("## التثبيت على ⟨Bun 1.2+⟩ {#install-it}");
+    // A line that starts with a name stays right-to-left (captions and titles take their direction from it).
+    expect(shown(isolateLatin("Text.js يعرض"))).toBe("⟨Text.js⟩ يعرض");
+    // Text without right-to-left letters, and text already isolated, is unchanged.
+    expect(isolateLatin("Node.js 22+")).toBe("Node.js 22+");
+    expect(isolateLatin(isolateLatin("يتطلب Node.js 22+"))).toBe(isolateLatin("يتطلب Node.js 22+"));
+  });
+
+  test("Arabic-script translations get ، ؛ ؟ outside code, links and numbers", () => {
+    expect(normalizePunctuation("ar", "افتحه, ثم شغّل React, Vite; هل يعمل?")).toBe("افتحه، ثم شغّل React، Vite؛ هل يعمل؟");
+    expect(normalizePunctuation("ar", "استدعِ `a, b` في [الرابط](/x?a=1, b) لـ 3,200 خلية")).toBe("استدعِ `a, b` في [الرابط](/x?a=1, b) لـ 3,200 خلية");
+    expect(normalizePunctuation("he", "שלום, עולם?")).toBe("שלום, עולם?");
+    // Persian and Urdu: ی and ک, never the Arabic ي and ك (Arabic itself keeps them).
+    expect(normalizePunctuation("fa", "كامپوننت يك فايل")).toBe("کامپوننت یک فایل");
+    expect(normalizePunctuation("ar", "يك")).toBe("يك");
+    // Urdu sentences end with ۔, after a name or code too; numbers, versions and list markers keep their period.
+    expect(normalizePunctuation("ur", "کونسول کھولیں. پھر Text.js چلائیں.")).toBe("کونسول کھولیں۔ پھر Text.js چلائیں۔");
+    expect(normalizePunctuation("ur", "1. ورژن 1.4.1 اور 3.5 ms دیکھیں `a.b`.")).toBe("1. ورژن 1.4.1 اور 3.5 ms دیکھیں `a.b`۔");
+    expect(validate("ar", "Open it, then go.", "افتحه, ثم اذهب.").errors).toEqual(["Latin , ; or ? in Arabic text (use ، ؛ ؟)"]);
+  });
+
+  test("search ignores tashkeel, tatweel, niqqud, hamza on alef and bidi isolates", () => {
+    expect(searchFold("مُكَوِّن")).toBe(searchFold("مكون"));
+    expect(searchFold("الـمسار")).toBe("المسار");
+    expect(searchFold("אֶפְלִיקַצְיָה")).toBe("אפליקציה");
+    expect(searchFold("إطار")).toBe("اطار");
+    expect(fuzzyScore("كامپوننت", "کامپوننت‌ها")).toBeGreaterThan(900);
+    expect(fuzzyScore("bun 1.2", "يتطلب \u2066Bun 1.2+\u2069")).toBeGreaterThan(900);
+    expect(fuzzyScore("مكوّن", "المكونات")).toBeGreaterThan(900);
   });
 });
 

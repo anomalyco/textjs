@@ -4,7 +4,7 @@
  * locale's catalog and error pages (card titles and labels all come from them). Run it after translating, with fonttools
  * (`pip install fonttools brotli`) and the source fonts from google/fonts:
  *
- *   bun scripts/og/subset-locale-fonts.ts --font ja=NotoSansJP[wght].ttf --font ar=NotoSansArabic[wdth,wght].ttf
+ *   bun scripts/og/subset-locale-fonts.ts --font ja=NotoSansJP[wght].ttf --font ar=NotoNaskhArabic[wght].ttf
  *
  * render.ts fails the build if a card still draws a character from a system font.
  */
@@ -23,7 +23,8 @@ const FONTS: Record<string, { file: string; locales: string[] }> = {
   "zh-CN": { file: "noto-sans-sc-og.woff2", locales: ["zh-CN"] },
   "zh-TW": { file: "noto-sans-tc-og.woff2", locales: ["zh-TW"] },
   hi: { file: "noto-sans-devanagari-og.woff2", locales: ["hi"] },
-  ar: { file: "noto-sans-arabic-og.woff2", locales: ["ar", "fa", "ur"] },
+  he: { file: "noto-sans-hebrew-og.woff2", locales: ["he"] },
+  ar: { file: "noto-naskh-arabic-og.woff2", locales: ["ar", "fa", "ur"] },
 };
 
 const { values } = parseArgs({ options: { font: { type: "string", multiple: true }, pyftsubset: { type: "string", default: "pyftsubset" } } });

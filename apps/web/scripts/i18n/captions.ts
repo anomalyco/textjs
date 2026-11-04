@@ -8,6 +8,8 @@
  * punctuation where it can. A sentence without a translation stays English.
  */
 
+import { getLocale } from "../../src/i18n/locales";
+import { isolateLatin } from "./bidi";
 import { blockId } from "./document";
 
 export interface Cue {
@@ -81,10 +83,10 @@ export function captionGroups(cues: readonly Cue[]): CaptionGroup[] {
 }
 
 const WIDE = /[\u3000-\u30ff\u3400-\u9fff\uac00-\ud7af\uff00-\uffef]/;
-const BREAK_AFTER = /[、。，．！？,.;:!?)」』）।]$/;
+const BREAK_AFTER = /[、。，．！？,.;:!?)」』）।،؛؟۔]$/;
 
 /** Never starts a line or cue: closing punctuation, the long vowel mark and small kana. */
-const NO_START = /^[、。，．！？!?,.:;」』）)\]।ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ]/;
+const NO_START = /^[、。，．！？!?,.:;」』）)\]।،؛؟۔ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ]/;
 /** Never ends a line or cue: opening brackets. */
 const NO_END = /[「『（(\[]$/;
 /** Runs that stay whole: Latin words, numbers and code (`console.log`, `+`, `/docs`), and katakana words. */
@@ -166,12 +168,14 @@ export function assembleCaptions(english: string, translations: Readonly<Record<
   let n = 0;
   let translated = 0;
   const groups = captionGroups(parseVtt(english));
+  // Right-to-left lines keep their direction when they start with a name (`Text.js …`), and Latin runs stay whole.
+  const own = getLocale(locale)?.dir === "rtl" ? (body: string) => body.split("\n").map(isolateLatin).join("\n") : (body: string) => body;
   for (const g of groups) {
     const text = translations[g.id];
     if (text) translated++;
     const parts = text ? spread(text, g.cues.map((c) => c.text.replace(/\s+/g, " ").length), locale) : g.cues.map((c) => c.text);
     g.cues.forEach((cue, k) => {
-      const body = text ? wrapCue(parts[k] ?? "", locale) : cue.text;
+      const body = text ? own(wrapCue(parts[k] ?? "", locale)) : cue.text;
       if (!body) return;
       out.push(String(++n), `${cue.start} --> ${cue.end}`, body, "");
     });

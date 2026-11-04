@@ -252,6 +252,9 @@ describe("dev server client", () => {
 
 describe("headless runner", () => {
   const node = Bun.which("node") ?? undefined;
+  // A real runner boots Node and a Vite server, then compiles each route on first load. On a loaded
+  // CI machine the first frame can take longer than `until`'s 8 s default.
+  const COLD = 20_000;
 
   function session(): { s: HeadlessSession; frames: string[]; errors: Array<string | null> } {
     const frames: string[] = [];
@@ -267,11 +270,11 @@ describe("headless runner", () => {
   test("renders a route with its layout, runs route handlers, takes input and reloads on change", async () => {
     const { s, frames } = session();
     s.start({ kind: "route", path: "/" }, 40, 4);
-    await until(() => frames.at(-1)?.includes("home v1"));
+    await until(() => frames.at(-1)?.includes("home v1"), COLD);
     expect(frames.at(-1)).toContain("▼ Fixture");
 
     s.setTarget({ kind: "route", path: "/counter" });
-    await until(() => frames.at(-1)?.includes("count=0 api=hi"));
+    await until(() => frames.at(-1)?.includes("count=0 api=hi"), COLD);
     s.input({ type: "key", key: "ArrowUp", ctrlKey: false, metaKey: false, shiftKey: false, altKey: false });
     await until(() => frames.at(-1)?.includes("count=1"));
 
@@ -281,7 +284,7 @@ describe("headless runner", () => {
     writeFileSync(join(dir, "app/page.tsx"), 'import { Text } from "@textjs/app";\nexport default function Page() { return <Text>home v2</Text>; }\n');
     s.input({ type: "navigate", href: "/" });
     s.reload();
-    await until(() => frames.at(-1)?.includes("home v2"));
+    await until(() => frames.at(-1)?.includes("home v2"), COLD);
     s.dispose();
   }, 30_000);
 
@@ -358,9 +361,9 @@ setInterval(() => {}, 1000);\n`,
   test("renders a named component export and reports component errors", async () => {
     const { s, frames, errors } = session();
     s.start({ kind: "component", file: join(dir, "components/Badge.tsx") }, 30, 2);
-    await until(() => frames.at(-1)?.includes("● ready"));
+    await until(() => frames.at(-1)?.includes("● ready"), COLD);
     s.setTarget({ kind: "component", file: join(dir, "components/Broken.tsx") });
-    await until(() => errors.some((e) => e?.includes("TX015: boom")));
+    await until(() => errors.some((e) => e?.includes("TX015: boom")), COLD);
     s.dispose();
   }, 30_000);
 });

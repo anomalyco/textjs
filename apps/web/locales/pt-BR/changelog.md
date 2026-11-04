@@ -11,21 +11,27 @@ Adições
 - textjs.org: espanhol, francês, alemão, português brasileiro, coreano e chinês simplificado e tradicional saíram do rascunho em textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn e /zh-tw. O seletor de idioma no rodapé e o botão de idioma do navegador oferecem esses idiomas, como já fazem com o japonês. Os mecanismos de busca indexam as páginas traduzidas e associam cada uma à sua versão em inglês.
 - textjs.org: italiano, russo, turco, polonês, indonésio, vietnamita e hindi saíram do rascunho em textjs.org/it, /ru, /tr, /pl, /id, /vi e /hi. O seletor de idioma no rodapé e o botão de idioma do navegador oferecem esses idiomas, como já fazem com os outros. Os mecanismos de busca indexam as páginas traduzidas e associam cada uma à sua versão em inglês.
 
+<!-- s:5b88618770 -->
+Alterações
+
+<!-- s:33280e468a -->
+- `@textjs/react`: `<FocusPad>` e `<ViewportControl>` usam a pilha de fontes `--mono` da página para seus rótulos monoespaçados quando ela está definida, e recorrem a Geist Mono como antes. Uma página com rótulos em árabe ou hebraico pode adicionar as fontes do seu sistema de escrita a `--mono`.
+
+<!-- s:afe76b8d59 -->
+Correções
+
+<!-- s:f0905efd51 -->
+- textjs.org: em celulares, código inline mais longo que a linha passa a quebrar em vez de alargar a página. textjs.org/docs/internationalization excedia a largura em 92 px em uma tela de 390 px.
+
 <!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>` substitui qualquer string integrada do painel de foco, para sites traduzidos. Ele abrange todas as linhas, os rótulos para leitores de tela e o controle de tamanho do console. `<TextCanvas>` e `<ViewportControl>` também aceitam `messages`. `<ViewportControl>` usa apenas as chaves do controle de tamanho. Strings que contêm um valor, como “Depois clique aqui e pressione ↑ ↓.”, são funções que retornam a frase inteira. `defaultFocusPadMessages` contém o texto em inglês. Veja [Traduzir o painel de foco](https://textjs.org/docs/internationalization#translating-the-focus-pad).
 - `@textjs/react`: em páginas da direita para a esquerda, o painel de foco mantém teclas como ⌘ ⌥ J e tamanhos de console como 120×36 da esquerda para a direita, e espelha seu controle de tamanho e sua barra de etapas. Em páginas em chinês e japonês, ele remove o espaço entre suas duas frases; em coreano, o espaço é mantido.
 - textjs.org: textjs.org/ja saiu do rascunho. O seletor de idioma no rodapé abre a mesma página em inglês ou 日本語. Um navegador configurado em japonês recebe um botão 日本語で読む, e um navegador em inglês em textjs.org/ja recebe Read in English. O botão deixa de aparecer quando você escolhe um idioma ou o fecha. Os mecanismos de busca indexam as páginas traduzidas para japonês e associam cada uma à sua versão em inglês.
 - textjs.org: em textjs.org/ja, o painel de foco está em japonês em todas as páginas, incluindo os rótulos sob as teclas de cada demo.
 
-<!-- s:5b88618770 -->
-Alterações
-
 <!-- s:27b507a9de -->
 - `@textjs/core`: os consoles do Chromium e do Firefox limpam a saída de sprites animados ao atingir 16 MB em vez de 4 MB, então textjs.org/doom mostra “O console foi limpo” a cada 19 segundos aproximadamente, em vez de a cada 4,5. O Safari e os sprites desenhados como meios blocos `▀` mantêm 4 MB. O pico de heap da página em textjs.org/doom passa de 10,8 MB para cerca de 12–13 MB.
 - textjs.org: uma página da documentação baixa apenas seu próprio Markdown em vez de todas as 33 páginas, então as páginas da documentação em inglês carregam 43–47 KB a menos de JavaScript (gzip), e as páginas da documentação em /ja, 60–64 KB a menos. Passar o mouse sobre um link para outra página da documentação ou focá-lo busca essa página antecipadamente, para que ela continue abrindo de imediato.
-
-<!-- s:afe76b8d59 -->
-Correções
 
 <!-- s:b3d1adfa39 -->
 - textjs.org/ja: a busca ⌘K mostra os títulos da documentação em japonês e compara as consultas em japonês com eles. Antes, ela listava títulos em inglês sob os títulos das páginas em japonês. Os nomes em inglês ainda encontram páginas: `routing` encontra ルーティング e `open the console` encontra コンソールを開く.

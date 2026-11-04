@@ -1,5 +1,8 @@
 import { DOCS_META, type DocMeta } from "./meta";
 import { DOC_HEADINGS, type Heading } from "./search-index";
+import { searchFold } from "../i18n/search-fold";
+
+export { searchFold };
 
 export interface MetaSearchHit {
   doc: DocMeta;
@@ -9,10 +12,10 @@ export interface MetaSearchHit {
 
 /** Subsequence fuzzy score (higher is better); `-1` when `query` doesn't match. */
 export function fuzzyScore(query: string, target: string): number {
-  const q = query.toLowerCase().replace(/\s+/g, "");
-  const t = target.toLowerCase();
+  const q = searchFold(query).replace(/\s+/g, "");
+  const t = searchFold(target);
   if (q.length === 0) return 0;
-  const direct = t.indexOf(query.toLowerCase().trim());
+  const direct = t.indexOf(searchFold(query).trim());
   if (direct >= 0) return 1000 - direct - t.length * 0.1;
   let score = 0;
   let ti = 0;

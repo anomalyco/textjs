@@ -14,6 +14,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
+import { isolateLatin, isolateString } from "./bidi";
 import { assemble, blockId, parseTranslation } from "./document";
 import { withGeistSubsets } from "./fonts";
 import { headingsOf, type Heading } from "../../src/docs/outline";
@@ -61,14 +62,19 @@ export function i18nPlugin(locale: string): Plugin {
   const moduleUnits = new Map<string, Units>();
   const documents: Record<string, Units> = {};
 
+  // Right-to-left pages keep Latin runs (`Node.js 22+`, `⌘⌥J`) whole in their translated text (bidi.ts).
+  const rtl = !source && getLocale(locale)?.dir === "rtl";
+  const own = (text: string): string => (rtl ? isolateLatin(text) : text);
+  const ownString = (text: string): string => (rtl ? isolateString(text) : text);
+
   const lookup = (key: string): string => {
     const v = catalog[key];
-    return typeof v === "string" && v ? v : key;
+    return typeof v === "string" && v ? ownString(v) : key;
   };
 
   /** A document in this locale: the English with its translated blocks swapped in. */
   const assembleDocument = (doc: DocumentSource): string => {
-    const { markdown, total, translated } = assemble(readFileSync(doc.file, "utf8"), parseTranslation(readText(translationFile(locale, doc.id))));
+    const { markdown, total, translated } = assemble(readFileSync(doc.file, "utf8"), parseTranslation(readText(translationFile(locale, doc.id))), own);
     documents[doc.id] = { total, translated };
     return markdown;
   };
@@ -95,9 +101,10 @@ export function i18nPlugin(locale: string): Plugin {
         const out: Record<string, { title: string; cause: string; fix: string }> = {};
         const titles: Record<string, string> = {};
         for (const e of errorPageDocs()) {
-          const title = translations.get(blockId(e.title));
-          const cause = assemble(e.cause, translations);
-          const fix = assemble(e.fix, translations);
+          const found = translations.get(blockId(e.title));
+          const title = found ? own(found) : found;
+          const cause = assemble(e.cause, translations, own);
+          const fix = assemble(e.fix, translations, own);
           documents[`errors/${e.code}`] = { total: 1 + cause.total + fix.total, translated: (title ? 1 : 0) + cause.translated + fix.translated };
           out[e.code] = { title: title ?? e.title, cause: cause.markdown, fix: fix.markdown };
           if (title) titles[e.code] = title;
@@ -125,7 +132,6 @@ export function i18nPlugin(locale: string): Plugin {
         units.total++;
         if (!english && (plural ? typeof catalog[key] === "object" : typeof catalog[key] === "string" && catalog[key] !== "")) units.translated++;
       };
-      const rtl = !english && getLocale(locale)?.dir === "rtl";
       const missing = (key: string): boolean => !english && !(typeof catalog[key] === "string" && catalog[key]);
       // Untranslated text stays English. As a JSX child it's marked up as English; elsewhere (attributes, data)
       // a right-to-left page gets it in a left-to-right isolate, so its punctuation stays put.
@@ -143,7 +149,7 @@ export function i18nPlugin(locale: string): Plugin {
         count(key);
         if (fn === "rich" && missing(key)) return `rich.en(${literal}${end}`;
         const value = english ? key : lookup(key);
-        const text = JSON.stringify(rtl && missing(key) ? `\u2066${value}\u2069` : value);
+        const text = JSON.stringify(rtl && !english && missing(key) ? `\u2066${value}\u2069` : value);
         // A bare `t("x")` or `msg("x")` is just its text.
         if (end === ")" && (fn === "t" || fn === "msg") && !/\{\w+\}/.test(key)) return text;
         return `${fn}(${text}${end}`;
@@ -152,7 +158,8 @@ export function i18nPlugin(locale: string): Plugin {
         const forms = parsePluralObject(object);
         const key = forms.other as string;
         count(key, true);
-        const value = !english && typeof catalog[key] === "object" ? catalog[key] : forms;
+        const translated = catalog[key];
+        const value = !english && typeof translated === "object" ? Object.fromEntries(Object.entries(translated).map(([c, v]) => [c, ownString(v)])) : forms;
         return `plural(${count_}, ${JSON.stringify(value)}`;
       });
       // Numbers known at build time ship formatted, like dates (src/i18n/intl.ts).

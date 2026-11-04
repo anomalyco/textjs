@@ -11,21 +11,27 @@ Tệp này ghi lại mọi thay đổi đáng chú ý của Text.js.
 - textjs.org: các bản tiếng Tây Ban Nha, tiếng Pháp, tiếng Đức, tiếng Bồ Đào Nha Brazil, tiếng Hàn, tiếng Trung giản thể và phồn thể đã qua giai đoạn bản nháp tại textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn và /zh-tw. Bộ chọn ngôn ngữ ở chân trang và nút chọn theo ngôn ngữ trình duyệt cung cấp các ngôn ngữ này, như với tiếng Nhật. Công cụ tìm kiếm lập chỉ mục các trang đã dịch và liên kết từng trang với bản tiếng Anh tương ứng.
 - textjs.org: các bản tiếng Ý, tiếng Nga, tiếng Thổ Nhĩ Kỳ, tiếng Ba Lan, tiếng Indonesia, tiếng Việt và tiếng Hindi đã qua giai đoạn bản nháp tại textjs.org/it, /ru, /tr, /pl, /id, /vi và /hi. Bộ chọn ngôn ngữ ở chân trang và nút chọn theo ngôn ngữ trình duyệt cung cấp các ngôn ngữ này, như với các ngôn ngữ khác. Công cụ tìm kiếm lập chỉ mục các trang đã dịch và liên kết từng trang với bản tiếng Anh tương ứng.
 
+<!-- s:5b88618770 -->
+Đã thay đổi
+
+<!-- s:33280e468a -->
+- `@textjs/react`: `<FocusPad>` và `<ViewportControl>` dùng bộ phông `--mono` của trang cho nhãn monospace khi trang có định nghĩa bộ phông này, và dùng Geist Mono làm phông dự phòng như trước. Trang có nhãn tiếng Ả Rập hoặc tiếng Do Thái có thể thêm phông chữ cho hệ chữ tương ứng vào `--mono`.
+
+<!-- s:afe76b8d59 -->
+Đã sửa
+
+<!-- s:f0905efd51 -->
+- textjs.org: trên điện thoại, mã nội tuyến dài hơn dòng sẽ xuống dòng thay vì làm trang rộng ra. textjs.org/docs/internationalization từng rộng quá 92 px trên màn hình 390 px.
+
 <!-- s:f71df9184f -->
 - `@textjs/react`: `<FocusPad messages>` thay thế bất kỳ chuỗi có sẵn nào của vùng focus cho các trang web đã dịch. Nó bao gồm mọi dòng, nhãn cho trình đọc màn hình và bộ điều chỉnh kích thước console. `<TextCanvas>` và `<ViewportControl>` cũng nhận `messages`. `<ViewportControl>` chỉ dùng các khóa của bộ điều chỉnh kích thước. Những chuỗi chứa một giá trị, chẳng hạn “Sau đó nhấp vào đây và nhấn ↑ ↓.”, là các hàm trả về cả câu. `defaultFocusPadMessages` chứa văn bản tiếng Anh. Xem [Dịch vùng focus](https://textjs.org/docs/internationalization#translating-the-focus-pad).
 - `@textjs/react`: trên các trang từ phải sang trái, vùng focus giữ các phím như ⌘ ⌥ J và kích thước console như 120×36 theo chiều từ trái sang phải, đồng thời phản chiếu bộ điều chỉnh kích thước và thanh bước. Trên các trang tiếng Trung và tiếng Nhật, nó bỏ khoảng trắng giữa hai câu; tiếng Hàn vẫn giữ khoảng trắng.
 - textjs.org: textjs.org/ja đã qua giai đoạn bản nháp. Bộ chọn ngôn ngữ ở chân trang mở cùng trang đó bằng tiếng Anh hoặc tiếng Nhật. Trình duyệt đặt ngôn ngữ tiếng Nhật có nút Đọc bằng tiếng Nhật, còn trình duyệt tiếng Anh trên textjs.org/ja có nút Đọc bằng tiếng Anh. Nút ngừng xuất hiện sau khi bạn chọn ngôn ngữ hoặc đóng nút. Công cụ tìm kiếm lập chỉ mục các trang đã dịch sang tiếng Nhật và ghép từng trang với phiên bản tiếng Anh tương ứng.
 - textjs.org: trên textjs.org/ja, vùng focus dùng tiếng Nhật trên mọi trang, bao gồm cả nhãn bên dưới các phím của từng bản demo.
 
-<!-- s:5b88618770 -->
-Đã thay đổi
-
 <!-- s:27b507a9de -->
 - `@textjs/core`: console của Chromium và Firefox xóa đầu ra sprite động ở mức 16 MB thay vì 4 MB, nên textjs.org/doom hiển thị “Đã xóa console” khoảng mỗi 19 giây thay vì mỗi 4,5 giây. Safari và sprite vẽ bằng nửa khối `▀` vẫn giữ mức 4 MB. Heap đỉnh của trang trên textjs.org/doom tăng từ 10,8 MB lên khoảng 12–13 MB.
 - textjs.org: mỗi trang tài liệu chỉ tải Markdown của chính nó thay vì toàn bộ 33 trang, nên trang tài liệu tiếng Anh tải ít hơn 43–47 KB JavaScript (gzip) và trang tài liệu /ja ít hơn 60–64 KB. Di chuột lên hoặc focus vào liên kết đến trang tài liệu khác sẽ tải trước trang đó, nên trang vẫn mở ngay.
-
-<!-- s:afe76b8d59 -->
-Đã sửa
 
 <!-- s:b3d1adfa39 -->
 - textjs.org/ja: tìm kiếm ⌘K hiển thị tiêu đề mục tài liệu tiếng Nhật và đối chiếu truy vấn tiếng Nhật với chúng. Trước đây, nó liệt kê tiêu đề mục tiếng Anh dưới tiêu đề trang tiếng Nhật. Tên tiếng Anh vẫn tìm được trang: `routing` tìm thấy ルーティング và `open the console` tìm thấy コンソールを開く.

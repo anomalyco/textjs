@@ -18,7 +18,7 @@ const append15 = devtools("append", 15);
 
 function CommitGlyph(): ReactNode {
   return (
-    <pre className="tl-g-code" aria-hidden="true">
+    <pre className="tl-g-code" dir="ltr" aria-hidden="true">
       <span className="k">{"<Box>"}</span>
       {"\n ├ "}
       <span className="k">{"<Text>"}</span>
@@ -51,13 +51,15 @@ const HASHES = ["9f1c08e2", "a07e5b31", "31b2c4d9", "e8d046fa"];
 
 function GateGlyph(): ReactNode {
   return (
-    <div className="tl-g-hash" aria-hidden="true">
+    <div className="tl-g-hash" dir="ltr" aria-hidden="true">
       {HASHES.map((h, i) => (
         <span key={h} className={i === 2 ? "dirty" : undefined}>
           {h}
         </span>
       ))}
-      <span className="tl-g-skip">{t("0 calls · 0 B")}</span>
+      <span className="tl-g-skip" dir="auto">
+        {t("0 calls · 0 B")}
+      </span>
     </div>
   );
 }
@@ -92,7 +94,7 @@ function EmitGlyph(): ReactNode {
     </div>
   );
   return (
-    <div className="tl-g-console" aria-hidden="true">
+    <div className="tl-g-console" dir="ltr" aria-hidden="true">
       <div className="tl-g-stack">{[0, 1, 2].map(frame)}</div>
     </div>
   );
@@ -109,7 +111,7 @@ const STAGES: Array<{ step: string; title: ReactNode; body: ReactNode; glyph: Re
 
 function Pipeline({ play }: { play: boolean }): ReactNode {
   return (
-    <div className={`tl-pipe${play ? " play" : ""}`} dir="ltr">
+    <div className={`tl-pipe${play ? " play" : ""}`}>
       <div className="tl-stages-wrap">
       <div className="tl-track" aria-hidden="true">
         <span className="tl-progress dirty" />
