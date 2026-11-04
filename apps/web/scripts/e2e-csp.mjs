@@ -151,7 +151,7 @@ console.log(`mode: ${mode}`);
   check("script-src allows 'wasm-unsafe-eval'", directive("script-src").includes("'wasm-unsafe-eval'"), directive("script-src").join(" "));
   const wasm = page.waitForResponse((r) => /\/assets\/yoga-[\w-]+\.wasm$/.test(new URL(r.url()).pathname), { timeout: 15000 }).catch(() => null);
   await page.goto(`${base}/`, { waitUntil: "load" });
-  // Reading window.text also boots a companion that waits for console intent.
+  // The tab has shown console intent (the init script above), so the companion boots on load.
   const booted = await page.waitForFunction(() => typeof window.text?.stats === "function" && window.text.stats().frameCount > 0, undefined, { timeout: 15000 }).then(() => true, () => false);
   const res = await wasm;
   check("yoga.wasm loads as application/wasm", res?.status() === 200 && res.headers()["content-type"] === "application/wasm", `${res?.status()} ${res?.headers()["content-type"]}`);
