@@ -28,6 +28,8 @@ const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 const HEADING = /^\s{0,3}#{1,6}\s/;
 /** `## [1.3.0] - 2026-11-03` and `## Unreleased`: release headers are data, not prose. */
 const VERSION_HEADER = /^##\s+\[?(\d[\w.-]*|Unreleased)\]?(\s+-\s+\d{4}-\d{2}-\d{2})?\s*$/i;
+/** A block of HTML tags and nothing else (`<div align="center">`, `<img … />`, `</div>`), as in README.md. */
+const HTML_ONLY = /^\s*(<\/?[a-z][a-z0-9]*(\s[^<>]*)?\/?>\s*)+$/;
 
 /** Splits Markdown into blocks: fences, frontmatter, headings and blank-line separated prose. */
 export function segment(markdown: string): Block[] {
@@ -48,7 +50,7 @@ export function segment(markdown: string): Block[] {
   const flush = (): void => {
     if (para.length === 0) return;
     const text = para.join("\n");
-    push(/^\s*(<!--[\s\S]*-->|[-*_]{3,})\s*$/.test(text) ? "verbatim" : "prose", text);
+    push(/^\s*(<!--[\s\S]*-->|[-*_]{3,})\s*$/.test(text) || HTML_ONLY.test(text) ? "verbatim" : "prose", text);
     para = [];
   };
   while (i < lines.length) {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { createElement } from "react";
 import { assembleCaptions, captionGroups, parseVtt, segments } from "../scripts/i18n/captions";
 import { assemble, formatTranslation, parseTranslation, segment } from "../scripts/i18n/document";
@@ -10,6 +10,7 @@ import { CALL, extractMessages, PLURAL } from "../scripts/i18n/sources";
 import { withGeistSubsets } from "../scripts/i18n/fonts";
 import { i18nPlugin } from "../scripts/i18n/vite-plugin";
 import { normalizePunctuation, validate, validatePlural } from "../scripts/i18n/validate";
+import { languageLine, readmeLink, readmeLocales, readmeOutputs, README, README_DIR, staleReadmes } from "../scripts/i18n/readme";
 import { isolateLatin, isolateString } from "../scripts/i18n/bidi";
 import { fuzzyScore, searchFold } from "../src/docs/search";
 import { headingsOf, toConsoleMarkdown } from "../src/docs/registry";
@@ -359,5 +360,77 @@ describe("captions", () => {
     for (const c of cues) for (const line of c.text.split("\n")) expect(line).not.toMatch(/^[、。」）ーゃゅょっャュョッ]/);
     expect(segments("デプロイカードのスタイルを設定し、console.logを呼びます。", "ja")).toEqual(["デプロイカードの", "スタイルを", "設定し、", "console.logを", "呼びます。"]);
     expect(cues[2]!.text).toBe("Press Enter.");
+  });
+});
+
+describe("README", () => {
+  const es = getLocale("es")!;
+  const ar = getLocale("ar")!;
+
+  test("HTML-only blocks are verbatim, so README.md's layout tags aren't sent for translation", () => {
+    expect(segment('<div align="center">\n\n<img src="a.png" alt="A" width="720" />\n\nText.js renders.\n\n</div>\n').map((b) => b.kind)).toEqual(["verbatim", "verbatim", "prose", "verbatim"]);
+  });
+
+  test("the language line lists English and live locales, in registry order, linked from where it's read", () => {
+    const live = LOCALES.filter((l) => l.status === "live");
+    const root = languageLine(LOCALES[0]!);
+    expect(root.startsWith(`English · [${live[0]!.name}](docs/readme/README.${live[0]!.code}.md)`)).toBe(true);
+    expect(root.split(" · ")).toHaveLength(1 + live.length);
+    const line = languageLine(es);
+    expect(line).toStartWith("[English](../../README.md) · ");
+    expect(line).toContain(" · Español · ");
+    // A right-to-left name in a left-to-right line (and the reverse) is isolated, so neighbours keep their order.
+    expect(languageLine({ ...ar, status: "live" })).toContain(`[\u2068Español\u2069](README.es.md)`);
+  });
+
+  test("links from docs/readme/ climb to the repo root, and textjs.org pages go to the live locale's pages", () => {
+    expect(readmeLink("CONTRIBUTING.md", es)).toBe("../../CONTRIBUTING.md");
+    expect(readmeLink("brand/share/2-console-frame.png", es)).toBe("../../brand/share/2-console-frame.png");
+    expect(readmeLink("https://textjs.org/docs/installation#open-the-console", es)).toBe("https://textjs.org/es/docs/installation#open-the-console");
+    expect(readmeLink("https://textjs.org/docs/installation", { ...es, status: "draft" })).toBe("https://textjs.org/docs/installation");
+    expect(readmeLink("https://textjs.org/og/home.png", es)).toBe("https://textjs.org/og/home.png");
+    expect(readmeLink("https://www.npmjs.com/package/@textjs/app", es)).toBe("https://www.npmjs.com/package/@textjs/app");
+    expect(readmeLink("http://localhost:3000", es)).toBe("http://localhost:3000");
+  });
+
+  test("every live and draft locale has a current README, and README.md's language line is current", () => {
+    expect(readmeLocales().length).toBe(LOCALES.filter((l) => l.status === "live" || l.status === "draft").length);
+    expect(staleReadmes()).toEqual([]);
+  });
+
+  test("every link in the READMEs resolves: repo files, textjs.org pages and docs anchors", () => {
+    for (const [file, text] of readmeOutputs()) {
+      const targets = [...text.matchAll(/(?:\]\(|\bsrc=")([^)"\s]+)/g)].map((m) => m[1]!);
+      expect(targets.length).toBeGreaterThan(20);
+      for (const target of targets) {
+        const site = /^https:\/\/textjs\.org(\/[^?#]*)?(?:#(.*))?$/.exec(target);
+        if (site) {
+          const path = site[1] || "/";
+          const route = matchRoute(path);
+          expect([target, route.name]).not.toEqual([target, "not-found"]);
+          if (site[2] && route.name === "docs") expect(DOC_HEADINGS[route.slug]?.map((h) => h.id)).toContain(site[2]);
+          const code = file === README ? "en" : (/README\.([\w-]+)\.md$/.exec(file)?.[1] as string);
+          expect([target, splitLocale(path).locale.code]).toEqual([target, getLocale(code)!.status === "live" ? code : "en"]);
+        } else if (!/^[a-z]+:/.test(target)) {
+          expect([target, existsSync(resolve(dirname(file), target))]).toEqual([target, true]);
+        }
+      }
+    }
+  });
+
+  test("right-to-left READMEs keep code fences outside the right-to-left wrapper", () => {
+    for (const l of readmeLocales().filter((l) => l.dir === "rtl")) {
+      const text = readFileSync(join(README_DIR, `README.${l.code}.md`), "utf8");
+      const divs: string[] = [];
+      let fence = false;
+      for (const line of text.split("\n")) {
+        if (/^```/.test(line)) {
+          expect([l.code, divs]).toEqual([l.code, []]);
+          fence = !fence;
+        } else if (!fence && line.startsWith("<div")) divs.push(line);
+        else if (!fence && line === "</div>") divs.pop();
+      }
+      expect(text).toContain('<div dir="rtl">');
+    }
   });
 });

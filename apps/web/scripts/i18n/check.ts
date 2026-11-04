@@ -2,7 +2,7 @@
 /**
  * `bun run i18n:check`: validates every committed translation against its English source (no API key needed)
  * and reports what's missing or stale per locale. Errors fail the run; staleness never does, so English copy
- * changes don't wait on translations. In CI the report goes to the job summary.
+ * changes don't wait on translations. The exception is README.md: its translations and docs/readme/ must be current. In CI the report goes to the job summary.
  */
 
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
@@ -10,6 +10,7 @@ import { LOCALES } from "../../src/i18n/locales";
 import { captionGroups, parseVtt } from "./captions";
 import { parseTranslation, segment } from "./document";
 import { ANY_CALL, CALL, captionSources, documentSources, englishText, extractMessages, LOCALES_DIR, PLURAL, readCaptions, readCatalog, readText, SRC_DIR, translationFile, USES_CATALOG } from "./sources";
+import { staleReadmes } from "./readme";
 import { validate, validatePlural } from "./validate";
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -70,8 +71,11 @@ export function checkLocale(locale: string): LocaleReport {
     const file = translationFile(locale, doc.id);
     const blocks = segment(englishText(doc)).filter((b) => b.kind !== "verbatim");
     report.documents.total += blocks.length;
-    if (!existsSync(file)) continue;
     const translations = parseTranslation(readText(file));
+    // GitHub has no English fallback to lean on, so a README with a gap fails the check.
+    const untranslated = blocks.filter((b) => !translations.has(b.id)).length;
+    if (doc.id === "readme" && untranslated) report.errors.push(`readme: ${untranslated} of ${blocks.length} blocks untranslated (bun run i18n:translate --locale ${locale} --only readme)`);
+    if (!existsSync(file)) continue;
     const ids = new Set(blocks.map((b) => b.id));
     for (const b of blocks) {
       const target = translations.get(b.id);
@@ -103,6 +107,8 @@ if (import.meta.main) {
   const reports = LOCALES.filter((l) => l.status === "live" || l.status === "draft").map((l) => checkLocale(l.code));
   const unreadable = unreadableCalls();
   for (const u of unreadable) console.log(`error ${u}: the first argument must be one double-quoted string`);
+  const readmes = staleReadmes();
+  for (const f of readmes) console.log(`error ${f} is out of date (bun run i18n:readme)`);
   const pct = (a: number, b: number): string => (b === 0 ? "–" : `${Math.round((100 * a) / b)}%`);
   const lines = [
     "| Locale | UI strings | Document blocks | Stale blocks | Caption sentences | Errors | Warnings |",
@@ -115,5 +121,5 @@ if (import.meta.main) {
     if (process.argv.includes("--warnings")) for (const w of r.warnings) console.log(`warning ${r.locale} ${w}`);
   }
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Translations\n\n${lines.join("\n")}\n\nStale or missing text shows in English until \`bun run i18n:translate\` runs on a Mac.\n`);
-  if (unreadable.length || reports.some((r) => r.errors.length)) process.exit(1);
+  if (unreadable.length || readmes.length || reports.some((r) => r.errors.length)) process.exit(1);
 }

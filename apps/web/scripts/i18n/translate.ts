@@ -8,6 +8,8 @@
  *   bun run i18n:translate --locale ja --dry-run                list what would be translated
  *   bun run i18n:translate --locale ja --force docs/routing     retranslate a document (or a message key)
  *
+ * Then rebuilds docs/readme/ and README.md's language line (`readme.ts`).
+ *
  * Only the areas selected with --only are pruned of keys and blocks that no longer exist in English.
  * Responses are cached in .cache/i18n/ by model and prompt, so a rerun after a failure costs nothing.
  */
@@ -20,6 +22,7 @@ import { parseArgs } from "node:util";
 import { getLocale } from "../../src/i18n/locales";
 import { formatTranslation, parseTranslation, segment } from "./document";
 import { captionBudget, captionGroups, parseVtt } from "./captions";
+import { writeReadmes } from "./readme";
 import { captionFile, captionSources, catalogFile, documentSources, englishText, extractMessages, LOCALES_DIR, readCaptions, readCatalog, readText, translationFile, WEB_DIR, type Catalog, type CatalogValue } from "./sources";
 import { normalizePunctuation, pluralSamples, validate, validatePlural } from "./validate";
 
@@ -309,7 +312,8 @@ for (const locale of locales) {
       for (let i = 0; i < unique.length; i += 40) {
         const batch = unique.slice(i, i + 40);
         const items = batch.map((b) => ({ id: b.id, text: b.kind === "heading" ? b.text.replace(/^\s{0,3}#{1,6}\s+/, "") : b.text }));
-        const { ok, failed } = await translate({ locale, model, kind: "document", title: doc.id, context: english.length < 40_000 ? english : undefined, items });
+        const title = doc.id === "readme" ? "README.md of the Text.js GitHub repository" : doc.id;
+        const { ok, failed } = await translate({ locale, model, kind: "document", title, context: english.length < 40_000 ? english : undefined, items });
         for (const [id, text] of ok) result.set(id, text);
         failures.push(...failed.map((f) => `${doc.id}: block ${f}`));
       }
@@ -354,4 +358,5 @@ for (const locale of locales) {
   for (const w of writers) w();
   console.log(`${locale}: ${planned} units, ${failures.length} left in English${failures.length ? `:\n  ${failures.join("\n  ")}` : ""}`);
 }
+if (!values["dry-run"]) writeReadmes();
 console.log(`spent $${spent.toFixed(4)} this run (ledger: ${LEDGER})`);
