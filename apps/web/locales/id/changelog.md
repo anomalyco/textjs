@@ -7,36 +7,28 @@ Formatnya didasarkan pada [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 <!-- s:2e16922cfc -->
 Ditambahkan
 
-<!-- s:01d85a9a48 -->
-- textjs.org: versi bahasa Spanyol, Prancis, Jerman, Portugis Brasil, Korea, serta Mandarin Sederhana dan Tradisional telah keluar dari status draf di textjs.org/es, /fr, /de, /pt-br, /ko, /zh-cn dan /zh-tw. Pemilih bahasa di footer dan tombol bahasa browser menawarkan bahasa tersebut, seperti halnya bahasa Jepang. Mesin pencari mengindeks halaman terjemahan dan mencocokkan masing-masing dengan versi bahasa Inggrisnya.
-- textjs.org: versi bahasa Italia, Rusia, Turki, Polandia, Indonesia, Vietnam, dan Hindi telah keluar dari status draf di textjs.org/it, /ru, /tr, /pl, /id, /vi dan /hi. Pemilih bahasa di footer dan tombol bahasa browser menawarkan bahasa tersebut, seperti halnya bahasa lainnya. Mesin pencari mengindeks halaman terjemahan dan mencocokkan masing-masing dengan versi bahasa Inggrisnya.
-- textjs.org: versi bahasa Arab, Ibrani, Persia, dan Urdu telah keluar dari status draf di textjs.org/ar, /he, /fa dan /ur. Pemilih bahasa di footer dan tombol bahasa browser menawarkan bahasa tersebut, seperti halnya bahasa lainnya. Mesin pencari mengindeks halaman terjemahan dan mencocokkan masing-masing dengan versi bahasa Inggrisnya.
+<!-- s:b3ea6ef7f1 -->
+- `@textjs/react`: `<FocusPad messages>` mengganti string bawaan mana pun pada pad, untuk situs terjemahan. Ini mencakup setiap baris, label pembaca layar, dan kontrol ukuran konsol. `<TextCanvas>` dan `<ViewportControl>` juga menerima `messages`. `<ViewportControl>` hanya menggunakan kunci kontrol ukuran. String yang memuat nilai, seperti “Lalu klik di sini dan tekan ↑ ↓.”, berupa fungsi yang mengembalikan seluruh kalimat. `defaultFocusPadMessages` berisi teks bahasa Inggris. Lihat [Menerjemahkan focus pad](https://textjs.org/docs/internationalization#translating-the-focus-pad).
+- `@textjs/react`: pada halaman kanan-ke-kiri, focus pad mempertahankan tampilan tombol seperti ⌘ ⌥ J dan ukuran konsol seperti 120×36 dari kiri ke kanan, serta mencerminkan kontrol ukuran dan bilah langkahnya. Pada halaman bahasa Mandarin dan Jepang, spasi di antara kedua kalimatnya dihapus; bahasa Korea tetap mempertahankannya.
+- textjs.org: textjs.org/ja tidak lagi berupa draf. Pemilih bahasa di footer membuka halaman yang sama dalam bahasa Inggris atau 日本語. Browser yang disetel ke bahasa Jepang mendapat tombol 日本語で読む, dan browser berbahasa Inggris di textjs.org/ja mendapat tombol Baca dalam bahasa Inggris. Tombol berhenti muncul setelah Anda memilih bahasa atau menutupnya. Mesin pencari mengindeks halaman terjemahan bahasa Jepang dan mencocokkan masing-masing dengan versi bahasa Inggrisnya.
+- textjs.org: di textjs.org/ja, focus pad menggunakan bahasa Jepang di setiap halaman, termasuk label di bawah tombol setiap demo.
+- textjs.org: bahasa Spanyol, Prancis, Jerman, Portugis Brasil, Italia, Rusia, Turki, Polandia, Indonesia, Vietnam, Hindi, Korea, Mandarin Sederhana dan Tradisional, Arab, Ibrani, Persia, dan Urdu tidak lagi berupa draf di textjs.org/es, /fr, /de, /pt-br, /it, /ru, /tr, /pl, /id, /vi, /hi, /ko, /zh-cn, /zh-tw, /ar, /he, /fa, dan /ur. Pemilih bahasa di footer dan tombol bahasa browser menawarkan bahasa tersebut, seperti bahasa Jepang. Mesin pencari mengindeks halaman terjemahan dan mencocokkan masing-masing dengan versi bahasa Inggrisnya.
 
 <!-- s:5b88618770 -->
 Diubah
 
-<!-- s:33280e468a -->
-- `@textjs/react`: `<FocusPad>` dan `<ViewportControl>` menggunakan tumpukan font `--mono` halaman untuk label monospace jika halaman mendefinisikannya, dan menggunakan Geist Mono sebagai cadangan seperti sebelumnya. Halaman dengan label berbahasa Arab atau Ibrani dapat menambahkan font untuk aksaranya ke `--mono`.
+<!-- s:cb13a45198 -->
+- `@textjs/core`: konsol Chromium dan Firefox membersihkan keluaran sprite animasi pada 16 MB, bukan 4 MB, sehingga textjs.org/doom menampilkan “Konsol telah dibersihkan” sekitar setiap 19 detik, bukan setiap 4,5 detik. Safari, serta sprite yang digambar sebagai setengah blok `▀`, tetap menggunakan 4 MB. Heap puncak halaman di textjs.org/doom naik dari 10,8 MB menjadi sekitar 12–13 MB.
+- textjs.org: halaman dokumentasi hanya mengunduh Markdown-nya sendiri, bukan seluruh 33 halaman, sehingga halaman dokumentasi bahasa Inggris memuat JavaScript (gzip) 43–47 KB lebih sedikit dan halaman dokumentasi /ja 60–64 KB lebih sedikit. Mengarahkan kursor atau memindahkan fokus ke tautan halaman dokumentasi lain mengambil halaman tersebut lebih awal, sehingga halaman tetap langsung terbuka.
+- `@textjs/react`: `<FocusPad>` dan `<ViewportControl>` menggunakan tumpukan font `--mono` halaman untuk label monospace jika halaman mendefinisikannya, dan menggunakan Geist Mono sebagai cadangan seperti sebelumnya. Halaman dengan label bahasa Arab atau Ibrani dapat menambahkan font aksaranya ke `--mono`.
 
 <!-- s:afe76b8d59 -->
 Diperbaiki
 
-<!-- s:f0905efd51 -->
-- textjs.org: di ponsel, kode inline yang lebih panjang dari baris kini terbungkus ke baris berikutnya alih-alih memperlebar halaman. textjs.org/docs/internationalization sebelumnya terlalu lebar 92 px pada layar 390 px.
-
-<!-- s:f71df9184f -->
-- `@textjs/react`: `<FocusPad messages>` mengganti string bawaan mana pun pada pad untuk situs terjemahan. Ini mencakup setiap baris, label pembaca layar, dan kontrol ukuran konsol. `<TextCanvas>` dan `<ViewportControl>` juga menerima `messages`. `<ViewportControl>` hanya menggunakan kunci kontrol ukuran. String yang memuat nilai, seperti “Lalu klik di sini dan tekan ↑ ↓.”, berupa fungsi yang mengembalikan seluruh kalimat. `defaultFocusPadMessages` memuat teks bahasa Inggris. Lihat [Menerjemahkan focus pad](https://textjs.org/docs/internationalization#translating-the-focus-pad).
-- `@textjs/react`: pada halaman kanan-ke-kiri, focus pad tetap menampilkan label tombol seperti ⌘ ⌥ J dan ukuran konsol seperti 120×36 dari kiri ke kanan, serta mencerminkan kontrol ukuran dan bilah langkahnya. Pada halaman berbahasa Mandarin dan Jepang, spasi di antara kedua kalimatnya dihilangkan; bahasa Korea tetap mempertahankannya.
-- textjs.org: textjs.org/ja tidak lagi berstatus draf. Pemilih bahasa di footer membuka halaman yang sama dalam bahasa Inggris atau 日本語. Browser yang diatur ke bahasa Jepang menampilkan tombol 日本語で読む, dan browser berbahasa Inggris di textjs.org/ja menampilkan Baca dalam bahasa Inggris. Tombol tidak muncul lagi setelah Anda memilih bahasa atau menutupnya. Mesin pencari mengindeks halaman terjemahan bahasa Jepang dan mencocokkan masing-masing dengan versi bahasa Inggrisnya.
-- textjs.org: di textjs.org/ja, focus pad menggunakan bahasa Jepang pada setiap halaman, termasuk label di bawah tombol setiap demo.
-
-<!-- s:27b507a9de -->
-- `@textjs/core`: konsol Chromium dan Firefox membersihkan output sprite animasi pada 16 MB, bukan 4 MB, sehingga textjs.org/doom menampilkan “Konsol telah dibersihkan” sekitar setiap 19 detik, bukan setiap 4,5 detik. Safari, serta sprite yang digambar sebagai setengah blok `▀`, tetap menggunakan 4 MB. Penggunaan heap puncak halaman di textjs.org/doom naik dari 10,8 MB menjadi sekitar 12–13 MB.
-- textjs.org: halaman dokumentasi hanya mengunduh Markdown-nya sendiri, bukan seluruh 33 halaman, sehingga halaman dokumentasi bahasa Inggris memuat JavaScript (gzip) 43–47 KB lebih sedikit dan halaman dokumentasi /ja 60–64 KB lebih sedikit. Mengarahkan kursor atau fokus ke tautan halaman dokumentasi lain mengambil halaman tersebut lebih awal, sehingga tetap langsung terbuka.
-
-<!-- s:b3d1adfa39 -->
-- textjs.org/ja: pencarian ⌘K menampilkan judul bagian dokumentasi bahasa Jepang dan mencocokkan kueri bahasa Jepang dengannya. Sebelumnya, pencarian mencantumkan judul bagian bahasa Inggris di bawah judul halaman bahasa Jepang. Nama bahasa Inggris tetap menemukan halaman: `routing` menemukan ルーティング dan `open the console` menemukan コンソールを開く.
-- textjs.org: contoh dokumentasi yang berjalan di konsol Anda kembali menampilkan perubahannya di pratinjau halaman pada textjs.org/ja, serta untuk contoh Teks dua arah di textjs.org/docs/internationalization. Baris di atas contoh dalam konsol kini berbunyi “▼ Dokumentasi › Penghitung”, bukan “▼ Dokumentasi › Pengantar › Penghitung”.
+<!-- s:965b020b1d -->
+- textjs.org/ja: pencarian ⌘K menampilkan judul bagian dokumentasi bahasa Jepang dan mencocokkan kueri bahasa Jepang dengannya. Sebelumnya, pencarian menampilkan judul bagian bahasa Inggris di bawah judul halaman bahasa Jepang. Nama bahasa Inggris tetap menemukan halaman: `routing` menemukan ルーティング dan `open the console` menemukan コンソールを開く.
+- textjs.org: contoh dokumentasi yang berjalan di konsol Anda kembali menampilkan perubahannya pada pratinjau halaman di textjs.org/ja, serta untuk contoh teks dua arah di textjs.org/docs/internationalization. Baris di atas contoh dalam konsol kini berbunyi “▼ Dokumentasi › Penghitung”, bukan “▼ Dokumentasi › Pengantar › Penghitung”.
+- textjs.org: pada ponsel, kode inline yang lebih panjang dari baris kini membungkus ke baris berikutnya, bukan memperlebar halaman. textjs.org/docs/internationalization sebelumnya terlalu lebar 92 px pada layar 390 px.
 
 <!-- s:125517f5e0 -->
 - textjs.org/doom memutar efek suara Doom, dengan panning stereo dan pelemahan berdasarkan jarak milik Doom sendiri. Suara dimulai saat klik atau penekanan tombol pertama pada halaman, dijeda bersama game, dan mengikuti Sfx Volume di menu Options → Sound Volume milik Doom. Tidak ada musik.
