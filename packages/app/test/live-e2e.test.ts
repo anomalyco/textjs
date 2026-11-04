@@ -7,12 +7,15 @@
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { buildApp } from "../src/cli/build";
 import { startProductionServer, type StartedServer } from "../src/cli/start";
+import { spawnLiveServer, type LiveServerProcess } from "./live-server-fixture";
 
 const REPO = fileURLToPath(new URL("../../..", import.meta.url));
 const SOURCE = join(REPO, "examples/dashboard");
@@ -61,11 +64,19 @@ interface Call {
 }
 
 /** The slice of playwright-core this test uses (it lives in bench/devtools, outside this package). */
+interface Route {
+  request(): { url(): string };
+  continue(): Promise<void>;
+  abort(): Promise<void>;
+}
 interface Page {
   on(event: "console", fn: (m: { type(): string; text(): string }) => void): void;
+  route(url: RegExp, handler: (route: Route) => unknown): Promise<void>;
   goto(url: string): Promise<unknown>;
   bringToFront(): Promise<void>;
   evaluate<T>(fn: () => T): Promise<T>;
+  title(): Promise<string>;
+  url(): string;
   exposeFunction(name: string, fn: (...args: any[]) => unknown): Promise<void>;
   waitForURL(url: string): Promise<void>;
   keyboard: { press(key: string): Promise<void> };
@@ -80,6 +91,14 @@ interface PW {
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+/** Keep the page off every local port but the servers under test (a dev machine runs other local services). */
+async function onlyLocalPorts(page: Page, ports: string[]): Promise<void> {
+  await page.route(/^[a-z]+:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\//, (route) => {
+    const port = new URL(route.request().url()).port;
+    return ports.includes(port) ? route.continue() : route.abort();
+  });
+}
 
 async function until(fn: () => boolean | Promise<boolean>, timeout = 10_000): Promise<void> {
   const t0 = Date.now();
@@ -109,6 +128,7 @@ describe.skipIf(!enabled)("server rendering + PPR in Chromium (text start)", () 
 
   async function open(path: string): Promise<{ page: Page; calls: Call[]; logs: () => string[] }> {
     const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+    await onlyLocalPorts(page, [new URL(server.url).port]);
     const calls: Call[] = [];
     page.on("console", (m) => calls.push({ type: m.type(), text: m.text() }));
     await page.goto(server.url + path);
@@ -254,4 +274,78 @@ describe.skipIf(!enabled)("server rendering + PPR in Chromium (text start)", () 
     expect(clientJs).not.toContain("loadavg");
     expect(clientJs).not.toContain("probing…");
   });
+});
+
+describe.skipIf(!enabled)("the frame player on another origin in Chromium", () => {
+  let host: Server;
+  let hostUrl = "";
+  let live: LiveServerProcess;
+  let browser: Browser;
+
+  beforeAll(async () => {
+    const built = await Bun.build({ entrypoints: [join(REPO, "packages/app/src/live-player.ts")], target: "browser", format: "esm", minify: true });
+    if (!built.success) throw new AggregateError(built.logs, "bundling the frame player failed");
+    const player = await (built.outputs[0] as Blob).text();
+    let page = "";
+    host = createServer((req, res) => {
+      if (req.url === "/player.js") {
+        res.setHeader("Content-Type", "text/javascript");
+        res.end(player);
+      } else {
+        res.setHeader("Content-Type", "text/html");
+        res.end(page);
+      }
+    });
+    await new Promise<void>((r) => host.listen(0, "127.0.0.1", r));
+    // `localhost` and `127.0.0.1` are different origins.
+    hostUrl = `http://localhost:${(host.address() as AddressInfo).port}`;
+    live = await spawnLiveServer(["--cors", hostUrl]);
+    const config = { basePath: "", endpoint: `${live.origin}/__textjs/live`, credentials: "include", syncDocument: false, path: "/", viewport: { width: 40, height: 8, responsive: false } };
+    page = `<!doctype html><html><head><title>Acme</title></head><body><p>Acme pricing</p>
+<script>window.__fetches = []; const f = window.fetch; window.fetch = (url, init) => (window.__fetches.push({ url: String(url), credentials: init && init.credentials }), f(url, init));</script>
+<script type="module">import { bootFramePlayer } from "/player.js"; bootFramePlayer(${JSON.stringify(config)});</script>
+</body></html>`;
+    const pw = (await import(PLAYWRIGHT)) as PW;
+    browser = await pw.chromium.launch({ executablePath: chromiumPath as string, headless: true });
+  }, 60_000);
+
+  afterAll(async () => {
+    await browser?.close();
+    await live?.close();
+    await new Promise<void>((r) => (host ? host.close(() => r()) : r()));
+  });
+
+  test(
+    "streams and takes input cross-origin, sends the given credentials, and leaves the host page's title and history alone",
+    async () => {
+      const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+      await onlyLocalPorts(page, [new URL(hostUrl).port, new URL(live.origin).port]);
+      const calls: Call[] = [];
+      page.on("console", (m) => calls.push({ type: m.type(), text: m.text() }));
+      const logs = (): string[] => calls.filter((c) => c.type === "log").map((c) => c.text.replace(/%c/g, ""));
+      await page.goto(`${hostUrl}/pricing?plan=pro`);
+      await page.bringToFront();
+      await until(() => logs().some((l) => l.includes("count 0")));
+      // No shell on this page: the player's first frame clears.
+      expect(calls.filter((c) => c.type === "clear").length).toBe(1);
+      const historyLength = await page.evaluate(() => history.length);
+      await page.keyboard.press("+");
+      await until(() => logs().some((l) => l.includes("count 1")));
+      // The server navigates its session (sending `url` and `title`); the host page stays put.
+      await page.keyboard.press("o");
+      await until(() => logs().some((l) => l.includes("other server page")));
+      await sleep(200);
+      expect(await page.title()).toBe("Acme");
+      expect(page.url()).toBe(`${hostUrl}/pricing?plan=pro`);
+      expect(await page.evaluate(() => history.length)).toBe(historyLength);
+      expect(await page.evaluate(() => document.documentElement.dataset.textjsLive)).toBeUndefined();
+      const fetches = await page.evaluate(() => (window as unknown as { __fetches: Array<{ url: string; credentials?: string }> }).__fetches);
+      expect(fetches.length).toBeGreaterThan(2);
+      expect(fetches.every((f) => f.url.startsWith(`${live.origin}/__textjs/live`) && f.credentials === "include")).toBe(true);
+      expect(live.lines.some((l) => l.startsWith("request POST /__textjs/live"))).toBe(true);
+      expect(calls.filter((c) => c.type === "error")).toEqual([]);
+      await page.close();
+    },
+    60_000,
+  );
 });

@@ -16,7 +16,7 @@ import {
   type ConsoleTarget,
   type RendererScheduler,
 } from "@textjs/core";
-import { createConsoleRootSync, frameToAnsi, type ConsoleRoot, type ThemeName } from "@textjs/react";
+import { createConsoleRootSync, DiscreteEventPriority, frameToAnsi, runWithPriority, type ConsoleRoot, type ThemeName } from "@textjs/react";
 import { pageAnsiSize } from "../config";
 import { RouterContext } from "../context";
 import { createMemoryHistory, parseHref, type HistoryAction, type MemoryHistory } from "../history";
@@ -324,7 +324,7 @@ export interface ShellCall {
   inlineArgs?: string[];
 }
 
-export interface PrerenderShellOptions {
+export interface PrerenderOptions {
   routes: RouteManifest;
   path: string;
   cols: number;
@@ -332,33 +332,115 @@ export interface PrerenderShellOptions {
   theme?: ThemeName;
 }
 
-interface FirstFrameOptions {
-  routes: RouteManifest;
-  path: string;
-  cols: number;
-  rows: number;
-  theme?: ThemeName;
+export interface PrerenderShellOptions extends PrerenderOptions {
+  /**
+   * Clear the console before the first frame (default `true`). `false` keeps
+   * whatever the page logged earlier above the shell's 100vh curtain.
+   */
+  initialClear?: boolean;
+  /**
+   * Frames to capture for a looping shell (default 1). Frame `k` is the app
+   * after `k × intervalMs` of its timers (`setInterval`, `setTimeout`,
+   * `performance.now()`), stepped synchronously on a simulated clock.
+   */
+  frames?: number;
+  /** Simulated milliseconds between captured frames (default 200). */
+  intervalMs?: number;
+}
+
+interface FirstFrameOptions extends PrerenderOptions {
   focusHint?: boolean;
   /**
    * Terminal frames: `notFound()` renders the not-found page instead of
    * failing, and a `redirect()` (or any navigation) yields `null`.
    */
   terminal?: boolean;
+  /** Frames to capture (default 1), `intervalMs` (default 200) of simulated time apart. */
+  frames?: number;
+  intervalMs?: number;
+}
+
+type TimerCallback = (...args: unknown[]) => void;
+
+/**
+ * Swap the global timers and `performance.now()` for a clock that only moves
+ * on `advance(ms)`, which runs due callbacks in order as discrete updates (so
+ * their state changes commit synchronously). Timers still pending at
+ * `restore()` are dropped.
+ */
+function installSteppedClock(): { advance(ms: number): void; restore(): void } {
+  const g = globalThis as unknown as Record<"setTimeout" | "setInterval" | "clearTimeout" | "clearInterval", unknown>;
+  const saved = { setTimeout: g.setTimeout, setInterval: g.setInterval, clearTimeout: g.clearTimeout, clearInterval: g.clearInterval };
+  const perf = typeof performance !== "undefined" ? performance : null;
+  const ownNow = perf !== null && Object.prototype.hasOwnProperty.call(perf, "now");
+  const realNow = perf?.now;
+  let now = perf !== null ? perf.now() : 0;
+  let nextId = 1;
+  const timers = new Map<number, { at: number; every: number | null; cb: TimerCallback; args: unknown[] }>();
+  const add = (every: boolean) => (cb: TimerCallback, delay?: number, ...args: unknown[]): number => {
+    const ms = Math.max(every ? 1 : 0, Number(delay) || 0);
+    const id = nextId++;
+    timers.set(id, { at: now + ms, every: every ? ms : null, cb, args });
+    return id;
+  };
+  const clear = (id: unknown): void => {
+    if (!timers.delete(id as number)) (saved.clearTimeout as (id: unknown) => void)(id);
+  };
+  g.setTimeout = add(false);
+  g.setInterval = add(true);
+  g.clearTimeout = clear;
+  g.clearInterval = clear;
+  if (perf !== null) Object.defineProperty(perf, "now", { configurable: true, writable: true, value: () => now });
+  return {
+    advance(ms) {
+      const end = now + ms;
+      for (let fired = 0; fired < 10_000; fired++) {
+        let id = -1;
+        let at = Infinity;
+        for (const [k, t] of timers) {
+          if (t.at < at) {
+            id = k;
+            at = t.at;
+          }
+        }
+        const t = timers.get(id);
+        if (t === undefined || at > end) break;
+        now = at;
+        if (t.every === null) timers.delete(id);
+        else t.at += t.every;
+        if (typeof t.cb === "function") runWithPriority(DiscreteEventPriority, () => t.cb(...t.args));
+      }
+      now = end;
+    },
+    restore() {
+      timers.clear();
+      Object.assign(g, saved);
+      if (perf !== null) {
+        if (ownNow) Object.defineProperty(perf, "now", { configurable: true, writable: true, value: realNow });
+        else delete (perf as { now?: unknown }).now;
+      }
+    },
+  };
 }
 
 /**
- * Render a route's first committed frame and hand its buffer to `capture`
- * before unmounting. Async server components never run (they suspend to
- * their fallbacks), and `fetch` never resolves while rendering, so data
- * loaded in effects stays in its loading state too. Everything after
- * `initYoga()` is synchronous: the `fetch` stub can't leak into other work
- * on the same event loop.
+ * Render a route's first committed frame (and, for a loop, the frames after
+ * it) and hand each buffer to `capture` before unmounting. Async server
+ * components never run (they suspend to their fallbacks), and `fetch` never
+ * resolves while rendering, so data loaded in effects stays in its loading
+ * state too. Everything after `initYoga()` is synchronous: the `fetch` stub
+ * (and a loop's stepped clock) can't leak into other work on the same event loop.
  */
-async function renderFirstFrame<T>(options: FirstFrameOptions, capture: (buffer: CellBuffer, notFound: boolean) => T): Promise<T | null> {
+async function renderFrames<T>(options: FirstFrameOptions, capture: (buffer: CellBuffer, notFound: boolean) => T): Promise<T[] | null> {
+  const frames = options.frames ?? 1;
+  const intervalMs = options.intervalMs ?? 200;
+  if (!Number.isInteger(frames) || frames < 1) throw new Error(`frames must be a positive integer, got ${frames}`);
+  if (!(intervalMs > 0) || !Number.isFinite(intervalMs)) throw new Error(`intervalMs must be a positive number, got ${intervalMs}`);
   await initYoga();
   const g = globalThis as { fetch?: typeof fetch };
   const realFetch = g.fetch;
   g.fetch = (() => new Promise<Response>(() => undefined)) as unknown as typeof fetch;
+  const clock = frames > 1 ? installSteppedClock() : null;
   // Any error the render hit (caught by an error boundary, `redirect()` / `notFound()` included)
   // means the first frame is not the route's shell: never bake it into HTML.
   const errors: unknown[] = [];
@@ -385,18 +467,24 @@ async function renderFirstFrame<T>(options: FirstFrameOptions, capture: (buffer:
         <AppRouter routes={prepareServerManifest(options.routes)} history={history} theme={options.theme} documentTitle={false} errorStore={null} />
       </ServerComponentsProvider>,
     );
-    root.flushSyncRender();
-    const navigated = history.location.href !== parseHref(options.path).href;
-    if (options.terminal && (navigated || errors.some(isRedirectError))) return null;
-    const notFound = options.terminal === true && errors.length > 0 && errors.every(isNotFoundError);
-    if (errors.length > 0 && !notFound) {
-      const first = errors[0];
-      throw new Error(`rendering ${options.path} threw: ${first instanceof Error ? first.message : String(first)}`, { cause: first });
+    const out: T[] = [];
+    for (let k = 0; k < frames; k++) {
+      if (k > 0) clock?.advance(intervalMs);
+      root.flushSyncRender();
+      const navigated = history.location.href !== parseHref(options.path).href;
+      if (options.terminal && (navigated || errors.some(isRedirectError))) return null;
+      const notFound = options.terminal === true && errors.length > 0 && errors.every(isNotFoundError);
+      if (errors.length > 0 && !notFound) {
+        const first = errors[0];
+        throw new Error(`rendering ${options.path} threw: ${first instanceof Error ? first.message : String(first)}`, { cause: first });
+      }
+      if (navigated) throw new Error(`rendering ${options.path} navigated to ${history.location.href}`);
+      out.push(capture(root.renderer.buffer, notFound));
     }
-    if (navigated) throw new Error(`rendering ${options.path} navigated to ${history.location.href}`);
-    return capture(root.renderer.buffer, notFound);
+    return out;
   } finally {
     root.unmount();
+    clock?.restore();
     g.fetch = realFetch;
   }
 }
@@ -407,31 +495,34 @@ async function renderFirstFrame<T>(options: FirstFrameOptions, capture: (buffer:
  * `use()`, lazy modules) showing its fallback.
  *
  * Returns the exact `console.clear()` / `console.log()` calls the client's
- * driver would make for this frame (curtain included).
+ * driver would make for this frame (curtain included), with one more log per
+ * extra frame when `frames > 1`.
  */
 export async function prerenderShell(options: PrerenderShellOptions): Promise<ShellCall[]> {
-  const calls = await renderFirstFrame(options, (buffer) => {
+  const record = (browser: "chromium" | "firefox"): { calls: ShellCall[]; driver: CssConsoleDriver } => {
+    const calls: ShellCall[] = [];
+    const target: ConsoleTarget = {
+      clear: () => void calls.push({ method: "clear", args: [] }),
+      log: (...args: unknown[]) => void calls.push({ method: "log", args: args.map(String) }),
+    };
+    return { calls, driver: new CssConsoleDriver({ console: target, curtain: true, browser, initialClear: options.initialClear }) };
+  };
+  // The shell runs before any module, so it carries the CSS for both kinds of console.
+  const chromium = record("chromium");
+  const inline = record("firefox");
+  await renderFrames(options, (buffer) => {
     // The live stream sends cells (`readCells`), so pixel sprites draw as half-blocks once it takes
     // over. Bake the same cells into the shell, so the first frame doesn't switch and the HTML
     // doesn't carry each sprite's data URL twice.
     buffer._materializeSpritesInRect(0, 0, buffer.width, buffer.height, true, false);
-    const capture = (browser: "chromium" | "firefox"): ShellCall[] => {
-      const calls: ShellCall[] = [];
-      const target: ConsoleTarget = {
-        clear: () => void calls.push({ method: "clear", args: [] }),
-        log: (...args: unknown[]) => void calls.push({ method: "log", args: args.map(String) }),
-      };
-      new CssConsoleDriver({ console: target, curtain: true, browser }).render(buffer);
-      return calls;
-    };
-    // The shell runs before any module, so it carries the CSS for both kinds of console.
-    const inline = capture("firefox");
-    return capture("chromium").map((call, i) => {
-      const css = inline[i]?.args.slice(1);
-      return call.method === "log" && css !== undefined && css.join("\0") !== call.args.slice(1).join("\0") ? { ...call, inlineArgs: css } : call;
-    });
+    // Every frame logs, unchanged or not, so a loop keeps its timing.
+    chromium.driver.render(buffer, { force: true });
+    inline.driver.render(buffer, { force: true });
   });
-  return calls as ShellCall[];
+  return chromium.calls.map((call, i) => {
+    const css = inline.calls[i]?.args.slice(1);
+    return call.method === "log" && css !== undefined && css.join("\0") !== call.args.slice(1).join("\0") ? { ...call, inlineArgs: css } : call;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -451,13 +542,14 @@ export interface AnsiFrame {
  * `null` when the page opts out (`export const ansi = false`) or redirects
  * while rendering (the client follows it). Throws on render errors.
  */
-export async function prerenderAnsi(options: PrerenderShellOptions): Promise<AnsiFrame | null> {
+export async function prerenderAnsi(options: PrerenderOptions): Promise<AnsiFrame | null> {
   const match = resolveRoute(options.routes, pathOf(options.path));
   const page = match.notFound ? undefined : match.chain[match.chain.length - 1]?.page;
   const size = pageAnsiSize({ cols: options.cols, rows: options.rows }, page !== undefined && typeof page !== "function" ? page.ansi : undefined);
   if (size === null) return null;
-  return renderFirstFrame({ ...size, routes: options.routes, path: options.path, theme: options.theme, focusHint: false, terminal: true }, (buffer, notFound) => ({
+  const frames = await renderFrames({ ...size, routes: options.routes, path: options.path, theme: options.theme, focusHint: false, terminal: true }, (buffer, notFound) => ({
     ansi: frameToAnsi(buffer, { theme: options.theme }),
-    status: match.notFound || notFound ? 404 : 200,
+    status: match.notFound || notFound ? (404 as const) : (200 as const),
   }));
+  return frames?.[0] ?? null;
 }
