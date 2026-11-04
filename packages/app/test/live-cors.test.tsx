@@ -305,6 +305,84 @@ describe("cross-origin live sessions", () => {
     });
   });
 
+  test("the session caps hold under a concurrent burst while middleware runs", async () => {
+    await withoutActEnvironment(async () => {
+      await start({ allowOrigins: [A], maxSessions: 1, maxSessionsPerClient: 1, authorize: () => new Promise((r) => setTimeout(() => r(true), 50)) });
+      const burst = await Promise.all(Array.from({ length: 6 }, () => open(base, fromSite(A))));
+      expect(burst.map((s) => s.status).sort()).toEqual([200, 503, 503, 503, 503, 503]);
+      expect(live?.sessions.size).toBe(1);
+      for (const s of burst) s.close();
+    });
+  });
+
+  test("a browser that leaves while middleware runs leaves no session behind", async () => {
+    await withoutActEnvironment(async () => {
+      let release: (ok: boolean) => void = () => undefined;
+      let mounts = 0;
+      await start({
+        authorize: () => new Promise((r) => (release = r)),
+        createApp: (init) => {
+          mounts++;
+          return createLiveApp({ ...init, routes: routes() });
+        },
+      });
+      const ctrl = new AbortController();
+      const pending = fetch(`${base}${LIVE_PATH}?path=/`, { signal: ctrl.signal }).catch(() => null);
+      await until(() => live?.sessions.size === 1);
+      ctrl.abort();
+      await pending;
+      await new Promise((r) => setTimeout(r, 50));
+      release(true);
+      await until(() => live?.sessions.size === 0);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(mounts).toBe(0);
+      expect(live?.sessions.size).toBe(0);
+      // A denial releases the slot too.
+      const denied = fetch(`${base}${LIVE_PATH}?path=/`).then((r) => r.text());
+      await until(() => live?.sessions.size === 1);
+      release(false);
+      expect(await denied).toContain('"t":"load"');
+      expect(live?.sessions.size).toBe(0);
+    });
+  });
+
+  test("Authorization is a preflight-approved header only with credentials", async () => {
+    const preflight = () => fetch(`${base}${LIVE_PATH}`, { method: "OPTIONS", headers: { origin: A, "access-control-request-method": "GET", "access-control-request-headers": "authorization,x-textjs-live" } });
+    await start({ allowOrigins: [A] });
+    expect((await preflight()).headers.get("access-control-allow-headers")).toBe("Accept, Content-Type, Last-Event-ID, x-textjs-live");
+    await withoutActEnvironment(() => live?.close());
+    await new Promise<void>((r) => (http ? http.close(() => r()) : r()));
+    await start({ allowOrigins: [A], allowCredentials: true });
+    const pre = await preflight();
+    expect(pre.status).toBe(204);
+    expect(pre.headers.get("access-control-allow-headers")).toBe("Accept, Content-Type, Last-Event-ID, x-textjs-live, Authorization");
+    expect(pre.headers.get("access-control-allow-credentials")).toBe("true");
+    // What a browser checks: every requested header is allowed (case-insensitively), and the origin is echoed.
+    const allowed = (pre.headers.get("access-control-allow-headers") ?? "").toLowerCase().split(/\s*,\s*/);
+    for (const h of ["authorization", "x-textjs-live"]) expect(allowed).toContain(h);
+    expect(pre.headers.get("access-control-allow-origin")).toBe(A);
+  });
+
+  test("no live answer is stored by a cache, errors included", async () => {
+    await withoutActEnvironment(async () => {
+      await start({ allowOrigins: [A] });
+      const s = await open(base, fromSite(A));
+      await until(() => text(s).includes("count 0"));
+      const answers = [
+        s,
+        await post(sidOf(s), key, { origin: A }),
+        await post("A".repeat(32), [], { origin: A }),
+        await fetch(`${base}${LIVE_PATH}`, { method: "OPTIONS", headers: { origin: A, "access-control-request-method": "POST" } }),
+        await fetch(`${base}${LIVE_PATH}?path=/`, { headers: fromSite("https://evil.example") }),
+        await fetch(`${base}${LIVE_PATH}?path=/client`),
+      ];
+      for (const r of answers) {
+        expect({ status: r.status, cache: r.headers.get("cache-control"), vary: r.headers.get("vary") }).toEqual({ status: r.status, cache: "private, no-store, no-transform", vary: "Origin" });
+      }
+      s.close();
+    });
+  });
+
   test("without allowOrigins nothing changes: same-origin only, no CORS headers", async () => {
     await withoutActEnvironment(async () => {
       await start();

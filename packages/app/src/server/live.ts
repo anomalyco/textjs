@@ -82,6 +82,8 @@ const SID_RE = /^[A-Za-z0-9_-]{32}$/;
 const PREFLIGHT_MAX_AGE = 600;
 const CORS_METHODS = "GET, POST";
 const CORS_HEADERS = `Accept, Content-Type, Last-Event-ID, ${LIVE_SESSION_HEADER}`;
+/** Session streams and their errors are per visitor: no shared or browser cache keeps them. */
+const NO_STORE = "private, no-store, no-transform";
 
 /**
  * Who a request acts for: `origin` is `""` for the app's own pages or an
@@ -367,6 +369,7 @@ export class LiveServer {
     const pathname = q < 0 ? url : url.slice(0, q);
     if (pathname !== LIVE_PATH) return false;
     const scope = this.scopeOf(req);
+    res.setHeader("Cache-Control", NO_STORE);
     // Answers depend on the Origin header once other origins are allowed.
     if (this.allowed !== null) {
       const vary = res.getHeader("Vary");
@@ -384,7 +387,8 @@ export class LiveServer {
       if (req.method === "OPTIONS") {
         res.statusCode = 204;
         res.setHeader("Access-Control-Allow-Methods", CORS_METHODS);
-        res.setHeader("Access-Control-Allow-Headers", CORS_HEADERS);
+        // With credentials, a page may send `Authorization` (bearer tokens), which needs its own preflight approval.
+        res.setHeader("Access-Control-Allow-Headers", this.options.allowCredentials ? `${CORS_HEADERS}, Authorization` : CORS_HEADERS);
         res.setHeader("Access-Control-Max-Age", String(PREFLIGHT_MAX_AGE));
         res.end();
         return true;
@@ -409,7 +413,7 @@ export class LiveServer {
   private startStream(res: ServerResponse): void {
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Cache-Control", NO_STORE);
     res.setHeader("Connection", "keep-alive");
     res.setHeader("X-Accel-Buffering", "no");
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -497,12 +501,8 @@ export class LiveServer {
       res.end();
       return;
     }
+    // Reserve the slot before anything awaits, so concurrent opens count against the caps.
     const headers = headersOf(req, scope.anonymous);
-    if (!(await this.authorized(href, headers))) {
-      // Middleware would redirect / reject this route: let the browser ask for it over HTTP.
-      this.sendLoad(res, href);
-      return;
-    }
     const session = new LiveSession(this, this.interval);
     session.credentials = credentialsOf(req, scope.anonymous);
     session.headers = headers;
@@ -513,6 +513,17 @@ export class LiveServer {
     res.once("close", () => {
       closedEarly = session.app === null;
     });
+    if (!(await this.authorized(href, headers))) {
+      this.dispose(session);
+      // Middleware would redirect / reject this route: let the browser ask for it over HTTP.
+      if (!closedEarly) this.sendLoad(res, href);
+      return;
+    }
+    if (closedEarly || session.disposed) {
+      // The browser left while middleware ran: don't mount an app for nobody.
+      this.dispose(session);
+      return;
+    }
     try {
       session.app = await this.options.createApp({
         path: href,

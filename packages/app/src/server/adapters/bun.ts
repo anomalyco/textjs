@@ -25,8 +25,9 @@ const self = join(dir, ${JSON.stringify(BUN_SERVER_FILE)});
 const live = existsSync(join(dir, ".text", "live-manifest.json"))
   ? await loadLiveProduction(dir, {
       middleware: options.middleware,
-      trustProxy: process.env.TRUST_PROXY === "1",
-      origin: process.env.TEXTJS_ORIGIN,
+      // \`server\` from text.config.ts, unless the environment says otherwise.
+      trustProxy: process.env.TRUST_PROXY !== undefined ? process.env.TRUST_PROXY === "1" : serverConfig.trustProxy === true,
+      origin: process.env.TEXTJS_ORIGIN ?? serverConfig.origin,
       allowOrigins: embed.allowOrigins,
       allowCredentials: embed.allowCredentials,
       onError: (error) => console.error(error),
@@ -88,8 +89,8 @@ if (import.meta.main) {
 `;
 
 export async function adaptBun(ctx: AdapterContext): Promise<AdapterResult> {
-  // `text.config.ts` isn't read at run time: bake in `embed` (validated here, so a bad `allowOrigins` fails the build).
-  const embed = `const embed = ${JSON.stringify(resolveEmbed(ctx.config))};`;
-  await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: `${embed}\n${BODY}` }), outFile: join(ctx.outDir, BUN_SERVER_FILE), target: "bun" });
+  // `text.config.ts` isn't read at run time: bake in `embed` (validated here, so a bad `allowOrigins` fails the build) and `server`.
+  const baked = [`const embed = ${JSON.stringify(resolveEmbed(ctx.config))};`, `const serverConfig = ${JSON.stringify({ trustProxy: ctx.config.server?.trustProxy, origin: ctx.config.server?.origin })};`].join("\n");
+  await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: `${baked}\n${BODY}` }), outFile: join(ctx.outDir, BUN_SERVER_FILE), target: "bun" });
   return { adapter: "bun", output: ctx.outDir, notes: [`Run with: bun ${join(ctx.config.outDir ?? "dist", BUN_SERVER_FILE)}`] };
 }

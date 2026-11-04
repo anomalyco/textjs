@@ -33,7 +33,7 @@ const STATIC_APP = (basePath = ""): Record<string, string> => ({
 
 /** Server-rendered routes, `/ops` behind cookie middleware, and other sites allowed to open sessions. */
 const LIVE_APP: Record<string, string> = {
-  "text.config.ts": config(`{ title: "Embed Live Fixture", embed: { allowOrigins: [${JSON.stringify(HOST)}] } }`),
+  "text.config.ts": config(`{ title: "Embed Live Fixture", embed: { allowOrigins: [${JSON.stringify(HOST)}] }, server: { trustProxy: true } }`),
   "app/page.tsx": `import { Text } from "@textjs/app";\nexport default function Page() { return <Text>home</Text>; }\n`,
   "app/pub/page.tsx": `import { Text, useInput } from "@textjs/app";
 import { useState } from "react";
@@ -183,6 +183,17 @@ async function expectCrossOriginLive(base: string): Promise<void> {
   }
 }
 
+/** `server.trustProxy` from text.config.ts: a page on the proxy's public origin is the app's own. */
+async function expectTrustedProxy(base: string): Promise<void> {
+  const s = await stream(base, "/pub", { origin: "https://console.example", "x-forwarded-host": "console.example", "x-forwarded-proto": "https", accept: "text/event-stream" });
+  try {
+    expect(s.status).toBe(200);
+    expect(s.headers.get("access-control-allow-origin")).toBeNull();
+  } finally {
+    s.close();
+  }
+}
+
 /**
  * Pages' asset server: `dir/index.html` at `dir/`, 404.html for misses, and
  * `_headers` applied by URL (`headers: false` leaves them out, to see what the worker adds itself).
@@ -250,6 +261,7 @@ describe("embed: server-rendered routes from other sites", () => {
         const base = new URL(server.url).origin;
         await expectAssetHeaders(base, hashedAsset(dir));
         await expectCrossOriginLive(base);
+        await expectTrustedProxy(base);
       } finally {
         await server.close();
       }
@@ -261,11 +273,14 @@ describe("embed: server-rendered routes from other sites", () => {
     "bun adapter",
     async () => {
       await adapt(dir, "bun");
-      const proc = Bun.spawn(["bun", join(dir, "dist/server.js")], { cwd: dir, env: { ...process.env, PORT: "0", HOSTNAME: "127.0.0.1" }, stdout: "pipe", stderr: "inherit" });
+      const { TRUST_PROXY: _proxy, TEXTJS_ORIGIN: _origin, ...env } = process.env;
+      const proc = Bun.spawn(["bun", join(dir, "dist/server.js")], { cwd: dir, env: { ...env, PORT: "0", HOSTNAME: "127.0.0.1" }, stdout: "pipe", stderr: "inherit" });
       try {
         const base = new URL(await waitForLine(proc.stdout, /ready on (http:\/\/\S+)/, 15_000)).origin;
         await expectAssetHeaders(base, hashedAsset(dir));
         await expectCrossOriginLive(base);
+        // Baked in from text.config.ts: no TRUST_PROXY in the environment.
+        await expectTrustedProxy(base);
       } finally {
         proc.kill();
         await proc.exited;
