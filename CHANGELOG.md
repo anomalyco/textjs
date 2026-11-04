@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- `@textjs/core`: the console driver checks whether the console font fits a glyph that may need a stand-in (eighth blocks, quadrants, braille, ▶, ✓ and similar) the first time that glyph appears, instead of measuring all of them on the first frame. Drivers that use the same font size and family share the results. A frame without those glyphs makes no stand-in measurements, so the first frame of textjs.org's home console takes 1.2 ms instead of 9.2 ms in headless Chromium on an M5 Pro Mac mini, and 4.8 ms instead of 38.4 ms with the CPU throttled 4×. On Windows 10, where Consolas lacks those glyphs, frames that use them get the same stand-ins as before, from the first frame.
+
 ## [1.5.0] - 2026-11-03
 
 ### Added

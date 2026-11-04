@@ -28,7 +28,7 @@ import {
 import { hasRtl, isRtlCodePoint, LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../bidi";
 import { LruCache } from "../text-measure";
 import { consoleProfile, inlineTypographyCss, type ConsoleBrowser, type ConsoleProfile } from "./console-browser";
-import { applyStandIns, measureStandIns, type GlyphStandIns } from "./stand-ins";
+import { CANDIDATE_RANGE, createStandInResolver, type StandInResolver } from "./stand-ins";
 
 /** Minimal console surface used by the driver; inject a fake for tests and benchmarks. */
 export interface ConsoleTarget {
@@ -100,7 +100,7 @@ export interface CssConsoleDriverOptions {
   /**
    * Measures text advance in CSS px with the console font, used to fit spans
    * of right-to-left text to the cell grid (see `fitRtlSpans`) and to find
-   * glyphs the font can't fit in a cell (see `measureStandIns`). Defaults
+   * glyphs the font can't fit in a cell (see `createStandInResolver`). Defaults
    * to a canvas measurer in browsers; `false` (and non-browser runtimes)
    * disable both.
    */
@@ -146,6 +146,10 @@ export function createCanvasMeasurer(fontFamily: string, fontSize: number): Text
     }
   };
 }
+
+/** Stand-ins per canvas-measured console font, shared by every driver on the page (oldest font dropped past the cap). */
+const fontStandIns = new Map<string, StandInResolver>();
+const FONT_STAND_INS_MAX = 16;
 
 export interface DriverRenderOptions {
   /** Emit the frame even when no row changed. */
@@ -339,7 +343,7 @@ export class CssConsoleDriver {
   private readonly measureOption: TextAdvanceMeasurer | false | undefined;
   private measurer: TextAdvanceMeasurer | null | undefined;
   private cellAdvance = 0;
-  private standIns: GlyphStandIns | null | undefined;
+  private standIns: StandInResolver | null | undefined;
   private readonly fitCache = new LruCache<string, string>(1024);
   private nextFitId = -2;
   private readonly blankScratch: EffectiveStyle = { fg: 0, bg: 0, flags: 0 };
@@ -496,6 +500,8 @@ export class CssConsoleDriver {
     let hasSpecial = false;
     let rtl = false;
     let rowRtl = false;
+    // A cell in U+2581–28FF, the block every glyph with a stand-in lies in.
+    let rowCandidates = false;
     let cells = 0;
 
     // Blank run waiting to see whether the next cell shares its background.
@@ -747,6 +753,7 @@ export class CssConsoleDriver {
           rtl = true;
           rowRtl = true;
         }
+        if (!rowCandidates && CANDIDATE_RANGE.test(g)) rowCandidates = true;
         text += g;
       } else if (c < 0x10000) {
         // Inline pre-filter (box drawing, CJK skip the call); U+200F RLM is the one R inside the gap.
@@ -755,6 +762,7 @@ export class CssConsoleDriver {
           rowRtl = true;
           hasSpecial = true;
         }
+        if (c >= 0x2581 && c <= 0x28ff) rowCandidates = true;
         text += String.fromCharCode(c);
       } else {
         if (isRtlCodePoint(c)) {
@@ -775,6 +783,7 @@ export class CssConsoleDriver {
           if (nc === 0x25 || nc === 0x3a || nc === 0x77 || nc === 0x57) hasSpecial = true;
           text += ASCII_CHARS[nc] as string;
         } else {
+          if (nc >= 0x2581 && nc <= 0x28ff) rowCandidates = true;
           text += String.fromCharCode(nc);
         }
       }
@@ -823,19 +832,33 @@ export class CssConsoleDriver {
         cells,
       });
     }
-    const standIns = this.standIns === undefined ? this.measureStandIns() : this.standIns;
-    if (standIns !== null) for (const span of spans) if (!span.blank) span.text = applyStandIns(span.text, standIns);
+    if (rowCandidates) {
+      const standIns = this.standIns === undefined ? this.resolveStandIns() : this.standIns;
+      if (standIns !== null) for (const span of spans) if (!span.blank) span.text = standIns.apply(span.text);
+    }
     if (!this.profile.inline) this.sealSpans(spans, after);
     if (rowRtl) this.fitRtlSpans(spans);
     return spans;
   }
 
-  /** Glyphs the console font can't fit in a cell, measured on the first row (see `measureStandIns`). */
-  private measureStandIns(): GlyphStandIns | null {
-    this._getCellAdvance();
-    const measure = this.measurer;
-    this.standIns = measure && this.cellAdvance > 0 ? measureStandIns(measure, this.cellAdvance) : null;
-    return this.standIns;
+  /**
+   * Glyphs the console font can't fit in a cell, measured as they first appear
+   * (see `createStandInResolver`). The canvas measurer's verdicts are shared
+   * per font size and family.
+   */
+  private resolveStandIns(): StandInResolver | null {
+    const m = this.measureOption;
+    if (m === false) return (this.standIns = null);
+    if (m !== undefined) return (this.standIns = createStandInResolver(() => m));
+    if (typeof OffscreenCanvas === "undefined" && typeof document === "undefined") return (this.standIns = null);
+    const { fontFamily, fontSize } = this.typography;
+    const key = `${fontSize}:${fontFamily}`;
+    let shared = fontStandIns.get(key);
+    if (shared === undefined) {
+      if (fontStandIns.size >= FONT_STAND_INS_MAX) fontStandIns.delete(fontStandIns.keys().next().value as string);
+      fontStandIns.set(key, (shared = createStandInResolver(() => createCanvasMeasurer(fontFamily, fontSize))));
+    }
+    return (this.standIns = shared);
   }
 
   /**
