@@ -157,6 +157,19 @@ for (const [name, act] of ways) {
   await context.close();
 }
 
+// Navigating to a pad in the page downloads the companion on idle too.
+{
+  const { context, page, chunks } = await open(DESKTOP, "/docs/routing");
+  await page.evaluate(() => {
+    history.pushState(null, "", "/playground");
+    dispatchEvent(new PopStateEvent("popstate"));
+  });
+  await page.waitForTimeout(2500);
+  check("desktop: a client-side navigation to /playground downloads the companion", chunks.includes("/assets/boot"), chunks.join(" "));
+  check("desktop: but doesn't boot it", (await frames(page)) === 0);
+  await context.close();
+}
+
 // Hovering a console surface downloads the companion without booting it.
 {
   const { context, page, chunks } = await open(DESKTOP, "/");
