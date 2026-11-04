@@ -272,9 +272,16 @@ describe("zero-jump input", () => {
   function fakeDocument() {
     const focusCalls: unknown[] = [];
     const attrs: Record<string, string> = {};
+    const props: Record<string, string> = {};
     const sink = {
       value: "",
-      style: { cssText: "" },
+      // Set through CSSOM, one property at a time (a strict `style-src` allows it).
+      style: {
+        props,
+        setProperty(name: string, value: string) {
+          props[name] = value;
+        },
+      },
       attrs,
       setAttribute(name: string, value: string) {
         attrs[name] = value;
@@ -301,7 +308,7 @@ describe("zero-jump input", () => {
   test("the sink is centered, focused with preventScroll and never receives printable text", () => {
     const { doc, sink, focusCalls } = fakeDocument();
     const engine = new InputEngine({ document: doc }).attach();
-    expect(sink.style.cssText).toContain("position:fixed;top:50%;left:50%;");
+    expect(sink.style.props).toMatchObject({ position: "fixed", top: "50%", left: "50%" });
     engine.focus();
     expect(focusCalls.length).toBe(2);
     expect(focusCalls.every((o) => (o as { preventScroll?: boolean }).preventScroll === true)).toBe(true);

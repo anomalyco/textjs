@@ -59,13 +59,13 @@ export async function startProductionServer(options: StartOptions): Promise<Star
   const outDir = resolve(opts.root, config.outDir ?? "dist");
   const indexFile = join(outDir, "index.html");
   // An embed build has `embed.js` and no pages of its own (unless `embed.standalone`).
-  const embedBuild = existsSync(join(outDir, META_DIR, EMBED_MANIFEST));
-  if (!existsSync(indexFile) && !embedBuild) {
+  const embedOnly = !existsSync(indexFile) && existsSync(join(outDir, META_DIR, EMBED_MANIFEST));
+  if (!existsSync(indexFile) && !embedOnly) {
     throw txError("TX017", config.outDir ?? "dist");
   }
   const basePath = normalizeBasePath(config.basePath);
-  // `text build --embed` doesn't change text.config.ts: its output turns the embed headers on too.
-  const embed = resolveEmbed(embedBuild && !config.embed ? { embed: true } : config);
+  // `text build --embed` leaves text.config.ts alone: an embed-only build is for other sites either way.
+  const embed = resolveEmbed(embedOnly && !config.embed ? { embed: true } : config);
   const rewrites = (typeof config.rewrites === "function" ? await config.rewrites() : (config.rewrites ?? [])).map(compileRewrite);
   const proxies = Object.entries(config.proxy ?? {}).map(([prefix, v]) => [prefix, typeof v === "string" ? { target: v } : v] as [string, ProxyTarget]);
 
