@@ -9,10 +9,10 @@
 ‏⁦Text.js⁩ یک فریم‌ورک React برای اپ‌هایی است که در کنسول مرورگر رندر می‌شوند.
 
 <!-- i18n:languages -->
-‏[⁨English⁩](../../README.md) · [⁨Bahasa Indonesia⁩](README.id.md) · [⁨Deutsch⁩](README.de.md) · [⁨Español⁩](README.es.md) · [⁨Français⁩](README.fr.md) · [⁨Italiano⁩](README.it.md) · [⁨Polski⁩](README.pl.md) · [⁨Português (Brasil)⁩](README.pt-BR.md) · [⁨Tiếng Việt⁩](README.vi.md) · [⁨Türkçe⁩](README.tr.md) · [⁨Русский⁩](README.ru.md) · [⁨हिन्दी⁩](README.hi.md) · [⁨日本語⁩](README.ja.md) · [⁨한국어⁩](README.ko.md) · [⁨简体中文⁩](README.zh-CN.md) · [⁨繁體中文⁩](README.zh-TW.md) · فارسی
+‏[⁨English⁩](../../README.md) · [⁨Bahasa Indonesia⁩](README.id.md) · [⁨Deutsch⁩](README.de.md) · [⁨Español⁩](README.es.md) · [⁨Français⁩](README.fr.md) · [⁨Italiano⁩](README.it.md) · [⁨Polski⁩](README.pl.md) · [⁨Português (Brasil)⁩](README.pt-BR.md) · [⁨Tiếng Việt⁩](README.vi.md) · [⁨Türkçe⁩](README.tr.md) · [⁨Русский⁩](README.ru.md) · [⁨हिन्दी⁩](README.hi.md) · [⁨日本語⁩](README.ja.md) · [⁨한국어⁩](README.ko.md) · [⁨简体中文⁩](README.zh-CN.md) · [⁨繁體中文⁩](README.zh-TW.md) · [العربية](README.ar.md) · [עברית](README.he.md) · فارسی · [اردو](README.ur.md)
 <!-- /i18n:languages -->
 
-[مستندات](https://textjs.org/docs) · [آموزش](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
+[مستندات](https://textjs.org/fa/docs) · [آموزش](https://textjs.org/fa/learn) · [Playground](https://textjs.org/fa/playground) · [OpenCode](https://textjs.org/fa/opencode)
 
 <img src="../../brand/share/2-console-frame.png" alt="A Text.js app rendered in the Chrome DevTools console" width="720" />
 
@@ -29,7 +29,7 @@ cd my-app && bun install && bun dev
 
 <div dir="rtl">
 
-‏[⁦localhost⁩:3000](http://localhost:3000) را باز کنید و [کنسول مرورگر را باز کنید](https://textjs.org/docs/installation#open-the-console). Text.js به ⁦Bun 1.2+⁩ یا ⁦Node.js 22+⁩ و یکی از مرورگرهای Chrome، Edge، Firefox یا Safari روی رایانهٔ رومیزی نیاز دارد.
+‏[⁦localhost⁩:3000](http://localhost:3000) را باز کنید و [کنسول مرورگر را باز کنید](https://textjs.org/fa/docs/installation#open-the-console). Text.js به ⁦Bun 1.2+⁩ یا ⁦Node.js 22+⁩ و یکی از مرورگرهای Chrome، Edge، Firefox یا Safari روی رایانهٔ رومیزی نیاز دارد.
 
 ## مثال
 
@@ -75,8 +75,8 @@ export default function Page() {
 
 افزونه‌های ویرایشگر و مرورگر هم در اینجا قرار دارند:
 
-- ‏[⁦`packages/vscode-textjs`⁩](../../packages/vscode-textjs): [افزونهٔ ⁦VS Code⁩](https://textjs.org/docs/vscode)، با پیش‌نمایش زنده، ساخت اسکلت ⁦App Router⁩ و پیوندهای کد خطا
-- ‏[⁦`packages/devtools-extension`⁩](../../packages/devtools-extension): [افزونهٔ ⁦Chrome DevTools⁩](https://textjs.org/docs/devtools-extension)، با درخت کامپوننت‌ها، بازرس فریم و خط زمانی
+- ‏[⁦`packages/vscode-textjs`⁩](../../packages/vscode-textjs): [افزونهٔ ⁦VS Code⁩](https://textjs.org/fa/docs/vscode)، با پیش‌نمایش زنده، ساخت اسکلت ⁦App Router⁩ و پیوندهای کد خطا
+- ‏[⁦`packages/devtools-extension`⁩](../../packages/devtools-extension): [افزونهٔ ⁦Chrome DevTools⁩](https://textjs.org/fa/docs/devtools-extension)، با درخت کامپوننت‌ها، بازرس فریم و خط زمانی
 
 ## توسعه
 

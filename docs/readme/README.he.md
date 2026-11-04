@@ -9,10 +9,10 @@
 ‏⁦Text.js⁩ הוא פריימוורק React לאפליקציות שמרנדרות במסוף הדפדפן.
 
 <!-- i18n:languages -->
-‏[⁨English⁩](../../README.md) · [⁨Bahasa Indonesia⁩](README.id.md) · [⁨Deutsch⁩](README.de.md) · [⁨Español⁩](README.es.md) · [⁨Français⁩](README.fr.md) · [⁨Italiano⁩](README.it.md) · [⁨Polski⁩](README.pl.md) · [⁨Português (Brasil)⁩](README.pt-BR.md) · [⁨Tiếng Việt⁩](README.vi.md) · [⁨Türkçe⁩](README.tr.md) · [⁨Русский⁩](README.ru.md) · [⁨हिन्दी⁩](README.hi.md) · [⁨日本語⁩](README.ja.md) · [⁨한국어⁩](README.ko.md) · [⁨简体中文⁩](README.zh-CN.md) · [⁨繁體中文⁩](README.zh-TW.md) · עברית
+‏[⁨English⁩](../../README.md) · [⁨Bahasa Indonesia⁩](README.id.md) · [⁨Deutsch⁩](README.de.md) · [⁨Español⁩](README.es.md) · [⁨Français⁩](README.fr.md) · [⁨Italiano⁩](README.it.md) · [⁨Polski⁩](README.pl.md) · [⁨Português (Brasil)⁩](README.pt-BR.md) · [⁨Tiếng Việt⁩](README.vi.md) · [⁨Türkçe⁩](README.tr.md) · [⁨Русский⁩](README.ru.md) · [⁨हिन्दी⁩](README.hi.md) · [⁨日本語⁩](README.ja.md) · [⁨한국어⁩](README.ko.md) · [⁨简体中文⁩](README.zh-CN.md) · [⁨繁體中文⁩](README.zh-TW.md) · [العربية](README.ar.md) · עברית · [فارسی](README.fa.md) · [اردو](README.ur.md)
 <!-- /i18n:languages -->
 
-[תיעוד](https://textjs.org/docs) · [למידה](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
+[תיעוד](https://textjs.org/he/docs) · [למידה](https://textjs.org/he/learn) · [Playground](https://textjs.org/he/playground) · [OpenCode](https://textjs.org/he/opencode)
 
 <img src="../../brand/share/2-console-frame.png" alt="A Text.js app rendered in the Chrome DevTools console" width="720" />
 
@@ -29,7 +29,7 @@ cd my-app && bun install && bun dev
 
 <div dir="rtl">
 
-יש לפתוח את [localhost:3000](http://localhost:3000) ו[לפתוח את מסוף הדפדפן](https://textjs.org/docs/installation#open-the-console). Text.js דורש ⁦Bun 1.2+⁩ או ⁦Node.js 22+⁩ ואת Chrome, Edge, Firefox או Safari במחשב שולחני.
+יש לפתוח את [localhost:3000](http://localhost:3000) ו[לפתוח את מסוף הדפדפן](https://textjs.org/he/docs/installation#open-the-console). Text.js דורש ⁦Bun 1.2+⁩ או ⁦Node.js 22+⁩ ואת Chrome, Edge, Firefox או Safari במחשב שולחני.
 
 ## דוגמה
 
@@ -75,8 +75,8 @@ export default function Page() {
 
 גם ההרחבות לעורך ולדפדפן נמצאות כאן:
 
-- ‏[⁦`packages/vscode-textjs`⁩](../../packages/vscode-textjs): [ההרחבה ל-⁦VS Code⁩](https://textjs.org/docs/vscode), עם תצוגה מקדימה חיה, יצירת שלד ⁦App Router⁩ וקישורים לקודי שגיאה
-- ‏[⁦`packages/devtools-extension`⁩](../../packages/devtools-extension): [ההרחבה ל-⁦Chrome DevTools⁩](https://textjs.org/docs/devtools-extension), עם עץ רכיבים, כלי לבדיקת פריימים וציר זמן
+- ‏[⁦`packages/vscode-textjs`⁩](../../packages/vscode-textjs): [ההרחבה ל-⁦VS Code⁩](https://textjs.org/he/docs/vscode), עם תצוגה מקדימה חיה, יצירת שלד ⁦App Router⁩ וקישורים לקודי שגיאה
+- ‏[⁦`packages/devtools-extension`⁩](../../packages/devtools-extension): [ההרחבה ל-⁦Chrome DevTools⁩](https://textjs.org/he/docs/devtools-extension), עם עץ רכיבים, כלי לבדיקת פריימים וציר זמן
 
 ## פיתוח
 

@@ -9,10 +9,10 @@
 ‏⁦Text.js⁩ ان ایپس کے لیے React کا فریم ورک ہے جو براؤزر کونسول میں رینڈر ہوتی ہیں۔
 
 <!-- i18n:languages -->
-‏[⁨English⁩](../../README.md) · [⁨Bahasa Indonesia⁩](README.id.md) · [⁨Deutsch⁩](README.de.md) · [⁨Español⁩](README.es.md) · [⁨Français⁩](README.fr.md) · [⁨Italiano⁩](README.it.md) · [⁨Polski⁩](README.pl.md) · [⁨Português (Brasil)⁩](README.pt-BR.md) · [⁨Tiếng Việt⁩](README.vi.md) · [⁨Türkçe⁩](README.tr.md) · [⁨Русский⁩](README.ru.md) · [⁨हिन्दी⁩](README.hi.md) · [⁨日本語⁩](README.ja.md) · [⁨한국어⁩](README.ko.md) · [⁨简体中文⁩](README.zh-CN.md) · [⁨繁體中文⁩](README.zh-TW.md) · اردو
+‏[⁨English⁩](../../README.md) · [⁨Bahasa Indonesia⁩](README.id.md) · [⁨Deutsch⁩](README.de.md) · [⁨Español⁩](README.es.md) · [⁨Français⁩](README.fr.md) · [⁨Italiano⁩](README.it.md) · [⁨Polski⁩](README.pl.md) · [⁨Português (Brasil)⁩](README.pt-BR.md) · [⁨Tiếng Việt⁩](README.vi.md) · [⁨Türkçe⁩](README.tr.md) · [⁨Русский⁩](README.ru.md) · [⁨हिन्दी⁩](README.hi.md) · [⁨日本語⁩](README.ja.md) · [⁨한국어⁩](README.ko.md) · [⁨简体中文⁩](README.zh-CN.md) · [⁨繁體中文⁩](README.zh-TW.md) · [العربية](README.ar.md) · [עברית](README.he.md) · [فارسی](README.fa.md) · اردو
 <!-- /i18n:languages -->
 
-[دستاویزات](https://textjs.org/docs) · [سیکھیں](https://textjs.org/learn) · [Playground](https://textjs.org/playground) · [OpenCode](https://textjs.org/opencode)
+[دستاویزات](https://textjs.org/ur/docs) · [سیکھیں](https://textjs.org/ur/learn) · [Playground](https://textjs.org/ur/playground) · [OpenCode](https://textjs.org/ur/opencode)
 
 <img src="../../brand/share/2-console-frame.png" alt="A Text.js app rendered in the Chrome DevTools console" width="720" />
 
@@ -29,7 +29,7 @@ cd my-app && bun install && bun dev
 
 <div dir="rtl">
 
-‏[⁦localhost⁩:3000](http://localhost:3000) کھولیں اور [براؤزر کونسول کھولیں](https://textjs.org/docs/installation#open-the-console)۔ Text.js کے لیے ⁦Bun 1.2+⁩ یا ⁦Node.js 22+⁩ اور ڈیسک ٹاپ پر Chrome، Edge، Firefox یا Safari درکار ہے۔
+‏[⁦localhost⁩:3000](http://localhost:3000) کھولیں اور [براؤزر کونسول کھولیں](https://textjs.org/ur/docs/installation#open-the-console)۔ Text.js کے لیے ⁦Bun 1.2+⁩ یا ⁦Node.js 22+⁩ اور ڈیسک ٹاپ پر Chrome، Edge، Firefox یا Safari درکار ہے۔
 
 ## مثال
 
@@ -75,8 +75,8 @@ export default function Page() {
 
 ایڈیٹر اور براؤزر کی ایکسٹینشنز بھی یہیں ہیں:
 
-- ‏[⁦`packages/vscode-textjs`⁩](../../packages/vscode-textjs): [⁦VS Code⁩ ایکسٹینشن](https://textjs.org/docs/vscode)، لائیو پری ویو، ⁦App Router⁩ اسکیفولڈنگ اور ایرر کوڈ لنکس کے ساتھ
-- ‏[⁦`packages/devtools-extension`⁩](../../packages/devtools-extension): [⁦Chrome DevTools⁩ ایکسٹینشن](https://textjs.org/docs/devtools-extension)، کمپوننٹ ٹری، فریم انسپکٹر اور ٹائم لائن کے ساتھ
+- ‏[⁦`packages/vscode-textjs`⁩](../../packages/vscode-textjs): [⁦VS Code⁩ ایکسٹینشن](https://textjs.org/ur/docs/vscode)، لائیو پری ویو، ⁦App Router⁩ اسکیفولڈنگ اور ایرر کوڈ لنکس کے ساتھ
+- ‏[⁦`packages/devtools-extension`⁩](../../packages/devtools-extension): [⁦Chrome DevTools⁩ ایکسٹینشن](https://textjs.org/ur/docs/devtools-extension)، کمپوننٹ ٹری، فریم انسپکٹر اور ٹائم لائن کے ساتھ
 
 ## ڈیولپمنٹ
 
