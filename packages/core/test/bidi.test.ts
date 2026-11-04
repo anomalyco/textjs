@@ -2,9 +2,11 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import {
   applyLineRules,
   ATTR_BOLD,
+  BIDI_AL,
   BIDI_AN,
   BIDI_L,
   BIDI_NSM,
+  BIDI_R,
   bidiClass,
   CellBuffer,
   createCanvasMeasurer,
@@ -12,6 +14,7 @@ import {
   drawLogicalText,
   hasRtl,
   initYoga,
+  isRtlCodePoint,
   joiningType,
   paintScene,
   paragraphDirection,
@@ -28,6 +31,7 @@ import {
   type SceneNodeProps,
   visualizeLine,
 } from "../src/index";
+import { RTL_RANGES } from "../src/rtl-data";
 import { box, text } from "./fixtures";
 
 beforeAll(async () => {
@@ -500,5 +504,44 @@ describe("drivers pin visual order", () => {
     expect(hasRtl("a ש")).toBe(true);
     expect(hasRtl("٣")).toBe(true);
     expect(hasRtl("𐤀")).toBe(true);
+    // Neutrals, marks and European digits inside RTL blocks: no strong right-to-left character.
+    expect(hasRtl("Chrome، Edge")).toBe(false);
+    expect(hasRtl("۱۲۳")).toBe(false);
+    expect(hasRtl("\u05B0")).toBe(false);
+    expect(hasRtl("\uD802")).toBe(false);
+  });
+
+  test("left-to-right, CJK and TUI text never decodes the right-to-left ranges", async () => {
+    const split = String.prototype.split;
+    let decodes = 0;
+    String.prototype.split = function (this: string, ...args: Parameters<typeof split>) {
+      if (this === RTL_RANGES) decodes++;
+      return split.apply(this, args);
+    } as typeof split;
+    try {
+      // A fresh copy of the module, with its table not yet decoded.
+      const fresh = "../src/rtl.ts?ltr-only";
+      const rtl = (await import(fresh)) as typeof import("../src/rtl");
+      for (const s of ["hello, мир", "─│╭╮╰╯┼", "█▀▄▌▐░▒▓", "⣿⠿▁▂▃▅▇", "↑↓←→▼▲►◄✓", "日本語のテキスト", "한국어", "हिन्दी", "😀👨‍👩‍👧"]) {
+        expect(rtl.hasRtl(s)).toBe(false);
+        for (const ch of s) expect(rtl.isRtlCodePoint(ch.codePointAt(0) as number)).toBe(false);
+      }
+      expect(decodes).toBe(0);
+      expect(rtl.hasRtl("שלום")).toBe(true);
+      expect(decodes).toBe(1);
+    } finally {
+      String.prototype.split = split;
+    }
+  });
+
+  test("isRtlCodePoint and hasRtl match the Bidi_Class table on every code point", () => {
+    const misses: string[] = [];
+    for (let cp = 0; cp <= 0x10ffff; cp++) {
+      const c = bidiClass(cp);
+      const rtl = c === BIDI_R || c === BIDI_AL || c === BIDI_AN;
+      if (isRtlCodePoint(cp) !== rtl) misses.push(cp.toString(16));
+      else if (!(cp >= 0xd800 && cp <= 0xdfff) && hasRtl(String.fromCodePoint(cp)) !== rtl) misses.push(cp.toString(16));
+    }
+    expect(misses).toEqual([]);
   });
 });
