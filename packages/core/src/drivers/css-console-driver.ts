@@ -147,8 +147,9 @@ export function createCanvasMeasurer(fontFamily: string, fontSize: number): Text
   };
 }
 
-/** Stand-ins per canvas-measured console font, shared by every driver on the page. */
+/** Stand-ins per canvas-measured console font, shared by every driver on the page (oldest font dropped past the cap). */
 const fontStandIns = new Map<string, StandInResolver>();
+const FONT_STAND_INS_MAX = 16;
 
 export interface DriverRenderOptions {
   /** Emit the frame even when no row changed. */
@@ -849,10 +850,14 @@ export class CssConsoleDriver {
     const m = this.measureOption;
     if (m === false) return (this.standIns = null);
     if (m !== undefined) return (this.standIns = createStandInResolver(() => m));
+    if (typeof OffscreenCanvas === "undefined" && typeof document === "undefined") return (this.standIns = null);
     const { fontFamily, fontSize } = this.typography;
     const key = `${fontSize}:${fontFamily}`;
     let shared = fontStandIns.get(key);
-    if (shared === undefined) fontStandIns.set(key, (shared = createStandInResolver(() => createCanvasMeasurer(fontFamily, fontSize))));
+    if (shared === undefined) {
+      if (fontStandIns.size >= FONT_STAND_INS_MAX) fontStandIns.delete(fontStandIns.keys().next().value as string);
+      fontStandIns.set(key, (shared = createStandInResolver(() => createCanvasMeasurer(fontFamily, fontSize))));
+    }
     return (this.standIns = shared);
   }
 

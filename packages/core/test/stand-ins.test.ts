@@ -161,57 +161,90 @@ describe("CssConsoleDriver stand-ins", () => {
     expect(con.last.args).toEqual(raw.last.args);
   });
 
-  test("the canvas measurer's verdicts are shared per font size and family", () => {
-    const g = globalThis as { OffscreenCanvas?: unknown };
-    const saved = g.OffscreenCanvas;
-    let canvases = 0;
-    const calls: string[] = [];
+  /** Runs `fn` with `OffscreenCanvas` measuring Consolas (or with no canvas and no `document`), counting canvases and calls. */
+  function withCanvas(canvas: boolean, fn: (log: { canvases: number; calls: string[] }) => void): void {
+    const g = globalThis as { OffscreenCanvas?: unknown; document?: unknown };
+    const saved = { OffscreenCanvas: g.OffscreenCanvas, document: g.document };
+    const log = { canvases: 0, calls: [] as string[] };
     try {
-      g.OffscreenCanvas = class {
-        getContext() {
-          canvases++;
-          let font = "";
-          return {
-            get font() {
-              return font;
-            },
-            set font(v: string) {
-              font = v;
-            },
-            measureText: (t: string) => (calls.push(`${font}|${t}`), { width: consolas(t) * (parseFloat(font) / 12) }),
-          };
-        }
-      };
-      const sparkline = new CellBuffer(8, 1);
-      sparkline.drawText(0, 0, "▁▃▅▇ ✓", 0x22c55eff, 0);
+      delete g.document;
+      g.OffscreenCanvas = canvas
+        ? class {
+            getContext() {
+              log.canvases++;
+              let font = "";
+              return {
+                get font() {
+                  return font;
+                },
+                set font(v: string) {
+                  font = v;
+                },
+                measureText: (t: string) => (log.calls.push(`${font}|${t}`), { width: consolas(t) * (parseFloat(font) / 12) }),
+              };
+            }
+          }
+        : undefined;
+      fn(log);
+    } finally {
+      g.OffscreenCanvas = saved.OffscreenCanvas;
+      if (saved.document !== undefined) g.document = saved.document;
+    }
+  }
+
+  const sparkline = new CellBuffer(8, 1);
+  sparkline.drawText(0, 0, "▁▃▅▇ ✓", 0x22c55eff, 0);
+  const frame = (typography: { fontFamily: string; fontSize: number }, buf = sparkline) => {
+    const con = new FakeConsole();
+    new CssConsoleDriver({ console: con, typography }).render(buf);
+    return con.last.format.replaceAll("%c", "");
+  };
+
+  test("the canvas measurer's verdicts are shared per font size and family", () => {
+    withCanvas(true, (log) => {
+      const { calls } = log;
       const plain = new CellBuffer(8, 1);
       plain.drawText(0, 0, "█▀▄ ok", 0x22c55eff, 0);
-      const frame = (typography: { fontFamily: string; fontSize: number }, buf: CellBuffer) => {
-        const con = new FakeConsole();
-        new CssConsoleDriver({ console: con, typography }).render(buf);
-        return con.last.format.replaceAll("%c", "");
-      };
       const font = { fontFamily: "StandInTest, monospace", fontSize: 12 };
 
       expect(frame(font, plain)).toStartWith("█▀▄ ok");
-      expect([canvases, calls.length]).toEqual([0, 0]);
+      expect([log.canvases, calls.length]).toEqual([0, 0]);
 
-      expect(frame(font, sparkline)).toStartWith("_▄▄█ √");
+      expect(frame(font)).toStartWith("_▄▄█ √");
       const first = calls.length;
       expect(first).toBeGreaterThan(0);
       expect(calls.every((c) => c.startsWith("12px StandInTest, monospace|"))).toBe(true);
-      expect(frame(font, sparkline)).toStartWith("_▄▄█ √");
-      expect([canvases, calls.length]).toEqual([1, first]);
+      expect(frame(font)).toStartWith("_▄▄█ √");
+      expect([log.canvases, calls.length]).toEqual([1, first]);
 
-      expect(frame({ ...font, fontSize: 14 }, sparkline)).toStartWith("_▄▄█ √");
+      expect(frame({ ...font, fontSize: 14 })).toStartWith("_▄▄█ √");
       expect(calls.slice(first).every((c) => c.startsWith("14px StandInTest, monospace|"))).toBe(true);
       const second = calls.length;
       expect(second).toBeGreaterThan(first);
-      expect(frame({ ...font, fontFamily: "OtherStandInTest" }, sparkline)).toStartWith("_▄▄█ √");
+      expect(frame({ ...font, fontFamily: "OtherStandInTest" })).toStartWith("_▄▄█ √");
       expect(calls.slice(second).every((c) => c.startsWith("12px OtherStandInTest|"))).toBe(true);
-      expect(canvases).toBe(3);
-    } finally {
-      g.OffscreenCanvas = saved;
-    }
+      expect(log.canvases).toBe(3);
+    });
+  });
+
+  test("without a canvas nothing is cached, so a canvas installed later still measures", () => {
+    const font = { fontFamily: "NoCanvasTest", fontSize: 12 };
+    withCanvas(false, () => expect(frame(font)).toStartWith("▁▃▅▇ ✓"));
+    withCanvas(true, (log) => {
+      expect(frame(font)).toStartWith("_▄▄█ √");
+      expect(log.calls.length).toBeGreaterThan(0);
+    });
+  });
+
+  test("at most 16 fonts are cached, oldest dropped first", () => {
+    withCanvas(true, (log) => {
+      const font = (size: number) => ({ fontFamily: "CapTest", fontSize: size });
+      for (let size = 101; size <= 117; size++) frame(font(size));
+      const measured = log.calls.length;
+      for (let size = 102; size <= 117; size++) frame(font(size));
+      expect(log.calls.length).toBe(measured);
+      frame(font(101));
+      expect(log.calls.length).toBeGreaterThan(measured);
+    });
   });
 });
