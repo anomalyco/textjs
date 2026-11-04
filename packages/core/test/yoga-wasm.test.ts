@@ -114,7 +114,7 @@ describe("yoga.wasm", () => {
 describe("zero-config bundles use the inline copy", () => {
   let dir = "";
   beforeAll(() => {
-    dir = realpathSync(mkdtempSync(join(tmpdir(), "textjs-yoga-bundle-")));
+    dir = realpathSync.native(mkdtempSync(join(tmpdir(), "textjs-yoga-bundle-")));
     writeFileSync(
       join(dir, "entry.ts"),
       `import { createYogaNode, initYoga } from ${JSON.stringify(join(CORE, "src/index.ts"))};
@@ -157,7 +157,7 @@ export async function width(): Promise<number> {
 describe("plain Vite, without the Text.js plugin", () => {
   let dir = "";
   beforeAll(() => {
-    dir = realpathSync(mkdtempSync(join(tmpdir(), "textjs-yoga-vite-")));
+    dir = realpathSync.native(mkdtempSync(join(tmpdir(), "textjs-yoga-vite-")));
     mkdirSync(join(dir, "node_modules/@textjs"), { recursive: true });
     symlinkSync(CORE, join(dir, "node_modules/@textjs/core"));
     writeFileSync(join(dir, "index.html"), `<!doctype html><script type="module" src="/main.ts"></script>`);
