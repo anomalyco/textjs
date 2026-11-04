@@ -64,6 +64,7 @@
 }
 :root:lang(he) {
   --sans: "Geist", "Geist Fallback", "SF Hebrew", "Arial Hebrew", "Segoe UI", "Noto Sans Hebrew", sans-serif;
+  --mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "SF Hebrew", "Arial Hebrew", "Segoe UI", "Noto Sans Hebrew", monospace;
 }
 :root:lang(hi) {
   --sans: "Geist", "Geist Fallback", "Kohinoor Devanagari", "Devanagari Sangam MN", "Nirmala UI", "Noto Sans Devanagari", sans-serif;
