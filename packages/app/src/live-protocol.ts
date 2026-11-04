@@ -59,8 +59,8 @@ export type LiveServerMessage =
   | LiveFrame
   /** The app navigated: mirror it into the address bar. */
   | { t: "url"; href: string; replace?: boolean }
-  /** The app went back / forward (`router.back()`): move the browser's history by `delta`. */
-  | { t: "go"; delta: number }
+  /** The app went back / forward (`router.back()`) to `href`: move the browser's history by `delta`. */
+  | { t: "go"; delta: number; href?: string }
   | { t: "title"; title: string }
   /** The bar over the console frame's last row (the focus hint), or `null` to remove it. */
   | { t: "banner"; banner: LiveBanner | null }

@@ -4,19 +4,20 @@ import { afterEach, describe, expect, jest, test } from "bun:test";
 import { createServer, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { EventEmitter } from "node:events";
-import { act, Suspense, useState, type ReactNode } from "react";
-import { ATTR_BOLD, ATTR_UNDERLINE, CellBuffer, initYoga } from "@textjs/core";
+import { act, Suspense, useEffect, useState, type ReactNode } from "react";
+import { ATTR_BOLD, ATTR_UNDERLINE, CellBuffer, initYoga, InputEngine } from "@textjs/core";
 import { drawPixels } from "@textjs/core/experimental";
-import { Box, Image, Text, useInput } from "@textjs/react";
+import { Box, Image, Text, useInput, useInterval } from "@textjs/react";
 import { useRouter } from "../src/navigation";
 import { AppRouter, createMemoryHistory, type RouteManifest } from "../src/router";
-import { FramePlayerCore, safeHref } from "../src/live-player";
+import { bootFramePlayer, FramePlayerCore, safeHref } from "../src/live-player";
 import { LiveFrameDecoder, LiveFrameEncoder, LIVE_PATH, LIVE_SESSION_HEADER, parseLiveInput, type LiveFrame, type LiveServerMessage } from "../src/live-protocol";
 import { LiveServer, LiveSession, isSameOriginRequest } from "../src/server/live";
-import { createLiveApp, isServerPage, prerenderAnsi, prerenderShell, routeRuntime, type LiveApp } from "../src/server/live-app";
-import { injectShell, shellPath, shellScript } from "../src/server/ppr";
+import { createLiveApp, isServerPage, prerenderAnsi, prerenderShell, routeRuntime, type LiveApp, type ShellCall } from "../src/server/live-app";
+import { compileShellCalls, createShellReplayCode, injectShell, shellPath, shellScript } from "../src/server/ppr";
 import { serverComponent, stableKey, ServerComponentCache } from "../src/server/server-components";
 import { createTestRoot, FakeConsole, withoutActEnvironment } from "./helpers";
+import { spawnLiveServer } from "./live-server-fixture";
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -751,6 +752,172 @@ describe("frame player pacing", () => {
   });
 });
 
+describe("frame player boot options", () => {
+  /** A host page on another origin: anything the player touches on it is recorded. Restore with `restore()`. */
+  function hostPage() {
+    const touched: string[] = [];
+    const touch = (name: string) => () => void touched.push(name);
+    // Live listeners by target and type.
+    const listeners = new Map<string, number>();
+    const on = (target: string) => ({
+      addEventListener: (type: string) => void listeners.set(`${target}:${type}`, (listeners.get(`${target}:${type}`) ?? 0) + 1),
+      removeEventListener: (type: string) => {
+        const n = listeners.get(`${target}:${type}`) ?? 0;
+        if (n <= 1) listeners.delete(`${target}:${type}`);
+        else listeners.set(`${target}:${type}`, n - 1);
+      },
+    });
+    const doc = {
+      title: "Acme",
+      visibilityState: "visible",
+      hasFocus: () => true,
+      ...on("document"),
+      documentElement: { dataset: {} as Record<string, string> },
+      querySelector: touch("querySelector"),
+    };
+    const win: Record<string, unknown> = { ...on("window") };
+    const stubs: Record<string, unknown> = {
+      window: win,
+      document: doc,
+      location: { pathname: "/pricing", search: "", hash: "", href: "https://acme.example/pricing", assign: touch("location.assign") },
+      history: { state: null, replaceState: touch("replaceState"), pushState: touch("pushState"), go: touch("history.go") },
+      sessionStorage: { getItem: touch("sessionStorage"), setItem: touch("sessionStorage"), removeItem: touch("sessionStorage") },
+    };
+    const g = globalThis as unknown as Record<string, unknown>;
+    const saved = Object.fromEntries(Object.keys(stubs).map((k) => [k, g[k]]));
+    const realFetch = globalThis.fetch;
+    const fetches: Array<{ url: string; credentials?: RequestCredentials }> = [];
+    globalThis.fetch = ((url: string, init?: RequestInit) => {
+      fetches.push({ url: String(url), credentials: init?.credentials });
+      return realFetch(url, init);
+    }) as typeof fetch;
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    const clear = jest.spyOn(console, "clear").mockImplementation(() => undefined);
+    const error = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    Object.assign(g, stubs);
+    return {
+      doc,
+      win,
+      touched,
+      listeners,
+      fetches,
+      error,
+      realFetch,
+      restore() {
+        for (const [k, v] of Object.entries(saved)) {
+          if (v === undefined) delete g[k];
+          else g[k] = v;
+        }
+        globalThis.fetch = realFetch;
+        log.mockRestore();
+        clear.mockRestore();
+        error.mockRestore();
+      },
+    };
+  }
+
+  const keyEvent = (k: string) => ({ type: "key", key: k, input: k, ctrl: false, alt: false, shift: false, meta: false }) as never;
+
+  test("streams from another endpoint with the given credentials and input, and leaves the page alone", async () => {
+    // The server runs in its own process: rendering here would see the browser globals stubbed below.
+    const server = await spawnLiveServer();
+    const { origin, lines } = server;
+    const endpoint = `${origin}${LIVE_PATH}`;
+    const host = hostPage();
+    const engine = new InputEngine({ document: null });
+    const attach = jest.spyOn(engine, "attach");
+    const detach = jest.spyOn(engine, "detach");
+    const player = bootFramePlayer({
+      basePath: "",
+      endpoint,
+      credentials: "include",
+      input: engine,
+      path: "/",
+      syncDocument: false,
+      registerGlobal: false,
+      viewport: { width: 40, height: 8, responsive: false },
+    });
+    const screen = (): string => player.core.buffer.toPlainString();
+    const key = (k: string): void => engine.emit("key", keyEvent(k));
+    const streams = (): string[] => lines.filter((l) => l.startsWith(`request GET ${LIVE_PATH}?`));
+    /** Drop every connection; the player resumes the session with a new stream. Returns the `path` it asked for. */
+    const drop = async (): Promise<string | null> => {
+      const before = streams().length;
+      await host.realFetch(`${origin}/__drop`).catch(() => undefined);
+      await until(() => streams().length > before, 10_000);
+      return new URLSearchParams(streams().at(-1)?.split("?")[1]).get("path");
+    };
+    try {
+      await until(() => screen().includes("count 0"), 10_000);
+      expect(new URLSearchParams(streams()[0]?.split("?")[1]).get("path")).toBe("/");
+      key("+");
+      await until(() => screen().includes("count 1"));
+      // Server-side navigation sends `url` and `title`: the session moves, the page doesn't.
+      key("o");
+      await until(() => screen().includes("other server page"));
+      // A dropped stream resumes where the session is, not where the page is.
+      expect(await drop()).toBe("/other");
+      // `router.back()` sends `go` (with the href it landed on), never touching the page's history.
+      key("b");
+      await until(() => screen().includes("count 0"));
+      expect(await drop()).toBe("/");
+
+      expect(host.fetches.length).toBeGreaterThan(3);
+      expect(host.fetches.every((f) => f.url.startsWith(endpoint) && f.credentials === "include")).toBe(true);
+      expect(lines.some((l) => l.startsWith(`request POST ${LIVE_PATH}`))).toBe(true);
+      expect(host.touched).toEqual([]);
+      expect(host.doc.title).toBe("Acme");
+      expect(host.doc.documentElement.dataset).toEqual({});
+      expect(host.listeners.has("window:popstate")).toBe(false);
+      expect("text" in host.win).toBe(false);
+      player.dispose();
+      // The caller's engine stays the caller's: never attached to (or detached from) the page.
+      expect(attach).not.toHaveBeenCalled();
+      expect(detach).not.toHaveBeenCalled();
+    } finally {
+      player.dispose();
+      host.restore();
+      await server.close();
+    }
+  }, 30_000);
+
+  test("a route that needs a page load stops the player and releases everything it attached", async () => {
+    const server = await spawnLiveServer();
+    const host = hostPage();
+    const engine = new InputEngine({ document: null });
+    const player = bootFramePlayer({
+      basePath: "",
+      endpoint: `${server.origin}${LIVE_PATH}`,
+      input: engine,
+      path: "/",
+      syncDocument: false,
+      registerGlobal: "acmeConsole",
+      viewport: { width: 40, height: 8, responsive: false },
+    });
+    try {
+      expect(typeof host.win.acmeConsole).toBe("object");
+      expect(host.listeners.get("document:visibilitychange")).toBe(1);
+      await until(() => player.core.buffer.toPlainString().includes("count 0"), 10_000);
+      // `/client` renders on the client: the server asks for a document load, which an embed can't do.
+      engine.emit("key", keyEvent("c"));
+      await until(() => host.error.mock.calls.length > 0);
+      expect(String(host.error.mock.calls[0]?.[0])).toContain("/client");
+      expect(host.touched).toEqual([]);
+      expect(host.listeners.size).toBe(0);
+      expect("acmeConsole" in host.win).toBe(false);
+      // Input after the stop goes nowhere.
+      const sent = host.fetches.length;
+      engine.emit("key", keyEvent("+"));
+      await sleep(50);
+      expect(host.fetches.length).toBe(sent);
+    } finally {
+      player.dispose();
+      host.restore();
+      await server.close();
+    }
+  }, 30_000);
+});
+
 describe("partial prerendering", () => {
   test("the shell is the first frame with Suspense fallbacks, replayed by an inline script", async () => {
     const calls = await withoutActEnvironment(() => prerenderShell({ routes: routes(), path: "/async", cols: 30, rows: 6 }));
@@ -832,6 +999,125 @@ describe("partial prerendering", () => {
       Promise.prototype.then = then;
     }
     expect(Math.max(...listeners.values())).toBeLessThan(10);
+  });
+
+  test("initialClear: false keeps what the page logged earlier, and the replay runs on any page", async () => {
+    const calls = await withoutActEnvironment(() => prerenderShell({ routes: routes(), path: "/other", cols: 30, rows: 6, initialClear: false }));
+    expect(calls.map((c) => c.method)).toEqual(["log"]);
+    expect(calls[0]?.args[0]?.startsWith("%c\u200b%c\n")).toBe(true);
+    const code = createShellReplayCode(compileShellCalls(calls));
+    expect(code).not.toContain("location");
+    expect(code).not.toContain("__TEXTJS_SHELL__");
+    const con = new FakeConsole();
+    con.log("host warning");
+    const win: Record<string, unknown> = {};
+    const paintedAt = new Function("console", "window", `return ${code}`)(con, win) as unknown;
+    expect(con.clears).toBe(0);
+    expect(con.logs).toEqual([["host warning"], calls[0]?.args as unknown[]]);
+    expect(typeof paintedAt).toBe("number");
+    expect(Object.keys(win)).toEqual([]);
+  });
+
+  test("a multi-frame shell captures the app's timers and loops only while the page isn't hidden", async () => {
+    const realSetTimeout = globalThis.setTimeout;
+    const realNow = performance.now;
+    function Ticker(): ReactNode {
+      const [n, setN] = useState(0);
+      useInterval(() => setN((v) => v + 1), 200);
+      return <Text>{`tick ${n}`}</Text>;
+    }
+    const loop: RouteManifest = { segment: "", page: { default: Ticker } };
+    const calls = await withoutActEnvironment(() => prerenderShell({ routes: loop, path: "/", cols: 12, rows: 2, frames: 4, intervalMs: 200 }));
+    // The stepped clock is gone once the frames are captured.
+    expect(globalThis.setTimeout).toBe(realSetTimeout);
+    expect(performance.now).toBe(realNow);
+    expect(calls.map((c) => c.method)).toEqual(["clear", "log", "log", "log", "log"]);
+    const plain = (c: ShellCall | undefined): string => (c?.args[0] ?? "").replace(/%c/g, "");
+    expect([1, 2, 3, 4].map((i) => plain(calls[i]).includes(`tick ${i - 1}`))).toEqual([true, true, true, true]);
+    // The frames share one CSS table.
+    const compiled = compileShellCalls(calls);
+    expect(compiled.table.length).toBeLessThan(calls.slice(1).reduce((n, c) => n + c.args.length - 1, 0) / 2);
+
+    const con = new FakeConsole();
+    const listeners = new Map<string, () => void>();
+    const timers: Array<{ id: number; cb: () => void }> = [];
+    let nextId = 1;
+    const doc = { visibilityState: "visible", hasFocus: () => false, addEventListener: (type: string, fn: () => void) => listeners.set(type, fn) };
+    const env = {
+      console: con,
+      document: doc,
+      setTimeout: (cb: () => void, ms: number) => {
+        expect(ms).toBe(250);
+        timers.push({ id: nextId, cb });
+        return nextId++;
+      },
+      clearTimeout: (id: number) => timers.splice(timers.findIndex((t) => t.id === id) >>> 0, 1),
+    };
+    const tick = (): void => timers.shift()?.cb();
+    const code = createShellReplayCode(compiled, { intervalMs: 250 });
+    new Function(...Object.keys(env), `return ${code}`)(...Object.values(env));
+    const shown = (): string[] => con.logs.map((l) => /tick \d/.exec(String(l[0]).replace(/%c/g, ""))?.[0] ?? "");
+    expect(con.clears).toBe(1);
+    expect(shown()).toEqual(["tick 0"]);
+    for (let i = 0; i < 4; i++) tick();
+    expect(shown()).toEqual(["tick 0", "tick 1", "tick 2", "tick 3", "tick 0"]);
+    // Wrapping around never clears again.
+    expect(con.clears).toBe(1);
+    // Hidden: the pending frame is cancelled and nothing logs.
+    doc.visibilityState = "hidden";
+    listeners.get("visibilitychange")?.();
+    expect(timers.length).toBe(0);
+    doc.visibilityState = "visible";
+    listeners.get("visibilitychange")?.();
+    tick();
+    expect(shown().at(-1)).toBe("tick 1");
+    // Focus never pauses it (DevTools has focus while the visitor watches the console): only visibility listens.
+    expect([...listeners.keys()]).toEqual(["visibilitychange"]);
+    tick();
+    expect(shown().at(-1)).toBe("tick 2");
+    // A timer that fires after the page was hidden (before visibilitychange) doesn't log either.
+    const before = con.logs.length;
+    doc.visibilityState = "hidden";
+    tick();
+    expect(con.logs.length).toBe(before);
+
+    // Without a document (not a browser), it paints the first frame and stops.
+    const bare = new FakeConsole();
+    new Function("console", "setTimeout", `return ${code}`)(bare, () => {
+      throw new Error("no loop without a document");
+    });
+    expect(bare.logs.length).toBe(1);
+  });
+
+  test("capturing frames never cancels a real timer", async () => {
+    // A timeout that fires during the capture, then is cleared again on unmount (as most effects do).
+    function Once(): ReactNode {
+      const [done, setDone] = useState(false);
+      useEffect(() => {
+        const id = setTimeout(() => setDone(true), 100);
+        return () => clearTimeout(id);
+      }, []);
+      return <Text>{done ? "done" : "wait"}</Text>;
+    }
+    const realClear = globalThis.clearTimeout;
+    const forwarded: unknown[] = [];
+    globalThis.clearTimeout = ((id?: ReturnType<typeof setTimeout>) => {
+      forwarded.push(id);
+      realClear(id);
+    }) as typeof clearTimeout;
+    let fired = false;
+    const real = setTimeout(() => (fired = true), 30);
+    try {
+      const calls = await withoutActEnvironment(() => prerenderShell({ routes: { segment: "", page: { default: Once } }, path: "/", cols: 8, rows: 1, frames: 2, intervalMs: 200 }));
+      expect(calls.filter((c) => c.method === "log").map((c) => (c.args[0] ?? "").replace(/%c/g, "").trim().slice(-4))).toEqual(["wait", "done"]);
+    } finally {
+      globalThis.clearTimeout = realClear;
+    }
+    // The stepped timer's id never reached the real clearTimeout (Bun's handles coerce to small integers).
+    expect(forwarded).toEqual([]);
+    await sleep(60);
+    expect(fired).toBe(true);
+    clearTimeout(real);
   });
 
   test("the client's first frame after a shell appends below it and matches the shell", async () => {

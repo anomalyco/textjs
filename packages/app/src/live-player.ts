@@ -23,6 +23,44 @@ export interface FramePlayerConfig {
   viewport?: { width?: number; height?: number; responsive?: boolean };
   /** Shown in the page's status line. */
   title?: string;
+  /**
+   * @experimental The live endpoint URL, which may be on another origin
+   * (default `basePath` + `/__textjs/live`).
+   */
+  endpoint?: string;
+  /**
+   * @experimental `fetch` credentials for the stream and input requests
+   * (default `"same-origin"`, which sends no cookies to another origin).
+   */
+  credentials?: RequestCredentials;
+  /**
+   * @experimental The input engine to forward from. The caller owns it: the
+   * player neither attaches nor detaches it. Default: a new engine the player
+   * attaches to the page.
+   */
+  input?: InputEngine;
+  /**
+   * @experimental The app path to open, `pathname + search` without
+   * `basePath` (default: the page's location).
+   */
+  path?: string;
+  /**
+   * @experimental Mirror the session onto the page (default `true`): the
+   * server's title and URL changes, Back / Forward, document loads, the
+   * status line and `data-textjs-live`. `false` leaves the host page's
+   * `document`, `history` and `location` alone; navigation stays inside the
+   * session.
+   */
+  syncDocument?: boolean;
+  /** @experimental A prerendered shell already painted (default: `window.__TEXTJS_SHELL__` is set). */
+  shell?: boolean;
+  /** @experimental When the shell painted, from `performance.now()` (default: `window.__TEXTJS_SHELL_AT__`). */
+  shellPaintedAt?: number;
+  /**
+   * @experimental Install the console API as `window.text` (default `true`),
+   * or under another name. Removed on `dispose()`.
+   */
+  registerGlobal?: boolean | string;
 }
 
 export interface FramePlayerCoreOptions {
@@ -204,19 +242,24 @@ async function readEvents(body: ReadableStream<Uint8Array>, onData: (data: strin
 /** Boot the player on a server-rendered route's page. */
 export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)): FramePlayer {
   const base = config.basePath;
-  const endpoint = `${base}${LIVE_PATH}`;
-  try {
-    // We reached the server route: the client stub's reload guard has done its job.
-    sessionStorage.removeItem(STUB_GUARD_KEY);
-  } catch {
-    // storage blocked
+  const endpoint = config.endpoint ?? `${base}${LIVE_PATH}`;
+  const credentials = config.credentials ?? "same-origin";
+  const sync = config.syncDocument !== false;
+  if (sync) {
+    try {
+      // We reached the server route: the client stub's reload guard has done its job.
+      sessionStorage.removeItem(STUB_GUARD_KEY);
+    } catch {
+      // storage blocked
+    }
   }
-  const core = new FramePlayerCore({ shell: window.__TEXTJS_SHELL__ !== undefined, shellPaintedAt: window.__TEXTJS_SHELL_AT__ });
+  const core = new FramePlayerCore({ shell: config.shell ?? window.__TEXTJS_SHELL__ !== undefined, shellPaintedAt: config.shellPaintedAt ?? window.__TEXTJS_SHELL_AT__ });
   const vp = config.viewport ?? {};
   const viewport = new ViewportController({ width: vp.width ?? 120, height: vp.height ?? 36, responsive: vp.responsive ?? true });
-  const engine = new InputEngine();
-  const status = document.querySelector<HTMLElement>("[data-textjs-status]");
+  const engine = config.input ?? new InputEngine();
+  const status = sync ? document.querySelector<HTMLElement>("[data-textjs-status]") : null;
   const setStatus = (s: string): void => {
+    if (!sync) return;
     if (status) status.textContent = s;
     document.documentElement.dataset.textjsLive = s;
   };
@@ -234,14 +277,21 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
     const st = history.state as { textjsIdx?: unknown } | null;
     return typeof st?.textjsIdx === "number" ? st.textjsIdx : 0;
   };
-  let index = stateIndex();
-  if ((history.state as { textjsIdx?: unknown } | null)?.textjsIdx === undefined) history.replaceState({ ...(history.state ?? {}), textjsIdx: index }, "");
+  let index = sync ? stateIndex() : 0;
+  if (sync && (history.state as { textjsIdx?: unknown } | null)?.textjsIdx === undefined) history.replaceState({ ...(history.state ?? {}), textjsIdx: index }, "");
   let expectedPops = 0;
 
-  const appPath = (): string => {
-    const p = location.pathname;
-    const stripped = base && (p === base || p.startsWith(`${base}/`)) ? p.slice(base.length) || "/" : p;
-    return stripped + location.search;
+  /** `pathname + search` without `basePath`. */
+  const toAppPath = (pathname: string, search: string): string => {
+    const stripped = base && (pathname === base || pathname.startsWith(`${base}/`)) ? pathname.slice(base.length) || "/" : pathname;
+    return stripped + search;
+  };
+  const appPath = (): string => toAppPath(location.pathname, location.search);
+  // Where the session is, for new sessions after a reconnect.
+  let current = config.path ?? appPath();
+  const follow = (href: string): void => {
+    const url = new URL(href, "http://x");
+    current = toAppPath(url.pathname, url.search);
   };
 
   const flushInput = (): void => {
@@ -252,7 +302,7 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
       method: "POST",
       headers: { "content-type": "application/json", [LIVE_SESSION_HEADER]: sid },
       body: JSON.stringify(batch),
-      credentials: "same-origin",
+      credentials,
     })
       .then((res) => {
         // The session expired (grace period, server restart): start a new one.
@@ -269,6 +319,7 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
   };
 
   const send = (event: LiveInput): void => {
+    if (disposed) return;
     const last = queue[queue.length - 1];
     if (event.type === "wheel" && last?.type === "wheel") {
       last.deltaX += event.deltaX;
@@ -280,17 +331,25 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
     queueMicrotask(flushInput);
   };
 
+  const stop = (): void => {
+    player.dispose();
+    core.setBanner(null);
+    setStatus("unavailable");
+  };
   /** Load `href` as a document, at most once per URL every few seconds (middleware might keep bouncing the stream). */
   const load = (href: string): void => {
+    if (!sync) {
+      // Only a document load could show it, and the page isn't ours to navigate.
+      console.error(`▼ Text.js (server): ${href} needs a page load, so it can't open here`);
+      stop();
+      return;
+    }
     const target = new URL(href, location.href).href;
     try {
       const last = sessionStorage.getItem(LOAD_GUARD_KEY);
       const at = last ? Number(last.slice(0, last.indexOf(" "))) : 0;
       if (last && last.slice(last.indexOf(" ") + 1) === target && target === location.href && Date.now() - at < 3000) {
-        disposed = true;
-        stream?.abort();
-        core.setBanner(null);
-        setStatus("unavailable");
+        stop();
         return;
       }
       sessionStorage.setItem(LOAD_GUARD_KEY, `${Date.now()} ${target}`);
@@ -324,19 +383,24 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
         break;
       case "url": {
         const href = safeHref(msg.href, base);
-        if (href === null || href === location.pathname + location.search + location.hash) break;
+        if (href === null) break;
+        follow(href);
+        if (!sync || href === location.pathname + location.search + location.hash) break;
         if (msg.replace) history.replaceState({ textjsIdx: index }, "", href);
         else history.pushState({ textjsIdx: ++index }, "", href);
         break;
       }
-      case "go":
-        if (Number.isInteger(msg.delta) && msg.delta !== 0) {
+      case "go": {
+        const href = safeHref(msg.href, base);
+        if (href !== null) follow(href);
+        if (sync && Number.isInteger(msg.delta) && msg.delta !== 0) {
           expectedPops++;
           history.go(msg.delta);
         }
         break;
+      }
       case "title":
-        document.title = msg.title;
+        if (sync) document.title = msg.title;
         break;
       case "banner":
         core.setBanner(msg.banner);
@@ -355,7 +419,7 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
   const connect = (): void => {
     if (disposed) return;
     const q = new URLSearchParams({
-      path: appPath(),
+      path: current,
       cols: String(viewport.cols),
       rows: String(viewport.rows),
       focused: engine.focused ? "1" : "0",
@@ -365,7 +429,7 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
     stream = ctrl;
     const headers: Record<string, string> = { accept: "text/event-stream" };
     if (sid) headers[LIVE_SESSION_HEADER] = sid;
-    fetch(`${endpoint}?${q}`, { headers, credentials: "same-origin", cache: "no-store", signal: ctrl.signal })
+    fetch(`${endpoint}${endpoint.includes("?") ? "&" : "?"}${q}`, { headers, credentials, cache: "no-store", signal: ctrl.signal })
       .then(async (res) => {
         if (!res.ok || !res.body) throw new Error(`live stream: ${res.status}`);
         await readEvents(res.body, onMessage);
@@ -398,12 +462,13 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
     if (event.type === "focus") send({ type: "focus", focused: event.focused && document.visibilityState !== "hidden" });
     else send(event as LiveInput);
   });
-  engine.attach();
+  if (!config.input) engine.attach();
   const offViewport = viewport.subscribe((size) => send({ type: "resize", cols: size.cols, rows: size.rows }));
   const onPop = (): void => {
     const next = stateIndex();
     const delta = next - index;
     index = next;
+    current = appPath();
     // The server asked for this move (`router.back()`): it is already there.
     if (expectedPops > 0) {
       expectedPops--;
@@ -416,24 +481,31 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
     core.setHidden(hidden);
     send({ type: "focus", focused: !hidden && document.hasFocus() });
   };
-  window.addEventListener("popstate", onPop);
+  if (sync) window.addEventListener("popstate", onPop);
   document.addEventListener("visibilitychange", onVisibility);
   core.setHidden(document.visibilityState === "hidden");
   connect();
 
+  const g = window as unknown as Record<string, unknown>;
+  const globalName = config.registerGlobal === false ? null : typeof config.registerGlobal === "string" ? config.registerGlobal : "text";
+  let api: object | null = null;
+  let released = false;
   const player: FramePlayer = {
     core,
     dispose() {
+      if (released) return;
+      released = true;
       disposed = true;
       core.driver._setBanner(null);
       stream?.abort();
       if (retryTimer !== null) clearTimeout(retryTimer);
       offInput();
-      engine.detach();
+      if (!config.input) engine.detach();
       offViewport();
       viewport.dispose();
       window.removeEventListener("popstate", onPop);
       document.removeEventListener("visibilitychange", onVisibility);
+      if (globalName !== null && g[globalName] === api) delete g[globalName];
     },
   };
   const HELP = `▼ Text.js console API (server-rendered route)
@@ -444,7 +516,8 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
   text.copyText()           copy the current frame as plain text
   text.help()               this message`;
   const stats = () => ({ cols: core.buffer.width, rows: core.buffer.height, frames: core.frames, bytes: core.bytes, paused: core.paused, runtime: "server" as const });
-  (window as unknown as { text?: unknown }).text = {
+  if (globalName === null) return player;
+  api = {
     stats,
     copyText: () => {
       const text = core.buffer.toPlainString(true).replace(/\n+$/, "");
@@ -471,5 +544,6 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
       return HELP;
     },
   };
+  g[globalName] = api;
   return player;
 }
