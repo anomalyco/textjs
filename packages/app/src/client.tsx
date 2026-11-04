@@ -19,7 +19,7 @@ import type { RouteManifest } from "./routing";
 export interface BootOptions {
   routes: RouteManifest;
   config?: Partial<ClientConfig>;
-  /** `import.meta.env.DEV`. */
+  /** `import.meta.env.DEV`. Ignored in production builds, which leave the dev tools out. */
   dev?: boolean;
   /** `import.meta.hot`. */
   hot?: HotContextLike;
@@ -55,7 +55,8 @@ function resolveContainer(container: BootOptions["container"]): HTMLElement {
 /** Boot a Text.js app into `console.log`. */
 export async function bootTextApp(options: BootOptions): Promise<TextApp> {
   const config = { ...toClientConfig({}), ...options.config };
-  const dev = options.dev ?? false;
+  // Inline so every bundler folds it and drops the dev tools from production builds.
+  const dev = process.env.NODE_ENV !== "production" && options.dev === true;
   const vp = config.viewport ?? {};
   const seen = new WeakSet<object>();
 

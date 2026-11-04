@@ -350,7 +350,7 @@ export interface AppRouterProps {
   routes: RouteSegmentNode;
   /** Browser history by default; pass `createMemoryHistory("/")` for tests and embedded previews. */
   history?: RouterHistory;
-  /** Render `<TextDevOverlay />` (or a custom overlay node). */
+  /** Render `<TextDevOverlay />` (or a custom overlay node). `true` renders nothing in production builds. */
   devOverlay?: ReactNode | boolean;
   /** Initial theme preset. */
   theme?: TextTheme | ThemeName;
@@ -358,7 +358,7 @@ export interface AppRouterProps {
   documentTitle?: boolean;
   /** Fallback `document.title` when no route defines one. */
   defaultTitle?: string;
-  /** Report errors to the dev Redbox store (default: the global store; `null` disables). */
+  /** Report errors to the dev Redbox store (default: the global store, or `null` in production builds; `null` disables). */
   errorStore?: DevErrorStore | null;
   /** Called after every navigation. */
   onNavigate?: (match: RouteMatch) => void;
@@ -382,7 +382,7 @@ export function AppRouter({
   theme: themeProp,
   documentTitle = true,
   defaultTitle,
-  errorStore = devErrors,
+  errorStore = process.env.NODE_ENV !== "production" ? devErrors : null,
   onNavigate,
   children,
 }: AppRouterProps): ReactNode {
@@ -491,7 +491,7 @@ export function AppRouter({
               </RedirectBoundary>
             </RootErrorBoundary>
             {children}
-            {devOverlay === true ? <TextDevOverlay /> : devOverlay}
+            {devOverlay === true ? process.env.NODE_ENV !== "production" && <TextDevOverlay /> : devOverlay}
           </Box>
         </RouterContext>
       </ThemeProvider>
