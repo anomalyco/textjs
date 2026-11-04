@@ -313,6 +313,16 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
     },
     {
       "depth": 2,
+      "text": "WebAssembly",
+      "id": "webassembly"
+    },
+    {
+      "depth": 3,
+      "text": "Your own Vite or webpack build",
+      "id": "your-own-vite-or-webpack-build"
+    },
+    {
+      "depth": 2,
       "text": "Upgrading",
       "id": "upgrading"
     },
@@ -1001,6 +1011,11 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
       "depth": 2,
       "text": "The window.text REPL",
       "id": "the-windowtext-repl"
+    },
+    {
+      "depth": 2,
+      "text": "Loading on console intent (experimental)",
+      "id": "loading-on-console-intent-experimental"
     }
   ],
   "utility-hooks": [

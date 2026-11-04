@@ -142,6 +142,22 @@ for (const [h, v] of [
 ]) check(`${h}: ${v}`, home.headers.get(h) === v, String(home.headers.get(h)));
 console.log(`mode: ${mode}`);
 
+// ── Yoga's WebAssembly: a same-origin asset, compiled under 'wasm-unsafe-eval' ──
+{
+  const directive = (name) => (csp.split(";").map((d) => d.trim().split(/\s+/)).find(([n]) => n === name) ?? []).slice(1);
+  check("connect-src has no data: (Yoga loads /assets/yoga-[hash].wasm)", !directive("connect-src").includes("data:"), directive("connect-src").join(" "));
+  check("script-src allows 'wasm-unsafe-eval'", directive("script-src").includes("'wasm-unsafe-eval'"), directive("script-src").join(" "));
+  const wasm = page.waitForResponse((r) => /\/assets\/yoga-[\w-]+\.wasm$/.test(new URL(r.url()).pathname), { timeout: 15000 }).catch(() => null);
+  await page.goto(`${base}/`, { waitUntil: "load" });
+  // Reading window.text also boots a companion that waits for console intent.
+  const booted = await page.waitForFunction(() => typeof window.text?.stats === "function" && window.text.stats().frameCount > 0, undefined, { timeout: 15000 }).then(() => true, () => false);
+  const res = await wasm;
+  check("yoga.wasm loads as application/wasm", res?.status() === 200 && res.headers()["content-type"] === "application/wasm", `${res?.status()} ${res?.headers()["content-type"]}`);
+  check("the console companion renders frames", booted);
+  const found = await violations();
+  check("loading Yoga reports nothing", found.length === 0, found.join("\n"));
+}
+
 // ── Every prerendered page, and a 404 ─────────────────────────────────────────
 const pages = [];
 const walk = (d, prefix = "") => {

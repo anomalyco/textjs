@@ -101,6 +101,9 @@ export interface DockAnalysis {
   chromeSample: number | null;
 }
 
+/** Until learned: macOS Chrome with a bookmarks bar (~116px); overestimating only costs a row. */
+const DEFAULT_CHROME_PX = 120;
+
 export const VIEWPORT_DEFAULTS = {
   minCols: 40,
   maxCols: 200,
@@ -108,8 +111,7 @@ export const VIEWPORT_DEFAULTS = {
   maxRows: 60,
   fallbackCols: 120,
   fallbackRows: 36,
-  /** Until learned: macOS Chrome with a bookmarks bar (~116px); overestimating only costs a row. */
-  browserChromeHeight: 120,
+  browserChromeHeight: DEFAULT_CHROME_PX,
   /** Measured: frames wrap unless the console is 52–55px wider than the frame. */
   consolePaddingX: 56,
   /** Measured: 27px tab strip + 28px console toolbar + ~47px prompt and message padding. */
@@ -126,14 +128,15 @@ const TOOLBAR_WRAP2_PX = 340;
 /** The splitter between the page and a side-docked DevTools panel. */
 const SIDE_SPLITTER_PX = 1;
 /** Plausible browser chrome heights; anything taller is a small bottom dock. */
-const MAX_CHROME_PX = 160;
+export const MAX_CHROME_PX = 160;
 /** Window frame slack on the horizontal axis (Windows reports a 16px frame). */
 const SLACK_X = 16;
 /** Uncertainty of the browser chrome height. */
 const SLACK_Y = 60;
 /** Common OS display scale factors (`devicePixelRatio` at page zoom 100%). */
 const DISPLAY_SCALES = [1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 3, 3.5, 4];
-const ZOOM_LEVELS = [0.25, 1 / 3, 0.5, 2 / 3, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5];
+/** Chrome's presets, plus Safari's 85% and 115%. */
+const ZOOM_LEVELS = [0.25, 1 / 3, 0.5, 2 / 3, 0.75, 0.8, 0.85, 0.9, 1, 1.1, 1.15, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5];
 export const CHROME_STORAGE_KEY = "textjs:browser-chrome";
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -188,10 +191,11 @@ export function measureScrollbarWidth(): number {
  * not `outer*`, so each hypothesis (docked at the bottom, or on a side) picks
  * the zoom that makes its undocked axis line up, and the best fit wins.
  */
-export function analyzeDock(win: WindowLike, browserChromeHeight: number = VIEWPORT_DEFAULTS.browserChromeHeight): DockAnalysis {
+export function analyzeDock(win: WindowLike, browserChromeHeight: number = DEFAULT_CHROME_PX): DockAnalysis {
   const { innerWidth: iw, innerHeight: ih, outerWidth: ow, outerHeight: oh } = win;
   const chrome = browserChromeHeight;
-  if (!(iw > 0 && ih > 0 && ow > 0 && oh > 0)) return { dock: "undocked", zoom: 1, panelWidth: 0, panelHeight: 0, chromeSample: null };
+  const out = (dock: DockAnalysis["dock"], zoom = 1, panelWidth = 0, panelHeight = 0, chromeSample: number | null = null): DockAnalysis => ({ dock, zoom, panelWidth, panelHeight, chromeSample });
+  if (!(iw > 0 && ih > 0 && ow > 0 && oh > 0)) return out("undocked");
   // Page zoom is always one of Chrome's presets; each axis proposes one. `devicePixelRatio`
   // includes the zoom, so an integer ratio (the common unzoomed case) only allows zoom 1, and
   // a zoom must leave a plausible display scale. Unexplained metrics fall back to undocked.
@@ -216,20 +220,20 @@ export function analyzeDock(win: WindowLike, browserChromeHeight: number = VIEWP
     if (bottomScore + bias < (best?.score ?? Infinity)) best = { side: false, zoom: z, score: bottomScore + bias };
     if (sideScore + bias + 0.01 < (best?.score ?? Infinity)) best = { side: true, zoom: z, score: sideScore + bias + 0.01 };
   }
-  if (best === null || best.score > 2) return { dock: "undocked", zoom: 1, panelWidth: 0, panelHeight: 0, chromeSample: null };
+  if (best === null || best.score > 2) return out("undocked");
   const z = best.zoom;
   const sample = (): number | null => {
     const c = Math.round(oh - z * ih);
     return z === 1 && c >= 0 && c <= MAX_CHROME_PX ? c : null;
   };
   if (best.side) {
-    return { dock: "side", zoom: z, panelWidth: ow - z * iw, panelHeight: z * ih, chromeSample: sample() };
+    return out("side", z, ow - z * iw, z * ih, sample());
   }
   const dockH = oh - chrome - z * ih;
   if (dockH > DOCK_THRESHOLD_PX && oh - z * ih > MAX_CHROME_PX) {
-    return { dock: "bottom", zoom: z, panelWidth: z * iw, panelHeight: dockH, chromeSample: null };
+    return out("bottom", z, z * iw, dockH);
   }
-  return { dock: "undocked", zoom: z, panelWidth: 0, panelHeight: 0, chromeSample: sample() };
+  return out("undocked", z, 0, 0, sample());
 }
 
 /** Grid that fits a DevTools console panel of `width × height` CSS pixels without wrapping or scrolling. */

@@ -8,3 +8,12 @@ export {
   type PixelSample,
   type PixelSource,
 } from "./pixels";
+export {
+  canPrefetchConsole,
+  CONSOLE_INTENT_KEY,
+  onConsoleIntent,
+  type ConsoleIntentEvent,
+  type ConsoleIntentHandle,
+  type ConsoleIntentOptions,
+  type ConsoleIntentReason,
+} from "./console-intent";

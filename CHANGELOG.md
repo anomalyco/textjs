@@ -6,12 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `@textjs/core/experimental`: `onConsoleIntent(onIntent, options)` calls `onIntent` once when a visitor wants the console, so a page can download its console app only then. It fires when DevTools is docked on load or docks later (`"dock"`), and on the DevTools shortcuts F12, Ctrl+Shift+J, I, C or K, and ⌘⌥J, I, C or K on a Mac (`"shortcut"`). It also fires on a click on a `[data-textjs-engage]` element, a `<text-console>` element or a `<FocusPad>`, on Enter or Space on a `[data-textjs-engage]` button, and when a size is picked in `<ViewportControl>` before the console starts (`"engage"`). Reloads in a tab where one of those already happened fire `"session"`. Nothing fires automatically on touch screens. Call `trigger()`. `prefetch` warms the app's chunks when the pointer reaches a console surface, and `canPrefetchConsole()` reports whether prefetching suits the device and connection. `CONSOLE_INTENT_KEY` is the `sessionStorage` key it uses. See [Loading on console intent](https://textjs.org/docs/hooks-and-repl#loading-on-console-intent-experimental).
+- `@textjs/react`: `<ViewportControl>` works before the console root exists. Picking a size saves it, fires `"engage"` for `onConsoleIntent` and applies the size once `root` is set. `<FocusPad sizeControl>` gets this too, so its size menu no longer sits disabled until the console starts.
+- `@textjs/core`: `initYoga({ wasm })` loads Yoga from a URL, its bytes, a `Response` or a compiled `WebAssembly.Module`. The WebAssembly file is exported as `@textjs/core/yoga.wasm`. When it can't be loaded, `initYoga()` rejects with [TX032](https://textjs.org/errors/TX032).
+
 ### Changed
 
 - `@textjs/core`: the console driver checks whether the console font fits a glyph that may need a stand-in (eighth blocks, quadrants, braille, ▶, ✓ and similar) the first time that glyph appears, instead of measuring all of them on the first frame. Drivers that use the same font size and family share the results. A frame without those glyphs makes no stand-in measurements, so the first frame of textjs.org's home console takes 1.2 ms instead of 9.2 ms in headless Chromium on an M5 Pro Mac mini, and 4.8 ms instead of 38.4 ms with the CPU throttled 4×. On Windows 10, where Consolas lacks those glyphs, frames that use them get the same stand-ins as before, from the first frame.
 - `@textjs/core`: `isRtlCodePoint` and `hasRtl` look up 59 right-to-left ranges generated from the Unicode 18.0 data, and no longer load the bidi tables. They return the same result for every code point. `<ConsoleMirror>` on its own bundles 2.1 KB less JavaScript (gzip), and the frame player for server-rendered routes 1.6 KB less.
 - `@textjs/app`: `text build` leaves the Dev Overlay and the Redbox out of production builds. They only appear in `text dev`, but every build used to bundle them. The starter template's client JavaScript is 4.3 KB smaller (gzip) and `examples/dashboard`'s is 3.0 KB smaller. An app that renders `<AppRouter>` itself drops them too when its bundler sets `process.env.NODE_ENV` to `"production"` (the default in `vite build` and webpack, `esbuild --minify`, and `bun build --production`). In those builds, `<AppRouter devOverlay>` renders nothing (pass `devOverlay={<TextDevOverlay />}` to keep it), `errorStore` defaults to `null`, and `bootTextApp` ignores `dev: true`.
 - textjs.org: the home page and docs pages load 12.9 KB less JavaScript up front (gzip). Their console mirrors used to preload the 13.5 KB bidi chunk and now preload 0.6 KB.
+- `@textjs/core`, `@textjs/app`: Text.js apps (`text dev`, `text build`) load Yoga as a separate `.wasm` file instead of a base64 copy inside the JavaScript. `text build` emits `assets/yoga-[hash].wasm` and preloads it from the HTML. With gzip on both files, the starter app downloads 11.4 KB less and parses 95 KB less JavaScript. Other bundlers keep the inline copy, except those that resolve the `workerd` condition (Wrangler), which import `yoga.wasm` as a module. Apps that bundle `@textjs/core` with Vite or webpack can load the `.wasm` file too by adding the `@textjs/wasm-asset` resolve condition. See [WebAssembly](https://textjs.org/docs/deploying#webassembly).
+- `@textjs/core`: depends on exactly `yoga-layout` 3.2.1, because `yoga.wasm` and its loader are generated from that version.
+- `@textjs/app`: `text build`'s First Load JS includes `.wasm` files.
+- `@textjs/app`: with `--adapter cloudflare`, a worker whose route handlers use Yoga is written as a `dist/_worker.js/` directory holding `index.js` and `yoga.wasm`, which Cloudflare loads as a compiled module. Workers that don't use Yoga are still a single `dist/_worker.js` file.
+- textjs.org: the console loads Yoga as a `.wasm` file, which makes its download 9.3 KB smaller (gzip), and the Content Security Policy no longer allows `data:` in `connect-src`.
+
+### Fixed
+
+- `@textjs/core`: Safari at 115% page zoom with DevTools closed no longer looks like DevTools docked at the side, so responsive sizing keeps its fallback size instead of fitting a panel that isn't there.
 
 ## [1.5.0] - 2026-11-03
 

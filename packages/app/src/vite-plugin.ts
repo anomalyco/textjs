@@ -9,7 +9,7 @@ import { isIP } from "node:net";
 import { dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
-import type { Plugin, ProxyOptions, ViteDevServer } from "vite";
+import { defaultClientConditions, type Plugin, type ProxyOptions, type ViteDevServer } from "vite";
 import { BRAND_MARK, ENGINE_NAME, txMessage, VERSION } from "@textjs/core";
 import { normalizeBasePath, toClientConfig, type Rewrite, type TextConfig } from "./config";
 import { applyRewrites, canonicalRequestTarget, compileRewrite, proxyRequest, requestOrigin, runRouteHandler, sendWebResponse, toWebRequest, type CompiledRewrite, type RouteHandlerModule } from "./server/http";
@@ -181,7 +181,10 @@ function findUp(start: string, rel: string): string | null {
 // The live stub and player are imported by code text dev generates (server pages' client
 // stand-in, /@textjs/player), which Vite's dependency scan never sees. Found later, they make
 // Vite re-bundle mid-load: 404s for stale chunks and two copies of React.
-const OPTIMIZE = ["react", "react/jsx-runtime", "react/jsx-dev-runtime", "react-dom", "react-dom/client", "react-reconciler", "react-reconciler/constants.js", "scheduler", "yoga-layout/load", "@textjs/app/live-stub", "@textjs/app/live-player"];
+/** The resolve condition under which `@textjs/core` loads Yoga's WebAssembly as an asset instead of inline. */
+export const WASM_ASSET_CONDITION = "@textjs/wasm-asset";
+
+const OPTIMIZE = ["react", "react/jsx-runtime", "react/jsx-dev-runtime", "react-dom", "react-dom/client", "react-reconciler", "react-reconciler/constants.js", "scheduler", "@textjs/app/live-stub", "@textjs/app/live-player"];
 
 function toViteProxy(proxy: TextConfig["proxy"]): Record<string, string | ProxyOptions> | undefined {
   if (!proxy) return undefined;
@@ -245,6 +248,7 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
   const basePath = normalizeBasePath(options.basePath);
   let root = resolve(options.root ?? process.cwd());
   let serving = false;
+  let publicBase = "/";
   const within = (dir: string, file: string): boolean => file === dir || file.startsWith(dir + sep);
   /** A server-only source by its file path (any spelling: the real path decides). */
   const isServerOnlyFile = (file: string): boolean => {
@@ -290,16 +294,21 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
         // bundling them alone would give them their own copy of the package's modules.
         return pkg !== "@textjs/app" || realpathSync(manifest).includes(`${sep}node_modules${sep}`);
       });
+      // Client builds load Yoga's WebAssembly as a hashed `.wasm` asset (`@textjs/core`'s `#yoga-loader`).
+      // SSR builds and Vitest keep the inline copy. The pre-bundler resolves with esbuild, so it needs the condition too.
+      const wasmAsset = !env.isSsrBuild && !process.env.VITEST;
       return {
         root,
         appType: "custom",
         base: basePath ? `${basePath}/` : undefined,
         resolve: {
           dedupe: ["react", "react-dom"],
+          ...(wasmAsset ? { conditions: [WASM_ASSET_CONDITION, ...(user.resolve?.conditions ?? defaultClientConditions)] } : {}),
         },
         optimizeDeps: {
           entries: [`${appDirName}/**/*.{tsx,ts,jsx,js}`],
           include: optimize,
+          ...(wasmAsset ? { esbuildOptions: { conditions: [WASM_ASSET_CONDITION, ...(user.optimizeDeps?.esbuildOptions?.conditions ?? [])] } } : {}),
         },
         server: options.proxy ? { proxy: toViteProxy(options.proxy) } : undefined,
         preview: options.proxy ? { proxy: toViteProxy(options.proxy) } : undefined,
@@ -318,11 +327,22 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
     configResolved(config) {
       root = config.root;
       serving = config.command === "serve";
+      publicBase = config.base;
       rescan();
     },
 
     buildStart() {
       rescan();
+    },
+
+    transformIndexHtml: {
+      order: "post",
+      handler(_html, ctx) {
+        // The renderer can't start without Yoga: fetch its WebAssembly alongside the entry script, not after it runs.
+        const wasm = Object.values(ctx.bundle ?? {}).find((f) => f.type === "asset" && f.originalFileNames.some((n) => /(^|\/)yoga\.wasm$/.test(n)));
+        if (!wasm) return;
+        return [{ tag: "link", attrs: { rel: "preload", href: `${publicBase}${wasm.fileName}`, as: "fetch", type: "application/wasm", crossorigin: true }, injectTo: "head" }];
+      },
     },
 
     resolveId(id) {

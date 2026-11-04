@@ -28,7 +28,15 @@
       "types": "./src/internal.ts",
       "default": "./src/internal.ts"
     },
+    "./yoga.wasm": "./yoga.wasm",
     "./package.json": "./package.json"
+  },
+  "imports": {
+    "#yoga-loader": {
+      "workerd": "./src/yoga-loader.workerd.ts",
+      "@textjs/wasm-asset": "./src/yoga-loader.browser.ts",
+      "default": "./src/yoga-loader.inline.ts"
+    }
   },
   "publishConfig": {
     "main": "./dist/index.js",
@@ -45,12 +53,21 @@
       "./internal": {
         "types": "./dist/internal.d.ts",
         "default": "./dist/internal.js"
+      },
+      "./yoga.wasm": "./yoga.wasm"
+    },
+    "imports": {
+      "#yoga-loader": {
+        "workerd": "./dist/yoga-loader.workerd.js",
+        "@textjs/wasm-asset": "./dist/yoga-loader.browser.js",
+        "default": "./dist/yoga-loader.inline.js"
       }
     }
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "yoga.wasm"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && bun ../../scripts/esm-specifiers.ts dist",
@@ -59,6 +76,6 @@
     "bench": "bun test test/perf.test.ts"
   },
   "dependencies": {
-    "yoga-layout": "^3.2.1"
+    "yoga-layout": "3.2.1"
   }
 }

@@ -2,12 +2,14 @@
  * `text build --adapter cloudflare`: Cloudflare Pages advanced mode.
  * `dist/_worker.js` runs middleware and route handlers; `_routes.json` keeps
  * hashed assets on Pages' static CDN; `env.ASSETS` serves everything else.
+ * When the worker imports WebAssembly (a route handler that lays out with
+ * Yoga), `_worker.js` is a directory: `index.js` plus its `.wasm` modules.
  *
  * Requires the `nodejs_compat` compatibility flag (the data cache uses
  * `AsyncLocalStorage`).
  */
 
-import { existsSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { MiddlewareModule } from "../middleware";
 import { bundleServerEntry, frameworkFile } from "./bundle";
@@ -111,8 +113,13 @@ export async function adaptCloudflare(ctx: AdapterContext, middleware: Middlewar
   const frames = readAnsiFrames(ctx.outDir);
   const workerFile = join(ctx.outDir, "_worker.js");
   const embed = `const embed = ${JSON.stringify({ enabled: resolveEmbed(ctx.config).enabled })};`;
-  await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: `${ansiPrelude(frames)}\n${embed}\n${BODY}` }), outFile: workerFile, target: "webworker" });
-  const sizeNote = cloudflareWorkerNote(statSync(workerFile).size);
+  const staged = join(ctx.outDir, ".text", "worker");
+  rmSync(staged, { recursive: true, force: true });
+  const { wasm } = await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: `${ansiPrelude(frames)}\n${embed}\n${BODY}` }), outFile: join(staged, "index.js"), target: "webworker" });
+  rmSync(workerFile, { recursive: true, force: true });
+  renameSync(wasm.length > 0 ? staged : join(staged, "index.js"), workerFile);
+  const workerBytes = wasm.length > 0 ? readdirSync(workerFile).reduce((sum, name) => sum + statSync(join(workerFile, name)).size, 0) : statSync(workerFile).size;
+  const sizeNote = cloudflareWorkerNote(workerBytes);
   writeFileSync(join(ctx.outDir, "_routes.json"), `${JSON.stringify(cloudflareRoutes(ctx, middleware), null, 2)}\n`);
   const headersNoteLine = headersNote(writeHeadersRules(ctx.outDir, staticHeadersRules(ctx.config)), ctx.config);
   // Without a top-level 404.html, Pages answers unknown files with index.html (200), and missing assets would render the app.

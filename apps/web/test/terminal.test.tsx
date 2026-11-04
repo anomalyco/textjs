@@ -167,7 +167,7 @@ describe("F-04: static security headers", () => {
     expect(csp.get("default-src")).toEqual(["'self'"]);
     // postbuild-pages.ts adds the inline script hashes after 'self'.
     expect(csp.get("script-src")).toEqual(["'self'", "'wasm-unsafe-eval'", "https://static.cloudflareinsights.com"]);
-    expect(csp.get("connect-src")).toEqual(["'self'", "data:", "https://media.textjs.org", "https://cloudflareinsights.com", "http://127.0.0.1:*", "http://localhost:*"]);
+    expect(csp.get("connect-src")).toEqual(["'self'", "https://media.textjs.org", "https://cloudflareinsights.com", "http://127.0.0.1:*", "http://localhost:*"]);
     expect(csp.get("object-src")).toEqual(["'none'"]);
     expect(csp.get("base-uri")).toEqual(["'none'"]);
     expect(csp.get("form-action")).toEqual(["'self'"]);

@@ -117,20 +117,34 @@ const MONO = 'var(--mono, "Geist Mono", "Geist Mono Fallback", ui-monospace, "SF
 /**
  * A one-line console size picker: "Fit console" (follow docked DevTools) or a
  * fixed grid. Renders as quiet text over a native `<select>`.
+ *
+ * It works before `root` exists: a picked size is saved and shown, applies once
+ * `root` is set, and bubbles a `textjs:engage` event that `onConsoleIntent`
+ * reports as `"engage"`.
  */
 export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, presets = VIEWPORT_PRESETS, onChange, className, style, color = "#707070", activeColor = "#ededed", messages }: ViewportControlProps): ReactNode {
   const m = useMemo(() => resolveFocusPadMessages<ViewportControlMessages>(messages, defaultFocusPadMessages), [messages]);
-  const state = useSyncExternalStore(root?.viewport.subscribe ?? NOOP_SUBSCRIBE, () => root?.viewport.getSnapshot() ?? null, () => null);
+  const live = useSyncExternalStore(root?.viewport.subscribe ?? NOOP_SUBSCRIBE, () => root?.viewport.getSnapshot() ?? null, () => null);
   const fit = useFitSize(root);
+  // A size picked before the console boots shows here and applies once `root` arrives.
+  const [pending, setPending] = useState<ViewportChoice | null>(null);
+  const state = live ?? (pending !== null && pending !== "fit" ? { responsive: false, ...pending } : null);
   const [custom, setCustom] = useState(false);
   const [hover, setHover] = useState(false);
   const [draft, setDraft] = useState({ cols: "", rows: "" });
   const colsRef = useRef<HTMLInputElement>(null);
+  const wrapRef = useRef<HTMLSpanElement>(null);
   const id = useId();
 
   useEffect(() => {
     if (custom) colsRef.current?.select();
   }, [custom]);
+
+  useEffect(() => {
+    if (!root || pending === null) return;
+    applyViewportChoice(root, pending);
+    setPending(null);
+  }, [root, pending]);
 
   const responsive = state?.responsive ?? true;
   const current = state ? `${state.cols}x${state.rows}` : "";
@@ -138,8 +152,12 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
   const value = responsive ? "fit" : isPreset ? current : "custom";
 
   const choose = (choice: ViewportChoice): void => {
-    if (!root) return;
-    applyViewportChoice(root, choice);
+    if (root) applyViewportChoice(root, choice);
+    else {
+      setPending(choice);
+      // Picking a size before boot starts the console (`onConsoleIntent` reports it as "engage").
+      wrapRef.current?.dispatchEvent(new Event("textjs:engage", { bubbles: true }));
+    }
     if (storageKey !== null) saveViewportChoice(choice, storageKey);
     onChange?.(choice);
   };
@@ -176,6 +194,7 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
     };
     return (
       <span
+        ref={wrapRef}
         className={className}
         style={{ ...text, color, display: "inline-flex", alignItems: "center", gap: 4, ...style }}
         data-console-bypass=""
@@ -192,6 +211,7 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
 
   return (
     <span
+      ref={wrapRef}
       className={className}
       title={title}
       style={{ ...text, position: "relative", display: "inline-flex", alignItems: "center", gap: 6, ...style }}
@@ -212,7 +232,6 @@ export function ViewportControl({ root, storageKey = VIEWPORT_CHOICE_KEY, preset
         name="textjs-console-size"
         aria-label={m.consoleSize}
         value={value}
-        disabled={!root}
         onChange={(e) => {
           const v = e.target.value;
           if (v === "custom") {
