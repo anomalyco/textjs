@@ -147,8 +147,13 @@ describe("the real workspace", () => {
       const m = JSON.parse(readFileSync(p.manifest, "utf8")) as Record<string, unknown> & { publishConfig?: Record<string, unknown>; files?: string[] };
       const packed = preparePackedManifest({ ...m, dependencies: undefined, peerDependencies: undefined, optionalDependencies: undefined });
       expect({ pkg: p.name, main: String(packed.main) }).toEqual({ pkg: p.name, main: expect.stringMatching(/^\.\/dist\//) });
-      for (const target of [packed.main, packed.types, ...leaves(packed.exports)].filter((t): t is string => typeof t === "string")) {
+      for (const target of [packed.main, packed.types, ...leaves(packed.exports), ...leaves(packed.imports)].filter((t): t is string => typeof t === "string")) {
         if (target === "./package.json") continue;
+        // Static assets (`@textjs/core/yoga.wasm`) ship as they are, not from dist/.
+        if (target.endsWith(".wasm")) {
+          expect({ pkg: p.name, target, shipped: existsSync(join(p.dir, target)) && (m.files ?? []).includes(target.slice(2)) }).toEqual({ pkg: p.name, target, shipped: true });
+          continue;
+        }
         expect({ pkg: p.name, target, dist: target.startsWith("./dist/") }).toEqual({ pkg: p.name, target, dist: true });
         const src = target.replace(/^\.\/dist\//, "src/").replace(/\.d\.ts$|\.js$/, "");
         if (src.includes("*")) continue;

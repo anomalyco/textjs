@@ -3,8 +3,7 @@
 #
 # Content-Security-Policy: scripts/postbuild-pages.ts adds a 'sha256-…' source to script-src for
 # every inline script in the built HTML, and fails the build if it can't. Other sources:
-# - 'wasm-unsafe-eval': Yoga layout is WebAssembly. data: in connect-src: Yoga's loader fetches
-#   its inlined data: URL first.
+# - 'wasm-unsafe-eval': Yoga layout is WebAssembly, fetched from /assets/yoga-[hash].wasm ('self').
 # - static.cloudflareinsights.com / cloudflareinsights.com: Web Analytics, which Cloudflare injects.
 # - 'unsafe-inline' styles: React style props and the console renderer set style attributes.
 # - http://127.0.0.1:* and http://localhost:*: the OpenCode bridge (`bunx @textjs/opencode@latest proxy`).
@@ -17,7 +16,7 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: SAMEORIGIN
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://media.textjs.org; media-src 'self' https://media.textjs.org; font-src 'self'; connect-src 'self' data: https://media.textjs.org https://cloudflareinsights.com http://127.0.0.1:* http://localhost:*; worker-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://media.textjs.org; media-src 'self' https://media.textjs.org; font-src 'self'; connect-src 'self' https://media.textjs.org https://cloudflareinsights.com http://127.0.0.1:* http://localhost:*; worker-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Cross-Origin-Opener-Policy: same-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()

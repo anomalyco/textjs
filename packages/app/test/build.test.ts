@@ -38,6 +38,9 @@ describe("text build (examples/dashboard)", () => {
       expect(html).toContain("<title>Edge Console</title>");
       expect(html).toMatch(/<script type="module" crossorigin src="\/assets\/index-[\w-]+\.js"><\/script>/);
       const assets = readdirSync(join(dist, "assets"));
+      // Yoga's WebAssembly is preloaded, so it downloads alongside the entry script.
+      const wasm = assets.find((f) => /^yoga-[\w-]+\.wasm$/.test(f));
+      expect(html).toContain(`<link rel="preload" href="/assets/${wasm}" as="fetch" type="application/wasm" crossorigin>`);
       const js = assets.filter((f) => f.endsWith(".js"));
       expect(js.length).toBeGreaterThan(0);
       const bundle = js.map((f) => readFileSync(join(dist, "assets", f), "utf8")).join("\n");
@@ -46,6 +49,9 @@ describe("text build (examples/dashboard)", () => {
       expect(bundle).not.toContain("virtual:textjs");
       // The Dev Overlay, Redbox and HMR frame mirror only ship in `text dev`.
       for (const devOnly of ["Dev Overlay", "Unhandled Runtime Error", "Component Stack", "vite:error", "unhandledrejection", "textjs:mirror", "textjs:frame"]) expect(bundle).not.toContain(devOnly);
+      // The client loads Yoga as yoga-[hash].wasm (the @textjs/wasm-asset condition), with no base64 copy ("\0asm") inline.
+      expect(wasm).toMatch(/^yoga-[\w-]+\.wasm$/);
+      expect(bundle).not.toContain("AGFzbQ");
       expect(existsSync(join(dist, ".text/server/api.mjs"))).toBe(true);
       const manifest = JSON.parse(readFileSync(join(dist, ".text/routes-manifest.json"), "utf8"));
       expect(manifest.routes.map((r: { pattern: string }) => r.pattern)).toEqual(["/", "/deployments", "/deployments/[id]", "/logs", "/settings", "/status"]);

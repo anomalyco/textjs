@@ -60,6 +60,16 @@ describe("text dev", () => {
     expect(page).toContain("$RefreshReg$");
   });
 
+  test("the client loads Yoga's WebAssembly as an asset; the server keeps the inline copy", async () => {
+    const layout = join(REPO, "packages/core/src/layout.ts");
+    const client = await server.environments.client.pluginContainer.resolveId("#yoga-loader", layout);
+    expect(client?.id).toEndWith("yoga-loader.browser.ts");
+    const wasm = await server.environments.client.pluginContainer.resolveId("@textjs/core/yoga.wasm", client?.id);
+    expect(wasm?.id).toEndWith("packages/core/yoga.wasm");
+    const ssr = await server.environments.ssr.pluginContainer.resolveId("#yoga-loader", layout);
+    expect(ssr?.id).toEndWith("yoga-loader.inline.ts");
+  });
+
   test("route handlers run through Vite's SSR module loader", async () => {
     const res = await fetch(`${base}/api/echo/turbolog`, { method: "POST", body: "%c" });
     expect(await res.json()).toEqual({ name: "turbolog", body: "%c" });
