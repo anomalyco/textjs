@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
-import { activateCompanion, isCompanionConfigured, isInteractivePress, isRefocusPress } from "../console-companion/bridge";
+import { activateCompanion, companionReady, isCompanionConfigured, isInteractivePress, isRefocusPress } from "../console-companion/bridge";
 import { PRESETS, siteStore } from "../console-companion/store";
 import { preloadCompanionTab } from "../console-companion/tabs-loader";
 import { useSite } from "../console-companion/useSite";
@@ -68,7 +68,8 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
 
   useEffect(() => {
     if ((!inView && !active) || meta === undefined) return;
-    preloadCompanionTab("example").catch(prefetchFailed);
+    // The console's example view, once the companion has started. A click loads it otherwise.
+    if (companionReady()) preloadCompanionTab("example").catch(prefetchFailed);
     if (previews) return;
     let alive = true;
     void loadPreviews().then((p) => {

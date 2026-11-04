@@ -17,7 +17,7 @@ const port = new URL(base).port;
 const browser = await chromium.launch({ headless: true });
 
 /** Chunks that only the companion needs. */
-const COMPANION = /\/assets\/(boot|yoga|reconciler|tabs-loader|HomeTab|DocsTab)-[\w-]+\.js$/;
+const COMPANION = /\/assets\/(boot|yoga|reconciler|HomeTab|DocsTab|ExampleTab)-[\w-]+\.js$/;
 const DESKTOP = { viewport: { width: 1440, height: 900 } };
 const PHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true };
 
@@ -87,8 +87,9 @@ const ways = [
         dispatchEvent(new Event("resize"));
       }),
   ],
-  ["a click on the hero's console", async (page) => page.locator(".hero .devtools .dt-body").click()],
-  ["the hero's Click to focus button", async (page) => page.locator(".hero .dt-focus").click()],
+  // The console's log row is the "Click to focus" button; the rest of the DevTools window is the engage surface.
+  ["a click on the hero's console", async (page) => page.locator(".hero .dt-log").click()],
+  ["a click on the hero's DevTools prompt", async (page) => page.locator(".hero .dt-prompt").click()],
   ["the hero's inspect button", async (page) => page.locator(".hero .dt-inspect").click()],
   ["the Console pill", async (page) => page.locator(".console-pill").click()],
 ];
@@ -100,7 +101,7 @@ for (const [name, act] of ways) {
   const hero = await page.locator(".hero [data-textjs-mirror]").innerText();
   check(`desktop /: after ${name}, the hero mirrors the live console`, hero.includes("React 19 in console.log"), hero.slice(0, 200));
   const engaged = await page.locator(".hero .dt-log.engaged").count();
-  const shouldEngage = /click|button|pill/i.test(name) && !/inspect/.test(name);
+  const shouldEngage = /click|pill/i.test(name);
   check(`desktop /: ${name} ${shouldEngage ? "gives" : "doesn't give"} the console the keyboard`, (engaged === 1) === shouldEngage, `engaged ${engaged}`);
   if (/inspect/.test(name)) check("desktop /: the inspect button turns the wireframe on", (await page.locator(".hero .dt-inspect.active").count()) === 1 && (await page.evaluate(() => window.text?.renderer?.wireframe)) === true);
   check(`desktop /: ${name}: no page errors`, errors.length === 0, errors.join(" | "));
@@ -159,19 +160,19 @@ for (const [name, act] of ways) {
 // Hovering a console surface downloads the companion without booting it.
 {
   const { context, page, chunks } = await open(DESKTOP, "/");
-  await page.locator(".hero .devtools .dt-body").hover();
+  await page.locator(".hero .dt-log").hover();
   await page.waitForTimeout(1500);
   check("desktop /: hovering the hero downloads the companion", chunks.includes("/assets/boot"), chunks.join(" "));
   check("desktop /: hovering doesn't boot it", (await frames(page)) === 0);
   await context.close();
 }
 
-// Phones: taps never boot it, and docs examples stay on the page.
+// Phones: a tap on a console surface doesn't boot it (only the explicit buttons do).
 {
   const { context, page, chunks } = await open(PHONE, "/");
-  await page.locator(".hero .devtools .dt-body").tap();
+  await page.locator(".hero .dt-prompt").tap();
   await page.waitForTimeout(1500);
-  check("phone /: a tap on the hero doesn't boot the companion", (await frames(page)) === 0 && chunks.length === 0, `${await frames(page)} frames, ${chunks.join(" ")}`);
+  check("phone /: a tap on the hero's DevTools window doesn't boot the companion", (await frames(page)) === 0 && chunks.length === 0, `${await frames(page)} frames, ${chunks.join(" ")}`);
   await context.close();
 }
 
