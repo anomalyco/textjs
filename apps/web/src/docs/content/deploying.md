@@ -16,6 +16,8 @@ text build --adapter <name>
 
 The adapter can also come from `TEXTJS_ADAPTER`. When `text build` runs on Vercel (`VERCEL=1`) or Cloudflare Pages (`CF_PAGES=1`), the matching adapter is selected automatically.
 
+To add the app to another site with one script tag, build with `--embed`. Every adapter supports it, and `bun` also serves embedded server-rendered routes (see [Embedding](/docs/embedding)).
+
 The server adapters (`bun`, `vercel` and `cloudflare`) run the same pipeline as `text start`: [middleware](/docs/middleware), `rewrites`, [route handlers](/docs/route-handlers) with the [route cache](/docs/caching), static assets, then the console document for page URLs. Terminal clients such as curl get the page's first frame as ANSI text instead. On `vercel` and `cloudflare` this covers static pages only (see [curl and terminal clients](/docs/curl)). The server adapters serve hashed files under `/assets/` with `Cache-Control: public, max-age=31536000, immutable`.
 
 ## Static

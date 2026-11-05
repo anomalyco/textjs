@@ -13,6 +13,7 @@ export const DOC_DESCRIPTIONS: Readonly<Record<string, string>> = {
   caching: msg("Route segment config, unstable_cache, revalidateTag / revalidatePath and stale-while-revalidate."),
   deploying: msg("Deploy with text build --adapter static, bun, vercel or cloudflare, or run text start behind a proxy."),
   curl: "curl, Wget, HTTPie and xh get a page's first frame as truecolor ANSI text. Configure its size or turn it off.",
+  embedding: msg("Add an app to another site with one script tag: text build --embed, <text-console>, server-rendered routes and hosting."),
   styling: msg("Cell-grid className utilities, typed props, responsive viewports and themes."),
   internationalization: msg("Right-to-left and mixed-direction text, Arabic shaping, and translating the focus pad."),
   keyboard: msg("useKeymap, sequences, the ? help overlay, key hints and the command palette."),

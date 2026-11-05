@@ -83,6 +83,12 @@ export const DOCS_META: readonly DocMeta[] = [
     category: "Building Your Application",
   },
   {
+    slug: "embedding",
+    title: msg("Embedding in Other Sites"),
+    nav: msg("Embedding"),
+    category: "Building Your Application",
+  },
+  {
     slug: "styling",
     title: msg("Styling"),
     category: "Building Your Application",
