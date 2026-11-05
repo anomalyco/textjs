@@ -11,8 +11,10 @@ describe("production build", () => {
     const out = mkdtempSync(join(tmpdir(), "textjs-web-"));
     try {
       const proc = Bun.spawnSync(["bun", "x", "vite", "build", "--outDir", out, "--emptyOutDir"], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
-      const stdout = proc.stdout.toString();
-      const stderr = proc.stderr.toString();
+      // Without the colors Vite adds on a terminal.
+      const plain = (b: Buffer): string => b.toString().replace(/\x1b\[[\d;]*m/g, "");
+      const stdout = plain(proc.stdout);
+      const stderr = plain(proc.stderr);
       expect(proc.exitCode).toBe(0);
       expect(stdout).toContain("built in");
       // Vite lists every emitted file with its size; chunk names such as `errors-*.js` aren't messages.
