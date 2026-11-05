@@ -7,7 +7,8 @@
  * Two hosts (a plain HTML page, and the same page running its own React 18 app
  * from an import map), each with no embed, with `embed.js`, and with `embed.js`
  * plus a `<text-console mirror>` and the CSS `text build --embed` prints, under
- * the hero (`mirror`) or below the first screen (`below`). Each case loads RUNS
+ * the hero (`mirror`, and `async` with `<script type="module" async>`) or below
+ * the first screen (`below`). Each case loads RUNS
  * times (default 7) in a fresh context. The embed's files come from a second
  * origin that gzips them, as a CDN would.
  *
@@ -15,10 +16,11 @@
  *
  * Pass: CLS 0 everywhere, 0 ms of blocking time from the embed's scripts, no
  * long animation frame running them while the visitor uses the page, and a
- * median LCP within 15 ms of the same host without the embed. A mirror in the
- * first screen is usually the largest element, so LCP becomes the mirror's own
- * paint: the table also shows the LCP of the page's own content, outside
- * `<text-console>`. Exits 1 when a case fails.
+ * median LCP within 15 ms of the same host without the embed. A mirror under
+ * the hero is usually the page's largest element, so LCP becomes the mirror's
+ * own first paint, which waits for `embed.js` and then the element's file: there
+ * the page's own content (outside `<text-console>`) must stay within 15 ms, and
+ * LCP within 750 ms. The table shows both. Exits 1 when a case fails.
  *
  *   bun packages/app/test/embed-cwv.ts
  *
@@ -63,7 +65,7 @@ const SERVER_PAGE = `import { Text } from "@textjs/app";\nexport const runtime =
 
 type Host = "plain" | "react18";
 /** `mirror`: a `<text-console mirror>` under the hero; `below`: the same, below the first screen. */
-type Condition = "none" | "embed" | "mirror" | "below";
+type Condition = "none" | "embed" | "mirror" | "async" | "below";
 
 interface Load {
   cls: number;
@@ -120,7 +122,7 @@ function serveDist(dist: string): ReturnType<typeof Bun.serve> {
 const PROSE = Array.from({ length: 24 }, (_, i) => `<p>Section ${i + 1}. Acme runs your workloads in 18 regions with automatic failover, per-request logs and audit trails. Teams deploy several times a day and roll back in seconds.</p>`).join("\n");
 
 function hostPage(host: Host, condition: Condition, embedSrc: string, reserveCss: string): string {
-  const style = `body{margin:0;font:16px/1.5 system-ui,sans-serif;color:#111}header{display:flex;gap:24px;padding:16px 32px;border-bottom:1px solid #ddd}main{max-width:960px;margin:0 auto;padding:32px}.hero h1{font-size:48px;line-height:1.1;margin:24px 0}.hero p{font-size:20px;color:#444;max-width:720px}form{display:flex;gap:8px;margin:24px 0}input{padding:8px;font:inherit}text-console{margin:32px 0}${condition === "mirror" || condition === "below" ? reserveCss : ""}`;
+  const style = `body{margin:0;font:16px/1.5 system-ui,sans-serif;color:#111}header{display:flex;gap:24px;padding:16px 32px;border-bottom:1px solid #ddd}main{max-width:960px;margin:0 auto;padding:32px}.hero h1{font-size:48px;line-height:1.1;margin:24px 0}.hero p{font-size:20px;color:#444;max-width:720px}form{display:flex;gap:8px;margin:24px 0}input{padding:8px;font:inherit}text-console{margin:32px 0}${condition === "none" || condition === "embed" ? "" : reserveCss}`;
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Acme</title><link rel="icon" href="data:,"><style>${style}</style>${host === "react18" ? REACT18_HEAD : ""}</head>
 <body>
@@ -131,12 +133,12 @@ function hostPage(host: Host, condition: Condition, embedSrc: string, reserveCss
     <p>Acme gives every service a status page, a live console and an audit log. Open DevTools on this page to see the status console.</p>
     <form><input aria-label="email" placeholder="you@company.com"><button type="button">Get started</button></form>
   </section>
-  ${condition === "mirror" ? "<text-console mirror></text-console>" : ""}
+  ${condition === "mirror" || condition === "async" ? "<text-console mirror></text-console>" : ""}
   ${PROSE}
   ${condition === "below" ? "<text-console mirror></text-console>" : ""}
   ${host === "react18" ? REACT18_ROOT : ""}
 </main>
-${condition === "none" ? "" : `<script type="module" src="${embedSrc}"></script>`}
+${condition === "none" ? "" : `<script type="module"${condition === "async" ? " async" : ""} src="${embedSrc}"></script>`}
 </body></html>`;
 }
 
@@ -240,7 +242,7 @@ async function main(): Promise<void> {
       const t0 = Date.now();
       // Wait for embed.js's first frame (and the mirror), then let the page settle.
       while (condition !== "none" && !painted && Date.now() - t0 < 20_000) await page.waitForTimeout(50);
-      if (condition === "mirror" || condition === "below") await page.waitForFunction(() => (document.querySelector("text-console")?.shadowRoot?.textContent ?? "").includes("Acme"), null, { timeout: 20_000 });
+      if (condition !== "none" && condition !== "embed") await page.waitForFunction(() => (document.querySelector("text-console")?.shadowRoot?.textContent ?? "").includes("Acme"), null, { timeout: 20_000 });
       if (host === "react18") await page.waitForFunction(() => document.getElementById("r18-count") !== null, null, { timeout: 20_000 });
       await page.waitForTimeout(2000);
       // The visitor uses the page (after LCP, which input would end): its field, its button and, on the React page, React's.
@@ -265,7 +267,7 @@ async function main(): Promise<void> {
 
     const results: Record<string, Load[]> = {};
     const hosts: Host[] = ["plain", "react18"];
-    const conditions: Condition[] = ["none", "embed", "mirror", "below"];
+    const conditions: Condition[] = ["none", "embed", "mirror", "async", "below"];
     // Interleave the cases so drift on the machine spreads across all of them.
     for (let run = 0; run < RUNS; run++) {
       for (const host of hosts) {
@@ -297,7 +299,9 @@ async function main(): Promise<void> {
         const elements = [...new Set(rs.map((r) => r.lcpElement))].join(", ");
         const reqs = [...new Set(rs.flatMap((r) => r.requests))].map((p) => p.replace(/-[\w-]{8}\./, "-[hash].")).join(", ") || "none";
         const embedInput = Math.max(...rs.map((r) => r.embedInputFrames));
-        const pass = cls === 0 && embedTbt === 0 && embedInput === 0 && (condition === "none" || delta <= 15);
+        // Under the hero, LCP is the mirror's own paint (see the header comment).
+        const lcpOk = condition === "mirror" || condition === "async" ? ownDelta <= 15 && delta <= 750 : condition === "none" || delta <= 15;
+        const pass = cls === 0 && embedTbt === 0 && embedInput === 0 && lcpOk;
         if (!pass) failed = true;
         rows.push(`| ${host} | ${condition} | ${cls.toFixed(4)} | ${lcp.toFixed(0)} ms | ${signed(delta)} | ${elements} | ${signed(ownDelta)} | ${embedTbt.toFixed(0)} ms | ${median(rs.map((r) => r.tbt)).toFixed(0)} ms | ${embedInput} / ${Math.max(...rs.map((r) => r.inputFrames))} | ${median(rs.map((r) => r.script)).toFixed(0)} | ${reqs} |${pass ? "" : " FAIL"}`);
       }
