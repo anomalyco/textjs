@@ -1,8 +1,7 @@
 /**
- * Set `"prop:value;…"` on an element one property at a time. CSSOM setters
- * pass a host page's `style-src` Content Security Policy without
- * `'unsafe-inline'`, where some browsers block `style.cssText` and the
- * `style` attribute.
+ * Set `"prop:value;…"` on an element one property at a time. CSSOM property
+ * setters are outside a host page's `style-src` Content Security Policy,
+ * where the `style` attribute isn't.
  */
 export function applyStyle(el: HTMLElement, css: string): void {
   for (const decl of css.split(";")) {

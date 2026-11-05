@@ -24,7 +24,8 @@ import { createRuntimeMatcher } from "./live-routes";
 import { compileShellCalls, createShellReplayCode } from "./ppr";
 import type { AppScan } from "./scan";
 import { withFrameworkEntry } from "./vite-entry";
-import { createEmbedEntry, EMBED_FILE, EMBED_MANIFEST, textjsEmbedPlugin, VIRTUAL_EMBED_CLIENT, VIRTUAL_EMBED_PLAYER, type EmbedSettings } from "./embed";
+import { loadMiddlewareConfig } from "./adapters/build-step";
+import { createEmbedEntry, EMBED_FILE, GUARDED_SHELL, middlewareCouldGuard, textjsEmbedPlugin, VIRTUAL_EMBED_CLIENT, VIRTUAL_EMBED_PLAYER, type EmbedSettings } from "./embed";
 import { LIVE_PATH } from "../live-protocol";
 
 export interface EmbedBuildOptions {
@@ -73,9 +74,9 @@ function esbuild(): EsbuildBuild {
 }
 
 /** Bundle and minify the `embed.js` source; `external` are the runtime files it imports lazily. */
-async function bundleEntry(code: string, external: string[]): Promise<Uint8Array> {
+async function bundleEntry(root: string, code: string, external: string[]): Promise<Uint8Array> {
   const result = await esbuild()({
-    stdin: { contents: code, loader: "js", resolveDir: process.cwd(), sourcefile: EMBED_FILE },
+    stdin: { contents: code, loader: "js", resolveDir: root, sourcefile: EMBED_FILE },
     bundle: true,
     write: false,
     format: "esm",
@@ -120,7 +121,7 @@ async function buildRuntime(o: EmbedBuildOptions, runtime: "client" | "server"):
       rollupOptions: { output: { entryFileNames: `assets/${name}-[hash].js`, chunkFileNames: "assets/[name]-[hash].js", assetFileNames: "assets/[name]-[hash][extname]", format: "es" } },
     },
     // The player needs no React and no route modules.
-    plugins: [...(client ? textjsVitePlugin({ ...o.config, root: o.root }) : textjsLivePlugin({ appDir: o.config.appDir, root: o.root })), textjsEmbedPlugin({ config: o.config, embeddedStubs: true }), entryPlugin(input)],
+    plugins: [...(client ? textjsVitePlugin({ ...o.config, root: o.root }) : textjsLivePlugin({ appDir: o.config.appDir, root: o.root })), textjsEmbedPlugin({ config: o.config }), entryPlugin(input)],
   };
   const out = (await build(withFrameworkEntry(inline, o.config.vite, { input }))) as Rollup.RollupOutput | Rollup.RollupOutput[];
   const files = (Array.isArray(out) ? out : [out]).flatMap((r) => r.output);
@@ -147,7 +148,10 @@ export async function buildEmbed(o: EmbedBuildOptions): Promise<EmbedBuildResult
 
   let shell: string | null = null;
   let shellError: string | undefined;
-  if (config.ppr !== false) {
+  // A middleware config that can't be read counts as matching every route.
+  const middleware = config.ppr !== false ? await loadMiddlewareConfig(o.root, config, outDir).catch(() => ({})) : null;
+  if (config.ppr !== false && middlewareCouldGuard(middleware, settings.initialPath)) shellError = GUARDED_SHELL;
+  else if (config.ppr !== false) {
     const live = join(outDir, ".text", "server", "live.mjs");
     if (!existsSync(live)) await buildLiveBundle({ root: o.root, config, outDir, plugins: textjsVitePlugin({ ...config, root: o.root }) });
     const vp = config.viewport ?? {};
@@ -174,7 +178,7 @@ export async function buildEmbed(o: EmbedBuildOptions): Promise<EmbedBuildResult
       ...(runtime === "client" && built.wasm ? { wasm: rel(built.wasm) } : {}),
       ...(runtime === "server" ? { endpoint: `${prefix === "./" ? "../" : "./"}${LIVE_PATH.slice(1)}` } : {}),
     });
-    return bundleEntry(code, [runtimeUrl]);
+    return bundleEntry(o.root, code, [runtimeUrl]);
   };
   // embed.js sits above assets/, its immutable copy inside it.
   const top = await entryFor("./assets/");
@@ -190,7 +194,5 @@ export async function buildEmbed(o: EmbedBuildOptions): Promise<EmbedBuildResult
     lazy.bytes += s.bytes;
     lazy.gzip += s.gzip;
   }
-  mkdirSync(join(outDir, ".text"), { recursive: true });
-  writeFileSync(join(outDir, ".text", EMBED_MANIFEST), `${JSON.stringify({ version: 1, runtime, entry: EMBED_FILE, hashedEntry: hashed, lazy: built.files }, null, 2)}\n`);
   return { runtime, entry: size(top), hashedEntry: hashed, lazy, lazyFiles: built.files, shell: shell !== null, ...(shellError ? { shellError } : {}) };
 }

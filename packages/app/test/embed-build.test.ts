@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { buildApp, type BuildResult } from "../src/cli/build";
 import { parseArgs } from "../src/cli/index";
+import { startDevServer } from "../src/cli/dev";
 import { startProductionServer } from "../src/cli/start";
 import { adapt } from "./adapter-helpers";
 import { createFixture } from "./server-fixture";
@@ -118,7 +119,19 @@ describe("text build --embed (client route)", () => {
     expect(out.some((f) => f.endsWith(".html"))).toBe(false);
     expect(result.embed?.runtime).toBe("client");
     expect(result.embed?.shell).toBe(true);
+    // No pages, so no curl frames or live manifest either.
+    expect(existsSync(join(dist, ".text/live-manifest.json"))).toBe(false);
+    expect(existsSync(join(dist, ".text/ansi"))).toBe(false);
     expectHygiene(dist);
+  });
+
+  test("prints what it wrote: embed.js and what loads on intent, no route table", () => {
+    expect(result.output).toContain("+ embed.js");
+    expect(result.output).toContain(result.embed?.hashedEntry as string);
+    for (const f of result.embed?.lazyFiles ?? []) expect(result.output).toContain(`+ ${f}`);
+    expect(result.output).not.toContain("Route (app)");
+    expect(result.output).not.toContain("prerendered as static console cells");
+    expect(result.output).not.toContain("First Load JS");
   });
 
   test("embed.js paints frame 0, then loads the runtime and Yoga together, relative to itself", () => {
@@ -165,6 +178,10 @@ describe("text build --embed (client route)", () => {
         const page = await fetch(`${base}/`, { headers: { accept: "text/html" } });
         expect(page.status).toBe(404);
         await page.arrayBuffer();
+        // Terminals get no frame of the app either.
+        const curl = await fetch(`${base}/`, { headers: { "user-agent": "curl/8.7.1", accept: "*/*" } });
+        expect(curl.status).toBe(404);
+        await curl.arrayBuffer();
       } finally {
         await server.close();
       }
@@ -218,6 +235,27 @@ describe("text build --embed (client route)", () => {
         expect(r.output).toContain("embed.js");
         // The embed opens at initialPath: its first frame is the about page.
         expect(readFileSync(join(dir, "dist/embed.js"), "utf8")).toContain("about");
+      } finally {
+        writeFileSync(join(dir, "text.config.ts"), CLIENT_APP["text.config.ts"] as string);
+      }
+    },
+    180_000,
+  );
+
+  test(
+    "emptyOutDir: false keeps what's in the output; a standalone build's pages survive the embed build",
+    async () => {
+      writeFileSync(join(dir, "dist/sentinel.txt"), "keep");
+      writeFileSync(join(dir, "text.config.ts"), config(`{ title: "Status", embed: true, vite: { build: { emptyOutDir: false } } }`));
+      try {
+        await buildApp({ root: dir, log: false });
+        expect(readFileSync(join(dir, "dist/sentinel.txt"), "utf8")).toBe("keep");
+        writeFileSync(join(dir, "text.config.ts"), config(`{ title: "Status", embed: { standalone: true }, vite: { build: { emptyOutDir: true } } }`));
+        await buildApp({ root: dir, log: false });
+        // Emptied once, at the start; the runtime build that followed the pages didn't empty it again.
+        expect(existsSync(join(dir, "dist/sentinel.txt"))).toBe(false);
+        expect(existsSync(join(dir, "dist/index.html"))).toBe(true);
+        expect(existsSync(join(dir, "dist/embed.js"))).toBe(true);
       } finally {
         writeFileSync(join(dir, "text.config.ts"), CLIENT_APP["text.config.ts"] as string);
       }
@@ -284,4 +322,66 @@ describe("text build --embed (server-rendered route)", () => {
   test("the static adapter refuses it (no server)", async () => {
     await expect(adapt(dir, "static")).rejects.toThrow(/renders on the server/);
   });
+});
+
+/** `/ops` is behind cookie middleware; `/` isn't. */
+const GUARDED_APP: Record<string, string> = {
+  "text.config.ts": config(`{ embed: { initialPath: "/ops" } }`),
+  "app/page.tsx": `import { Text } from "@textjs/app";\nexport default function Page() { return <Text>public home</Text>; }\n`,
+  "app/ops/page.tsx": `import { Text } from "@textjs/app";\nexport default function Ops() { return <Text>ops secret</Text>; }\n`,
+  "middleware.ts": `import { NextResponse, type NextRequest } from "@textjs/app/server";
+export function middleware(request: NextRequest) {
+  if (request.cookies.get("auth")?.value === "1") return NextResponse.next();
+  return new Response("denied", { status: 401 });
+}
+export const config = { matcher: ["/ops/:path*"] };
+`,
+};
+
+describe("embed.js never carries a frame middleware could protect", () => {
+  let dir = "";
+  production();
+  beforeAll(() => {
+    dir = createFixture(GUARDED_APP, "textjs-embed-guarded-");
+  });
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test(
+    "text build: no first frame in embed.js or its hashed copy when middleware matches initialPath",
+    async () => {
+      const r = await buildApp({ root: dir, log: false });
+      expect(r.embed?.shell).toBe(false);
+      expect(r.embed?.shellError).toContain("middleware.ts could match embed.initialPath");
+      for (const f of ["embed.js", r.embed?.hashedEntry as string]) expect({ f, leaked: readFileSync(join(dir, "dist", f), "utf8").includes("ops secret") }).toEqual({ f, leaked: false });
+      // A route middleware doesn't cover still gets one.
+      writeFileSync(join(dir, "text.config.ts"), config(`{ embed: { initialPath: "/" } }`));
+      try {
+        const open = await buildApp({ root: dir, log: false });
+        expect(open.embed?.shell).toBe(true);
+        expect(readFileSync(join(dir, "dist/embed.js"), "utf8")).toContain("public home");
+      } finally {
+        writeFileSync(join(dir, "text.config.ts"), GUARDED_APP["text.config.ts"] as string);
+      }
+    },
+    180_000,
+  );
+
+  test(
+    "text dev: /embed.js has no first frame for a guarded initialPath",
+    async () => {
+      const dev = await startDevServer({ root: dir, port: 43000 + Math.floor(Math.random() * 2000), log: false });
+      try {
+        const base = new URL(dev.resolvedUrls?.local[0] ?? "").origin;
+        const code = await (await fetch(`${base}/embed.js`)).text();
+        expect(code).toContain("startEmbed(null,");
+        expect(code).not.toContain("ops secret");
+      } finally {
+        await dev.waitForRequestsIdle();
+        await dev.close();
+      }
+    },
+    60_000,
+  );
 });

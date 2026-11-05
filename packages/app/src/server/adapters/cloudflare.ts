@@ -62,6 +62,8 @@ async function asset(env, url, request) {
   const out = new Response(res.body, res);
   // basePath apps serve hashed assets through the worker (they live at dist/assets, not dist/<base>/assets).
   if (hashed) out.headers.set("cache-control", "public, max-age=31536000, immutable");
+  // A redeploy changes embed.js in place: browsers revalidate it every time.
+  else if (shared) out.headers.set("cache-control", "public, max-age=0, must-revalidate");
   if (shared && !(out.headers.get("content-type") ?? "").includes("text/html")) for (const [k, v] of Object.entries(EMBED_ASSET_HEADERS)) out.headers.set(k, v);
   return out;
 }
@@ -72,10 +74,11 @@ const handler = createRequestHandler({
   assets(pathname, request, context) {
     return asset(context.env, new URL(pathname, request.url), request);
   },
-  document(request, context) {
+  // An embed build has no index.html: page routes are 404s without asking Pages.
+  document: embed.document ? (request, context) => {
     // Pages redirects /index.html to /, so ask for the directory index.
     return asset(context.env, new URL("/", request.url), request);
-  },
+  } : undefined,
 });
 
 export default {
@@ -112,7 +115,7 @@ export async function adaptCloudflare(ctx: AdapterContext, middleware: Middlewar
   assertNoServerRoutes(ctx, "cloudflare");
   const frames = readAnsiFrames(ctx.outDir);
   const workerFile = join(ctx.outDir, "_worker.js");
-  const embed = `const embed = ${JSON.stringify({ enabled: resolveEmbed(ctx.config).enabled })};`;
+  const embed = `const embed = ${JSON.stringify({ enabled: resolveEmbed(ctx.config).enabled, document: existsSync(join(ctx.outDir, "index.html")) })};`;
   const staged = join(ctx.outDir, ".text", "worker");
   rmSync(staged, { recursive: true, force: true });
   const { wasm } = await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: `${ansiPrelude(frames)}\n${embed}\n${BODY}` }), outFile: join(staged, "index.js"), target: "webworker" });
@@ -122,7 +125,9 @@ export async function adaptCloudflare(ctx: AdapterContext, middleware: Middlewar
   const sizeNote = cloudflareWorkerNote(workerBytes);
   writeFileSync(join(ctx.outDir, "_routes.json"), `${JSON.stringify(cloudflareRoutes(ctx, middleware), null, 2)}\n`);
   const headersNoteLine = headersNote(writeHeadersRules(ctx.outDir, staticHeadersRules(ctx.config)), ctx.config);
-  // Without a top-level 404.html, Pages answers unknown files with index.html (200), and missing assets would render the app.
+  // Without a top-level 404.html, Pages treats the project as a single-page app and answers unknown paths with
+  // index.html (200), so a missing asset would render the app. An embed build has no index.html, but this keeps
+  // missing files a plain 404 whatever Pages does without one.
   const notFoundFile = join(ctx.outDir, "404.html");
   if (!existsSync(notFoundFile)) writeFileSync(notFoundFile, "404 | This page could not be found.\n");
   // Pages would publish dist/.text (server bundles, manifests) as static files.

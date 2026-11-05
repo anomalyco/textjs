@@ -104,16 +104,22 @@ export interface TextConfig {
 
 /** @experimental `text.config.ts` `embed`. */
 export interface EmbedConfig {
-  /** The app path the embedded console opens at (default `"/"`). Navigation stays inside the console. */
+  /** The app path the embedded console opens at (default `"/"`). Navigation stays inside the console. Must start with `/`. */
   initialPath?: string;
-  /** The console API's global, `window.text` by default. `false` installs none. */
+  /**
+   * The global name the app installs its console API under once it loads
+   * (default `"text"`). Must be a JavaScript identifier. `false` installs none.
+   */
   globalName?: string | false;
   /**
-   * Clear the host page's console before the first frame (default `false`:
-   * what the page logged earlier stays above the app).
+   * Clear the host page's console before the first frame (default `false`,
+   * so what the page logged earlier stays above the app).
    */
   initialClear?: boolean;
-  /** Also build the app's own pages (`index.html`), as `text build` does without `embed` (default `false`). */
+  /**
+   * Also build the app's own pages (`index.html`), as `text build` does without
+   * `embed` (default `false`). In `text dev`, the preview page moves to `/__textjs/embed`.
+   */
   standalone?: boolean;
   /**
    * Origins of other sites whose pages may run server-rendered routes

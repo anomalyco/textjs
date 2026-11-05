@@ -62,3 +62,25 @@ test("onConsoleIntent code-split from a ViewportController chunk keeps the rende
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("onConsoleIntent's chunk stays small when the app it loads is a ConsoleRenderer", async () => {
+  const { build } = await import("vite");
+  const { gzipSync } = await import("node:zlib");
+  const dir = mkdtempSync(join(tmpdir(), "textjs-intent-renderer-"));
+  const src = (p: string): string => JSON.stringify(fileURLToPath(new URL(p, import.meta.url)));
+  writeFileSync(join(dir, "entry.ts"), `import { onConsoleIntent } from ${src("../src/console-intent.ts")};\nonConsoleIntent(() => void import("./app"));\n`);
+  writeFileSync(join(dir, "app.ts"), `import { ConsoleRenderer } from ${src("../src/index.ts")};\nconsole.log(new ConsoleRenderer());\n`);
+  try {
+    const out = (await build({
+      configFile: false,
+      root: dir,
+      logLevel: "silent",
+      build: { write: false, modulePreload: false, rollupOptions: { input: join(dir, "entry.ts"), preserveEntrySignatures: false } },
+    })) as { output: Array<{ type: string; isEntry?: boolean; code?: string }> };
+    const entry = out.output.find((c) => c.type === "chunk" && c.isEntry)?.code ?? "";
+    // 2,778 B when measured (12,435 B before analyzeDock moved into dock.ts).
+    expect(gzipSync(entry).length).toBeLessThan(3000);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

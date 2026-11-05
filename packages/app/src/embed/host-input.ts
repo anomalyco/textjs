@@ -1,17 +1,18 @@
 /**
  * Keyboard input for an app embedded in someone else's page. Keys reach the
  * app only once the visitor engages it, and never while they type in the
- * page's own fields; until then the page keeps Tab, Space, the arrow keys,
- * paste and the wheel.
+ * page's own fields. Until then the page keeps Tab, Space, the arrow keys and
+ * paste. The wheel always scrolls the page.
  */
 
 import { InputEngine } from "@textjs/core";
+import { engageSurfaceOf, isMac } from "@textjs/core/internal";
 
 /** Pressing one of these routes keys to the app. */
 export const ENGAGE_SELECTOR = "[data-textjs-engage], [data-textjs-focus-pad], text-console";
 /** Elements that keep their own keyboard input, and pressing one hands keys back to the page. */
-export const BYPASS_SELECTOR = "input, textarea, select, [contenteditable=''], [contenteditable='true'], [data-textjs-bypass]";
-const INTERACTIVE = `a[href], button, label, summary, [role=button], ${BYPASS_SELECTOR}`;
+export const BYPASS_SELECTOR = 'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [data-textjs-bypass]';
+const INTERACTIVE = `a[href], button, label, summary, [role=button], [tabindex]:not([tabindex="-1"]), [data-focus-pad-ignore], ${BYPASS_SELECTOR}`;
 /** A press within this long of the window regaining focus is the click that brings focus back from DevTools. */
 const REFOCUS_MS = 300;
 
@@ -39,7 +40,8 @@ export interface HostInputOptions {
 export function createHostInput(options: HostInputOptions = {}): HostInput {
   const doc = options.document ?? document;
   const win = doc.defaultView;
-  let open = options.engaged === true;
+  // The visitor may have moved on to one of the page's fields while the app was loading: the field keeps the keyboard.
+  let open = options.engaged === true && doc.activeElement?.closest(BYPASS_SELECTOR) == null;
   const routes = (): boolean => {
     if (!open) return false;
     const active = doc.activeElement;
@@ -59,14 +61,16 @@ export function createHostInput(options: HostInputOptions = {}): HostInput {
   const onDown = (e: MouseEvent): void => {
     focusAfterClick = false;
     const t = e.target as Element | null;
-    if (e.button !== 0 || typeof t?.closest !== "function") return;
+    // Ctrl+click is a right click on a Mac.
+    if (e.button !== 0 || (e.ctrlKey && win !== null && isMac(win)) || typeof t?.closest !== "function") return;
     const refocus = !doc.hasFocus() || e.timeStamp - focusedAt < REFOCUS_MS;
-    open = t.closest(BYPASS_SELECTOR) === null && (t.closest(ENGAGE_SELECTOR) !== null || (refocus && t.closest(INTERACTIVE) === null));
+    // As onConsoleIntent counts presses: a surface's own links, buttons and fields keep theirs.
+    open = t.closest(BYPASS_SELECTOR) === null && (engageSurfaceOf(t, ENGAGE_SELECTOR) !== null || (refocus && t.closest(INTERACTIVE) === null));
     focusAfterClick = open;
   };
   const onClick = (e: MouseEvent): void => {
     // Enter or Space on a focused surface.
-    if (e.detail === 0 && (e.target as Element | null)?.closest?.(ENGAGE_SELECTOR)) return engage();
+    if (e.detail === 0 && engageSurfaceOf(e.target, ENGAGE_SELECTOR)) return engage();
     if (!focusAfterClick) return;
     focusAfterClick = false;
     // Once the click is over, and only without a text selection, so drag-to-select and copy still work.

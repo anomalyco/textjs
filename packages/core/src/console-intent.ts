@@ -58,18 +58,67 @@ export interface ConsoleIntentHandle {
 /** The `sessionStorage` key that remembers intent for a tab. */
 export const CONSOLE_INTENT_KEY = "textjs:console-intent";
 /**
- * `globalThis[CONSOLE_OWNER]` is set by whatever renders into the page's
- * console first: a `ConsoleRenderer` on the global console, or an embed
- * script. Everything else checks it, so two apps never interleave frames.
+ * `globalThis[CONSOLE_OWNER]` holds whatever renders into the page's console:
+ * a `ConsoleRenderer` on the global console, a frame player that owns the
+ * page, or an embed. A host app that starts takes the console from an embed
+ * (see {@link claimConsole}); an embed never starts while something else holds it.
  */
 export const CONSOLE_OWNER: unique symbol = Symbol.for("textjs.consoleOwner");
-const DEFAULT_ENGAGE = "[data-textjs-engage], [data-textjs-focus-pad], text-console";
+
+/** The value at `globalThis[CONSOLE_OWNER]`. Duck-typed, so it works across separately built copies of Text.js. */
+export interface ConsoleOwner {
+  /** An embed, which gives the console up to the page's own app. */
+  embed?: true;
+  /** Stop rendering and let go of the console (an embed unmounts, detaches its input and removes its global). */
+  preempt?(): void;
+}
+
+/** The page's console owner, if any. */
+export function consoleOwner(): ConsoleOwner | undefined {
+  return (globalThis as Record<symbol, ConsoleOwner | undefined>)[CONSOLE_OWNER];
+}
+
+/**
+ * Take the page's console for `owner`, preempting whoever holds it. Returns
+ * the release, which clears the claim only while it's still `owner`'s.
+ */
+export function claimConsole(owner: ConsoleOwner): () => void {
+  const g = globalThis as Record<symbol, ConsoleOwner | undefined>;
+  const prev = g[CONSOLE_OWNER];
+  if (prev !== undefined && prev !== owner) {
+    try {
+      prev.preempt?.();
+    } catch {
+      // The previous owner is gone either way.
+    }
+  }
+  g[CONSOLE_OWNER] = owner;
+  return () => {
+    if (g[CONSOLE_OWNER] === owner) delete g[CONSOLE_OWNER];
+  };
+}
+
+/** Surfaces whose primary press signals `"engage"` by default. */
+export const DEFAULT_ENGAGE = "[data-textjs-engage], [data-textjs-focus-pad], text-console";
 const COARSE = "(hover: none) and (pointer: coarse)";
 /** Matches `activateFocusPad`: presses on a surface's own controls keep their defaults. */
 const INTERACTIVE = "a,button,input,textarea,select,label,summary,[contenteditable],[data-focus-pad-ignore]";
 
-function isMac(win: Window): boolean {
+/** Whether the page runs on a Mac (where Ctrl+click is a right click). */
+export function isMac(win: Window): boolean {
   return /Mac|iPhone|iPad/.test(win.navigator?.platform || win.navigator?.userAgent);
+}
+
+/**
+ * The console surface (`selector`) a press on `target` engages, or `null`.
+ * A link, button or field inside a surface keeps its own press, unless it
+ * carries `data-textjs-engage` itself.
+ */
+export function engageSurfaceOf(target: EventTarget | null, selector: string = DEFAULT_ENGAGE): Element | null {
+  const t = target as Element | null;
+  const surface = t?.closest?.(selector) ?? null;
+  const control = surface && t!.closest(INTERACTIVE);
+  return control && control !== surface && !control.matches("[data-textjs-engage]") ? null : surface;
 }
 
 /**
@@ -192,12 +241,7 @@ export function onConsoleIntent(onIntent: (event: ConsoleIntentEvent) => void, o
 
   const engage = options.engageSelector ?? DEFAULT_ENGAGE;
   const doc = win.document;
-  const surfaceOf = (e: Event): Element | null | undefined => {
-    const t = e.target as Element | null;
-    const surface = t?.closest?.(engage as string);
-    const control = surface && t!.closest(INTERACTIVE);
-    return control && control !== surface && !control.matches("[data-textjs-engage]") ? null : surface;
-  };
+  const surfaceOf = (e: Event): Element | null => engageSurfaceOf(e.target, engage as string);
   if (engage !== false) {
     listen(
       doc,

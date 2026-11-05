@@ -53,6 +53,11 @@ const errorText = (error: unknown): string => (error instanceof Error ? (error.s
 /** `.text/` inside the output directory holds build metadata and the API server bundle. */
 export const META_DIR = ".text";
 
+function fileSize(file: string): { bytes: number; gzip: number } {
+  const buf = readFileSync(file);
+  return { bytes: buf.length, gzip: gzipSync(buf).length };
+}
+
 /** Client scripts and the WebAssembly they load (Yoga's `yoga-[hash].wasm`). */
 function clientFiles(dir: string): string[] {
   const out: string[] = [];
@@ -68,10 +73,16 @@ function clientFiles(dir: string): string[] {
   return out;
 }
 
-/** What the client build's `emptyOutDir` does when it doesn't run: only inside the project, like Vite. */
-function emptyOutDir(root: string, outDir: string): void {
-  if (outDir.startsWith(root + sep)) rmSync(outDir, { recursive: true, force: true });
+/**
+ * Empty the output directory once, before anything is written, as Vite's
+ * `build.emptyOutDir` would: by default only when it's inside the project,
+ * always with `true`, never with `false`. Every bundle after that adds to it.
+ */
+function emptyOutDir(root: string, outDir: string, setting: unknown): void {
   mkdirSync(outDir, { recursive: true });
+  if (setting !== true && (setting === false || !outDir.startsWith(root + sep))) return;
+  // Like Vite, keep a `.git` (a gh-pages checkout of the output).
+  for (const name of readdirSync(outDir)) if (name !== ".git") rmSync(join(outDir, name), { recursive: true, force: true });
 }
 
 export async function buildApp(options: BuildOptions): Promise<BuildResult> {
@@ -118,7 +129,7 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
       mode: "production",
       logLevel: "warn",
       clearScreen: false,
-      build: { outDir, emptyOutDir: true },
+      build: { outDir },
       plugins: [textjsVitePlugin({ ...config, root: opts.root })],
     };
     const scan = scanApp(opts.root, config.appDir ?? "app");
@@ -133,8 +144,11 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
     let hasMiddleware = false;
     const api = listApiRoutes(scan);
     try {
-      if (documents) await build(config.vite ? mergeConfig(base, config.vite) : base);
-      else emptyOutDir(opts.root, outDir);
+      emptyOutDir(opts.root, outDir, (config.vite?.build as { emptyOutDir?: unknown } | undefined)?.emptyOutDir);
+      if (documents) {
+        const client = config.vite ? mergeConfig(base, config.vite) : base;
+        await build({ ...client, build: { ...client.build, emptyOutDir: false } });
+      }
       if (api.length > 0) await buildApiServer();
       hasMiddleware = (await buildServerRuntime(opts.root, config, outDir)) && serverFiles(opts.root, config).middlewareFile !== null;
     } catch (error) {
@@ -170,7 +184,7 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
 
     const pages = listPages(scan);
     print(ok("Collecting route data"));
-    print(ok(`Generating static console cells (${pages.filter((p) => !p.dynamic).length}/${pages.length})`));
+    if (documents) print(ok(`Generating static console cells (${pages.filter((p) => !p.dynamic).length}/${pages.length})`));
 
     let bytes = 0;
     let gzip = 0;
@@ -229,17 +243,22 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
     writeFileSync(join(outDir, META_DIR, "routes-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
     print(ok("Finalizing console optimization"));
     print();
-    print(routeTable(routes));
     const total = (label: string, s: { bytes: number; gzip: number }): void => print(`+ ${label.padEnd(40)}${formatBytes(s.bytes)} ${color.gray(`(${formatBytes(s.gzip)} gzip)`)}`);
-    if (documents) total("First Load JS shared by all", { bytes, gzip });
+    if (documents) {
+      print(routeTable(routes));
+      total("First Load JS shared by all", { bytes, gzip });
+    }
     if (embed) {
       total("embed.js", embed.entry);
-      total("Loaded on console intent", embed.lazy);
+      for (const f of embed.lazyFiles) total(f, fileSize(join(outDir, f)));
+      print(color.gray(`  ${embed.hashedEntry} is embed.js under a hashed name. The rest loads on console intent.`));
     }
     if (hasMiddleware) print(`ƒ Middleware`);
     print();
-    print(routes.some((r) => r.server) ? `${LEGEND}\n${SERVER_LEGEND}` : LEGEND);
-    print();
+    if (documents) {
+      print(routes.some((r) => r.server) ? `${LEGEND}\n${SERVER_LEGEND}` : LEGEND);
+      print();
+    }
     let adapter: AdapterResult | undefined;
     if (adapterName) {
       try {

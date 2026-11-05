@@ -17,7 +17,7 @@ import { EMBED_ASSET_HEADERS, isEmbedAsset, resolveEmbed } from "../server/cors"
 import { wantsAnsi } from "../ansi";
 import { appendVary, markAnsiFallthrough, pageCacheControl } from "../server/ansi-server";
 import { META_DIR } from "./build";
-import { EMBED_MANIFEST } from "../server/embed";
+import { EMBED_FILE } from "../server/embed";
 import { loadTextConfig } from "./config";
 import { banner, color, fail, ok } from "./ui";
 import { resolveRoot } from "../server/paths";
@@ -59,7 +59,8 @@ export async function startProductionServer(options: StartOptions): Promise<Star
   const outDir = resolve(opts.root, config.outDir ?? "dist");
   const indexFile = join(outDir, "index.html");
   // An embed build has `embed.js` and no pages of its own (unless `embed.standalone`).
-  const embedOnly = !existsSync(indexFile) && existsSync(join(outDir, META_DIR, EMBED_MANIFEST));
+  // (The static and Cloudflare adapters remove `.text/`, so the files themselves tell.)
+  const embedOnly = !existsSync(indexFile) && existsSync(join(outDir, EMBED_FILE));
   if (!existsSync(indexFile) && !embedOnly) {
     throw txError("TX017", config.outDir ?? "dist");
   }

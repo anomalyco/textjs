@@ -10,7 +10,7 @@ import type { ConsoleBanner } from "./internal";
 import type { ConsoleBrowser } from "./drivers/console-browser";
 import type { ConsoleTypographyOptions, StyleResolveOptions } from "./drivers/style";
 import { InputEngine, type FocusChangeEvent } from "./input";
-import { CONSOLE_OWNER } from "./console-intent";
+import { claimConsole } from "./console-intent";
 import { paintScene, type PaintOptions, type SceneNode } from "./scene";
 import { ViewportController, type ResolvedViewport, type ViewportOptions } from "./viewport";
 
@@ -305,15 +305,8 @@ export class ConsoleRenderer {
       doc.addEventListener("visibilitychange", onVis);
       this.cleanup.push(() => doc.removeEventListener("visibilitychange", onVis));
     }
-    if (hasWindow && options.console === undefined) {
-      const g = globalThis as Record<symbol, unknown>;
-      if (g[CONSOLE_OWNER] === undefined) {
-        g[CONSOLE_OWNER] = this;
-        this.cleanup.push(() => {
-          if (g[CONSOLE_OWNER] === this) delete g[CONSOLE_OWNER];
-        });
-      }
-    }
+    // The page's console is ours: an embed holding it stops (and drops its `window.text`) first.
+    if (hasWindow && options.console === undefined) this.cleanup.push(claimConsole({}));
     const reg = options.registerGlobal ?? hasWindow;
     if (reg) {
       const name = typeof reg === "string" ? reg : "text";

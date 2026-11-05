@@ -9,14 +9,14 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
 import type { TextConfig } from "../config";
-import { LIVE_STUB_MODULE } from "./live-routes";
 import { toPosix } from "./scan";
+import { canonicalPathname } from "./http";
+import type { MiddlewareModule } from "./middleware";
+import { matcherCouldMatch, middlewareMatchers } from "./middleware-runtime";
 import type { EmbedClientConfig } from "../embed/boot-client";
 import type { EmbedPlayerConfig } from "../embed/boot-player";
 
 export const EMBED_FILE = "embed.js";
-/** `.text/embed-manifest.json`: `text start` serves an embed build's files to other sites. */
-export const EMBED_MANIFEST = "embed-manifest.json";
 export const VIRTUAL_EMBED_CLIENT = "virtual:textjs/embed-client";
 export const VIRTUAL_EMBED_PLAYER = "virtual:textjs/embed-player";
 /** Their URLs in `text dev`. */
@@ -58,6 +58,21 @@ export function resolveEmbedSettings(config: Pick<TextConfig, "embed">): EmbedSe
   return { initialPath: path, globalName: o.globalName ?? "text", initialClear: o.initialClear === true, standalone: o.standalone === true, credentials: o.credentials === true };
 }
 
+/**
+ * Whether `middleware.ts` could run for the embed's first route. Its frame is
+ * rendered without middleware, so it might be one only signed-in visitors
+ * should see, and `embed.js` is public: such a route gets no prerendered
+ * frame (the live app still goes through middleware as usual).
+ */
+export function middlewareCouldGuard(mod: MiddlewareModule | null, initialPath: string): boolean {
+  if (mod === null) return false;
+  const pathname = canonicalPathname(initialPath.split(/[?#]/)[0] as string);
+  return pathname === null || matcherCouldMatch(middlewareMatchers(mod), pathname);
+}
+
+/** The reason `embed.js` has no first frame when {@link middlewareCouldGuard} is `true`. */
+export const GUARDED_SHELL = "middleware.ts could match embed.initialPath, so its first frame stays out of public files";
+
 /** `config` with `embed` turned on (`--embed`), unless it already is. */
 export function withEmbed(config: TextConfig, on: boolean | undefined): TextConfig {
   return on && !config.embed ? { ...config, embed: true } : config;
@@ -84,11 +99,6 @@ const RESOLVED_LOADER = "\0virtual:textjs/embed-loader";
 
 export interface EmbedPluginOptions {
   config: TextConfig;
-  /**
-   * Swap the server-route stub for one that never reloads the page (default
-   * `false`). Build only: in `text dev` the app's own pages share the graph.
-   */
-  embeddedStubs?: boolean;
 }
 
 /** The runtime entries: `boot(state)` starts the app with what `embed.js` hands over. */
@@ -101,7 +111,6 @@ export function textjsEmbedPlugin(options: EmbedPluginOptions): Plugin {
       if (id === VIRTUAL_EMBED_CLIENT || id.endsWith(EMBED_CLIENT_URL)) return RESOLVED_CLIENT;
       if (id === VIRTUAL_EMBED_PLAYER || id.endsWith(EMBED_PLAYER_URL)) return RESOLVED_PLAYER;
       if (id.endsWith(EMBED_LOADER_URL)) return RESOLVED_LOADER;
-      if (options.embeddedStubs && id === LIVE_STUB_MODULE) return embedModule("server-stub");
       return null;
     },
     load(id) {
@@ -141,9 +150,11 @@ export interface EmbedEntryOptions {
 /** The source of `embed.js`. */
 export function createEmbedEntry(o: EmbedEntryOptions): string {
   const url = (rel: string): string => `new URL(${JSON.stringify(rel)}, import.meta.url)`;
-  const extra = [o.wasm ? `wasm: fetch(${url(o.wasm)})` : "", o.endpoint ? `endpoint: ${url(o.endpoint)}.href` : ""].filter(Boolean);
-  // The `.wasm` request starts with the runtime's: host pages have no preload for it.
-  const boot = `(s) => { const o = { ...s${extra.map((e) => `, ${e}`).join("")} }; return import(${JSON.stringify(o.runtime)}).then((m) => m.boot(o)); }`;
+  const extra = [o.wasm ? "wasm: w" : "", o.endpoint ? `endpoint: ${url(o.endpoint)}.href` : ""].filter(Boolean);
+  // The `.wasm` request starts with the runtime's: host pages have no preload for it. If the runtime never
+  // loads, nothing awaits it, so its failure is marked handled (`initYoga` still sees it).
+  const wasm = o.wasm ? `const w = fetch(${url(o.wasm)}); w.catch(() => {}); ` : "";
+  const boot = `(s) => { ${wasm}const o = { ...s${extra.map((e) => `, ${e}`).join("")} }; return import(${JSON.stringify(o.runtime)}).then((m) => m.boot(o)); }`;
   return `${o.prelude ?? ""}import { startEmbed } from ${JSON.stringify(o.loader ?? embedModule("loader"))};
 startEmbed(${o.shell ? `() => ${o.shell}` : "null"}, ${boot}, import.meta.url);
 `;

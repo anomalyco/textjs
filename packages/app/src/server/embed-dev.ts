@@ -10,7 +10,9 @@ import type { ViteDevServer } from "vite";
 import type { TextConfig } from "../config";
 import type { ThemeName } from "@textjs/react";
 import { EMBED_ASSET_HEADERS } from "./cors";
-import { createEmbedEntry, EMBED_CLIENT_URL, EMBED_FILE, EMBED_LOADER_URL, EMBED_PLAYER_URL, resolveEmbedSettings } from "./embed";
+import { createEmbedEntry, EMBED_CLIENT_URL, EMBED_FILE, EMBED_LOADER_URL, EMBED_PLAYER_URL, middlewareCouldGuard, resolveEmbedSettings } from "./embed";
+import type { MiddlewareModule } from "./middleware";
+import { findMiddlewareFile } from "./middleware-node";
 import type { LiveEntryModule } from "./live-dev";
 import { createRuntimeMatcher, VIRTUAL_LIVE } from "./live-routes";
 import { compileShellCalls, createShellReplayCode } from "./ppr";
@@ -38,7 +40,7 @@ function escapeHtml(s: string): string {
 
 /** A plain page standing in for the site the app is embedded in. */
 export function createEmbedPreviewHtml(o: { title: string; src: string }): string {
-  const tag = `<script type="module" src="${o.src}"></script>`;
+  const tag = `<script type="module" src="${escapeHtml(o.src)}"></script>`;
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -56,19 +58,19 @@ export function createEmbedPreviewHtml(o: { title: string; src: string }): strin
       button, input { font: inherit; border-radius: 8px; padding: 8px 14px; }
       button { background: #171717; color: #fafafa; border: 0; cursor: pointer; }
       input { border: 1px solid #d4d4d4; background: #fff; min-width: 240px; }
-      .tall { min-height: 120vh; border-top: 1px solid #e5e5e5; padding-top: 24px; color: #737373; }
+      .tall { min-height: 120vh; }
     </style>
   </head>
   <body>
     <main>
       <h1>${escapeHtml(o.title)}</h1>
-      <p>This page loads the app like any other site would. Dock DevTools, or press the button, to start it in the console.</p>
+      <p>This page loads <code>embed.js</code> the way another site would. Dock DevTools, use a DevTools shortcut or press the button to start the app in the console.</p>
       <pre><code>${escapeHtml(tag)}</code></pre>
       <div class="row">
         <button type="button" data-textjs-engage>Open in the console</button>
         <input type="text" placeholder="Typing here stays on this page" aria-label="Host page field" />
       </div>
-      <p class="tall">The rest of the page scrolls as usual.</p>
+      <div class="tall"></div>
     </main>
     ${tag}
   </body>
@@ -80,6 +82,11 @@ export function createEmbedDevHandler(vite: ViteDevServer, o: EmbedDevOptions): 
   const renderShell = async (path: string, initialClear: boolean): Promise<string | null> => {
     if (o.config.ppr === false) return null;
     const vp = o.config.viewport ?? {};
+    const middlewareFile = findMiddlewareFile(o.root);
+    if (middlewareFile) {
+      const mod = (await vite.ssrLoadModule(middlewareFile).catch(() => ({}))) as MiddlewareModule;
+      if (middlewareCouldGuard(mod, path)) return null;
+    }
     try {
       const mod = (await vite.ssrLoadModule(VIRTUAL_LIVE)) as LiveEntryModule;
       const calls = await mod.prerenderShell({ routes: mod.routes, path, cols: vp.width ?? 120, rows: vp.height ?? 36, theme: vp.theme as ThemeName | undefined, initialClear });

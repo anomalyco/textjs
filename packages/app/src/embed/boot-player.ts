@@ -4,6 +4,7 @@
  * from the server `embed.js` came from, with input gated for the host page.
  */
 
+import { claimConsole, CONSOLE_OWNER, type ConsoleOwner } from "@textjs/core/experimental";
 import { bootFramePlayer, type FramePlayer, type FramePlayerConfig } from "../live-player";
 import { createHostInput, type HostInput } from "./host-input";
 import type { EmbedBootState } from "./loader";
@@ -32,8 +33,11 @@ export interface EmbedPlayer {
   dispose(): void;
 }
 
-export function bootEmbedPlayer(options: EmbedPlayerOptions): EmbedPlayer {
+/** `null` when the page's own app already renders in the console. */
+export function bootEmbedPlayer(options: EmbedPlayerOptions): EmbedPlayer | null {
   const config = options.config ?? {};
+  const g = globalThis as Record<symbol, ConsoleOwner | undefined>;
+  if (g[CONSOLE_OWNER] !== undefined && g[CONSOLE_OWNER].embed !== true) return null;
   const input = createHostInput({ engaged: options.reason === "engage" });
   const painted = options.shell === true;
   const player = bootFramePlayer({
@@ -49,12 +53,19 @@ export function bootEmbedPlayer(options: EmbedPlayerOptions): EmbedPlayer {
     shellPaintedAt: painted ? options.shellAt : undefined,
     registerGlobal: config.globalName ?? "text",
   });
-  return {
+  let disposed = false;
+  const embedded: EmbedPlayer = {
     player,
     input,
     dispose() {
+      if (disposed) return;
+      disposed = true;
       player.dispose();
       input.dispose();
+      release();
     },
   };
+  // Replaces embed.js's claim; the page's own app preempts it when it starts.
+  const release = claimConsole({ embed: true, preempt: () => embedded.dispose() });
+  return embedded;
 }

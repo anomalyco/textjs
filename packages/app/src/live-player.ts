@@ -14,6 +14,7 @@ import {
   type ConsoleTarget,
   type InputEvent,
 } from "@textjs/core";
+import { claimConsole } from "@textjs/core/experimental";
 import { CellGrid } from "@textjs/core/internal";
 import { isAppPath, LIVE_PATH, LIVE_SESSION_HEADER, LiveFrameDecoder, parseLiveBanner, type LiveBanner, type LiveInput, type LiveServerMessage } from "./live-protocol";
 
@@ -253,6 +254,8 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
       // storage blocked
     }
   }
+  // A player that owns the page owns its console: an embed holding it stops first.
+  const releaseConsole = sync ? claimConsole({}) : null;
   const core = new FramePlayerCore({ shell: config.shell ?? window.__TEXTJS_SHELL__ !== undefined, shellPaintedAt: config.shellPaintedAt ?? window.__TEXTJS_SHELL_AT__ });
   const vp = config.viewport ?? {};
   const viewport = new ViewportController({ width: vp.width ?? 120, height: vp.height ?? 36, responsive: vp.responsive ?? true });
@@ -506,6 +509,7 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
       window.removeEventListener("popstate", onPop);
       document.removeEventListener("visibilitychange", onVisibility);
       if (globalName !== null && g[globalName] === api) delete g[globalName];
+      releaseConsole?.();
     },
   };
   const HELP = `▼ Text.js console API (server-rendered route)

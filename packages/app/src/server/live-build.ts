@@ -199,12 +199,13 @@ export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildRes
   const serverPages = listServerPages(scan);
   const serverSet = new Set(serverPages.map((p) => p.pattern));
   const pages = listPages(scan);
+  const documents = o.documents !== false;
   const ppr = config.ppr !== false;
-  const staticPages = ppr ? pages.filter((p) => !p.dynamic) : [];
-  const ansiSize = o.ansi === false ? null : resolveAnsiSize(config);
+  // Without documents there are no pages to put shells in, and nothing for curl either.
+  const staticPages = ppr && documents ? pages.filter((p) => !p.dynamic) : [];
+  const ansiSize = o.ansi === false || !documents ? null : resolveAnsiSize(config);
   const ansiPages = ansiSize ? pages.filter((p) => !p.dynamic) : [];
   if (serverPages.length === 0 && staticPages.length === 0 && !(ansiSize && pages.length > 0)) return null;
-  const documents = o.documents !== false;
 
   const serverDir = await buildLiveBundle(o);
 
@@ -267,7 +268,7 @@ export async function buildLiveRoutes(o: LiveBuildOptions): Promise<LiveBuildRes
   const indexFile = join(outDir, "index.html");
   const template = existsSync(indexFile) ? readFileSync(indexFile, "utf8") : null;
   const vp = config.viewport ?? {};
-  const wanted = documents ? staticPages.filter((p) => serverSet.has(p.pattern) || template !== null) : [];
+  const wanted = staticPages.filter((p) => serverSet.has(p.pattern) || template !== null);
   const prerendered =
     wanted.length > 0 || ansiSize
       ? await prerenderInChild(join(serverDir, "live.mjs"), {
