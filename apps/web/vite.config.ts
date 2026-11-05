@@ -177,6 +177,8 @@ export default defineConfig(({ isSsrBuild }) => ({
     sourcemap: false,
     manifest: !isSsrBuild,
     chunkSizeWarningLimit: 1600,
+    // Browsers without `<link rel="modulepreload">` (Safari before 17) still load every module, only without the head start.
+    modulePreload: { polyfill: false },
     rollupOptions: {
       treeshake: isSsrBuild
         ? undefined
