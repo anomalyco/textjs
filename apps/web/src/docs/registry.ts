@@ -1,9 +1,11 @@
 import { DOC_CATEGORIES, DOCS_META, docPath, getDocMeta, plainInline, slugify, stripI18nMarkup, type DocCategory, type DocMeta } from "./meta";
+import { docDescription } from "./descriptions";
 import { headingsOf, type Heading } from "./outline";
 
 export { DOC_CATEGORIES, DOCS_META, docPath, getDocMeta, headingsOf, plainInline, slugify, type DocCategory, type DocMeta, type Heading };
 
 export interface DocPage extends DocMeta {
+  description: string;
   markdown: string;
 }
 
@@ -61,7 +63,7 @@ export function preloadDoc(slug: string): Promise<void> {
   if (!meta || !load) return Promise.reject(new Error(`No docs page "${slug}"`));
   const p = load()
     .then((m) => {
-      pages.set(slug, { ...meta, markdown: m.default });
+      pages.set(slug, { ...meta, description: docDescription(slug), markdown: m.default });
       for (const l of listeners) l();
     })
     .finally(() => inflight.delete(slug));

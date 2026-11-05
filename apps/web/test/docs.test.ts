@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { parseMarkdown } from "@textjs/react";
 import { DOC_CATEGORIES, DOCS_META, docPath, getDoc, headingsOf, neighbors, preloadDoc, toConsoleMarkdown, type DocPage } from "../src/docs/registry";
 import { POSTS, POSTS_META } from "../src/blog";
+import { POST_SUMMARIES } from "../src/blog/summaries";
+import { DOC_DESCRIPTIONS } from "../src/docs/descriptions";
 import { PREVIEW_META } from "../src/docs/preview-meta";
 import { DOC_HEADINGS } from "../src/docs/search-index";
 import { searchDocsMeta } from "../src/docs/search";
@@ -85,8 +87,10 @@ describe("documentation registry", () => {
   });
 
   test("split metadata modules match full content modules", () => {
-    expect(POSTS_META).toEqual(POSTS.map(({ markdown: _m, ...meta }) => meta));
-    expect(PRODUCTS_META).toEqual(PRODUCTS.map((p) => ({ slug: p.slug, name: p.name, summary: p.description[0] ?? "" })));
+    expect(POSTS_META).toEqual(POSTS.map(({ markdown: _m, summary: _s, ...meta }) => meta));
+    expect(Object.keys(POST_SUMMARIES).sort()).toEqual(POSTS.map((p) => p.slug).sort());
+    expect(Object.keys(DOC_DESCRIPTIONS).sort()).toEqual(DOCS_META.map((d) => d.slug).sort());
+    expect(PRODUCTS_META).toEqual(PRODUCTS.map((p) => ({ slug: p.slug, name: p.name })));
     expect(Object.keys(PREVIEW_META).sort()).toEqual(Object.keys(PREVIEWS).sort());
     for (const [id, spec] of Object.entries(PREVIEWS)) {
       expect(PREVIEW_META[id]).toEqual({
