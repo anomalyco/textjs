@@ -1,6 +1,6 @@
 /**
  * The bidi engine loads with `@textjs/core` by default, and on the first
- * right-to-left text under the `@textjs/wasm-asset` condition (Text.js client
+ * right-to-left text under the `@textjs/client` condition (Text.js client
  * builds), where renderers repaint once it lands.
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
@@ -12,7 +12,7 @@ import { bidiLoading } from "../src/internal";
 import { box, FakeConsole, text } from "./fixtures";
 
 const CORE = join(import.meta.dir, "..");
-const CONDITION = "@textjs/wasm-asset";
+const CONDITION = "@textjs/client";
 /** The first characters of `BIDI_CLASS_RANGES`, which only the bidi chunk carries. */
 const BIDI_DATA = "0J9L1K1L";
 
@@ -117,6 +117,44 @@ r.dispose();
     const proc = Bun.spawnSync([process.execPath, `--conditions=${CONDITION}`, script], { cwd: dir, stderr: "pipe" });
     expect(proc.stderr.toString()).toBe("");
     expect(JSON.parse(proc.stdout.toString())).toEqual({ row: "םולש", loading: false, queued: 0 });
+  }, 30_000);
+
+  test("a failed load: frames don't retry it, an explicit loadBidi() does, and renderers repaint when that lands", () => {
+    const src = (p: string): string => JSON.stringify(join(CORE, p));
+    // Fails the first request for the engine's module, as a dropped connection would.
+    const preload = join(dir, "fail-once.ts");
+    writeFileSync(
+      preload,
+      `let n = 0;
+Bun.plugin({ name: "fail-once", setup(b) { b.onLoad({ filter: /src[\\\\/]bidi\\.ts$/ }, async (args) => { if (n++ === 0) throw new Error("offline"); return { contents: await Bun.file(args.path).text(), loader: "ts" }; }); } });
+`,
+    );
+    const script = join(dir, "retry.ts");
+    // bidi-engine.ts directly: index.ts re-exports bidi.ts, so importing it would load the engine statically.
+    writeFileSync(
+      script,
+      `import { bidiEngine, bidiLoading, bidiReady, loadBidi } from ${src("src/bidi-engine.ts")};
+const out = {};
+out.first = bidiEngine() === null;
+let repainted = false;
+void bidiReady().then(() => (repainted = true));
+out.failure = await loadBidi().then(() => "resolved", (e) => e.message);
+out.afterFailure = { engine: bidiEngine() !== null, loading: bidiLoading() !== null, repainted };
+out.retry = await loadBidi().then(() => "resolved", (e) => e.message);
+await Promise.resolve();
+out.afterRetry = { engine: bidiEngine() !== null, loading: bidiLoading() !== null, repainted, ready: bidiReady() };
+console.log(JSON.stringify(out));
+`,
+    );
+    const proc = Bun.spawnSync([process.execPath, `--conditions=${CONDITION}`, "--preload", preload, script], { cwd: dir, stderr: "pipe" });
+    expect(proc.stderr.toString()).toBe("");
+    expect(JSON.parse(proc.stdout.toString())).toEqual({
+      first: true,
+      failure: "offline",
+      afterFailure: { engine: false, loading: false, repainted: false },
+      retry: "resolved",
+      afterRetry: { engine: true, loading: false, repainted: true, ready: null },
+    });
   }, 30_000);
 
   test("vite build splits the bidi engine and its tables into their own chunk", async () => {

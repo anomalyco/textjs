@@ -21,7 +21,7 @@ import { textjsVitePlugin } from "../vite-plugin";
 import { buildLiveBundle, PRERENDER_TIMEOUT_MS, prerenderInChild } from "./live-build";
 import { textjsLivePlugin } from "./live-dev";
 import { createRuntimeMatcher } from "./live-routes";
-import { compileShellCalls, createShellReplayCode } from "./ppr";
+import { compileShellCalls, createShellReplayCode, shellHasRtl } from "./ppr";
 import type { AppScan } from "./scan";
 import { withFrameworkEntry } from "./vite-entry";
 import { loadMiddlewareConfig } from "./adapters/build-step";
@@ -157,6 +157,7 @@ export async function buildEmbed(o: EmbedBuildOptions): Promise<EmbedBuildResult
   const runtime = createRuntimeMatcher(o.scan)(pathname);
 
   let shell: string | null = null;
+  let shellRtl = false;
   let shellError: string | undefined;
   // A middleware config that can't be read counts as matching every route.
   const middleware = config.ppr !== false ? await loadMiddlewareConfig(o.root, config, outDir).catch(() => ({})) : null;
@@ -174,7 +175,11 @@ export async function buildEmbed(o: EmbedBuildOptions): Promise<EmbedBuildResult
       timeoutMs: o.prerenderTimeoutMs ?? PRERENDER_TIMEOUT_MS,
     });
     const result = out.routes[settings.initialPath];
-    if (result?.calls) shell = createShellReplayCode(compileShellCalls(result.calls));
+    if (result?.calls) {
+      const compiled = compileShellCalls(result.calls);
+      shell = createShellReplayCode(compiled);
+      shellRtl = shellHasRtl(compiled);
+    }
     else shellError = out.importError ?? result?.error ?? "prerendering did not finish";
   }
 
@@ -184,6 +189,7 @@ export async function buildEmbed(o: EmbedBuildOptions): Promise<EmbedBuildResult
     const runtimeUrl = rel(built.entry);
     const code = createEmbedEntry({
       shell,
+      shellRtl,
       runtime: runtimeUrl,
       ...(runtime === "client" && built.wasm ? { wasm: rel(built.wasm) } : {}),
       ...(runtime === "server" ? { endpoint: `${prefix === "./" ? "../" : "./"}${LIVE_PATH.slice(1)}` } : {}),

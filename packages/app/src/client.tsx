@@ -6,6 +6,7 @@
 
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
+import { loadBidi } from "@textjs/core";
 import { createConsoleRoot, type ConsoleRoot } from "@textjs/react";
 import { FocusPad } from "@textjs/react/dom";
 import { toClientConfig, type ClientConfig } from "./config";
@@ -63,27 +64,33 @@ export async function bootTextApp(options: BootOptions): Promise<TextApp> {
   const vp = config.viewport ?? {};
   const seen = new WeakSet<object>();
 
-  const root = await createConsoleRoot({
-    // Follows the docked DevTools console by default; width × height is the
-    // size used when it can't be measured (undocked DevTools) or when `responsive: false`.
-    width: vp.width ?? 120,
-    height: vp.height ?? 36,
-    responsive: vp.responsive ?? true,
-    theme: vp.theme,
-    focusHint: config.focusHint ? undefined : false,
-    // A prerendered shell (PPR) already cleared the console: append below it.
-    initialClear: typeof window === "undefined" || (window as { __TEXTJS_SHELL__?: number }).__TEXTJS_SHELL__ !== 1,
-    // …and its clear opened DevTools' post-clear pacing window.
-    previousFrameAt: typeof window === "undefined" ? undefined : (window as { __TEXTJS_SHELL_AT__?: number }).__TEXTJS_SHELL_AT__,
-    onCaughtError: (error) => {
-      if (isNavigationError(error)) return;
-      if (typeof error === "object" && error !== null) {
-        if (seen.has(error)) return;
-        seen.add(error);
-      }
-      console.error(error);
-    },
-  });
+  // A prerendered shell with right-to-left text: fetch the bidi engine alongside Yoga, so the first client frame
+  // repaints it in display order too. A failed chunk never blocks boot.
+  const rtlShell = typeof window !== "undefined" && (window as { __TEXTJS_SHELL_RTL__?: number }).__TEXTJS_SHELL_RTL__ === 1;
+  const [root] = await Promise.all([
+    createConsoleRoot({
+      // Follows the docked DevTools console by default; width × height is the
+      // size used when it can't be measured (undocked DevTools) or when `responsive: false`.
+      width: vp.width ?? 120,
+      height: vp.height ?? 36,
+      responsive: vp.responsive ?? true,
+      theme: vp.theme,
+      focusHint: config.focusHint ? undefined : false,
+      // A prerendered shell (PPR) already cleared the console: append below it.
+      initialClear: typeof window === "undefined" || (window as { __TEXTJS_SHELL__?: number }).__TEXTJS_SHELL__ !== 1,
+      // …and its clear opened DevTools' post-clear pacing window.
+      previousFrameAt: typeof window === "undefined" ? undefined : (window as { __TEXTJS_SHELL_AT__?: number }).__TEXTJS_SHELL_AT__,
+      onCaughtError: (error) => {
+        if (isNavigationError(error)) return;
+        if (typeof error === "object" && error !== null) {
+          if (seen.has(error)) return;
+          seen.add(error);
+        }
+        console.error(error);
+      },
+    }),
+    rtlShell ? loadBidi().catch(() => {}) : null,
+  ]);
   const history = createBrowserHistory({ basePath: config.basePath });
 
   const render = (routes: RouteManifest): void => {

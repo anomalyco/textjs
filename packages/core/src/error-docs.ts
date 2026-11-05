@@ -457,7 +457,7 @@ Use \`"force-dynamic"\`, or remove the export, if the handler reads the request.
   TX032: {
     package: "@textjs/core",
     title: "Yoga's WebAssembly failed to load",
-    cause: `\`initYoga()\` loads Yoga's WebAssembly from a \`.wasm\` file in Text.js apps (\`text dev\`, \`text build\`), in builds that set the \`@textjs/wasm-asset\` resolve condition, and when you pass \`initYoga({ wasm })\`. The request failed, returned an error status, or what came back wasn't valid WebAssembly. The error names the URL and the \`Content-Type\` the server sent. The usual causes are a server that answers the \`.wasm\` URL with an HTML fallback page, and a Content Security Policy without \`'wasm-unsafe-eval'\` in \`script-src\`.`,
+    cause: `\`initYoga()\` loads Yoga's WebAssembly from a \`.wasm\` file in Text.js apps (\`text dev\`, \`text build\`), in builds that set the \`@textjs/client\` resolve condition, and when you pass \`initYoga({ wasm })\`. The request failed, returned an error status, or what came back wasn't valid WebAssembly. The error names the URL and the \`Content-Type\` the server sent. The usual causes are a server that answers the \`.wasm\` URL with an HTML fallback page, and a Content Security Policy without \`'wasm-unsafe-eval'\` in \`script-src\`.`,
     fix: `Make the URL from the error return the file, with \`Content-Type: application/wasm\` so it compiles while it downloads. A rewrite that serves \`index.html\` for unknown paths has to skip \`/assets/\`. Allow WebAssembly in your Content Security Policy:
 
 ~~~text

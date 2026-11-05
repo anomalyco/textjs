@@ -59,17 +59,23 @@ Text without right-to-left characters skips all of this. A pure left-to-right te
 
 ## Loading the bidi engine
 
-In Text.js apps (`text dev`, `text build`), the bidi engine and its Unicode tables are a separate 10.6 kB chunk (gzip). It downloads the first time a page shows right-to-left text, so pages without any never load it. Until it arrives, that text paints in logical order, and the console repaints it in display order once it lands.
+In Text.js apps (`text dev`, `text build`), the bidi engine and its Unicode tables are a separate 10.1 kB chunk (gzip). It downloads the first time a page renders right-to-left text or a `dir="rtl"` `<Text>`, so other pages never load it. Until it arrives, that text paints in logical order. Then the console repaints in display order.
 
-To have the first frame in display order, start the download with `loadBidi()` before the first render, for example on right-to-left pages:
+`text build` apps with a prerendered shell start the download on their own when the shell has right-to-left text. If you mount the console yourself, start the download alongside `createConsoleRoot()` so the first frame is in display order. For example, on right-to-left pages:
 
 ```ts
-import { initYoga, loadBidi } from "@textjs/core";
+import { loadBidi } from "@textjs/core";
+import { createConsoleRoot } from "@textjs/react";
 
-await Promise.all([initYoga(), document.documentElement.dir === "rtl" ? loadBidi() : null]);
+const [root] = await Promise.all([
+  createConsoleRoot(),
+  document.documentElement.dir === "rtl" ? loadBidi().catch(() => {}) : null,
+]);
 ```
 
-Server rendering, `text run`, tests and bundles without the `@textjs/wasm-asset` resolve condition include the engine, so they always paint right-to-left text in display order and `loadBidi()` resolves at once.
+`loadBidi()` rejects if the chunk fails to load. Right-to-left text then stays in logical order.
+
+Server rendering, `text run`, tests and bundles without the `@textjs/client` resolve condition include the engine, so they always paint right-to-left text in display order and `loadBidi()` resolves at once.
 
 ## Cell widths
 

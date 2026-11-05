@@ -4,7 +4,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { buildApp, type BuildResult } from "../src/cli/build";
@@ -145,6 +145,8 @@ describe("text build --embed (client route)", () => {
     expect(code).toContain("Acme Systems");
     // initialClear: false by default: frame 0 never clears the host page's console.
     expect(code).not.toContain("console.clear");
+    // A left-to-right first frame: the runtime leaves the bidi engine until right-to-left text needs it.
+    expect(code).not.toContain("shellRtl");
     // The immutable copy resolves the same files from inside assets/.
     const copy = readFileSync(join(dist, result.embed?.hashedEntry as string), "utf8");
     expect(copy).toContain(`import("./${client.slice("assets/".length)}")`);
@@ -204,6 +206,26 @@ describe("text build --embed (client route)", () => {
       }
     },
     60_000,
+  );
+
+  test(
+    "a first frame with right-to-left text has the runtime fetch the bidi engine as it boots",
+    async () => {
+      mkdirSync(join(dir, "app/rtl"), { recursive: true });
+      writeFileSync(join(dir, "app/rtl/page.tsx"), `import { Text } from "@textjs/app";\nexport default function Rtl() { return <Text>שלום עולם</Text>; }\n`);
+      writeFileSync(join(dir, "text.config.ts"), config(`{ title: "Status", embed: { initialPath: "/rtl" } }`));
+      try {
+        const r = await buildApp({ root: dir, log: false });
+        expect(r.embed?.shell).toBe(true);
+        const code = readFileSync(join(dir, "dist/embed.js"), "utf8");
+        expect(code).toContain("\u202D");
+        expect(code).toContain("shellRtl:");
+      } finally {
+        writeFileSync(join(dir, "text.config.ts"), CLIENT_APP["text.config.ts"] as string);
+        rmSync(join(dir, "app/rtl"), { recursive: true, force: true });
+      }
+    },
+    180_000,
   );
 
   test(

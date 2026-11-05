@@ -107,24 +107,24 @@ Text.js apps load Yoga, the layout engine, from `assets/yoga-[hash].wasm` (72 kB
 
 ### Your own Vite or webpack build
 
-When you bundle `@textjs/core` and `@textjs/react` yourself, Yoga stays inline and needs no bundler setup. Bundles that resolve the `workerd` condition, such as Wrangler, import `@textjs/core/yoga.wasm` as a module instead. To load the `.wasm` file in a browser build, add the `@textjs/wasm-asset` resolve condition to your client build. In Vite 6, which exports `defaultClientConditions`, the dev pre-bundler needs it too:
+When you bundle `@textjs/core` and `@textjs/react` yourself, Yoga stays inline and needs no bundler setup. Bundles that resolve the `workerd` condition, such as Wrangler, import `@textjs/core/yoga.wasm` as a module instead. To load the `.wasm` file in a browser build, add the `@textjs/client` resolve condition to your client build. In Vite 6, which exports `defaultClientConditions`, the dev pre-bundler needs it too:
 
 ```ts@vite.config.ts
 import { defaultClientConditions, defineConfig } from "vite";
 
 export default defineConfig({
-  resolve: { conditions: ["@textjs/wasm-asset", ...defaultClientConditions] },
-  optimizeDeps: { esbuildOptions: { conditions: ["@textjs/wasm-asset"] } },
+  resolve: { conditions: ["@textjs/client", ...defaultClientConditions] },
+  optimizeDeps: { esbuildOptions: { conditions: ["@textjs/client"] } },
 });
 ```
 
 ```js@webpack.config.js
 module.exports = {
-  resolve: { conditionNames: ["@textjs/wasm-asset", "..."] },
+  resolve: { conditionNames: ["@textjs/client", "..."] },
 };
 ```
 
-The condition also moves the bidi engine for right-to-left text into its own chunk, which downloads the first time a page shows right-to-left text (see [Loading the bidi engine](/docs/internationalization#loading-the-bidi-engine)).
+The condition also splits the bidi engine into its own chunk, which downloads the first time a page shows right-to-left text (see [Loading the bidi engine](/docs/internationalization#loading-the-bidi-engine)).
 
 Leave the condition out of server, prerender and test builds (Vitest, jsdom), which run fine with the inline copy.
 

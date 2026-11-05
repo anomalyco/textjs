@@ -31,15 +31,19 @@ describe("production build", () => {
       const assets = readdirSync(join(out, "assets"));
       expect(assets.some((a) => a.endsWith(".css"))).toBe(true);
       expect(assets.filter((a) => a.endsWith(".js")).length).toBeGreaterThanOrEqual(3);
-      // The console companion boots without @textjs/core's bidi engine (bidi-[hash].js), which loads on the first right-to-left text.
+      // The site's entry and the console companion load without @textjs/core's bidi engine (bidi-[hash].js), which
+      // loads on the first right-to-left text. Static imports and re-exports only: `import("./x.js")` doesn't count.
       const read = (f: string): string => readFileSync(join(out, "assets", f), "utf8");
+      const STATIC = /\b(?:import|export)\s*(?:[\w$]+\s*,\s*)?(?:\{[^}]*\}\s*from\s*|\*\s*(?:as\s*[\w$]+\s*)?from\s*|[\w$]+\s*from\s*)?"\.\/([\w-]+\.js)"/g;
       const eager = new Set<string>();
       const walk = (f: string): void => {
         if (eager.has(f)) return;
         eager.add(f);
-        for (const m of read(f).matchAll(/\bimport\s*(?:\{[^}]*\}\s*from\s*|\*\s*as\s*[\w$]+\s*from\s*)?"\.\/([\w-]+\.js)"/g)) walk(m[1] as string);
+        for (const m of read(f).matchAll(STATIC)) walk(m[1] as string);
       };
-      walk(assets.find((a) => /^boot-[\w-]+\.js$/.test(a)) as string);
+      const entries = assets.filter((a) => /^(index|boot)-[\w-]+\.js$/.test(a));
+      expect(entries.some((a) => a.startsWith("boot-"))).toBe(true);
+      for (const f of entries) walk(f);
       const bidi = assets.filter((a) => /^bidi-(?!engine-)[\w-]+\.js$/.test(a));
       expect(bidi).toHaveLength(1);
       expect([...eager].filter((f) => bidi.includes(f))).toEqual([]);

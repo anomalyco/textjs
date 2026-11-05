@@ -183,8 +183,11 @@ function findUp(start: string, rel: string): string | null {
 // The live stub and player are imported by code text dev generates (server pages' client
 // stand-in, /@textjs/player), which Vite's dependency scan never sees. Found later, they make
 // Vite re-bundle mid-load: 404s for stale chunks and two copies of React.
-/** The resolve condition under which `@textjs/core` loads Yoga's WebAssembly as an asset instead of inline. */
-export const WASM_ASSET_CONDITION = "@textjs/wasm-asset";
+/**
+ * The resolve condition for browser client builds that emit several assets: `@textjs/core` loads Yoga's
+ * WebAssembly as a `.wasm` file instead of inline, and splits the bidi engine into a chunk of its own.
+ */
+export const CLIENT_CONDITION = "@textjs/client";
 
 const OPTIMIZE = ["react", "react/jsx-runtime", "react/jsx-dev-runtime", "react-dom", "react-dom/client", "react-reconciler", "react-reconciler/constants.js", "scheduler", "@textjs/app/live-stub", "@textjs/app/live-player"];
 
@@ -296,21 +299,22 @@ export function textjsVitePlugin(options: TextVitePluginOptions = {}): Plugin[] 
         // bundling them alone would give them their own copy of the package's modules.
         return pkg !== "@textjs/app" || realpathSync(manifest).includes(`${sep}node_modules${sep}`);
       });
-      // Client builds load Yoga's WebAssembly as a hashed `.wasm` asset (`@textjs/core`'s `#yoga-loader`).
-      // SSR builds and Vitest keep the inline copy. The pre-bundler resolves with esbuild, so it needs the condition too.
-      const wasmAsset = !env.isSsrBuild && !process.env.VITEST;
+      // Client builds load Yoga's WebAssembly as a hashed `.wasm` asset (`@textjs/core`'s `#yoga-loader`) and the bidi
+      // engine as a lazy chunk (`#bidi-loader`). SSR builds and Vitest keep both inline. The pre-bundler resolves with
+      // esbuild, so it needs the condition too.
+      const client = !env.isSsrBuild && !process.env.VITEST;
       return {
         root,
         appType: "custom",
         base: basePath ? `${basePath}/` : undefined,
         resolve: {
           dedupe: ["react", "react-dom"],
-          ...(wasmAsset ? { conditions: [WASM_ASSET_CONDITION, ...(user.resolve?.conditions ?? defaultClientConditions)] } : {}),
+          ...(client ? { conditions: [CLIENT_CONDITION, ...(user.resolve?.conditions ?? defaultClientConditions)] } : {}),
         },
         optimizeDeps: {
           entries: [`${appDirName}/**/*.{tsx,ts,jsx,js}`],
           include: optimize,
-          ...(wasmAsset ? { esbuildOptions: { conditions: [WASM_ASSET_CONDITION, ...(user.optimizeDeps?.esbuildOptions?.conditions ?? [])] } } : {}),
+          ...(client ? { esbuildOptions: { conditions: [CLIENT_CONDITION, ...(user.optimizeDeps?.esbuildOptions?.conditions ?? [])] } } : {}),
         },
         server: options.proxy ? { proxy: toViteProxy(options.proxy) } : undefined,
         preview: options.proxy ? { proxy: toViteProxy(options.proxy) } : undefined,

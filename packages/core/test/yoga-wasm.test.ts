@@ -11,7 +11,7 @@ import { instantiateYoga, type YogaWasmSource } from "../src/yoga-wasm";
 
 const CORE = join(import.meta.dir, "..");
 const WASM = readFileSync(OUTPUTS.wasm);
-const CONDITION = "@textjs/wasm-asset";
+const CONDITION = "@textjs/client";
 /** A valid module that isn't Yoga: it instantiates, then Yoga's loader can't find its exports. */
 const NOT_YOGA = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
 
@@ -180,7 +180,7 @@ describe("plain Vite, without the Text.js plugin", () => {
     expect(out.js).toContain("AGFzbQ");
   }, 60_000);
 
-  test("vite build with the @textjs/wasm-asset condition emits yoga.wasm as a hashed asset", async () => {
+  test("vite build with the @textjs/client condition emits yoga.wasm as a hashed asset", async () => {
     const out = await viteBuild([CONDITION]);
     expect(out.wasm).toBeDefined();
     expect(Buffer.compare(readFileSync(join(dir, "dist/assets", out.wasm as string)), WASM)).toBe(0);

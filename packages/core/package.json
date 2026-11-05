@@ -34,11 +34,11 @@
   "imports": {
     "#yoga-loader": {
       "workerd": "./src/yoga-loader.workerd.ts",
-      "@textjs/wasm-asset": "./src/yoga-loader.browser.ts",
+      "@textjs/client": "./src/yoga-loader.browser.ts",
       "default": "./src/yoga-loader.inline.ts"
     },
     "#bidi-loader": {
-      "@textjs/wasm-asset": "./src/bidi-loader.browser.ts",
+      "@textjs/client": "./src/bidi-loader.browser.ts",
       "default": "./src/bidi-loader.inline.ts"
     }
   },
@@ -63,11 +63,11 @@
     "imports": {
       "#yoga-loader": {
         "workerd": "./dist/yoga-loader.workerd.js",
-        "@textjs/wasm-asset": "./dist/yoga-loader.browser.js",
+        "@textjs/client": "./dist/yoga-loader.browser.js",
         "default": "./dist/yoga-loader.inline.js"
       },
       "#bidi-loader": {
-        "@textjs/wasm-asset": "./dist/bidi-loader.browser.js",
+        "@textjs/client": "./dist/bidi-loader.browser.js",
         "default": "./dist/bidi-loader.inline.js"
       }
     }
