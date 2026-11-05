@@ -52,7 +52,7 @@ Like React DevTools, the extension installs a global hook before the page runs:
 globalThis.__TEXTJS_DEVTOOLS_HOOK__
 ```
 
-Every console root registers with it when it is created. Without the extension the hook does not exist, and a root only checks for it once and does no per-frame work. With the extension installed but the panel closed, frames cost one property read. Trees and frames are only computed when the panel asks for them.
+Every console root registers with it when it is created. The first root on a page loads the code that answers the panel, about 5 KB (gzip), then registers. Without the extension the hook does not exist, so a root checks for it once, loads nothing more and does no per-frame work. With the extension installed but the panel closed, frames cost one property read. Trees and frames are only computed when the panel asks for them.
 
 Messages flow page → content script → service worker → panel. The content scripts run on every page so the hook exists before your app boots. That is the only access the extension asks for. It loads no remote code and sends nothing off the machine.
 
