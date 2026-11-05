@@ -22,7 +22,8 @@ import { ConcurrentRoot, injectDevTools, reconciler, type ConsoleContainer } fro
 import { StatsStore, ViewportStore } from "./stores";
 import { resolveTheme, ThemeProvider, type TextTheme, type ThemeName } from "./theme";
 import { TxBox } from "./host";
-import { connectDevTools, type DevToolsConnection } from "./devtools-hook";
+import { getDevToolsHook } from "./devtools-global";
+import type { DevToolsConnection } from "./devtools-hook";
 import { RootFocusHint } from "./components/FocusHint";
 
 export interface ConsoleRootOptions extends Omit<ConsoleRendererOptions, "root" | "input" | "viewport"> {
@@ -135,6 +136,31 @@ function defaultErrorHandler(error: unknown): void {
   console.error(error);
 }
 
+type DevToolsModule = typeof import("./devtools-hook");
+let devtoolsModule: DevToolsModule | null = null;
+let devtoolsLoading: Promise<DevToolsModule | null> | null = null;
+
+/**
+ * Run `connect` with the DevTools connection code if the extension's hook is installed: at once when the code
+ * is loaded, otherwise once `import()` resolves. Without the hook, nothing loads.
+ */
+function withDevTools(connect: (m: DevToolsModule) => void): void {
+  if (getDevToolsHook() === null) return;
+  if (devtoolsModule !== null) return connect(devtoolsModule);
+  devtoolsLoading ??= import("./devtools-hook").then(
+    (m) => (devtoolsModule = m),
+    () => (devtoolsLoading = null),
+  );
+  void devtoolsLoading.then((m) => {
+    if (m !== null) connect(m);
+  });
+}
+
+/** Resolves once a pending DevTools load has finished and connected the roots waiting on it. */
+export function devToolsSettled(): Promise<void> {
+  return Promise.resolve(devtoolsLoading).then(() => undefined);
+}
+
 /** Create a root synchronously. Requires `await initYoga()` to have resolved. */
 export function createConsoleRootSync(options: ConsoleRootOptions = {}): ConsoleRoot {
   if (!isYogaReady()) {
@@ -219,7 +245,9 @@ export function createConsoleRootSync(options: ConsoleRootOptions = {}): Console
     () => undefined,
     null,
   );
-  devtools = connectDevTools({ fiberRoot, rootNode, renderer });
+  withDevTools((m) => {
+    if (!unmounted) devtools = m.connectDevTools({ fiberRoot, rootNode, renderer });
+  });
 
   const unmount = (): void => {
     if (unmounted) return;

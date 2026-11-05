@@ -55,9 +55,9 @@ const BUDGET = {
   player: 23_552,
   /**
    * The client runtime plus Yoga's `.wasm`, without the bidi chunk, which loads on the first right-to-left text.
-   * It measures 142.0 KiB, of which react-reconciler is about 39 KiB. The plan's target was 140 KiB.
+   * It measures 138.2 KiB, of which react-reconciler is about 39 KiB. The plan's target was 140 KiB.
    */
-  lazy: 143 * 1024,
+  lazy: 139 * 1024,
 };
 
 /** As users run it: `bun test` sets NODE_ENV=test, which would bundle React's development builds. */
