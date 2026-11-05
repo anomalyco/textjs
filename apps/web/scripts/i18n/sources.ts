@@ -38,6 +38,8 @@ export interface ErrorDocSource {
   title: string;
   cause: string;
   fix: string;
+  /** Codes in `TX_ERRORS` only. */
+  package?: string;
 }
 
 let errorDocs: ErrorDocSource[] | null = null;

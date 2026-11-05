@@ -56,6 +56,12 @@ function literalOptions(source: string): Intl.NumberFormatOptions {
 const clean = (id: string): string => id.split("?")[0] as string;
 const isEnglishCopy = (id: string): boolean => new RegExp(`[?&]${EN_QUERY}(&|$)`).test(id);
 
+/** `error-titles.ts` as a build ships it: the titles in this build's language and each code's package, as literals. */
+function errorTitlesModule(titles: Record<string, string>): string {
+  const packages = Object.fromEntries(errorPageDocs().flatMap((e) => (e.package ? [[e.code, e.package]] : [])));
+  return `export const ERROR_TITLES = ${JSON.stringify(titles)};\nexport const ERROR_PACKAGES = ${JSON.stringify(packages)};`;
+}
+
 export function i18nPlugin(locale: string): Plugin {
   const source = locale === "en";
   const catalog: Catalog = source ? {} : readCatalog(locale);
@@ -97,7 +103,7 @@ export function i18nPlugin(locale: string): Plugin {
     },
     load(id) {
       if (source && clean(id) === ERROR_TITLES) {
-        return `export const ERROR_TITLES = ${JSON.stringify(Object.fromEntries(errorPageDocs().map((e) => [e.code, e.title])))};`;
+        return errorTitlesModule(Object.fromEntries(errorPageDocs().map((e) => [e.code, e.title])));
       }
       if (!source && (clean(id) === ERROR_DOCS || clean(id) === ERROR_TITLES)) {
         const translations = parseTranslation(readText(translationFile(locale, "errors")));
@@ -112,7 +118,7 @@ export function i18nPlugin(locale: string): Plugin {
           out[e.code] = { title: title ?? e.title, cause: cause.markdown, fix: fix.markdown };
           titles[e.code] = title ?? e.title;
         }
-        return clean(id) === ERROR_TITLES ? `export const ERROR_TITLES = ${JSON.stringify(titles)};` : `export const ERROR_TRANSLATIONS = ${JSON.stringify(out)};`;
+        return clean(id) === ERROR_TITLES ? errorTitlesModule(titles) : `export const ERROR_TRANSLATIONS = ${JSON.stringify(out)};`;
       }
       if (!source && clean(id) === SEARCH_INDEX && !isEnglishCopy(id)) {
         const out: Record<string, Heading[]> = {};
