@@ -153,7 +153,7 @@ export default defineConfig({
 ```
 
 - A session only answers the origin that opened it.
-- By default, Text.js drops the cookies and `Authorization` header of sessions from other sites, so [middleware](/docs/middleware) sees a signed-out visitor. `credentials: true` keeps them, and needs exact origins. Browsers send the cookies only when the page and the server share a registrable domain (`www.example.com` and `console.example.com`), or when the cookies are `SameSite=None; Secure`. Otherwise browsers that block third-party cookies don't send them.
+- By default, Text.js drops the cookies and `Authorization` header of sessions from other sites, so [middleware](/docs/middleware) sees a signed-out visitor. `credentials: true` keeps them, and needs exact origins. The browser sends the cookies when the page and the server share a registrable domain (`www.example.com` and `console.example.com`). From other sites it sends only cookies set with `SameSite=None; Secure`, and browsers that block third-party cookies send none.
 - Before the first keystroke, the browser sends an `OPTIONS` preflight to `/__textjs/live`. Middleware that matches that path must let `OPTIONS` requests through.
 - Behind a reverse proxy or CDN, set `server.trustProxy` (see [Behind a proxy](/docs/deploying#behind-a-proxy)). Without it, every visitor has the proxy's address, so they all share one per-client session limit.
 
@@ -173,7 +173,7 @@ Browsers fetch module scripts and WebAssembly with CORS, so files on another ori
 
 ### Deploys
 
-`embed.js` is revalidated on every page load, so new visitors get a new deploy at once. A tab that loaded the previous `embed.js` still imports the previous build's files when the visitor opens the console, possibly hours later. Keep the previous deploy's `assets/` online: copy new files over old ones instead of syncing with deletion, and remove old files after a day or two. To pin a build, put its `assets/embed-[hash].js` in the tag; that build's files must stay online too.
+`embed.js` is revalidated on every page load, so new visitors get a new deploy at once. A tab that loaded the previous `embed.js` still imports the previous build's files when the visitor opens the console, possibly hours later. Keep the previous deploy's `assets/` online: copy new files over old ones instead of syncing with deletion, and remove old files after a day or two. To pin a build, put its `assets/embed-[hash].js` in the tag. That build's files must stay online too.
 
 When the files are gone, `embed.js` logs one warning that asks the visitor to reload, and doesn't start. It never reloads the page.
 
