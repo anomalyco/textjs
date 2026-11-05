@@ -195,10 +195,10 @@ export default defineConfig(({ isSsrBuild }) => ({
       output: isSsrBuild
         ? {}
         : {
-            // Chunk names without "error" (the Errors page, the loading-and-errors doc), so `vite build` output passes
-            // `not.toContain("error")` in build.test.ts. Each docs page's Markdown is a `doc-` chunk.
+            // Chunk names without "error" (the Errors page, Text.js's error table, the loading-and-errors doc), so `vite build`
+            // output passes `not.toContain("error")` in build.test.ts. Each docs page's Markdown is a `doc-` chunk.
             chunkFileNames: (info) =>
-              info.name === "Errors" ? "assets/tx-codes-[hash].js" : info.facadeModuleId?.includes("/src/docs/content/") ? "assets/doc-[hash].js" : "assets/[name]-[hash].js",
+              info.facadeModuleId?.includes("/src/docs/content/") ? "assets/doc-[hash].js" : `assets/${info.name === "Errors" ? "tx-codes" : info.name.replace(/errors?/gi, "tx")}-[hash].js`,
             manualChunks(id) {
               // Only the Emscripten glue: the loader imports Text.js's error table, which the site's entry also needs,
               // and a manual chunk takes its modules' dependencies with it.
