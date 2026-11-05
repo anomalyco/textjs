@@ -1,6 +1,7 @@
 import { act, type ReactNode } from "react";
 import { initYoga, InputEngine, type ConsoleTarget, type KeyboardEventLike, type RendererScheduler } from "@textjs/core";
 import { createConsoleRootSync, type ConsoleRoot, type ConsoleRootOptions } from "../src/index";
+import { devToolsSettled } from "../src/root";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -69,6 +70,8 @@ export async function createTestRoot(options: ConsoleRootOptions = {}): Promise<
     registerGlobal: false,
     ...options,
   });
+  // With the DevTools hook installed, the first root connects once the hook code loads.
+  await devToolsSettled();
   const frame = (): string => {
     scheduler.flush();
     return root.renderer.buffer.toPlainString(true).replace(/\n+$/, "");

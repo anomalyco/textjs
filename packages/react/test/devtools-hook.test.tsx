@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { act, memo, useEffect, useMemo, useRef, useState } from "react";
 import { Box, Text } from "../src/index";
 import {
   DEVTOOLS_HOOK_KEY,
@@ -10,7 +10,8 @@ import {
   type DevToolsHookEvent,
   type DevToolsTreeNode,
 } from "../src/devtools-hook";
-import { createTestRoot } from "./helpers";
+import { InputEngine } from "@textjs/core";
+import { createTestRoot, FakeConsole, ManualScheduler, setup } from "./helpers";
 
 const g = globalThis as Record<string, unknown>;
 
@@ -63,6 +64,35 @@ describe("devtools hook", () => {
     await t.unmount();
   });
 
+  test("the hook code loads only with the hook installed; roots created while it loads register, unmounted ones don't", async () => {
+    await setup();
+    // A fresh copy of root.tsx, so the hook code isn't loaded yet.
+    const fresh = (await import(`../src/root?lazy-${Date.now()}`)) as typeof import("../src/root");
+    const create = () =>
+      fresh.createConsoleRootSync({ width: 20, height: 3, console: new FakeConsole(), scheduler: new ManualScheduler(), input: new InputEngine({ document: null }), registerGlobal: false });
+
+    const before = create();
+    await fresh.devToolsSettled();
+    const hook = installDevToolsHook();
+    expect(hook.roots.size).toBe(0);
+
+    const a = create();
+    const b = create();
+    expect(hook.roots.size).toBe(0);
+    act(() => b.unmount());
+    await fresh.devToolsSettled();
+    expect(hook.roots.size).toBe(1);
+
+    const c = create();
+    expect(hook.roots.size).toBe(2);
+    act(() => {
+      a.unmount();
+      c.unmount();
+      before.unmount();
+    });
+    expect(hook.roots.size).toBe(0);
+  });
+
   test("absent hook: the global is read once per root, never per frame", async () => {
     let reads = 0;
     Object.defineProperty(globalThis, DEVTOOLS_HOOK_KEY, {
@@ -85,11 +115,14 @@ describe("devtools hook", () => {
     expect(reads).toBe(1);
   });
 
-  test("the hook module has no runtime imports (the extension's page script bundles it alone)", async () => {
-    const src = await Bun.file(new URL("../src/devtools-hook.ts", import.meta.url)).text();
-    const imports = src.match(/^import\s.*$/gm) ?? [];
-    expect(imports.length).toBeGreaterThan(0);
-    for (const line of imports) expect(line).toMatch(/^import type /);
+  test("the hook modules import nothing at runtime but each other (the extension's page script bundles them alone)", async () => {
+    const runtimeImports = async (file: string): Promise<string[]> => {
+      const src = await Bun.file(new URL(`../src/${file}`, import.meta.url)).text();
+      const statements = src.match(/^(?:import|export)\b[^;]*?\bfrom\s*"[^"]+";/gms) ?? [];
+      return statements.filter((s) => !s.startsWith("import type ")).map((s) => s.match(/"([^"]+)";$/)![1]!);
+    };
+    expect(await runtimeImports("devtools-global.ts")).toEqual([]);
+    expect(new Set(await runtimeImports("devtools-hook.ts"))).toEqual(new Set(["./devtools-global"]));
   });
 
   test("installDevToolsHook is idempotent and non-enumerable", () => {
