@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
-import { activateCompanion, companionReady, isCompanionConfigured, isInteractivePress, isRefocusPress } from "../console-companion/bridge";
+import { isInteractivePress, isRefocusPress } from "../console-companion/bridge";
 import { PRESETS, siteStore } from "../console-companion/store";
-import { preloadCompanionTab } from "../console-companion/tabs-loader";
 import { useSite } from "../console-companion/useSite";
 import { exampleFrame, exampleHeader, PREVIEW_META } from "../docs/preview-meta";
 import type { PreviewSpec } from "../docs/previews";
@@ -11,12 +10,9 @@ import { t } from "../i18n/t";
 import { CopyButton } from "./CodeBlock";
 import { DevToolsWindow } from "./DevToolsWindow";
 import { HighlightedCode } from "./highlight";
+import { preloadExampleTabIfReady, runInConsole, useConsoleAvailable } from "./run-in-console";
 import { useCompanionFrame } from "./useCompanion";
-import { prefetchFailed } from "../telemetry/capture";
 import { useInView } from "./useInView";
-
-/** Same rule as `.desktop-only`: phones and tablets have no DevTools console to run in. */
-const CONSOLE_MEDIA = "(max-width: 640px), (hover: none) and (pointer: coarse)";
 
 let previewsCache: Record<string, PreviewSpec> | null = null;
 let previewsPromise: Promise<Record<string, PreviewSpec>> | null = null;
@@ -30,38 +26,6 @@ function loadPreviews(): Promise<Record<string, PreviewSpec>> {
     });
   }
   return previewsPromise;
-}
-
-/** Whether this device has a live console companion to run examples in, or `null` while server rendering and hydrating. */
-function useConsoleState(): boolean | null {
-  const [available, setAvailable] = useState<boolean | null>(null);
-  useEffect(() => {
-    if (typeof matchMedia !== "function") return;
-    const mq = matchMedia(CONSOLE_MEDIA);
-    // The companion boots on the first click, so a desktop visitor can run an example before it has.
-    const update = (): void => setAvailable(isCompanionConfigured() && !mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
-  return available;
-}
-
-/** Whether this device has a live console companion to run examples in (always `false` while hydrating). */
-export function useConsoleAvailable(): boolean {
-  return useConsoleState() === true;
-}
-
-/** Whether this device has no console companion (phones, tablets, narrow windows). Always `false` while hydrating. */
-export function useNoConsole(): boolean {
-  return useConsoleState() === false;
-}
-
-/** Make an example the console companion's app and send keystrokes to it. */
-export function runInConsole(id: string): void {
-  preloadCompanionTab("example").catch(prefetchFailed);
-  siteStore.activateExample(id);
-  activateCompanion();
 }
 
 /**
@@ -78,8 +42,7 @@ export function LivePreview({ id, code, language }: { id: string; code: string; 
 
   useEffect(() => {
     if ((!inView && !active) || meta === undefined) return;
-    // The console's example view, once the companion has started. A click loads it otherwise.
-    if (companionReady()) preloadCompanionTab("example").catch(prefetchFailed);
+    preloadExampleTabIfReady();
     if (previews) return;
     let alive = true;
     void loadPreviews().then((p) => {

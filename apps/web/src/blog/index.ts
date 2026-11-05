@@ -11,10 +11,12 @@ import consoleLog from "./rendering-react-into-console-log.md?raw";
 import { LOCALE, localePath } from "../i18n/locales";
 import { t } from "../i18n/t";
 import { formatPostDate, getPostMeta, postPath, POSTS_META, type BlogPostMeta } from "./meta";
+import { POST_SUMMARIES } from "./summaries";
 
 export { formatPostDate, getPostMeta, postPath, POSTS_META, type BlogPostMeta };
 
 export interface BlogPost extends BlogPostMeta {
+  summary: string;
   markdown: string;
 }
 
@@ -39,9 +41,9 @@ function post(slug: string, source: string): BlogPost {
     if (!data[key]) throw new Error(`blog/${slug}.md is missing "${key}" in its frontmatter`);
   }
   if (data.brand !== undefined && data.brand !== "turbolog") throw new Error(`blog/${slug}.md has an unknown brand "${data.brand}"`);
-  // Title and summary come from POSTS_META, where the catalog translates them; frontmatter stays English.
+  // Title and summary come from POSTS_META and POST_SUMMARIES, where the catalog translates them; frontmatter stays English.
   const meta = getPostMeta(slug);
-  return { slug, title: meta?.title ?? (data.title as string), date: data.date as string, author: data.author as string, summary: meta?.summary ?? (data.summary as string), ...(data.brand ? { brand: "turbolog" as const } : {}), markdown: body.trim() };
+  return { slug, title: meta?.title ?? (data.title as string), date: data.date as string, author: data.author as string, summary: POST_SUMMARIES[slug] ?? (data.summary as string), ...(data.brand ? { brand: "turbolog" as const } : {}), markdown: body.trim() };
 }
 
 /** Newest first; posts on the same day keep the order listed here. */

@@ -1,7 +1,6 @@
 import { createElement, useEffect, useMemo, useRef, useState, type ComponentType, type FocusEvent, type MouseEvent, type ReactNode } from "react";
-import { companionReady, isInteractivePress, isRefocusPress } from "../../console-companion/bridge";
+import { isInteractivePress, isRefocusPress } from "../../console-companion/bridge";
 import { siteStore } from "../../console-companion/store";
-import { preloadCompanionTab } from "../../console-companion/tabs-loader";
 import { useSite } from "../../console-companion/useSite";
 import { exampleFrame, HOME_EXAMPLE_GRID, homeExampleHeader } from "../../docs/preview-meta";
 import { t } from "../../i18n/t";
@@ -10,10 +9,9 @@ import { SandboxConsole } from "../../sandbox/SandboxConsole";
 import { useSandbox } from "../../sandbox/useSandbox";
 import { DevToolsWindow } from "../../site/DevToolsWindow";
 import { ArrowRight } from "../../site/icons";
-import { runInConsole, useConsoleAvailable } from "../../site/LivePreview";
+import { preloadExampleTabIfReady, runInConsole, useConsoleAvailable } from "../../site/run-in-console";
 import { useCompanionFrame } from "../../site/useCompanion";
 import { useInView } from "../../site/useInView";
-import { prefetchFailed } from "../../telemetry/capture";
 import { Crosses } from "./Crosses";
 
 const { cols: COLS, rows: ROWS } = HOME_EXAMPLE_GRID;
@@ -66,8 +64,7 @@ function Preview({ id, enabled, active, available }: { id: string; enabled: bool
   const [kit, setKit] = useState<KitModule | null>(kitCache);
   useEffect(() => {
     if (!enabled && !active) return;
-    // The console's example view, once the companion has started. A click loads it otherwise.
-    if (companionReady()) preloadCompanionTab("example").catch(prefetchFailed);
+    preloadExampleTabIfReady();
     if (kit) return;
     let alive = true;
     void loadKit().then((m) => {

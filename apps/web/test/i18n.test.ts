@@ -19,6 +19,8 @@ import { getLocale, LOCALES, localePath, parseLocaleSet, splitLocale, type Local
 import { rich } from "../src/i18n/rich";
 import { DATE_STYLES, datePatterns, formatWith, intlTag, type DateStyle } from "../src/i18n/intl";
 import { formatDate, interpolate, plural } from "../src/i18n/t";
+import { ERROR_PACKAGES, ERROR_TITLES } from "../src/pages/error-titles";
+import { TX000 } from "../src/pages/tx000";
 import { localizeHref, matchRoute } from "../src/router";
 import { suggestedLocale } from "../src/site/LocaleMenu";
 import { MarkdownDoc } from "../src/site/Markdown";
@@ -242,10 +244,17 @@ describe("catalog", () => {
     // The console's English copy and English builds keep the checked-in index.
     expect(plugin.load.call({}, `${join(src, "docs", "search-index.ts")}?lang=en`)).toBeNull();
     expect((i18nPlugin("en") as typeof plugin).load.call({}, join(src, "docs", "search-index.ts"))).toBeNull();
-    const titles = module(plugin.load.call({}, join(src, "pages", "error-titles.ts"))!) as Record<string, string>;
+    // error-titles.ts is two exports, one per line: the titles, then each code's package.
+    const exports = (code: string): Record<string, unknown>[] => code.split("\n").map(module);
+    const [titles = {}, packages] = exports(plugin.load.call({}, join(src, "pages", "error-titles.ts"))!) as Record<string, string>[];
     const docs = module(plugin.load.call({}, join(src, "pages", "error-docs.ts"))!) as Record<string, { title: string }>;
-    expect(Object.keys(titles).length).toBeGreaterThan(0);
+    expect(Object.keys(titles).sort()).toEqual(Object.keys(docs).sort());
     for (const [code, title] of Object.entries(titles)) expect(docs[code]?.title).toBe(title);
+    // English builds swap in the titles too, so no page's router loads the error table.
+    const [en, enPackages] = exports((i18nPlugin("en") as typeof plugin).load.call({}, join(src, "pages", "error-titles.ts"))!) as Record<string, string>[];
+    expect(en).toEqual({ TX000: TX000.title, ...ERROR_TITLES });
+    expect(enPackages).toEqual({ ...ERROR_PACKAGES });
+    expect(packages).toEqual({ ...ERROR_PACKAGES });
   });
 
   test("keys are literal strings found in the source", () => {

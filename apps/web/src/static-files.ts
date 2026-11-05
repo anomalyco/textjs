@@ -4,6 +4,7 @@
  */
 
 import { TX_ERRORS, VERSION } from "@textjs/core";
+import { docDescription } from "./docs/descriptions";
 import { DOCS_META, docPath } from "./docs/meta";
 import { COMPONENTS, LAUNCH } from "./pages/status-components";
 import history from "./pages/status-history.json";
@@ -33,7 +34,7 @@ Software: Bun, Vite, Chrome DevTools
 
 /** `/llms.txt` (llmstxt.org). */
 export function llmsTxt(): string {
-  const docs = DOCS_META.map((d) => `- [${d.title}](${ORIGIN}${docPath(d.slug)}): ${d.description}`);
+  const docs = DOCS_META.map((d) => `- [${d.title}](${ORIGIN}${docPath(d.slug)}): ${docDescription(d.slug)}`);
   const errors = TX_ERRORS.map((e) => `- [${e.code}: ${e.title}](${ORIGIN}/errors/${e.code})`);
   return `# Text.js
 

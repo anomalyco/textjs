@@ -1,6 +1,6 @@
-import { getTxError } from "@textjs/core";
 import { docPath, getDocMeta } from "../docs/meta";
 import { DOC_HEADINGS } from "../docs/search-index";
+import { ERROR_PACKAGES } from "../pages/error-titles";
 import { getErrorPageTitle } from "../pages/tx000";
 
 export interface SearchItem {
@@ -22,9 +22,11 @@ const ALIASES: ReadonlyArray<{ terms: readonly string[]; to: { error: string } |
 ];
 
 function errorItem(code: string): SearchItem | null {
-  const e = getTxError(code);
-  if (!e) return null;
-  return { key: `e:${e.code}`, group: "Error Codes", label: `${e.code}: ${getErrorPageTitle(e.code) ?? e.title}`, sub: e.package, href: `/errors/${e.code}` };
+  // TX000 is a site page with no package, kept out of search.
+  const pkg = Object.hasOwn(ERROR_PACKAGES, code) ? ERROR_PACKAGES[code] : undefined;
+  const title = getErrorPageTitle(code);
+  if (pkg === undefined || title === undefined) return null;
+  return { key: `e:${code}`, group: "Error Codes", label: `${code}: ${title}`, sub: pkg, href: `/errors/${code}` };
 }
 
 function docItem(slug: string, heading?: string): SearchItem | null {

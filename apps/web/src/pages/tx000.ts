@@ -1,4 +1,4 @@
-import { getTxError, type TxErrorDoc } from "@textjs/core";
+import type { TxErrorDoc } from "@textjs/core";
 import { ERROR_TITLES } from "./error-titles";
 
 export type ErrorPageDoc = Pick<TxErrorDoc, "package" | "kind" | "title" | "message" | "cause" | "fix"> & { code: string };
@@ -16,6 +16,6 @@ export const TX000: ErrorPageDoc = {
 
 /** An error page's title in this build's language, or `undefined` when there's no page for `code`. */
 export function getErrorPageTitle(code: string): string | undefined {
-  const doc = code === TX000.code ? TX000 : getTxError(code);
-  return doc ? (ERROR_TITLES[doc.code] ?? doc.title) : undefined;
+  if (Object.hasOwn(ERROR_TITLES, code)) return ERROR_TITLES[code];
+  return code === TX000.code ? TX000.title : undefined;
 }

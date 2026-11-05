@@ -24,8 +24,8 @@ import {
   OVERVIEW_HINTS,
   TOTAL_MINUTES,
   type ChapterMeta,
-  type QuizQuestion,
 } from "./meta";
+import { QUIZZES, type QuizQuestion } from "./quizzes";
 
 export {
   ABOUT_MINUTES,
@@ -48,6 +48,7 @@ export {
 
 export interface Chapter extends ChapterMeta {
   markdown: string;
+  quiz: readonly QuizQuestion[];
 }
 
 const CHAPTER_MARKDOWN: Record<string, string> = {
@@ -66,6 +67,7 @@ const CHAPTER_MARKDOWN: Record<string, string> = {
 export const CHAPTERS: readonly Chapter[] = CHAPTERS_META.map((m) => ({
   ...m,
   markdown: CHAPTER_MARKDOWN[m.slug] ?? "",
+  quiz: QUIZZES[m.slug] ?? [],
 }));
 
 export function getChapter(slug: string): Chapter | undefined {

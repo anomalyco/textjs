@@ -36,6 +36,9 @@ page.on("console", (m) => logs.push(m.text()));
 await page.goto(`${base}/`, { waitUntil: "networkidle" });
 await page.waitForTimeout(800);
 const before = logs.length;
+// The menu downloads when the pointer reaches the logo, a moment before a visitor's right-click.
+await page.locator(".header .wordmark").hover();
+await page.waitForTimeout(100);
 await page.locator(".header .wordmark").click({ button: "right" });
 const menu = page.locator('[role="menu"][aria-label="Logo"]');
 check("right-click opens the logo menu", await menu.isVisible());
@@ -230,6 +233,33 @@ if (complete) {
 }
 
 check("no page errors", errors.length === 0, errors.join("\n"));
+
+// ── a failed download of the search dialog or the logo menu: the page reloads once, as for a page chunk, and works ──
+// Chromium keeps a failed module, so importing it again can't succeed; a stale chunk needs the new deploy anyway.
+for (const [name, open, shown] of [
+  ["SearchDialog", (p) => p.keyboard.press("Meta+k"), ".kbar input"],
+  ["LogoMenu", (p) => p.locator(".header .wordmark").click({ button: "right" }), '[role="menu"][aria-label="Logo"]'],
+]) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await ctx.route((url) => /^(127\.0\.0\.1|localhost|\[::1\])$/.test(url.hostname) && url.port !== port, (r) => r.abort());
+  const p = await ctx.newPage();
+  const pageErrors = [];
+  p.on("pageerror", (e) => pageErrors.push(e.message));
+  let failing = true;
+  await p.route(new RegExp(`/assets/${name}-[^/]+\\.js$`), (r) => (failing ? r.abort() : r.continue()));
+  await p.goto(`${base}/`, { waitUntil: "networkidle" });
+  const reloaded = p.waitForEvent("load", { timeout: 5000 }).then(() => true, () => false);
+  await open(p);
+  const didReload = await reloaded;
+  failing = false;
+  await p.waitForLoadState("networkidle");
+  check(`${name}: a failed download reloads the page once`, didReload && (await p.evaluate(() => performance.getEntriesByType("navigation")[0]?.type)) === "reload");
+  await open(p);
+  check(`${name}: after the reload it opens`, await p.locator(shown).waitFor({ timeout: 3000 }).then(() => true, () => false));
+  check(`${name}: no page errors`, pageErrors.length === 0, pageErrors.join("\n"));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failures ? `\n${failures} failed` : "\nall egg checks passed");
 process.exit(failures ? 1 : 0);

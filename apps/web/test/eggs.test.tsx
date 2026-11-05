@@ -25,6 +25,7 @@ import { aliasResults, invertTriangles, isQuitCommand } from "../src/site/search
 import { matchesErrorQuery } from "../src/pages/Errors";
 import { getTxError, TX_ERRORS, VERSION } from "@textjs/core";
 import { humansTxt, llmsTxt, statusApi } from "../src/static-files";
+import { docDescription } from "../src/docs/descriptions";
 import { DOCS_META, docPath } from "../src/docs/registry";
 import { COMPONENTS } from "../src/pages/status-components";
 import { INCIDENTS } from "../src/pages/status-incidents";
@@ -88,8 +89,8 @@ describe("generated static files", () => {
   test("llms.txt lists every doc and error code", () => {
     const txt = llmsTxt();
     expect(txt).toStartWith("# Text.js\n\n> ");
-    expect(txt).toContain(`- [Introduction](https://textjs.org/docs): ${DOCS_META[0]?.description}\n`);
-    for (const d of DOCS_META) expect(txt).toContain(`](https://textjs.org${docPath(d.slug)}): ${d.description}`);
+    expect(txt).toContain(`- [Introduction](https://textjs.org/docs): ${docDescription(DOCS_META[0]!.slug)}\n`);
+    for (const d of DOCS_META) expect(txt).toContain(`](https://textjs.org${docPath(d.slug)}): ${docDescription(d.slug)}`);
     for (const e of TX_ERRORS) expect(txt).toContain(`- [${e.code}: ${e.title}](https://textjs.org/errors/${e.code})`);
     expect(txt).toContain("- [TX001: Yoga is not initialized](https://textjs.org/errors/TX001)\n");
     expect(txt).not.toContain("TX000");

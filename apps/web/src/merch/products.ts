@@ -1,4 +1,5 @@
-import { msg } from "../i18n/t";
+import { msg, t } from "../i18n/t";
+import { merchTitle } from "./routes";
 /** The merch collection. Specs come from the blank manufacturers; see merch/tech-packs/ in the repo. */
 import logoTee1_600 from "./images/logo-tee-1-600.webp";
 import logoTee1_1024 from "./images/logo-tee-1-1024.webp";
@@ -445,3 +446,11 @@ export function productPath(slug: string): string {
 export function formatPrice(usd: number): string {
   return `$${usd.toFixed(2)}`;
 }
+
+export const MERCH_DESCRIPTION = t("The Text.js Store: tees, hoodies, caps and stickers with the ▼ and console.log, plus ⌘⌥J keycaps and a notebook.");
+
+/** Prerendered store pages. Here rather than in `routes.ts`, which every page's router loads. */
+export const MERCH_ROUTES: ReadonlyArray<{ path: string; title: string; description: string; cardTitle: string }> = [
+  { path: "/store", title: merchTitle(""), description: MERCH_DESCRIPTION, cardTitle: t("Store") },
+  ...PRODUCTS.map((p) => ({ path: productPath(p.slug), title: merchTitle(p.slug), description: p.description[0] ?? "", cardTitle: p.name })),
+];

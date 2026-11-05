@@ -177,6 +177,8 @@ export default defineConfig(({ isSsrBuild }) => ({
     sourcemap: false,
     manifest: !isSsrBuild,
     chunkSizeWarningLimit: 1600,
+    // Browsers without `<link rel="modulepreload">` (Safari before 17) still load every module, only without the head start.
+    modulePreload: { polyfill: false },
     rollupOptions: {
       treeshake: isSsrBuild
         ? undefined
@@ -195,10 +197,8 @@ export default defineConfig(({ isSsrBuild }) => ({
       output: isSsrBuild
         ? {}
         : {
-            // Chunk names without "error" (the Errors page, the loading-and-errors doc), so `vite build` output passes
-            // `not.toContain("error")` in build.test.ts. Each docs page's Markdown is a `doc-` chunk.
-            chunkFileNames: (info) =>
-              info.name === "Errors" ? "assets/tx-codes-[hash].js" : info.facadeModuleId?.includes("/src/docs/content/") ? "assets/doc-[hash].js" : "assets/[name]-[hash].js",
+            // Each docs page's Markdown is a `doc-` chunk.
+            chunkFileNames: (info) => (info.facadeModuleId?.includes("/src/docs/content/") ? "assets/doc-[hash].js" : "assets/[name]-[hash].js"),
             manualChunks(id) {
               // Only the Emscripten glue: the loader imports Text.js's error table, which the site's entry also needs,
               // and a manual chunk takes its modules' dependencies with it.
