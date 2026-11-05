@@ -1,7 +1,7 @@
 import { canPrefetchConsole } from "@textjs/core/experimental";
 import { useEffect, useState, type ReactNode } from "react";
 import { siteStore } from "../console-companion/store";
-import { prefetchFailed } from "../telemetry/capture";
+import { prefetchFailed, recoverFromChunkFailure } from "../telemetry/capture";
 
 export type SearchEngine = {
   searchDocsMeta: typeof import("../docs/search").searchDocsMeta;
@@ -23,10 +23,9 @@ function preloadSearchEngine(): Promise<SearchEngine> {
       return engineCache;
     });
     enginePromise = promise;
-    // A failed download (a chunk gone after a deploy, say) is reported, and tried again next time.
-    promise.catch((error: unknown) => {
+    // A failed download is tried again next time; callers decide whether it's worth a report or a reload.
+    promise.catch(() => {
       if (enginePromise === promise) enginePromise = null;
-      prefetchFailed(error);
     });
   }
   return enginePromise;
@@ -41,9 +40,8 @@ export function preloadSearchDialog(): Promise<DialogModule> {
       return m;
     });
     dialogPromise = promise;
-    promise.catch((error: unknown) => {
+    promise.catch(() => {
       if (dialogPromise === promise) dialogPromise = null;
-      prefetchFailed(error);
     });
   }
   return dialogPromise;
@@ -51,9 +49,7 @@ export function preloadSearchDialog(): Promise<DialogModule> {
 
 /** Download the search dialog, then its index (a search button pressed, hovered or focused). */
 export function preloadSearch(): void {
-  preloadSearchDialog()
-    .then(preloadSearchEngine)
-    .catch(() => undefined);
+  preloadSearchDialog().then(preloadSearchEngine).catch(prefetchFailed);
 }
 
 export function openSearch(): void {
@@ -68,13 +64,17 @@ export function SearchModal(): ReactNode {
 
   useEffect(() => {
     // The dialog first, so the index doesn't share its bandwidth: until the index loads, the dialog matches titles.
+    // Without the dialog there's nothing to show; like a page chunk, a stale one reloads the page once.
     const load = (): void => {
       preloadSearchDialog().then(
         (m) => {
           setDialog(m);
-          preloadSearchEngine().then(setEngine, () => undefined);
+          preloadSearchEngine().then(setEngine, prefetchFailed);
         },
-        () => setOpen(false),
+        (error: unknown) => {
+          setOpen(false);
+          recoverFromChunkFailure(error);
+        },
       );
     };
     const l = (v: boolean): void => {
@@ -85,7 +85,7 @@ export function SearchModal(): ReactNode {
     const onKey = (e: KeyboardEvent): void => {
       // ⌘ or Ctrl comes down before the K: fetch the dialog in that gap.
       if (e.key === "Meta" || e.key === "Control") {
-        if (!e.repeat && !e.altKey && !e.shiftKey && canPrefetchConsole()) preloadSearchDialog().catch(() => undefined);
+        if (!e.repeat && !e.altKey && !e.shiftKey && canPrefetchConsole()) preloadSearchDialog().catch(prefetchFailed);
         return;
       }
       if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "k") {

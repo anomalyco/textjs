@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type MouseEvent, type ReactNode } from "react";
-import { prefetchFailed } from "../telemetry/capture";
+import { prefetchFailed, recoverFromChunkFailure } from "../telemetry/capture";
 
 type LogoMenuModule = typeof import("./LogoMenu");
 let menuCache: LogoMenuModule | null = null;
@@ -13,10 +13,9 @@ function loadLogoMenu(): Promise<LogoMenuModule> {
       return m;
     });
     menuPromise = promise;
-    // A failed download (a chunk gone after a deploy, say) is reported, and tried again next time.
-    promise.catch((error: unknown) => {
+    // A failed download is tried again next time; callers decide whether it's worth a report or a reload.
+    promise.catch(() => {
       if (menuPromise === promise) menuPromise = null;
-      prefetchFailed(error);
     });
   }
   return menuPromise;
@@ -24,7 +23,7 @@ function loadLogoMenu(): Promise<LogoMenuModule> {
 
 /** Download the logo menu, before the right-click that opens it (the pointer or focus reaching the logo). */
 export function preloadLogoMenu(): void {
-  loadLogoMenu().catch(() => undefined);
+  loadLogoMenu().catch(prefetchFailed);
 }
 
 export interface LogoMenuState {
@@ -59,9 +58,14 @@ export function LogoMenu(props: { state: LogoMenuState; onClose: () => void }): 
   useEffect(() => {
     if (menu) return;
     let alive = true;
+    // Like a page chunk, a stale menu the visitor is waiting for reloads the page once.
     loadLogoMenu().then(
       (m) => alive && setMenu(m),
-      () => alive && onClose(),
+      (error: unknown) => {
+        if (!alive) return;
+        onClose();
+        recoverFromChunkFailure(error);
+      },
     );
     // A slow download never pops the menu up later, at a stale spot.
     const close = (): void => onClose();

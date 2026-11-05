@@ -234,34 +234,29 @@ if (complete) {
 
 check("no page errors", errors.length === 0, errors.join("\n"));
 
-// ── a failed download of the search dialog or the logo menu is tried again on the next ⌘K or right-click ──
-{
+// ── a failed download of the search dialog or the logo menu: the page reloads once, as for a page chunk, and works ──
+// Chromium keeps a failed module, so importing it again can't succeed; a stale chunk needs the new deploy anyway.
+for (const [name, open, shown] of [
+  ["SearchDialog", (p) => p.keyboard.press("Meta+k"), ".kbar input"],
+  ["LogoMenu", (p) => p.locator(".header .wordmark").click({ button: "right" }), '[role="menu"][aria-label="Logo"]'],
+]) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   await ctx.route((url) => /^(127\.0\.0\.1|localhost|\[::1\])$/.test(url.hostname) && url.port !== port, (r) => r.abort());
   const p = await ctx.newPage();
-  const fail = new Set(["SearchDialog", "LogoMenu"]);
-  const aborted = [];
-  await p.route(/\/assets\/(SearchDialog|LogoMenu)-[^/]+\.js$/, (r) => {
-    const name = /\/(SearchDialog|LogoMenu)-/.exec(r.request().url())[1];
-    if (!fail.has(name)) return r.continue();
-    aborted.push(name);
-    return r.abort();
-  });
+  const pageErrors = [];
+  p.on("pageerror", (e) => pageErrors.push(e.message));
+  let failing = true;
+  await p.route(new RegExp(`/assets/${name}-[^/]+\\.js$`), (r) => (failing ? r.abort() : r.continue()));
   await p.goto(`${base}/`, { waitUntil: "networkidle" });
-  await p.keyboard.press("Meta+k");
-  await p.waitForTimeout(500);
-  check("⌘K with the dialog's download failing shows nothing", aborted.includes("SearchDialog") && (await p.locator(".kbar").count()) === 0, aborted.join(","));
-  fail.delete("SearchDialog");
-  await p.keyboard.press("Meta+k");
-  check("the next ⌘K opens search", await p.locator(".kbar input").waitFor({ timeout: 3000 }).then(() => true, () => false));
-  await p.keyboard.press("Escape");
-  const logoMenu = p.locator('[role="menu"][aria-label="Logo"]');
-  await p.locator(".header .wordmark").click({ button: "right" });
-  await p.waitForTimeout(500);
-  check("right-click with the menu's download failing shows nothing", aborted.includes("LogoMenu") && (await logoMenu.count()) === 0, aborted.join(","));
-  fail.delete("LogoMenu");
-  await p.locator(".header .wordmark").click({ button: "right" });
-  check("the next right-click opens the logo menu", await logoMenu.waitFor({ timeout: 3000 }).then(() => true, () => false));
+  const reloaded = p.waitForEvent("load", { timeout: 5000 }).then(() => true, () => false);
+  await open(p);
+  const didReload = await reloaded;
+  failing = false;
+  await p.waitForLoadState("networkidle");
+  check(`${name}: a failed download reloads the page once`, didReload && (await p.evaluate(() => performance.getEntriesByType("navigation")[0]?.type)) === "reload");
+  await open(p);
+  check(`${name}: after the reload it opens`, await p.locator(shown).waitFor({ timeout: 3000 }).then(() => true, () => false));
+  check(`${name}: no page errors`, pageErrors.length === 0, pageErrors.join("\n"));
   await ctx.close();
 }
 
