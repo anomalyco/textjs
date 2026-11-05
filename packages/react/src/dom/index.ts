@@ -10,7 +10,6 @@ export {
   saveViewportChoice,
   VIEWPORT_CHOICE_KEY,
   VIEWPORT_PRESETS,
-  ViewportControl,
   type ViewportChoice,
-  type ViewportControlProps,
-} from "./ViewportControl";
+} from "./viewport-choice";
+export { ViewportControl, type ViewportControlProps } from "./ViewportControl";

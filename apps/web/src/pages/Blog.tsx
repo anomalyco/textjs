@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { POSTS_META as POSTS, postPath } from "../blog/meta";
+import { POST_SUMMARIES } from "../blog/summaries";
 import { LOCALE, localePath } from "../i18n/locales";
 import { formatDate, t } from "../i18n/t";
 import { A } from "../router";
@@ -28,7 +29,7 @@ export function BlogPage(): ReactNode {
             <A href={postPath(p.slug)} className="blog-card">
               <time dateTime={p.date}>{formatDate(p.date)}</time>
               <h2>{p.title}</h2>
-              <p>{p.summary}</p>
+              <p>{POST_SUMMARIES[p.slug]}</p>
               <span className="blog-by">{p.author}</span>
             </A>
           </li>

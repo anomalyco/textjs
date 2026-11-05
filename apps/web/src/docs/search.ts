@@ -1,3 +1,4 @@
+import { docDescription } from "./descriptions";
 import { DOCS_META, type DocMeta } from "./meta";
 import { DOC_HEADINGS, type Heading } from "./search-index";
 import { searchFold } from "../i18n/search-fold";
@@ -42,7 +43,7 @@ export function searchDocsMeta(query: string, limit = 12): MetaSearchHit[] {
   if (q.length === 0) return DOCS_META.map((doc) => ({ doc, score: 0 }));
   const hits: MetaSearchHit[] = [];
   for (const doc of DOCS_META) {
-    const s = Math.max(fuzzyScore(q, doc.title) * 1.5, fuzzyScore(q, doc.nav ?? doc.title) * 1.5, fuzzyScore(q, doc.description), fuzzyScore(q, words(doc.slug)) * 1.5);
+    const s = Math.max(fuzzyScore(q, doc.title) * 1.5, fuzzyScore(q, doc.nav ?? doc.title) * 1.5, fuzzyScore(q, docDescription(doc.slug)), fuzzyScore(q, words(doc.slug)) * 1.5);
     if (s >= 0) hits.push({ doc, score: s + 50 });
     for (const h of DOC_HEADINGS[doc.slug] ?? []) {
       const hs = Math.max(fuzzyScore(q, h.text), fuzzyScore(q, words(h.id)));

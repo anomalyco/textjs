@@ -35,7 +35,7 @@ export interface UnitsManifest {
 }
 
 const COMPANION = join(SRC_DIR, "console-companion") + "/";
-/** The error pages' translations and their titles alone, `{}` in source (`src/pages/error-docs.ts`, `error-titles.ts`). */
+/** The error pages' translations, `{}` in source (`src/pages/error-docs.ts`), and their titles alone (`error-titles.ts`). */
 const ERROR_DOCS = join(SRC_DIR, "pages", "error-docs.ts");
 const ERROR_TITLES = join(SRC_DIR, "pages", "error-titles.ts");
 /** The docs pages' headings for search, English in source (`src/docs/search-index.ts`). */
@@ -55,6 +55,12 @@ function literalOptions(source: string): Intl.NumberFormatOptions {
 
 const clean = (id: string): string => id.split("?")[0] as string;
 const isEnglishCopy = (id: string): boolean => new RegExp(`[?&]${EN_QUERY}(&|$)`).test(id);
+
+/** `error-titles.ts` as a build ships it: the titles in this build's language and each code's package, as literals. */
+function errorTitlesModule(titles: Record<string, string>): string {
+  const packages = Object.fromEntries(errorPageDocs().flatMap((e) => (e.package ? [[e.code, e.package]] : [])));
+  return `export const ERROR_TITLES = ${JSON.stringify(titles)};\nexport const ERROR_PACKAGES = ${JSON.stringify(packages)};`;
+}
 
 export function i18nPlugin(locale: string): Plugin {
   const source = locale === "en";
@@ -96,6 +102,9 @@ export function i18nPlugin(locale: string): Plugin {
       return `${resolved.id}${resolved.id.includes("?") ? "&" : "?"}${EN_QUERY}`;
     },
     load(id) {
+      if (source && clean(id) === ERROR_TITLES) {
+        return errorTitlesModule(Object.fromEntries(errorPageDocs().map((e) => [e.code, e.title])));
+      }
       if (!source && (clean(id) === ERROR_DOCS || clean(id) === ERROR_TITLES)) {
         const translations = parseTranslation(readText(translationFile(locale, "errors")));
         const out: Record<string, { title: string; cause: string; fix: string }> = {};
@@ -107,9 +116,9 @@ export function i18nPlugin(locale: string): Plugin {
           const fix = assemble(e.fix, translations, own);
           documents[`errors/${e.code}`] = { total: 1 + cause.total + fix.total, translated: (title ? 1 : 0) + cause.translated + fix.translated };
           out[e.code] = { title: title ?? e.title, cause: cause.markdown, fix: fix.markdown };
-          if (title) titles[e.code] = title;
+          titles[e.code] = title ?? e.title;
         }
-        return clean(id) === ERROR_TITLES ? `export const ERROR_TITLES = ${JSON.stringify(titles)};` : `export const ERROR_TRANSLATIONS = ${JSON.stringify(out)};`;
+        return clean(id) === ERROR_TITLES ? errorTitlesModule(titles) : `export const ERROR_TRANSLATIONS = ${JSON.stringify(out)};`;
       }
       if (!source && clean(id) === SEARCH_INDEX && !isEnglishCopy(id)) {
         const out: Record<string, Heading[]> = {};

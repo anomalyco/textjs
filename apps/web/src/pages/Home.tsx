@@ -10,7 +10,7 @@ import { CONSOLE_TAGS } from "../site/Chrome";
 import { CopyCommand } from "../site/CodeBlock";
 import { DevToolsWindow } from "../site/DevToolsWindow";
 import { HighlightedCode } from "../site/highlight";
-import { useNoConsole } from "../site/LivePreview";
+import { useNoConsole } from "../site/run-in-console";
 import { unpackStyledFrame, type PackedFrame } from "../site/packed-frame";
 import { siteStore } from "../console-companion/store";
 import { HERO_FILES } from "./home-files";

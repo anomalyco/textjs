@@ -1,6 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { t } from "../i18n/t";
+import type { LogoMenuState } from "./logo-menu-loader";
 
 export const LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M2 4h20L12 21.5z" fill="#000"/></svg>\n';
 // "Text.js" is Geist Bold (18px, -0.04em tracking) converted to outlines, so the file renders anywhere.
@@ -26,30 +27,6 @@ const ITEMS: readonly Item[] = [
 ];
 
 const MENU_WIDTH = 232;
-
-export interface LogoMenuState {
-  x: number;
-  y: number;
-  /** Element that opened the menu; focus returns to it on close. */
-  opener: HTMLElement;
-}
-
-/**
- * Vercel-style logo menu. Opens on right-click with a fine pointer (Shift+right-click keeps the
- * native menu, touch keeps long-press link behaviour) and on the context-menu key.
- */
-export function useLogoMenu(): [LogoMenuState | null, (e: MouseEvent<HTMLElement>) => void, () => void] {
-  const [state, setState] = useState<LogoMenuState | null>(null);
-  const open = (e: MouseEvent<HTMLElement>): void => {
-    if (e.shiftKey) return;
-    const keyboard = e.clientX === 0 && e.clientY === 0;
-    if (!keyboard && !matchMedia("(pointer: fine)").matches) return;
-    e.preventDefault();
-    const r = e.currentTarget.getBoundingClientRect();
-    setState({ x: keyboard ? r.left : e.clientX, y: keyboard ? r.bottom + 4 : e.clientY, opener: e.currentTarget });
-  };
-  return [state, open, () => setState(null)];
-}
 
 export function LogoMenu({ state, onClose }: { state: LogoMenuState; onClose: () => void }): ReactNode {
   const menu = useRef<HTMLDivElement>(null);

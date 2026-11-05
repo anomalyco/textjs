@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Box, Input, Markdown, ScrollBox, Select, Text, useInput, useTheme, useViewport, type SelectOption } from "@textjs/react";
+import { docDescription } from "../../docs/descriptions";
 import { getDoc, getDocMeta, preloadDoc, subscribeDocs, toConsoleMarkdown } from "../../docs/registry";
 import { searchDocsMeta } from "../../docs/search";
 import { prefetchFailed } from "../../telemetry/capture";
@@ -90,7 +91,7 @@ export function DocsTab(): ReactNode {
             {doc?.title ?? ""}
           </Text>
           <Text color="muted" marginBottom={1}>
-            {doc?.description ?? ""}
+            {doc ? docDescription(doc.slug) : ""}
           </Text>
           <Markdown codeMaxHeight={16}>{markdown}</Markdown>
         </ScrollBox>
