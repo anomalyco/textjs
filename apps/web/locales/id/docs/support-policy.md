@@ -43,8 +43,8 @@ Hal-hal berikut hanya berubah dalam rilis mayor, setelah peringatan deprekasi da
 - Konvensi file dalam `app/`, `middleware.ts`, dan konfigurasi segmen route
 - Layout keluaran adapter (`.vercel/output`, `_worker.js`, `dist/server.js`)
 
-<!-- s:3a8ad71311 -->
-Tidak tercakup: API bertanda eksperimental atau `unstable_`, termasuk semua yang ada di bawah `@textjs/core/experimental` dan `@textjs/react/experimental` (API ini dapat berubah dalam rilis minor, dengan catatan di changelog), bagian internal seperti `@textjs/core/internal`, header `x-middleware-*` dan metadata build `.text/`, rilis canary, serta string format dan CSS `console.log` yang persis sama (frame tetap identik secara visual; pengodeannya mungkin menjadi lebih cepat).
+<!-- s:883f3eeb26 -->
+Tidak tercakup: API bertanda eksperimental atau `unstable_`, termasuk semua yang berada di bawah `@textjs/core/experimental`, `@textjs/react/experimental`, dan `@textjs/app/experimental` (API ini dapat berubah dalam rilis minor, dengan catatan di changelog), bagian internal seperti `@textjs/core/internal`, header `x-middleware-*` dan metadata build `.text/`, rilis canary, serta string format dan CSS `console.log` yang persis sama (tampilan frame tetap identik; pengodeannya dapat menjadi lebih cepat).
 
 <!-- s:5c7d9aae9b -->
 Dukungan runtime

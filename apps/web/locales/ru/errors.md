@@ -303,3 +303,18 @@ create-text-app создаёт проект только в новом или п
 
 <!-- s:95d0435b57 -->
 Используйте `"force-dynamic"` или удалите экспорт, если обработчик читает запрос. См. [Кеширование](/docs/caching).
+
+<!-- s:fa8a66bf23 -->
+Не удалось загрузить WebAssembly для Yoga
+
+<!-- s:f2aaa80b0f -->
+`initYoga()` загружает WebAssembly для Yoga из файла `.wasm` в приложениях Text.js (`text dev`, `text build`), в сборках с условием разрешения модулей `@textjs/client` и при передаче `initYoga({ wasm })`. Запрос завершился сбоем, вернул статус ошибки или полученные данные не были корректным WebAssembly. В ошибке указаны URL и `Content-Type`, отправленный сервером. Обычные причины: сервер возвращает резервную HTML-страницу по URL файла `.wasm`, а политика Content Security Policy не содержит `'wasm-unsafe-eval'` в `script-src`.
+
+<!-- s:9de0a578e9 -->
+Настройте URL из ошибки так, чтобы он возвращал файл с `Content-Type: application/wasm` для компиляции во время загрузки. Правило перезаписи, которое возвращает `index.html` для неизвестных путей, должно пропускать `/assets/`. Разрешите WebAssembly в вашей политике Content Security Policy:
+
+<!-- s:510b3ade73 -->
+Если вы монтируете консоль самостоятельно и отдаёте файл из другого места, вызовите `initYoga()` с его URL, байтами или скомпилированным `WebAssembly.Module` до `createConsoleRoot()`. Только первый вызов загружает Yoga:
+
+<!-- s:ed5dce1787 -->
+См. [WebAssembly](/docs/deploying#webassembly).

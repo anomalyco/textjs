@@ -62,8 +62,8 @@ Funzionamento
 <!-- s:1dda342130 -->
 Come React DevTools, l’estensione installa un hook globale prima che la pagina venga eseguita:
 
-<!-- s:5a865fb9ae -->
-Ogni radice della console si registra nell’hook alla creazione. Senza l’estensione, l’hook non esiste e una radice ne verifica la presenza una sola volta, senza eseguire lavoro per ogni frame. Con l’estensione installata ma il pannello chiuso, ogni frame costa una lettura di proprietà. Alberi e frame vengono calcolati solo quando il pannello li richiede.
+<!-- s:9a7af3e89c -->
+Ogni root della console si registra con l’hook. La prima root di una pagina carica il codice che comunica con il pannello (circa 5 KB gzip) e si registra quando il codice arriva. Le root successive si registrano al momento della creazione. Senza l’estensione l’hook non esiste, quindi una root ne verifica la presenza una sola volta, non carica nulla e non esegue alcun lavoro per frame. Con l’estensione installata ma il pannello chiuso, ogni frame costa una lettura di proprietà. Alberi e frame vengono calcolati solo quando il pannello li richiede.
 
 <!-- s:843fc9a8ad -->
 I messaggi seguono il percorso pagina → script di contenuto → service worker → pannello. Gli script di contenuto vengono eseguiti su ogni pagina, così l’hook esiste prima dell’avvio della tua app. Questo è l’unico accesso richiesto dall’estensione. Non carica codice remoto e non invia nulla al di fuori del computer.
@@ -77,8 +77,9 @@ L’estensione non raccoglie dati. Non effettua richieste di rete, non memorizza
 <!-- s:639d5ea4c0 -->
 Limitazioni
 
-<!-- s:153a772b79 -->
+<!-- s:05616a1196 -->
 - Chrome e browser basati su Chromium, versione 111 o successiva.
-- Le app avviate prima dell’installazione dell’estensione richiedono una ricarica.
+- Le app avviate prima dell’installazione dell’estensione richiedono un ricaricamento.
 - Viene ispezionato solo il frame principale di una scheda.
-- I tempi provengono da `performance.now()`, la cui precisione viene ridotta dai browser a circa 0,1 ms.
+- La timeline registra i frame dopo il collegamento del pannello.
+- I tempi provengono da `performance.now()`, la cui precisione è ridotta dai browser a circa 0,1 ms.

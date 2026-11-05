@@ -62,8 +62,8 @@ Zasada działania
 <!-- s:1dda342130 -->
 Podobnie jak React DevTools, rozszerzenie instaluje globalny hook przed uruchomieniem strony:
 
-<!-- s:5a865fb9ae -->
-Każdy korzeń konsoli rejestruje się w nim podczas tworzenia. Bez rozszerzenia hook nie istnieje, a korzeń sprawdza jego obecność tylko raz i nie wykonuje żadnej pracy dla poszczególnych klatek. Gdy rozszerzenie jest zainstalowane, ale panel zamknięty, koszt każdej klatki to jeden odczyt właściwości. Drzewa i klatki są obliczane tylko na żądanie panelu.
+<!-- s:9a7af3e89c -->
+Każdy korzeń konsoli rejestruje się w tym hooku. Pierwszy korzeń na stronie ładuje kod komunikujący się z panelem (około 5 kB po kompresji gzip) i rejestruje się po jego załadowaniu. Kolejne korzenie rejestrują się przy tworzeniu. Bez rozszerzenia hook nie istnieje, więc korzeń sprawdza jego obecność raz, niczego nie ładuje i nie wykonuje żadnej pracy dla poszczególnych klatek. Gdy rozszerzenie jest zainstalowane, ale panel zamknięty, koszt każdej klatki to jeden odczyt właściwości. Drzewa i klatki są obliczane tylko na żądanie panelu.
 
 <!-- s:843fc9a8ad -->
 Komunikaty przepływają: strona → skrypt treści → service worker → panel. Skrypty treści działają na każdej stronie, dzięki czemu hook istnieje przed uruchomieniem aplikacji. To jedyny dostęp, o który prosi rozszerzenie. Nie ładuje zdalnego kodu i nie wysyła niczego poza komputer.
@@ -77,8 +77,9 @@ Rozszerzenie nie zbiera danych. Nie wykonuje żądań sieciowych, niczego nie pr
 <!-- s:639d5ea4c0 -->
 Ograniczenia
 
-<!-- s:153a772b79 -->
+<!-- s:05616a1196 -->
 - Chrome i przeglądarki oparte na Chromium w wersji 111 lub nowszej.
 - Aplikacje uruchomione przed zainstalowaniem rozszerzenia wymagają ponownego załadowania.
-- Inspekcja obejmuje tylko ramkę najwyższego poziomu karty.
-- Czasy pochodzą z `performance.now()`, którego rozdzielczość przeglądarki ograniczają do około 0,1 ms.
+- Inspekcja obejmuje tylko ramkę najwyższego poziomu w karcie.
+- Oś czasu rejestruje klatki od momentu podłączenia panelu.
+- Czasy pochodzą z `performance.now()`, którego precyzję przeglądarki ograniczają do około 0,1 ms.

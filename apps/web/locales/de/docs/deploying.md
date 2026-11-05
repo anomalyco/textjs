@@ -16,6 +16,9 @@ Adapter
 <!-- s:7e755a5c9f -->
 Der Adapter kann auch über `TEXTJS_ADAPTER` festgelegt werden. Wenn `text build` auf Vercel (`VERCEL=1`) oder Cloudflare Pages (`CF_PAGES=1`) läuft, wird automatisch der passende Adapter ausgewählt.
 
+<!-- s:d671e1ae31 -->
+Um die App mit einem Script-Tag in eine andere Website einzubinden, baue sie mit `--embed`. Jeder Adapter unterstützt das (siehe [Einbetten](/docs/embedding)).
+
 <!-- s:9d8df946e5 -->
 Die Server-Adapter (`bun`, `vercel` und `cloudflare`) führen dieselbe Pipeline wie `text start` aus: [Middleware](/docs/middleware), `rewrites`, [Route-Handler](/docs/route-handlers) mit dem [Route-Cache](/docs/caching), statische Assets und dann das Konsolendokument für Seiten-URLs. Terminal-Clients wie curl erhalten stattdessen den ersten Frame der Seite als ANSI-Text. Auf `vercel` und `cloudflare` gilt das nur für statische Seiten (siehe [curl und Terminal-Clients](/docs/curl)). Die Server-Adapter liefern Dateien mit Hash im Namen unter `/assets/` mit `Cache-Control: public, max-age=31536000, immutable` aus.
 
@@ -63,13 +66,13 @@ Cloudflare Pages
 <!-- s:6109800459 -->
 Die Ausgabe verwendet den erweiterten Modus von Pages:
 
-<!-- s:9f0923168f -->
+<!-- s:f72ec91f11 -->
 | Datei | Zweck |
 | :-- | :-- |
-| `_worker.js` | Middleware, Rewrites, Route-Handler und das Konsolendokument |
+| `_worker.js` | Middleware, Rewrites, Route-Handler und das Konsolendokument. Ein Verzeichnis (`index.js` und `yoga.wasm`), wenn ein Route-Handler Yoga verwendet |
 | `_routes.json` | Sendet jede Anfrage an den Worker. Ohne Middleware oder `basePath` bleibt `/assets/*` auf dem statischen CDN von Pages |
-| `_headers` | Unveränderliches Caching für `/assets/*` (an deine Datei angehängt) |
-| `404.html` | Lässt Pages bei fehlenden Dateien mit `404` statt mit der App antworten (bleibt erhalten, falls bereits vorhanden) |
+| `_headers` | Unveränderliches Caching für `/assets/*` (an deine Header angehängt) |
+| `404.html` | Lässt Pages bei fehlenden Dateien mit `404` statt mit der App antworten (bleibt erhalten, falls vorhanden) |
 
 <!-- s:9bc2b010d1 -->
 `.text/` (Server-Bundles und Build-Manifeste) wird aus `dist/` entfernt, da Pages das Verzeichnis unverändert veröffentlicht.
@@ -77,8 +80,33 @@ Die Ausgabe verwendet den erweiterten Modus von Pages:
 <!-- s:1200dbc88d -->
 Aktiviere das Kompatibilitätsflag `nodejs_compat` im Pages-Projekt (Settings → Runtime) oder in `wrangler.toml`; der Datencache verwendet `AsyncLocalStorage`. Statische Dateien werden über das `ASSETS`-Binding ausgeliefert, und die Revalidierung im Hintergrund verwendet `ctx.waitUntil()`.
 
-<!-- s:0bb76cfebb -->
-Mit Middleware führt jede Anfrage den Worker aus, auch bei Assets mit Hash im Namen, damit die Middleware jeden Pfad sieht, über den eine Datei erreichbar ist. Jede Anfrage, die den Worker ausführt, ist ein Functions-Aufruf und zählt zu deinem Workers-Anfragekontingent. Beim Laden einer Seite sind das das Dokument und jede Datei, die es abruft (2 für eine kleine Test-App mit einem JavaScript-Bundle; mehr bei Apps mit mehr Dateien). Im Workers-Free-Tarif liefert Pages statische Dateien ohne den Worker aus, sobald das tägliche Kontingent aufgebraucht ist, und überspringt damit die Middleware. Wenn Middleware etwas in `dist/` schützt, setze Settings → Runtime → Fail open / closed auf **Fail closed**.
+<!-- s:398bcc3496 -->
+Mit Middleware führt jede Anfrage den Worker aus, auch bei Assets mit Hash, damit die Middleware jeden Pfad sieht, über den eine Datei erreichbar ist. Jede Anfrage, die den Worker ausführt, ist ein Functions-Aufruf und zählt zu deinem Workers-Anfragekontingent. Beim Laden einer Seite sind das das Dokument und jede davon abgerufene Datei (3 bei einer kleinen Test-App: das Dokument, ein JavaScript-Bundle und `yoga-[hash].wasm`; mehr bei Apps mit mehr Dateien). Im Workers Free-Tarif liefert Pages statische Dateien ohne den Worker aus, sobald das tägliche Kontingent aufgebraucht ist, und überspringt damit die Middleware. Wenn Middleware etwas in `dist/` schützt, setze Settings → Runtime → Fail open / closed auf **Fail closed**.
+
+<!-- s:24c3dfe433 -->
+WebAssembly
+
+<!-- s:72ec3f110c -->
+Text.js-Apps laden Yoga, die Layout-Engine, aus `assets/yoga-[hash].wasm` (72 kB, 29 kB mit gzip). `text build` lädt sie auf jeder Seite vorab. Server-Bundles und `text run` verwenden die Inline-Kopie aus `yoga-layout`. Der Cloudflare-Worker ist die Ausnahme: Wenn ein Route-Handler Yoga verwendet, enthält `dist/_worker.js/` die Datei `yoga.wasm` neben `index.js`.
+
+<!-- s:0ca00aa2eb -->
+- Liefere `.wasm`-Dateien wie JavaScript komprimiert aus. Vercel komprimiert `application/wasm` standardmäßig; nginx benötigt `application/wasm` in `gzip_types`. Wenn dein Host JavaScript komprimiert, aber nicht `.wasm`, laden Seiten etwa 32 kB mehr herunter als mit der Inline-Kopie.
+- Sende `Content-Type: application/wasm`, damit der Browser die Datei während des Downloads kompiliert. Bei einem anderen Typ kompiliert er sie nach dem Download.
+- Cache sie wie die anderen Dateien mit Hash in `assets/` (`Cache-Control: public, max-age=31536000, immutable`). Das ist sicher, weil sich der Name mit dem Inhalt ändert. Verwende `immutable` nicht für Pfade ohne Hash.
+- Wenn du eine Content Security Policy festlegst, füge `'wasm-unsafe-eval'` zu `script-src` und den Ursprung der Datei (meist `'self'`) zu `connect-src` hinzu.
+- Wenn unbekannte Pfade auf `index.html` zurückfallen, schließe `/assets/` von diesem Rewrite aus. Andernfalls liefert eine fehlende Datei HTML zurück und `initYoga()` schlägt mit `TX032` fehl.
+
+<!-- s:55fb3b1d03 -->
+Eigener Vite- oder webpack-Build
+
+<!-- s:df66a10103 -->
+Wenn du `@textjs/core` und `@textjs/react` selbst bündelst, bleibt Yoga inline und benötigt keine Bundler-Konfiguration. Bundles, die die Bedingung `workerd` auflösen, etwa Wrangler, importieren stattdessen `@textjs/core/yoga.wasm` als Modul. Um die `.wasm`-Datei in einem Browser-Build zu laden, füge die Auflösungsbedingung `@textjs/client` zu deinem Client-Build hinzu. In Vite 6, das `defaultClientConditions` exportiert, benötigt auch der Entwicklungs-Pre-Bundler diese Bedingung:
+
+<!-- s:8f580efda1 -->
+Die Bedingung trennt außerdem die Bidi-Engine in einen eigenen Chunk ab, der heruntergeladen wird, sobald eine Seite zum ersten Mal Text von rechts nach links anzeigt (siehe [Die Bidi-Engine laden](/docs/internationalization#loading-the-bidi-engine)).
+
+<!-- s:c2349d8226 -->
+Lasse die Bedingung in Server-, Prerendering- und Test-Builds (Vitest, jsdom) weg, die mit der Inline-Kopie funktionieren.
 
 <!-- s:600050383d -->
 Aktualisieren

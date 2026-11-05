@@ -64,3 +64,38 @@ Dev Overlayのショートカット（`F2` または `` Ctrl+` ``）はambient�
 
 <!-- s:420cc7f125 -->
 すべてのアプリは `window.text` にヘルパーを追加します。DevToolsのプロンプトに入力してください。
+
+<!-- s:195573d803 -->
+コンソールの利用意思に応じた読み込み（実験的機能）
+
+<!-- s:97014ecad1 -->
+`@textjs/core/experimental` は、訪問者が利用を希望したときにコンソールアプリをダウンロードするページ向けに `onConsoleIntent` をエクスポートします。利用意思を示す理由を渡して、指定した関数を1回呼び出します。
+
+<!-- s:444b1ebdd7 -->
+| 理由 | タイミング |
+| :-- | :-- |
+| `dock` | ページの読み込み時にDevToolsがドッキングされている場合、または後からドッキングされた場合。Text.jsはウィンドウサイズから判定 |
+| `shortcut` | 訪問者がF12またはCtrl+Shift+J、I、C、Kを押した場合、Macでは⌘⌥J、I、C、Kを押した場合。ブラウザーによるDevToolsの起動は通常どおり |
+| `engage` | `engageSelector` に一致する要素でのプライマリークリック、`[data-textjs-engage]` ボタンでのEnterまたはSpaceの入力、またはアプリ起動前の `<ViewportControl>` でのサイズ選択。一致する要素内のリンク、ボタン、フォームフィールドのクリックは、それ自体にも `data-textjs-engage` がある場合のみ対象 |
+| `session` | このタブですでに上記のいずれかが発生しているため、再読み込み時に即座に起動 |
+| `manual` | 返されたハンドルの `trigger()` を呼び出した場合 |
+
+<!-- s:894b97fac4 -->
+ブラウザーのメニューから別ウィンドウで開いたDevToolsは、ウィンドウサイズに反映されません。その場合、訪問者は `engage` 要素からアプリを起動し、`session` によって同じタブで再読み込みしたときも起動します。
+
+<!-- s:06cdcf713e -->
+タッチスクリーンでは自動的には何も発火しません。独自のコントロールから `trigger()` を呼び出してください。
+
+<!-- s:d7006796c2 -->
+| オプション | 説明 |
+| :-- | :-- |
+| `engageSelector` | クリック時にアプリを起動する要素（デフォルトは `[data-textjs-engage], [data-textjs-focus-pad], text-console`）。`false` の場合はリスナーの追加なし |
+| `persist` | タブの利用意思を `sessionStorage` の `CONSOLE_INTENT_KEY` に保存（デフォルトは `true`） |
+| `prefetch` | ポインターまたはフォーカスが `engageSelector` 要素に入ったときに、最大1回呼び出し |
+| `idlePrefetch` | `load` 後にブラウザーがアイドル状態になったときにも `prefetch` を呼び出し（デフォルトは `false`） |
+
+<!-- s:4460da3205 -->
+`prefetch` は、タッチスクリーン、データセーバーがオンの場合、4Gより遅い接続では実行されません。`canPrefetchConsole()` は同じ判定結果を返します。ハンドルの `dispose()` はすべてのリスナーを削除します。
+
+<!-- s:9128a9d98f -->
+`<ViewportControl>` は、コンソールのルートが存在する前から動作します。サイズを選択すると、そのサイズを保存し、`engage` を発火して `onConsoleIntent` がアプリを起動し、`root` が設定された時点でサイズを適用します。実験的なエクスポートのバージョン管理については、[破壊的変更](/docs/support-policy#breaking-changes)を参照してください。

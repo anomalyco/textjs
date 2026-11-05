@@ -16,6 +16,9 @@ Adaptor
 <!-- s:7e755a5c9f -->
 Adaptor juga dapat ditentukan melalui `TEXTJS_ADAPTER`. Saat `text build` berjalan di Vercel (`VERCEL=1`) atau Cloudflare Pages (`CF_PAGES=1`), adaptor yang sesuai dipilih secara otomatis.
 
+<!-- s:d671e1ae31 -->
+Untuk menambahkan aplikasi ke situs lain dengan satu tag script, build dengan `--embed`. Setiap adapter mendukungnya (lihat [Penyematan](/docs/embedding)).
+
 <!-- s:9d8df946e5 -->
 Adaptor server (`bun`, `vercel`, dan `cloudflare`) menjalankan pipeline yang sama dengan `text start`: [middleware](/docs/middleware), `rewrites`, [route handler](/docs/route-handlers) dengan [cache route](/docs/caching), aset statis, lalu dokumen konsol untuk URL halaman. Klien terminal seperti curl menerima frame pertama halaman sebagai teks ANSI. Pada `vercel` dan `cloudflare`, ini hanya mencakup halaman statis (lihat [curl dan klien terminal](/docs/curl)). Adaptor server menyajikan file dengan hash di bawah `/assets/` dengan `Cache-Control: public, max-age=31536000, immutable`.
 
@@ -63,13 +66,13 @@ Cloudflare Pages
 <!-- s:6109800459 -->
 Keluaran menggunakan mode lanjutan Pages:
 
-<!-- s:9f0923168f -->
+<!-- s:f72ec91f11 -->
 | File | Kegunaan |
 | :-- | :-- |
-| `_worker.js` | Middleware, rewrites, route handler, dan dokumen konsol |
+| `_worker.js` | Middleware, rewrite, route handler, dan dokumen konsol. Berupa direktori (`index.js` dan `yoga.wasm`) saat route handler menggunakan Yoga |
 | `_routes.json` | Mengirim setiap permintaan ke worker. Tanpa middleware atau `basePath`, `/assets/*` tetap berada di CDN statis Pages |
-| `_headers` | Cache immutable untuk `/assets/*` (ditambahkan di akhir file Anda) |
-| `404.html` | Membuat Pages menjawab file yang tidak ditemukan dengan `404`, bukan aplikasi (dipertahankan jika Anda memilikinya) |
+| `_headers` | Caching immutable untuk `/assets/*` (ditambahkan di akhir milik Anda) |
+| `404.html` | Membuat Pages merespons file yang tidak ditemukan dengan `404`, bukan aplikasi (dipertahankan jika Anda sudah memilikinya) |
 
 <!-- s:9bc2b010d1 -->
 `.text/` (bundle server dan manifes build) dihapus dari `dist/`, karena Pages menerbitkan direktori apa adanya.
@@ -77,8 +80,33 @@ Keluaran menggunakan mode lanjutan Pages:
 <!-- s:1200dbc88d -->
 Aktifkan flag kompatibilitas `nodejs_compat` dalam proyek Pages (Settings → Runtime) atau di `wrangler.toml`; cache data menggunakan `AsyncLocalStorage`. File statis disajikan melalui binding `ASSETS`, dan revalidasi latar belakang menggunakan `ctx.waitUntil()`.
 
-<!-- s:0bb76cfebb -->
-Dengan middleware, setiap permintaan menjalankan worker, termasuk aset dengan hash, agar middleware melihat setiap path yang dapat digunakan untuk mengakses file. Setiap permintaan yang menjalankan worker merupakan satu pemanggilan Functions dan dihitung dalam kuota permintaan Workers Anda. Untuk pemuatan halaman, ini mencakup dokumen beserta setiap file yang diambilnya (2 untuk aplikasi uji kecil dengan satu bundle JavaScript; lebih banyak untuk aplikasi dengan lebih banyak file). Pada paket Workers Free, Pages menyajikan file statis tanpa worker setelah kuota harian habis, sehingga melewati middleware. Jika middleware melindungi apa pun dalam `dist/`, atur Settings → Runtime → Fail open / closed ke **Fail closed**.
+<!-- s:398bcc3496 -->
+Dengan middleware, setiap permintaan menjalankan worker, termasuk aset dengan hash, sehingga middleware melihat setiap path yang bisa digunakan untuk mengakses file. Setiap permintaan yang menjalankan worker merupakan satu pemanggilan Functions dan dihitung dalam kuota permintaan Workers Anda. Untuk satu pemuatan halaman, jumlahnya mencakup dokumen beserta setiap file yang diambilnya (3 untuk aplikasi uji kecil: dokumen, satu bundle JavaScript, dan `yoga-[hash].wasm`; lebih banyak untuk aplikasi dengan lebih banyak file). Pada paket Workers Free, Pages menyajikan file statis tanpa worker setelah kuota harian habis, sehingga middleware dilewati. Jika middleware melindungi apa pun di `dist/`, atur Settings → Runtime → Fail open / closed ke **Fail closed**.
+
+<!-- s:24c3dfe433 -->
+WebAssembly
+
+<!-- s:72ec3f110c -->
+Aplikasi Text.js memuat Yoga, mesin layout, dari `assets/yoga-[hash].wasm` (72 kB, 29 kB dengan gzip). `text build` melakukan preload untuk file ini dari setiap halaman. Bundle server dan `text run` menggunakan salinan inline dari `yoga-layout`. Worker Cloudflare menjadi pengecualian: saat route handler menggunakan Yoga, `dist/_worker.js/` menyimpan `yoga.wasm` di samping `index.js`.
+
+<!-- s:0ca00aa2eb -->
+- Sajikan file `.wasm` dalam bentuk terkompresi, seperti saat menyajikan JavaScript. Vercel mengompresi `application/wasm` secara default; nginx memerlukan `application/wasm` di `gzip_types`. Jika host Anda mengompresi JavaScript tetapi tidak mengompresi `.wasm`, halaman mengunduh sekitar 32 kB lebih banyak dibandingkan dengan salinan inline.
+- Kirim `Content-Type: application/wasm`, agar browser mengompilasi file sambil mengunduhnya. Dengan tipe lain, kompilasi berlangsung setelah pengunduhan selesai.
+- Simpan dalam cache seperti file dengan hash lainnya di `assets/` (`Cache-Control: public, max-age=31536000, immutable`). Ini aman karena namanya berubah mengikuti isinya. Jangan gunakan `immutable` untuk path tanpa hash.
+- Jika Anda menetapkan Content Security Policy, tambahkan `'wasm-unsafe-eval'` ke `script-src` dan origin file (biasanya `'self'`) ke `connect-src`.
+- Jika path yang tidak dikenal diarahkan kembali ke `index.html`, kecualikan `/assets/` dari rewrite tersebut. Jika tidak, file yang tidak ditemukan mengembalikan HTML dan `initYoga()` menolak dengan `TX032`.
+
+<!-- s:55fb3b1d03 -->
+Build Vite atau webpack Anda sendiri
+
+<!-- s:df66a10103 -->
+Saat Anda mem-bundle `@textjs/core` dan `@textjs/react` sendiri, Yoga tetap inline dan tidak memerlukan pengaturan bundler. Bundle yang me-resolve kondisi `workerd`, seperti Wrangler, mengimpor `@textjs/core/yoga.wasm` sebagai modul. Untuk memuat file `.wasm` dalam build browser, tambahkan kondisi resolve `@textjs/client` ke build klien Anda. Di Vite 6, yang mengekspor `defaultClientConditions`, pre-bundler pengembangan juga memerlukannya:
+
+<!-- s:8f580efda1 -->
+Kondisi ini juga memisahkan mesin bidi ke dalam chunk tersendiri, yang diunduh saat halaman pertama kali menampilkan teks dari kanan ke kiri (lihat [Memuat mesin bidi](/docs/internationalization#loading-the-bidi-engine)).
+
+<!-- s:c2349d8226 -->
+Jangan sertakan kondisi ini dalam build server, prerender, dan pengujian (Vitest, jsdom), yang berjalan dengan baik menggunakan salinan inline.
 
 <!-- s:600050383d -->
 Pembaruan

@@ -39,6 +39,21 @@ Render işleyişi
 <!-- s:3b67946601 -->
 Sağdan sola karakter içermeyen metin tüm bu işlemleri atlar. Tamamen soldan sağa bir metin modeli, grafemleri bölümlenirken algılanır (grafem başına bir karşılaştırma) ve değişmeyen yoldan çizilir; konsol kareleri bayt düzeyinde aynıdır.
 
+<!-- s:6181d9259c -->
+Bidi motorunu yükleme
+
+<!-- s:8bd0807fa0 -->
+Text.js uygulamalarında (`text dev`, `text build`), bidi motoru ve Unicode tabloları ayrı bir 10,1 kB parçadır (gzip). Bir sayfa ilk kez sağdan sola metin veya `dir="rtl"` içeren bir `<Text>` render ettiğinde indirilir, bu yüzden diğer sayfalar bu parçayı hiç yüklemez. Parça gelene kadar bu metin mantıksal sırada çizilir. Ardından konsol görüntüleme sırasına göre yeniden çizilir.
+
+<!-- s:ed4299ea80 -->
+Ön render edilmiş bir kabuğu olan `text build` uygulamaları, kabukta sağdan sola metin varsa indirmeyi kendileri başlatır. Konsolu kendiniz bağlarsanız ilk karenin görüntüleme sırasında olması için indirmeyi `createConsoleRoot()` ile birlikte başlatın. Örneğin, sağdan sola sayfalarda:
+
+<!-- s:8ebc8c3712 -->
+Parça yüklenemezse `loadBidi()` reddedilir. Bu durumda sağdan sola metin mantıksal sırada kalır.
+
+<!-- s:7adcf6764d -->
+Sunucuda render etme, `text run`, testler ve `@textjs/client` çözümleme koşulu olmayan paketler motoru içerir, bu yüzden sağdan sola metni her zaman görüntüleme sırasında çizerler ve `loadBidi()` hemen çözümlenir.
+
 <!-- s:26ac17c25a -->
 Hücre genişlikleri
 

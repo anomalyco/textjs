@@ -64,3 +64,38 @@ REPL `window.text`
 
 <!-- s:420cc7f125 -->
 Setiap aplikasi menambahkan fungsi pembantu ke `window.text`. Ketik fungsi tersebut di prompt DevTools.
+
+<!-- s:195573d803 -->
+Memuat berdasarkan niat menggunakan konsol (eksperimental)
+
+<!-- s:97014ecad1 -->
+`@textjs/core/experimental` mengekspor `onConsoleIntent` untuk halaman yang mengunduh aplikasi konsolnya hanya saat pengunjung menginginkannya. Fungsi ini memanggil fungsi Anda sekali, dengan alasannya:
+
+<!-- s:444b1ebdd7 -->
+| Alasan | Kapan |
+| :-- | :-- |
+| `dock` | DevTools terpasang pada jendela browser saat halaman dimuat, atau dipasang kemudian. Text.js mendeteksinya dari ukuran jendela |
+| `shortcut` | Pengunjung menekan F12 atau Ctrl+Shift+J, I, C atau K, atau ⌘⌥J, I, C atau K di Mac. Browser tetap membuka DevTools |
+| `engage` | Klik utama pada elemen yang cocok dengan `engageSelector`, Enter atau Space pada tombol `[data-textjs-engage]`, atau ukuran yang dipilih di `<ViewportControl>` sebelum aplikasi dimulai. Klik pada tautan, tombol, dan kolom formulir di dalam elemen yang cocok tidak dihitung kecuali elemen tersebut juga memiliki `data-textjs-engage` |
+| `session` | Salah satu hal di atas sudah terjadi di tab ini, sehingga pemuatan ulang langsung menjalankan aplikasi |
+| `manual` | Anda memanggil `trigger()` pada handle yang dikembalikan |
+
+<!-- s:894b97fac4 -->
+DevTools yang dibuka di jendela tersendiri dari menu browser tidak terdeteksi lewat ukuran jendela. Pengunjung tersebut memulai aplikasi dari elemen `engage`, dan `session` memastikan aplikasi tetap dimulai saat tab tersebut dimuat ulang.
+
+<!-- s:06cdcf713e -->
+Tidak ada yang terpicu secara otomatis pada layar sentuh. Panggil `trigger()` dari kontrol Anda sendiri.
+
+<!-- s:d7006796c2 -->
+| Opsi | Deskripsi |
+| :-- | :-- |
+| `engageSelector` | Elemen yang memulai aplikasi saat diklik (default `[data-textjs-engage], [data-textjs-focus-pad], text-console`). `false` tidak menambahkan listener |
+| `persist` | Simpan niat untuk tab di `sessionStorage` dengan kunci `CONSOLE_INTENT_KEY` (default `true`) |
+| `prefetch` | Dipanggil paling banyak sekali, saat penunjuk atau fokus memasuki elemen `engageSelector` |
+| `idlePrefetch` | Panggil juga `prefetch` saat browser menganggur setelah `load` (default `false`) |
+
+<!-- s:4460da3205 -->
+`prefetch` tidak pernah berjalan pada layar sentuh, saat Penghemat Data aktif, atau pada koneksi yang lebih lambat dari 4G. `canPrefetchConsole()` mengembalikan hasil pemeriksaan yang sama. `dispose()` pada handle menghapus semua listener.
+
+<!-- s:9128a9d98f -->
+`<ViewportControl>` berfungsi sebelum root konsol ada. Memilih ukuran akan menyimpannya, memicu `engage` agar `onConsoleIntent` memulai aplikasi, dan menerapkan ukuran tersebut setelah `root` ditetapkan. Lihat [Perubahan yang merusak kompatibilitas](/docs/support-policy#breaking-changes) untuk mengetahui cara pemberian versi pada ekspor eksperimental.

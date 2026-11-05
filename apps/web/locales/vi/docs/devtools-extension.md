@@ -62,8 +62,8 @@ Cách hoạt động
 <!-- s:1dda342130 -->
 Giống React DevTools, tiện ích cài một hook toàn cục trước khi trang chạy:
 
-<!-- s:5a865fb9ae -->
-Mỗi gốc console đăng ký với hook khi khởi tạo. Khi không có tiện ích, hook không tồn tại, và gốc chỉ kiểm tra hook một lần, không thực hiện công việc nào theo từng frame. Khi đã cài tiện ích nhưng đóng bảng, mỗi frame tốn một lần đọc thuộc tính. Cây và frame chỉ tính toán khi bảng yêu cầu.
+<!-- s:9a7af3e89c -->
+Mỗi console root đều đăng ký với hook này. Root đầu tiên trên trang tải mã giao tiếp với bảng điều khiển (khoảng 5 KB gzip) và đăng ký khi mã tải xong. Các root tiếp theo đăng ký ngay khi được tạo. Khi không có tiện ích mở rộng, hook không tồn tại, nên root kiểm tra một lần, không tải gì và không xử lý gì cho từng frame. Khi đã cài tiện ích mở rộng nhưng bảng điều khiển đang đóng, mỗi frame tốn một lần đọc thuộc tính. Cây và frame chỉ được tính toán khi bảng điều khiển yêu cầu.
 
 <!-- s:843fc9a8ad -->
 Thông điệp đi theo luồng trang → tập lệnh nội dung → service worker → bảng. Tập lệnh nội dung chạy trên mọi trang để hook tồn tại trước khi ứng dụng khởi động. Đó là quyền truy cập duy nhất mà tiện ích yêu cầu. Tiện ích không tải mã từ xa và không gửi gì ra khỏi máy.
@@ -77,8 +77,9 @@ Tiện ích không thu thập dữ liệu. Tiện ích không gửi yêu cầu m
 <!-- s:639d5ea4c0 -->
 Giới hạn
 
-<!-- s:153a772b79 -->
+<!-- s:05616a1196 -->
 - Chrome và trình duyệt dựa trên Chromium, phiên bản 111 trở lên.
-- Ứng dụng khởi động trước khi cài tiện ích cần tải lại.
+- Ứng dụng khởi chạy trước khi cài tiện ích mở rộng cần tải lại.
 - Chỉ kiểm tra frame trên cùng của thẻ.
-- Thời gian lấy từ `performance.now()`, với độ phân giải mà trình duyệt giảm xuống còn khoảng 0,1 ms.
+- Dòng thời gian ghi lại các frame khi bảng điều khiển kết nối.
+- Thời gian lấy từ `performance.now()`, có độ phân giải mà trình duyệt giảm xuống còn khoảng 0,1 ms.

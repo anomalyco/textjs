@@ -7,6 +7,44 @@ Text.js의 주요 변경 사항을 모두 이 파일에 기록해요.
 <!-- s:2e16922cfc -->
 추가
 
+<!-- s:fa15b5f029 -->
+- `@textjs/app` (실험적): `text build --embed` 또는 `text.config.ts`의 `embed`는 다른 사이트에 넣을 태그 하나로 앱을 빌드해요: `<script type="module" src="https://your-host/embed.js"></script>`. `embed.js`는 빌드 시 프리렌더링한 라우트의 첫 프레임을 출력하고(`ppr: false`이거나 미들웨어가 `embed.initialPath`와 일치할 수 있는 경우 제외), `onConsoleIntent`가 발생할 때까지 런타임을 로드하지 않아요. 그다음 자체 React 19를 포함하고 `react-dom`은 없는 앱을 가져오면서 `yoga.wasm`도 동시에 가져와요. 콘솔 사용 의도가 감지되면 앱은 JavaScript 112.8KB와 WebAssembly 29.0KB를 로드해요(gzip). 추가로 10.1KB인 bidi 엔진은 앱이 오른쪽에서 왼쪽으로 쓰는 텍스트를 처음 표시할 때 로드해요. `embed.initialPath`가 `export const runtime = "server"`인 라우트이면 `embed.js`는 대신 22.7KB인 프레임 플레이어를 로드하며, 이 플레이어는 `embed.js`를 제공한 서버에서 스트리밍해요. 탐색은 콘솔 안에서 이뤄지고 호스트 페이지의 URL, 방문 기록, 제목을 바꾸지 않으며, 클라이언트에서 렌더링하는 앱에서는 절대 URL이 새 탭에서 열려요. 방문자가 `[data-textjs-engage]` 요소, `<text-console>` 요소 또는 `<FocusPad>`를 누르거나, 페이지를 클릭해 DevTools에서 포커스를 되찾은 뒤에만 키가 앱에 전달되며, 페이지 자체 입력란이나 `[data-textjs-bypass]` 요소에 입력하는 동안에는 전달되지 않아요. `embed.js`는 자신의 URL을 기준으로 다른 파일을 로드하므로 출력물은 어떤 경로나 출처에서도 작동해요. 출력물은 `embed.js`와 `assets/`이며, `index.html`이나 `404.html`은 없어요. 서버에서 렌더링된 라우트, 라우트 핸들러 또는 미들웨어가 있는 빌드는 `text start`나 Bun 어댑터를 위해 `.text/`(서버 번들)도 유지해요. `assets/embed-[hash].js`는 불변 리소스로 캐시할 수 있도록 해시가 붙은 이름으로 제공하는 같은 스크립트예요. `embed.standalone`은 앱 자체 페이지를 유지하고, `embed.initialPath`는 라우트를 선택하며, `embed.globalName`은 `window.text`의 이름을 바꾸거나 제거하고, `embed.initialClear`는 먼저 페이지의 콘솔을 지워요. 120×36 크기의 테두리가 있는 상태 상자에서 `embed.js`는 2.9KB(gzip)이며, `ppr: false`이면 2.2KB예요. 터치스크린에서 `embed.js`는 아무것도 출력하지 않고 런타임도 로드하지 않으므로 앱이 열리지 않아요. 다른 사이트의 페이지는 자신의 출처가 `embed.allowOrigins`에 있어야만 앱의 라이브 세션을 열 수 있고, `embed.credentials`는 해당 페이지의 쿠키를 전송해요. `embed.js`와 `assets/*`는 `Access-Control-Allow-Origin: *` 및 `Cross-Origin-Resource-Policy: cross-origin`과 함께 제공돼요. `text start`와 Bun, Cloudflare, Vercel 어댑터는 임베드 빌드를 제공할 때 요청마다 `embed.js`를 재검증하고 `assets/*`를 불변 리소스로 캐시하며, 정적 어댑터는 같은 헤더를 `_headers`에 작성해요. [임베딩](https://textjs.org/docs/embedding)을 참고하세요.
+- `@textjs/app` (실험적): `<text-console>`은 호스트 페이지에서 방문자에게 임베드된 앱에 접근하는 방법을 보여주거나, `mirror`를 사용하면 앱 자체를 보여줘요. `embed.js`는 태그를 정의하고 페이지에 해당 요소가 있을 때만 4.0KB(gzip) 파일을 로드해요. 속성이 없으면 한 줄짜리 막대예요. 브라우저의 콘솔 열기 단축키를 보여주고, 클릭을 요청한 다음, 앱의 `hints`를 앱에 전달될 때 불이 켜지는 키로 나열해요. `mirror`를 사용하면 다른 항목이 로드되기 전에 `embed.js`의 첫 프레임을 보여주고, 그다음 실행 중인 앱의 프레임을 보여줘요. `ppr: false`이면 앱이 그릴 때까지 미러가 비어 있어요. 미러를 클릭하면 앱을 시작하고 방문자의 키를 전달하므로 DevTools를 닫아도 앱이 작동해요. `chrome`은 미러 주위에 DevTools 창을 그리며 `mirror`를 포함해요. `title`, `hints`(`"← →:switch region, Enter:open"`), `action` 속성의 기본값은 `text.config.ts`에서 가져와요. React 대신 Shadow DOM과 생성된 스타일시트를 사용하므로 페이지의 CSS가 내부에 영향을 주지 않고 `style-src 'self'` 정책도 바꿀 필요가 없어요. 기본값은 다크 모드예요. `color-scheme: light`, `--text-console-bg`, `--text-console-fg` 또는 `::part(frame)`으로 스타일을 바꾸세요. 크기는 글꼴이나 콘텐츠에 따라 달라지지 않아요. 막대 높이는 58px이고 미러는 앱 그리드의 가로세로 비율을 유지해요. `text build --embed`는 요소가 로드되기 전에 호스트 페이지에 해당 공간을 확보하는 CSS 한 줄을 출력하며, `@textjs/app/experimental`의 `reserveCss()`도 같은 줄을 반환해요. 터치스크린에서는 미러가 첫 프레임을 보여주고 앱을 시작하지 않으며, 막대는 숨겨져요. [`<text-console>`](https://textjs.org/docs/embedding#text-console)을 참고하세요.
+- `@textjs/app` (실험적): `text dev --embed`는 요청마다 새 첫 프레임이 담긴 `/embed.js`와, 다른 사이트에서 로드하는 방식으로 이를 로드하며 `<text-console mirror>`가 포함된 미리보기 페이지를 제공해요. 미리보기는 `/`에 있고, `embed.standalone`을 사용하면 `/__textjs/embed`에 있어요.
+- `@textjs/core/experimental`: `onConsoleIntent(onIntent, options)`는 방문자가 콘솔을 사용하려 할 때 `onIntent`를 한 번 호출하므로 페이지가 그때만 콘솔 앱을 다운로드할 수 있어요. 로드 시 DevTools가 도킹되어 있거나 나중에 도킹될 때(`"dock"`), DevTools 단축키 F12, Ctrl+Shift+J, I, C 또는 K와 Mac의 ⌘⌥J, I, C 또는 K를 누를 때(`"shortcut"`) 발생해요. `[data-textjs-engage]` 요소, `<text-console>` 요소 또는 `<FocusPad>`를 클릭할 때, `[data-textjs-engage]` 버튼에서 Enter나 Space를 누를 때, 콘솔이 시작되기 전에 `<ViewportControl>`에서 크기를 선택할 때도 발생해요(`"engage"`). 이 중 하나가 이미 발생한 탭에서 새로고침하면 `"session"`이 발생해요. 터치스크린에서는 저절로 발생하지 않아요. 터치스크린에서 앱을 로드하려면 핸들의 `trigger()`를 호출하세요. `canPrefetchConsole()`이 기기와 연결이 적합하다고 판단하면 포인터나 키보드 포커스가 콘솔 영역에 도달할 때, 또는 `idlePrefetch`를 사용하면 유휴 상태일 때 `prefetch` 콜백이 한 번 실행돼요. `CONSOLE_INTENT_KEY`는 여기서 사용하는 `sessionStorage` 키예요. 앱이 별도 청크에 있으면 `onConsoleIntent`를 호출하는 청크에는 뷰포트 크기 조정 코드가 포함되지 않아요. 진입점에서 `onConsoleIntent`를 호출하고 `ConsoleRenderer`를 지연 가져오는 Vite 빌드의 진입 청크는 2.8KB(gzip)예요. [콘솔 사용 의도 감지 시 로드](https://textjs.org/docs/hooks-and-repl#loading-on-console-intent-experimental)를 참고하세요.
+- `@textjs/core/experimental`: `CONSOLE_OWNER`(`Symbol.for("textjs.consoleOwner")`)는 어떤 앱이 페이지 콘솔에 렌더링하는지 기록하고, `claimConsole()`은 소유권을 가져와요. 전역 콘솔의 `ConsoleRenderer`와 자신의 페이지를 소유한 프레임 플레이어는 이 소유권을 가져오므로, 호스트 앱이 시작되면 임베드에서 콘솔을 가져오고 임베드는 마운트 해제되며 입력 연결과 자신의 `window.text`를 제거해요. 다른 앱이 콘솔을 소유한 동안에는 임베드가 시작되지 않아요.
+- `@textjs/app/experimental`: 임베드된 앱을 직접 로드하는 페이지를 위해 `bootEmbedClient`, `bootEmbedPlayer`, `createHostInput`, `startEmbed`, `createTextConsoleMount`, `reserveCss`를 내보내요.
+- `@textjs/app`: `<AppRouter openExternal>`은 다른 출처의 URL을 여는 방식을 결정해요(기본값 `window.location.assign`). 메모리 내 방문 기록을 사용하면 페이지 주소가 앱의 주소가 아니므로 모든 절대 URL을 외부 URL로 간주해요.
+- `@textjs/react`: `<ViewportControl>`은 콘솔 루트가 생기기 전에도 작동해요. 크기를 선택하면 저장하고, `onConsoleIntent`에 `"engage"`를 발생시키고, `root`가 설정되면 크기를 적용해요. `<FocusPad sizeControl>`에도 적용되므로 콘솔이 시작될 때까지 크기 메뉴가 비활성화되지 않아요.
+- `@textjs/core`: `initYoga({ wasm })`은 URL, 바이트, `Response` 또는 컴파일된 `WebAssembly.Module`에서 Yoga를 로드해요. WebAssembly 파일은 `@textjs/core/yoga.wasm`으로 내보내요. 로드할 수 없으면 `initYoga()`는 [TX032](https://textjs.org/errors/TX032)로 거부돼요.
+- `@textjs/core`: `loadBidi()`는 오른쪽에서 왼쪽으로 쓰는 텍스트가 렌더링되기 전에 bidi 엔진 다운로드를 시작하므로 해당 텍스트의 첫 프레임이 표시 순서로 나와요. 엔진을 포함하는 빌드(서버 렌더링, `text run`, 테스트)에서는 즉시 완료돼요. [bidi 엔진 로드](https://textjs.org/docs/internationalization#loading-the-bidi-engine)를 참고하세요.
+
+<!-- s:5b88618770 -->
+변경
+
+<!-- s:4c3f9c7970 -->
+- `@textjs/core`, `@textjs/app`: Text.js 앱(`text dev`, `text build`)은 JavaScript 내부의 base64 사본 대신 별도 `.wasm` 파일로 Yoga를 로드해요. `text build`는 `assets/yoga-[hash].wasm`을 출력하고 HTML에서 미리 로드해요. 두 파일에 gzip을 적용하면 시작 앱의 다운로드가 11.4KB 줄고 파싱하는 JavaScript가 95KB 줄어요. 다른 번들러는 인라인 사본을 유지하지만, `workerd` 조건을 해석하는 번들러(Wrangler)는 `yoga.wasm`을 모듈로 가져와요. Vite나 webpack으로 `@textjs/core`를 번들링하는 앱도 `@textjs/client` 해석 조건을 추가하면 `.wasm` 파일을 로드할 수 있어요. [WebAssembly](https://textjs.org/docs/deploying#webassembly)를 참고하세요.
+- `@textjs/app`: `--adapter cloudflare`를 사용하면 라우트 핸들러에서 Yoga를 사용하는 워커는 `index.js`와 `yoga.wasm`을 담은 `dist/_worker.js/` 디렉터리로 작성되며, Cloudflare가 이를 컴파일된 모듈로 로드해요. Yoga를 사용하지 않는 워커는 계속 단일 `dist/_worker.js` 파일이에요.
+- `@textjs/app`: `text build`의 First Load JS에 `.wasm` 파일이 포함돼요.
+- `@textjs/core`: `yoga.wasm`과 로더가 해당 버전에서 생성되므로 정확히 `yoga-layout` 3.2.1에 의존해요.
+- `@textjs/core`, `@textjs/app`: Text.js 앱(`text dev`, `text build`)은 페이지가 오른쪽에서 왼쪽으로 쓰는 텍스트를 처음 표시할 때 bidi 엔진과 Unicode 테이블을 10.1KB 청크(gzip)로 다운로드해요. 이전에는 앱이 이를 미리 로드했어요. 이제 시작 템플릿은 첫 방문 시 JavaScript를 9.3KB 적게 로드해요(gzip). 청크가 도착하기 전에 나타나는 오른쪽에서 왼쪽으로 쓰는 텍스트는 논리 순서로 그려지고, 이후 콘솔이 표시 순서로 다시 그려요. 서버 렌더링, `text run`, 테스트와 `@textjs/client` 해석 조건이 없는 번들은 엔진을 번들에 유지하므로 출력이 바뀌지 않아요. 오른쪽에서 왼쪽으로 쓰는 텍스트가 있는 프리렌더링된 셸에서는 클라이언트가 시작하면서 Yoga와 함께 엔진 다운로드를 시작하므로 첫 클라이언트 프레임이 셸을 표시 순서로 다시 그려요. `embed.js`도 첫 프레임에 같은 방식을 사용해요.
+- `@textjs/core`: `isRtlCodePoint`와 `hasRtl`은 Unicode 18.0 데이터에서 생성한 오른쪽에서 왼쪽으로 쓰는 범위 59개를 조회하고, 더 이상 bidi 테이블을 로드하지 않아요. 모든 코드 포인트에 이전과 같은 결과를 반환해요. `<ConsoleMirror>`만 사용하면 번들링되는 JavaScript가 2.1KB(gzip) 줄고, 서버에서 렌더링된 라우트의 프레임 플레이어는 1.6KB 줄어요.
+- `@textjs/react/testing`: `render()`는 bidi 엔진이 다운로드 중이면 기다리므로 `@textjs/client` 조건에서도 프레임이 표시 순서로 나와요.
+- `@textjs/app`: `text build`는 프로덕션 빌드에서 Dev Overlay와 Redbox를 제외해요. 이들은 `text dev`에서만 표시되지만 이전에는 모든 빌드가 번들에 포함했어요. 시작 템플릿의 클라이언트 JavaScript는 4.3KB(gzip) 줄고 `examples/dashboard`는 3.0KB 줄어요. `<AppRouter>`를 직접 렌더링하는 앱도 번들러가 `process.env.NODE_ENV`를 `"production"`으로 설정하면 이들을 제외해요(`vite build`, webpack, `esbuild --minify`, `bun build --production`의 기본값). 이 빌드에서는 `<AppRouter devOverlay>`가 아무것도 렌더링하지 않고(유지하려면 `devOverlay={<TextDevOverlay />}`를 전달하세요), `errorStore`의 기본값은 `null`이며, `bootTextApp`은 `dev: true`를 무시해요.
+- `@textjs/react`: 콘솔 루트는 페이지에 확장 프로그램의 훅이 있을 때만 Text.js DevTools 확장 프로그램과 통신하는 코드를 로드하므로, `text build` 같은 코드 분할 빌드에서는 확장 프로그램이 없는 방문자가 이 코드를 다운로드하지 않아요. 확장 프로그램이 있으면 페이지의 첫 루트는 해당 파일(약 5KB gzip)이 로드된 뒤 등록돼요. 이후 루트는 생성될 때 등록돼요. 시작 템플릿의 클라이언트 JavaScript는 4.2KB(gzip), `text build --embed` 클라이언트는 4.1KB, textjs.org의 콘솔 앱은 3.8KB 줄어요.
+- `@textjs/core`: 콘솔 드라이버는 첫 프레임에서 대체 표현이 필요할 수 있는 글리프(8분의 1 블록, 사분면, 점자, ▶, ✓ 등)를 모두 측정하는 대신, 각 글리프가 처음 나타날 때 콘솔 글꼴에서 맞게 표시되는지 확인해요. 글꼴 크기와 글꼴군이 같은 드라이버는 결과를 공유해요. 이런 글리프가 없는 프레임은 대체 표현을 위한 측정을 하지 않으므로 M5 Pro Mac mini의 헤드리스 Chromium에서 textjs.org 홈 콘솔의 첫 프레임은 9.2ms 대신 1.2ms가 걸리고, CPU 속도를 4배로 제한하면 38.4ms 대신 4.8ms가 걸려요. Consolas에 해당 글리프가 없는 Windows 10에서는 이를 사용하는 프레임이 첫 프레임부터 이전과 같은 대체 표현을 사용해요.
+- `@textjs/react/dom`: 뷰포트 선택 헬퍼(`loadViewportChoice`, `saveViewportChoice`, `parseViewportChoice`, `formatViewportChoice`, `applyViewportChoice`, `VIEWPORT_CHOICE_KEY`, `VIEWPORT_PRESETS`)가 별도 모듈로 이동해요. 한 청크에서 이들을 가져오고 다른 청크에서 `<ViewportControl>`이나 `<FocusPad>`를 렌더링하는 앱은 더 이상 첫 청크에 컨트롤 코드를 포함하지 않아요. 내보내기는 바뀌지 않아요.
+- `@textjs/core`: `ConsoleRenderer`는 더 이상 다른 번들에서 실행 중인 렌더러의 `window.text`를 가져오지 않아요.
+- textjs.org: DevTools 콘솔 앱은 DevTools가 도킹되거나, 방문자가 DevTools 단축키를 누르거나, 콘솔 미리보기, 패드, 콘솔 버튼 또는 콘솔에서 실행을 클릭할 때 로드돼요. 그 뒤 같은 탭에서 새로고침하면 즉시 로드해요. 터치스크린에서는 저절로 로드하지 않아요. 로드되기 전까지 홈페이지의 콘솔 미리보기는 빌드 시 렌더링한 앱의 첫 프레임을 보여주므로 첫 페인트 전에 프레임이 있어요. 검색 대화상자, 로고 메뉴, 학습 퀴즈, 오류 페이지의 원인과 해결 방법, 문서와 블로그 및 스토어 설명은 더 이상 미리 로드하지 않아요. 이 변경으로 홈페이지는 처음에 JavaScript와 WebAssembly 293.7KB 대신 JavaScript 116.6KB를 로드하고(gzip), 파일 수는 37개에서 10개가 되며, `/docs/routing`은 301.4KB 대신 116.7KB를 로드해요. CPU 속도를 4배로 제한하고 데스크톱 뷰포트를 사용하는 헤드리스 Chromium에서 홈페이지의 스크립트 실행 시간은 235ms 대신 177ms이고 JavaScript 힙은 4.2MB 대신 2.5MB예요.
+- textjs.org: 콘솔 미러는 더 이상 bidi 엔진을 미리 로드하지 않아 위 절감량에 더해 홈페이지와 문서 페이지에서 12.9KB(gzip)가 줄어요. 콘솔 앱은 Yoga를 `.wasm` 파일로 로드해 다운로드가 9.3KB 줄고, 오른쪽에서 왼쪽으로 쓰는 텍스트를 표시할 때만 bidi 엔진을 로드해 시작 시 13.4KB 줄어요. 국제화 페이지의 양방향 텍스트 예제는 스크롤해서 화면에 나타날 때 엔진을 로드해요. 콘텐츠 보안 정책은 더 이상 `connect-src`에서 `data:`를 허용하지 않아요.
+
+<!-- s:afe76b8d59 -->
+수정
+
+<!-- s:3892b5eb43 -->
+- `@textjs/app`: 서버에서 렌더링된 라우트의 프레임 플레이어가 `text.pause()` 호출 후, 탭이 숨겨진 후 또는 플레이어가 해제된 후에는 출력 간격 타이머를 기다리던 프레임을 더 이상 출력하지 않아요.
+- `@textjs/core`: DevTools를 닫고 페이지를 115%로 확대했을 때 Safari가 더 이상 DevTools를 옆에 도킹한 상태로 인식되지 않으므로, 반응형 크기 조정이 존재하지 않는 패널에 맞추는 대신 대체 크기를 유지해요.
+
 <!-- s:b3ea6ef7f1 -->
 - `@textjs/react`: `<FocusPad messages>`로 번역된 사이트에서 패드의 내장 문자열을 교체할 수 있어요. 모든 줄, 스크린 리더 레이블, 콘솔 크기 조절을 포함해요. `<TextCanvas>`와 `<ViewportControl>`도 `messages`를 받아요. `<ViewportControl>`은 크기 조절의 키만 사용해요. “그다음 여기를 클릭하고 ↑ ↓를 누르세요.”처럼 값이 들어가는 문자열은 문장 전체를 반환하는 함수예요. `defaultFocusPadMessages`에는 영어 텍스트가 있어요. [포커스 패드 번역](https://textjs.org/docs/internationalization#translating-the-focus-pad)을 참고하세요.
 - `@textjs/react`: 오른쪽에서 왼쪽으로 쓰는 페이지에서도 포커스 패드는 ⌘ ⌥ J 같은 키캡과 120×36 같은 콘솔 크기를 왼쪽에서 오른쪽으로 표시하고, 크기 조절과 단계 표시줄은 좌우로 뒤집어요. 중국어와 일본어 페이지에서는 두 문장 사이의 공백을 없애고, 한국어에서는 유지해요.
@@ -14,16 +52,10 @@ Text.js의 주요 변경 사항을 모두 이 파일에 기록해요.
 - textjs.org: textjs.org/ja의 모든 페이지에서 포커스 패드가 일본어로 표시되며, 각 데모의 키 아래 레이블도 포함돼요.
 - textjs.org: 스페인어, 프랑스어, 독일어, 브라질 포르투갈어, 이탈리아어, 러시아어, 튀르키예어, 폴란드어, 인도네시아어, 베트남어, 힌디어, 한국어, 중국어 간체와 번체, 아랍어, 히브리어, 페르시아어, 우르두어가 textjs.org/es, /fr, /de, /pt-br, /it, /ru, /tr, /pl, /id, /vi, /hi, /ko, /zh-cn, /zh-tw, /ar, /he, /fa, /ur에서 초안 단계를 벗어났어요. 바닥글의 언어 선택기와 브라우저 언어 버튼에서 일본어처럼 이 언어들도 선택할 수 있어요. 검색 엔진은 번역된 페이지를 색인하고 각 페이지를 영어 버전과 연결해요.
 
-<!-- s:5b88618770 -->
-변경
-
 <!-- s:cb13a45198 -->
 - `@textjs/core`: Chromium과 Firefox 콘솔이 애니메이션 스프라이트 출력을 지우는 기준을 4MB에서 16MB로 바꿔서, textjs.org/doom에서 “콘솔이 지워졌어요”가 약 4.5초마다 표시되던 대신 약 19초마다 표시돼요. Safari와 `▀` 반 블록으로 그리는 스프라이트는 4MB를 유지해요. textjs.org/doom 페이지의 최대 힙 사용량은 10.8MB에서 약 12~13MB로 늘어나요.
 - textjs.org: 문서 페이지가 33개 페이지 전체 대신 해당 페이지의 Markdown만 다운로드해서, 영어 문서 페이지는 JavaScript(gzip)를 43~47KB 적게, /ja 문서 페이지는 60~64KB 적게 불러와요. 다른 문서 페이지의 링크에 마우스를 올리거나 포커스를 두면 해당 페이지를 미리 가져오므로 여전히 바로 열려요.
 - `@textjs/react`: `<FocusPad>`와 `<ViewportControl>`은 페이지에 `--mono` 글꼴 스택이 정의되어 있으면 고정폭 레이블에 사용하고, 없으면 이전처럼 Geist Mono를 사용해요. 아랍어나 히브리어 레이블이 있는 페이지는 해당 문자 체계의 글꼴을 `--mono`에 추가할 수 있어요.
-
-<!-- s:afe76b8d59 -->
-수정
 
 <!-- s:965b020b1d -->
 - textjs.org/ja: ⌘K 검색이 일본어 문서 제목을 표시하고 일본어 쿼리로 검색해요. 이전에는 일본어 페이지 제목 아래에 영어 제목을 나열했어요. 영어 이름으로도 여전히 페이지를 찾을 수 있어요. `routing`은 ルーティング을, `open the console`은 コンソールを開く를 찾아요.

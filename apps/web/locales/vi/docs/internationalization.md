@@ -39,6 +39,21 @@ Cách render
 <!-- s:3b67946601 -->
 Văn bản không có ký tự từ phải sang trái bỏ qua toàn bộ quá trình này. Mô hình văn bản thuần từ trái sang phải được nhận diện khi phân đoạn cụm tự vị (một phép so sánh cho mỗi cụm tự vị) và vẽ theo luồng xử lý không đổi; các frame console giống hệt nhau từng byte.
 
+<!-- s:6181d9259c -->
+Tải bộ xử lý bidi
+
+<!-- s:8bd0807fa0 -->
+Trong ứng dụng Text.js (`text dev`, `text build`), bộ xử lý bidi và các bảng Unicode của nó nằm trong một chunk riêng có kích thước 10,1 kB (gzip). Chunk này tải xuống lần đầu một trang render văn bản từ phải sang trái hoặc một `<Text>` có `dir="rtl"`, nên các trang khác không bao giờ tải nó. Trước khi chunk tải xong, văn bản đó hiển thị theo thứ tự logic. Sau đó console vẽ lại theo thứ tự hiển thị.
+
+<!-- s:ed4299ea80 -->
+Ứng dụng `text build` có shell đã prerender tự bắt đầu tải xuống khi shell có văn bản từ phải sang trái. Nếu tự mount console, bắt đầu tải xuống cùng lúc với `createConsoleRoot()` để frame đầu tiên theo thứ tự hiển thị. Ví dụ, trên các trang từ phải sang trái:
+
+<!-- s:8ebc8c3712 -->
+`loadBidi()` từ chối promise nếu không tải được chunk. Khi đó, văn bản từ phải sang trái vẫn theo thứ tự logic.
+
+<!-- s:7adcf6764d -->
+Render phía máy chủ, `text run`, kiểm thử và các bundle không có điều kiện resolve `@textjs/client` đều bao gồm bộ xử lý này, nên chúng luôn vẽ văn bản từ phải sang trái theo thứ tự hiển thị và `loadBidi()` hoàn tất ngay lập tức.
+
 <!-- s:26ac17c25a -->
 Độ rộng ô
 

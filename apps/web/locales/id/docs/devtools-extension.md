@@ -62,8 +62,8 @@ Cara kerja
 <!-- s:1dda342130 -->
 Seperti React DevTools, ekstensi memasang hook global sebelum halaman berjalan:
 
-<!-- s:5a865fb9ae -->
-Setiap root konsol mendaftar ke hook tersebut saat dibuat. Tanpa ekstensi, hook tidak ada, dan root hanya memeriksa keberadaannya sekali tanpa melakukan pekerjaan per frame. Saat ekstensi terpasang tetapi panel tertutup, setiap frame memerlukan satu pembacaan properti. Pohon dan frame hanya dihitung saat panel memintanya.
+<!-- s:9a7af3e89c -->
+Setiap root konsol mendaftar ke hook tersebut. Root pertama pada halaman memuat kode yang berkomunikasi dengan panel (sekitar 5 KB gzip) dan mendaftar setelah kode dimuat. Root berikutnya mendaftar saat dibuat. Tanpa ekstensi, hook tersebut tidak ada, sehingga root memeriksanya sekali, tidak memuat apa pun, dan tidak mengerjakan apa pun per frame. Dengan ekstensi terpasang tetapi panel tertutup, setiap frame memerlukan satu pembacaan properti. Pohon dan frame hanya dihitung saat panel memintanya.
 
 <!-- s:843fc9a8ad -->
 Pesan mengalir dari halaman → content script → service worker → panel. Content script berjalan di setiap halaman agar hook tersedia sebelum aplikasi Anda dimulai. Itulah satu-satunya akses yang diminta ekstensi. Ekstensi tidak memuat kode jarak jauh dan tidak mengirim apa pun ke luar komputer.
@@ -77,8 +77,9 @@ Ekstensi tidak mengumpulkan data. Ekstensi tidak membuat permintaan jaringan, ti
 <!-- s:639d5ea4c0 -->
 Keterbatasan
 
-<!-- s:153a772b79 -->
+<!-- s:05616a1196 -->
 - Chrome dan browser berbasis Chromium, versi 111 atau lebih baru.
-- Aplikasi yang dimulai sebelum ekstensi dipasang perlu dimuat ulang.
+- Aplikasi yang berjalan sebelum ekstensi dipasang perlu dimuat ulang.
 - Hanya frame teratas pada tab yang diperiksa.
+- Linimasa merekam frame setelah panel terhubung.
 - Waktu berasal dari `performance.now()`, yang resolusinya dikurangi oleh browser menjadi sekitar 0,1 ms.

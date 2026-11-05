@@ -36,17 +36,18 @@
 <!-- s:854c967567 -->
 text.config.ts
 
-<!-- s:144c0672ce -->
+<!-- s:1baaf058bb -->
 | オプション | デフォルト | 説明 |
 | :-- | :-- | :-- |
 | `title` | `""` | ページとFocusPadのタイトル |
-| `viewport` | コンソールに合わせる、それ以外は `120×36` | `responsive`（デフォルトは `true`）、フォールバックの `width × height`、`theme` |
+| `viewport` | コンソールに合わせるか、`120×36` | `responsive`（デフォルトは `true`）、フォールバックの `width × height`、`theme` |
 | `hints` | `[]` | ページのFocusPadに表示する2〜3個のキー |
 | `action` | `press <first hint>` | フォーカス後の操作、例：`"type a prompt"` |
-| `devIndicators` | `true` | コンソール内の開発用オーバーレイ（`[▼]`） |
-| `focusHint` | `true` | ページにフォーカスがない間、コンソールの最終行に重ねて表示する「キーボードを使うにはページをクリックしてください」 |
-| `rewrites` | `[]` | リライトとプロキシー |
+| `devIndicators` | `true` | コンソール内の開発オーバーレイ（`[▼]`） |
+| `focusHint` | `true` | ページにフォーカスがない間、コンソールの最終行に重ねて表示する「キーボードを使うにはページをクリック」 |
+| `rewrites` | `[]` | Rewriteとプロキシー |
 | `ansi` | `{ cols: 80, rows: 24 }` | [curlとターミナルクライアント](/docs/curl)用のフレームサイズ、またはHTMLを配信する場合は `false` |
+| `embed` | `false` | 他のサイトに1つのscriptタグで追加できるアプリのビルド（[埋め込み](/docs/embedding)、実験的機能） |
 
 <!-- s:04e1df190e -->
 CLI

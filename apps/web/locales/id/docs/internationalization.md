@@ -39,6 +39,21 @@ Cara rendering
 <!-- s:3b67946601 -->
 Teks tanpa karakter kanan-ke-kiri melewati semua langkah ini. Model teks yang sepenuhnya kiri-ke-kanan terdeteksi saat grafemnya disegmentasi (satu perbandingan per grafem) dan digambar melalui jalur yang tidak berubah; frame konsol identik hingga tingkat byte.
 
+<!-- s:6181d9259c -->
+Memuat mesin bidi
+
+<!-- s:8bd0807fa0 -->
+Dalam aplikasi Text.js (`text dev`, `text build`), mesin bidi dan tabel Unicode-nya berada dalam chunk terpisah berukuran 10,1 kB (gzip). Chunk ini diunduh saat halaman pertama kali me-render teks kanan-ke-kiri atau `<Text>` dengan `dir="rtl"`, sehingga halaman lain tidak pernah memuatnya. Sampai chunk tersebut tersedia, teks itu digambar dalam urutan logis. Kemudian konsol menggambar ulang dalam urutan tampilan.
+
+<!-- s:ed4299ea80 -->
+Aplikasi `text build` dengan shell yang di-prerender memulai unduhan secara otomatis saat shell memiliki teks kanan-ke-kiri. Jika Anda memasang konsol sendiri, mulai unduhan bersamaan dengan `createConsoleRoot()` agar frame pertama menggunakan urutan tampilan. Contohnya, pada halaman kanan-ke-kiri:
+
+<!-- s:8ebc8c3712 -->
+`loadBidi()` menolak promise jika chunk gagal dimuat. Teks kanan-ke-kiri kemudian tetap dalam urutan logis.
+
+<!-- s:7adcf6764d -->
+Rendering di server, `text run`, pengujian, dan bundle tanpa kondisi resolusi `@textjs/client` menyertakan mesin tersebut, sehingga semuanya selalu menggambar teks kanan-ke-kiri dalam urutan tampilan dan `loadBidi()` langsung menyelesaikan promise.
+
 <!-- s:26ac17c25a -->
 Lebar sel
 

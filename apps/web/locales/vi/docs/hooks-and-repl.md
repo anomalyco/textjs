@@ -64,3 +64,38 @@ REPL `window.text`
 
 <!-- s:420cc7f125 -->
 Mỗi ứng dụng thêm hàm trợ giúp vào `window.text`. Gõ chúng vào prompt của DevTools.
+
+<!-- s:195573d803 -->
+Tải khi có ý định dùng console (thử nghiệm)
+
+<!-- s:97014ecad1 -->
+`@textjs/core/experimental` xuất `onConsoleIntent` cho các trang chỉ tải ứng dụng console khi khách truy cập muốn dùng. Nó gọi hàm của bạn một lần, kèm lý do:
+
+<!-- s:444b1ebdd7 -->
+| Lý do | Thời điểm |
+| :-- | :-- |
+| `dock` | DevTools gắn vào cửa sổ khi trang tải hoặc gắn vào sau đó. Text.js nhận biết qua kích thước cửa sổ |
+| `shortcut` | Khách truy cập nhấn F12 hoặc Ctrl+Shift+J, I, C hoặc K, hoặc ⌘⌥J, I, C hoặc K trên máy Mac. Trình duyệt vẫn mở DevTools |
+| `engage` | Nhấp nút chuột chính vào phần tử khớp với `engageSelector`, nhấn Enter hoặc Space trên nút `[data-textjs-engage]`, hoặc chọn kích thước trong `<ViewportControl>` trước khi ứng dụng khởi động. Lượt nhấp vào liên kết, nút và trường biểu mẫu bên trong phần tử khớp không tính, trừ khi chúng cũng có `data-textjs-engage` |
+| `session` | Một trong các hành động trên đã xảy ra trong thẻ này, nên tải lại sẽ khởi động ngay |
+| `manual` | Bạn đã gọi `trigger()` trên handle trả về |
+
+<!-- s:894b97fac4 -->
+DevTools mở trong cửa sổ riêng từ trình đơn của trình duyệt không thể hiện qua kích thước cửa sổ. Những khách truy cập đó khởi động ứng dụng từ phần tử `engage`, và `session` duy trì khởi động khi tải lại trong thẻ đó.
+
+<!-- s:06cdcf713e -->
+Không có gì tự kích hoạt trên màn hình cảm ứng. Gọi `trigger()` từ điều khiển của bạn.
+
+<!-- s:d7006796c2 -->
+| Tùy chọn | Mô tả |
+| :-- | :-- |
+| `engageSelector` | Phần tử khởi động ứng dụng khi nhấp vào (mặc định `[data-textjs-engage], [data-textjs-focus-pad], text-console`). `false` không thêm trình lắng nghe nào |
+| `persist` | Ghi nhớ ý định cho thẻ trong `sessionStorage` dưới khóa `CONSOLE_INTENT_KEY` (mặc định `true`) |
+| `prefetch` | Được gọi tối đa một lần, khi con trỏ hoặc tiêu điểm đi vào phần tử `engageSelector` |
+| `idlePrefetch` | Cũng gọi `prefetch` khi trình duyệt rảnh sau `load` (mặc định `false`) |
+
+<!-- s:4460da3205 -->
+`prefetch` không bao giờ chạy trên màn hình cảm ứng, khi bật Trình tiết kiệm dữ liệu hoặc trên kết nối chậm hơn 4G. `canPrefetchConsole()` trả về kết quả của cùng phép kiểm tra đó. `dispose()` của handle xóa mọi trình lắng nghe.
+
+<!-- s:9128a9d98f -->
+`<ViewportControl>` hoạt động trước khi console root tồn tại. Chọn kích thước sẽ lưu kích thước đó, kích hoạt `engage` để `onConsoleIntent` khởi động ứng dụng, và áp dụng kích thước khi `root` đã được đặt. Xem [Thay đổi không tương thích](/docs/support-policy#breaking-changes) để biết cách đánh phiên bản cho các export thử nghiệm.

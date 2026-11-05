@@ -39,6 +39,21 @@ Como a renderização funciona
 <!-- s:3b67946601 -->
 Textos sem caracteres da direita para a esquerda pulam todas essas etapas. Um modelo de texto inteiramente da esquerda para a direita é detectado durante a segmentação de seus grafemas (uma comparação por grafema) e usa o caminho de pintura inalterado; os quadros do console são idênticos byte a byte.
 
+<!-- s:6181d9259c -->
+Carregamento do motor bidi
+
+<!-- s:8bd0807fa0 -->
+Nos apps Text.js (`text dev`, `text build`), o motor bidi e suas tabelas Unicode ficam em um chunk separado de 10,1 kB (gzip). O download ocorre na primeira vez que uma página renderiza texto da direita para a esquerda ou um `<Text>` com `dir="rtl"`, então as outras páginas nunca o carregam. Até ele chegar, esse texto é desenhado em ordem lógica. Depois, o console redesenha em ordem de exibição.
+
+<!-- s:ed4299ea80 -->
+Apps `text build` com um shell pré-renderizado iniciam o download por conta própria quando o shell tem texto da direita para a esquerda. Se você montar o console por conta própria, inicie o download junto com `createConsoleRoot()` para que o primeiro quadro esteja em ordem de exibição. Por exemplo, em páginas da direita para a esquerda:
+
+<!-- s:8ebc8c3712 -->
+`loadBidi()` rejeita se o chunk não carregar. Nesse caso, o texto da direita para a esquerda permanece em ordem lógica.
+
+<!-- s:7adcf6764d -->
+A renderização no servidor, `text run`, os testes e os bundles sem a condição de resolução `@textjs/client` incluem o motor, então sempre desenham texto da direita para a esquerda em ordem de exibição e `loadBidi()` resolve imediatamente.
+
 <!-- s:26ac17c25a -->
 Larguras das células
 

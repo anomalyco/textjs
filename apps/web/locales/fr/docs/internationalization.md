@@ -39,6 +39,21 @@ Sur un `<Text>` imbriqué, `dir` isole le span comme le fait `<bdi>` en HTML :
 <!-- s:3b67946601 -->
 Le texte sans caractères de droite à gauche ignore toutes ces étapes. Un modèle de texte entièrement de gauche à droite est détecté lors de la segmentation de ses graphèmes (une comparaison par graphème) et utilise le chemin de rendu inchangé ; les frames de la console sont identiques octet pour octet.
 
+<!-- s:6181d9259c -->
+Chargement du moteur bidi
+
+<!-- s:8bd0807fa0 -->
+Dans les applications Text.js (`text dev`, `text build`), le moteur bidi et ses tables Unicode forment un bloc séparé de 10,1 ko (gzip). Il est téléchargé la première fois qu’une page affiche du texte de droite à gauche ou un `<Text>` avec `dir="rtl"`, de sorte que les autres pages ne le chargent jamais. En attendant son arrivée, ce texte s’affiche dans l’ordre logique. La console le redessine ensuite dans l’ordre d’affichage.
+
+<!-- s:ed4299ea80 -->
+Les applications `text build` avec une structure prérendue lancent elles-mêmes le téléchargement lorsque cette structure contient du texte de droite à gauche. Si vous montez la console vous-même, lancez le téléchargement en parallèle de `createConsoleRoot()` pour que la première frame soit dans l’ordre d’affichage. Par exemple, sur les pages de droite à gauche :
+
+<!-- s:8ebc8c3712 -->
+`loadBidi()` rejette sa promesse si le chargement du bloc échoue. Le texte de droite à gauche reste alors dans l’ordre logique.
+
+<!-- s:7adcf6764d -->
+Le rendu côté serveur, `text run`, les tests et les bundles sans la condition de résolution `@textjs/client` incluent le moteur : ils affichent donc toujours le texte de droite à gauche dans l’ordre d’affichage, et `loadBidi()` résout sa promesse immédiatement.
+
 <!-- s:26ac17c25a -->
 Largeur des cellules
 

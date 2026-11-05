@@ -64,3 +64,38 @@ Hook 將元件連接到輸入、焦點與檢視區。
 
 <!-- s:420cc7f125 -->
 每個應用程式都會將輔助函式加入 `window.text`。在 DevTools 提示字元中輸入這些函式。
+
+<!-- s:195573d803 -->
+依主控台使用意圖載入（實驗性）
+
+<!-- s:97014ecad1 -->
+`@textjs/core/experimental` 匯出 `onConsoleIntent`，供網頁在訪客有意使用主控台應用程式時才下載。它會呼叫你的函式一次，並傳入原因：
+
+<!-- s:444b1ebdd7 -->
+| 原因 | 時機 |
+| :-- | :-- |
+| `dock` | DevTools 在網頁載入時已停駐，或之後才停駐。Text.js 從視窗大小判斷停駐狀態 |
+| `shortcut` | 訪客按下 F12 或 Ctrl+Shift+J、I、C 或 K，或在 Mac 上按下 ⌘⌥J、I、C 或 K。瀏覽器仍會開啟 DevTools |
+| `engage` | 以主要按鈕點擊符合 `engageSelector` 的元素、在 `[data-textjs-engage]` 按鈕上按下 Enter 或 Space，或在應用程式啟動前於 `<ViewportControl>` 選擇大小。點擊符合條件元素內的連結、按鈕與表單欄位不計入，除非這些元素也有 `data-textjs-engage` |
+| `session` | 此分頁已發生上述其中一種情況，因此重新載入時會立即啟動 |
+| `manual` | 你對回傳的控制代碼呼叫了 `trigger()` |
+
+<!-- s:894b97fac4 -->
+從瀏覽器選單在獨立視窗開啟 DevTools，不會反映在視窗大小上。這些訪客透過 `engage` 元素啟動應用程式，而 `session` 會讓該分頁在重新載入時繼續啟動應用程式。
+
+<!-- s:06cdcf713e -->
+觸控螢幕不會自動觸發任何事件。請從你自己的控制項呼叫 `trigger()`。
+
+<!-- s:d7006796c2 -->
+| 選項 | 說明 |
+| :-- | :-- |
+| `engageSelector` | 點擊後會啟動應用程式的元素（預設為 `[data-textjs-engage], [data-textjs-focus-pad], text-console`）。設為 `false` 時不新增監聽器 |
+| `persist` | 在 `sessionStorage` 中以 `CONSOLE_INTENT_KEY` 記住該分頁的使用意圖（預設為 `true`） |
+| `prefetch` | 當指標或焦點進入 `engageSelector` 元素時呼叫，最多一次 |
+| `idlePrefetch` | 在 `load` 之後，瀏覽器閒置時也呼叫 `prefetch`（預設為 `false`） |
+
+<!-- s:4460da3205 -->
+`prefetch` 不會在觸控螢幕、開啟數據節省模式或連線速度低於 4G 時執行。`canPrefetchConsole()` 會回傳相同的檢查結果。控制代碼的 `dispose()` 會移除所有監聽器。
+
+<!-- s:9128a9d98f -->
+`<ViewportControl>` 在主控台根節點建立前就能運作。選擇大小會儲存該大小，並觸發 `engage`，讓 `onConsoleIntent` 啟動應用程式，待 `root` 設定後便會套用該大小。實驗性匯出的版本管理方式請參閱[重大變更](/docs/support-policy#breaking-changes)。

@@ -16,6 +16,9 @@ Adaptateurs
 <!-- s:7e755a5c9f -->
 L’adaptateur peut aussi être défini par `TEXTJS_ADAPTER`. Lorsque `text build` s’exécute sur Vercel (`VERCEL=1`) ou Cloudflare Pages (`CF_PAGES=1`), l’adaptateur correspondant est sélectionné automatiquement.
 
+<!-- s:d671e1ae31 -->
+Pour ajouter l’application à un autre site avec une seule balise script, lancez le build avec `--embed`. Tous les adaptateurs le prennent en charge (voir [Intégration](/docs/embedding)).
+
 <!-- s:9d8df946e5 -->
 Les adaptateurs serveur (`bun`, `vercel` et `cloudflare`) exécutent le même pipeline que `text start` : [middleware](/docs/middleware), `rewrites`, [gestionnaires de route](/docs/route-handlers) avec le [cache des routes](/docs/caching), ressources statiques, puis le document de la console pour les URL des pages. Les clients de terminal comme curl reçoivent à la place la première frame de la page sous forme de texte ANSI. Sur `vercel` et `cloudflare`, cela ne concerne que les pages statiques (voir [curl et les clients de terminal](/docs/curl)). Les adaptateurs serveur servent les fichiers dont le nom contient un hachage sous `/assets/` avec `Cache-Control: public, max-age=31536000, immutable`.
 
@@ -63,12 +66,12 @@ Cloudflare Pages
 <!-- s:6109800459 -->
 La sortie utilise le mode avancé de Pages :
 
-<!-- s:9f0923168f -->
+<!-- s:f72ec91f11 -->
 | Fichier | Rôle |
 | :-- | :-- |
-| `_worker.js` | Middleware, réécritures, gestionnaires de route et document de la console |
+| `_worker.js` | Middleware, réécritures, gestionnaires de route et document de la console. Un répertoire (`index.js` et `yoga.wasm`) lorsqu’un gestionnaire de route utilise Yoga |
 | `_routes.json` | Envoie chaque requête au worker. Sans middleware ni `basePath`, `/assets/*` reste sur le CDN statique de Pages |
-| `_headers` | Mise en cache immuable pour `/assets/*` (ajoutée à la suite de vos en-têtes) |
+| `_headers` | Mise en cache immuable pour `/assets/*` (ajoutée à la suite de vos propres en-têtes) |
 | `404.html` | Fait répondre Pages avec `404` pour les fichiers manquants au lieu de l’application (conservé si vous en avez un) |
 
 <!-- s:9bc2b010d1 -->
@@ -77,8 +80,33 @@ La sortie utilise le mode avancé de Pages :
 <!-- s:1200dbc88d -->
 Activez l’option de compatibilité `nodejs_compat` dans le projet Pages (Paramètres → Exécution) ou dans `wrangler.toml` ; le cache de données utilise `AsyncLocalStorage`. Les fichiers statiques sont servis via la liaison `ASSETS`, et la revalidation en arrière-plan utilise `ctx.waitUntil()`.
 
-<!-- s:0bb76cfebb -->
-Avec un middleware, chaque requête exécute le worker, y compris pour les ressources dont le nom contient un hachage, afin que le middleware voie tous les chemins donnant accès à un fichier. Chaque requête qui exécute le worker constitue une invocation Functions et compte dans votre quota de requêtes Workers. Pour un chargement de page, cela correspond au document et à chaque fichier qu’il récupère (2 pour une petite application de test avec un seul bundle JavaScript ; davantage pour les applications ayant plus de fichiers). Avec l’offre Workers Free, Pages sert les fichiers statiques sans le worker une fois le quota quotidien épuisé, ce qui contourne le middleware. Si le middleware protège quoi que ce soit dans `dist/`, réglez Paramètres → Exécution → Échec ouvert / fermé sur **Échec fermé**.
+<!-- s:398bcc3496 -->
+Avec un middleware, chaque requête exécute le worker, y compris pour les ressources dont le nom contient un hash, afin que le middleware voie tous les chemins donnant accès à un fichier. Chaque requête qui exécute le worker constitue une invocation de Functions et compte dans votre quota de requêtes Workers. Pour un chargement de page, cela comprend le document et chaque fichier qu’il récupère (3 pour une petite application de test : le document, un bundle JavaScript et `yoga-[hash].wasm` ; davantage pour les applications contenant plus de fichiers). Avec l’offre Workers Free, Pages sert les fichiers statiques sans le worker une fois le quota quotidien épuisé, ce qui contourne le middleware. Si le middleware protège un élément dans `dist/`, réglez Settings → Runtime → Fail open / closed sur **Fail closed**.
+
+<!-- s:24c3dfe433 -->
+WebAssembly
+
+<!-- s:72ec3f110c -->
+Les applications Text.js chargent Yoga, le moteur de layout, depuis `assets/yoga-[hash].wasm` (72 ko, 29 ko avec gzip). `text build` le précharge depuis chaque page. Les bundles serveur et `text run` utilisent la copie intégrée de `yoga-layout`. Le worker Cloudflare fait exception : lorsqu’un gestionnaire de route utilise Yoga, `dist/_worker.js/` contient `yoga.wasm` à côté de `index.js`.
+
+<!-- s:0ca00aa2eb -->
+- Servez les fichiers `.wasm` compressés, comme JavaScript. Vercel compresse `application/wasm` par défaut ; nginx nécessite `application/wasm` dans `gzip_types`. Si votre hébergeur compresse JavaScript mais pas `.wasm`, les pages téléchargent environ 32 ko de plus qu’avec la copie intégrée.
+- Envoyez `Content-Type: application/wasm` pour que le navigateur compile le fichier pendant son téléchargement. Avec un autre type, il le compile après le téléchargement.
+- Mettez-le en cache comme les autres fichiers dont le nom contient un hash dans `assets/` (`Cache-Control: public, max-age=31536000, immutable`). Cela ne présente aucun risque, car le nom change avec le contenu. N’utilisez pas `immutable` pour les chemins sans hash.
+- Si vous définissez une politique de sécurité du contenu, ajoutez `'wasm-unsafe-eval'` à `script-src` et l’origine du fichier (généralement `'self'`) à `connect-src`.
+- Si les chemins inconnus sont redirigés vers `index.html`, excluez `/assets/` de cette réécriture. Sinon, un fichier manquant renvoie du HTML et `initYoga()` échoue avec `TX032`.
+
+<!-- s:55fb3b1d03 -->
+Votre propre build Vite ou webpack
+
+<!-- s:df66a10103 -->
+Lorsque vous regroupez vous-même `@textjs/core` et `@textjs/react` en bundles, Yoga reste intégré et ne nécessite aucune configuration du bundler. Les bundles qui résolvent la condition `workerd`, comme Wrangler, importent plutôt `@textjs/core/yoga.wasm` comme module. Pour charger le fichier `.wasm` dans un build pour navigateur, ajoutez la condition de résolution `@textjs/client` à votre build client. Dans Vite 6, qui exporte `defaultClientConditions`, le pré-bundler de développement en a également besoin :
+
+<!-- s:8f580efda1 -->
+La condition sépare également le moteur bidi dans son propre chunk, qui est téléchargé la première fois qu’une page affiche du texte de droite à gauche (voir [Chargement du moteur bidi](/docs/internationalization#loading-the-bidi-engine)).
+
+<!-- s:c2349d8226 -->
+N’incluez pas cette condition dans les builds serveur, de prérendu et de test (Vitest, jsdom), qui fonctionnent avec la copie intégrée.
 
 <!-- s:600050383d -->
 Mise à niveau

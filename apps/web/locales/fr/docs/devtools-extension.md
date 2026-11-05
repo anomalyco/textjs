@@ -62,8 +62,8 @@ Fonctionnement
 <!-- s:1dda342130 -->
 Comme React DevTools, l’extension installe un hook global avant l’exécution de la page :
 
-<!-- s:5a865fb9ae -->
-Chaque racine de console s’y enregistre à sa création. Sans l’extension, le hook n’existe pas, et une racine ne vérifie sa présence qu’une seule fois, sans travail à chaque frame. Lorsque l’extension est installée mais que le panneau est fermé, les frames coûtent une lecture de propriété. Les arbres et les frames ne sont calculés que lorsque le panneau les demande.
+<!-- s:9a7af3e89c -->
+Chaque racine de console s’y enregistre. La première racine d’une page charge le code qui communique avec le panneau (environ 5 ko gzip) et s’enregistre une fois ce code chargé. Les racines suivantes s’enregistrent à leur création. Sans l’extension, le hook n’existe pas : une racine vérifie donc sa présence une fois, ne charge rien et n’effectue aucun travail par frame. Lorsque l’extension est installée mais que le panneau est fermé, chaque frame coûte une lecture de propriété. Les arbres et les frames ne sont calculés que lorsque le panneau les demande.
 
 <!-- s:843fc9a8ad -->
 Les messages circulent de la page → script de contenu → service worker → panneau. Les scripts de contenu s’exécutent sur chaque page pour que le hook existe avant le démarrage de votre application. C’est le seul accès demandé par l’extension. Elle ne charge aucun code distant et n’envoie rien hors de la machine.
@@ -77,8 +77,9 @@ L’extension ne collecte aucune donnée. Elle n’effectue aucune requête rés
 <!-- s:639d5ea4c0 -->
 Limites
 
-<!-- s:153a772b79 -->
+<!-- s:05616a1196 -->
 - Chrome et navigateurs basés sur Chromium, version 111 ou ultérieure.
-- Rechargement nécessaire pour les applications démarrées avant l’installation de l’extension.
-- Inspection limitée à la frame de niveau supérieur d’un onglet.
-- Mesures de temps issues de `performance.now()`, dont les navigateurs réduisent la précision à environ 0,1 ms.
+- Les applications démarrées avant l’installation de l’extension nécessitent un rechargement.
+- Seule la frame principale d’un onglet est inspectée.
+- La chronologie enregistre les frames une fois le panneau connecté.
+- Les durées proviennent de `performance.now()`, dont les navigateurs réduisent la précision à environ 0,1 ms.

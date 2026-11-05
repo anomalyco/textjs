@@ -16,6 +16,9 @@ Adaptörler
 <!-- s:7e755a5c9f -->
 Adaptör, `TEXTJS_ADAPTER` ile de belirlenebilir. `text build` Vercel’de (`VERCEL=1`) veya Cloudflare Pages’te (`CF_PAGES=1`) çalıştığında ilgili adaptör otomatik olarak seçilir.
 
+<!-- s:d671e1ae31 -->
+Uygulamayı tek bir script etiketiyle başka bir siteye eklemek için `--embed` ile derleyin. Her adaptör bunu destekler (bkz. [Gömme](/docs/embedding)).
+
 <!-- s:9d8df946e5 -->
 Sunucu adaptörleri (`bun`, `vercel` ve `cloudflare`), `text start` ile aynı işlem hattını çalıştırır: [middleware](/docs/middleware), `rewrites`, [rota önbelleğini](/docs/caching) kullanan [rota işleyicileri](/docs/route-handlers), statik varlıklar ve ardından sayfa URL’leri için konsol belgesi. curl gibi terminal istemcileri bunun yerine sayfanın ilk karesini ANSI metni olarak alır. `vercel` ve `cloudflare` adaptörlerinde bu yalnızca statik sayfaları kapsar (bkz. [curl ve terminal istemcileri](/docs/curl)). Sunucu adaptörleri, `/assets/` altındaki hash içeren dosyaları `Cache-Control: public, max-age=31536000, immutable` ile sunar.
 
@@ -63,13 +66,13 @@ Cloudflare Pages
 <!-- s:6109800459 -->
 Çıktı, Pages gelişmiş modunu kullanır:
 
-<!-- s:9f0923168f -->
+<!-- s:f72ec91f11 -->
 | Dosya | Amaç |
 | :-- | :-- |
-| `_worker.js` | Middleware, yeniden yazmalar, rota işleyicileri ve konsol belgesi |
+| `_worker.js` | Middleware, yeniden yazmalar, rota işleyicileri ve konsol belgesi. Bir rota işleyicisi Yoga kullandığında bir dizin (`index.js` ve `yoga.wasm`) |
 | `_routes.json` | Her isteği worker’a gönderir. Middleware veya `basePath` yoksa `/assets/*`, Pages’in statik CDN’inde kalır |
-| `_headers` | `/assets/*` için değişmez önbellekleme (sizin dosyanızın sonuna eklenir) |
-| `404.html` | Pages’in eksik dosyalara uygulama yerine `404` ile yanıt vermesini sağlar (varsa mevcut dosyanız korunur) |
+| `_headers` | `/assets/*` için değişmez önbellekleme (sizinkinin sonuna eklenir) |
+| `404.html` | Pages’in eksik dosyalar için uygulama yerine `404` yanıtı vermesini sağlar (zaten varsa korunur) |
 
 <!-- s:9bc2b010d1 -->
 Pages dizini olduğu gibi yayımladığından `.text/` (sunucu paketleri ve derleme manifestleri), `dist/` dizininden kaldırılır.
@@ -77,8 +80,33 @@ Pages dizini olduğu gibi yayımladığından `.text/` (sunucu paketleri ve derl
 <!-- s:1200dbc88d -->
 Pages projesinde (Settings → Runtime) veya `wrangler.toml` dosyasında `nodejs_compat` uyumluluk bayrağını etkinleştirin; veri önbelleği `AsyncLocalStorage` kullanır. Statik dosyalar `ASSETS` bağlaması üzerinden sunulur ve arka planda yeniden doğrulama `ctx.waitUntil()` kullanır.
 
-<!-- s:0bb76cfebb -->
-Middleware kullanıldığında, hash içeren varlıklar dahil her istek worker’ı çalıştırır; böylece middleware bir dosyaya erişilebilen her yolu görür. Worker’ı çalıştıran her istek bir Functions çağrısıdır ve Workers istek kotanıza dahil edilir. Bir sayfa yüklemesinde bu, belge ve getirdiği her dosya demektir (tek JavaScript paketi olan küçük bir test uygulaması için 2; daha fazla dosyası olan uygulamalar için daha fazla). Workers Free planında günlük kota tükendiğinde Pages statik dosyaları worker olmadan sunar ve middleware atlanır. Middleware `dist/` içindeki herhangi bir şeyi koruyorsa Settings → Runtime → Fail open / closed ayarını **Fail closed** olarak ayarlayın.
+<!-- s:398bcc3496 -->
+Middleware kullanıldığında hash içeren varlıklar dahil her istek worker’ı çalıştırır; böylece middleware, bir dosyaya erişilebilen her yolu görür. Worker’ı çalıştıran her istek bir Functions çağrısıdır ve Workers istek kotanızdan düşülür. Bir sayfa yüklemesinde bu, belge ve getirdiği her dosya demektir (küçük bir test uygulaması için 3: belge, bir JavaScript paketi ve `yoga-[hash].wasm`; daha fazla dosyası olan uygulamalarda daha fazla). Workers Free planında günlük kota dolduğunda Pages, statik dosyaları worker olmadan sunar ve middleware atlanır. Middleware, `dist/` içindeki herhangi bir şeyi koruyorsa Settings → Runtime → Fail open / closed ayarını **Fail closed** olarak belirleyin.
+
+<!-- s:24c3dfe433 -->
+WebAssembly
+
+<!-- s:72ec3f110c -->
+Text.js uygulamaları, layout motoru Yoga’yı `assets/yoga-[hash].wasm` dosyasından yükler (72 kB, gzip ile 29 kB). `text build`, bunu her sayfada önceden yükler. Sunucu paketleri ve `text run`, `yoga-layout` içindeki satır içi kopyayı kullanır. Cloudflare worker’ı istisnadır: bir rota işleyicisi Yoga kullandığında `dist/_worker.js/` dizini, `index.js` dosyasının yanında `yoga.wasm` dosyasını barındırır.
+
+<!-- s:0ca00aa2eb -->
+- `.wasm` dosyalarını JavaScript gibi sıkıştırılmış olarak sunun. Vercel, `application/wasm` içeriğini varsayılan olarak sıkıştırır; nginx için `gzip_types` içinde `application/wasm` bulunmalıdır. Barındırma hizmetiniz JavaScript’i sıkıştırıp `.wasm` dosyalarını sıkıştırmıyorsa sayfalar, satır içi kopyaya kıyasla yaklaşık 32 kB daha fazla indirir.
+- Tarayıcının dosyayı indirirken derlemesi için `Content-Type: application/wasm` gönderin. Başka bir tür kullanıldığında derleme indirmeden sonra yapılır.
+- Dosyayı `assets/` içindeki diğer hash içeren dosyalar gibi önbelleğe alın (`Cache-Control: public, max-age=31536000, immutable`). İçerikle birlikte ad da değiştiği için bu güvenlidir. Hash içermeyen yollar için `immutable` kullanmayın.
+- Bir İçerik Güvenliği Politikası belirliyorsanız `script-src` yönergesine `'wasm-unsafe-eval'`, `connect-src` yönergesine de dosyanın kaynağını (genellikle `'self'`) ekleyin.
+- Bilinmeyen yollar `index.html` dosyasına yönlendiriliyorsa `/assets/` yolunu bu yeniden yazmanın dışında tutun. Aksi halde eksik bir dosya HTML döndürür ve `initYoga()`, `TX032` ile reddedilir.
+
+<!-- s:55fb3b1d03 -->
+Kendi Vite veya webpack derlemeniz
+
+<!-- s:df66a10103 -->
+`@textjs/core` ve `@textjs/react` paketlerini kendiniz paketlediğinizde Yoga satır içinde kalır ve paketleyici ayarı gerektirmez. Wrangler gibi `workerd` koşulunu çözümleyen paketler ise `@textjs/core/yoga.wasm` dosyasını modül olarak içe aktarır. `.wasm` dosyasını bir tarayıcı derlemesinde yüklemek için istemci derlemenize `@textjs/client` çözümleme koşulunu ekleyin. `defaultClientConditions` dışa aktarımını sağlayan Vite 6’da geliştirme ön paketleyicisi de buna ihtiyaç duyar:
+
+<!-- s:8f580efda1 -->
+Bu koşul, bidi motorunu da ayrı bir parçaya ayırır; bu parça, bir sayfa ilk kez sağdan sola metin gösterdiğinde indirilir (bkz. [Bidi motorunu yükleme](/docs/internationalization#loading-the-bidi-engine)).
+
+<!-- s:c2349d8226 -->
+Satır içi kopyayla sorunsuz çalışan sunucu, ön render ve test derlemelerine (Vitest, jsdom) bu koşulu eklemeyin.
 
 <!-- s:600050383d -->
 Yükseltme

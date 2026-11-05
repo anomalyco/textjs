@@ -43,8 +43,8 @@ LTSでの修正対象
 - `app/` 内のファイル規約、`middleware.ts`、ルートセグメント設定
 - アダプターの出力レイアウト（`.vercel/output`、`_worker.js`、`dist/server.js`）
 
-<!-- s:3a8ad71311 -->
-対象外：`@textjs/core/experimental` と `@textjs/react/experimental` 配下のすべてを含む、実験的または `unstable_` と明示されたAPI（マイナーリリースで変更される場合があり、変更履歴に記載されます）、`@textjs/core/internal`、`x-middleware-*` ヘッダー、`.text/` ビルドメタデータなどの内部仕様、canaryリリース、および `console.log` の厳密な書式文字列とCSS（フレームの見た目は変わりませんが、エンコードが高速化される場合があります）。
+<!-- s:883f3eeb26 -->
+対象外：実験的または `unstable_` と明示されたAPI（`@textjs/core/experimental`、`@textjs/react/experimental`、`@textjs/app/experimental` 配下のすべてを含み、マイナーリリースで変更される場合は変更履歴に記載されます）、`@textjs/core/internal`、`x-middleware-*` ヘッダー、`.text/` ビルドメタデータなどの内部要素、canaryリリース、および `console.log` の書式文字列とCSSの厳密な内容（フレームの見た目は変わりませんが、エンコードが高速化される場合があります）。
 
 <!-- s:5c7d9aae9b -->
 ランタイムのサポート

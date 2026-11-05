@@ -43,8 +43,8 @@ Folgendes ändert sich nur in einer Hauptversion, nach einer Abkündigungswarnun
 - Dateikonventionen in `app/`, `middleware.ts` und die Konfiguration von Route-Segmenten
 - Ausgabe-Layouts der Adapter (`.vercel/output`, `_worker.js`, `dist/server.js`)
 
-<!-- s:3a8ad71311 -->
-Nicht abgedeckt: als experimentell oder mit `unstable_` gekennzeichnete APIs, einschließlich allem unter `@textjs/core/experimental` und `@textjs/react/experimental` (sie können sich in einer Nebenversion ändern, mit Hinweisen im Changelog), Interna wie `@textjs/core/internal`, `x-middleware-*`-Header und `.text/`-Build-Metadaten, Canary-Versionen sowie die genauen `console.log`-Formatstrings und CSS (Frames bleiben visuell identisch; ihre Kodierung kann schneller werden).
+<!-- s:883f3eeb26 -->
+Nicht abgedeckt: als experimentell oder mit `unstable_` markierte APIs, einschließlich allem unter `@textjs/core/experimental`, `@textjs/react/experimental` und `@textjs/app/experimental` (sie können sich in einem Minor-Release ändern, mit Hinweisen im Changelog), Interna wie `@textjs/core/internal`, `x-middleware-*`-Header und `.text/`-Build-Metadaten, Canary-Releases sowie die exakten `console.log`-Formatstrings und das CSS (Frames bleiben visuell identisch; ihre Kodierung kann schneller werden).
 
 <!-- s:5c7d9aae9b -->
 Unterstützte Laufzeitumgebungen

@@ -36,17 +36,18 @@ Dynamische Routen
 <!-- s:854c967567 -->
 text.config.ts
 
-<!-- s:144c0672ce -->
+<!-- s:1baaf058bb -->
 | Option | Standardwert | Beschreibung |
 | :-- | :-- | :-- |
 | `title` | `""` | Titel der Seite und des FocusPad |
 | `viewport` | an Konsole anpassen, sonst `120×36` | `responsive` (Standardwert `true`), Fallback `width × height`, `theme` |
-| `hints` | `[]` | Zwei oder drei Tasten, die auf dem FocusPad der Seite angezeigt werden |
+| `hints` | `[]` | Zwei oder drei Tasten auf dem FocusPad der Seite |
 | `action` | `press <first hint>` | Aktion nach dem Fokussieren, z. B. `"type a prompt"` |
 | `devIndicators` | `true` | Dev-Overlay in der Konsole (`[▼]`) |
 | `focusHint` | `true` | „Klicke auf die Seite, um die Tastatur zu verwenden“ über der letzten Zeile der Konsole, solange die Seite keinen Fokus hat |
 | `rewrites` | `[]` | Rewrites und Proxys |
-| `ansi` | `{ cols: 80, rows: 24 }` | Frame-Größe für [curl und Terminal-Clients](/docs/curl), oder `false`, um ihnen HTML auszuliefern |
+| `ansi` | `{ cols: 80, rows: 24 }` | Frame-Größe für [curl- und Terminal-Clients](/docs/curl), oder `false`, um ihnen HTML auszuliefern |
+| `embed` | `false` | Die App so bauen, dass andere Websites sie mit einem Script-Tag einbinden können ([Einbetten](/docs/embedding), experimentell) |
 
 <!-- s:04e1df190e -->
 CLI
