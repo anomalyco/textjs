@@ -10,7 +10,7 @@ import { listServerPages } from "../server/live-routes";
 import { textjsVitePlugin, VIRTUAL_API } from "../vite-plugin";
 import { withFrameworkEntry } from "../server/vite-entry";
 import { buildServerRuntime, resolveAdapter, runBuildAdapter, serverFiles } from "../server/adapters/build-step";
-import type { AdapterResult } from "../server/adapters/shared";
+import { removeServerBundle, type AdapterResult } from "../server/adapters/shared";
 import { resolveEmbedSettings, withEmbed } from "../server/embed";
 import { buildEmbed, type EmbedBuildResult } from "../server/embed-build";
 import { loadTextConfig } from "./config";
@@ -277,6 +277,9 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
       for (const note of adapter.notes) print(color.gray(`   ${note}`));
       print();
     }
+    // An embed with no server-rendered routes, route handlers or middleware runs without a server. `.text/` (the bundle
+    // that prerendered the first frame, the build manifest) was for the build, and a copy of dist/ would publish it.
+    if (embed && !live && !documents && api.length === 0 && !hasMiddleware) removeServerBundle(outDir);
     return { outDir, routes, manifest, output: lines.join("\n"), durationMs: performance.now() - started, adapter, ...(embed ? { embed } : {}) };
   }
 }

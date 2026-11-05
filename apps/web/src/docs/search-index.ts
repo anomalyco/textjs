@@ -374,6 +374,68 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
       "id": "custom-servers"
     }
   ],
+  "embedding": [
+    {
+      "depth": 2,
+      "text": "Add an app to a site",
+      "id": "add-an-app-to-a-site"
+    },
+    {
+      "depth": 2,
+      "text": "Configuration",
+      "id": "configuration"
+    },
+    {
+      "depth": 2,
+      "text": "How it behaves",
+      "id": "how-it-behaves"
+    },
+    {
+      "depth": 2,
+      "text": "What loads when",
+      "id": "what-loads-when"
+    },
+    {
+      "depth": 2,
+      "text": "<text-console>",
+      "id": "text-console"
+    },
+    {
+      "depth": 3,
+      "text": "Reserving its space",
+      "id": "reserving-its-space"
+    },
+    {
+      "depth": 3,
+      "text": "Styling",
+      "id": "styling"
+    },
+    {
+      "depth": 2,
+      "text": "Server-rendered routes",
+      "id": "server-rendered-routes"
+    },
+    {
+      "depth": 2,
+      "text": "Hosting",
+      "id": "hosting"
+    },
+    {
+      "depth": 3,
+      "text": "Deploys",
+      "id": "deploys"
+    },
+    {
+      "depth": 3,
+      "text": "Content Security Policy",
+      "id": "content-security-policy"
+    },
+    {
+      "depth": 2,
+      "text": "Loading the app yourself",
+      "id": "loading-the-app-yourself"
+    }
+  ],
   "styling": [
     {
       "depth": 2,

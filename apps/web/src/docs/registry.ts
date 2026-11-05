@@ -25,6 +25,7 @@ const CONTENT: Readonly<Record<string, () => Promise<{ default: string }>>> = {
   caching: () => import("./content/caching.md?raw"),
   deploying: () => import("./content/deploying.md?raw"),
   curl: () => import("./content/curl.md?raw"),
+  embedding: () => import("./content/embedding.md?raw"),
   styling: () => import("./content/styling.md?raw"),
   internationalization: () => import("./content/internationalization.md?raw"),
   keyboard: () => import("./content/keyboard.md?raw"),

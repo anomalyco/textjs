@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { buildApp } from "../src/cli/build";
 import { startDevServer } from "../src/cli/dev";
 import { startProductionServer, type StartedServer } from "../src/cli/start";
+import { installReactDevToolsHook, REACT18_HEAD, REACT18_ROOT, react18Files, reactDevToolsRenderers } from "./embed-hosts";
 import { createFixture, REPO } from "./server-fixture";
 
 const PLAYWRIGHT = join(REPO, "bench/devtools/node_modules/playwright-core/index.mjs");
@@ -58,9 +59,18 @@ interface Route {
   abort(): Promise<void>;
   fulfill(response: { status: number; body?: string; contentType?: string }): Promise<void>;
 }
+interface PWRequest {
+  url(): string;
+  method(): string;
+  headers(): Record<string, string>;
+}
+interface CDPSession {
+  send(method: string, params?: Record<string, unknown>): Promise<unknown>;
+  on(event: string, fn: (params: Record<string, any>) => void): void;
+}
 interface Page {
   on(event: "console", fn: (m: { type(): string; text(): string }) => void): void;
-  on(event: "request", fn: (r: { url(): string }) => void): void;
+  on(event: "request", fn: (r: PWRequest) => void): void;
   on(event: "pageerror", fn: (e: Error) => void): void;
   route(url: RegExp, handler: (route: Route) => unknown): Promise<void>;
   addInitScript(fn: () => void): Promise<void>;
@@ -70,7 +80,8 @@ interface Page {
   tap(selector: string): Promise<void>;
   fill(selector: string, value: string): Promise<void>;
   focus(selector: string): Promise<void>;
-  keyboard: { press(key: string): Promise<void>; type(text: string): Promise<void> };
+  textContent(selector: string): Promise<string | null>;
+  keyboard: { press(key: string): Promise<void>; type(text: string): Promise<void>; down(key: string): Promise<void>; up(key: string): Promise<void> };
   bringToFront(): Promise<void>;
   close(): Promise<void>;
 }
@@ -78,6 +89,7 @@ interface Context {
   newPage(): Promise<Page>;
   route(url: RegExp, handler: (route: Route) => unknown): Promise<void>;
   on(event: "page", fn: (p: Page & { url(): string }) => void): void;
+  newCDPSession(page: Page): Promise<CDPSession>;
   close(): Promise<void>;
 }
 interface Browser {
@@ -134,9 +146,30 @@ export default function About() {
   "app/srv/page.tsx": `import { Text } from "@textjs/app";\nexport const runtime = "server";\nexport default function Srv() { return <Text>server page</Text>; }\n`,
 };
 
+/** An allowed origin no page uses: a session id replayed from it must still be refused. */
+const SECOND_ORIGIN = "http://127.0.0.1:9";
+
+/** A server-rendered home with keys and a streamed async component. `beforeAll` sets `allowOrigins` to the host page's origin. */
 const SERVER_APP: Record<string, string> = {
-  "text.config.ts": config(`{ embed: { allowOrigins: ["http://127.0.0.1:*"] } }`),
-  "app/page.tsx": `import { Text } from "@textjs/app";\nexport const runtime = "server";\nexport default function Home() { return <Text>Live Systems</Text>; }\n`,
+  "app/page.tsx": `import { Suspense, useState, type ReactNode } from "react";
+import { Box, Text, useInput } from "@textjs/app";
+export const runtime = "server";
+async function Probe(): Promise<ReactNode> {
+  await new Promise((r) => setTimeout(r, 300));
+  return <Text>probe ok</Text>;
+}
+export default function Home() {
+  const [n, setN] = useState(0);
+  useInput((e) => { if (e.input === "+") setN((v) => v + 1); });
+  return (
+    <Box flexDirection="column">
+      <Text>Live Systems</Text>
+      <Text>{"count " + n}</Text>
+      <Suspense fallback={<Text>probing</Text>}><Probe /></Suspense>
+    </Box>
+  );
+}
+`,
 };
 
 /** The page's own Text.js app: `startHost()` renders into the console, `startHostPlayer()` plays a server route. */
@@ -157,16 +190,31 @@ const ELEMENTS: Record<string, string> = {
 /** A page stylesheet that would restyle anything it reaches. */
 const LEAKY_CSS = "* { letter-spacing: 3px !important; text-transform: uppercase !important; font-family: Georgia, serif !important; color: red !important; }";
 
-const hostHtml = (src: string, host: boolean, element = "", leak = false, reserve = false): string => `<!doctype html>
-<html><head><meta charset="utf-8"><title>Acme host</title><link rel="icon" href="data:,">${leak ? '<link rel="stylesheet" href="/host.css">' : ""}${reserve ? '<link rel="stylesheet" href="/reserve.css">' : ""}</head>
+interface HostOptions {
+  /** The page's own Text.js app (`/host.js`). */
+  host?: boolean;
+  element?: string;
+  leak?: boolean;
+  reserve?: boolean;
+  /** The page runs its own React 18 app, with an import map that maps `"react"` to React 18. */
+  react?: boolean;
+  /** No inline scripts: the page's own log comes from a file, for a policy without `'unsafe-inline'`. */
+  strict?: boolean;
+  /** A page that scrolls. */
+  tall?: boolean;
+}
+
+const hostHtml = (src: string, o: HostOptions = {}): string => `<!doctype html>
+<html><head><meta charset="utf-8"><title>Acme host</title><link rel="icon" href="data:,">${o.leak ? '<link rel="stylesheet" href="/host.css">' : ""}${o.reserve ? '<link rel="stylesheet" href="/reserve.css">' : ""}${o.tall ? '<link rel="stylesheet" href="/tall.css">' : ""}${o.react ? REACT18_HEAD : ""}</head>
 <body>
   <h1>Acme</h1>
-  ${element}
+  ${o.element ?? ""}
+  ${o.react ? REACT18_ROOT : ""}
   <input id="field" aria-label="field">
   <button type="button" data-textjs-engage>Open in the console</button>
   <p id="prose">Long page.</p>
-  <script>console.log("host log before embed");</script>
-  ${host ? '<script type="module" src="/host.js"></script>' : ""}
+  ${o.strict ? '<script src="/host-log.js"></script>' : '<script>console.log("host log before embed");</script>'}
+  ${o.host ? '<script type="module" src="/host.js"></script>' : ""}
   <script type="module" src="${src}"></script>
 </body></html>`;
 
@@ -176,6 +224,8 @@ describe.skipIf(!enabled)("embed.js on a plain HTML page in Chromium", () => {
   let embed: StartedServer;
   let live: StartedServer;
   let host: ReturnType<typeof Bun.serve>;
+  /** The same pages on another origin, which the server app doesn't list in `allowOrigins`. */
+  let other: ReturnType<typeof Bun.serve>;
   let browser: Browser;
   let hostScript = "";
   /** What `text build --embed` printed for host pages. */
@@ -183,10 +233,39 @@ describe.skipIf(!enabled)("embed.js on a plain HTML page in Chromium", () => {
   const env = process.env.NODE_ENV;
 
   beforeAll(async () => {
+    // No inline styles, scripts only from the embeds' origins (plus the page's own inline log and import map).
+    const csp = (): string => {
+      const origins = `${new URL(embed.url).origin} ${new URL(live.url).origin}`;
+      return `default-src 'none'; script-src 'self' 'unsafe-inline' ${origins} 'wasm-unsafe-eval'; connect-src 'self' ${origins}; style-src 'self'; img-src data:`;
+    };
+    // `?strict`: the policy a security-minded site sends, naming only the embed's own origin and no inline script.
+    const strictCsp = (embedOrigin: string): string => `default-src 'none'; script-src 'self' ${embedOrigin} 'wasm-unsafe-eval'; connect-src 'self' ${embedOrigin}; style-src 'self'; img-src 'self' data:`;
+    const files: Record<string, { body: string; type: string }> = {
+      ...react18Files(),
+      "/host-log.js": { body: 'console.log("host log before embed");', type: "text/javascript" },
+      "/host.css": { body: LEAKY_CSS, type: "text/css" },
+      "/tall.css": { body: "#prose { height: 300vh }", type: "text/css" },
+    };
+    const serveHost = (req: Request): Response => {
+      const url = new URL(req.url);
+      if (url.pathname === "/host.js") return new Response(hostScript, { headers: { "content-type": "text/javascript" } });
+      if (url.pathname === "/reserve.css") return new Response(reserveCss, { headers: { "content-type": "text/css" } });
+      const file = files[url.pathname];
+      if (file) return new Response(file.body, { headers: { "content-type": file.type } });
+      if (url.pathname !== "/") return new Response("not found", { status: 404 });
+      const q = url.searchParams;
+      const embedOrigin = new URL(q.get("embed") === "live" ? live.url : embed.url).origin;
+      const html = hostHtml(`${embedOrigin}/embed.js`, { host: q.has("host"), element: ELEMENTS[q.get("el") ?? ""], leak: q.has("leak"), reserve: q.has("reserve"), react: q.has("react"), strict: q.has("strict"), tall: q.has("tall") });
+      return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": q.has("strict") ? strictCsp(embedOrigin) : csp() } });
+    };
+    host = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: serveHost });
+    other = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: serveHost });
+
     // As users run it: `bun test` sets NODE_ENV=test, which would bundle React's development builds.
     delete process.env.NODE_ENV;
     dir = createFixture(CLIENT_APP, "textjs-embed-e2e-");
-    serverDir = createFixture(SERVER_APP, "textjs-embed-e2e-live-");
+    // The host page's origin, and a second allowed one no page uses (`text start` reads allowOrigins at run time).
+    serverDir = createFixture({ ...SERVER_APP, "text.config.ts": config(`{ embed: { allowOrigins: ["http://127.0.0.1:${host.port}", "${SECOND_ORIGIN}"] } }`) }, "textjs-embed-e2e-live-");
     reserveCss = (await buildApp({ root: dir, log: false })).embed?.reserveCss as string;
     await buildApp({ root: serverDir, log: false });
     if (env !== undefined) process.env.NODE_ENV = env;
@@ -195,22 +274,6 @@ describe.skipIf(!enabled)("embed.js on a plain HTML page in Chromium", () => {
     const fromVite = createRequire(createRequire(import.meta.url).resolve("vite/package.json"));
     const esbuild = fromVite("esbuild") as { build(o: Record<string, unknown>): Promise<{ outputFiles: Array<{ text: string }> }> };
     hostScript = (await esbuild.build({ stdin: { contents: HOST_SCRIPT, loader: "js", resolveDir: join(REPO, "packages/app") }, bundle: true, write: false, format: "esm", platform: "browser", define: { "process.env.NODE_ENV": '"production"' } })).outputFiles[0]!.text;
-    // A strict policy: no inline styles, scripts only from the embeds' origins (plus the page's own inline log).
-    const origins = `${new URL(embed.url).origin} ${new URL(live.url).origin}`;
-    const csp = `default-src 'none'; script-src 'self' 'unsafe-inline' ${origins} 'wasm-unsafe-eval'; connect-src 'self' ${origins}; style-src 'self'; img-src data:`;
-    host = Bun.serve({
-      port: 0,
-      hostname: "127.0.0.1",
-      fetch: (req) => {
-        const url = new URL(req.url);
-        if (url.pathname === "/host.js") return new Response(hostScript, { headers: { "content-type": "text/javascript" } });
-        if (url.pathname === "/host.css") return new Response(LEAKY_CSS, { headers: { "content-type": "text/css" } });
-        if (url.pathname === "/reserve.css") return new Response(reserveCss, { headers: { "content-type": "text/css" } });
-        if (url.pathname !== "/") return new Response("not found", { status: 404 });
-        const src = url.searchParams.get("embed") === "live" ? `${new URL(live.url).origin}/embed.js` : `${new URL(embed.url).origin}/embed.js`;
-        return new Response(hostHtml(src, url.searchParams.has("host"), ELEMENTS[url.searchParams.get("el") ?? ""], url.searchParams.has("leak"), url.searchParams.has("reserve")), { headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": csp } });
-      },
-    });
     const pw = (await import(PLAYWRIGHT)) as PW;
     browser = await pw.chromium.launch({ executablePath: chromiumPath as string, headless: true });
   }, 300_000);
@@ -218,6 +281,7 @@ describe.skipIf(!enabled)("embed.js on a plain HTML page in Chromium", () => {
   afterAll(async () => {
     await browser?.close();
     host?.stop(true);
+    other?.stop(true);
     await embed?.close();
     await live?.close();
     for (const d of [dir, serverDir]) if (d) rmSync(d, { recursive: true, force: true });
@@ -282,6 +346,41 @@ describe.skipIf(!enabled)("embed.js on a plain HTML page in Chromium", () => {
   }
 
   const desktop = (): Promise<Context> => browser.newContext({ viewport: { width: 1200, height: 800 } });
+
+  interface Exchange {
+    method: string;
+    status?: number;
+    /** `Access-Control-Allow-Origin`. */
+    acao?: string;
+  }
+  /** Requests to `/__textjs/live` as the network saw them, CORS preflights included (Playwright doesn't report those). */
+  async function network(context: Context, page: Page): Promise<Exchange[]> {
+    const out: Exchange[] = [];
+    const byId = new Map<string, Exchange>();
+    const early = new Map<string, Record<string, any>>();
+    const apply = (x: Exchange, info: Record<string, any>): void => {
+      x.status = info.statusCode as number;
+      const headers = info.headers as Record<string, string>;
+      x.acao = Object.entries(headers).find(([k]) => k.toLowerCase() === "access-control-allow-origin")?.[1];
+    };
+    const cdp = await context.newCDPSession(page);
+    cdp.on("Network.requestWillBeSent", (e) => {
+      if (!String(e.request.url).includes("/__textjs/live")) return;
+      const x: Exchange = { method: e.request.method as string };
+      byId.set(e.requestId as string, x);
+      out.push(x);
+      const info = early.get(e.requestId as string);
+      if (info) apply(x, info);
+    });
+    // Extra info can arrive before the request event.
+    cdp.on("Network.responseReceivedExtraInfo", (e) => {
+      const x = byId.get(e.requestId as string);
+      if (x) apply(x, e);
+      else early.set(e.requestId as string, e);
+    });
+    await cdp.send("Network.enable");
+    return out;
+  }
   const isRuntime = (p: string): boolean => /^\/assets\/embed-(client|player)-[\w-]+\.js$/.test(p);
   /** Who has the console and `window.text`. */
   const ownership = (page: Page) =>
@@ -543,6 +642,7 @@ describe.skipIf(!enabled)("embed.js on a plain HTML page in Chromium", () => {
         const { page, logs, requests, dock } = await open(context, hostUrl());
         await until(() => requests().includes("/embed.js"));
         await sleep(800);
+        await page.evaluate(() => window.scrollTo(0, 200));
         await page.tap("[data-textjs-engage]");
         await dock();
         await sleep(1000);
@@ -815,13 +915,198 @@ describe.skipIf(!enabled)("embed.js on a plain HTML page in Chromium", () => {
   );
 
   test(
+    "while the app runs unengaged, Space, PageDown, the arrow keys and Tab still scroll and move focus on the page",
+    async () => {
+      const context = await desktop();
+      try {
+        const { page, dock, count, errors } = await open(context, hostUrl("?tall"));
+        await dock();
+        await until(() => count("Acme Systems") >= 2);
+        const y = (): Promise<number> => page.evaluate(() => window.scrollY);
+        await page.click("h1");
+        for (const key of ["Space", "PageDown", "ArrowDown"]) {
+          const before = await y();
+          await page.keyboard.press(key);
+          await until(async () => (await y()) > before, 5_000);
+        }
+        await page.keyboard.press("ArrowRight");
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.click("h1");
+        await page.keyboard.press("Tab");
+        expect(await page.evaluate(() => document.activeElement?.id)).toBe("field");
+        await page.keyboard.press("Tab");
+        expect(await page.evaluate(() => document.activeElement?.hasAttribute("data-textjs-engage"))).toBe(true);
+        await sleep(300);
+        expect(count("region eu")).toBe(0);
+        expect(errors()).toEqual([]);
+      } finally {
+        await context.close();
+      }
+    },
+    60_000,
+  );
+
+  test(
+    "a React 18 page with an import map for react and React DevTools installed: both apps run side by side",
+    async () => {
+      const context = await desktop();
+      try {
+        const { page, dock, count, errors } = await open(context, hostUrl("?react&el=mirror"), (p) => p.addInitScript(installReactDevToolsHook));
+        await until(async () => (await page.textContent("#r18-count")) === "count 0");
+        await until(() => count("Acme Systems") === 1);
+        await page.click("#r18-count");
+        await page.click("#r18-count");
+        await page.fill("#r18-name", "Ada");
+        expect({ count: await page.textContent("#r18-count"), echo: await page.textContent("#r18-echo") }).toEqual({ count: "count 2", echo: "Ada" });
+
+        await dock();
+        await until(() => count("Acme Systems") >= 2);
+        await page.click("[data-textjs-engage]");
+        await page.keyboard.press("ArrowRight");
+        await until(() => count("region eu") > 0);
+        await until(async () => (await element(page)).text.includes("region eu"));
+
+        // The page's React keeps working, and its field keeps its keys.
+        await page.click("#r18-count");
+        await page.click("#r18-name");
+        await page.keyboard.type("!");
+        await page.keyboard.press("ArrowRight");
+        await sleep(300);
+        expect(count("region ap")).toBe(0);
+        expect({ count: await page.textContent("#r18-count"), echo: await page.textContent("#r18-echo") }).toEqual({ count: "count 3", echo: "Ada!" });
+
+        // React 18 is still the page's React, and each renderer registered with the hook under its own id.
+        const state = await page.evaluate(() => ({ version: (window as unknown as { __r18Version: string }).__r18Version, global: (window as unknown as { React: { version: string } }).React.version }));
+        expect(state).toEqual({ version: "18.3.1", global: "18.3.1" });
+        const renderers = await page.evaluate(reactDevToolsRenderers);
+        expect(renderers).toHaveLength(2);
+        expect(renderers.find((r) => r.name === "react-dom")?.version).toMatch(/^18\.3\.1\b/);
+        expect(renderers.map((r) => r.name).sort()).toEqual(["@textjs/react", "react-dom"]);
+        for (const r of renderers) expect({ renderer: r.name, committed: r.commits > 0 }).toEqual({ renderer: r.name, committed: true });
+        expect((await element(page)).violations).toEqual([]);
+        expect(errors()).toEqual([]);
+      } finally {
+        await context.close();
+      }
+    },
+    90_000,
+  );
+
+  test(
+    "a strict CSP (no inline script or style, only the embed's origin): no violations from frame 0, boot, Yoga, the input sink or <text-console mirror>",
+    async () => {
+      const context = await desktop();
+      try {
+        const { page, dock, count, logs, requests, errors } = await open(context, hostUrl("?strict&el=mirror&reserve"));
+        await until(() => count("Acme Systems") === 1);
+        expect(logs()[0]).toBe("host log before embed");
+        await until(async () => (await element(page)).text.includes("region us"));
+        await dock();
+        await until(() => count("Acme Systems") >= 2);
+        expect(requests().some((p) => /^\/assets\/yoga-[\w-]+\.wasm$/.test(p))).toBe(true);
+        await page.click("text-console");
+        await until(async () => (await element(page)).state === "live");
+        expect(await page.evaluate(() => document.querySelectorAll("[data-textjs-input-sink]").length)).toBe(1);
+        await page.keyboard.press("ArrowRight");
+        await until(() => count("region eu") > 0);
+        await until(async () => (await element(page)).text.includes("region eu"));
+        expect((await element(page)).violations).toEqual([]);
+        expect(errors()).toEqual([]);
+      } finally {
+        await context.close();
+      }
+    },
+    60_000,
+  );
+
+  test(
+    "a server-rendered embed on another origin: preflight, streaming, keys, reconnect, and refused origins",
+    async () => {
+      const context = await desktop();
+      const liveOrigin = new URL(live.url).origin;
+      const hostOrigin = `http://127.0.0.1:${host.port}`;
+      try {
+        const sent: Array<{ method: string; sid?: string }> = [];
+        const { page, dock, count, logs, requests, errors } = await open(context, hostUrl("?embed=live&strict"), async (p) => {
+          p.on("request", (r) => {
+            if (r.url().startsWith(`${liveOrigin}/__textjs/live`)) sent.push({ method: r.method(), sid: r.headers()["x-textjs-live"] });
+          });
+        });
+        const net = await network(context, page);
+        // Frame 0 comes from embed.js, before any connection, with the async component's fallback.
+        await until(() => count("Live Systems") === 1);
+        expect(requests()).toEqual(["/embed.js"]);
+        expect(logs().find((l) => l.includes("Live Systems"))).toContain("probing");
+        const length = await page.evaluate(() => history.length);
+
+        await dock();
+        await until(() => logs().some((l) => l.includes("probe ok")), 20_000);
+        expect(requests().some((p) => /^\/assets\/embed-player-[\w-]+\.js$/.test(p))).toBe(true);
+        await page.click("[data-textjs-engage]");
+        await page.keyboard.press("+");
+        await until(() => count("count 1") > 0);
+        // Keys arrive as POSTs, which need a preflight: answered 204 for this page's origin.
+        const preflight = net.find((e) => e.method === "OPTIONS");
+        expect(preflight).toMatchObject({ status: 204, acao: hostOrigin });
+        expect(net.find((e) => e.method === "POST")).toMatchObject({ status: 204, acao: hostOrigin });
+        expect(net.find((e) => e.method === "GET")).toMatchObject({ status: 200, acao: hostOrigin });
+        const sid = sent.find((s) => s.method === "POST")?.sid as string;
+        expect(sid).toMatch(/\S{16,}/);
+
+        // A dropped connection reconnects and resumes the same session: the count goes on from 1.
+        live.server.closeAllConnections();
+        await until(() => sent.some((s) => s.method === "GET" && s.sid === sid), 15_000);
+        await until(() => net.filter((e) => e.method === "GET" && e.status === 200).length >= 2, 15_000);
+        await page.keyboard.press("+");
+        await until(() => count("count 2") > 0, 15_000);
+
+        // The session id is no use to another origin, even one on the list, and that doesn't end the session.
+        const replay = (method: "GET" | "POST", origin: string): Promise<Response> =>
+          fetch(`${liveOrigin}/__textjs/live${method === "GET" ? "?path=/&cols=40&rows=4" : ""}`, {
+            method,
+            headers: { origin, "sec-fetch-site": "cross-site", "x-textjs-live": sid, ...(method === "GET" ? { accept: "text/event-stream" } : { "content-type": "application/json" }) },
+            ...(method === "POST" ? { body: JSON.stringify([{ type: "key", key: "+", input: "+" }]) } : {}),
+          });
+        for (const origin of [SECOND_ORIGIN, `http://127.0.0.1:${other.port}`]) {
+          for (const method of ["GET", "POST"] as const) {
+            const res = await replay(method, origin);
+            await res.body?.cancel();
+            expect({ origin, method, status: res.status }).toEqual({ origin, method, status: 403 });
+          }
+        }
+        await page.keyboard.press("+");
+        await until(() => count("count 3") > 0, 15_000);
+
+        expect(await page.evaluate(() => ({ href: location.href, title: document.title, length: history.length }))).toEqual({ href: hostUrl("?embed=live&strict"), title: "Acme host", length });
+        expect(await page.evaluate(() => (window as unknown as { __violations: string[] }).__violations)).toEqual([]);
+        // Only the stream the server dropped.
+        expect(errors().filter((e) => !e.includes("ERR_INCOMPLETE_CHUNKED_ENCODING"))).toEqual([]);
+        await page.close();
+
+        // The same page on an origin allowOrigins doesn't list: frame 0 still shows, the live session is refused.
+        const elsewhere = await open(context, `http://127.0.0.1:${other.port}/?embed=live&strict`);
+        const refused = await network(context, elsewhere.page);
+        await until(() => elsewhere.count("Live Systems") === 1);
+        await elsewhere.dock();
+        await until(() => refused.some((e) => e.method === "GET" && e.status !== undefined), 15_000);
+        expect(refused.find((e) => e.method === "GET")).toMatchObject({ status: 403, acao: undefined });
+        await sleep(500);
+        expect(elsewhere.logs().some((l) => l.includes("probe ok"))).toBe(false);
+      } finally {
+        await context.close();
+      }
+    },
+    120_000,
+  );
+
+  test(
     "text dev --embed: the preview page and another site's page both boot the app on dock",
     async () => {
       // The fixture links @textjs/* from this repo, outside the project, where Vite serves no files by default (yoga.wasm).
       writeFileSync(join(dir, "text.config.ts"), config(`{ vite: { server: { fs: { allow: [${JSON.stringify(REPO)}, ${JSON.stringify(dir)}] } } } }`));
       const dev = await startDevServer({ root: dir, port: 41000 + Math.floor(Math.random() * 2000), log: false, embed: true });
       const devOrigin = new URL(dev.resolvedUrls?.local[0] ?? "").origin;
-      const html = hostHtml(`${devOrigin}/embed.js`, false);
+      const html = hostHtml(`${devOrigin}/embed.js`);
       const other = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } }) });
       const context = await desktop();
       try {
