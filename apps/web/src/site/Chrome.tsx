@@ -8,7 +8,7 @@ import { msg, t } from "../i18n/t";
 import { A, useLocation } from "../router";
 import { ArrowUpRight, ChevronRight, CloseIcon, GitHubIcon, Logo, MenuIcon, SearchIcon } from "./icons";
 import { REPO_URL } from "./links";
-import { LogoMenu, useLogoMenu } from "./LogoMenu";
+import { LogoMenu, preloadLogoMenu, useLogoMenu } from "./logo-menu-loader";
 import { openSearch, preloadSearchDialog } from "./SearchModal";
 import { hasLocaleMenu, LocaleMenu } from "./LocaleMenu";
 import { Sheet, useCloseOnMedia } from "./Sheet";
@@ -71,7 +71,17 @@ export function Header(): ReactNode {
   return (
     <header className="header">
       <div className="container header-inner" style={{ maxWidth: 1440 }}>
-        <A href="/" className="wordmark" aria-label={t("Text.js home")} dir="ltr" lang="en" onContextMenu={openLogoMenu}>
+        <A
+          href="/"
+          className="wordmark"
+          aria-label={t("Text.js home")}
+          dir="ltr"
+          lang="en"
+          onContextMenu={openLogoMenu}
+          onMouseEnter={() => void preloadLogoMenu()}
+          onFocus={() => void preloadLogoMenu()}
+          onPointerDown={() => void preloadLogoMenu()}
+        >
           <Logo size={20} />
           <span>Text.js</span>
         </A>

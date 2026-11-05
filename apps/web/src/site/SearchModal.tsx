@@ -1,93 +1,75 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { siteStore } from "../console-companion/store";
-import { CATEGORY_LABELS, DOCS_META, docPath, type DocCategory } from "../docs/meta";
-import { rich } from "../i18n/rich";
-import { searchFold } from "../i18n/search-fold";
-import { t } from "../i18n/t";
-import { navigate } from "../router";
-import { SearchIcon } from "./icons";
-import type { SearchItem } from "./search-aliases";
-import { useScrollLock } from "./Sheet";
 
-type Item = SearchItem;
-type SearchEngine = {
+export type SearchEngine = {
   searchDocsMeta: typeof import("../docs/search").searchDocsMeta;
   aliasResults: typeof import("./search-aliases").aliasResults;
 };
-
-const PAGES: Item[] = [
-  { key: "p:/", group: "Pages", label: t("Home"), sub: "textjs.org", href: "/" },
-  { key: "p:/docs", group: "Pages", label: t("Documentation"), sub: "/docs", href: "/docs" },
-  { key: "p:/playground", group: "Pages", label: "Playground", sub: "/playground", href: "/playground" },
-  { key: "p:/opencode", group: "Pages", label: t("OpenCode in the Console"), sub: "Playground · /opencode", href: "/opencode" },
-  { key: "p:/coffee", group: "Pages", label: t("Coffee from terminal.shop"), sub: "Playground · /coffee", href: "/coffee" },
-];
-
-/** Group headings as shown; the ids stay English. */
-const GROUP_LABELS: Readonly<Record<string, string>> = { Pages: t("Pages"), Documentation: t("Documentation"), "Error Codes": t("Error Codes") };
-
-/** A doc's category id → its label; anything else (a page title) as is. */
-const subLabel = (sub: string | undefined): string | undefined => (sub && sub in CATEGORY_LABELS ? CATEGORY_LABELS[sub as DocCategory] : sub);
-
-const DEFAULT_DOCS: Item[] = DOCS_META.map((doc) => ({
-  key: `d:${doc.slug}:`,
-  group: "Documentation",
-  label: doc.title,
-  sub: doc.category,
-  href: docPath(doc.slug),
-}));
+type DialogModule = typeof import("./SearchDialog");
 
 const openListeners = new Set<(open: boolean) => void>();
+let dialogCache: DialogModule | null = null;
+let dialogPromise: Promise<DialogModule> | null = null;
 let engineCache: SearchEngine | null = null;
 let enginePromise: Promise<SearchEngine> | null = null;
 
-export function preloadSearchDialog(): Promise<SearchEngine> {
+function preloadSearchEngine(): Promise<SearchEngine> {
   if (engineCache) return Promise.resolve(engineCache);
   if (!enginePromise) {
     enginePromise = Promise.all([import("../docs/search"), import("./search-aliases")]).then(([idx, al]) => {
       engineCache = { searchDocsMeta: idx.searchDocsMeta, aliasResults: al.aliasResults };
       return engineCache;
     });
+    // A failed download (a chunk gone after a deploy, say) is tried again next time.
+    enginePromise.catch(() => (enginePromise = null));
   }
   return enginePromise;
 }
 
+/** Download the search dialog and its index (a search button hovered or focused, ⌘ or Ctrl pressed). */
+export function preloadSearchDialog(): Promise<DialogModule> {
+  void preloadSearchEngine();
+  if (dialogCache) return Promise.resolve(dialogCache);
+  if (!dialogPromise) {
+    dialogPromise = import("./SearchDialog").then((m) => {
+      dialogCache = m;
+      return m;
+    });
+    dialogPromise.catch(() => (dialogPromise = null));
+  }
+  return dialogPromise;
+}
+
 export function openSearch(): void {
-  void preloadSearchDialog();
   for (const l of openListeners) l(true);
 }
 
-function invertTriangles(value: string): string {
-  return value.replace(/\u25B2/g, "\u25BC");
-}
-
-function isQuitCommand(query: string): boolean {
-  return /^:(q!?|wq!?|x)$/.test(query.trim());
-}
-
+/** ⌘K and the search buttons open the dialog; its code loads the first time it's wanted. */
 export function SearchModal(): ReactNode {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [index, setIndex] = useState(0);
+  const [dialog, setDialog] = useState<DialogModule | null>(() => dialogCache);
   const [engine, setEngine] = useState<SearchEngine | null>(() => engineCache);
-  const input = useRef<HTMLInputElement>(null);
-  const list = useRef<HTMLDivElement>(null);
-  useScrollLock(open);
 
   useEffect(() => {
+    const load = (): void => {
+      void preloadSearchDialog().then(setDialog);
+      void preloadSearchEngine().then(setEngine);
+    };
     const l = (v: boolean): void => {
-      if (v) void preloadSearchDialog().then(setEngine);
+      if (v) load();
       setOpen(v);
     };
     openListeners.add(l);
     const onKey = (e: KeyboardEvent): void => {
+      // ⌘ or Ctrl comes down before the K: fetch the dialog in that gap.
+      if (e.key === "Meta" || e.key === "Control") return void preloadSearchDialog();
       if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "k") {
         // An example running in the console keeps the Ctrl+K it received (its command palette); ⌘K still searches.
         if (e.defaultPrevented && siteStore.getSnapshot().example !== null) return;
         e.preventDefault();
         setOpen((v) => {
           const next = !v;
-          if (next) void preloadSearchDialog().then(setEngine);
+          if (next) load();
           return next;
         });
       }
@@ -99,127 +81,6 @@ export function SearchModal(): ReactNode {
     };
   }, []);
 
-  useEffect(() => {
-    if (open) {
-      setQuery("");
-      setIndex(0);
-      if (!engine) void preloadSearchDialog().then(setEngine);
-      requestAnimationFrame(() => input.current?.focus());
-    }
-  }, [open]);
-
-  const items = useMemo<Item[]>(() => {
-    if (!open) return [];
-    const q = searchFold(query.trim());
-    if (!q) return [...PAGES, ...DEFAULT_DOCS];
-    const pages = PAGES.filter((p) => searchFold(p.label).includes(q) || p.href.includes(q));
-    if (!engine) {
-      const fallbackDocs = DEFAULT_DOCS.filter((d) => searchFold(d.label).includes(q) || searchFold(d.sub ?? "").includes(q));
-      return [...pages, ...fallbackDocs];
-    }
-    const aliases = engine.aliasResults(query);
-    const errors = aliases.filter((a) => a.group !== "Documentation");
-    const aliasDocs = aliases.filter((a) => a.group === "Documentation");
-    const docs = engine
-      .searchDocsMeta(query, 14)
-      .map<Item>((h) => ({
-        key: `d:${h.doc.slug}:${h.heading?.id ?? ""}`,
-        group: "Documentation",
-        label: h.heading ? h.heading.text : h.doc.title,
-        sub: h.heading ? h.doc.title : h.doc.category,
-        href: `${docPath(h.doc.slug)}${h.heading ? `#${h.heading.id}` : ""}`,
-      }))
-      .filter((d) => !aliasDocs.some((a) => a.key === d.key));
-    return [...pages, ...errors, ...aliasDocs, ...docs];
-  }, [open, query, engine]);
-
-  useEffect(() => {
-    if (!open) return;
-    list.current?.querySelector(`[data-index="${index}"]`)?.scrollIntoView({ block: "nearest" });
-  }, [open, index]);
-
-  if (!open) return null;
-
-  const go = (item: Item | undefined): void => {
-    if (!item) return;
-    setOpen(false);
-    navigate(item.href);
-  };
-
-  let lastGroup = "";
-  return (
-    <div className="kbar-overlay" onMouseDown={(e) => e.target === e.currentTarget && setOpen(false)} data-console-bypass="">
-      <div className="kbar" role="dialog" aria-modal="true" aria-label={t("Search documentation")}>
-        <div className="kbar-input">
-          <SearchIcon size={16} />
-          <input
-            ref={input}
-            name="q"
-            value={query}
-            placeholder={t("Search documentation…")}
-            aria-label={t("Search")}
-            type="search"
-            enterKeyHint="go"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            onChange={(e) => {
-              const native = e.nativeEvent as InputEvent;
-              setQuery(native.isComposing ? e.target.value : invertTriangles(e.target.value));
-              setIndex(0);
-            }}
-            onCompositionEnd={(e) => setQuery(invertTriangles(e.currentTarget.value))}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowDown") {
-                e.preventDefault();
-                setIndex((i) => Math.min(items.length - 1, i + 1));
-              } else if (e.key === "ArrowUp") {
-                e.preventDefault();
-                setIndex((i) => Math.max(0, i - 1));
-              } else if (e.key === "Enter") {
-                e.preventDefault();
-                if (isQuitCommand(query)) setOpen(false);
-                else go(items[index]);
-              } else if (e.key === "Escape") {
-                e.preventDefault();
-                setOpen(false);
-              }
-            }}
-          />
-          <kbd className="kbar-esc">esc</kbd>
-          <button type="button" className="kbar-cancel" onClick={() => setOpen(false)}>
-            {t("Cancel")}
-          </button>
-        </div>
-        <div className="kbar-list" ref={list}>
-          {items.length === 0 ? <div className="kbar-group">{t("No results for “{query}”.", { query })}</div> : null}
-          {items.map((item, i) => {
-            const header = item.group !== lastGroup ? <div className="kbar-group">{GROUP_LABELS[item.group] ?? item.group}</div> : null;
-            lastGroup = item.group;
-            return (
-              <div key={item.key}>
-                {header}
-                <button type="button" className="kbar-item" data-index={i} aria-selected={i === index} onMouseMove={() => setIndex(i)} onClick={() => go(item)}>
-                  <span>{item.group === "Pages" ? "▼" : "#"}</span>
-                  <span>{item.label}</span>
-                  {item.sub ? <span className="kbar-sub">{subLabel(item.sub)}</span> : null}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-        <div className="kbar-foot">
-          <span>
-            <kbd>↑</kbd>
-            <kbd>↓</kbd> {t("navigate")}
-          </span>
-          <span>
-            <kbd>↵</kbd> {t("open")}
-          </span>
-          <span style={{ marginInlineStart: "auto" }}>{rich("On docs pages, press <key>/</key> in the console to search", { key: (c) => <kbd>{c}</kbd> })}</span>
-        </div>
-      </div>
-    </div>
-  );
+  if (!open || !dialog) return null;
+  return <dialog.SearchDialog engine={engine} onClose={() => setOpen(false)} />;
 }

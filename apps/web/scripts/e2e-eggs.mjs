@@ -36,6 +36,9 @@ page.on("console", (m) => logs.push(m.text()));
 await page.goto(`${base}/`, { waitUntil: "networkidle" });
 await page.waitForTimeout(800);
 const before = logs.length;
+// The menu downloads when the pointer reaches the logo, a moment before a visitor's right-click.
+await page.locator(".header .wordmark").hover();
+await page.waitForTimeout(100);
 await page.locator(".header .wordmark").click({ button: "right" });
 const menu = page.locator('[role="menu"][aria-label="Logo"]');
 check("right-click opens the logo menu", await menu.isVisible());
