@@ -22,16 +22,15 @@ const CORS = ["access-control-allow-origin", "cross-origin-resource-policy"] as 
 
 const config = (body: string): string => `import { defineConfig } from "@textjs/app";\nexport default defineConfig(${body});\n`;
 
-/** A client app with a static route handler (so the static adapter can export it) and a stand-in `embed.js`. */
+/** A client app with its own pages and `embed.js`, and a static route handler (so the static adapter can export it). */
 const STATIC_APP = (basePath = ""): Record<string, string> => ({
-  "text.config.ts": config(`{ title: "Embed Fixture", embed: true${basePath ? `, basePath: ${JSON.stringify(basePath)}` : ""} }`),
+  "text.config.ts": config(`{ title: "Embed Fixture", embed: { standalone: true }${basePath ? `, basePath: ${JSON.stringify(basePath)}` : ""} }`),
   "app/page.tsx": `import { Text } from "@textjs/app";\nexport default function Page() { return <Text>home</Text>; }\n`,
   "app/api/ping/route.ts": `export const dynamic = "force-static";\nexport function GET() { return Response.json({ pong: true }); }\n`,
-  "public/embed.js": "export {};\n",
   "public/assets/doc.html": "<!doctype html><p>doc</p>\n",
 });
 
-/** Server-rendered routes, `/ops` behind cookie middleware, and other sites allowed to open sessions. */
+/** An embed-only build: server-rendered routes, `/ops` behind cookie middleware, and other sites allowed to open sessions. */
 const LIVE_APP: Record<string, string> = {
   "text.config.ts": config(`{ title: "Embed Live Fixture", embed: { allowOrigins: [${JSON.stringify(HOST)}] }, server: { trustProxy: true } }`),
   "app/page.tsx": `import { Text } from "@textjs/app";\nexport default function Page() { return <Text>home</Text>; }\n`,
@@ -53,7 +52,6 @@ export function middleware(request: NextRequest) {
 }
 export const config = { matcher: ["/ops/:path*"] };
 `,
-  "public/embed.js": "export {};\n",
 };
 
 function hashedAsset(dir: string): string {

@@ -94,14 +94,33 @@ export interface TextConfig {
   ansi?: false | AnsiConfig;
   /**
    * @experimental Add the app to another site with one `<script type="module">`
-   * tag. `embed.js` and `/assets/*` are served with
-   * `Access-Control-Allow-Origin: *` and `Cross-Origin-Resource-Policy: cross-origin`.
+   * tag: `text build` writes `embed.js` and `assets/` (and no `index.html`
+   * unless `standalone` is set), the same as `text build --embed`. `embed.js`
+   * and `/assets/*` are served with `Access-Control-Allow-Origin: *` and
+   * `Cross-Origin-Resource-Policy: cross-origin`.
    */
   embed?: boolean | EmbedConfig;
 }
 
 /** @experimental `text.config.ts` `embed`. */
 export interface EmbedConfig {
+  /** The app path the embedded console opens at (default `"/"`). Navigation stays inside the console. Must start with `/`. */
+  initialPath?: string;
+  /**
+   * The global name the app installs its console API under once it loads
+   * (default `"text"`). Must be a JavaScript identifier. `false` installs none.
+   */
+  globalName?: string | false;
+  /**
+   * Clear the host page's console before the first frame (default `false`,
+   * so what the page logged earlier stays above the app).
+   */
+  initialClear?: boolean;
+  /**
+   * Also build the app's own pages (`index.html`), as `text build` does without
+   * `embed` (default `false`). In `text dev`, the preview page moves to `/__textjs/embed`.
+   */
+  standalone?: boolean;
   /**
    * Origins of other sites whose pages may run server-rendered routes
    * (`runtime = "server"`) from this server, such as `"https://www.example.com"`,

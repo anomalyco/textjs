@@ -9,7 +9,7 @@ const HINT = "Click the page to use the keyboard";
 
 /** Just enough of a DOM for `InputEngine.attach()` to create its sink. */
 function fakeDocument(hasFocus: boolean): Document {
-  const node = () => ({ style: {}, value: "", setAttribute() {}, addEventListener() {}, removeEventListener() {}, focus() {}, remove() {} });
+  const node = () => ({ style: { setProperty() {} }, value: "", setAttribute() {}, addEventListener() {}, removeEventListener() {}, focus() {}, remove() {} });
   return {
     body: { appendChild() {} },
     defaultView: null,

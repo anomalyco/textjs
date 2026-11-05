@@ -10,6 +10,7 @@ import type { ConsoleBanner } from "./internal";
 import type { ConsoleBrowser } from "./drivers/console-browser";
 import type { ConsoleTypographyOptions, StyleResolveOptions } from "./drivers/style";
 import { InputEngine, type FocusChangeEvent } from "./input";
+import { claimConsole } from "./console-intent";
 import { paintScene, type PaintOptions, type SceneNode } from "./scene";
 import { ViewportController, type ResolvedViewport, type ViewportOptions } from "./viewport";
 
@@ -304,12 +305,15 @@ export class ConsoleRenderer {
       doc.addEventListener("visibilitychange", onVis);
       this.cleanup.push(() => doc.removeEventListener("visibilitychange", onVis));
     }
+    // The page's console is ours: an embed holding it stops (and drops its `window.text`) first.
+    if (hasWindow && options.console === undefined) this.cleanup.push(claimConsole({}));
     const reg = options.registerGlobal ?? hasWindow;
     if (reg) {
       const name = typeof reg === "string" ? reg : "text";
       // Implicit registration never steals `window.text` from another live renderer.
-      const existing = (globalThis as Record<string, unknown>)[name] as TextConsoleApi | undefined;
-      const owned = existing?.renderer instanceof ConsoleRenderer && !existing.renderer.disposed;
+      // Duck-typed: the renderer may come from another bundle (an embed next to the page's own app).
+      const existing = (globalThis as Record<string, unknown>)[name] as { renderer?: { disposed?: unknown } } | undefined;
+      const owned = typeof existing?.renderer === "object" && existing.renderer !== null && existing.renderer.disposed === false;
       if (options.registerGlobal !== undefined || !owned) this.registerGlobal(name);
     }
   }

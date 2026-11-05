@@ -54,3 +54,5 @@ export function parseBannerColor(input: ColorInput): PackedColor {
   if (/^0x[0-9a-fA-F]{1,8}$/.test(s)) return parseInt(s.slice(2), 16) >>> 0;
   return COLOR_DEFAULT;
 }
+
+export { engageSurfaceOf, isMac } from "./console-intent";

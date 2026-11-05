@@ -41,6 +41,7 @@
     "./mcp": "./src/mcp/index.ts",
     "./frame-protocol": "./src/frame-protocol.ts",
     "./cli": "./src/cli/index.ts",
+    "./experimental": "./src/experimental.ts",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -69,6 +70,7 @@
       "./mcp": { "types": "./dist/mcp/index.d.ts", "default": "./dist/mcp/index.js" },
       "./frame-protocol": { "types": "./dist/frame-protocol.d.ts", "default": "./dist/frame-protocol.js" },
       "./cli": { "types": "./dist/cli/index.d.ts", "default": "./dist/cli/index.js" },
+      "./experimental": { "types": "./dist/experimental.d.ts", "default": "./dist/experimental.js" },
       "./package.json": "./package.json"
     }
   },

@@ -164,6 +164,37 @@ describe("<AppRouter>", () => {
   });
 });
 
+describe("external URLs", () => {
+  test("under in-memory history, an absolute URL on the page's own origin still goes to openExternal", async () => {
+    const g = globalThis as { window?: unknown };
+    const prev = g.window;
+    const assigned: string[] = [];
+    // An embed served from another origin, on a host page at host.example.
+    g.window = { location: { origin: "https://host.example", assign: (href: string) => assigned.push(href) } };
+    try {
+      let router: ReturnType<typeof useRouter> | null = null;
+      function Page(): ReactNode {
+        router = useRouter();
+        return <Text>{`at ${usePathname()}`}</Text>;
+      }
+      const opened: string[] = [];
+      const history = createMemoryHistory("/");
+      t = await createTestRoot({ width: 40, height: 4 });
+      await t.render(<AppRouter routes={{ segment: "", page: { default: Page }, children: [{ segment: "about", page: { default: Page } }] }} history={history} errorStore={null} documentTitle={false} openExternal={(href) => opened.push(href)} />);
+      await t.act(() => router!.push("https://host.example/pricing"));
+      await t.act(() => router!.push("//host.example/docs"));
+      expect(opened).toEqual(["https://host.example/pricing", "//host.example/docs"]);
+      expect(history.location.pathname).toBe("/");
+      await t.act(() => router!.push("/about"));
+      expect(history.location.pathname).toBe("/about");
+      expect(assigned).toEqual([]);
+    } finally {
+      if (prev === undefined) delete g.window;
+      else g.window = prev;
+    }
+  });
+});
+
 describe("error.tsx, loading.tsx and the root error boundary", () => {
   let shouldThrow = true;
   function Flaky(): ReactNode {

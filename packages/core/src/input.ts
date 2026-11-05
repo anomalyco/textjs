@@ -2,6 +2,8 @@
  * Keyboard, paste, wheel and focus input via a hidden `<textarea>` sink.
  */
 
+import { applyStyle } from "./dom-style";
+
 export interface KeyModifiers {
   ctrl: boolean;
   meta: boolean;
@@ -540,7 +542,7 @@ export class InputEngine {
     sink.setAttribute("data-form-type", "other");
     sink.setAttribute("tabindex", "-1");
     sink.setAttribute("data-textjs-input-sink", "");
-    sink.style.cssText = SINK_STYLE;
+    applyStyle(sink, SINK_STYLE);
     (doc.body ?? doc.documentElement).appendChild(sink);
     this.sink = sink;
 
