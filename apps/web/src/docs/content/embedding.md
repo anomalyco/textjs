@@ -16,7 +16,7 @@ Upload `dist/` to any static host or CDN, or copy it into the site's `public/` f
 <script type="module" src="https://console.example.com/embed.js"></script>
 ```
 
-`embed.js` loads its other files relative to its own URL, so `dist/` works from any path or origin. It holds only `embed.js` and `assets/`, with no `index.html` or `404.html` that could replace the site's own. An app whose first route [renders on the server](#server-rendered-routes), or that has route handlers or middleware, needs `text start` or the `bun` adapter instead.
+`embed.js` loads its other files relative to its own URL, so `dist/` works from any path or origin. It holds only `embed.js` and `assets/`, with no `index.html` or `404.html` that could replace the site's own. An app with [server-rendered routes](#server-rendered-routes), route handlers or middleware needs a server instead of a plain static upload. The `vercel` and `cloudflare` adapters run route handlers and middleware, and server-rendered routes need `text start` or the `bun` adapter.
 
 To show visitors where the app is, add [`<text-console>`](#text-console) anywhere in the page. Any element with `data-textjs-engage` starts the app when pressed, too:
 

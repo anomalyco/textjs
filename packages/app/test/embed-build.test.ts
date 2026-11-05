@@ -433,6 +433,40 @@ describe("text build --embed (server-rendered route)", () => {
   });
 });
 
+describe("text build --embed (client first route, another route server-rendered)", () => {
+  let dir = "";
+  let result: BuildResult;
+  production();
+  beforeAll(async () => {
+    dir = createFixture({ ...CLIENT_APP, "app/status/page.tsx": `import { Text } from "@textjs/app";\nexport const runtime = "server";\nexport default function Status() { return <Text>status</Text>; }\n` }, "textjs-embed-mixed-");
+    result = await buildApp({ root: dir, log: false, embed: true });
+  }, 180_000);
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test(
+    "keeps .text/ for the server-rendered route, and text start serves the embed without serving .text/",
+    async () => {
+      const dist = join(dir, "dist");
+      expect(result.embed?.runtime).toBe("client");
+      expect(existsSync(join(dist, ".text/live-manifest.json"))).toBe(true);
+      expect(existsSync(join(dist, ".text/server/live.mjs"))).toBe(true);
+      const server = await startProductionServer({ root: dir, port: 0, log: false });
+      try {
+        const base = new URL(server.url).origin;
+        const embed = await fetch(`${base}/embed.js`);
+        expect(embed.status).toBe(200);
+        await embed.arrayBuffer();
+        await expectNoMetaFiles(base, [".text/live-manifest.json", ".text/server/live.mjs"]);
+      } finally {
+        await server.close();
+      }
+    },
+    60_000,
+  );
+});
+
 /** `/ops` is behind cookie middleware; `/` isn't. */
 const GUARDED_APP: Record<string, string> = {
   "text.config.ts": config(`{ embed: { initialPath: "/ops" } }`),

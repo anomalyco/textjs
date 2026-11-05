@@ -277,9 +277,9 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
       for (const note of adapter.notes) print(color.gray(`   ${note}`));
       print();
     }
-    // A client-rendered embed with no route handlers or middleware runs without a server. `.text/` (the bundle that
-    // prerendered the first frame, the build manifest) was for the build, and a copy of dist/ would publish it.
-    if (embed?.runtime === "client" && !documents && api.length === 0 && !hasMiddleware) removeServerBundle(outDir);
+    // An embed with no server-rendered routes, route handlers or middleware runs without a server. `.text/` (the bundle
+    // that prerendered the first frame, the build manifest) was for the build, and a copy of dist/ would publish it.
+    if (embed && !live && !documents && api.length === 0 && !hasMiddleware) removeServerBundle(outDir);
     return { outDir, routes, manifest, output: lines.join("\n"), durationMs: performance.now() - started, adapter, ...(embed ? { embed } : {}) };
   }
 }
