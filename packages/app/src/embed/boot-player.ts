@@ -8,6 +8,7 @@ import { claimConsole, CONSOLE_OWNER, type ConsoleOwner } from "@textjs/core/exp
 import { bootFramePlayer, type FramePlayer, type FramePlayerConfig } from "../live-player";
 import { createHostInput, type HostInput } from "./host-input";
 import type { EmbedBootState } from "./loader";
+import { publishEmbed } from "./mirror";
 
 /** The build-time part of an embedded server app's settings. */
 export interface EmbedPlayerConfig {
@@ -53,6 +54,9 @@ export function bootEmbedPlayer(options: EmbedPlayerOptions): EmbedPlayer | null
     shellPaintedAt: painted ? options.shellAt : undefined,
     registerGlobal: config.globalName ?? "text",
   });
+  // Frames and input state for <text-console> elements on the page.
+  const published = publishEmbed(() => player.core.buffer, input);
+  player.core.onPaint = () => published.frame();
   let disposed = false;
   const embedded: EmbedPlayer = {
     player,
@@ -60,6 +64,7 @@ export function bootEmbedPlayer(options: EmbedPlayerOptions): EmbedPlayer | null
     dispose() {
       if (disposed) return;
       disposed = true;
+      published.dispose();
       player.dispose();
       input.dispose();
       release();

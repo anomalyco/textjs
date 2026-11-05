@@ -171,6 +171,68 @@ export function canPrefetchConsole(w?: Window): boolean {
  * `onIntent` before this function returns.
  */
 export function onConsoleIntent(onIntent: (event: ConsoleIntentEvent) => void, options: ConsoleIntentOptions = {}): ConsoleIntentHandle {
+  const prefetch = options.prefetch;
+  if (!prefetch) return watchConsoleIntent(onIntent, options);
+  const off: Array<() => void> = [];
+  const stop = (): void => {
+    for (const fn of off.splice(0)) fn();
+  };
+  const intent = watchConsoleIntent((e) => {
+    stop();
+    onIntent(e);
+  }, options);
+  let disposed = false;
+  const handle: ConsoleIntentHandle = {
+    get triggered() {
+      return intent.triggered;
+    },
+    trigger: intent.trigger,
+    dispose() {
+      disposed = true;
+      stop();
+      intent.dispose();
+    },
+  };
+  const win = options.window ?? defaultWindow();
+  if (intent.triggered || !win || matches(win, COARSE)) return handle;
+  const listen = (target: EventTarget | null | undefined, type: string, fn: (e: Event) => void, capture = false): void => {
+    if (!target) return;
+    target.addEventListener(type, fn, { capture, passive: true });
+    off.push(() => target.removeEventListener(type, fn, capture));
+  };
+  const engage = options.engageSelector ?? DEFAULT_ENGAGE;
+  const doc = win.document;
+  let warmed = false;
+  const warm = (): void => {
+    if (warmed || intent.triggered || disposed || !canPrefetchConsole(win)) return;
+    warmed = true;
+    prefetch();
+  };
+  if (engage !== false) {
+    const onHover = (e: Event): void => {
+      if ((e.target as Element | null)?.closest?.(engage)) warm();
+    };
+    listen(doc, "pointerover", onHover, true);
+    listen(doc, "focusin", onHover, true);
+  }
+  if (options.idlePrefetch) {
+    const ric = typeof win.requestIdleCallback === "function";
+    let id: number | undefined;
+    const schedule = (): void => {
+      id = ric ? win.requestIdleCallback(warm, { timeout: 5000 }) : (setTimeout(warm, 1) as unknown as number);
+    };
+    off.push(() => (ric ? win.cancelIdleCallback(id!) : clearTimeout(id)));
+    if (doc?.readyState === "complete") schedule();
+    else listen(win, "load", schedule);
+  }
+  return handle;
+}
+
+/**
+ * @internal {@link onConsoleIntent} without `prefetch`, so a script that never
+ * warms anything (`embed.js`) doesn't carry it.
+ */
+export function watchConsoleIntent(onIntent: (event: ConsoleIntentEvent) => void, options: Omit<ConsoleIntentOptions, "prefetch" | "idlePrefetch"> = {}): ConsoleIntentHandle {
   const win = options.window ?? defaultWindow();
   const persist = win !== null && options.persist !== false;
   let triggered = false;
@@ -262,33 +324,6 @@ export function onConsoleIntent(onIntent: (event: ConsoleIntentEvent) => void, o
       true,
     );
     listen(doc, "textjs:engage", () => trigger("engage"));
-  }
-
-  const prefetch = options.prefetch;
-  if (prefetch) {
-    let warmed = false;
-    const warm = (): void => {
-      if (warmed || triggered || disposed || !canPrefetchConsole(win)) return;
-      warmed = true;
-      prefetch();
-    };
-    if (engage !== false) {
-      const onHover = (e: Event): void => {
-        if ((e.target as Element | null)?.closest?.(engage)) warm();
-      };
-      listen(doc, "pointerover", onHover, true);
-      listen(doc, "focusin", onHover, true);
-    }
-    if (options.idlePrefetch) {
-      const ric = typeof win.requestIdleCallback === "function";
-      let id: number | undefined;
-      const schedule = (): void => {
-        id = ric ? win.requestIdleCallback(warm, { timeout: 5000 }) : (setTimeout(warm, 1) as unknown as number);
-      };
-      cleanup.push(() => (ric ? win.cancelIdleCallback(id!) : clearTimeout(id)));
-      if (doc?.readyState === "complete") schedule();
-      else listen(win, "load", schedule);
-    }
   }
 
   return handle;

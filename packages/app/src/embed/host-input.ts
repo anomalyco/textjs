@@ -18,7 +18,7 @@ const REFOCUS_MS = 300;
 
 export interface HostInput {
   readonly engine: InputEngine;
-  /** Whether keys go to the app. */
+  /** Whether keys go to the app: the visitor engaged it and no field of the page has focus. */
   readonly engaged: boolean;
   /** Route keys to the app and focus its input. */
   engage(): void;
@@ -70,7 +70,7 @@ export function createHostInput(options: HostInputOptions = {}): HostInput {
   };
   const onClick = (e: MouseEvent): void => {
     // Enter or Space on a focused surface.
-    if (e.detail === 0 && engageSurfaceOf(e.target, ENGAGE_SELECTOR)) return engage();
+    if (e.detail === 0 && engageSurfaceOf(e.target, ENGAGE_SELECTOR) && (e.target as Element).closest(BYPASS_SELECTOR) == null) return engage();
     if (!focusAfterClick) return;
     focusAfterClick = false;
     // Once the click is over, and only without a text selection, so drag-to-select and copy still work.
@@ -84,8 +84,9 @@ export function createHostInput(options: HostInputOptions = {}): HostInput {
   if (open) engine.focus();
   return {
     engine,
+    // Not only pressed: focus that moved into one of the page's fields (Tab, autofocus, a dialog) has the keys.
     get engaged() {
-      return open;
+      return routes();
     },
     engage,
     dispose() {
