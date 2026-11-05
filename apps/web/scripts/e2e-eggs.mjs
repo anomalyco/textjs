@@ -233,6 +233,38 @@ if (complete) {
 }
 
 check("no page errors", errors.length === 0, errors.join("\n"));
+
+// ── a failed download of the search dialog or the logo menu is tried again on the next ⌘K or right-click ──
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await ctx.route((url) => /^(127\.0\.0\.1|localhost|\[::1\])$/.test(url.hostname) && url.port !== port, (r) => r.abort());
+  const p = await ctx.newPage();
+  const fail = new Set(["SearchDialog", "LogoMenu"]);
+  const aborted = [];
+  await p.route(/\/assets\/(SearchDialog|LogoMenu)-[^/]+\.js$/, (r) => {
+    const name = /\/(SearchDialog|LogoMenu)-/.exec(r.request().url())[1];
+    if (!fail.has(name)) return r.continue();
+    aborted.push(name);
+    return r.abort();
+  });
+  await p.goto(`${base}/`, { waitUntil: "networkidle" });
+  await p.keyboard.press("Meta+k");
+  await p.waitForTimeout(500);
+  check("⌘K with the dialog's download failing shows nothing", aborted.includes("SearchDialog") && (await p.locator(".kbar").count()) === 0, aborted.join(","));
+  fail.delete("SearchDialog");
+  await p.keyboard.press("Meta+k");
+  check("the next ⌘K opens search", await p.locator(".kbar input").waitFor({ timeout: 3000 }).then(() => true, () => false));
+  await p.keyboard.press("Escape");
+  const logoMenu = p.locator('[role="menu"][aria-label="Logo"]');
+  await p.locator(".header .wordmark").click({ button: "right" });
+  await p.waitForTimeout(500);
+  check("right-click with the menu's download failing shows nothing", aborted.includes("LogoMenu") && (await logoMenu.count()) === 0, aborted.join(","));
+  fail.delete("LogoMenu");
+  await p.locator(".header .wordmark").click({ button: "right" });
+  check("the next right-click opens the logo menu", await logoMenu.waitFor({ timeout: 3000 }).then(() => true, () => false));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failures ? `\n${failures} failed` : "\nall egg checks passed");
 process.exit(failures ? 1 : 0);

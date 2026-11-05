@@ -1,3 +1,4 @@
+import { canPrefetchConsole } from "@textjs/core/experimental";
 import { useEffect, useState, type ReactNode } from "react";
 import { useConsoleLogDown } from "../console-health";
 import { activateCompanion } from "../console-companion/bridge";
@@ -9,7 +10,7 @@ import { A, useLocation } from "../router";
 import { ArrowUpRight, ChevronRight, CloseIcon, GitHubIcon, Logo, MenuIcon, SearchIcon } from "./icons";
 import { REPO_URL } from "./links";
 import { LogoMenu, preloadLogoMenu, useLogoMenu } from "./logo-menu-loader";
-import { openSearch, preloadSearchDialog } from "./SearchModal";
+import { openSearch, preloadSearch } from "./SearchModal";
 import { hasLocaleMenu, LocaleMenu } from "./LocaleMenu";
 import { Sheet, useCloseOnMedia } from "./Sheet";
 
@@ -57,6 +58,11 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** Hovering or focusing a search button downloads search where prefetching suits the device and connection. */
+function warmSearch(): void {
+  if (canPrefetchConsole()) preloadSearch();
+}
+
 export function Header(): ReactNode {
   const { path: pathname } = useLocation();
   const [menu, setMenu] = useState(false);
@@ -78,9 +84,9 @@ export function Header(): ReactNode {
           dir="ltr"
           lang="en"
           onContextMenu={openLogoMenu}
-          onMouseEnter={() => void preloadLogoMenu()}
-          onFocus={() => void preloadLogoMenu()}
-          onPointerDown={() => void preloadLogoMenu()}
+          onMouseEnter={preloadLogoMenu}
+          onFocus={preloadLogoMenu}
+          onPointerDown={preloadLogoMenu}
         >
           <Logo size={20} />
           <span>Text.js</span>
@@ -98,9 +104,9 @@ export function Header(): ReactNode {
             type="button"
             className="search-btn"
             onClick={openSearch}
-            onMouseEnter={() => void preloadSearchDialog()}
-            onFocus={() => void preloadSearchDialog()}
-            onPointerDown={() => void preloadSearchDialog()}
+            onMouseEnter={warmSearch}
+            onFocus={warmSearch}
+            onPointerDown={preloadSearch}
           >
             <SearchIcon />
             <span>{t("Search")}</span>
@@ -113,9 +119,9 @@ export function Header(): ReactNode {
             type="button"
             className="icon-btn search-icon-btn"
             onClick={search}
-            onMouseEnter={() => void preloadSearchDialog()}
-            onFocus={() => void preloadSearchDialog()}
-            onPointerDown={() => void preloadSearchDialog()}
+            onMouseEnter={warmSearch}
+            onFocus={warmSearch}
+            onPointerDown={preloadSearch}
             aria-label={t("Search documentation")}
           >
             <SearchIcon size={18} />
@@ -136,7 +142,7 @@ export function Header(): ReactNode {
         </div>
       </div>
       <Sheet open={menu} onClose={close} id="mobile-nav" label={t("Site navigation")} side="top" className="mobile-nav">
-        <button type="button" className="mobile-search" onClick={search}>
+        <button type="button" className="mobile-search" onClick={search} onPointerDown={preloadSearch}>
           <SearchIcon size={16} />
           <span>{t("Search documentation…")}</span>
         </button>

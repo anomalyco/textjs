@@ -1,5 +1,7 @@
+import { canPrefetchConsole } from "@textjs/core/experimental";
 import { useEffect, useState, type ReactNode } from "react";
 import { siteStore } from "../console-companion/store";
+import { prefetchFailed } from "../telemetry/capture";
 
 export type SearchEngine = {
   searchDocsMeta: typeof import("../docs/search").searchDocsMeta;
@@ -16,29 +18,42 @@ let enginePromise: Promise<SearchEngine> | null = null;
 function preloadSearchEngine(): Promise<SearchEngine> {
   if (engineCache) return Promise.resolve(engineCache);
   if (!enginePromise) {
-    enginePromise = Promise.all([import("../docs/search"), import("./search-aliases")]).then(([idx, al]) => {
+    const promise = Promise.all([import("../docs/search"), import("./search-aliases")]).then(([idx, al]) => {
       engineCache = { searchDocsMeta: idx.searchDocsMeta, aliasResults: al.aliasResults };
       return engineCache;
     });
-    // A failed download (a chunk gone after a deploy, say) is tried again next time.
-    enginePromise.catch(() => (enginePromise = null));
+    enginePromise = promise;
+    // A failed download (a chunk gone after a deploy, say) is reported, and tried again next time.
+    promise.catch((error: unknown) => {
+      if (enginePromise === promise) enginePromise = null;
+      prefetchFailed(error);
+    });
   }
   return enginePromise;
 }
 
-/** Download the search dialog, then its index (a search button hovered or focused, ⌘ or Ctrl pressed). */
+/** Download the search dialog without its index (⌘ or Ctrl going down, before the K). */
 export function preloadSearchDialog(): Promise<DialogModule> {
   if (dialogCache) return Promise.resolve(dialogCache);
   if (!dialogPromise) {
-    // The dialog first, so the index doesn't share its bandwidth: until the index loads, the dialog matches titles.
-    dialogPromise = import("./SearchDialog").then((m) => {
+    const promise = import("./SearchDialog").then((m) => {
       dialogCache = m;
-      void preloadSearchEngine();
       return m;
     });
-    dialogPromise.catch(() => (dialogPromise = null));
+    dialogPromise = promise;
+    promise.catch((error: unknown) => {
+      if (dialogPromise === promise) dialogPromise = null;
+      prefetchFailed(error);
+    });
   }
   return dialogPromise;
+}
+
+/** Download the search dialog, then its index (a search button pressed, hovered or focused). */
+export function preloadSearch(): void {
+  preloadSearchDialog()
+    .then(preloadSearchEngine)
+    .catch(() => undefined);
 }
 
 export function openSearch(): void {
@@ -52,13 +67,15 @@ export function SearchModal(): ReactNode {
   const [engine, setEngine] = useState<SearchEngine | null>(() => engineCache);
 
   useEffect(() => {
+    // The dialog first, so the index doesn't share its bandwidth: until the index loads, the dialog matches titles.
     const load = (): void => {
-      void preloadSearchDialog()
-        .then((m) => {
+      preloadSearchDialog().then(
+        (m) => {
           setDialog(m);
-          return preloadSearchEngine();
-        })
-        .then(setEngine);
+          preloadSearchEngine().then(setEngine, () => undefined);
+        },
+        () => setOpen(false),
+      );
     };
     const l = (v: boolean): void => {
       if (v) load();
@@ -67,7 +84,10 @@ export function SearchModal(): ReactNode {
     openListeners.add(l);
     const onKey = (e: KeyboardEvent): void => {
       // ⌘ or Ctrl comes down before the K: fetch the dialog in that gap.
-      if (e.key === "Meta" || e.key === "Control") return void preloadSearchDialog();
+      if (e.key === "Meta" || e.key === "Control") {
+        if (!e.repeat && !e.altKey && !e.shiftKey && canPrefetchConsole()) preloadSearchDialog().catch(() => undefined);
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "k") {
         // An example running in the console keeps the Ctrl+K it received (its command palette); ⌘K still searches.
         if (e.defaultPrevented && siteStore.getSnapshot().example !== null) return;
