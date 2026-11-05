@@ -64,14 +64,14 @@ describe("<text-console> attributes", () => {
     const { css, ...rest } = textConsoleConfig(config);
     expect(rest).toEqual({ title: "Acme", hints: [{ keys: "← →", label: "switch" }], action: "type a prompt" });
     expect(css).toBe(page.replaceAll("text-console:is([mirror],[chrome])", ":host(:is([mirror],[chrome]))").replaceAll("text-console[chrome]", ":host([chrome])").replaceAll("text-console:not([mirror],[chrome])", ":host(:not([mirror],[chrome]))").replaceAll("text-console{", ":host{"));
-    expect(textConsoleConfig({}).css).toContain("aspect-ratio:882/522");
+    expect(textConsoleConfig({}).css).toContain("aspect-ratio:885/522");
   });
 
-  test("reserved size: a 58px bar, and a mirror at the grid's ratio for a 7.2×14px cell, 43px taller with chrome", () => {
+  test("reserved size: a 58px bar, and a mirror at the grid's ratio for a 7.225×14px cell, 43px taller with chrome", () => {
     const css = reserveCss(100, 20);
     expect(css).toBe(
       "text-console{display:block;min-height:58px}" +
-        "text-console:is([mirror],[chrome]){position:relative;box-sizing:content-box;min-height:0;max-width:738px;aspect-ratio:738/298}" +
+        "text-console:is([mirror],[chrome]){position:relative;box-sizing:content-box;min-height:0;max-width:741px;aspect-ratio:741/298}" +
         "text-console[chrome]{padding-top:43px}" +
         "@media (hover:none) and (pointer:coarse){text-console:not([mirror],[chrome]){display:none}}",
     );

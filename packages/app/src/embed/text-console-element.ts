@@ -277,7 +277,7 @@ export function createMount(config: TextConsoleConfig): (host: HTMLElement, data
     if (!s || !box) return;
     s.style.zoom = "";
     const w = s.offsetWidth;
-    if (w) s.style.zoom = `${Math.max(1, Math.floor(14 * Math.min(box.clientWidth / w, box.clientHeight / s.offsetHeight))) / 14}`;
+    if (w) s.style.zoom = `${Math.max(1, Math.floor(14 * Math.min(1, box.clientWidth / w, box.clientHeight / s.offsetHeight))) / 14}`;
   };
 
   const draw = (v: View): void => {

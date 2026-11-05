@@ -186,7 +186,7 @@ describe("text build --embed (client route)", () => {
   });
 
   test("prints the CSS that reserves <text-console>'s space on the host page", () => {
-    expect(result.embed?.reserveCss).toContain("aspect-ratio:882/522");
+    expect(result.embed?.reserveCss).toContain("aspect-ratio:885/522");
     expect(result.output).toContain(result.embed?.reserveCss as string);
   });
 
