@@ -219,7 +219,7 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
     let embed: EmbedBuildResult | undefined;
     if (embedSettings) {
       try {
-        embed = await buildEmbed({ root: opts.root, config, outDir, scan, settings: embedSettings });
+        embed = await buildEmbed({ root: opts.root, config, outDir, scan, settings: embedSettings, liveBundleBuilt: live !== null });
       } catch (error) {
         print(fail(color.red("Failed to build embed.js.")));
         print();

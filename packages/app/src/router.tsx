@@ -429,7 +429,9 @@ export function AppRouter({
 
   const router = useMemo<AppRouterInstance>(() => {
     const navigate = (href: string, kind: "push" | "replace"): void => {
-      if (isExternalHref(href, typeof window !== "undefined" ? window.location.origin : undefined)) {
+      // In-memory history isn't tied to the page's address (an embed on another site): every absolute URL is external.
+      const origin = "entries" in history || typeof window === "undefined" ? undefined : window.location.origin;
+      if (isExternalHref(href, origin)) {
         if (openExternal) openExternal(href);
         else if (typeof window !== "undefined") window.location.assign(href);
         return;

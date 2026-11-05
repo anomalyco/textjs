@@ -263,6 +263,30 @@ describe("text build --embed (client route)", () => {
     180_000,
   );
 
+  test(
+    "emptyOutDir: false: a rebuild prerenders the page as it is now, not the SSR bundle an earlier build left behind",
+    async () => {
+      writeFileSync(join(dir, "text.config.ts"), config(`{ title: "Status", embed: true, vite: { build: { emptyOutDir: false } } }`));
+      try {
+        const first = await buildApp({ root: dir, log: false });
+        writeFileSync(join(dir, "dist/sentinel.txt"), "keep");
+        expect(readFileSync(join(dir, "dist/embed.js"), "utf8")).toContain("Acme Systems");
+        writeFileSync(join(dir, "app/page.tsx"), STATUS_PAGE.replace("Acme Systems", "Globex Systems"));
+        const second = await buildApp({ root: dir, log: false });
+        for (const f of ["embed.js", second.embed?.hashedEntry as string]) {
+          const code = readFileSync(join(dir, "dist", f), "utf8");
+          expect({ f, now: code.includes("Globex Systems"), before: code.includes("Acme Systems") }).toEqual({ f, now: true, before: false });
+        }
+        expect(second.embed?.hashedEntry).not.toBe(first.embed?.hashedEntry);
+        expect(readFileSync(join(dir, "dist/sentinel.txt"), "utf8")).toBe("keep");
+      } finally {
+        writeFileSync(join(dir, "app/page.tsx"), STATUS_PAGE);
+        writeFileSync(join(dir, "text.config.ts"), CLIENT_APP["text.config.ts"] as string);
+      }
+    },
+    180_000,
+  );
+
   test("rejects an initialPath that isn't an app path", async () => {
     writeFileSync(join(dir, "text.config.ts"), config(`{ embed: { initialPath: "https://evil.example/" } }`));
     try {

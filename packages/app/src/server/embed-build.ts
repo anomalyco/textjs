@@ -11,7 +11,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
@@ -35,6 +35,12 @@ export interface EmbedBuildOptions {
   scan: AppScan;
   settings: EmbedSettings;
   prerenderTimeoutMs?: number;
+  /**
+   * This build already wrote `.text/server/live.mjs` (`buildLiveRoutes` ran).
+   * Otherwise it's built here: a copy left in the output by an earlier build
+   * (`emptyOutDir: false`) would render the old page.
+   */
+  liveBundleBuilt?: boolean;
 }
 
 export interface Size {
@@ -153,7 +159,7 @@ export async function buildEmbed(o: EmbedBuildOptions): Promise<EmbedBuildResult
   if (config.ppr !== false && middlewareCouldGuard(middleware, settings.initialPath)) shellError = GUARDED_SHELL;
   else if (config.ppr !== false) {
     const live = join(outDir, ".text", "server", "live.mjs");
-    if (!existsSync(live)) await buildLiveBundle({ root: o.root, config, outDir, plugins: textjsVitePlugin({ ...config, root: o.root }) });
+    if (o.liveBundleBuilt !== true) await buildLiveBundle({ root: o.root, config, outDir, plugins: textjsVitePlugin({ ...config, root: o.root }) });
     const vp = config.viewport ?? {};
     const out = await prerenderInChild(live, {
       paths: [settings.initialPath],
