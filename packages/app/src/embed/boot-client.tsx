@@ -17,6 +17,7 @@ import { AppRouter } from "../router";
 import type { RouteManifest } from "../routing";
 import { createHostInput, type HostInput } from "./host-input";
 import type { EmbedBootState } from "./loader";
+import { publishEmbed } from "./mirror";
 
 /** The build-time part of an embedded client app's settings. */
 export interface EmbedClientConfig {
@@ -90,6 +91,11 @@ export async function bootEmbedClient(options: EmbedClientOptions): Promise<Embe
     throw error;
   }
   const history = createMemoryHistory(config.initialPath ?? "/");
+  // Frames and input state for <text-console> elements on the page.
+  const published = publishEmbed(() => root.renderer.buffer, input);
+  const offFrame = root.onFrame((f) => {
+    if (!f.skipped) published.frame();
+  });
   let disposed = false;
   const client: EmbedClient = {
     root,
@@ -98,6 +104,8 @@ export async function bootEmbedClient(options: EmbedClientOptions): Promise<Embe
     dispose() {
       if (disposed) return;
       disposed = true;
+      offFrame();
+      published.dispose();
       root.unmount();
       input.dispose();
       release();

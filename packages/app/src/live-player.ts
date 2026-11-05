@@ -117,6 +117,9 @@ export class FramePlayerCore {
   /** Stop / restart painting (`text.pause()`: select and copy freely). */
   paused = false;
 
+  /** Called after each frame it logs (an embed mirrors them into `<text-console>`). */
+  onPaint: (() => void) | null = null;
+
   /** Apply a server frame. Returns `false` when the delta didn't match the buffer (a reconnect will resync). */
   applyFrame(msg: Extract<LiveServerMessage, { t: "f" }>, size = 0): boolean {
     this.bytes += size;
@@ -164,6 +167,11 @@ export class FramePlayerCore {
     const wait = this.lastEmit + (this.lastCleared ? this.postClear : this.interval) - this.now();
     this.schedule(() => {
       this.scheduled = false;
+      // Paused, hidden or disposed while the frame waited: hold it.
+      if (this.hidden || this.paused) {
+        this.pendingWhileHidden = true;
+        return;
+      }
       this.paint();
     }, wait > 1 ? wait : 0);
   }
@@ -176,6 +184,7 @@ export class FramePlayerCore {
     this.lastEmit = this.now();
     this.lastCleared = r.cleared === true;
     this.frames++;
+    this.onPaint?.();
     return true;
   }
 }
@@ -499,6 +508,9 @@ export function bootFramePlayer(config: FramePlayerConfig = readConfig(document)
       if (released) return;
       released = true;
       disposed = true;
+      // A frame already waiting on the pacing timer never paints over whoever has the console now.
+      core.paused = true;
+      core.onPaint = null;
       core.driver._setBanner(null);
       stream?.abort();
       if (retryTimer !== null) clearTimeout(retryTimer);

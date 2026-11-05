@@ -147,10 +147,21 @@ window.startHostPlayer = () => { window.hostApp = bootFramePlayer({ basePath: ""
 if (new URLSearchParams(location.search).get("host") === "first") window.startHost();
 `;
 
-const hostHtml = (src: string, host: boolean): string => `<!doctype html>
-<html><head><meta charset="utf-8"><title>Acme host</title><link rel="icon" href="data:,"></head>
+/** What `?el=` puts on the host page. */
+const ELEMENTS: Record<string, string> = {
+  mirror: "<text-console mirror></text-console>",
+  chrome: "<text-console chrome></text-console>",
+  pad: "<text-console></text-console>",
+  hints: '<text-console hints="← →:switch region"></text-console>',
+};
+/** A page stylesheet that would restyle anything it reaches. */
+const LEAKY_CSS = "* { letter-spacing: 3px !important; text-transform: uppercase !important; font-family: Georgia, serif !important; color: red !important; }";
+
+const hostHtml = (src: string, host: boolean, element = "", leak = false, reserve = false): string => `<!doctype html>
+<html><head><meta charset="utf-8"><title>Acme host</title><link rel="icon" href="data:,">${leak ? '<link rel="stylesheet" href="/host.css">' : ""}${reserve ? '<link rel="stylesheet" href="/reserve.css">' : ""}</head>
 <body>
   <h1>Acme</h1>
+  ${element}
   <input id="field" aria-label="field">
   <button type="button" data-textjs-engage>Open in the console</button>
   <p id="prose">Long page.</p>
@@ -167,6 +178,8 @@ describe.skipIf(!enabled)("embed.js on a plain HTML page in Chromium", () => {
   let host: ReturnType<typeof Bun.serve>;
   let browser: Browser;
   let hostScript = "";
+  /** What `text build --embed` printed for host pages. */
+  let reserveCss = "";
   const env = process.env.NODE_ENV;
 
   beforeAll(async () => {
@@ -174,7 +187,7 @@ describe.skipIf(!enabled)("embed.js on a plain HTML page in Chromium", () => {
     delete process.env.NODE_ENV;
     dir = createFixture(CLIENT_APP, "textjs-embed-e2e-");
     serverDir = createFixture(SERVER_APP, "textjs-embed-e2e-live-");
-    await buildApp({ root: dir, log: false });
+    reserveCss = (await buildApp({ root: dir, log: false })).embed?.reserveCss as string;
     await buildApp({ root: serverDir, log: false });
     if (env !== undefined) process.env.NODE_ENV = env;
     embed = await startProductionServer({ root: dir, port: 0, log: false });
@@ -191,9 +204,11 @@ describe.skipIf(!enabled)("embed.js on a plain HTML page in Chromium", () => {
       fetch: (req) => {
         const url = new URL(req.url);
         if (url.pathname === "/host.js") return new Response(hostScript, { headers: { "content-type": "text/javascript" } });
+        if (url.pathname === "/host.css") return new Response(LEAKY_CSS, { headers: { "content-type": "text/css" } });
+        if (url.pathname === "/reserve.css") return new Response(reserveCss, { headers: { "content-type": "text/css" } });
         if (url.pathname !== "/") return new Response("not found", { status: 404 });
         const src = url.searchParams.get("embed") === "live" ? `${new URL(live.url).origin}/embed.js` : `${new URL(embed.url).origin}/embed.js`;
-        return new Response(hostHtml(src, url.searchParams.has("host")), { headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": csp } });
+        return new Response(hostHtml(src, url.searchParams.has("host"), ELEMENTS[url.searchParams.get("el") ?? ""], url.searchParams.has("leak"), url.searchParams.has("reserve")), { headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": csp } });
       },
     });
     const pw = (await import(PLAYWRIGHT)) as PW;
@@ -534,6 +549,264 @@ describe.skipIf(!enabled)("embed.js on a plain HTML page in Chromium", () => {
         expect(requests()).toEqual(["/embed.js"]);
         expect(logs()).toEqual(["host log before embed"]);
         expect(await page.evaluate(() => ({ text: "text" in window, owner: Symbol.for("textjs.consoleOwner") in globalThis }))).toEqual({ text: false, owner: false });
+      } finally {
+        await context.close();
+      }
+    },
+    60_000,
+  );
+
+  /** `<text-console>`'s shadow tree: its state, the mirror's text and the styles it ended up with. */
+  const element = (page: Page) =>
+    page.evaluate(() => {
+      const host = document.querySelector("text-console") as HTMLElement;
+      const f = host.shadowRoot?.querySelector(".f") as HTMLElement | null;
+      const css = f ? getComputedStyle(f) : null;
+      return {
+        state: f?.dataset.state ?? null,
+        text: (host.shadowRoot?.querySelector(".s") ?? host.shadowRoot?.querySelector(".b"))?.textContent ?? "",
+        display: getComputedStyle(host).display,
+        label: host.getAttribute("aria-label"),
+        style: css ? { letterSpacing: css.letterSpacing, textTransform: css.textTransform, font: css.fontFamily.includes("Georgia") } : null,
+        violations: (window as unknown as { __violations: string[] }).__violations,
+      };
+    });
+  const isElement = (p: string): boolean => /^\/assets\/text-console-[\w-]{8}\.js$/.test(p);
+
+  test(
+    "<text-console mirror>: the first frame before anything else loads, then a press boots the app and the mirror follows it",
+    async () => {
+      const context = await desktop();
+      try {
+        const { page, requests, count, errors } = await open(context, hostUrl("?el=mirror"));
+        await until(async () => (await element(page)).text.includes("region us"));
+        await sleep(500);
+        expect(requests().filter((r) => r !== "/embed.js").every(isElement)).toBe(true);
+        expect(requests().some(isElement)).toBe(true);
+        expect(count("Acme Systems")).toBe(1);
+        // The curtain that pushes earlier logs up in the console is left out of the page.
+        expect((await element(page)).text.startsWith("\u200b")).toBe(false);
+
+        await page.click("text-console");
+        await until(() => count("Acme Systems") >= 2);
+        expect(requests().some(isRuntime)).toBe(true);
+        await page.keyboard.press("ArrowRight");
+        await until(() => count("region eu") > 0);
+        await until(async () => (await element(page)).text.includes("region eu"));
+        const after = await element(page);
+        expect(after.state).toBe("live");
+        expect(after.violations).toEqual([]);
+        expect(errors()).toEqual([]);
+      } finally {
+        await context.close();
+      }
+    },
+    60_000,
+  );
+
+  test(
+    "<text-console>: open the console, then click here, then live as keys reach the app",
+    async () => {
+      const context = await desktop();
+      try {
+        const { page, dock, count, requests, errors } = await open(context, hostUrl("?el=pad"));
+        await until(async () => (await element(page)).state === "open");
+        expect((await element(page)).text).toContain("Open the console");
+        expect((await element(page)).label).toMatch(/^Open the console, press (⌘ ⌥|Ctrl Shift) J$/);
+        await dock();
+        await until(() => requests().some(isRuntime));
+        await until(async () => (await element(page)).state === "click");
+        expect((await element(page)).text).toContain("Click to focus");
+        expect((await element(page)).label).toBe("Click to focus");
+        // Keyboard users: Tab to it and press Enter.
+        await page.focus("text-console");
+        await page.keyboard.press("Enter");
+        await until(async () => (await element(page)).state === "live");
+        expect((await element(page)).label).toBe("Live in your console");
+        await page.keyboard.press("ArrowRight");
+        await until(() => count("region eu") > 0);
+        expect((await element(page)).violations).toEqual([]);
+        expect(errors()).toEqual([]);
+      } finally {
+        await context.close();
+      }
+    },
+    60_000,
+  );
+
+  test(
+    "<text-console>: once focus moves into one of the page's fields without a press, it's no longer live and its keycaps stay dark",
+    async () => {
+      const context = await desktop();
+      try {
+        const { page, dock, count, requests } = await open(context, hostUrl("?el=hints"));
+        await dock();
+        await until(() => requests().some(isRuntime));
+        await page.click("text-console");
+        await until(async () => (await element(page)).state === "live");
+        expect((await element(page)).label).toBe("← → switch region");
+        const lit = () => page.evaluate(() => document.querySelector("text-console")?.shadowRoot?.querySelectorAll("[data-lit]").length ?? 0);
+        await page.keyboard.down("ArrowRight");
+        expect(await lit()).toBeGreaterThan(0);
+        await page.keyboard.up("ArrowRight");
+        await until(() => count("region eu") > 0);
+        await sleep(250);
+        // Tab, autofocus or a dialog moves focus into a field: the page has the keys.
+        await page.focus("#field");
+        await until(async () => (await element(page)).state !== "live");
+        await page.keyboard.down("ArrowRight");
+        expect(await lit()).toBe(0);
+        await page.keyboard.up("ArrowRight");
+        await sleep(300);
+        expect(count("region ap")).toBe(0);
+      } finally {
+        await context.close();
+      }
+    },
+    60_000,
+  );
+
+  test(
+    "<text-console mirror> taken out of the page and put back draws what the app painted meanwhile",
+    async () => {
+      const context = await desktop();
+      try {
+        const { page, count } = await open(context, hostUrl("?el=mirror"));
+        await page.click("text-console");
+        await until(() => count("Acme Systems") >= 2);
+        await page.keyboard.press("ArrowRight");
+        await until(async () => (await element(page)).text.includes("region eu"));
+        expect((await element(page)).label).toBe("Live");
+        await page.evaluate(() => {
+          const el = document.querySelector("text-console") as HTMLElement;
+          (window as unknown as { __parked: HTMLElement }).__parked = el;
+          el.remove();
+        });
+        await page.keyboard.press("ArrowRight");
+        await until(() => count("region ap") > 0);
+        await page.evaluate(() => document.body.prepend((window as unknown as { __parked: HTMLElement }).__parked));
+        await until(async () => (await element(page)).text.includes("region ap"));
+      } finally {
+        await context.close();
+      }
+    },
+    60_000,
+  );
+
+  test(
+    "<text-console mirror>: an app with more than 4,096 span styles starts them over between frames, never partway through one",
+    async () => {
+      const context = await desktop();
+      try {
+        const { page } = await open(context, hostUrl("?el=mirror"));
+        await until(async () => (await element(page)).text.includes("region us"));
+        const colors = await page.evaluate(() => {
+          type Frame = [string, string[], number, number];
+          const hub = (globalThis as unknown as Record<symbol, { app: unknown; listeners: Set<() => void> }>)[Symbol.for("textjs.embed")]!;
+          const frame = (n: number, base: number): Frame => [
+            "%cx".repeat(n),
+            Array.from({ length: n }, (_, i) => `color:rgb(${(base + i) % 256}, ${Math.floor((base + i) / 256) % 256}, 7);`),
+            n,
+            1,
+          ];
+          const spans = (): string[] => {
+            const all = [...(document.querySelector("text-console")!.shadowRoot!.querySelectorAll(".s span") as NodeListOf<HTMLElement>)];
+            return [all[0]!, all[all.length - 1]!].map((s) => getComputedStyle(s).color);
+          };
+          let next = frame(4100, 0);
+          hub.app = { frame: () => next, engaged: () => false, docked: () => false };
+          for (const l of hub.listeners) l();
+          const first = spans();
+          next = frame(3, 9000);
+          for (const l of hub.listeners) l();
+          return [first, spans()];
+        });
+        expect(colors).toEqual([
+          ["rgb(0, 0, 7)", "rgb(3, 16, 7)"],
+          ["rgb(40, 35, 7)", "rgb(42, 35, 7)"],
+        ]);
+      } finally {
+        await context.close();
+      }
+    },
+    60_000,
+  );
+
+  test(
+    "with the CSS text build printed, the page doesn't move when <text-console> loads (bar, mirror, chrome)",
+    async () => {
+      const context = await desktop();
+      try {
+        for (const el of ["pad", "mirror", "chrome"]) {
+          const { page, requests } = await open(context, hostUrl(`?el=${el}&reserve`), async (p) => {
+            await p.addInitScript(() => {
+              const w = window as unknown as { __cls: number };
+              w.__cls = 0;
+              new PerformanceObserver((list) => {
+                for (const e of list.getEntries() as unknown as Array<{ value: number; hadRecentInput: boolean }>) if (!e.hadRecentInput) w.__cls += e.value;
+              }).observe({ type: "layout-shift", buffered: true });
+            });
+            // The element's file arrives 1.5 s after the page painted.
+            await p.route(/\/assets\/text-console-[\w-]+\.js$/, async (r) => {
+              await sleep(1500);
+              await r.continue();
+            });
+          });
+          await until(() => requests().some(isElement));
+          await until(async () => (await element(page)).state !== null, 10_000);
+          await sleep(500);
+          const box = await page.evaluate(() => {
+            const r = document.querySelector("text-console")!.getBoundingClientRect();
+            return { height: r.height, cls: (window as unknown as { __cls: number }).__cls };
+          });
+          expect({ el, cls: box.cls }).toEqual({ el, cls: 0 });
+          if (el === "pad") expect(box.height).toBe(58);
+          await page.close();
+        }
+      } finally {
+        await context.close();
+      }
+    },
+    60_000,
+  );
+
+  test(
+    "<text-console>: the page's CSS stays out",
+    async () => {
+      const context = await desktop();
+      try {
+        const { page } = await open(context, hostUrl("?el=pad&leak"));
+        await until(async () => (await element(page)).state !== null);
+        const { style, violations } = await element(page);
+        expect(style).toEqual({ letterSpacing: "normal", textTransform: "none", font: false });
+        expect(violations).toEqual([]);
+      } finally {
+        await context.close();
+      }
+    },
+    60_000,
+  );
+
+  test(
+    "<text-console> on a touch screen: a mirror is a picture of the first frame, a bar hides, and nothing else loads",
+    async () => {
+      const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+      try {
+        const { page, requests, logs } = await open(context, hostUrl("?el=mirror"));
+        await until(async () => (await element(page)).text.includes("Acme Systems"));
+        await page.tap("text-console");
+        await sleep(800);
+        expect(requests().filter((r) => !isElement(r))).toEqual(["/embed.js"]);
+        expect(logs()).toEqual(["host log before embed"]);
+        expect(await page.evaluate(() => ({ tabIndex: document.querySelector("text-console")?.getAttribute("tabindex") ?? null, label: document.querySelector("text-console")?.getAttribute("aria-label") ?? null }))).toEqual({ tabIndex: null, label: null });
+        await page.close();
+
+        // A bar would only hide on a touch screen: its file never loads, and the printed CSS hides the tag.
+        const pad = await open(context, hostUrl("?el=pad&reserve"));
+        await until(() => pad.requests().includes("/embed.js"));
+        await sleep(800);
+        expect(pad.requests()).toEqual(["/embed.js"]);
+        expect((await element(pad.page)).display).toBe("none");
       } finally {
         await context.close();
       }

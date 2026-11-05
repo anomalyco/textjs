@@ -8,6 +8,7 @@
  * - Loaded on console intent: `assets/embed-client-[hash].js` and
  *   `assets/yoga-[hash].wasm` (fetched together), or for a server-rendered
  *   route `assets/embed-player-[hash].js`, streaming from `__textjs/live`.
+ * - Loaded when a `<text-console>` is on the page: `assets/text-console-[hash].js`.
  */
 
 import { createHash } from "node:crypto";
@@ -21,11 +22,11 @@ import { textjsVitePlugin } from "../vite-plugin";
 import { buildLiveBundle, PRERENDER_TIMEOUT_MS, prerenderInChild } from "./live-build";
 import { textjsLivePlugin } from "./live-dev";
 import { createRuntimeMatcher } from "./live-routes";
-import { compileShellCalls, createShellReplayCode, shellHasRtl } from "./ppr";
+import { compileShellCalls, type CompiledShell } from "./ppr";
 import type { AppScan } from "./scan";
 import { withFrameworkEntry } from "./vite-entry";
 import { loadMiddlewareConfig } from "./adapters/build-step";
-import { createEmbedEntry, EMBED_FILE, GUARDED_SHELL, middlewareCouldGuard, textjsEmbedPlugin, VIRTUAL_EMBED_CLIENT, VIRTUAL_EMBED_PLAYER, type EmbedSettings } from "./embed";
+import { createEmbedEntry, EMBED_FILE, GUARDED_SHELL, middlewareCouldGuard, textConsoleModule, textConsoleReserveCss, textjsEmbedPlugin, VIRTUAL_EMBED_CLIENT, VIRTUAL_EMBED_PLAYER, type EmbedSettings } from "./embed";
 import { LIVE_PATH } from "../live-protocol";
 
 export interface EmbedBuildOptions {
@@ -58,6 +59,11 @@ export interface EmbedBuildResult {
   lazy: Size;
   /** Output-relative files loaded on console intent. */
   lazyFiles: string[];
+  /** `assets/text-console-[hash].js`, loaded when a `<text-console>` is on the page. */
+  element: string;
+  elementSize: Size;
+  /** The host page CSS that reserves `<text-console>`'s space before it loads (`textConsoleReserveCss`). */
+  reserveCss: string;
   /** Whether `embed.js` carries a prerendered first frame. */
   shell: boolean;
   /** Why it doesn't, when the prerender failed. */
@@ -79,10 +85,14 @@ function esbuild(): EsbuildBuild {
   return esbuildBuild;
 }
 
-/** Bundle and minify the `embed.js` source; `external` are the runtime files it imports lazily. */
-async function bundleEntry(root: string, code: string, external: string[]): Promise<Uint8Array> {
+/**
+ * Bundle and minify a browser script (`embed.js`, the element); `external` are the runtime files it imports lazily.
+ * `mangleProps` shortens the element's private fields (`text-console-element.ts` ends them in `_`).
+ */
+async function bundleEntry(root: string, code: string, external: string[], sourcefile = EMBED_FILE, mangleProps?: RegExp): Promise<Uint8Array> {
   const result = await esbuild()({
-    stdin: { contents: code, loader: "js", resolveDir: root, sourcefile: EMBED_FILE },
+    stdin: { contents: code, loader: "js", resolveDir: root, sourcefile },
+    ...(mangleProps ? { mangleProps } : {}),
     bundle: true,
     write: false,
     format: "esm",
@@ -150,14 +160,18 @@ async function buildRuntime(o: EmbedBuildOptions, runtime: "client" | "server"):
   return { entry: entry.fileName, wasm: wasm?.fileName, files: [...eager, ...(wasm ? [wasm.fileName] : [])] };
 }
 
+/** `assets/text-console-[hash].js` for an app: the element, with its `text.config.ts` defaults inlined. */
+export function bundleTextConsole(root: string, config: TextConfig): Promise<Uint8Array> {
+  return bundleEntry(root, textConsoleModule(config), [], "text-console.js", /[^_]_$/);
+}
+
 /** Run after the client build (or instead of it) and `buildLiveRoutes`. */
 export async function buildEmbed(o: EmbedBuildOptions): Promise<EmbedBuildResult> {
   const { config, outDir, settings } = o;
   const pathname = settings.initialPath.split(/[?#]/)[0] as string;
   const runtime = createRuntimeMatcher(o.scan)(pathname);
 
-  let shell: string | null = null;
-  let shellRtl = false;
+  let shell: CompiledShell | null = null;
   let shellError: string | undefined;
   // A middleware config that can't be read counts as matching every route.
   const middleware = config.ppr !== false ? await loadMiddlewareConfig(o.root, config, outDir).catch(() => ({})) : null;
@@ -175,32 +189,31 @@ export async function buildEmbed(o: EmbedBuildOptions): Promise<EmbedBuildResult
       timeoutMs: o.prerenderTimeoutMs ?? PRERENDER_TIMEOUT_MS,
     });
     const result = out.routes[settings.initialPath];
-    if (result?.calls) {
-      const compiled = compileShellCalls(result.calls);
-      shell = createShellReplayCode(compiled);
-      shellRtl = shellHasRtl(compiled);
-    }
+    if (result?.calls) shell = compileShellCalls(result.calls);
     else shellError = out.importError ?? result?.error ?? "prerendering did not finish";
   }
 
   const built = await buildRuntime(o, runtime);
+  mkdirSync(join(outDir, "assets"), { recursive: true });
+  const elementCode = await bundleTextConsole(o.root, config);
+  const element = `assets/text-console-${createHash("sha256").update(elementCode).digest("base64url").slice(0, 8)}.js`;
+  writeFileSync(join(outDir, element), elementCode);
   const entryFor = async (prefix: string): Promise<Uint8Array> => {
     const rel = (file: string): string => `${prefix}${file.slice("assets/".length)}`;
     const runtimeUrl = rel(built.entry);
     const code = createEmbedEntry({
       shell,
-      shellRtl,
       runtime: runtimeUrl,
+      element: rel(element),
       ...(runtime === "client" && built.wasm ? { wasm: rel(built.wasm) } : {}),
       ...(runtime === "server" ? { endpoint: `${prefix === "./" ? "../" : "./"}${LIVE_PATH.slice(1)}` } : {}),
     });
-    return bundleEntry(o.root, code, [runtimeUrl]);
+    return bundleEntry(o.root, code, [runtimeUrl, rel(element)]);
   };
   // embed.js sits above assets/, its immutable copy inside it.
   const top = await entryFor("./assets/");
   const copy = await entryFor("./");
   const hashed = `assets/embed-${createHash("sha256").update(copy).digest("base64url").slice(0, 8)}.js`;
-  mkdirSync(join(outDir, "assets"), { recursive: true });
   writeFileSync(join(outDir, EMBED_FILE), top);
   writeFileSync(join(outDir, hashed), copy);
 
@@ -210,5 +223,5 @@ export async function buildEmbed(o: EmbedBuildOptions): Promise<EmbedBuildResult
     lazy.bytes += s.bytes;
     lazy.gzip += s.gzip;
   }
-  return { runtime, entry: size(top), hashedEntry: hashed, lazy, lazyFiles: built.files, shell: shell !== null, ...(shellError ? { shellError } : {}) };
+  return { runtime, entry: size(top), hashedEntry: hashed, lazy, lazyFiles: built.files, element, elementSize: size(elementCode), reserveCss: textConsoleReserveCss(config), shell: shell !== null, ...(shellError ? { shellError } : {}) };
 }
