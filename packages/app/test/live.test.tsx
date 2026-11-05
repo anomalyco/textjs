@@ -741,6 +741,34 @@ describe("frame player pacing", () => {
     expect(queue.length).toBe(1);
   });
 
+  test("a frame waiting on the pacing timer doesn't paint once the player pauses or hides", () => {
+    const queue: Array<() => void> = [];
+    const con = new FakeConsole();
+    const player = new FramePlayerCore({ console: con, schedule: (cb) => queue.push(cb) });
+    let painted = 0;
+    player.onPaint = () => void painted++;
+    const enc = new LiveFrameEncoder();
+    const buf = new CellBuffer(10, 2);
+    buf.drawText(0, 0, "a", 0xffffffff, 0x000000ff);
+    player.applyFrame(enc.encode(buf)!);
+    // Disposed (an embed preempted by the page's own app) while the frame waits.
+    player.paused = true;
+    player.onPaint = null;
+    queue.shift()?.();
+    expect(con.logs.length).toBe(0);
+    expect(painted).toBe(0);
+    // A hidden tab holds the frame and paints it when it comes back.
+    player.paused = false;
+    buf.drawText(0, 0, "b", 0xffffffff, 0x000000ff);
+    player.applyFrame(enc.encode(buf)!);
+    player.setHidden(true);
+    queue.shift()?.();
+    expect(con.logs.length).toBe(0);
+    player.setHidden(false);
+    queue.shift()?.();
+    expect(con.logs.length).toBe(1);
+  });
+
   test("with a prerendered shell the first frame appends (no clear)", () => {
     const con = new FakeConsole();
     const player = new FramePlayerCore({ console: con, schedule: null, shell: true });

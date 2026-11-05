@@ -26,7 +26,7 @@ import { compileShellCalls, type CompiledShell } from "./ppr";
 import type { AppScan } from "./scan";
 import { withFrameworkEntry } from "./vite-entry";
 import { loadMiddlewareConfig } from "./adapters/build-step";
-import { createEmbedEntry, EMBED_FILE, GUARDED_SHELL, middlewareCouldGuard, textConsoleModule, textjsEmbedPlugin, VIRTUAL_EMBED_CLIENT, VIRTUAL_EMBED_PLAYER, type EmbedSettings } from "./embed";
+import { createEmbedEntry, EMBED_FILE, GUARDED_SHELL, middlewareCouldGuard, textConsoleModule, textConsoleReserveCss, textjsEmbedPlugin, VIRTUAL_EMBED_CLIENT, VIRTUAL_EMBED_PLAYER, type EmbedSettings } from "./embed";
 import { LIVE_PATH } from "../live-protocol";
 
 export interface EmbedBuildOptions {
@@ -62,6 +62,8 @@ export interface EmbedBuildResult {
   /** `assets/text-console-[hash].js`, loaded when a `<text-console>` is on the page. */
   element: string;
   elementSize: Size;
+  /** The host page CSS that reserves `<text-console>`'s space before it loads (`textConsoleReserveCss`). */
+  reserveCss: string;
   /** Whether `embed.js` carries a prerendered first frame. */
   shell: boolean;
   /** Why it doesn't, when the prerender failed. */
@@ -83,10 +85,14 @@ function esbuild(): EsbuildBuild {
   return esbuildBuild;
 }
 
-/** Bundle and minify a browser script (`embed.js`, the element); `external` are the runtime files it imports lazily. */
-async function bundleEntry(root: string, code: string, external: string[], sourcefile = EMBED_FILE): Promise<Uint8Array> {
+/**
+ * Bundle and minify a browser script (`embed.js`, the element); `external` are the runtime files it imports lazily.
+ * `mangleProps` shortens the element's private fields (`text-console-element.ts` ends them in `_`).
+ */
+async function bundleEntry(root: string, code: string, external: string[], sourcefile = EMBED_FILE, mangleProps?: RegExp): Promise<Uint8Array> {
   const result = await esbuild()({
     stdin: { contents: code, loader: "js", resolveDir: root, sourcefile },
+    ...(mangleProps ? { mangleProps } : {}),
     bundle: true,
     write: false,
     format: "esm",
@@ -154,6 +160,11 @@ async function buildRuntime(o: EmbedBuildOptions, runtime: "client" | "server"):
   return { entry: entry.fileName, wasm: wasm?.fileName, files: [...eager, ...(wasm ? [wasm.fileName] : [])] };
 }
 
+/** `assets/text-console-[hash].js` for an app: the element, with its `text.config.ts` defaults inlined. */
+export function bundleTextConsole(root: string, config: TextConfig): Promise<Uint8Array> {
+  return bundleEntry(root, textConsoleModule(config), [], "text-console.js", /[^_]_$/);
+}
+
 /** Run after the client build (or instead of it) and `buildLiveRoutes`. */
 export async function buildEmbed(o: EmbedBuildOptions): Promise<EmbedBuildResult> {
   const { config, outDir, settings } = o;
@@ -184,7 +195,7 @@ export async function buildEmbed(o: EmbedBuildOptions): Promise<EmbedBuildResult
 
   const built = await buildRuntime(o, runtime);
   mkdirSync(join(outDir, "assets"), { recursive: true });
-  const elementCode = await bundleEntry(o.root, textConsoleModule(config), [], "text-console.js");
+  const elementCode = await bundleTextConsole(o.root, config);
   const element = `assets/text-console-${createHash("sha256").update(elementCode).digest("base64url").slice(0, 8)}.js`;
   writeFileSync(join(outDir, element), elementCode);
   const entryFor = async (prefix: string): Promise<Uint8Array> => {
@@ -212,5 +223,5 @@ export async function buildEmbed(o: EmbedBuildOptions): Promise<EmbedBuildResult
     lazy.bytes += s.bytes;
     lazy.gzip += s.gzip;
   }
-  return { runtime, entry: size(top), hashedEntry: hashed, lazy, lazyFiles: built.files, element, elementSize: size(elementCode), shell: shell !== null, ...(shellError ? { shellError } : {}) };
+  return { runtime, entry: size(top), hashedEntry: hashed, lazy, lazyFiles: built.files, element, elementSize: size(elementCode), reserveCss: textConsoleReserveCss(config), shell: shell !== null, ...(shellError ? { shellError } : {}) };
 }

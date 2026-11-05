@@ -16,6 +16,7 @@ import { matcherCouldMatch, middlewareMatchers } from "./middleware-runtime";
 import type { EmbedClientConfig } from "../embed/boot-client";
 import type { EmbedPlayerConfig } from "../embed/boot-player";
 import type { TextConsoleConfig } from "../embed/text-console-element";
+import { reserveCss } from "../embed/reserve";
 import { createShellReplayCode, shellData, shellHasRtl, type CompiledShell } from "./ppr";
 
 export const EMBED_FILE = "embed.js";
@@ -92,15 +93,23 @@ export function embedClientConfig(config: TextConfig, s: EmbedSettings): EmbedCl
   };
 }
 
-/** The `text.config.ts` values `<text-console>` falls back to. */
+/** The app's grid: `viewport` in `text.config.ts`, as the first frame is rendered. */
+function grid(config: TextConfig): [number, number] {
+  return [config.viewport?.width ?? 120, config.viewport?.height ?? 36];
+}
+
+/** The host page CSS that reserves `<text-console>`'s space for this app. */
+export function textConsoleReserveCss(config: TextConfig): string {
+  return reserveCss(...grid(config));
+}
+
+/** The `text.config.ts` values `<text-console>` falls back to, and its sizing CSS. */
 export function textConsoleConfig(config: TextConfig): TextConsoleConfig {
-  const vp = config.viewport ?? {};
   return {
     ...(config.title ? { title: config.title } : {}),
     ...(config.hints ? { hints: config.hints.map((h) => ({ keys: h.keys, label: h.label })) } : {}),
     ...(config.action ? { action: config.action } : {}),
-    cols: vp.width ?? 120,
-    rows: vp.height ?? 36,
+    css: reserveCss(...grid(config), (a) => (a ? `:host(${a})` : ":host")),
   };
 }
 

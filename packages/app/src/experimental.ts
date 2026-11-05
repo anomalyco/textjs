@@ -10,4 +10,6 @@ export { bootEmbedClient, type EmbedClient, type EmbedClientConfig, type EmbedCl
 export { bootEmbedPlayer, type EmbedPlayer, type EmbedPlayerConfig, type EmbedPlayerOptions } from "./embed/boot-player";
 export { BYPASS_SELECTOR, createHostInput, ENGAGE_SELECTOR, type HostInput, type HostInputOptions } from "./embed/host-input";
 export { startEmbed, type EmbedBootState } from "./embed/loader";
+export { reserveCss } from "./embed/reserve";
+export { createMount as createTextConsoleMount, type ShellData, type TextConsoleConfig, type TextConsoleState } from "./embed/text-console-element";
 export type { EmbedConfig } from "./config";

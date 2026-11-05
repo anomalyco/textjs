@@ -29,7 +29,7 @@ export function publishEmbed(buffer: () => CellGrid, input: HostInput): Publishe
   const hub = embedHub();
   // Inline spans with 14px line heights: the same CSS a DOM mirror needs, and what `embed.js`'s first frame has.
   let driver: CssConsoleDriver | null = null;
-  let last: [string, string[]] | null = null;
+  let last: [string, string[], number, number] | null = null;
   // Nothing until the app paints its first frame: until then, elements keep `embed.js`'s.
   let stale = false;
   const app: EmbedApp = {
@@ -39,8 +39,9 @@ export function publishEmbed(buffer: () => CellGrid, input: HostInput): Publishe
         const b = buffer();
         if (b.width > 0 && b.height > 0) {
           driver ??= new CssConsoleDriver({ browser: "firefox", curtain: false, clear: "never" });
-          const f = driver.encode(b, { force: true }).frame;
-          if (f) last = [f.format, f.args];
+          // Nothing changed (a focus hint blinking in the console only): elements keep what they drew.
+          const f = driver.encode(b).frame;
+          if (f) last = [f.format, f.args, b.width, b.height];
         }
       }
       return last;

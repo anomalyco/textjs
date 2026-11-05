@@ -24,24 +24,27 @@ export interface EmbedBootState {
  * Until the runtime starts, the embed holds the console with a claim the
  * page's own app takes over when it starts (see `claimConsole`).
  *
- * `element` loads and mounts `<text-console>` on one (see
- * `text-console-element.ts`). It's defined on touch screens too, unless the
- * page already has one, and loads only when the tag is on the page.
+ * `element` loads the `<text-console>` module and mounts it on each element
+ * that connects (see `text-console-element.ts`). The tag is defined on touch
+ * screens too, unless something has already defined `text-console`, and the
+ * module loads only when the tag is on the page. On touch screens only a
+ * `mirror` or `chrome` one loads it: a bar would only hide there.
  */
 export function startEmbed(paint: (() => number | undefined) | null, boot: (state: EmbedBootState) => unknown, src: string, element?: (el: HTMLElement) => Promise<unknown>): void {
   if (typeof window === "undefined") return;
+  const touch = window.matchMedia?.("(hover: none) and (pointer: coarse)").matches;
   if (element && !customElements.get("text-console")) {
     customElements.define(
       "text-console",
       class extends HTMLElement {
         connectedCallback(): void {
           // A file a redeploy removed: the tag stays empty.
-          element(this).catch(() => {});
+          if (!touch || this.matches("[mirror],[chrome]")) element(this).catch(() => {});
         }
       },
     );
   }
-  if (window.matchMedia?.("(hover: none) and (pointer: coarse)").matches) return;
+  if (touch) return;
   const g = globalThis as Record<symbol, ConsoleOwner | undefined>;
   // Another app holds the console, or the page's own prerendered shell is painting.
   if (g[CONSOLE_OWNER] !== undefined || (window as { __TEXTJS_SHELL__?: unknown }).__TEXTJS_SHELL__ !== undefined) {

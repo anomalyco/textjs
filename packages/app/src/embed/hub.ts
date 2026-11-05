@@ -7,13 +7,13 @@
 /** The running app, as a `<text-console>` sees it. */
 export interface EmbedApp {
   /**
-   * The current frame as an inline console (Firefox's) would log it: the format string, then the
-   * CSS for each `%c`. `null` until the app paints one.
+   * The current frame as an inline console (Firefox's) would log it: the format string, the CSS
+   * for each `%c`, and the grid's size. `null` until the app paints one.
    */
-  frame(): [format: string, css: string[]] | null;
-  /** Keys reach the app. */
+  frame(): [format: string, css: string[], cols: number, rows: number] | null;
+  /** Whether keys reach the app. */
   engaged(): boolean;
-  /** DevTools is docked to the page. */
+  /** Whether DevTools is docked to the page. */
   docked(): boolean;
 }
 

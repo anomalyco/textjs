@@ -10,7 +10,8 @@ import { embedHub } from "../src/embed/hub";
 import type { HostInput } from "../src/embed/host-input";
 import { publishEmbed } from "../src/embed/mirror";
 import { consoleRuns, keycapMatches, parseHints, shortcutKeys, textConsoleState } from "../src/embed/text-console-element";
-import { createEmbedEntry, textConsoleConfig } from "../src/server/embed";
+import { reserveCss } from "../src/embed/reserve";
+import { createEmbedEntry, textConsoleConfig, textConsoleReserveCss } from "../src/server/embed";
 import { compileShellCalls, createShellReplayCode, shellData } from "../src/server/ppr";
 import { FakeConsole } from "./helpers";
 
@@ -26,11 +27,11 @@ describe("<text-console> states", () => {
   });
 
   test("the DevTools console shortcut for each browser", () => {
-    expect(shortcutKeys(true, "chromium")).toEqual(["⌘", "⌥", "J"]);
-    expect(shortcutKeys(false, "chromium")).toEqual(["Ctrl", "Shift", "J"]);
-    expect(shortcutKeys(true, "firefox")).toEqual(["⌘", "⌥", "K"]);
-    expect(shortcutKeys(false, "firefox")).toEqual(["Ctrl", "Shift", "K"]);
-    expect(shortcutKeys(true, "safari")).toEqual(["⌘", "⌥", "C"]);
+    expect(shortcutKeys(true, "chromium")).toBe("⌘ ⌥ J");
+    expect(shortcutKeys(false, "chromium")).toBe("Ctrl Shift J");
+    expect(shortcutKeys(true, "firefox")).toBe("⌘ ⌥ K");
+    expect(shortcutKeys(false, "firefox")).toBe("Ctrl Shift K");
+    expect(shortcutKeys(true, "safari")).toBe("⌘ ⌥ C");
   });
 });
 
@@ -57,15 +58,23 @@ describe("<text-console> attributes", () => {
     expect(keycapMatches("←", "ArrowRight")).toBe(false);
   });
 
-  test("title, hints and action fall back to text.config.ts, at the first frame's grid", () => {
-    expect(textConsoleConfig({ title: "Acme", hints: [{ keys: "← →", label: "switch" }], action: "type a prompt", viewport: { width: 100, height: 28 } })).toEqual({
-      title: "Acme",
-      hints: [{ keys: "← →", label: "switch" }],
-      action: "type a prompt",
-      cols: 100,
-      rows: 28,
-    });
-    expect(textConsoleConfig({})).toEqual({ cols: 120, rows: 36 });
+  test("title, hints and action fall back to text.config.ts; the element sizes itself with the CSS a page would write", () => {
+    const config = { title: "Acme", hints: [{ keys: "← →", label: "switch" }], action: "type a prompt", viewport: { width: 100, height: 28 } };
+    const page = textConsoleReserveCss(config);
+    const { css, ...rest } = textConsoleConfig(config);
+    expect(rest).toEqual({ title: "Acme", hints: [{ keys: "← →", label: "switch" }], action: "type a prompt" });
+    expect(css).toBe(page.replaceAll("text-console:is([mirror],[chrome])", ":host(:is([mirror],[chrome]))").replaceAll("text-console[chrome]", ":host([chrome])").replaceAll("text-console:not([mirror],[chrome])", ":host(:not([mirror],[chrome]))").replaceAll("text-console{", ":host{"));
+    expect(textConsoleConfig({}).css).toContain("aspect-ratio:882/522");
+  });
+
+  test("reserved size: a 58px bar, and a mirror at the grid's ratio for a 7.2×14px cell, 43px taller with chrome", () => {
+    const css = reserveCss(100, 20);
+    expect(css).toBe(
+      "text-console{display:block;min-height:58px}" +
+        "text-console:is([mirror],[chrome]){position:relative;box-sizing:content-box;min-height:0;max-width:738px;aspect-ratio:738/298}" +
+        "text-console[chrome]{padding-top:43px}" +
+        "@media (hover:none) and (pointer:coarse){text-console:not([mirror],[chrome]){display:none}}",
+    );
   });
 });
 
@@ -95,7 +104,8 @@ describe("<text-console mirror> frames", () => {
       for (const [i, ch] of [..."Acme 100%"].entries()) buffer.setCell(i, 1, ch, packRGBA(69, 165, 87), packRGBA(10, 10, 10), ATTR_BOLD);
       published.frame();
       expect(notified).toBe(2);
-      const [format, css] = hub.app?.frame() as [string, string[]];
+      const [format, css, cols, rows] = hub.app?.frame() as [string, string[], number, number];
+      expect([cols, rows]).toEqual([24, 3]);
       // What embed.js's first frame carries for inline consoles: the same driver, with its curtain.
       const con = new FakeConsole();
       new CssConsoleDriver({ console: con, browser: "firefox", curtain: true, initialClear: false }).render(buffer, { force: true });
@@ -103,9 +113,13 @@ describe("<text-console mirror> frames", () => {
       expect(consoleRuns(format, css)).toEqual(consoleRuns(shellFormat, shellCss));
       expect(consoleRuns(format, css).map(([t]) => t).join("")).toContain("Acme 100%");
       expect(css.every((c) => c === "" || c.includes("line-height:14px"))).toBe(true);
+      // An unchanged buffer (a focus hint blinking in the console only) keeps the frame elements drew.
+      const drawn = hub.app?.frame();
+      published.frame();
+      expect(hub.app?.frame()).toBe(drawn);
       published.dispose();
       expect(hub.app).toBeNull();
-      expect(notified).toBe(3);
+      expect(notified).toBe(4);
     } finally {
       hub.listeners.delete(listener);
     }

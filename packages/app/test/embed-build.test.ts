@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { buildApp, type BuildResult } from "../src/cli/build";
+import { bundleTextConsole } from "../src/server/embed-build";
 import { parseArgs } from "../src/cli/index";
 import { startDevServer } from "../src/cli/dev";
 import { startProductionServer } from "../src/cli/start";
@@ -49,16 +50,16 @@ const SERVER_APP: Record<string, string> = {
 const BUDGET = {
   /** `embed.js` with a 120×36 first frame. */
   entry: 3072,
-  /** `embed.js` without one (`ppr: false`): `onConsoleIntent`'s dock analysis alone is about 2 KB. */
+  /** `embed.js` without one (`ppr: false`): `watchConsoleIntent`'s dock analysis alone is about 2 KB. */
   entryNoShell: 2400,
   /** The frame player (`embed-player-[hash].js`). */
   player: 23_552,
   /**
    * The client runtime plus Yoga's `.wasm`, without the bidi chunk, which loads on the first right-to-left text.
-   * It measures 138.2 KiB, of which react-reconciler is about 39 KiB. The plan's target was 140 KiB.
+   * It measures 138.5 KiB (141,855 B), of which react-reconciler is about 39 KiB. The plan's target was 140 KiB.
    */
   lazy: 139 * 1024,
-  /** `<text-console>` (`text-console-[hash].js`). */
+  /** `<text-console>` (`text-console-[hash].js`), with a realistic `text.config.ts` inlined. */
   element: 4096,
 };
 
@@ -166,6 +167,27 @@ describe("text build --embed (client route)", () => {
     expect(element).toBeLessThanOrEqual(BUDGET.element);
     expect(result.embed?.elementSize.gzip).toBe(element);
     expect(lazy).toBeLessThanOrEqual(BUDGET.lazy);
+  });
+
+  test("<text-console> stays within budget with a realistic title, hints and action inlined", async () => {
+    const code = await bundleTextConsole(dir, {
+      title: "Acme Systems",
+      hints: [
+        { keys: "← →", label: "switch region" },
+        { keys: "Enter", label: "open" },
+        { keys: "q", label: "back" },
+      ],
+      action: "pick a region",
+      viewport: { width: 100, height: 28 },
+    });
+    const size = gzipSync(code).length;
+    console.log(`text-console with a realistic config ${size} B gzip (budget ${BUDGET.element})`);
+    expect(size).toBeLessThanOrEqual(BUDGET.element);
+  });
+
+  test("prints the CSS that reserves <text-console>'s space on the host page", () => {
+    expect(result.embed?.reserveCss).toContain("aspect-ratio:882/522");
+    expect(result.output).toContain(result.embed?.reserveCss as string);
   });
 
   test("<text-console>: its own file, loaded only for the tag, with no React and no onConsoleIntent prefetch in embed.js", () => {

@@ -60,11 +60,11 @@ export interface TextConfig {
   appDir?: string;
   /** Mount the app under a sub-path, e.g. `"/console"`. */
   basePath?: string;
-  /** Title shown in the FocusPad and as the default `document.title`. */
+  /** Title shown in the FocusPad and `<text-console>`, and as the default `document.title`. */
   title?: string;
-  /** The two or three keys worth pressing, shown on the page's FocusPad, e.g. `[{ keys: "↑ ↓", label: "count" }]`. */
+  /** The two or three keys worth pressing, shown on the page's FocusPad and `<text-console>`, e.g. `[{ keys: "↑ ↓", label: "count" }]`. */
   hints?: Array<{ keys: string; label: string }>;
-  /** What to do first, shown as "Then click here and …" (default: `press <first hint>`). */
+  /** What to do first, shown as "Then click here and …" (`<text-console>`: "Click here and …") (default: `press <first hint>`). */
   action?: string;
   /** Dev / start server proxy rules, keyed by path prefix. */
   proxy?: Record<string, string | ProxyTarget>;

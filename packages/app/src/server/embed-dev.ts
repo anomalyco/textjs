@@ -66,7 +66,7 @@ export function createEmbedPreviewHtml(o: { title: string; src: string }): strin
   <body>
     <main>
       <h1>${escapeHtml(o.title)}</h1>
-      <p>This page loads <code>embed.js</code> the way another site would. Dock DevTools, use a DevTools shortcut, or press the button or the console below to start the app.</p>
+      <p>This page loads <code>embed.js</code> the way another site would. Dock DevTools, use a DevTools shortcut, or click the button or the <code>&lt;text-console&gt;</code> below to start the app.</p>
       <pre><code>${escapeHtml(tag)}\n${escapeHtml(element)}</code></pre>
       <div class="row">
         <button type="button" data-textjs-engage>Open in the console</button>

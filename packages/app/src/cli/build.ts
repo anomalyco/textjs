@@ -253,6 +253,8 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
       total(embed.element, embed.elementSize);
       for (const f of embed.lazyFiles) total(f, fileSize(join(outDir, f)));
       print(color.gray(`  ${embed.hashedEntry} is embed.js under a hashed name. ${embed.element} loads when the page has a <text-console>. The rest loads on console intent.`));
+      print(color.gray("  This CSS on the host page reserves <text-console>'s space, so the page doesn't move when it loads:"));
+      print(`  ${embed.reserveCss}`);
     }
     if (hasMiddleware) print(`ƒ Middleware`);
     print();
