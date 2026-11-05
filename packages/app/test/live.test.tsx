@@ -14,7 +14,7 @@ import { bootFramePlayer, FramePlayerCore, safeHref } from "../src/live-player";
 import { LiveFrameDecoder, LiveFrameEncoder, LIVE_PATH, LIVE_SESSION_HEADER, parseLiveInput, type LiveFrame, type LiveServerMessage } from "../src/live-protocol";
 import { LiveServer, LiveSession, isSameOriginRequest } from "../src/server/live";
 import { createLiveApp, isServerPage, prerenderAnsi, prerenderShell, routeRuntime, type LiveApp, type ShellCall } from "../src/server/live-app";
-import { compileShellCalls, createShellReplayCode, injectShell, shellPath, shellScript } from "../src/server/ppr";
+import { compileShellCalls, createShellReplayCode, injectShell, shellHasRtl, shellPath, shellScript } from "../src/server/ppr";
 import { serverComponent, stableKey, ServerComponentCache } from "../src/server/server-components";
 import { createTestRoot, FakeConsole, withoutActEnvironment } from "./helpers";
 import { spawnLiveServer } from "./live-server-fixture";
@@ -82,6 +82,7 @@ function routes(): RouteManifest {
     children: [
       { segment: "async", page: { default: AsyncPage, runtime: "server" } },
       { segment: "other", page: { default: () => <Text>other server page</Text>, runtime: "server", metadata: { title: "Other" } } },
+      { segment: "rtl", page: { default: () => <Text>שלום עולם</Text>, runtime: "server" } },
       { segment: "client", page: { default: () => <Text>client page</Text> } },
     ],
   };
@@ -919,6 +920,26 @@ describe("frame player boot options", () => {
 });
 
 describe("partial prerendering", () => {
+  test("a shell with right-to-left text tells the client to fetch the bidi engine as it boots; a left-to-right shell doesn't", async () => {
+    const replay = (path: string): { __TEXTJS_SHELL__?: number; __TEXTJS_SHELL_RTL__?: number } => {
+      const script = shellScript(calls[path] as ShellCall[], shellPath("", path));
+      const win = {};
+      new Function("console", "location", "window", script.replace(/^<script[^>]*>/, "").replace(/<\/script>$/, ""))(new FakeConsole(), { pathname: path }, win);
+      return win;
+    };
+    const calls: Record<string, ShellCall[]> = {};
+    for (const path of ["/rtl", "/other"]) calls[path] = await withoutActEnvironment(() => prerenderShell({ routes: routes(), path, cols: 30, rows: 6 }));
+    // The server has the engine: the shell's frame is already in display order, pinned with LEFT-TO-RIGHT OVERRIDE.
+    const rtlFrame = (calls["/rtl"]?.find((c) => c.method === "log")?.args[0] ?? "").replace(/%c/g, "");
+    expect(rtlFrame).toContain("\u202D");
+    expect(rtlFrame).toContain("םלוע םולש");
+    expect(shellHasRtl(compileShellCalls(calls["/rtl"] as ShellCall[]))).toBe(true);
+    expect(replay("/rtl")).toEqual({ __TEXTJS_SHELL__: 1, __TEXTJS_SHELL_RTL__: 1, __TEXTJS_SHELL_AT__: expect.any(Number) } as never);
+    expect(shellHasRtl(compileShellCalls(calls["/other"] as ShellCall[]))).toBe(false);
+    expect(replay("/other").__TEXTJS_SHELL_RTL__).toBeUndefined();
+    expect(replay("/other").__TEXTJS_SHELL__).toBe(1);
+  }, 30_000);
+
   test("the shell is the first frame with Suspense fallbacks, replayed by an inline script", async () => {
     const calls = await withoutActEnvironment(() => prerenderShell({ routes: routes(), path: "/async", cols: 30, rows: 6 }));
     expect(calls[0]).toEqual({ method: "clear", args: [] });

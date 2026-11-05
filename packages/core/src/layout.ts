@@ -20,7 +20,7 @@ export interface InitYogaOptions {
    * Where Yoga's WebAssembly comes from. By default Yoga loads from the
    * base64 copy inside `yoga-layout`; Cloudflare Workers import
    * `@textjs/core/yoga.wasm` as a module, and builds that set the
-   * `@textjs/wasm-asset` resolve condition (`text dev`, `text build`) fetch it
+   * `@textjs/client` resolve condition (`text dev`, `text build`) fetch it
    * as an asset. Only the first call loads Yoga; later options are ignored.
    */
   wasm?: YogaWasmSource;

@@ -15,7 +15,7 @@ import type { MiddlewareModule } from "./middleware";
 import { findMiddlewareFile } from "./middleware-node";
 import type { LiveEntryModule } from "./live-dev";
 import { createRuntimeMatcher, VIRTUAL_LIVE } from "./live-routes";
-import { compileShellCalls, createShellReplayCode } from "./ppr";
+import { compileShellCalls, createShellReplayCode, shellHasRtl } from "./ppr";
 import { scanApp } from "./scan";
 import { LIVE_PATH } from "../live-protocol";
 
@@ -79,7 +79,7 @@ export function createEmbedPreviewHtml(o: { title: string; src: string }): strin
 }
 
 export function createEmbedDevHandler(vite: ViteDevServer, o: EmbedDevOptions): EmbedDevHandler {
-  const renderShell = async (path: string, initialClear: boolean): Promise<string | null> => {
+  const renderShell = async (path: string, initialClear: boolean): Promise<{ code: string; rtl: boolean } | null> => {
     if (o.config.ppr === false) return null;
     const vp = o.config.viewport ?? {};
     const middlewareFile = findMiddlewareFile(o.root);
@@ -90,7 +90,8 @@ export function createEmbedDevHandler(vite: ViteDevServer, o: EmbedDevOptions): 
     try {
       const mod = (await vite.ssrLoadModule(VIRTUAL_LIVE)) as LiveEntryModule;
       const calls = await mod.prerenderShell({ routes: mod.routes, path, cols: vp.width ?? 120, rows: vp.height ?? 36, theme: vp.theme as ThemeName | undefined, initialClear });
-      return createShellReplayCode(compileShellCalls(calls));
+      const compiled = compileShellCalls(calls);
+      return { code: createShellReplayCode(compiled), rtl: shellHasRtl(compiled) };
     } catch (error) {
       if (error instanceof Error) vite.ssrFixStacktrace(error);
       o.logger?.error(` ⨯ embed.js has no first frame: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
@@ -109,7 +110,8 @@ export function createEmbedDevHandler(vite: ViteDevServer, o: EmbedDevOptions): 
         const server = createRuntimeMatcher(scanApp(o.root, o.appDir))(settings.initialPath.split(/[?#]/)[0] as string) === "server";
         const shell = await renderShell(settings.initialPath, settings.initialClear);
         const code = createEmbedEntry({
-          shell,
+          shell: shell?.code ?? null,
+          shellRtl: shell?.rtl,
           runtime: `${base}${(server ? EMBED_PLAYER_URL : EMBED_CLIENT_URL).slice(1)}`,
           ...(server ? { endpoint: `.${LIVE_PATH}` } : {}),
           loader: `${base}${EMBED_LOADER_URL.slice(1)}`,

@@ -61,6 +61,16 @@ export function compileShellCalls(calls: readonly ShellCall[]): CompiledShell {
   return { table, ops };
 }
 
+/**
+ * Whether a shell shows right-to-left text: the console driver wraps every
+ * span of it in LEFT-TO-RIGHT OVERRIDE (U+202D). The client then starts
+ * loading the bidi engine at boot, so its first frame repaints the shell in
+ * display order too.
+ */
+export function shellHasRtl(compiled: CompiledShell): boolean {
+  return compiled.ops.some((o) => o !== 0 && o[0].includes("\u202D"));
+}
+
 export interface ShellReplayOptions {
   /**
    * Paint only when `location.pathname` (ignoring a trailing slash) is this
@@ -70,7 +80,8 @@ export interface ShellReplayOptions {
   path?: string;
   /**
    * Record the paint on `window.__TEXTJS_SHELL__` and `__TEXTJS_SHELL_AT__`,
-   * where the client and the frame player on a Text.js page look for it.
+   * where the client and the frame player on a Text.js page look for it, and
+   * set `__TEXTJS_SHELL_RTL__` when it shows right-to-left text (`shellHasRtl`).
    * Otherwise the expression evaluates to the paint's `performance.now()`
    * (`undefined` when it didn't paint), for the frame player's `shellPaintedAt`.
    */
@@ -117,7 +128,7 @@ export function createShellReplayCode(compiled: CompiledShell, options: ShellRep
   } else {
     paint = `for(var i=0;i<s.length;i++){var o=s[i];${compiled.ops.includes(0) ? "if(o===0){console.clear();continue}" : ""}${LOG}}`;
   }
-  const done = globalFlag ? `window.__TEXTJS_SHELL__=1;window.__TEXTJS_SHELL_AT__=${NOW}` : `return ${NOW}`;
+  const done = globalFlag ? `window.__TEXTJS_SHELL__=1;${shellHasRtl(compiled) ? "window.__TEXTJS_SHELL_RTL__=1;" : ""}window.__TEXTJS_SHELL_AT__=${NOW}` : `return ${NOW}`;
   const params = path === undefined ? "c,s" : "p,c,s";
   const args = `${path === undefined ? "" : `${inlineJson(path)},`}${inlineJson(compiled.table)},${inlineJson(compiled.ops)}`;
   return `(function(${params}){${guard}${DETECT}${paint}${done}})(${args})`;

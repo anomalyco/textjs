@@ -1,5 +1,5 @@
 /**
- * `#yoga-loader` under the `@textjs/wasm-asset` condition, which `text dev`
+ * `#yoga-loader` under the `@textjs/client` condition, which `text dev`
  * and `text build` set for client builds: fetch `yoga.wasm` as an asset and
  * compile it while it streams. The package self-reference lets Vite and
  * webpack find and emit the file, also from Vite's pre-bundled

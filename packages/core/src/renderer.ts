@@ -3,6 +3,7 @@
  * demand-driven animation-frame scheduler with rolling telemetry.
  */
 
+import { bidiReady } from "./bidi-engine";
 import { colorToCss, parseColor, type ColorInput } from "./color";
 import { CellBuffer } from "./cell-buffer";
 import { CssConsoleDriver, type ClearMode, type ConsoleTarget, type DriverRenderOptions } from "./drivers/css-console-driver";
@@ -228,6 +229,7 @@ export class ConsoleRenderer {
   private currentBanner: ConsoleBanner | null = null;
   private globalName: string | null = null;
   private lastSyncFlushAt = -Infinity;
+  private awaitingBidi = false;
   private telemetry: RendererStats;
 
   constructor(options: ConsoleRendererOptions = {}) {
@@ -612,6 +614,16 @@ export class ConsoleRenderer {
     po.highlightedNode = this.highlighted;
     po.focusedNode = this.focusedNode;
     paintScene(root, buf, po);
+    const pending = bidiReady();
+    if (pending !== null && !this.awaitingBidi) {
+      // Right-to-left text went out in logical order: repaint everything once the bidi engine lands.
+      this.awaitingBidi = true;
+      void pending.then(() => {
+        this.awaitingBidi = false;
+        if (this.root) this.root._fullDamage = true;
+        this.requestRender();
+      });
+    }
   }
 
   /**

@@ -49,7 +49,7 @@ describe("text build (examples/dashboard)", () => {
       expect(bundle).not.toContain("virtual:textjs");
       // The Dev Overlay, Redbox and HMR frame mirror only ship in `text dev`.
       for (const devOnly of ["Dev Overlay", "Unhandled Runtime Error", "Component Stack", "vite:error", "unhandledrejection", "textjs:mirror", "textjs:frame"]) expect(bundle).not.toContain(devOnly);
-      // The client loads Yoga as yoga-[hash].wasm (the @textjs/wasm-asset condition), with no base64 copy ("\0asm") inline.
+      // The client loads Yoga as yoga-[hash].wasm (the @textjs/client condition), with no base64 copy ("\0asm") inline.
       expect(wasm).toMatch(/^yoga-[\w-]+\.wasm$/);
       expect(bundle).not.toContain("AGFzbQ");
       expect(existsSync(join(dist, ".text/server/api.mjs"))).toBe(true);

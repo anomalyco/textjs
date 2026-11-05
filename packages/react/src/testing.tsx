@@ -19,6 +19,7 @@ import {
   type PackedColor,
   type RendererScheduler,
 } from "@textjs/core";
+import { bidiLoading } from "@textjs/core/internal";
 import { keyEventFromCombo } from "./keys";
 import { createConsoleRootSync, type ConsoleRoot, type ConsoleRootOptions } from "./root";
 
@@ -154,6 +155,9 @@ export async function render(element: ReactNode, options: RenderOptions = {}): P
       });
       if (!ran) break;
     }
+    // Text.js client builds fetch the bidi engine on the first right-to-left text; its repaint is part of this frame.
+    const bidi = bidiLoading();
+    if (bidi !== null && (await bidi.then(() => true, () => false))) await flush();
   };
 
   const runAct = async (fn: () => void | Promise<void>): Promise<void> => {

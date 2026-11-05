@@ -9,6 +9,9 @@ import type { BufferSprite } from "./sprite-types";
 /** @internal Cell storage without the drawing API: what drivers and the frame player need. */
 export { CellGrid } from "./cell-grid";
 
+/** @internal The bidi engine's load in flight, which ends with a repaint (see `bidi-engine.ts`). */
+export { bidiLoading } from "./bidi-engine";
+
 /** A one-row bar over the last row of console frames (the focus hint). */
 export interface ConsoleBanner {
   text: string;

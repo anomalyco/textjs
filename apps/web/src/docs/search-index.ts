@@ -414,6 +414,11 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
     },
     {
       "depth": 2,
+      "text": "Loading the bidi engine",
+      "id": "loading-the-bidi-engine"
+    },
+    {
+      "depth": 2,
       "text": "Cell widths",
       "id": "cell-widths"
     },
