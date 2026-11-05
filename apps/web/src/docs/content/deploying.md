@@ -124,6 +124,8 @@ module.exports = {
 };
 ```
 
+The condition also moves the bidi engine for right-to-left text into its own chunk, which downloads the first time a page shows right-to-left text (see [Loading the bidi engine](/docs/internationalization#loading-the-bidi-engine)).
+
 Leave the condition out of server, prerender and test builds (Vitest, jsdom), which run fine with the inline copy.
 
 ## Upgrading

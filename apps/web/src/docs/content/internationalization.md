@@ -57,6 +57,20 @@ On a nested `<Text>`, `dir` isolates the span like HTML's `<bdi>`: its content i
 
 Text without right-to-left characters skips all of this. A pure left-to-right text model is detected while its graphemes are segmented (one comparison per grapheme) and paints through the unchanged path; console frames are byte-identical.
 
+## Loading the bidi engine
+
+In Text.js apps (`text dev`, `text build`), the bidi engine and its Unicode tables are a separate 10.6 kB chunk (gzip). It downloads the first time a page shows right-to-left text, so pages without any never load it. Until it arrives, that text paints in logical order, and the console repaints it in display order once it lands.
+
+To have the first frame in display order, start the download with `loadBidi()` before the first render, for example on right-to-left pages:
+
+```ts
+import { initYoga, loadBidi } from "@textjs/core";
+
+await Promise.all([initYoga(), document.documentElement.dir === "rtl" ? loadBidi() : null]);
+```
+
+Server rendering, `text run`, tests and bundles without the `@textjs/wasm-asset` resolve condition include the engine, so they always paint right-to-left text in display order and `loadBidi()` resolves at once.
+
 ## Cell widths
 
 The shipping font stack is `"SF Mono", Menlo, "Cascadia Mono", Consolas, monospace`. None of these fonts has Hebrew or Arabic glyphs, so browsers fall back per character. On macOS that is Courier New, which is monospaced at 0.6 em: 7.2012 px per glyph at 12 px against Menlo's 7.2246 px. It's 0.3% narrower, enough to drift a full row of Hebrew by about half a cell.

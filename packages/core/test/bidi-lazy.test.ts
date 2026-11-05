@@ -97,6 +97,28 @@ r.dispose();
     });
   }, 30_000);
 
+  test("loadBidi() before the first render: right-to-left text paints in display order from the first frame", () => {
+    const src = (p: string): string => JSON.stringify(join(CORE, p));
+    const script = join(dir, "preload.ts");
+    writeFileSync(
+      script,
+      `import { readFileSync } from "node:fs";
+import { ConsoleRenderer, initYoga, loadBidi } from ${src("src/index.ts")};
+import { bidiLoading } from ${src("src/internal.ts")};
+import { box, FakeConsole, text } from ${src("test/fixtures.ts")};
+await Promise.all([initYoga({ wasm: readFileSync(${src("yoga.wasm")}) }), loadBidi()]);
+const queue = [];
+const r = new ConsoleRenderer({ root: box({ width: 8, height: 1 }, text({}, "שלום")), console: new FakeConsole(), scheduler: { request: (cb) => queue.push(cb), cancel() {} }, viewport: { width: 8, height: 1 }, input: false, registerGlobal: false });
+r.renderNow();
+console.log(JSON.stringify({ row: r.buffer.toPlainString(true), loading: bidiLoading() !== null, queued: queue.length }));
+r.dispose();
+`,
+    );
+    const proc = Bun.spawnSync([process.execPath, `--conditions=${CONDITION}`, script], { cwd: dir, stderr: "pipe" });
+    expect(proc.stderr.toString()).toBe("");
+    expect(JSON.parse(proc.stdout.toString())).toEqual({ row: "םולש", loading: false, queued: 0 });
+  }, 30_000);
+
   test("vite build splits the bidi engine and its tables into their own chunk", async () => {
     mkdirSync(join(dir, "app/node_modules/@textjs"), { recursive: true });
     symlinkSync(CORE, join(dir, "app/node_modules/@textjs/core"));

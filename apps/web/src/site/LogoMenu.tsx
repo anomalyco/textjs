@@ -18,7 +18,7 @@ const ITEMS: readonly Item[] = [
   {
     label: t("Copy Logo as console.log"),
     copy: async () => {
-      const [logo, { detectConsoleBrowser }] = await Promise.all([import("./logo-console"), import("@textjs/core")]);
+      const [logo, { detectConsoleBrowser }] = await Promise.all([import("./logo-console"), import("./console-browser")]);
       const browser = detectConsoleBrowser();
       return browser === "firefox" || browser === "safari" ? logo.LOGO_CONSOLE_LOG_INLINE : logo.LOGO_CONSOLE_LOG;
     },

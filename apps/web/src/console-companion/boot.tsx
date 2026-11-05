@@ -4,7 +4,7 @@
  * once the visitor shows they want the console (`onConsoleIntent`).
  */
 
-import { extractStyledFrame, InputEngine, loadBidi, type StyledFrame } from "@textjs/core";
+import { extractStyledFrame, InputEngine, type StyledFrame } from "@textjs/core";
 import { createConsoleRoot, type ConsoleRoot } from "@textjs/react";
 import { applyViewportChoice, VIEWPORT_CHOICE_KEY, type ViewportChoice } from "@textjs/react/dom";
 import { CompanionApp, CompanionFocusHint } from "./App";
@@ -32,7 +32,6 @@ import {
   type Companion,
   type FrameListener,
 } from "./bridge";
-import { LOCALE } from "../i18n/locales";
 import { consoleRootErrors, report } from "../telemetry/capture";
 import { siteStore, type CompanionTab } from "./store";
 import { isCompanionTabLoaded, preloadCompanionTab } from "./tabs-loader";
@@ -116,8 +115,6 @@ export function bootCompanion(): Promise<Companion> {
       rootReady,
       preloadCompanionTab(initialSnap.tab),
       initialSnap.example !== null ? preloadCompanionTab("example") : Promise.resolve(),
-      // Right-to-left locales: the first frame is already in visual order. Without it, it paints in logical order once.
-      LOCALE.dir === "rtl" ? loadBidi().catch(() => undefined) : Promise.resolve(),
     ]).catch((error: unknown) => {
       // A view that failed to load (a dropped connection, say): drop the root so a later boot starts clean.
       void rootReady.then((r) => r.unmount(), () => undefined);
