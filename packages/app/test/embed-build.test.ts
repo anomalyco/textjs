@@ -13,7 +13,7 @@ import { parseArgs } from "../src/cli/index";
 import { startDevServer } from "../src/cli/dev";
 import { startProductionServer } from "../src/cli/start";
 import { adapt } from "./adapter-helpers";
-import { createFixture } from "./server-fixture";
+import { createFixture, rawRequest } from "./server-fixture";
 
 const config = (body: string): string => `import { defineConfig } from "@textjs/app";\nexport default defineConfig(${body});\n`;
 
@@ -76,6 +76,16 @@ function production(): void {
 
 const gz = (file: string): number => gzipSync(readFileSync(file)).length;
 
+/** `text start` never serves `.text/` (server bundles, manifests), however the path is spelled. */
+async function expectNoMetaFiles(base: string, files: string[]): Promise<void> {
+  for (const file of files) {
+    for (const target of [`/${file}`, `/${file.replace(/^\./, "%2e")}`, `/assets/../${file}`]) {
+      const res = await rawRequest(base, target);
+      expect({ target, status: res.status }).toEqual({ target, status: 404 });
+    }
+  }
+}
+
 function files(dir: string, rel = ""): string[] {
   return readdirSync(join(dir, rel)).flatMap((name) => {
     const r = rel ? `${rel}/${name}` : name;
@@ -124,9 +134,8 @@ describe("text build --embed (client route)", () => {
     expect(out.some((f) => f.endsWith(".html"))).toBe(false);
     expect(result.embed?.runtime).toBe("client");
     expect(result.embed?.shell).toBe(true);
-    // No pages, so no curl frames or live manifest either.
-    expect(existsSync(join(dist, ".text/live-manifest.json"))).toBe(false);
-    expect(existsSync(join(dist, ".text/ansi"))).toBe(false);
+    // No server to run: what the build used (the first frame's prerender bundle, the manifest) isn't left to publish.
+    expect(existsSync(join(dist, ".text"))).toBe(false);
     expectHygiene(dist);
   });
 
@@ -396,16 +405,19 @@ describe("text build --embed (server-rendered route)", () => {
     console.log(`embed player ${size} B gzip (budget < ${BUDGET.player})`);
     expect(size).toBeLessThan(BUDGET.player);
     expect(existsSync(join(dist, "index.html"))).toBe(false);
+    // `text start` and the bun adapter run it from there.
     expect(existsSync(join(dist, ".text/server/live.mjs"))).toBe(true);
+    expect(existsSync(join(dist, ".text/live-manifest.json"))).toBe(true);
     expectHygiene(dist);
   });
 
   test(
-    "text start answers live sessions from the allowed site",
+    "text start answers live sessions from the allowed site, and never serves .text/",
     async () => {
       const server = await startProductionServer({ root: dir, port: 0, log: false });
       try {
         const base = new URL(server.url).origin;
+        await expectNoMetaFiles(base, [".text/server/live.mjs", ".text/live-manifest.json", ".text/routes-manifest.json"]);
         const pre = await fetch(`${base}/__textjs/live`, { method: "OPTIONS", headers: { origin: "https://host.example", "access-control-request-method": "POST" } });
         expect(pre.status).toBe(204);
         expect(pre.headers.get("access-control-allow-origin")).toBe("https://host.example");
