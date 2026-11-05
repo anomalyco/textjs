@@ -26,13 +26,14 @@ function preloadSearchEngine(): Promise<SearchEngine> {
   return enginePromise;
 }
 
-/** Download the search dialog and its index (a search button hovered or focused, ⌘ or Ctrl pressed). */
+/** Download the search dialog, then its index (a search button hovered or focused, ⌘ or Ctrl pressed). */
 export function preloadSearchDialog(): Promise<DialogModule> {
-  void preloadSearchEngine();
   if (dialogCache) return Promise.resolve(dialogCache);
   if (!dialogPromise) {
+    // The dialog first, so the index doesn't share its bandwidth: until the index loads, the dialog matches titles.
     dialogPromise = import("./SearchDialog").then((m) => {
       dialogCache = m;
+      void preloadSearchEngine();
       return m;
     });
     dialogPromise.catch(() => (dialogPromise = null));
@@ -52,8 +53,12 @@ export function SearchModal(): ReactNode {
 
   useEffect(() => {
     const load = (): void => {
-      void preloadSearchDialog().then(setDialog);
-      void preloadSearchEngine().then(setEngine);
+      void preloadSearchDialog()
+        .then((m) => {
+          setDialog(m);
+          return preloadSearchEngine();
+        })
+        .then(setEngine);
     };
     const l = (v: boolean): void => {
       if (v) load();
