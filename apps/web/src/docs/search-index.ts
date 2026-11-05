@@ -387,13 +387,13 @@ export const DOC_HEADINGS: Readonly<Record<string, readonly Heading[]>> = {
     },
     {
       "depth": 2,
-      "text": "What loads when",
-      "id": "what-loads-when"
+      "text": "How it behaves",
+      "id": "how-it-behaves"
     },
     {
       "depth": 2,
-      "text": "How it behaves",
-      "id": "how-it-behaves"
+      "text": "What loads when",
+      "id": "what-loads-when"
     },
     {
       "depth": 2,

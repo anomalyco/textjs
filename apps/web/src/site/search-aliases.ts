@@ -19,7 +19,8 @@ const ALIASES: ReadonlyArray<{ terms: readonly string[]; to: { error: string } |
   { terms: ["next.config", "next.config.js", "next.config.mjs", "next.config.ts"], to: { doc: "project-structure" } },
   { terms: ["safari", "firefox"], to: { doc: "turbolog-engine", heading: "firefox-and-safari" } },
   { terms: ["vercel"], to: { doc: "deploying" } },
-  { terms: ["iframe", "widget", "web component", "script tag"], to: { doc: "embedding" } },
+  { terms: ["iframe", "widget", "script tag"], to: { doc: "embedding" } },
+  { terms: ["web component", "custom element"], to: { doc: "embedding", heading: "text-console" } },
 ];
 
 function errorItem(code: string): SearchItem | null {
