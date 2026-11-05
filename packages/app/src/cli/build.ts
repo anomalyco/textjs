@@ -1,5 +1,5 @@
-import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { join, relative, resolve, sep } from "node:path";
 import { gzipSync } from "node:zlib";
 import { build, mergeConfig, type InlineConfig } from "vite";
 import { ENGINE_NAME, VERSION } from "@textjs/core";
@@ -11,6 +11,8 @@ import { textjsVitePlugin, VIRTUAL_API } from "../vite-plugin";
 import { withFrameworkEntry } from "../server/vite-entry";
 import { buildServerRuntime, resolveAdapter, runBuildAdapter, serverFiles } from "../server/adapters/build-step";
 import type { AdapterResult } from "../server/adapters/shared";
+import { resolveEmbedSettings, withEmbed } from "../server/embed";
+import { buildEmbed, type EmbedBuildResult } from "../server/embed-build";
 import { loadTextConfig } from "./config";
 import { brand, color, fail, formatBytes, LEGEND, ok, routeTable, SERVER_LEGEND, summarize, type SummaryRoute } from "./ui";
 import { resolveRoot } from "../server/paths";
@@ -21,6 +23,8 @@ export interface BuildOptions {
   adapter?: string;
   /** Print the summary (default `true`). */
   log?: boolean;
+  /** @experimental `--embed`: build `embed.js`, as `embed` in `text.config.ts` does. */
+  embed?: boolean;
 }
 
 export interface BuildManifest {
@@ -40,12 +44,19 @@ export interface BuildResult {
   durationMs: number;
   /** Deploy output written by `--adapter`. */
   adapter?: AdapterResult;
+  /** @experimental `embed.js`, when the app is an embed. */
+  embed?: EmbedBuildResult;
 }
 
 const errorText = (error: unknown): string => (error instanceof Error ? (error.stack ?? error.message) : String(error));
 
 /** `.text/` inside the output directory holds build metadata and the API server bundle. */
 export const META_DIR = ".text";
+
+function fileSize(file: string): { bytes: number; gzip: number } {
+  const buf = readFileSync(file);
+  return { bytes: buf.length, gzip: gzipSync(buf).length };
+}
 
 /** Client scripts and the WebAssembly they load (Yoga's `yoga-[hash].wasm`). */
 function clientFiles(dir: string): string[] {
@@ -60,6 +71,18 @@ function clientFiles(dir: string): string[] {
   };
   walk(dir);
   return out;
+}
+
+/**
+ * Empty the output directory once, before anything is written, as Vite's
+ * `build.emptyOutDir` would: by default only when it's inside the project,
+ * always with `true`, never with `false`. Every bundle after that adds to it.
+ */
+function emptyOutDir(root: string, outDir: string, setting: unknown): void {
+  mkdirSync(outDir, { recursive: true });
+  if (setting !== true && (setting === false || !outDir.startsWith(root + sep))) return;
+  // Like Vite, keep a `.git` (a gh-pages checkout of the output).
+  for (const name of readdirSync(outDir)) if (name !== ".git") rmSync(join(outDir, name), { recursive: true, force: true });
 }
 
 export async function buildApp(options: BuildOptions): Promise<BuildResult> {
@@ -81,8 +104,19 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
   }
 
   async function run(): Promise<BuildResult> {
-    const { config } = await loadTextConfig(opts.root, "build");
+    const loaded = await loadTextConfig(opts.root, "build");
+    const config = withEmbed(loaded.config, opts.embed);
     const outDir = resolve(opts.root, config.outDir ?? "dist");
+    let embedSettings: ReturnType<typeof resolveEmbedSettings>;
+    try {
+      embedSettings = resolveEmbedSettings(config);
+    } catch (error) {
+      print(fail(error instanceof Error ? error.message : String(error)));
+      printed = true;
+      throw error;
+    }
+    // An embed build has no pages of its own unless `standalone`: no index.html, no react-dom.
+    const documents = embedSettings === null || embedSettings.standalone;
 
     print(`   ${brand()}`);
     print();
@@ -95,7 +129,7 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
       mode: "production",
       logLevel: "warn",
       clearScreen: false,
-      build: { outDir, emptyOutDir: true },
+      build: { outDir },
       plugins: [textjsVitePlugin({ ...config, root: opts.root })],
     };
     const scan = scanApp(opts.root, config.appDir ?? "app");
@@ -110,7 +144,11 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
     let hasMiddleware = false;
     const api = listApiRoutes(scan);
     try {
-      await build(config.vite ? mergeConfig(base, config.vite) : base);
+      emptyOutDir(opts.root, outDir, (config.vite?.build as { emptyOutDir?: unknown } | undefined)?.emptyOutDir);
+      if (documents) {
+        const client = config.vite ? mergeConfig(base, config.vite) : base;
+        await build({ ...client, build: { ...client.build, emptyOutDir: false } });
+      }
       if (api.length > 0) await buildApiServer();
       hasMiddleware = (await buildServerRuntime(opts.root, config, outDir)) && serverFiles(opts.root, config).middlewareFile !== null;
     } catch (error) {
@@ -146,7 +184,7 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
 
     const pages = listPages(scan);
     print(ok("Collecting route data"));
-    print(ok(`Generating static console cells (${pages.filter((p) => !p.dynamic).length}/${pages.length})`));
+    if (documents) print(ok(`Generating static console cells (${pages.filter((p) => !p.dynamic).length}/${pages.length})`));
 
     let bytes = 0;
     let gzip = 0;
@@ -159,7 +197,7 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
     let live: Awaited<ReturnType<typeof buildLiveRoutes>>;
     try {
       // Static hosts can't answer terminal clients differently, so the static adapter gets no ANSI frames.
-      live = await buildLiveRoutes({ root: opts.root, config, outDir, scan, plugins: [textjsVitePlugin({ ...config, root: opts.root })], ansi: adapterName !== "static" });
+      live = await buildLiveRoutes({ root: opts.root, config, outDir, scan, plugins: [textjsVitePlugin({ ...config, root: opts.root })], ansi: adapterName !== "static", documents });
     } catch (error) {
       print(fail(color.red("Failed to prerender.")));
       print();
@@ -169,7 +207,7 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
     }
     if (live) {
       const player = live.player ? `, frame player ${formatBytes(live.player.bytes)} (${formatBytes(live.player.gzip)} gzip)` : "";
-      if (live.staticRoutes > 0 || live.manifest.serverRoutes.length > 0) {
+      if (documents && (live.staticRoutes > 0 || live.manifest.serverRoutes.length > 0)) {
         print(ok(`Prerendering console shells (${live.shells}/${live.staticRoutes})${live.manifest.serverRoutes.length > 0 ? ` · ${live.manifest.serverRoutes.length} server-rendered` : ""}${player}`));
       }
       for (const s of live.skipped) print(color.gray(`   ${s.pattern} streams without a shell: ${s.reason.split("\n")[0]}`));
@@ -177,6 +215,20 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
         print(ok(`Prerendering curl frames (${live.ansi.frames}/${live.ansi.routes})`));
         for (const s of live.ansi.skipped) print(color.gray(`   ${s.pattern} has no prerendered curl frame: ${s.reason.split("\n")[0]}`));
       }
+    }
+    let embed: EmbedBuildResult | undefined;
+    if (embedSettings) {
+      try {
+        embed = await buildEmbed({ root: opts.root, config, outDir, scan, settings: embedSettings, liveBundleBuilt: live !== null });
+      } catch (error) {
+        print(fail(color.red("Failed to build embed.js.")));
+        print();
+        print(errorText(error));
+        printed = true;
+        throw error;
+      }
+      print(ok(`Building embed.js${embed.runtime === "server" ? " (server-rendered)" : ""}`));
+      if (embed.shellError) print(color.gray(`   embed.js has no first frame: ${embed.shellError.split("\n")[0]}`));
     }
     const routes = summarize(pages, api, new Set(listServerPages(scan).map((p) => p.pattern)));
     const manifest: BuildManifest = {
@@ -191,12 +243,22 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
     writeFileSync(join(outDir, META_DIR, "routes-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
     print(ok("Finalizing console optimization"));
     print();
-    print(routeTable(routes));
-    print(`+ First Load JS shared by all${" ".repeat(13)}${formatBytes(bytes)} ${color.gray(`(${formatBytes(gzip)} gzip)`)}`);
+    const total = (label: string, s: { bytes: number; gzip: number }): void => print(`+ ${label.padEnd(40)}${formatBytes(s.bytes)} ${color.gray(`(${formatBytes(s.gzip)} gzip)`)}`);
+    if (documents) {
+      print(routeTable(routes));
+      total("First Load JS shared by all", { bytes, gzip });
+    }
+    if (embed) {
+      total("embed.js", embed.entry);
+      for (const f of embed.lazyFiles) total(f, fileSize(join(outDir, f)));
+      print(color.gray(`  ${embed.hashedEntry} is embed.js under a hashed name. The rest loads on console intent.`));
+    }
     if (hasMiddleware) print(`ƒ Middleware`);
     print();
-    print(routes.some((r) => r.server) ? `${LEGEND}\n${SERVER_LEGEND}` : LEGEND);
-    print();
+    if (documents) {
+      print(routes.some((r) => r.server) ? `${LEGEND}\n${SERVER_LEGEND}` : LEGEND);
+      print();
+    }
     let adapter: AdapterResult | undefined;
     if (adapterName) {
       try {
@@ -212,6 +274,6 @@ export async function buildApp(options: BuildOptions): Promise<BuildResult> {
       for (const note of adapter.notes) print(color.gray(`   ${note}`));
       print();
     }
-    return { outDir, routes, manifest, output: lines.join("\n"), durationMs: performance.now() - started, adapter };
+    return { outDir, routes, manifest, output: lines.join("\n"), durationMs: performance.now() - started, adapter, ...(embed ? { embed } : {}) };
   }
 }

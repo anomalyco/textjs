@@ -194,6 +194,14 @@ jobs:
       - name: Chart glyphs in Consolas (${{ matrix.browser }})
         run: bun bench/devtools/glyph-shot.ts --browser=${{ matrix.browser }} --out="$RUNNER_TEMP/browser/glyphs" --check
 
+      # `text build --embed` on a plain host page: DevTools closed, a simulated dock, touch screens and boot order.
+      # With TEXTJS_CHROMIUM set, a missing browser fails the test instead of skipping it.
+      - name: Embed in Chrome
+        if: ${{ !cancelled() && matrix.browser == 'chrome' }}
+        env:
+          TEXTJS_CHROMIUM: C:\Program Files\Google\Chrome\Application\chrome.exe
+        run: bun test packages/app/test/embed-e2e.test.ts
+
       - name: Check ${{ matrix.browser }}
         if: ${{ !cancelled() && steps.site.outcome == 'success' }}
         run: node scripts/windows/browser-check.mjs --browser ${{ matrix.browser }} --origin http://localhost:4173 --out "$RUNNER_TEMP/browser"

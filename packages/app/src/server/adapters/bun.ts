@@ -57,11 +57,12 @@ export const handler = createRequestHandler({
     else if (embed.enabled && isEmbedAsset(pathname)) for (const [k, v] of Object.entries(EMBED_ASSET_HEADERS)) res.headers.set(k, v);
     return res;
   },
-  document() {
+  // An embed build has no index.html: unknown paths are 404s.
+  document: existsSync(join(dir, "index.html")) ? () => {
     const res = fileResponse(join(dir, "index.html"), false);
     res.headers.set("content-type", "text/html; charset=utf-8");
     return res;
-  },
+  } : undefined,
 });
 
 if (import.meta.main) {

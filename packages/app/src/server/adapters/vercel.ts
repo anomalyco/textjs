@@ -191,8 +191,11 @@ export function vercelEmbedSource(basePath = ""): string {
   return `^${escapeRegex(basePath)}\\/(?:embed\\.js|assets\\/(?:[^/]+\\/)*[^/]*\\.(?![Hh][Tt][Mm][Ll]?$)[^/.]+)$`;
 }
 
-/** `ansi`: route patterns with a prerendered frame (see {@link vercelAnsiRoute}). */
-export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule | null, ansi: readonly string[] = []): VercelConfig {
+/**
+ * `ansi`: route patterns with a prerendered frame (see {@link vercelAnsiRoute}).
+ * `document`: the build has an `index.html` for page routes (an embed build doesn't).
+ */
+export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule | null, ansi: readonly string[] = [], document = true): VercelConfig {
   const base = ctx.basePath;
   // The handler function is internal. A `status` route doesn't stop Vercel from
   // running a function at that path, so what keeps it internal is the header:
@@ -232,10 +235,17 @@ export function vercelConfig(ctx: AdapterContext, middleware: MiddlewareModule |
   // The HTML at those paths depends on User-Agent and Accept too.
   for (const src of vercelVarySources(ansi, base)) routes.push({ src, methods: ["GET", "HEAD"], headers: { vary: ANSI_VARY }, continue: true, caseSensitive: true });
   routes.push({ handle: "filesystem" });
-  // Extensionless paths are console pages: serve the SPA document.
-  routes.push({ src: `^${escapeRegex(base)}(?:\\/(?:[^/]+\\/)*[^/.]*)?$`, dest: `${base}/index.html`, caseSensitive: true });
+  // Extensionless paths are console pages: serve the SPA document (an embed build has none).
+  if (document) routes.push({ src: `^${escapeRegex(base)}(?:\\/(?:[^/]+\\/)*[^/.]*)?$`, dest: `${base}/index.html`, caseSensitive: true });
   // Only when a static file answers (the "hit" phase): never on documents, function responses or 404s.
-  if (resolveEmbed(ctx.config).enabled) routes.push({ handle: "hit" }, { src: vercelEmbedSource(base), headers: { ...EMBED_ASSET_HEADERS }, continue: true, caseSensitive: true });
+  if (resolveEmbed(ctx.config).enabled) {
+    routes.push(
+      { handle: "hit" },
+      { src: vercelEmbedSource(base), headers: { ...EMBED_ASSET_HEADERS }, continue: true, caseSensitive: true },
+      // A redeploy changes embed.js in place: browsers revalidate it every time.
+      { src: `^${escapeRegex(base)}\\/embed\\.js$`, headers: { "cache-control": "public, max-age=0, must-revalidate" }, continue: true, caseSensitive: true },
+    );
+  }
   return { version: 3, routes, framework: { version: VERSION } };
 }
 
@@ -265,7 +275,7 @@ export async function adaptVercel(ctx: AdapterContext, middleware: MiddlewareMod
   mkdirSync(mwDir, { recursive: true });
   await bundleServerEntry({ root: ctx.root, config: ctx.config, code: serverEntry(ctx, { body: MIDDLEWARE_BODY, handlers: false, runtime: false }), outFile: join(mwDir, "index.js"), target: "edge" });
   writeFileSync(join(mwDir, ".vc-config.json"), `${JSON.stringify({ runtime: "edge", entrypoint: "index.js" }, null, 2)}\n`);
-  const config = vercelConfig(ctx, middleware, Object.keys(frames));
+  const config = vercelConfig(ctx, middleware, Object.keys(frames), existsSync(join(ctx.outDir, "index.html")));
   writeFileSync(join(out, "config.json"), `${JSON.stringify(config, null, 2)}\n`);
   const routeNote = vercelRouteNote(config.routes.length);
   return { adapter: "vercel", output: out, notes: [...(routeNote ? [routeNote] : []), "Deploy: vercel deploy --prebuilt (or push: Vercel runs `text build` and picks up .vercel/output)"] };

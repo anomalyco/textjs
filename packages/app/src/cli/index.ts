@@ -18,12 +18,14 @@ export interface ParsedArgs {
   adapter?: string;
   /** `text run --path <pathname>`. */
   path?: string;
+  /** @experimental `text build --embed`, `text dev --embed`. */
+  embed: boolean;
   help: boolean;
   version: boolean;
 }
 
 export function parseArgs(argv: readonly string[]): ParsedArgs {
-  const out: ParsedArgs = { command: "", dir: ".", allowOrigins: [], help: false, version: false };
+  const out: ParsedArgs = { command: "", dir: ".", allowOrigins: [], embed: false, help: false, version: false };
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i] as string;
@@ -31,6 +33,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
     else if (a === "-v" || a === "--version") out.version = true;
     else if (a === "-p" || a === "--port") out.port = Number(argv[++i]);
     else if (a.startsWith("--port=")) out.port = Number(a.slice(7));
+    else if (a === "--embed") out.embed = true;
     else if (a === "--path") out.path = argv[++i];
     else if (a.startsWith("--path=")) out.path = a.slice(7);
     else if (a === "--adapter") out.adapter = argv[++i];
@@ -71,6 +74,7 @@ Options:
   -p, --port <port>   Port (default 3000; proxy 4096)
   --path <pathname>   run: initial route (default /)
   --adapter <name>    build: static | bun | vercel | cloudflare
+  --embed             build, dev: embed.js for other sites (experimental)
   --target <url>      proxy: OpenCode server URL (default: discover)
   --allow-origin <o>  proxy: allow another browser origin
   -H, --host [host]   Expose on the network (optionally bind a host)
@@ -133,7 +137,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     switch (args.command) {
       case "dev": {
         const { startDevServer } = await import("./dev");
-        const server = await startDevServer({ root, port: args.port, host: args.host });
+        const server = await startDevServer({ root, port: args.port, host: args.host, embed: args.embed });
         const stop = async (): Promise<void> => {
           await server.close();
           process.exit(0);
@@ -145,7 +149,7 @@ export async function main(argv: readonly string[]): Promise<number> {
       }
       case "build": {
         const { buildApp } = await import("./build");
-        await buildApp({ root, adapter: args.adapter });
+        await buildApp({ root, adapter: args.adapter, embed: args.embed });
         return 0;
       }
       case "start": {

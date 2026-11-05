@@ -365,6 +365,12 @@ export interface AppRouterProps {
   errorStore?: DevErrorStore | null;
   /** Called after every navigation. */
   onNavigate?: (match: RouteMatch) => void;
+  /**
+   * Opens a URL on another origin (`router.push("https://…")`, `<Link>`).
+   * Default: `window.location.assign`, which leaves the page. An app embedded
+   * in another site passes one that opens a new tab instead.
+   */
+  openExternal?: (href: string) => void;
   /** Extra overlays rendered above the routes. */
   children?: ReactNode;
 }
@@ -387,6 +393,7 @@ export function AppRouter({
   defaultTitle,
   errorStore = process.env.NODE_ENV !== "production" ? devErrors : null,
   onNavigate,
+  openExternal,
   children,
 }: AppRouterProps): ReactNode {
   const [ownHistory] = useState(() => historyProp ?? defaultHistory());
@@ -422,8 +429,11 @@ export function AppRouter({
 
   const router = useMemo<AppRouterInstance>(() => {
     const navigate = (href: string, kind: "push" | "replace"): void => {
-      if (isExternalHref(href, typeof window !== "undefined" ? window.location.origin : undefined)) {
-        if (typeof window !== "undefined") window.location.assign(href);
+      // In-memory history isn't tied to the page's address (an embed on another site): every absolute URL is external.
+      const origin = "entries" in history || typeof window === "undefined" ? undefined : window.location.origin;
+      if (isExternalHref(href, origin)) {
+        if (openExternal) openExternal(href);
+        else if (typeof window !== "undefined") window.location.assign(href);
         return;
       }
       const next = parseHref(href, latest.current.pathname);
@@ -443,7 +453,7 @@ export function AppRouter({
         for (const n of m.chain) for (const ref of [n.layout, n.page, n.loading]) if (ref && isLazyModule(ref)) void loadModule(ref).catch(() => undefined);
       },
     };
-  }, [history, routes]);
+  }, [history, routes, openExternal]);
 
   useEffect(() => {
     onNavigate?.(match);

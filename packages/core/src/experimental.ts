@@ -10,10 +10,14 @@ export {
 } from "./pixels";
 export {
   canPrefetchConsole,
+  claimConsole,
   CONSOLE_INTENT_KEY,
+  CONSOLE_OWNER,
+  consoleOwner,
   onConsoleIntent,
   type ConsoleIntentEvent,
   type ConsoleIntentHandle,
   type ConsoleIntentOptions,
   type ConsoleIntentReason,
+  type ConsoleOwner,
 } from "./console-intent";
