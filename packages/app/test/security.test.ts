@@ -91,6 +91,14 @@ describe("security contract (SCOPED_APP)", () => {
         expect(blocked.body).toContain('Text.js error TX028: Blocked request. This host ("attacker.example") is not allowed. Add it to `server.allowedHosts` in text.config.ts.');
         expect((await rawRequest(server.url, "/api/public", { headers: { host: `localhost:${port}` } })).status).toBe(200);
         expect((await rawRequest(server.url, "/%E0%A4%A")).status).toBe(400);
+        // Server bundles and build manifests in dist/.text/ are never files it serves, however the path is spelled.
+        for (const file of [".text/routes-manifest.json", ".text/server/api.mjs"]) {
+          expect(existsSync(join(dir, "dist", file))).toBe(true);
+          for (const target of [`/${file}`, `/%2e${file.slice(1)}`, `/assets/../${file}`]) {
+            const res = await rawRequest(server.url, target);
+            expect({ target, status: res.status, leaked: res.body.includes("export") || res.body.includes('"routes"') }).toEqual({ target, status: 404, leaked: false });
+          }
+        }
       } finally {
         await server.close();
       }

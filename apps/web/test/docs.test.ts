@@ -191,5 +191,7 @@ describe("documentation registry", () => {
     const safari = aliasResults("safari")[0];
     expect(safari?.href).toBe("/docs/turbolog-engine#firefox-and-safari");
     expect(safari?.label).toBe("Firefox and Safari");
+    expect(aliasResults("iframe")[0]?.href).toBe("/docs/embedding");
+    expect(aliasResults("custom element")[0]?.href).toBe("/docs/embedding#text-console");
   });
 });
