@@ -64,3 +64,38 @@ Hook 将组件连接到输入、焦点和视口。
 
 <!-- s:420cc7f125 -->
 每个应用都会向 `window.text` 添加辅助函数。在 DevTools 提示符中输入这些函数。
+
+<!-- s:195573d803 -->
+按控制台使用意图加载（实验性）
+
+<!-- s:97014ecad1 -->
+`@textjs/core/experimental` 导出 `onConsoleIntent`，供页面仅在访客有使用意图时下载控制台应用。它会调用你的函数一次，并传入触发原因：
+
+<!-- s:444b1ebdd7 -->
+| 原因 | 触发时机 |
+| :-- | :-- |
+| `dock` | DevTools 在页面加载时已停靠，或在之后停靠。Text.js 通过窗口大小判断停靠状态 |
+| `shortcut` | 访客按下 F12 或 Ctrl+Shift+J、I、C 或 K，或在 Mac 上按下 ⌘⌥J、I、C 或 K。浏览器仍会打开 DevTools |
+| `engage` | 使用主按钮点击匹配 `engageSelector` 的元素，在 `[data-textjs-engage]` 按钮上按 Enter 或 Space，或在应用启动前通过 `<ViewportControl>` 选择尺寸。点击匹配元素内部的链接、按钮和表单字段不计入，除非它们也带有 `data-textjs-engage` |
+| `session` | 当前标签页中已发生上述任一操作，因此重新加载时会立即启动 |
+| `manual` | 你在返回的句柄上调用了 `trigger()` |
+
+<!-- s:894b97fac4 -->
+从浏览器菜单在独立窗口中打开的 DevTools 不会反映在窗口大小中。这些访客通过 `engage` 元素启动应用，`session` 则确保在该标签页重新加载时继续启动应用。
+
+<!-- s:06cdcf713e -->
+触摸屏上不会自动触发任何操作。从你自己的控件调用 `trigger()`。
+
+<!-- s:d7006796c2 -->
+| 选项 | 描述 |
+| :-- | :-- |
+| `engageSelector` | 点击后启动应用的元素（默认值为 `[data-textjs-engage], [data-textjs-focus-pad], text-console`）。设为 `false` 时不添加监听器 |
+| `persist` | 在 `sessionStorage` 中以 `CONSOLE_INTENT_KEY` 为键记录当前标签页的使用意图（默认值为 `true`） |
+| `prefetch` | 指针或焦点进入 `engageSelector` 元素时调用，最多调用一次 |
+| `idlePrefetch` | 在 `load` 之后浏览器空闲时也调用 `prefetch`（默认值为 `false`） |
+
+<!-- s:4460da3205 -->
+在触摸屏上、开启流量节省模式时或连接速度低于 4G 时，`prefetch` 都不会运行。`canPrefetchConsole()` 返回相同检查的结果。句柄的 `dispose()` 会移除所有监听器。
+
+<!-- s:9128a9d98f -->
+`<ViewportControl>` 在控制台根节点创建前即可使用。选择尺寸会保存该尺寸，触发 `engage` 以便 `onConsoleIntent` 启动应用，并在设置 `root` 后应用该尺寸。有关实验性导出的版本管理方式，请参阅[破坏性变更](/docs/support-policy#breaking-changes)。

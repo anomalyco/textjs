@@ -39,6 +39,21 @@ Il processo di rendering
 <!-- s:3b67946601 -->
 Il testo senza caratteri da destra a sinistra salta tutti questi passaggi. Un modello di testo interamente da sinistra a destra viene rilevato durante la segmentazione dei grafemi (un confronto per grafema) e disegnato con il percorso invariato; i frame della console sono identici byte per byte.
 
+<!-- s:6181d9259c -->
+Caricamento del motore bidi
+
+<!-- s:8bd0807fa0 -->
+Nelle app Text.js (`text dev`, `text build`), il motore bidi e le sue tabelle Unicode sono un chunk separato di 10,1 kB (gzip). Viene scaricato la prima volta che una pagina renderizza testo da destra a sinistra o un `<Text>` con `dir="rtl"`, quindi le altre pagine non lo caricano mai. Finché non arriva, quel testo viene disegnato in ordine logico. Poi la console lo ridisegna nell’ordine di visualizzazione.
+
+<!-- s:ed4299ea80 -->
+Le app `text build` con una shell sottoposta a pre-rendering avviano il download autonomamente quando la shell contiene testo da destra a sinistra. Se monti la console tu, avvia il download insieme a `createConsoleRoot()` affinché il primo frame sia nell’ordine di visualizzazione. Per esempio, nelle pagine da destra a sinistra:
+
+<!-- s:8ebc8c3712 -->
+`loadBidi()` viene rifiutata se il caricamento del chunk fallisce. Il testo da destra a sinistra resta quindi in ordine logico.
+
+<!-- s:7adcf6764d -->
+Il rendering lato server, `text run`, i test e i bundle senza la condizione di risoluzione `@textjs/client` includono il motore, quindi disegnano sempre il testo da destra a sinistra nell’ordine di visualizzazione e `loadBidi()` si risolve subito.
+
 <!-- s:26ac17c25a -->
 Larghezza delle celle
 

@@ -43,8 +43,8 @@ Những mục sau chỉ thay đổi trong phiên bản chính, sau khi có cản
 - Quy ước tệp trong `app/`, `middleware.ts` và cấu hình phân đoạn route
 - Cấu trúc đầu ra của adapter (`.vercel/output`, `_worker.js`, `dist/server.js`)
 
-<!-- s:3a8ad71311 -->
-Không áp dụng cho: API có đánh dấu thử nghiệm hoặc `unstable_`, bao gồm mọi thứ trong `@textjs/core/experimental` và `@textjs/react/experimental` (chúng có thể thay đổi trong phiên bản phụ, kèm ghi chú trong nhật ký thay đổi), thành phần nội bộ như `@textjs/core/internal`, header `x-middleware-*` và siêu dữ liệu build `.text/`, bản phát hành canary, cùng chuỗi định dạng và CSS cụ thể của `console.log` (frame vẫn có hình thức giống hệt; quá trình mã hóa chúng có thể nhanh hơn).
+<!-- s:883f3eeb26 -->
+Không áp dụng cho: API được đánh dấu là thử nghiệm hoặc `unstable_`, bao gồm mọi API trong `@textjs/core/experimental`, `@textjs/react/experimental` và `@textjs/app/experimental` (chúng có thể thay đổi trong bản phát hành phụ, kèm ghi chú trong nhật ký thay đổi), thành phần nội bộ như `@textjs/core/internal`, header `x-middleware-*` và siêu dữ liệu bản dựng trong `.text/`, bản phát hành canary, cũng như chuỗi định dạng `console.log` và CSS chính xác (frame vẫn hiển thị giống hệt nhau; quá trình mã hóa chúng có thể nhanh hơn).
 
 <!-- s:5c7d9aae9b -->
 Hỗ trợ môi trường chạy

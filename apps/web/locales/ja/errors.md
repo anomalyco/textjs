@@ -303,3 +303,18 @@ create-text-appは、新規または空のディレクトリーにのみひな�
 
 <!-- s:95d0435b57 -->
 ハンドラーがリクエストを読み取る場合は、`"force-dynamic"` を使うか、エクスポートを削除してください。[キャッシュ](/docs/caching)を参照してください。
+
+<!-- s:fa8a66bf23 -->
+YogaのWebAssemblyの読み込み失敗
+
+<!-- s:f2aaa80b0f -->
+`initYoga()` は、Text.jsアプリ（`text dev`、`text build`）、`@textjs/client` の解決条件を設定したビルド、および `initYoga({ wasm })` を渡した場合に、`.wasm` ファイルからYogaのWebAssemblyを読み込みます。リクエストが失敗したか、エラーステータスが返されたか、返された内容が有効なWebAssemblyではありませんでした。エラーにはURLとサーバーが送信した `Content-Type` が示されます。よくある原因は、サーバーが `.wasm` のURLに対してフォールバック用のHTMLページを返していることや、Content Security Policyの `script-src` に `'wasm-unsafe-eval'` が含まれていないことです。
+
+<!-- s:9de0a578e9 -->
+エラーに示されたURLがファイルを返すようにし、ダウンロード中にコンパイルできるよう `Content-Type: application/wasm` を設定してください。不明なパスに対して `index.html` を返すリライトでは、`/assets/` を対象から除外する必要があります。Content Security PolicyでWebAssemblyを許可してください。
+
+<!-- s:510b3ade73 -->
+コンソールを自分でマウントし、別の場所からファイルを配信する場合は、`createConsoleRoot()` の前に、ファイルのURL、バイト列、またはコンパイル済みの `WebAssembly.Module` を指定して `initYoga()` を呼び出してください。Yogaを読み込むのは最初の呼び出しのみです。
+
+<!-- s:ed5dce1787 -->
+[WebAssembly](/docs/deploying#webassembly)を参照してください。

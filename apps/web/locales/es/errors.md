@@ -303,3 +303,18 @@ Usa `"force-static"` para almacenar el manejador en caché. Un manejador almacen
 
 <!-- s:95d0435b57 -->
 Usa `"force-dynamic"`, o elimina la exportación, si el manejador lee la solicitud. Consulta [Caché](/docs/caching).
+
+<!-- s:fa8a66bf23 -->
+Error al cargar el WebAssembly de Yoga
+
+<!-- s:f2aaa80b0f -->
+`initYoga()` carga el WebAssembly de Yoga desde un archivo `.wasm` en las apps de Text.js (`text dev`, `text build`), en las compilaciones que establecen la condición de resolución `@textjs/client` y cuando pasas `initYoga({ wasm })`. La solicitud falló, devolvió un estado de error o la respuesta no era WebAssembly válido. El error indica la URL y el `Content-Type` que envió el servidor. Las causas habituales son un servidor que responde a la URL `.wasm` con una página HTML alternativa y una política de seguridad de contenido sin `'wasm-unsafe-eval'` en `script-src`.
+
+<!-- s:9de0a578e9 -->
+Haz que la URL indicada en el error devuelva el archivo con `Content-Type: application/wasm` para que se compile mientras se descarga. Una regla de reescritura que sirve `index.html` para rutas desconocidas debe excluir `/assets/`. Permite WebAssembly en tu política de seguridad de contenido:
+
+<!-- s:510b3ade73 -->
+Si montas la consola por tu cuenta y sirves el archivo desde otro lugar, llama a `initYoga()` con su URL, sus bytes o un `WebAssembly.Module` compilado antes de `createConsoleRoot()`. Solo la primera llamada carga Yoga:
+
+<!-- s:ed5dce1787 -->
+Consulta [WebAssembly](/docs/deploying#webassembly).

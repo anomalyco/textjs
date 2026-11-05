@@ -36,17 +36,18 @@ Rotas dinâmicas
 <!-- s:854c967567 -->
 text.config.ts
 
-<!-- s:144c0672ce -->
+<!-- s:1baaf058bb -->
 | Opção | Padrão | Descrição |
 | :-- | :-- | :-- |
 | `title` | `""` | Título da página e do FocusPad |
 | `viewport` | ajustado ao console, senão `120×36` | `responsive` (padrão `true`), alternativa `width × height`, `theme` |
 | `hints` | `[]` | Duas ou três teclas exibidas no FocusPad da página |
 | `action` | `press <first hint>` | O que fazer após receber o foco, por exemplo, `"type a prompt"` |
-| `devIndicators` | `true` | Sobreposição de desenvolvimento no console (`[▼]`) |
-| `focusHint` | `true` | “Clique na página para usar o teclado” sobre a última linha do console enquanto a página não está em foco |
+| `devIndicators` | `true` | Overlay de desenvolvimento no console (`[▼]`) |
+| `focusHint` | `true` | “Clique na página para usar o teclado” sobre a última linha do console enquanto a página estiver sem foco |
 | `rewrites` | `[]` | Reescritas e proxies |
 | `ansi` | `{ cols: 80, rows: 24 }` | Tamanho do quadro para [curl e clientes de terminal](/docs/curl), ou `false` para servir HTML a eles |
+| `embed` | `false` | Gerar o build do app para outros sites adicionarem com uma tag de script ([Incorporação](/docs/embedding), experimental) |
 
 <!-- s:04e1df190e -->
 CLI

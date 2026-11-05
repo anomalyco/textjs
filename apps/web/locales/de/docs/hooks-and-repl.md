@@ -64,3 +64,38 @@ Die `window.text`-REPL
 
 <!-- s:420cc7f125 -->
 Jede App fügt Hilfsfunktionen zu `window.text` hinzu. Gib sie in der DevTools-Eingabezeile ein.
+
+<!-- s:195573d803 -->
+Bei beabsichtigter Konsolennutzung laden (experimentell)
+
+<!-- s:97014ecad1 -->
+`@textjs/core/experimental` exportiert `onConsoleIntent` für Seiten, die ihre Konsolen-App erst herunterladen, wenn ein Besucher sie nutzen möchte. Es ruft deine Funktion einmal mit dem Grund auf:
+
+<!-- s:444b1ebdd7 -->
+| Grund | Zeitpunkt |
+| :-- | :-- |
+| `dock` | DevTools ist beim Laden der Seite angedockt oder wird später angedockt. Text.js erkennt das an der Fenstergröße |
+| `shortcut` | Der Besucher drückt F12 oder Ctrl+Shift+J, I, C oder K, auf einem Mac ⌘⌥J, I, C oder K. Der Browser öffnet weiterhin DevTools |
+| `engage` | Ein Klick mit der primären Maustaste auf ein Element, das `engageSelector` entspricht, Enter oder Space auf einem `[data-textjs-engage]`-Button oder eine Größenauswahl in `<ViewportControl>`, bevor die App startet. Klicks auf Links, Buttons und Formularfelder innerhalb eines passenden Elements zählen nur, wenn sie ebenfalls `data-textjs-engage` haben |
+| `session` | Einer der obigen Fälle ist in diesem Tab bereits eingetreten, daher startet die App beim Neuladen sofort |
+| `manual` | Du hast `trigger()` auf dem zurückgegebenen Handle aufgerufen |
+
+<!-- s:894b97fac4 -->
+Wenn DevTools über ein Browsermenü in einem eigenen Fenster geöffnet wird, lässt sich das nicht an der Fenstergröße erkennen. Diese Besucher starten die App über ein `engage`-Element, und `session` sorgt dafür, dass sie beim Neuladen in diesem Tab weiter startet.
+
+<!-- s:06cdcf713e -->
+Auf Touchscreens wird nichts automatisch ausgelöst. Rufe `trigger()` über dein eigenes Bedienelement auf.
+
+<!-- s:d7006796c2 -->
+| Option | Beschreibung |
+| :-- | :-- |
+| `engageSelector` | Elemente, die beim Anklicken die App starten (Standard `[data-textjs-engage], [data-textjs-focus-pad], text-console`). `false` fügt keine Listener hinzu |
+| `persist` | Nutzungsabsicht für den Tab in `sessionStorage` unter `CONSOLE_INTENT_KEY` speichern (Standard `true`) |
+| `prefetch` | Höchstens einmal aufgerufen, wenn der Zeiger oder Fokus in ein `engageSelector`-Element gelangt |
+| `idlePrefetch` | `prefetch` auch aufrufen, wenn der Browser nach `load` im Leerlauf ist (Standard `false`) |
+
+<!-- s:4460da3205 -->
+`prefetch` läuft nie auf Touchscreens, bei aktiviertem Datensparmodus oder bei Verbindungen, die langsamer als 4G sind. `canPrefetchConsole()` gibt das Ergebnis derselben Prüfung zurück. `dispose()` auf dem Handle entfernt alle Listener.
+
+<!-- s:9128a9d98f -->
+`<ViewportControl>` funktioniert, bevor der Konsolen-Root existiert. Eine Größenauswahl speichert die Größe, löst `engage` aus, damit `onConsoleIntent` die App startet, und wendet die Größe an, sobald `root` gesetzt ist. Unter [Inkompatible Änderungen](/docs/support-policy#breaking-changes) erfährst du, wie experimentelle Exporte versioniert werden.

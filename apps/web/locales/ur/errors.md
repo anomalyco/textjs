@@ -303,3 +303,18 @@ text.config کا نامعلوم آپشن
 
 <!-- s:95d0435b57 -->
 اگر ہینڈلر درخواست پڑھتا ہے تو `"force-dynamic"` استعمال کریں، یا ایکسپورٹ ہٹا دیں۔ [کیشنگ](/docs/caching) دیکھیں۔
+
+<!-- s:fa8a66bf23 -->
+Yoga کی WebAssembly لوڈ ہونے میں ناکامی
+
+<!-- s:f2aaa80b0f -->
+`initYoga()` فنکشن Text.js ایپس (`text dev`، `text build`) میں، `@textjs/client` ریزولو کنڈیشن سیٹ کرنے والی بلڈز میں، اور جب آپ `initYoga({ wasm })` پاس کرتے ہیں تو Yoga کی WebAssembly کو `.wasm` فائل سے لوڈ کرتا ہے۔ درخواست ناکام ہوئی، ایرر اسٹیٹس واپس آیا، یا واپس آنے والا مواد درست WebAssembly نہیں تھا۔ ایرر میں URL اور سرور کا بھیجا ہوا `Content-Type` درج ہوتا ہے۔ عام وجوہات میں ایسا سرور شامل ہے جو `.wasm` URL کے جواب میں HTML فال بیک صفحہ بھیجتا ہے، اور ایسی Content Security Policy جس کے `script-src` میں `'wasm-unsafe-eval'` شامل نہیں ہوتا۔
+
+<!-- s:9de0a578e9 -->
+ایرر میں موجود URL سے فائل واپس بھیجیں، جس کا `Content-Type: application/wasm` ہو تاکہ وہ ڈاؤن لوڈ ہوتے وقت کمپائل ہو۔ نامعلوم پاتھز کے لیے `index.html` پیش کرنے والے ری رائٹ کو `/assets/` چھوڑنا ہوگا۔ اپنی Content Security Policy میں WebAssembly کی اجازت دیں:
+
+<!-- s:510b3ade73 -->
+اگر آپ خود کونسول ماؤنٹ کرتے ہیں اور فائل کسی دوسری جگہ سے پیش کرتے ہیں، تو `createConsoleRoot()` سے پہلے `initYoga()` کو اس کے URL، اس کے بائٹس یا کمپائل شدہ `WebAssembly.Module` کے ساتھ کال کریں۔ صرف پہلی کال Yoga کو لوڈ کرتی ہے:
+
+<!-- s:ed5dce1787 -->
+[WebAssembly](/docs/deploying#webassembly) دیکھیں۔

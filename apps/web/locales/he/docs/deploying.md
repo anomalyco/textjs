@@ -16,6 +16,9 @@
 <!-- s:7e755a5c9f -->
 אפשר להגדיר את המתאם גם באמצעות `TEXTJS_ADAPTER`. כאשר `text build` רץ ב-Vercel (`VERCEL=1`) או ב-Cloudflare Pages (`CF_PAGES=1`), המתאם המתאים נבחר אוטומטית.
 
+<!-- s:d671e1ae31 -->
+כדי להוסיף את האפליקציה לאתר אחר באמצעות תגית script אחת, יש לבנות עם `--embed`. כל מתאם תומך בכך (ראו [הטמעה](/docs/embedding)).
+
 <!-- s:9d8df946e5 -->
 מתאמי השרת (`bun`, `vercel` ו-`cloudflare`) מפעילים את אותו רצף עיבוד כמו `text start`: [middleware](/docs/middleware), `rewrites`, [מטפלי נתיב](/docs/route-handlers) עם [מטמון הנתיבים](/docs/caching), משאבים סטטיים, ואז מסמך המסוף עבור כתובות URL של דפים. לקוחות טרמינל כמו curl מקבלים במקום זאת את הפריים הראשון של הדף כטקסט ANSI. ב-`vercel` וב-`cloudflare` זה חל על דפים סטטיים בלבד (ראו [curl ולקוחות טרמינל](/docs/curl)). מתאמי השרת מגישים קבצים ששמם כולל גיבוב תחת `/assets/` עם `Cache-Control: public, max-age=31536000, immutable`.
 
@@ -63,13 +66,13 @@ Cloudflare Pages
 <!-- s:6109800459 -->
 הפלט משתמש במצב המתקדם של Pages:
 
-<!-- s:9f0923168f -->
+<!-- s:f72ec91f11 -->
 | קובץ | מטרה |
 | :-- | :-- |
-| `_worker.js` | Middleware, שכתובים, מטפלי נתיב ומסמך המסוף |
+| `_worker.js` | Middleware, שכתובים, מטפלי נתיב ומסמך המסוף. ספרייה (`index.js` ו-`yoga.wasm`) כאשר מטפל נתיב משתמש ב-Yoga |
 | `_routes.json` | שולח כל בקשה ל-worker. ללא middleware או `basePath`, הנתיב `/assets/*` נשאר ב-CDN הסטטי של Pages |
-| `_headers` | שמירה בלתי משתנה במטמון עבור `/assets/*` (נוספת לסוף הקובץ הקיים) |
-| `404.html` | גורם ל-Pages להשיב לקבצים חסרים עם `404` במקום עם האפליקציה (נשמר אם כבר קיים) |
+| `_headers` | שמירה בלתי משתנה במטמון עבור `/assets/*` (נוספת לסוף ההגדרות הקיימות) |
+| `404.html` | גורם ל-Pages להשיב על קבצים חסרים עם `404` במקום האפליקציה (נשמר אם כבר קיים קובץ כזה) |
 
 <!-- s:9bc2b010d1 -->
 `.text/` (חבילות שרת ומניפסטים של הבנייה) מוסרת מ-`dist/`, משום ש-Pages מפרסם את הספרייה כפי שהיא.
@@ -77,8 +80,33 @@ Cloudflare Pages
 <!-- s:1200dbc88d -->
 יש להפעיל את דגל התאימות `nodejs_compat` בפרויקט Pages (Settings → Runtime) או ב-`wrangler.toml`; מטמון הנתונים משתמש ב-`AsyncLocalStorage`. קבצים סטטיים מוגשים דרך הקישור `ASSETS`, ואימות מחדש ברקע משתמש ב-`ctx.waitUntil()`.
 
-<!-- s:0bb76cfebb -->
-עם middleware, כל בקשה מפעילה את ה-worker, כולל משאבים ששמם כולל גיבוב, כדי שה-middleware יראה כל נתיב שדרכו אפשר להגיע לקובץ. כל בקשה שמפעילה את ה-worker היא הפעלה אחת של Functions ונספרת במכסת הבקשות של Workers. בטעינת דף, מדובר במסמך ובכל קובץ שהוא מביא (2 עבור אפליקציית בדיקה קטנה עם חבילת JavaScript אחת; יותר עבור אפליקציות עם יותר קבצים). בתוכנית Workers Free, לאחר מיצוי המכסה היומית Pages מגיש קבצים סטטיים ללא ה-worker, וכך מדלג על middleware. אם middleware מגן על משהו ב-`dist/`, יש להגדיר את Settings → Runtime → Fail open / closed לערך **Fail closed**.
+<!-- s:398bcc3496 -->
+עם middleware, כל בקשה מפעילה את ה-worker, כולל בקשות למשאבים עם hash, כדי שה-middleware יראה כל נתיב שדרכו אפשר לגשת לקובץ. כל בקשה שמפעילה את ה-worker היא הפעלה אחת של Functions ונספרת במכסת הבקשות של Workers. בטעינת דף, מדובר במסמך ובכל קובץ שהוא טוען (3 באפליקציית בדיקה קטנה: המסמך, חבילת JavaScript אחת ו-`yoga-[hash].wasm`; יותר באפליקציות עם יותר קבצים). בתוכנית Workers Free, לאחר שהמכסה היומית נגמרת, Pages מגיש קבצים סטטיים ללא ה-worker, וכך מדלג על ה-middleware. אם middleware מגן על משהו בתוך `dist/`, יש להגדיר את Settings → Runtime → Fail open / closed לערך **Fail closed**.
+
+<!-- s:24c3dfe433 -->
+WebAssembly
+
+<!-- s:72ec3f110c -->
+אפליקציות Text.js טוענות את Yoga, מנוע ה-layout, מתוך `assets/yoga-[hash].wasm` (72 kB, או 29 kB עם gzip). הפקודה `text build` טוענת אותו מראש מכל דף. חבילות השרת ו-`text run` משתמשים בעותק המוטמע מתוך `yoga-layout`. ה-worker של Cloudflare הוא החריג: כאשר מטפל נתיב משתמש ב-Yoga, הספרייה `dist/_worker.js/` מכילה את `yoga.wasm` לצד `index.js`.
+
+<!-- s:0ca00aa2eb -->
+- יש להגיש קובצי `.wasm` דחוסים, כמו קובצי JavaScript. Vercel דוחס `application/wasm` כברירת מחדל; ב-nginx נדרש `application/wasm` בתוך `gzip_types`. אם שירות האחסון דוחס JavaScript אך לא `.wasm`, הדפים מורידים כ-32 kB יותר מאשר עם העותק המוטמע.
+- יש לשלוח `Content-Type: application/wasm`, כדי שהדפדפן יהדר את הקובץ בזמן ההורדה. עם סוג אחר, ההידור מתבצע לאחר ההורדה.
+- יש לשמור אותו במטמון כמו את שאר הקבצים עם hash בתוך `assets/` (`Cache-Control: public, max-age=31536000, immutable`). זה בטוח כי השם משתנה עם התוכן. אין להשתמש ב-`immutable` עבור נתיבים ללא hash.
+- אם מוגדרת מדיניות אבטחת תוכן, יש להוסיף את `'wasm-unsafe-eval'` ל-`script-src` ואת מקור הקובץ (בדרך כלל `'self'`) ל-`connect-src`.
+- אם נתיבים לא מוכרים מופנים אל `index.html`, יש להחריג את `/assets/` מהשכתוב הזה. אחרת קובץ חסר מחזיר HTML ו-`initYoga()` דוחה עם `TX032`.
+
+<!-- s:55fb3b1d03 -->
+בנייה עצמאית עם Vite או webpack
+
+<!-- s:df66a10103 -->
+באריזה עצמאית של `@textjs/core` ו-`@textjs/react`, העותק של Yoga נשאר מוטמע ואין צורך בהגדרת כלי האריזה. חבילות שפותרות את התנאי `workerd`, כגון Wrangler, מייבאות במקום זאת את `@textjs/core/yoga.wasm` כמודול. כדי לטעון את קובץ ה-`.wasm` בבנייה לדפדפן, יש להוסיף את תנאי הפתרון `@textjs/client` לבניית הלקוח. ב-Vite 6, שמייצא את `defaultClientConditions`, גם כלי האריזה המקדימה לפיתוח זקוק לו:
+
+<!-- s:8f580efda1 -->
+התנאי גם מפצל את מנוע ה-bidi למקטע נפרד, שיורד בפעם הראשונה שדף מציג טקסט מימין לשמאל (ראו [טעינת מנוע ה-bidi](/docs/internationalization#loading-the-bidi-engine)).
+
+<!-- s:c2349d8226 -->
+יש להשמיט את התנאי מבניות שרת, רינדור מראש ובדיקות (Vitest, jsdom), שפועלות כראוי עם העותק המוטמע.
 
 <!-- s:600050383d -->
 שדרוג

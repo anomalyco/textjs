@@ -43,8 +43,8 @@ Les éléments suivants ne changent que dans une version majeure, après un aver
 - Conventions de fichiers dans `app/`, `middleware.ts` et configuration des segments de route
 - Layouts de sortie des adaptateurs (`.vercel/output`, `_worker.js`, `dist/server.js`)
 
-<!-- s:3a8ad71311 -->
-Ne sont pas couverts : les API marquées comme expérimentales ou `unstable_`, y compris tout ce qui se trouve sous `@textjs/core/experimental` et `@textjs/react/experimental` (elles peuvent changer dans une version mineure, avec des notes dans le journal des modifications), les éléments internes tels que `@textjs/core/internal`, les en-têtes `x-middleware-*` et les métadonnées de compilation de `.text/`, les versions canary, ainsi que les chaînes de format et le CSS exacts de `console.log` (les frames restent visuellement identiques ; leur encodage peut devenir plus rapide).
+<!-- s:883f3eeb26 -->
+Ne sont pas couverts : les API marquées comme expérimentales ou `unstable_`, y compris tout ce qui se trouve sous `@textjs/core/experimental`, `@textjs/react/experimental` et `@textjs/app/experimental` (elles peuvent changer dans une version mineure, avec des notes dans le journal des modifications), les éléments internes tels que `@textjs/core/internal`, les en-têtes `x-middleware-*` et les métadonnées de build de `.text/`, les versions canary, ainsi que les chaînes de format et le CSS exacts de `console.log` (les frames restent visuellement identiques ; leur encodage peut devenir plus rapide).
 
 <!-- s:5c7d9aae9b -->
 Environnements d’exécution pris en charge

@@ -16,6 +16,9 @@ Adaptery
 <!-- s:7e755a5c9f -->
 Adapter może też pochodzić ze zmiennej `TEXTJS_ADAPTER`. Gdy `text build` działa na platformie Vercel (`VERCEL=1`) lub Cloudflare Pages (`CF_PAGES=1`), odpowiedni adapter jest wybierany automatycznie.
 
+<!-- s:d671e1ae31 -->
+Aby dodać aplikację do innej witryny jednym tagiem script, zbuduj ją z `--embed`. Każdy adapter to obsługuje (zobacz [Osadzanie](/docs/embedding)).
+
 <!-- s:9d8df946e5 -->
 Adaptery serwerowe (`bun`, `vercel` i `cloudflare`) uruchamiają ten sam potok co `text start`: [middleware](/docs/middleware), `rewrites`, [handlery tras](/docs/route-handlers) z [pamięcią podręczną tras](/docs/caching), zasoby statyczne, a następnie dokument konsoli dla adresów URL stron. Klienty terminalowe, takie jak curl, otrzymują zamiast tego pierwszą klatkę strony jako tekst ANSI. W przypadku `vercel` i `cloudflare` dotyczy to tylko stron statycznych (zobacz [curl i klienty terminalowe](/docs/curl)). Adaptery serwerowe udostępniają pliki z hashem pod `/assets/` z nagłówkiem `Cache-Control: public, max-age=31536000, immutable`.
 
@@ -63,13 +66,13 @@ Cloudflare Pages
 <!-- s:6109800459 -->
 Wynik korzysta z trybu zaawansowanego Pages:
 
-<!-- s:9f0923168f -->
+<!-- s:f72ec91f11 -->
 | Plik | Przeznaczenie |
 | :-- | :-- |
-| `_worker.js` | Middleware, reguły przepisywania, handlery tras i dokument konsoli |
-| `_routes.json` | Wysyła każde żądanie do workera. Bez middleware ani `basePath` ścieżka `/assets/*` pozostaje w statycznej sieci CDN usługi Pages |
-| `_headers` | Niezmienne buforowanie dla `/assets/*` (dopisywane do twoich nagłówków) |
-| `404.html` | Sprawia, że Pages odpowiada na brakujące pliki kodem `404` zamiast aplikacją (zachowywany, jeśli już go masz) |
+| `_worker.js` | Middleware, reguły przepisywania, handlery tras i dokument konsoli. Katalog (`index.js` i `yoga.wasm`), gdy handler trasy używa Yoga |
+| `_routes.json` | Kieruje każde żądanie do workera. Bez middleware ani `basePath` ścieżka `/assets/*` pozostaje w statycznej sieci CDN usługi Pages |
+| `_headers` | Niezmienna pamięć podręczna dla `/assets/*` (dopisywana do twoich ustawień) |
+| `404.html` | Sprawia, że Pages odpowiada na brakujące pliki kodem `404` zamiast aplikacją (zachowany, jeśli już go masz) |
 
 <!-- s:9bc2b010d1 -->
 Katalog `.text/` (pakiety serwera i manifesty kompilacji) jest usuwany z `dist/`, ponieważ Pages publikuje katalog bez zmian.
@@ -77,8 +80,33 @@ Katalog `.text/` (pakiety serwera i manifesty kompilacji) jest usuwany z `dist
 <!-- s:1200dbc88d -->
 Włącz flagę zgodności `nodejs_compat` w projekcie Pages (Ustawienia → Środowisko wykonawcze) lub w pliku `wrangler.toml`; pamięć podręczna danych korzysta z `AsyncLocalStorage`. Pliki statyczne są udostępniane przez powiązanie `ASSETS`, a rewalidacja w tle korzysta z `ctx.waitUntil()`.
 
-<!-- s:0bb76cfebb -->
-Przy włączonym middleware każde żądanie uruchamia workera, również dla zasobów z hashem, aby middleware widział każdą ścieżkę, pod którą można uzyskać dostęp do pliku. Każde żądanie uruchamiające workera to jedno wywołanie Functions i wlicza się do twojego limitu żądań Workers. Przy wczytywaniu strony obejmuje to dokument i każdy pobierany przez niego plik (2 dla małej aplikacji testowej z jednym pakietem JavaScript; więcej dla aplikacji z większą liczbą plików). W planie Workers Free po wyczerpaniu dziennego limitu Pages udostępnia pliki statyczne bez workera, co pomija middleware. Jeśli middleware chroni cokolwiek w `dist/`, ustaw Ustawienia → Środowisko wykonawcze → Działanie po awarii: otwarte / zamknięte na **Zamknięte po awarii**.
+<!-- s:398bcc3496 -->
+Z middleware każde żądanie uruchamia workera, również żądania zasobów z hashem, dzięki czemu middleware widzi każdą ścieżkę, pod którą plik jest dostępny. Każde żądanie uruchamiające workera to jedno wywołanie Functions, które wlicza się do twojego limitu żądań Workers. Przy ładowaniu strony obejmuje to dokument i każdy pobierany przez niego plik (3 dla małej aplikacji testowej: dokument, jeden pakiet JavaScript i `yoga-[hash].wasm`; więcej dla aplikacji z większą liczbą plików). W planie Workers Free po wyczerpaniu dziennego limitu Pages udostępnia pliki statyczne bez workera, co pomija middleware. Jeśli middleware chroni cokolwiek w `dist/`, ustaw Settings → Runtime → Fail open / closed na **Fail closed**.
+
+<!-- s:24c3dfe433 -->
+WebAssembly
+
+<!-- s:72ec3f110c -->
+Aplikacje Text.js ładują silnik layoutu Yoga z `assets/yoga-[hash].wasm` (72 kB, 29 kB z gzip). Polecenie `text build` wstępnie ładuje go na każdej stronie. Pakiety serwerowe i `text run` używają kopii wbudowanej z `yoga-layout`. Wyjątkiem jest worker Cloudflare: gdy handler trasy używa Yoga, katalog `dist/_worker.js/` zawiera `yoga.wasm` obok `index.js`.
+
+<!-- s:0ca00aa2eb -->
+- Udostępniaj pliki `.wasm` skompresowane, tak jak JavaScript. Vercel domyślnie kompresuje `application/wasm`; nginx wymaga `application/wasm` w `gzip_types`. Jeśli twój hosting kompresuje JavaScript, ale nie `.wasm`, strony pobierają około 32 kB więcej niż przy kopii wbudowanej.
+- Wysyłaj `Content-Type: application/wasm`, aby przeglądarka kompilowała plik podczas pobierania. Przy innym typie kompiluje go po pobraniu.
+- Przechowuj go w pamięci podręcznej tak jak pozostałe pliki z hashem w `assets/` (`Cache-Control: public, max-age=31536000, immutable`). To bezpieczne, ponieważ nazwa zmienia się wraz z zawartością. Nie używaj `immutable` dla ścieżek bez hasha.
+- Jeśli ustawiasz Content Security Policy, dodaj `'wasm-unsafe-eval'` do `script-src`, a źródło pliku (zwykle `'self'`) do `connect-src`.
+- Jeśli nieznane ścieżki są kierowane do `index.html`, wyklucz `/assets/` z tej reguły przepisywania. W przeciwnym razie brakujący plik zwraca HTML, a `initYoga()` odrzuca obietnicę z kodem `TX032`.
+
+<!-- s:55fb3b1d03 -->
+Własny build z Vite lub webpack
+
+<!-- s:df66a10103 -->
+Gdy samodzielnie pakujesz `@textjs/core` i `@textjs/react`, Yoga pozostaje wbudowana i nie wymaga konfiguracji bundlera. Pakiety uwzględniające warunek `workerd`, takie jak Wrangler, importują zamiast tego `@textjs/core/yoga.wasm` jako moduł. Aby załadować plik `.wasm` w buildzie przeglądarkowym, dodaj warunek rozwiązywania `@textjs/client` do buildu klienta. W Vite 6, które eksportuje `defaultClientConditions`, potrzebuje go również prebundler środowiska deweloperskiego:
+
+<!-- s:8f580efda1 -->
+Ten warunek wydziela też silnik bidi do osobnego fragmentu pakietu, pobieranego przy pierwszym wyświetleniu na stronie tekstu pisanego od prawej do lewej (zobacz [Ładowanie silnika bidi](/docs/internationalization#loading-the-bidi-engine)).
+
+<!-- s:c2349d8226 -->
+Pomiń ten warunek w buildach serwerowych, do prerenderowania i testowych (Vitest, jsdom), które działają poprawnie z kopią wbudowaną.
 
 <!-- s:600050383d -->
 Aktualizacja

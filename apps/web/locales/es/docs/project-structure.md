@@ -36,17 +36,18 @@ Rutas dinámicas
 <!-- s:854c967567 -->
 text.config.ts
 
-<!-- s:144c0672ce -->
+<!-- s:1baaf058bb -->
 | Opción | Valor predeterminado | Descripción |
 | :-- | :-- | :-- |
-| `title` | `""` | Título de la página y de FocusPad |
-| `viewport` | ajustado a la consola o, en su defecto, `120×36` | `responsive` (por defecto `true`), dimensiones alternativas `width × height`, `theme` |
+| `title` | `""` | Título de la página y del FocusPad |
+| `viewport` | se ajusta a la consola; si no, `120×36` | `responsive` (predeterminado: `true`), dimensiones alternativas `width × height`, `theme` |
 | `hints` | `[]` | Dos o tres teclas que se muestran en el FocusPad de la página |
-| `action` | `press <first hint>` | Qué hacer una vez obtenido el foco, p. ej. `"type a prompt"` |
-| `devIndicators` | `true` | Panel de desarrollo en la consola (`[▼]`) |
+| `action` | `press <first hint>` | Qué hacer al obtener el foco, p. ej. `"type a prompt"` |
+| `devIndicators` | `true` | Panel de desarrollo superpuesto en la consola (`[▼]`) |
 | `focusHint` | `true` | «Haz clic en la página para usar el teclado» sobre la última fila de la consola mientras la página no tiene el foco |
 | `rewrites` | `[]` | Reescrituras y proxies |
 | `ansi` | `{ cols: 80, rows: 24 }` | Tamaño del fotograma para [curl y clientes de terminal](/docs/curl), o `false` para servirles HTML |
+| `embed` | `false` | Compilar la app para que otros sitios la añadan con una etiqueta script ([Integración](/docs/embedding), experimental) |
 
 <!-- s:04e1df190e -->
 CLI

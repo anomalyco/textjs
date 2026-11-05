@@ -303,3 +303,18 @@ Bir rota işleyicisi, `dynamic` değerini Text.js’in desteklemediği bir değe
 
 <!-- s:95d0435b57 -->
 İşleyici isteği okuyorsa `"force-dynamic"` kullanın veya dışa aktarımı kaldırın. [Önbelleğe alma](/docs/caching) bölümüne bakın.
+
+<!-- s:fa8a66bf23 -->
+Yoga’nın WebAssembly modülü yüklenemedi
+
+<!-- s:f2aaa80b0f -->
+`initYoga()`, Text.js uygulamalarında (`text dev`, `text build`), `@textjs/client` çözümleme koşulunu ayarlayan derlemelerde ve `initYoga({ wasm })` çağrısını yaptığınızda Yoga’nın WebAssembly modülünü bir `.wasm` dosyasından yükler. İstek başarısız oldu, bir hata durumu döndürdü veya dönen içerik geçerli WebAssembly değildi. Hata, URL’yi ve sunucunun gönderdiği `Content-Type` değerini belirtir. Yaygın nedenler, `.wasm` URL’sine yedek bir HTML sayfasıyla yanıt veren bir sunucu ve `script-src` içinde `'wasm-unsafe-eval'` bulunmayan bir İçerik Güvenliği Politikasıdır.
+
+<!-- s:9de0a578e9 -->
+Hatada belirtilen URL’nin dosyayı `Content-Type: application/wasm` ile döndürmesini sağlayın; böylece dosya indirilirken derlenir. Bilinmeyen yollar için `index.html` sunan bir yeniden yazma kuralı, `/assets/` yolunu atlamalıdır. İçerik Güvenliği Politikanızda WebAssembly’ye izin verin:
+
+<!-- s:510b3ade73 -->
+Konsolu kendiniz bağlayıp dosyayı başka bir yerden sunuyorsanız, `createConsoleRoot()` çağrısından önce dosyanın URL’si, baytları veya derlenmiş bir `WebAssembly.Module` ile `initYoga()` çağrısını yapın. Yoga’yı yalnızca ilk çağrı yükler:
+
+<!-- s:ed5dce1787 -->
+[WebAssembly](/docs/deploying#webassembly) bölümüne bakın.

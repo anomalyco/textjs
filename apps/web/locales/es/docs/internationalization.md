@@ -39,6 +39,21 @@ Proceso de renderizado
 <!-- s:3b67946601 -->
 El texto sin caracteres de derecha a izquierda omite todo este proceso. Un modelo de texto exclusivamente de izquierda a derecha se detecta mientras se segmentan sus grafemas (una comparación por grafema) y se dibuja mediante la ruta sin cambios; los fotogramas de la consola son idénticos byte a byte.
 
+<!-- s:6181d9259c -->
+Cargar el motor bidi
+
+<!-- s:8bd0807fa0 -->
+En las apps de Text.js (`text dev`, `text build`), el motor bidi y sus tablas Unicode forman un bloque independiente de 10,1 kB (gzip). Se descarga la primera vez que una página renderiza texto de derecha a izquierda o un `<Text>` con `dir="rtl"`, por lo que las demás páginas nunca lo cargan. Hasta que llega, ese texto se dibuja en orden lógico. Después, la consola se vuelve a dibujar en orden de visualización.
+
+<!-- s:ed4299ea80 -->
+Las apps de `text build` con una estructura prerenderizada inician la descarga por su cuenta cuando esa estructura contiene texto de derecha a izquierda. Si montas la consola por tu cuenta, inicia la descarga junto con `createConsoleRoot()` para que el primer fotograma esté en orden de visualización. Por ejemplo, en páginas de derecha a izquierda:
+
+<!-- s:8ebc8c3712 -->
+`loadBidi()` se rechaza si el bloque no se puede cargar. En ese caso, el texto de derecha a izquierda permanece en orden lógico.
+
+<!-- s:7adcf6764d -->
+El renderizado en el servidor, `text run`, las pruebas y los bundles sin la condición de resolución `@textjs/client` incluyen el motor, por lo que siempre dibujan el texto de derecha a izquierda en orden de visualización y `loadBidi()` se resuelve de inmediato.
+
 <!-- s:26ac17c25a -->
 Anchos de celda
 

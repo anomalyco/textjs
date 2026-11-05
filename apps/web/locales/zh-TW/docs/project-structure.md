@@ -36,17 +36,18 @@
 <!-- s:854c967567 -->
 text.config.ts
 
-<!-- s:144c0672ce -->
+<!-- s:1baaf058bb -->
 | 選項 | 預設值 | 說明 |
 | :-- | :-- | :-- |
 | `title` | `""` | 頁面與 FocusPad 的標題 |
-| `viewport` | 配合主控台大小，否則為 `120×36` | `responsive`（預設為 `true`）、備援尺寸 `width × height`、`theme` |
-| `hints` | `[]` | 頁面 FocusPad 上顯示的兩個或三個按鍵 |
+| `viewport` | 配合主控台大小，否則使用 `120×36` | `responsive`（預設為 `true`）、備用尺寸 `width × height`、`theme` |
+| `hints` | `[]` | 顯示在頁面 FocusPad 上的兩個或三個按鍵 |
 | `action` | `press <first hint>` | 取得焦點後要執行的動作，例如 `"type a prompt"` |
-| `devIndicators` | `true` | 主控台內的開發浮層（`[▼]`） |
-| `focusHint` | `true` | 頁面未取得焦點時，在主控台最後一列上方顯示「點選頁面以使用鍵盤」 |
-| `rewrites` | `[]` | 重寫規則與代理 |
-| `ansi` | `{ cols: 80, rows: 24 }` | [curl 與終端機用戶端](/docs/curl)的影格大小，或設為 `false` 以向這些用戶端提供 HTML |
+| `devIndicators` | `true` | 主控台內的開發覆蓋層（`[▼]`） |
+| `focusHint` | `true` | 頁面未取得焦點時，在主控台最後一列上方顯示「點擊頁面以使用鍵盤」 |
+| `rewrites` | `[]` | 重寫與代理 |
+| `ansi` | `{ cols: 80, rows: 24 }` | [curl 與終端機用戶端](/docs/curl)的影格大小，或設為 `false` 以提供 HTML |
+| `embed` | `false` | 建置應用程式，供其他網站透過一個 script 標籤加入（[嵌入](/docs/embedding)，實驗性功能） |
 
 <!-- s:04e1df190e -->
 CLI

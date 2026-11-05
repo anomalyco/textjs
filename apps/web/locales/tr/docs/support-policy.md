@@ -43,8 +43,8 @@ Aşağıdakiler, en az bir alt sürümde kullanımdan kaldırma uyarısı verild
 - `app/` içindeki dosya kuralları, `middleware.ts` ve rota segmenti yapılandırması
 - Adaptör çıktı layout’ları (`.vercel/output`, `_worker.js`, `dist/server.js`)
 
-<!-- s:3a8ad71311 -->
-Kapsam dışında olanlar: `@textjs/core/experimental` ve `@textjs/react/experimental` altındaki her şey dahil, deneysel veya `unstable_` olarak işaretlenmiş API’ler (değişiklik günlüğünde belirtilerek bir alt sürümde değişebilirler), `@textjs/core/internal` gibi iç yapılar, `x-middleware-*` başlıkları ve `.text/` derleme meta verileri, canary sürümleri ve `console.log` biçim dizelerinin ve CSS’in tam içeriği (kareler görsel olarak aynı kalır; kodlanmaları hızlanabilir).
+<!-- s:883f3eeb26 -->
+Kapsam dışındakiler: `@textjs/core/experimental`, `@textjs/react/experimental` ve `@textjs/app/experimental` altındaki her şey dahil olmak üzere deneysel veya `unstable_` olarak işaretlenmiş API’ler (değişiklik günlüğünde belirtilerek bir minör sürümde değişebilirler), `@textjs/core/internal` gibi iç yapılar, `x-middleware-*` başlıkları ve `.text/` derleme meta verileri, canary sürümleri ve `console.log` biçim dizelerinin ve CSS’in tam içeriği (kareler görsel olarak aynı kalır; kodlamaları hızlanabilir).
 
 <!-- s:5c7d9aae9b -->
 Çalışma zamanı desteği

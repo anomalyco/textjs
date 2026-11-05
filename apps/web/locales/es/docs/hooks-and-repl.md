@@ -64,3 +64,38 @@ El REPL de `window.text`
 
 <!-- s:420cc7f125 -->
 Cada app añade funciones auxiliares a `window.text`. Escríbelas en la línea de entrada de DevTools.
+
+<!-- s:195573d803 -->
+Carga al detectar intención de usar la consola (experimental)
+
+<!-- s:97014ecad1 -->
+`@textjs/core/experimental` exporta `onConsoleIntent` para páginas que descargan su app de consola solo cuando un visitante quiere usarla. Llama a tu función una vez, con el motivo:
+
+<!-- s:444b1ebdd7 -->
+| Motivo | Cuándo |
+| :-- | :-- |
+| `dock` | DevTools está acoplado al cargar la página o se acopla después. Text.js lo detecta a partir del tamaño de la ventana |
+| `shortcut` | El visitante pulsa F12 o Ctrl+Shift+J, I, C o K, o ⌘⌥J, I, C o K en un Mac. El navegador sigue abriendo DevTools |
+| `engage` | Un clic principal en un elemento que coincide con `engageSelector`, Enter o Space en un botón `[data-textjs-engage]`, o un tamaño elegido en `<ViewportControl>` antes de que se inicie la app. Los clics en enlaces, botones y campos de formulario dentro de un elemento coincidente no cuentan, salvo que también tengan `data-textjs-engage` |
+| `session` | Algo de lo anterior ya ocurrió en esta pestaña, por lo que una recarga inicia la app de inmediato |
+| `manual` | Llamaste a `trigger()` en el objeto de control devuelto |
+
+<!-- s:894b97fac4 -->
+DevTools abierto en su propia ventana desde un menú del navegador no se refleja en el tamaño de la ventana. Esos visitantes inician la app desde un elemento `engage`, y `session` hace que siga iniciándose al recargar esa pestaña.
+
+<!-- s:06cdcf713e -->
+No se activa nada automáticamente en pantallas táctiles. Llama a `trigger()` desde tu propio control.
+
+<!-- s:d7006796c2 -->
+| Opción | Descripción |
+| :-- | :-- |
+| `engageSelector` | Elementos que inician la app al hacer clic (por defecto `[data-textjs-engage], [data-textjs-focus-pad], text-console`). `false` no añade listeners |
+| `persist` | Recuerda la intención de la pestaña en `sessionStorage` bajo `CONSOLE_INTENT_KEY` (por defecto `true`) |
+| `prefetch` | Se llama como máximo una vez, cuando el puntero o el foco entra en un elemento `engageSelector` |
+| `idlePrefetch` | También llama a `prefetch` cuando el navegador está inactivo después de `load` (por defecto `false`) |
+
+<!-- s:4460da3205 -->
+`prefetch` nunca se ejecuta en pantallas táctiles, con el ahorro de datos activado ni en conexiones más lentas que 4G. `canPrefetchConsole()` devuelve el resultado de la misma comprobación. El método `dispose()` del objeto de control elimina todos los listeners.
+
+<!-- s:9128a9d98f -->
+`<ViewportControl>` funciona antes de que exista la raíz de la consola. Elegir un tamaño lo guarda, activa `engage` para que `onConsoleIntent` inicie la app y aplica el tamaño una vez que se establece `root`. Consulta [Cambios incompatibles](/docs/support-policy#breaking-changes) para saber cómo se versionan las exportaciones experimentales.

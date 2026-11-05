@@ -16,6 +16,9 @@
 <!-- s:7e755a5c9f -->
 `TEXTJS_ADAPTER`로도 어댑터를 지정할 수 있어요. Vercel (`VERCEL=1`)이나 Cloudflare Pages (`CF_PAGES=1`)에서 `text build`를 실행하면 해당 어댑터가 자동으로 선택돼요.
 
+<!-- s:d671e1ae31 -->
+스크립트 태그 하나로 다른 사이트에 앱을 추가하려면 `--embed`로 빌드하세요. 모든 어댑터가 지원해요([임베딩](/docs/embedding) 참고).
+
 <!-- s:9d8df946e5 -->
 서버 어댑터(`bun`, `vercel`, `cloudflare`)는 `text start`와 같은 파이프라인을 실행해요. [미들웨어](/docs/middleware), `rewrites`, [라우트 캐시](/docs/caching)를 사용하는 [라우트 핸들러](/docs/route-handlers), 정적 에셋, 페이지 URL의 콘솔 문서 순서예요. curl 같은 터미널 클라이언트는 대신 페이지의 첫 프레임을 ANSI 텍스트로 받아요. `vercel`과 `cloudflare`에서는 정적 페이지에만 적용돼요([curl과 터미널 클라이언트](/docs/curl) 참고). 서버 어댑터는 `/assets/` 아래의 해시된 파일을 `Cache-Control: public, max-age=31536000, immutable`로 제공해요.
 
@@ -63,13 +66,13 @@ Cloudflare Pages
 <!-- s:6109800459 -->
 출력은 Pages 고급 모드를 사용해요:
 
-<!-- s:9f0923168f -->
+<!-- s:f72ec91f11 -->
 | 파일 | 용도 |
 | :-- | :-- |
-| `_worker.js` | 미들웨어, 재작성, 라우트 핸들러와 콘솔 문서 |
+| `_worker.js` | 미들웨어, rewrites, 라우트 핸들러와 콘솔 문서. 라우트 핸들러가 Yoga를 사용하면 디렉터리(`index.js`와 `yoga.wasm`) |
 | `_routes.json` | 모든 요청을 워커로 전송. 미들웨어나 `basePath`가 없으면 `/assets/*`는 Pages의 정적 CDN에 유지 |
-| `_headers` | `/assets/*`의 불변 캐싱(기존 파일에 덧붙이기) |
-| `404.html` | 없는 파일에 앱 대신 `404`로 응답하도록 Pages 설정(기존 파일이 있으면 유지) |
+| `_headers` | `/assets/*`의 불변 캐싱(기존 설정에 덧붙이기) |
+| `404.html` | 누락된 파일에 앱 대신 `404`로 응답하도록 Pages 설정(기존 파일이 있으면 유지) |
 
 <!-- s:9bc2b010d1 -->
 Pages는 디렉터리를 그대로 게시하므로 `.text/`(서버 번들과 빌드 매니페스트)는 `dist/`에서 제거돼요.
@@ -77,8 +80,33 @@ Pages는 디렉터리를 그대로 게시하므로 `.text/`(서버 번들과 빌
 <!-- s:1200dbc88d -->
 Pages 프로젝트(Settings → Runtime)나 `wrangler.toml`에서 `nodejs_compat` 호환성 플래그를 활성화하세요. 데이터 캐시는 `AsyncLocalStorage`를 사용해요. 정적 파일은 `ASSETS` 바인딩으로 제공하며, 백그라운드 재검증은 `ctx.waitUntil()`을 사용해요.
 
-<!-- s:0bb76cfebb -->
-미들웨어가 있으면 해시된 에셋을 포함한 모든 요청이 워커를 실행하므로 미들웨어가 파일에 접근할 수 있는 모든 경로를 확인해요. 워커를 실행하는 각 요청은 Functions 호출 1회이며 Workers 요청 할당량에 포함돼요. 페이지를 로드할 때는 문서와 문서가 가져오는 각 파일이 해당해요(JavaScript 번들이 하나인 작은 테스트 앱은 2회이며, 파일이 많은 앱은 더 많아요). Workers Free 요금제에서는 일일 할당량을 소진하면 Pages가 워커 없이 정적 파일을 제공하므로 미들웨어를 건너뛰어요. 미들웨어가 `dist/`의 어떤 항목이든 보호한다면 Settings → Runtime → Fail open / closed를 **Fail closed**로 설정하세요.
+<!-- s:398bcc3496 -->
+미들웨어가 있으면 해시가 포함된 에셋을 비롯한 모든 요청이 워커를 실행하므로, 미들웨어가 파일에 접근할 수 있는 모든 경로를 확인해요. 워커를 실행하는 요청마다 Functions가 1번 호출되며 Workers 요청 할당량에 포함돼요. 페이지를 로드할 때는 문서와 문서가 가져오는 각 파일이 여기에 해당해요(작은 테스트 앱은 문서, JavaScript 번들 1개, `yoga-[hash].wasm`으로 3개이며, 파일이 많은 앱은 더 많아요). Workers Free 요금제에서는 일일 할당량이 소진되면 Pages가 워커 없이 정적 파일을 제공하므로 미들웨어를 건너뛰어요. 미들웨어가 `dist/` 안의 항목을 보호한다면 Settings → Runtime → Fail open / closed를 **Fail closed**로 설정하세요.
+
+<!-- s:24c3dfe433 -->
+WebAssembly
+
+<!-- s:72ec3f110c -->
+Text.js 앱은 레이아웃 엔진인 Yoga를 `assets/yoga-[hash].wasm`에서 로드해요(72kB, gzip 사용 시 29kB). `text build`는 모든 페이지에서 이 파일을 미리 로드해요. 서버 번들과 `text run`은 `yoga-layout`의 인라인 사본을 사용해요. Cloudflare 워커는 예외예요. 라우트 핸들러가 Yoga를 사용하면 `dist/_worker.js/`에 `index.js`와 함께 `yoga.wasm`이 들어 있어요.
+
+<!-- s:0ca00aa2eb -->
+- JavaScript처럼 `.wasm` 파일도 압축해서 제공하세요. Vercel은 기본적으로 `application/wasm`을 압축해요. nginx는 `gzip_types`에 `application/wasm`이 필요해요. 호스트가 JavaScript는 압축하지만 `.wasm`은 압축하지 않으면 페이지가 인라인 사본을 사용할 때보다 약 32kB를 더 다운로드해요.
+- 브라우저가 파일을 다운로드하면서 컴파일하도록 `Content-Type: application/wasm`을 보내세요. 다른 타입이면 다운로드 후에 컴파일해요.
+- `assets/`의 다른 해시 파일처럼 캐시하세요(`Cache-Control: public, max-age=31536000, immutable`). 내용이 바뀌면 이름도 바뀌므로 안전해요. 해시가 없는 경로에는 `immutable`을 사용하지 마세요.
+- 콘텐츠 보안 정책을 설정한다면 `script-src`에 `'wasm-unsafe-eval'`을, `connect-src`에 파일의 출처(보통 `'self'`)를 추가하세요.
+- 알 수 없는 경로가 `index.html`로 대체된다면 해당 rewrite에서 `/assets/`를 제외하세요. 그렇지 않으면 누락된 파일이 HTML을 반환하고 `initYoga()`가 `TX032`로 거부돼요.
+
+<!-- s:55fb3b1d03 -->
+직접 구성하는 Vite 또는 webpack 빌드
+
+<!-- s:df66a10103 -->
+`@textjs/core`와 `@textjs/react`를 직접 번들링하면 Yoga는 인라인으로 유지되며 번들러 설정이 필요하지 않아요. Wrangler처럼 `workerd` 조건을 해석하는 번들은 대신 `@textjs/core/yoga.wasm`을 모듈로 가져와요. 브라우저 빌드에서 `.wasm` 파일을 로드하려면 클라이언트 빌드에 `@textjs/client` 해석 조건을 추가하세요. `defaultClientConditions`를 내보내는 Vite 6에서는 개발용 사전 번들러에도 이 조건이 필요해요:
+
+<!-- s:8f580efda1 -->
+이 조건은 bidi 엔진도 별도 청크로 분리하며, 페이지에서 오른쪽에서 왼쪽으로 쓰는 텍스트를 처음 표시할 때 다운로드해요([bidi 엔진 로드](/docs/internationalization#loading-the-bidi-engine) 참고).
+
+<!-- s:c2349d8226 -->
+서버, 프리렌더링, 테스트 빌드(Vitest, jsdom)에서는 이 조건을 제외하세요. 인라인 사본으로 정상 실행돼요.
 
 <!-- s:600050383d -->
 업그레이드

@@ -36,17 +36,18 @@ Dinamik rotalar
 <!-- s:854c967567 -->
 text.config.ts
 
-<!-- s:144c0672ce -->
+<!-- s:1baaf058bb -->
 | Seçenek | Varsayılan | Açıklama |
 | :-- | :-- | :-- |
 | `title` | `""` | Sayfa ve FocusPad başlığı |
-| `viewport` | konsola sığdırma, aksi durumda `120×36` | `responsive` (varsayılan `true`), yedek boyut `width × height`, `theme` |
+| `viewport` | konsola sığdırma, aksi halde `120×36` | `responsive` (varsayılan `true`), yedek `width × height`, `theme` |
 | `hints` | `[]` | Sayfanın FocusPad bileşeninde gösterilen iki veya üç tuş |
 | `action` | `press <first hint>` | Odaklandıktan sonra yapılacak işlem, ör. `"type a prompt"` |
 | `devIndicators` | `true` | Konsol içi geliştirme katmanı (`[▼]`) |
-| `focusHint` | `true` | Sayfa odakta değilken konsolun son satırının üzerinde gösterilen “Klavyeyi kullanmak için sayfaya tıklayın” metni |
-| `rewrites` | `[]` | Yeniden yazmalar ve proxy’ler |
+| `focusHint` | `true` | Sayfa odakta değilken konsolun son satırının üzerinde gösterilen “Klavyeyi kullanmak için sayfaya tıklayın” yazısı |
+| `rewrites` | `[]` | Rewrite kuralları ve proxy’ler |
 | `ansi` | `{ cols: 80, rows: 24 }` | [curl ve terminal istemcileri](/docs/curl) için kare boyutu veya bu istemcilere HTML sunmak için `false` |
+| `embed` | `false` | Diğer sitelerin tek bir script etiketiyle ekleyebilmesi için uygulamayı derleme ([Gömme](/docs/embedding), deneysel) |
 
 <!-- s:04e1df190e -->
 CLI

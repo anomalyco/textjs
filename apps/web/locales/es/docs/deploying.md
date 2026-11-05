@@ -16,6 +16,9 @@ Adaptadores
 <!-- s:7e755a5c9f -->
 El adaptador también puede obtenerse de `TEXTJS_ADAPTER`. Cuando `text build` se ejecuta en Vercel (`VERCEL=1`) o Cloudflare Pages (`CF_PAGES=1`), se selecciona automáticamente el adaptador correspondiente.
 
+<!-- s:d671e1ae31 -->
+Para añadir la app a otro sitio con una sola etiqueta script, compila con `--embed`. Todos los adaptadores lo admiten (consulta [Integración](/docs/embedding)).
+
 <!-- s:9d8df946e5 -->
 Los adaptadores de servidor (`bun`, `vercel` y `cloudflare`) ejecutan la misma secuencia que `text start`: [middleware](/docs/middleware), `rewrites`, [manejadores de ruta](/docs/route-handlers) con la [caché de rutas](/docs/caching), recursos estáticos y, después, el documento de la consola para las URL de páginas. Los clientes de terminal como curl reciben en su lugar el primer fotograma de la página como texto ANSI. En `vercel` y `cloudflare`, esto solo cubre las páginas estáticas (consulta [curl y los clientes de terminal](/docs/curl)). Los adaptadores de servidor sirven archivos con hash en `/assets/` con `Cache-Control: public, max-age=31536000, immutable`.
 
@@ -63,13 +66,13 @@ Cloudflare Pages
 <!-- s:6109800459 -->
 La salida usa el modo avanzado de Pages:
 
-<!-- s:9f0923168f -->
+<!-- s:f72ec91f11 -->
 | Archivo | Propósito |
 | :-- | :-- |
-| `_worker.js` | Middleware, reescrituras, manejadores de ruta y el documento de la consola |
-| `_routes.json` | Envía todas las solicitudes al worker. Sin middleware ni `basePath`, `/assets/*` permanece en la CDN estática de Pages |
+| `_worker.js` | Middleware, reescrituras, manejadores de ruta y el documento de la consola. Un directorio (`index.js` y `yoga.wasm`) cuando un manejador de ruta usa Yoga |
+| `_routes.json` | Envía cada solicitud al worker. Sin middleware ni un `basePath`, `/assets/*` permanece en la CDN estática de Pages |
 | `_headers` | Caché inmutable para `/assets/*` (se añade al final de tu archivo) |
-| `404.html` | Hace que Pages responda con `404` para los archivos que faltan en lugar de servir la app (se conserva si ya tienes uno) |
+| `404.html` | Hace que Pages responda a los archivos que faltan con `404` en lugar de la app (se conserva si tienes uno) |
 
 <!-- s:9bc2b010d1 -->
 `.text/` (bundles del servidor y manifiestos de compilación) se elimina de `dist/`, ya que Pages publica el directorio tal cual.
@@ -77,8 +80,33 @@ La salida usa el modo avanzado de Pages:
 <!-- s:1200dbc88d -->
 Activa la opción de compatibilidad `nodejs_compat` en el proyecto de Pages (Configuración → Tiempo de ejecución) o en `wrangler.toml`; la caché de datos usa `AsyncLocalStorage`. Los archivos estáticos se sirven a través del enlace `ASSETS`, y la revalidación en segundo plano usa `ctx.waitUntil()`.
 
-<!-- s:0bb76cfebb -->
-Con middleware, todas las solicitudes ejecutan el worker, incluidos los recursos con hash, para que el middleware vea todas las rutas por las que se puede acceder a un archivo. Cada solicitud que ejecuta el worker es una invocación de Functions y cuenta para tu cuota de solicitudes de Workers. Para una carga de página, eso equivale al documento más cada archivo que solicita (2 para una pequeña app de prueba con un bundle de JavaScript; más para apps con más archivos). En el plan Workers Free, Pages sirve archivos estáticos sin el worker una vez agotada la cuota diaria, lo que omite el middleware. Si el middleware protege algo en `dist/`, establece Configuración → Tiempo de ejecución → Permitir / bloquear en caso de fallo en **Bloquear en caso de fallo**.
+<!-- s:398bcc3496 -->
+Con middleware, cada solicitud ejecuta el worker, incluidas las de recursos con hash, para que el middleware vea todas las rutas por las que se puede acceder a un archivo. Cada solicitud que ejecuta el worker supone una invocación de Functions y cuenta para tu cuota de solicitudes de Workers. Para una carga de página, eso incluye el documento y cada archivo que obtiene (3 para una app de prueba pequeña: el documento, un bundle de JavaScript y `yoga-[hash].wasm`; más para apps con más archivos). En el plan Workers Free, Pages sirve archivos estáticos sin el worker cuando se agota la cuota diaria, lo que omite el middleware. Si el middleware protege algo en `dist/`, configura Settings → Runtime → Fail open / closed como **Fail closed**.
+
+<!-- s:24c3dfe433 -->
+WebAssembly
+
+<!-- s:72ec3f110c -->
+Las apps de Text.js cargan Yoga, el motor de layout, desde `assets/yoga-[hash].wasm` (72 kB, 29 kB con gzip). `text build` lo precarga desde cada página. Los bundles del servidor y `text run` usan la copia integrada de `yoga-layout`. El worker de Cloudflare es la excepción: cuando un manejador de ruta usa Yoga, `dist/_worker.js/` contiene `yoga.wasm` junto a `index.js`.
+
+<!-- s:0ca00aa2eb -->
+- Sirve los archivos `.wasm` comprimidos, como sirves JavaScript. Vercel comprime `application/wasm` de forma predeterminada; nginx necesita `application/wasm` en `gzip_types`. Si tu alojamiento comprime JavaScript pero no `.wasm`, las páginas descargan unos 32 kB más que con la copia integrada.
+- Envía `Content-Type: application/wasm` para que el navegador compile el archivo mientras lo descarga. Con otro tipo, lo compila después de la descarga.
+- Almacénalo en caché como los demás archivos con hash de `assets/` (`Cache-Control: public, max-age=31536000, immutable`). Es seguro porque el nombre cambia con el contenido. No uses `immutable` para rutas sin hash.
+- Si configuras una política de seguridad de contenido, añade `'wasm-unsafe-eval'` a `script-src` y el origen del archivo (normalmente `'self'`) a `connect-src`.
+- Si las rutas desconocidas recurren a `index.html`, excluye `/assets/` de esa reescritura. De lo contrario, un archivo que falta devuelve HTML y `initYoga()` rechaza con `TX032`.
+
+<!-- s:55fb3b1d03 -->
+Tu propia compilación con Vite o webpack
+
+<!-- s:df66a10103 -->
+Cuando empaquetas `@textjs/core` y `@textjs/react` por tu cuenta, Yoga permanece integrado y no necesita configuración del empaquetador. Los bundles que resuelven la condición `workerd`, como Wrangler, importan `@textjs/core/yoga.wasm` como módulo en su lugar. Para cargar el archivo `.wasm` en una compilación para el navegador, añade la condición de resolución `@textjs/client` a tu compilación del cliente. En Vite 6, que exporta `defaultClientConditions`, el preempaquetador de desarrollo también la necesita:
+
+<!-- s:8f580efda1 -->
+La condición también separa el motor bidi en su propio fragmento, que se descarga la primera vez que una página muestra texto de derecha a izquierda (consulta [Cargar el motor bidi](/docs/internationalization#loading-the-bidi-engine)).
+
+<!-- s:c2349d8226 -->
+Omite la condición en las compilaciones de servidor, prerenderizado y pruebas (Vitest, jsdom), que funcionan con la copia integrada.
 
 <!-- s:600050383d -->
 Actualización

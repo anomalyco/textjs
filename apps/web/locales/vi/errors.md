@@ -303,3 +303,18 @@ Dùng `"force-static"` để lưu handler vào bộ nhớ đệm. Handler đã l
 
 <!-- s:95d0435b57 -->
 Dùng `"force-dynamic"` hoặc xóa export nếu handler đọc yêu cầu. Xem [Lưu vào bộ nhớ đệm](/docs/caching).
+
+<!-- s:fa8a66bf23 -->
+Không tải được WebAssembly của Yoga
+
+<!-- s:f2aaa80b0f -->
+`initYoga()` tải WebAssembly của Yoga từ tệp `.wasm` trong ứng dụng Text.js (`text dev`, `text build`), trong các bản build có đặt điều kiện phân giải `@textjs/client`, và khi bạn truyền `initYoga({ wasm })`. Yêu cầu đã thất bại, trả về trạng thái lỗi, hoặc nội dung trả về không phải WebAssembly hợp lệ. Thông báo lỗi nêu URL và `Content-Type` mà máy chủ gửi. Nguyên nhân thường gặp là máy chủ trả về trang HTML dự phòng cho URL `.wasm`, và Content Security Policy thiếu `'wasm-unsafe-eval'` trong `script-src`.
+
+<!-- s:9de0a578e9 -->
+Cấu hình để URL trong thông báo lỗi trả về tệp với `Content-Type: application/wasm` để trình duyệt biên dịch trong khi tải xuống. Quy tắc rewrite trả về `index.html` cho đường dẫn không xác định phải bỏ qua `/assets/`. Cho phép WebAssembly trong Content Security Policy:
+
+<!-- s:510b3ade73 -->
+Nếu bạn tự mount console và phục vụ tệp từ nơi khác, gọi `initYoga()` với URL của tệp, các byte của tệp hoặc một `WebAssembly.Module` đã biên dịch trước khi gọi `createConsoleRoot()`. Chỉ lần gọi đầu tiên tải Yoga:
+
+<!-- s:ed5dce1787 -->
+Xem [WebAssembly](/docs/deploying#webassembly).

@@ -62,8 +62,8 @@ Funcionamiento
 <!-- s:1dda342130 -->
 Al igual que React DevTools, la extensión instala un hook global antes de que se ejecute la página:
 
-<!-- s:5a865fb9ae -->
-Cada raíz de consola se registra en él al crearse. Sin la extensión, el hook no existe, y cada raíz solo comprueba su presencia una vez y no hace ningún trabajo por fotograma. Con la extensión instalada pero el panel cerrado, cada fotograma cuesta una lectura de propiedad. Los árboles y los fotogramas solo se calculan cuando el panel los solicita.
+<!-- s:9a7af3e89c -->
+Cada raíz de consola se registra en él. La primera raíz de una página carga el código que se comunica con el panel (unos 5 KB con gzip) y se registra cuando llega. Las raíces posteriores se registran al crearse. Sin la extensión, el hook no existe, así que cada raíz comprueba su existencia una vez, no carga nada y no hace ningún trabajo por fotograma. Con la extensión instalada pero el panel cerrado, cada fotograma cuesta una lectura de propiedad. Los árboles y los fotogramas solo se calculan cuando el panel los solicita.
 
 <!-- s:843fc9a8ad -->
 Los mensajes siguen el recorrido página → script de contenido → service worker → panel. Los scripts de contenido se ejecutan en cada página para que el hook exista antes de que arranque tu app. Ese es el único acceso que solicita la extensión. No carga código remoto ni envía nada fuera del equipo.
@@ -77,8 +77,9 @@ La extensión no recopila datos. No hace solicitudes de red, no almacena nada y 
 <!-- s:639d5ea4c0 -->
 Limitaciones
 
-<!-- s:153a772b79 -->
+<!-- s:05616a1196 -->
 - Chrome y navegadores basados en Chromium, versión 111 o posterior.
 - Las apps que se iniciaron antes de instalar la extensión necesitan una recarga.
-- Solo se inspecciona el fotograma superior de una pestaña.
-- Los tiempos proceden de `performance.now()`, cuya precisión los navegadores reducen a unos 0,1 ms.
+- Solo se inspecciona el marco superior de una pestaña.
+- La línea de tiempo registra fotogramas una vez conectado el panel.
+- Los tiempos provienen de `performance.now()`, cuya precisión los navegadores reducen a unos 0,1 ms.

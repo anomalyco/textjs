@@ -43,8 +43,8 @@ Estos elementos solo cambian en una versión mayor, tras una advertencia de obso
 - Convenciones de archivos en `app/`, `middleware.ts` y configuración de segmentos de ruta
 - Estructuras de salida de los adaptadores (`.vercel/output`, `_worker.js`, `dist/server.js`)
 
-<!-- s:3a8ad71311 -->
-No se incluyen: las API marcadas como experimentales o `unstable_`, incluido todo lo que se encuentra en `@textjs/core/experimental` y `@textjs/react/experimental` (pueden cambiar en una versión menor, con notas en el registro de cambios), los elementos internos como `@textjs/core/internal`, las cabeceras `x-middleware-*` y los metadatos de compilación de `.text/`, las versiones canary y las cadenas de formato y el CSS exactos de `console.log` (los fotogramas siguen siendo visualmente idénticos; su codificación puede volverse más rápida).
+<!-- s:883f3eeb26 -->
+No se incluyen: las API marcadas como experimentales o `unstable_`, incluido todo lo que está bajo `@textjs/core/experimental`, `@textjs/react/experimental` y `@textjs/app/experimental` (pueden cambiar en una versión menor, con notas en el registro de cambios), los elementos internos como `@textjs/core/internal`, las cabeceras `x-middleware-*` y los metadatos de compilación de `.text/`, las versiones canary y las cadenas de formato exactas de `console.log` y el CSS (los fotogramas se mantienen visualmente idénticos; su codificación puede acelerarse).
 
 <!-- s:5c7d9aae9b -->
 Soporte de entornos de ejecución

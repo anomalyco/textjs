@@ -303,3 +303,18 @@ create-text-app 只在新目录或空目录中创建项目，因此不会覆盖�
 
 <!-- s:95d0435b57 -->
 如果处理程序读取请求，使用 `"force-dynamic"`，或移除该导出。参见[缓存](/docs/caching)。
+
+<!-- s:fa8a66bf23 -->
+Yoga 的 WebAssembly 加载失败
+
+<!-- s:f2aaa80b0f -->
+在 Text.js 应用（`text dev`、`text build`）中、在设置了 `@textjs/client` 解析条件的构建中，以及传入 `initYoga({ wasm })` 时，`initYoga()` 会从 `.wasm` 文件加载 Yoga 的 WebAssembly。请求失败、返回了错误状态，或返回的内容不是有效的 WebAssembly。错误信息会列出 URL 和服务器发送的 `Content-Type`。常见原因是服务器针对 `.wasm` URL 返回了 HTML 回退页面，或内容安全策略的 `script-src` 中缺少 `'wasm-unsafe-eval'`。
+
+<!-- s:9de0a578e9 -->
+让错误信息中的 URL 返回该文件，并设置 `Content-Type: application/wasm`，以便在下载时编译。为未知路径返回 `index.html` 的重写规则必须跳过 `/assets/`。在内容安全策略中允许 WebAssembly：
+
+<!-- s:510b3ade73 -->
+如果你自行挂载控制台，并从其他位置提供该文件，请在 `createConsoleRoot()` 之前调用 `initYoga()`，传入文件的 URL、字节数据或已编译的 `WebAssembly.Module`。只有首次调用会加载 Yoga：
+
+<!-- s:ed5dce1787 -->
+参见 [WebAssembly](/docs/deploying#webassembly)。

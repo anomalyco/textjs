@@ -16,6 +16,9 @@ Adaptadores
 <!-- s:7e755a5c9f -->
 O adaptador também pode vir de `TEXTJS_ADAPTER`. Quando `text build` é executado na Vercel (`VERCEL=1`) ou no Cloudflare Pages (`CF_PAGES=1`), o adaptador correspondente é selecionado automaticamente.
 
+<!-- s:d671e1ae31 -->
+Para adicionar o app a outro site com uma tag de script, gere o build com `--embed`. Todos os adaptadores oferecem suporte a isso (veja [Incorporação](/docs/embedding)).
+
 <!-- s:9d8df946e5 -->
 Os adaptadores de servidor (`bun`, `vercel` e `cloudflare`) executam o mesmo pipeline de `text start`: [middleware](/docs/middleware), `rewrites`, [manipuladores de rota](/docs/route-handlers) com o [cache de rotas](/docs/caching), arquivos estáticos e, por fim, o documento do console para URLs de páginas. Clientes de terminal como curl recebem o primeiro quadro da página como texto ANSI. Em `vercel` e `cloudflare`, isso abrange apenas páginas estáticas (veja [curl e clientes de terminal](/docs/curl)). Os adaptadores de servidor servem arquivos com hash em `/assets/` com `Cache-Control: public, max-age=31536000, immutable`.
 
@@ -63,11 +66,11 @@ Cloudflare Pages
 <!-- s:6109800459 -->
 A saída usa o modo avançado do Pages:
 
-<!-- s:9f0923168f -->
+<!-- s:f72ec91f11 -->
 | Arquivo | Finalidade |
 | :-- | :-- |
-| `_worker.js` | Middleware, reescritas, manipuladores de rota e o documento do console |
-| `_routes.json` | Envia toda requisição ao worker. Sem middleware ou um `basePath`, `/assets/*` permanece na CDN estática do Pages |
+| `_worker.js` | Middleware, rewrites, manipuladores de rota e o documento do console. Um diretório (`index.js` e `yoga.wasm`) quando um manipulador de rota usa Yoga |
+| `_routes.json` | Envia todas as requisições ao worker. Sem middleware ou um `basePath`, `/assets/*` permanece na CDN estática do Pages |
 | `_headers` | Cache imutável para `/assets/*` (anexado ao seu) |
 | `404.html` | Faz o Pages responder a arquivos ausentes com `404` em vez do app (mantido se você já tiver um) |
 
@@ -77,8 +80,33 @@ A saída usa o modo avançado do Pages:
 <!-- s:1200dbc88d -->
 Ative a flag de compatibilidade `nodejs_compat` no projeto do Pages (Configurações → Runtime) ou em `wrangler.toml`; o cache de dados usa `AsyncLocalStorage`. Arquivos estáticos são servidos pelo binding `ASSETS`, e a revalidação em segundo plano usa `ctx.waitUntil()`.
 
-<!-- s:0bb76cfebb -->
-Com middleware, toda requisição executa o worker, incluindo arquivos com hash, para que o middleware veja todos os caminhos pelos quais um arquivo pode ser acessado. Cada requisição que executa o worker é uma invocação de Functions e conta na sua cota de requisições do Workers. Para um carregamento de página, isso inclui o documento mais cada arquivo que ele busca (2 para um pequeno app de teste com um bundle JavaScript; mais para apps com mais arquivos). No plano Workers Free, o Pages serve arquivos estáticos sem o worker quando a cota diária acaba, pulando o middleware. Se o middleware proteger algo em `dist/`, defina Configurações → Runtime → Falhar aberto / fechado como **Falhar fechado**.
+<!-- s:398bcc3496 -->
+Com middleware, toda requisição executa o worker, incluindo assets com hash, para que o middleware veja todos os caminhos pelos quais um arquivo pode ser acessado. Cada requisição que executa o worker é uma invocação de Functions e conta para sua cota de requisições do Workers. Para carregar uma página, isso inclui o documento e cada arquivo que ele busca (3 para um pequeno app de teste: o documento, um bundle JavaScript e `yoga-[hash].wasm`; mais para apps com mais arquivos). No plano Workers Free, o Pages serve arquivos estáticos sem o worker quando a cota diária se esgota, ignorando o middleware. Se o middleware protege algo em `dist/`, defina Settings → Runtime → Fail open / closed como **Fail closed**.
+
+<!-- s:24c3dfe433 -->
+WebAssembly
+
+<!-- s:72ec3f110c -->
+Os apps Text.js carregam Yoga, o mecanismo de layout, de `assets/yoga-[hash].wasm` (72 kB, 29 kB com gzip). `text build` faz o pré-carregamento dele em todas as páginas. Os bundles de servidor e `text run` usam a cópia inline de `yoga-layout`. O worker da Cloudflare é a exceção: quando um manipulador de rota usa Yoga, `dist/_worker.js/` contém `yoga.wasm` ao lado de `index.js`.
+
+<!-- s:0ca00aa2eb -->
+- Sirva arquivos `.wasm` comprimidos, como você serve JavaScript. A Vercel comprime `application/wasm` por padrão; o nginx precisa de `application/wasm` em `gzip_types`. Se sua hospedagem comprime JavaScript, mas não `.wasm`, as páginas baixam cerca de 32 kB a mais do que com a cópia inline.
+- Envie `Content-Type: application/wasm` para que o navegador compile o arquivo enquanto o baixa. Com outro tipo, ele compila após o download.
+- Armazene-o em cache como os outros arquivos com hash em `assets/` (`Cache-Control: public, max-age=31536000, immutable`). Isso é seguro porque o nome muda com o conteúdo. Não use `immutable` para caminhos sem hash.
+- Se você definir uma Política de Segurança de Conteúdo, adicione `'wasm-unsafe-eval'` a `script-src` e a origem do arquivo (geralmente `'self'`) a `connect-src`.
+- Se caminhos desconhecidos retornam `index.html` como alternativa, exclua `/assets/` dessa reescrita. Caso contrário, um arquivo ausente retorna HTML e `initYoga()` rejeita com `TX032`.
+
+<!-- s:55fb3b1d03 -->
+Seu próprio build com Vite ou webpack
+
+<!-- s:df66a10103 -->
+Quando você gera os bundles de `@textjs/core` e `@textjs/react` por conta própria, Yoga permanece inline e não precisa de configuração do bundler. Bundles que resolvem a condição `workerd`, como Wrangler, importam `@textjs/core/yoga.wasm` como um módulo em vez disso. Para carregar o arquivo `.wasm` em um build para navegador, adicione a condição de resolução `@textjs/client` ao build do cliente. No Vite 6, que exporta `defaultClientConditions`, o pré-bundler de desenvolvimento também precisa dela:
+
+<!-- s:8f580efda1 -->
+A condição também separa o mecanismo bidi em seu próprio chunk, que é baixado na primeira vez que uma página exibe texto da direita para a esquerda (veja [Carregar o mecanismo bidi](/docs/internationalization#loading-the-bidi-engine)).
+
+<!-- s:c2349d8226 -->
+Deixe a condição fora dos builds de servidor, pré-renderização e teste (Vitest, jsdom), que funcionam normalmente com a cópia inline.
 
 <!-- s:600050383d -->
 Atualização

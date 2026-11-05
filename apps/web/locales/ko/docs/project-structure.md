@@ -36,17 +36,18 @@
 <!-- s:854c967567 -->
 text.config.ts
 
-<!-- s:144c0672ce -->
+<!-- s:1baaf058bb -->
 | 옵션 | 기본값 | 설명 |
 | :-- | :-- | :-- |
-| `title` | `""` | 페이지 및 FocusPad 제목 |
-| `viewport` | 콘솔에 맞춤, 불가능하면 `120×36` | `responsive`(기본값 `true`), 폴백 `width × height`, `theme` |
+| `title` | `""` | 페이지와 FocusPad 제목 |
+| `viewport` | 콘솔에 맞춤, 불가능하면 `120×36` | `responsive` (기본값 `true`), 대체 크기 `width × height`, `theme` |
 | `hints` | `[]` | 페이지의 FocusPad에 표시되는 2~3개 키 |
 | `action` | `press <first hint>` | 포커스를 받은 뒤 할 동작, 예: `"type a prompt"` |
 | `devIndicators` | `true` | 콘솔 내 개발 오버레이 (`[▼]`) |
 | `focusHint` | `true` | 페이지에 포커스가 없을 때 콘솔 마지막 줄 위에 표시되는 “키보드를 사용하려면 페이지를 클릭하세요” 안내 |
-| `rewrites` | `[]` | Rewrite 및 프록시 |
-| `ansi` | `{ cols: 80, rows: 24 }` | [curl 및 터미널 클라이언트](/docs/curl)용 프레임 크기, 또는 HTML 제공을 위한 `false` |
+| `rewrites` | `[]` | Rewrite와 프록시 |
+| `ansi` | `{ cols: 80, rows: 24 }` | [curl 및 터미널 클라이언트](/docs/curl)용 프레임 크기, HTML을 제공하려면 `false` |
+| `embed` | `false` | 다른 사이트에서 스크립트 태그 하나로 추가할 수 있도록 앱 빌드 ([임베딩](/docs/embedding), 실험적 기능) |
 
 <!-- s:04e1df190e -->
 CLI

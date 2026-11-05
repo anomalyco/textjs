@@ -303,3 +303,18 @@ create-text-app सिर्फ़ नई या खाली डायरेक
 
 <!-- s:95d0435b57 -->
 अगर हैंडलर रिक्वेस्ट पढ़ता है, तो `"force-dynamic"` इस्तेमाल करें या एक्सपोर्ट हटा दें। [कैशिंग](/docs/caching) देखें।
+
+<!-- s:fa8a66bf23 -->
+Yoga का WebAssembly लोड नहीं हुआ
+
+<!-- s:f2aaa80b0f -->
+`initYoga()` Text.js ऐप्स (`text dev`, `text build`) में, `@textjs/client` रिज़ॉल्व कंडीशन सेट करने वाले बिल्ड में, और जब आप `initYoga({ wasm })` पास करते हैं, तब `.wasm` फ़ाइल से Yoga का WebAssembly लोड करता है। रिक्वेस्ट विफल हुई, एरर स्टेटस मिला, या जवाब में मिला डेटा मान्य WebAssembly नहीं था। एरर में URL और सर्वर से भेजे गए `Content-Type` का नाम होता है। इसकी आम वजहें हैं: सर्वर का `.wasm` URL के जवाब में HTML फ़ॉलबैक पेज भेजना, और Content Security Policy में `script-src` के अंदर `'wasm-unsafe-eval'` न होना।
+
+<!-- s:9de0a578e9 -->
+एरर में दिए गए URL को इस तरह सेट करें कि वह `Content-Type: application/wasm` के साथ फ़ाइल लौटाए, ताकि डाउनलोड होते समय ही वह कंपाइल हो सके। अनजान पाथ के लिए `index.html` सर्व करने वाले रीराइट को `/assets/` छोड़ना होगा। अपनी Content Security Policy में WebAssembly की अनुमति दें:
+
+<!-- s:510b3ade73 -->
+अगर आप कंसोल ख़ुद माउंट करते हैं और फ़ाइल कहीं और से सर्व करते हैं, तो `createConsoleRoot()` से पहले `initYoga()` को उसके URL, उसके बाइट्स या कंपाइल किए गए `WebAssembly.Module` के साथ कॉल करें। सिर्फ़ पहली कॉल Yoga लोड करती है:
+
+<!-- s:ed5dce1787 -->
+[WebAssembly](/docs/deploying#webassembly) देखें।

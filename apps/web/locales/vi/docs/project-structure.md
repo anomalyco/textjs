@@ -36,17 +36,18 @@ Route động
 <!-- s:854c967567 -->
 text.config.ts
 
-<!-- s:144c0672ce -->
+<!-- s:1baaf058bb -->
 | Tùy chọn | Mặc định | Mô tả |
 | :-- | :-- | :-- |
 | `title` | `""` | Tiêu đề trang và FocusPad |
-| `viewport` | vừa với console, nếu không thì `120×36` | `responsive` (mặc định `true`), kích thước dự phòng `width × height`, `theme` |
+| `viewport` | vừa console, nếu không thì `120×36` | `responsive` (mặc định `true`), kích thước dự phòng `width × height`, `theme` |
 | `hints` | `[]` | Hai hoặc ba phím hiển thị trên FocusPad của trang |
-| `action` | `press <first hint>` | Thao tác khi đã có tiêu điểm, ví dụ `"type a prompt"` |
+| `action` | `press <first hint>` | Thao tác sau khi lấy tiêu điểm, ví dụ `"type a prompt"` |
 | `devIndicators` | `true` | Dev Overlay trong console (`[▼]`) |
 | `focusHint` | `true` | “Nhấp vào trang để dùng bàn phím” phía trên dòng cuối của console khi trang chưa có tiêu điểm |
-| `rewrites` | `[]` | Rewrite và proxy |
-| `ansi` | `{ cols: 80, rows: 24 }` | Kích thước frame cho [curl và ứng dụng khách terminal](/docs/curl), hoặc `false` để trả HTML cho chúng |
+| `rewrites` | `[]` | Quy tắc viết lại và proxy |
+| `ansi` | `{ cols: 80, rows: 24 }` | Kích thước frame cho [curl và ứng dụng khách terminal](/docs/curl), hoặc `false` để trả về HTML cho chúng |
+| `embed` | `false` | Biên dịch ứng dụng để các trang khác thêm vào bằng một thẻ script ([Nhúng](/docs/embedding), thử nghiệm) |
 
 <!-- s:04e1df190e -->
 CLI
