@@ -11,12 +11,19 @@ describe("production build", () => {
     const out = mkdtempSync(join(tmpdir(), "textjs-web-"));
     try {
       const proc = Bun.spawnSync(["bun", "x", "vite", "build", "--outDir", out, "--emptyOutDir"], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
-      const log = `${proc.stdout.toString()}\n${proc.stderr.toString()}`;
+      const stdout = proc.stdout.toString();
+      const stderr = proc.stderr.toString();
       expect(proc.exitCode).toBe(0);
-      expect(log).toContain("built in");
+      expect(stdout).toContain("built in");
+      // Vite lists every emitted file with its size; chunk names such as `errors-*.js` aren't messages.
+      const log = `${stdout
+        .split("\n")
+        .filter((line) => !/\/assets\/\S+\s+\d/.test(line))
+        .join("\n")}\n${stderr}`;
       expect(log.toLowerCase()).not.toContain("warning");
       expect(log).not.toContain("(!)");
       expect(log.toLowerCase()).not.toContain("error");
+      expect(stderr.trim()).toBe("");
 
       const html = readFileSync(join(out, "index.html"), "utf8");
       expect(html).toContain("<title>Text.js | The Console Framework</title>");
