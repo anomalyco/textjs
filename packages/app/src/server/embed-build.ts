@@ -97,13 +97,17 @@ async function bundleEntry(root: string, code: string, external: string[]): Prom
   return result.outputFiles[0]!.contents;
 }
 
-/** Pin the entry, `base: "./"` (URLs relative to each chunk) and the entry's exports, after every other plugin's `config`. */
+/**
+ * Pin the entry, `base: "./"` (URLs relative to each chunk) and the entry's exports, after every other plugin's
+ * `config`. `allow-extension` lets lazy chunks (the bidi engine) import from the entry itself, instead of Rollup
+ * splitting the entry behind a facade, which would cost console intent a second request in sequence.
+ */
 function entryPlugin(input: Rollup.InputOption): Plugin {
   return {
     name: "@textjs/app:embed-entry",
     config: {
       order: "post",
-      handler: () => ({ base: "./", build: { rollupOptions: { input, preserveEntrySignatures: "exports-only" } } }),
+      handler: () => ({ base: "./", build: { rollupOptions: { input, preserveEntrySignatures: "allow-extension" } } }),
     },
   };
 }

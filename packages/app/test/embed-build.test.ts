@@ -54,11 +54,10 @@ const BUDGET = {
   /** The frame player (`embed-player-[hash].js`). */
   player: 23_552,
   /**
-   * The client runtime plus Yoga's `.wasm`. The plan's target is 140 KiB; it measures 150.5 KiB, of which
-   * react-reconciler is about 39 KiB and the bidi tables about 13 KiB (loaded eagerly by the scene). Held
-   * here until bidi loads on first RTL text.
+   * The client runtime plus Yoga's `.wasm`, without the bidi chunk, which loads on the first right-to-left text.
+   * It measures 142.0 KiB, of which react-reconciler is about 39 KiB. The plan's target was 140 KiB.
    */
-  lazy: 152 * 1024,
+  lazy: 143 * 1024,
 };
 
 /** As users run it: `bun test` sets NODE_ENV=test, which would bundle React's development builds. */
@@ -115,6 +114,8 @@ describe("text build --embed (client route)", () => {
     expect(out).toContain("embed.js");
     expect(out.filter((f) => /^assets\/embed-[\w-]{8}\.js$/.test(f))).toHaveLength(1);
     expect(out.filter((f) => /^assets\/embed-client-[\w-]+\.js$/.test(f))).toHaveLength(1);
+    // Console intent loads the runtime and Yoga in parallel and nothing after them: no entry facade.
+    expect(result.embed?.lazyFiles.filter((f) => f.endsWith(".js"))).toHaveLength(1);
     expect(out.filter((f) => /^assets\/yoga-[\w-]+\.wasm$/.test(f))).toHaveLength(1);
     expect(out.some((f) => f.endsWith(".html"))).toBe(false);
     expect(result.embed?.runtime).toBe("client");
