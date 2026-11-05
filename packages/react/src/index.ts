@@ -108,4 +108,4 @@ export {
   type DevToolsTreeNode,
   type DevToolsFrameSnapshot,
   type DevToolsHookEvent,
-} from "./devtools-hook";
+} from "./devtools-global";

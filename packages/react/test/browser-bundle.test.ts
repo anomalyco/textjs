@@ -39,6 +39,17 @@ test("@textjs/react keeps the terminal runner and testing kit out of the main bu
   expect(terminal).toContain("TerminalInputParser");
 }, 30_000);
 
+test("the DevTools connection code is its own chunk, inlined in single-file bundles", async () => {
+  const path = fileURLToPath(new URL("../src/index.ts", import.meta.url));
+  const result = await Bun.build({ entrypoints: [path], target: "browser", format: "esm", splitting: true, minify: false });
+  if (!result.success) throw new AggregateError(result.logs, "bundle failed");
+  const outputs = await Promise.all(result.outputs.map(async (o) => ({ kind: o.kind, code: await o.text() })));
+  const entry = outputs.find((o) => o.kind === "entry-point")!.code;
+  expect(entry).not.toContain("class FiberIds");
+  expect(outputs.some((o) => o.kind === "chunk" && o.code.includes("class FiberIds"))).toBe(true);
+  expect(await bundle("../src/index.ts")).toContain("class FiberIds");
+}, 30_000);
+
 test("<ConsoleMirror> checks for RTL text without bundling the bidi tables or grapheme segmenter", async () => {
   const code = await bundle("./fixtures/bundle/mirror.tsx");
   expect(code).toContain("bidi-override");
