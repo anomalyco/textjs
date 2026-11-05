@@ -303,3 +303,18 @@ create-text-app은 파일을 덮어쓰지 않도록 새 디렉터리나 빈 디�
 
 <!-- s:95d0435b57 -->
 핸들러가 요청을 읽는다면 `"force-dynamic"`을 사용하거나 내보내기를 제거하세요. [캐싱](/docs/caching)을 참고하세요.
+
+<!-- s:fa8a66bf23 -->
+Yoga의 WebAssembly 로드 실패
+
+<!-- s:f2aaa80b0f -->
+`initYoga()`는 Text.js 앱(`text dev`, `text build`), `@textjs/client` 모듈 해석 조건을 설정한 빌드, `initYoga({ wasm })`를 전달한 경우에 `.wasm` 파일에서 Yoga의 WebAssembly를 로드해요. 요청이 실패했거나, 오류 상태가 반환됐거나, 응답이 유효한 WebAssembly가 아니에요. 오류에는 URL과 서버가 보낸 `Content-Type`이 표시돼요. 주된 원인은 `.wasm` URL에 HTML 대체 페이지를 반환하는 서버와 `script-src`에 `'wasm-unsafe-eval'`이 없는 콘텐츠 보안 정책이에요.
+
+<!-- s:9de0a578e9 -->
+오류에 나온 URL이 파일을 반환하도록 설정하고, 다운로드 중에 컴파일할 수 있도록 `Content-Type: application/wasm`을 지정하세요. 알 수 없는 경로에 `index.html`을 제공하는 재작성 규칙은 `/assets/`를 제외해야 해요. 콘텐츠 보안 정책에서 WebAssembly를 허용하세요:
+
+<!-- s:510b3ade73 -->
+콘솔을 직접 마운트하고 다른 위치에서 파일을 제공한다면, `createConsoleRoot()` 전에 파일의 URL, 바이트 데이터 또는 컴파일된 `WebAssembly.Module`로 `initYoga()`를 호출하세요. 첫 번째 호출만 Yoga를 로드해요:
+
+<!-- s:ed5dce1787 -->
+[WebAssembly](/docs/deploying#webassembly)를 참고하세요.

@@ -62,8 +62,8 @@ Funcionamento
 <!-- s:1dda342130 -->
 Assim como o React DevTools, a extensão instala um hook global antes de a página executar:
 
-<!-- s:5a865fb9ae -->
-Cada raiz do console se registra nele ao ser criada. Sem a extensão, o hook não existe, e uma raiz só verifica sua presença uma vez, sem executar trabalho por quadro. Com a extensão instalada, mas com o painel fechado, cada quadro custa uma leitura de propriedade. Árvores e quadros só são calculados quando o painel os solicita.
+<!-- s:9a7af3e89c -->
+Cada raiz do console se registra nele. A primeira raiz de uma página carrega o código que se comunica com o painel (cerca de 5 KB com gzip) e se registra assim que ele chega. As raízes seguintes se registram conforme são criadas. Sem a extensão, o hook não existe, então cada raiz verifica sua presença uma vez, não carrega nada e não executa nenhum trabalho por quadro. Com a extensão instalada, mas com o painel fechado, os quadros custam uma leitura de propriedade. As árvores e os quadros só são calculados quando o painel os solicita.
 
 <!-- s:843fc9a8ad -->
 As mensagens seguem o fluxo página → script de conteúdo → service worker → painel. Os scripts de conteúdo executam em todas as páginas para que o hook exista antes de seu app iniciar. Esse é o único acesso que a extensão solicita. Ela não carrega código remoto nem envia nada para fora da máquina.
@@ -77,8 +77,9 @@ A extensão não coleta dados. Ela não faz requisições de rede, não armazena
 <!-- s:639d5ea4c0 -->
 Limitações
 
-<!-- s:153a772b79 -->
+<!-- s:05616a1196 -->
 - Chrome e navegadores baseados em Chromium, versão 111 ou posterior.
 - Apps iniciados antes da instalação da extensão precisam ser recarregados.
-- Apenas o quadro de nível superior de uma aba é inspecionado.
+- Apenas o quadro superior de uma aba é inspecionado.
+- A linha do tempo registra quadros a partir da conexão do painel.
 - Os tempos vêm de `performance.now()`, cuja precisão os navegadores reduzem para cerca de 0,1 ms.

@@ -16,6 +16,9 @@
 <!-- s:7e755a5c9f -->
 也可以透過 `TEXTJS_ADAPTER` 指定配接器。在 Vercel（`VERCEL=1`）或 Cloudflare Pages（`CF_PAGES=1`）上執行 `text build` 時，會自動選擇對應的配接器。
 
+<!-- s:d671e1ae31 -->
+若要用一個 script 標籤將應用程式加入其他網站，請使用 `--embed` 建置。每個配接器都支援此功能（請參閱[嵌入](/docs/embedding)）。
+
 <!-- s:9d8df946e5 -->
 伺服器配接器（`bun`、`vercel` 和 `cloudflare`）執行的處理流程與 `text start` 相同：先執行[中介軟體](/docs/middleware)、`rewrites`、搭配[路由快取](/docs/caching)的[路由處理常式](/docs/route-handlers)，接著提供靜態資源，最後為頁面網址提供主控台文件。curl 等終端機用戶端則會收到以 ANSI 文字呈現的頁面第一個影格。在 `vercel` 和 `cloudflare` 上，這僅適用於靜態頁面（請參閱 [curl 與終端機用戶端](/docs/curl)）。伺服器配接器會為 `/assets/` 下帶有雜湊值的檔案設定 `Cache-Control: public, max-age=31536000, immutable`。
 
@@ -63,13 +66,13 @@ Cloudflare Pages
 <!-- s:6109800459 -->
 輸出使用 Pages 進階模式：
 
-<!-- s:9f0923168f -->
+<!-- s:f72ec91f11 -->
 | 檔案 | 用途 |
 | :-- | :-- |
-| `_worker.js` | 中介軟體、重寫規則、路由處理常式與主控台文件 |
-| `_routes.json` | 將每個請求傳送至 worker。沒有中介軟體或 `basePath` 時，`/assets/*` 仍由 Pages 的靜態 CDN 提供 |
-| `_headers` | `/assets/*` 的不可變快取設定（附加至你的設定） |
-| `404.html` | 讓 Pages 在找不到檔案時回傳 `404`，而非應用程式（若你已有此檔案則保留） |
+| `_worker.js` | 中介軟體、重寫、路由處理常式及主控台文件。路由處理常式使用 Yoga 時，這會是目錄（`index.js` 和 `yoga.wasm`） |
+| `_routes.json` | 將每個請求送至 worker。沒有中介軟體或 `basePath` 時，`/assets/*` 仍由 Pages 的靜態 CDN 處理 |
+| `_headers` | 為 `/assets/*` 設定不可變快取（附加至你的設定） |
+| `404.html` | 讓 Pages 在檔案不存在時回傳 `404`，而非應用程式（若已有此檔案則保留） |
 
 <!-- s:9bc2b010d1 -->
 由於 Pages 會原樣發布目錄，`.text/`（伺服器套件組與建置資訊清單）會從 `dist/` 移除。
@@ -77,8 +80,33 @@ Cloudflare Pages
 <!-- s:1200dbc88d -->
 在 Pages 專案（設定 → 執行階段）或 `wrangler.toml` 中啟用 `nodejs_compat` 相容性旗標；資料快取會使用 `AsyncLocalStorage`。靜態檔案透過 `ASSETS` 繫結提供，背景重新驗證則使用 `ctx.waitUntil()`。
 
-<!-- s:0bb76cfebb -->
-使用中介軟體時，每個請求都會執行 worker，包括帶有雜湊值的資源，讓中介軟體能看見所有可存取檔案的路徑。每個執行 worker 的請求都算一次 Functions 呼叫，並計入 Workers 請求配額。載入一個頁面時，這包含文件與擷取的每個檔案（只有一個 JavaScript 套件組的小型測試應用程式為 2 次；檔案越多的應用程式次數越多）。在 Workers Free 方案中，每日配額用完後，Pages 會不經 worker 提供靜態檔案，因此略過中介軟體。如果中介軟體保護 `dist/` 中的任何內容，請將「設定 → 執行階段 → Fail open / closed」設為 **Fail closed**。
+<!-- s:398bcc3496 -->
+使用中介軟體時，每個請求都會執行 worker，包括含雜湊值的資源，因此中介軟體能檢查所有可存取檔案的路徑。每個執行 worker 的請求都算一次 Functions 呼叫，並計入你的 Workers 請求配額。載入頁面時，包含文件本身及擷取的每個檔案（小型測試應用程式共 3 個：文件、一個 JavaScript 套件和 `yoga-[hash].wasm`；檔案較多的應用程式則更多）。在 Workers Free 方案中，每日配額用完後，Pages 會直接提供靜態檔案，不執行 worker，因此會略過中介軟體。如果中介軟體保護 `dist/` 中的任何內容，請將 Settings → Runtime → Fail open / closed 設為 **Fail closed**。
+
+<!-- s:24c3dfe433 -->
+WebAssembly
+
+<!-- s:72ec3f110c -->
+Text.js 應用程式從 `assets/yoga-[hash].wasm` 載入版面配置引擎 Yoga（72 kB，使用 gzip 後為 29 kB）。`text build` 會讓每個頁面預先載入此檔案。伺服器套件和 `text run` 使用 `yoga-layout` 中的內嵌副本。Cloudflare worker 是例外：路由處理常式使用 Yoga 時，`dist/_worker.js/` 會將 `yoga.wasm` 與 `index.js` 放在一起。
+
+<!-- s:0ca00aa2eb -->
+- 如同提供 JavaScript 一樣，以壓縮格式提供 `.wasm` 檔案。Vercel 預設會壓縮 `application/wasm`；nginx 則需要在 `gzip_types` 中加入 `application/wasm`。如果主機壓縮 JavaScript 卻不壓縮 `.wasm`，頁面下載量會比使用內嵌副本多約 32 kB。
+- 傳送 `Content-Type: application/wasm`，讓瀏覽器在下載檔案時同步編譯。使用其他類型時，瀏覽器會在下載完成後才編譯。
+- 比照 `assets/` 中其他含雜湊值的檔案設定快取（`Cache-Control: public, max-age=31536000, immutable`）。這樣做是安全的，因為名稱會隨內容變更。不要對不含雜湊值的路徑使用 `immutable`。
+- 如果你設定了內容安全政策，請將 `'wasm-unsafe-eval'` 加入 `script-src`，並將檔案的來源（通常是 `'self'`）加入 `connect-src`。
+- 如果未知路徑會回退至 `index.html`，請從該重寫規則中排除 `/assets/`。否則，檔案不存在時會回傳 HTML，而 `initYoga()` 會以 `TX032` 拒絕。
+
+<!-- s:55fb3b1d03 -->
+自訂 Vite 或 webpack 建置
+
+<!-- s:df66a10103 -->
+自行打包 `@textjs/core` 和 `@textjs/react` 時，Yoga 會維持內嵌，不需設定打包工具。解析 `workerd` 條件的打包工具（例如 Wrangler）則會將 `@textjs/core/yoga.wasm` 作為模組匯入。若要在瀏覽器建置中載入 `.wasm` 檔案，請將 `@textjs/client` 解析條件加入用戶端建置。Vite 6 會匯出 `defaultClientConditions`，其開發預先打包工具也需要此條件：
+
+<!-- s:8f580efda1 -->
+此條件也會將雙向文字引擎拆成獨立區塊，在頁面首次顯示從右至左的文字時下載（請參閱[載入雙向文字引擎](/docs/internationalization#loading-the-bidi-engine)）。
+
+<!-- s:c2349d8226 -->
+不要在伺服器、預先渲染及測試建置（Vitest、jsdom）中加入此條件，這些建置使用內嵌副本即可正常執行。
 
 <!-- s:600050383d -->
 升級

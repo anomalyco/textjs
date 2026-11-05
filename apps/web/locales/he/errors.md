@@ -303,3 +303,18 @@ create-text-app יוצר שלד פרויקט רק בספרייה חדשה או �
 
 <!-- s:95d0435b57 -->
 יש להשתמש ב-`"force-dynamic"`, או להסיר את הייצוא, אם המטפל קורא את הבקשה. ראו [שמירה במטמון](/docs/caching).
+
+<!-- s:fa8a66bf23 -->
+טעינת ה-WebAssembly של Yoga נכשלה
+
+<!-- s:f2aaa80b0f -->
+`initYoga()` טוען את ה-WebAssembly של Yoga מקובץ `.wasm` באפליקציות Text.js (`text dev`, `text build`), בבניות שמגדירות את תנאי הפתרון `@textjs/client`, וכאשר מעבירים `initYoga({ wasm })`. הבקשה נכשלה, החזירה סטטוס שגיאה, או שהתוכן שהוחזר לא היה WebAssembly תקין. השגיאה מציינת את כתובת ה-URL ואת ה-`Content-Type` שהשרת שלח. הסיבות הנפוצות הן שרת שמחזיר דף HTML חלופי בתגובה לכתובת ה-URL של קובץ ה-`.wasm`, ומדיניות אבטחת תוכן ללא `'wasm-unsafe-eval'` בתוך `script-src`.
+
+<!-- s:9de0a578e9 -->
+יש להגדיר את כתובת ה-URL שמופיעה בשגיאה כך שתחזיר את הקובץ עם `Content-Type: application/wasm`, כדי שיתקמפל בזמן ההורדה. כלל שכתוב שמגיש את `index.html` עבור נתיבים לא מוכרים חייב לדלג על `/assets/`. יש לאפשר WebAssembly במדיניות אבטחת התוכן:
+
+<!-- s:510b3ade73 -->
+אם מחברים את המסוף עצמאית ומגישים את הקובץ ממיקום אחר, יש לקרוא ל-`initYoga()` עם כתובת ה-URL שלו, הבתים שלו או `WebAssembly.Module` מקומפל לפני `createConsoleRoot()`. רק הקריאה הראשונה טוענת את Yoga:
+
+<!-- s:ed5dce1787 -->
+ראו [WebAssembly](/docs/deploying#webassembly).

@@ -303,3 +303,18 @@ Verwende `"force-static"`, um den Handler zwischenzuspeichern. Ein zwischengespe
 
 <!-- s:95d0435b57 -->
 Verwende `"force-dynamic"` oder entferne den Export, wenn der Handler die Anfrage liest. Siehe [Caching](/docs/caching).
+
+<!-- s:fa8a66bf23 -->
+Yogas WebAssembly konnte nicht geladen werden
+
+<!-- s:f2aaa80b0f -->
+`initYoga()` lädt Yogas WebAssembly aus einer `.wasm`-Datei in Text.js-Apps (`text dev`, `text build`), in Builds mit der Auflösungsbedingung `@textjs/client` und wenn du `initYoga({ wasm })` übergibst. Die Anfrage ist fehlgeschlagen, hat einen Fehlerstatus zurückgegeben oder die Antwort war kein gültiges WebAssembly. Die Fehlermeldung nennt die URL und den vom Server gesendeten `Content-Type`. Die üblichen Ursachen sind ein Server, der die `.wasm`-URL mit einer HTML-Fallback-Seite beantwortet, und eine Content Security Policy ohne `'wasm-unsafe-eval'` in `script-src`.
+
+<!-- s:9de0a578e9 -->
+Sorge dafür, dass die URL aus der Fehlermeldung die Datei mit `Content-Type: application/wasm` zurückgibt, damit sie während des Downloads kompiliert wird. Eine Rewrite-Regel, die für unbekannte Pfade `index.html` ausliefert, muss `/assets/` ausnehmen. Erlaube WebAssembly in deiner Content Security Policy:
+
+<!-- s:510b3ade73 -->
+Wenn du die Konsole selbst mountest und die Datei von einem anderen Ort auslieferst, rufe vor `createConsoleRoot()` die Funktion `initYoga()` mit ihrer URL, ihren Bytes oder einem kompilierten `WebAssembly.Module` auf. Nur der erste Aufruf lädt Yoga:
+
+<!-- s:ed5dce1787 -->
+Siehe [WebAssembly](/docs/deploying#webassembly).

@@ -39,6 +39,21 @@ Ablauf des Renderings
 <!-- s:3b67946601 -->
 Text ohne Rechts-nach-links-Zeichen überspringt all diese Schritte. Ein reines Links-nach-rechts-Textmodell wird beim Segmentieren seiner Grapheme erkannt (ein Vergleich pro Graphem) und über den unveränderten Pfad gezeichnet; die Konsolen-Frames sind bytegleich.
 
+<!-- s:6181d9259c -->
+Die Bidi-Engine laden
+
+<!-- s:8bd0807fa0 -->
+In Text.js-Apps (`text dev`, `text build`) bilden die Bidi-Engine und ihre Unicode-Tabellen einen separaten Chunk von 10,1 kB (gzip). Er wird heruntergeladen, sobald eine Seite erstmals Rechts-nach-links-Text oder ein `<Text>` mit `dir="rtl"` rendert, sodass andere Seiten ihn nie laden. Bis er ankommt, erscheint dieser Text in logischer Reihenfolge. Dann zeichnet die Konsole ihn in Anzeigereihenfolge neu.
+
+<!-- s:ed4299ea80 -->
+`text build`-Apps mit einer per Prerendering erzeugten Shell starten den Download selbst, wenn die Shell Rechts-nach-links-Text enthält. Wenn du die Konsole selbst mountest, starte den Download zusammen mit `createConsoleRoot()`, damit der erste Frame in Anzeigereihenfolge erscheint. Zum Beispiel auf Rechts-nach-links-Seiten:
+
+<!-- s:8ebc8c3712 -->
+`loadBidi()` schlägt fehl, wenn sich der Chunk nicht laden lässt. Rechts-nach-links-Text bleibt dann in logischer Reihenfolge.
+
+<!-- s:7adcf6764d -->
+Server-Rendering, `text run`, Tests und Bundles ohne die Auflösungsbedingung `@textjs/client` enthalten die Engine, sodass sie Rechts-nach-links-Text immer in Anzeigereihenfolge zeichnen und `loadBidi()` sofort erfolgreich abgeschlossen wird.
+
 <!-- s:26ac17c25a -->
 Zellenbreiten
 

@@ -39,6 +39,21 @@ Przebieg renderowania
 <!-- s:3b67946601 -->
 Tekst bez znaków od prawej do lewej pomija wszystkie te operacje. Model tekstu wyłącznie od lewej do prawej jest wykrywany podczas segmentacji grafemów (jedno porównanie na grafem) i rysowany niezmienioną ścieżką; klatki konsoli są identyczne bajt po bajcie.
 
+<!-- s:6181d9259c -->
+Ładowanie silnika bidi
+
+<!-- s:8bd0807fa0 -->
+W aplikacjach Text.js (`text dev`, `text build`) silnik bidi i jego tabele Unicode stanowią osobny fragment o rozmiarze 10,1 kB (gzip). Jest pobierany, gdy strona po raz pierwszy renderuje tekst od prawej do lewej lub komponent `<Text>` z `dir="rtl"`, więc inne strony nigdy go nie ładują. Do czasu jego pobrania tekst jest rysowany w kolejności logicznej. Następnie konsola rysuje go ponownie w kolejności wyświetlania.
+
+<!-- s:ed4299ea80 -->
+Aplikacje budowane poleceniem `text build` z powłoką po prerenderowaniu same rozpoczynają pobieranie, gdy powłoka zawiera tekst od prawej do lewej. Jeśli samodzielnie montujesz konsolę, rozpocznij pobieranie równolegle z `createConsoleRoot()`, aby pierwsza klatka była w kolejności wyświetlania. Na przykład na stronach z tekstem od prawej do lewej:
+
+<!-- s:8ebc8c3712 -->
+`loadBidi()` odrzuca obietnicę, jeśli nie uda się załadować fragmentu. Tekst od prawej do lewej pozostaje wtedy w kolejności logicznej.
+
+<!-- s:7adcf6764d -->
+Renderowanie po stronie serwera, `text run`, testy i pakiety bez warunku rozwiązywania `@textjs/client` zawierają silnik, więc zawsze rysują tekst od prawej do lewej w kolejności wyświetlania, a `loadBidi()` od razu spełnia obietnicę.
+
 <!-- s:26ac17c25a -->
 Szerokości komórek
 

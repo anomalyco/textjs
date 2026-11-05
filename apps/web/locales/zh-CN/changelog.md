@@ -7,6 +7,44 @@
 <!-- s:2e16922cfc -->
 新增
 
+<!-- s:cbc6ef4438 -->
+- `@textjs/core/experimental`：`onConsoleIntent(onIntent, options)` 在访客想要使用控制台时调用一次 `onIntent`，这样页面可以到那时再下载控制台应用。它会在加载时 DevTools 已停靠或之后停靠时（`"dock"`）触发，也会在按下 DevTools 快捷键 F12、Ctrl+Shift+J、I、C 或 K，以及 Mac 上的 ⌘⌥J、I、C 或 K 时（`"shortcut"`）触发。点击 `[data-textjs-engage]` 元素、`<text-console>` 元素或 `<FocusPad>`，在 `[data-textjs-engage]` 按钮上按 Enter 或 Space，以及在控制台启动前通过 `<ViewportControl>` 选择尺寸时，也会触发（`"engage"`）。在已发生上述任一操作的标签页中重新加载会触发 `"session"`。在触摸屏上不会自行触发。调用句柄的 `trigger()` 即可在那里加载应用。`prefetch` 会在指针进入控制台界面时预加载应用的代码块，`canPrefetchConsole()` 则报告设备和网络连接是否适合预取。`CONSOLE_INTENT_KEY` 是它使用的 `sessionStorage` 键。当加载的应用与它分属不同代码块时，视口尺寸代码不会进入它的代码块：在入口调用 `onConsoleIntent` 并延迟导入 `ConsoleRenderer` 的 Vite 构建中，入口代码块为 2.8 KB（gzip）。参见[按控制台使用意图加载](https://textjs.org/docs/hooks-and-repl#loading-on-console-intent-experimental)。
+- `@textjs/app`（实验性）：`text build --embed` 或 `text.config.ts` 中的 `embed` 将应用构建为可供其他网站使用的单个标签：`<script type="module" src="https://your-host/embed.js"></script>`。`embed.js` 输出路由在构建时预渲染的首帧（除非设置了 `ppr: false`，或中间件可能匹配 `embed.initialPath`），并且直到 `onConsoleIntent` 触发才加载运行时。随后它导入应用，同时获取 `yoga.wasm`，应用自带 React 19，不含 `react-dom`。检测到控制台使用意图时，该应用加载 112.8 KB 的 JavaScript 和 29.0 KB 的 WebAssembly（gzip）。另有 10.1 KB 的双向文本引擎，在应用首次显示从右到左的文本时加载。当 `embed.initialPath` 是带有 `export const runtime = "server"` 的路由时，`embed.js` 改为加载 22.7 KB 的帧播放器，从提供 `embed.js` 的服务器流式接收内容。导航保留在控制台内，不会更改宿主页面的 URL、历史记录或标题，客户端渲染应用中的绝对 URL 则在新标签页中打开。只有访客按下 `[data-textjs-engage]` 元素、`<text-console>` 元素或 `<FocusPad>`，或点击页面将焦点从 DevTools 移回后，按键才会传入应用；在页面自身的输入字段或 `[data-textjs-bypass]` 元素中输入时，按键绝不会传入应用。`embed.js` 相对于自身 URL 加载其他文件，因此输出可用于任意路径或源。输出包含 `embed.js` 和 `assets/`，不含 `index.html` 或 `404.html`。包含服务端渲染的路由、路由处理程序或中间件的构建还会保留 `.text/`（服务端包），供 `text start` 或 Bun 适配器使用。`assets/embed-[hash].js` 是同一脚本的带哈希名称版本，可永久缓存。`embed.standalone` 保留应用自身的页面，`embed.initialPath` 选择路由，`embed.globalName` 重命名或移除 `window.text`，`embed.initialClear` 则先清空页面的控制台。对于 120×36 的带边框状态框，`embed.js` 为 2.9 KB（gzip），设置 `ppr: false` 时为 2.2 KB。在触摸屏上，`embed.js` 不输出任何内容，也不会加载运行时，因此应用不会在那里打开。其他网站的页面只有在其源列于 `embed.allowOrigins` 中时才能打开应用的实时会话，`embed.credentials` 则发送这些页面的 Cookie。`embed.js` 和 `assets/*` 使用 `Access-Control-Allow-Origin: *` 和 `Cross-Origin-Resource-Policy: cross-origin` 响应头提供服务。`text start` 以及 Bun、Cloudflare 和 Vercel 适配器提供嵌入式构建时，会让 `embed.js` 在每次请求时重新验证，并将 `assets/*` 缓存为不可变资源，静态适配器则将相同的响应头写入 `_headers`。参见[嵌入](https://textjs.org/docs/embedding)。
+- `@textjs/app`（实验性）：`<text-console>` 向访客展示如何从宿主页面进入嵌入式应用，或通过 `mirror` 显示应用本身。`embed.js` 定义该标签，且仅当页面上存在该标签时才加载其 4.0 KB（gzip）的文件。不带属性时，它是一个单行栏。它显示浏览器打开控制台的快捷键，随后提示点击，再将应用的 `hints` 列为按键，这些按键传入应用时会亮起。使用 `mirror` 时，它会在加载其他内容之前显示 `embed.js` 的首帧，随后显示运行中应用的帧。设置 `ppr: false` 时，镜像会保持空白，直到应用绘制。点击镜像会启动应用并向其发送访客的按键，因此关闭 DevTools 时应用也能工作。`chrome` 在镜像周围绘制一个 DevTools 窗口，并隐含启用 `mirror`。`title`、`hints`（`"← →:switch region, Enter:open"`）和 `action` 属性回退到 `text.config.ts` 中的值。它使用 Shadow DOM 和构造样式表，而非 React，因此页面 CSS 不会影响内部，`style-src 'self'` 策略也无需更改。默认采用深色样式。可通过 `color-scheme: light`、`--text-console-bg` 和 `--text-console-fg`，或 `::part(frame)` 重新设置样式。它的尺寸不依赖字体或内容：单行栏高 58 px，镜像保持应用网格的宽高比，因此 `text build --embed` 输出的那一行 CSS 会在加载前为其在宿主页面上预留空间（`@textjs/app/experimental` 中的 `reserveCss()` 返回相同的一行）。在触摸屏上，镜像显示首帧但不启动应用，单行栏则隐藏。参见 [`<text-console>`](https://textjs.org/docs/embedding#text-console)。
+- `@textjs/app`（实验性）：`text dev --embed` 提供 `/embed.js`，每次请求都生成新的首帧，同时提供一个预览页面，以其他网站的方式加载它，页面上带有 `<text-console mirror>`。预览位于 `/`，启用 `embed.standalone` 时则位于 `/__textjs/embed`。
+- `@textjs/app`：`<AppRouter openExternal>` 决定如何打开其他源的 URL（默认为 `window.location.assign`）。使用内存历史记录时，所有绝对 URL 都视为外部 URL，因为页面地址并非应用地址。
+- `@textjs/app/experimental`：导出 `bootEmbedClient`、`bootEmbedPlayer`、`createHostInput`、`startEmbed`、`createTextConsoleMount` 和 `reserveCss`，供自行加载嵌入式应用的页面使用。
+- `@textjs/core/experimental`：`CONSOLE_OWNER`（`Symbol.for("textjs.consoleOwner")`）记录哪个应用在页面控制台中渲染，`claimConsole()` 用于取得控制权。使用全局控制台的 `ConsoleRenderer` 和拥有其页面的帧播放器会取得控制权，因此宿主应用启动时会从嵌入式应用接管控制台，后者随后卸载、断开输入并移除其 `window.text`。其他应用持有控制台时，嵌入式应用不会启动。
+- `@textjs/react`：`<ViewportControl>` 在控制台根节点存在之前即可工作。选择尺寸会保存该尺寸，为 `onConsoleIntent` 触发 `"engage"`，并在设置 `root` 后应用尺寸。`<FocusPad sizeControl>` 也具备此行为，因此其尺寸菜单不再一直禁用到控制台启动。
+- `@textjs/core`：`initYoga({ wasm })` 从 URL、字节数据、`Response` 或已编译的 `WebAssembly.Module` 加载 Yoga。WebAssembly 文件以 `@textjs/core/yoga.wasm` 导出。无法加载时，`initYoga()` 会以 [TX032](https://textjs.org/errors/TX032) 拒绝。
+- `@textjs/core`：`loadBidi()` 在任何从右到左的文本渲染前开始下载双向文本引擎，使该文本的首帧按显示顺序排列。在包含该引擎的构建中（服务端渲染、`text run`、测试），它会立即兑现。参见[加载双向文本引擎](https://textjs.org/docs/internationalization#loading-the-bidi-engine)。
+
+<!-- s:5b88618770 -->
+变更
+
+<!-- s:f738d37ae3 -->
+- `@textjs/react`：控制台根节点仅在页面上存在扩展的 Hook 时，才加载与 Text.js DevTools 扩展通信的代码，因此在 `text build` 等拆分代码的构建中，未安装扩展的访客不会下载该代码。安装扩展后，页面上的第一个根节点会在该文件（gzip 后约 5 KB）加载后注册。后续根节点在创建时注册。入门模板的客户端 JavaScript 减少了 4.2 KB（gzip），`text build --embed` 客户端减少了 4.1 KB，textjs.org 的控制台应用减少了 3.8 KB。
+- `@textjs/core`：控制台驱动程序在可能需要替代字符的字形（八分块、象限块、盲文、▶、✓ 等）首次出现时，才检查控制台字体是否适合该字形，而不再在首帧测量所有字形。使用相同字号和字体族的驱动程序共享结果。不含这些字形的帧不会执行替代字符测量，因此在 M5 Pro Mac mini 上的无头 Chromium 中，textjs.org 首页控制台的首帧耗时从 9.2 ms 降至 1.2 ms，CPU 降速 4 倍时则从 38.4 ms 降至 4.8 ms。在 Consolas 缺少这些字形的 Windows 10 上，使用这些字形的帧从首帧起仍会获得与之前相同的替代字符。
+- `@textjs/core`：`isRtlCodePoint` 和 `hasRtl` 查询根据 Unicode 18.0 数据生成的 59 个从右到左的字符范围，不再加载双向文本表。对于每个码点，它们返回的结果均与之前相同。单独使用 `<ConsoleMirror>` 时，打包的 JavaScript 减少了 2.1 KB（gzip），服务端渲染路由的帧播放器则减少了 1.6 KB。
+- `@textjs/app`：`text build` 不再将 Dev Overlay 和 Redbox 包含在生产构建中。它们只在 `text dev` 中显示，但之前每次构建都会将其打包。入门模板的客户端 JavaScript 减少了 4.3 KB（gzip），`examples/dashboard` 减少了 3.0 KB。自行渲染 `<AppRouter>` 的应用，在打包器将 `process.env.NODE_ENV` 设为 `"production"` 时也会移除它们（这是 `vite build` 和 webpack、`esbuild --minify` 以及 `bun build --production` 的默认设置）。在这些构建中，`<AppRouter devOverlay>` 不渲染任何内容（传入 `devOverlay={<TextDevOverlay />}` 可保留），`errorStore` 默认为 `null`，`bootTextApp` 忽略 `dev: true`。
+- `@textjs/core`、`@textjs/app`：Text.js 应用（`text dev`、`text build`）以独立的 `.wasm` 文件加载 Yoga，不再使用 JavaScript 内的 base64 副本。`text build` 输出 `assets/yoga-[hash].wasm`，并从 HTML 预加载它。两个文件都使用 gzip 时，入门应用的下载量减少了 11.4 KB，需要解析的 JavaScript 减少了 95 KB。其他打包器保留内联副本，但解析 `workerd` 条件的打包器（Wrangler）除外，它们将 `yoga.wasm` 作为模块导入。使用 Vite 或 webpack 打包 `@textjs/core` 的应用，也可以通过添加 `@textjs/client` 解析条件来加载 `.wasm` 文件。参见 [WebAssembly](https://textjs.org/docs/deploying#webassembly)。
+- `@textjs/core`：`ConsoleRenderer` 不再从其他包中正在运行的渲染器接管 `window.text`，例如与页面自身应用并存的嵌入式应用。
+- `@textjs/react`：`@textjs/react/dom` 将视口选择辅助函数和常量（`loadViewportChoice`、`saveViewportChoice`、`parseViewportChoice`、`formatViewportChoice`、`applyViewportChoice`、`VIEWPORT_CHOICE_KEY` 和 `VIEWPORT_PRESETS`）移入独立模块。应用在一个代码块中导入它们、在另一个代码块中渲染 `<ViewportControl>` 或 `<FocusPad>` 时，第一个代码块不再包含控件代码。导出保持不变。
+- `@textjs/core`：依赖精确版本 `yoga-layout` 3.2.1，因为 `yoga.wasm` 及其加载器由该版本生成。
+- `@textjs/app`：`text build` 的 First Load JS 包含 `.wasm` 文件。
+- `@textjs/app`：使用 `--adapter cloudflare` 时，路由处理程序使用 Yoga 的 worker 会输出为 `dist/_worker.js/` 目录，内含 `index.js` 和 `yoga.wasm`，Cloudflare 将后者作为已编译模块加载。不使用 Yoga 的 worker 仍为单个 `dist/_worker.js` 文件。
+- textjs.org：DevTools 控制台应用在 DevTools 停靠、按下 DevTools 快捷键，或点击控制台预览、输入区、控制台按钮或“在控制台中运行”时加载。此后，在同一标签页中重新加载会立即加载应用。触摸屏不会自行加载它。在加载之前，首页的控制台预览显示构建时渲染的应用首帧，因此该帧在首次绘制前就已存在。搜索对话框、标志菜单、学习测验、错误页面的原因和修复方法，以及文档、博客和商店的描述不再预先加载。经过这些更改，首页预先加载的内容从 293.7 KB 的 JavaScript 和 WebAssembly（gzip）降至 116.6 KB 的 JavaScript，文件数从 37 个降至 10 个，`/docs/routing` 则从 301.4 KB 降至 116.7 KB。在 CPU 降速 4 倍并使用桌面视口的无头 Chromium 中，首页脚本运行耗时从 235 ms 降至 177 ms，JavaScript 堆从 4.2 MB 降至 2.5 MB。
+- textjs.org：控制台镜像不再预加载 13.5 KB 的双向文本代码块，使首页和文档页面又减少了 12.9 KB（gzip）。控制台应用以 `.wasm` 文件加载 Yoga，使下载量减少了 9.3 KB，并且仅在显示从右到左的文本时加载双向文本引擎，启动时又节省了 13.4 KB。国际化页面的双向文本示例在滚动进入视口时加载引擎。内容安全策略不再允许 `connect-src` 中使用 `data:`。
+- `@textjs/core`、`@textjs/app`：Text.js 应用（`text dev`、`text build`）在页面首次显示从右到左的文本时，才下载双向文本引擎及其 Unicode 表，代码块大小为 10.1 KB（gzip）。应用之前会预先加载它们。入门模板首次访问时加载的 JavaScript 现减少了 9.3 KB（gzip）。在代码块到达前出现的从右到左的文本会按逻辑顺序绘制，随后控制台按显示顺序重绘。服务端渲染、`text run`、测试以及不带 `@textjs/client` 解析条件的包仍将引擎保留在包内，因此输出不变。含从右到左文本的预渲染外壳会让客户端在启动时与 Yoga 同时开始下载引擎，使客户端首帧按显示顺序重绘外壳。`embed.js` 对其首帧也采用相同方式。
+- `@textjs/react/testing`：双向文本引擎正在下载时，`render()` 会等待它，因此在 `@textjs/client` 条件下，帧也会按显示顺序排列。
+
+<!-- s:afe76b8d59 -->
+修复
+
+<!-- s:3892b5eb43 -->
+- `@textjs/app`：服务端渲染路由的帧播放器在调用 `text.pause()` 后、标签页隐藏后或播放器销毁后，不再输出仍在等待节奏定时器的帧。
+- `@textjs/core`：Safari 在页面缩放为 115% 且 DevTools 关闭时，不再看起来像 DevTools 停靠在侧边，因此响应式尺寸调整会保留回退尺寸，而不再适配并不存在的面板。
+
 <!-- s:b3ea6ef7f1 -->
 - `@textjs/react`：`<FocusPad messages>` 可替换焦点区的任意内置字符串，用于翻译后的网站。它涵盖每一行、屏幕阅读器标签和控制台尺寸控件。`<TextCanvas>` 和 `<ViewportControl>` 也接受 `messages`。`<ViewportControl>` 只使用尺寸控件的键。包含值的字符串（例如“然后点击这里并按 ↑ ↓。”）是返回完整句子的函数。`defaultFocusPadMessages` 包含英文文本。参见[翻译焦点区](https://textjs.org/docs/internationalization#translating-the-focus-pad)。
 - `@textjs/react`：在从右到左的页面上，焦点区保持 ⌘ ⌥ J 等键帽和 120×36 等控制台尺寸从左到右显示，并镜像显示尺寸控件和步骤栏。在中文和日文页面上，移除两句话之间的空格；韩文则保留。
@@ -14,16 +52,10 @@
 - textjs.org：在 textjs.org/ja 上，每个页面的焦点区都使用日语，包括各演示按键下方的标签。
 - textjs.org：西班牙语、法语、德语、巴西葡萄牙语、意大利语、俄语、土耳其语、波兰语、印度尼西亚语、越南语、印地语、韩语、简体中文、繁体中文、阿拉伯语、希伯来语、波斯语和乌尔都语版本已结束草稿阶段，地址分别为 textjs.org/es、/fr、/de、/pt-br、/it、/ru、/tr、/pl、/id、/vi、/hi、/ko、/zh-cn、/zh-tw、/ar、/he、/fa 和 /ur。页脚的语言选择器和浏览器语言按钮像提供日语一样提供这些语言。搜索引擎会索引翻译后的页面，并将各页面与其英文版本关联。
 
-<!-- s:5b88618770 -->
-变更
-
 <!-- s:cb13a45198 -->
 - `@textjs/core`：Chromium 和 Firefox 控制台在动画精灵输出达到 16 MB 时清除输出，原先为 4 MB，因此 textjs.org/doom 约每 19 秒显示一次“控制台已清空”，原先为每 4.5 秒一次。Safari 以及使用 `▀` 半块绘制的精灵仍保持 4 MB。textjs.org/doom 页面的堆内存峰值从 10.8 MB 增至约 12～13 MB。
 - textjs.org：文档页面只下载自身的 Markdown，不再下载全部 33 页，因此英文文档页面加载的 JavaScript（gzip）减少了 43～47 KB，/ja 文档页面减少了 60～64 KB。将鼠标悬停在其他文档页面的链接上或使其获得焦点时，会提前获取该页面，因此仍能立即打开。
 - `@textjs/react`：如果页面定义了 `--mono` 字体栈，`<FocusPad>` 和 `<ViewportControl>` 会使用它显示等宽标签，否则仍回退到 Geist Mono。包含阿拉伯语或希伯来语标签的页面可以将对应文字的字体添加到 `--mono`。
-
-<!-- s:afe76b8d59 -->
-修复
 
 <!-- s:965b020b1d -->
 - textjs.org/ja：⌘K 搜索显示日文文档标题，并用日文查询匹配这些标题。此前会在日文页面标题下列出英文标题。英文名称仍能找到页面：`routing` 能找到“ルーティング”，`open the console` 能找到“コンソールを開く”。

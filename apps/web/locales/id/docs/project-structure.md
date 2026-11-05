@@ -36,17 +36,18 @@ Route dinamis
 <!-- s:854c967567 -->
 text.config.ts
 
-<!-- s:144c0672ce -->
-| Opsi | Nilai default | Deskripsi |
+<!-- s:1baaf058bb -->
+| Opsi | Bawaan | Deskripsi |
 | :-- | :-- | :-- |
 | `title` | `""` | Judul halaman dan FocusPad |
-| `viewport` | sesuaikan dengan konsol, jika tidak `120×36` | `responsive` (default `true`), fallback `width × height`, `theme` |
-| `hints` | `[]` | Dua atau tiga tombol yang ditampilkan pada FocusPad halaman |
+| `viewport` | sesuai ukuran konsol, jika tidak `120×36` | `responsive` (bawaan `true`), ukuran cadangan `width × height`, `theme` |
+| `hints` | `[]` | Dua atau tiga tombol yang ditampilkan di FocusPad halaman |
 | `action` | `press <first hint>` | Tindakan setelah mendapat fokus, misalnya `"type a prompt"` |
-| `devIndicators` | `true` | Dev Overlay di dalam konsol (`[▼]`) |
+| `devIndicators` | `true` | Dev Overlay di konsol (`[▼]`) |
 | `focusHint` | `true` | “Klik halaman untuk menggunakan keyboard” di atas baris terakhir konsol saat halaman tidak memiliki fokus |
 | `rewrites` | `[]` | Rewrite dan proksi |
 | `ansi` | `{ cols: 80, rows: 24 }` | Ukuran frame untuk [curl dan klien terminal](/docs/curl), atau `false` untuk menyajikan HTML kepada klien tersebut |
+| `embed` | `false` | Build aplikasi agar situs lain bisa menambahkannya dengan satu tag script ([Penyematan](/docs/embedding), eksperimental) |
 
 <!-- s:04e1df190e -->
 CLI

@@ -62,8 +62,8 @@ Funktionsweise
 <!-- s:1dda342130 -->
 Wie React DevTools installiert die Erweiterung einen globalen Hook, bevor die Seite ausgeführt wird:
 
-<!-- s:5a865fb9ae -->
-Jeder Konsolen-Root registriert sich bei seiner Erstellung bei diesem Hook. Ohne die Erweiterung existiert der Hook nicht, und ein Root prüft nur einmal darauf und erledigt keine Arbeit pro Frame. Ist die Erweiterung installiert, der Bereich aber geschlossen, kostet jeder Frame einen Lesezugriff auf eine Eigenschaft. Bäume und Frames werden nur berechnet, wenn der Bereich sie anfordert.
+<!-- s:9a7af3e89c -->
+Jede Konsolen-Root registriert sich bei ihm. Die erste Root auf einer Seite lädt den Code, der mit dem Panel kommuniziert (etwa 5 KB gzip), und registriert sich, sobald er geladen ist. Weitere Roots registrieren sich beim Erstellen. Ohne die Erweiterung existiert der Hook nicht, daher prüft eine Root einmal, ob er vorhanden ist, lädt nichts und führt keine Arbeit pro Frame aus. Ist die Erweiterung installiert, aber das Panel geschlossen, kostet jeder Frame einen Eigenschaftszugriff. Bäume und Frames werden nur berechnet, wenn das Panel sie anfordert.
 
 <!-- s:843fc9a8ad -->
 Nachrichten fließen von der Seite → Content-Skript → Service-Worker → Bereich. Die Content-Skripte laufen auf jeder Seite, damit der Hook existiert, bevor deine App startet. Das ist der einzige Zugriff, den die Erweiterung anfordert. Sie lädt keinen entfernten Code und sendet nichts vom Rechner.
@@ -77,8 +77,9 @@ Die Erweiterung erfasst keine Daten. Sie stellt keine Netzwerkanfragen, speicher
 <!-- s:639d5ea4c0 -->
 Einschränkungen
 
-<!-- s:153a772b79 -->
+<!-- s:05616a1196 -->
 - Chrome und Chromium-basierte Browser ab Version 111.
 - Apps, die vor der Installation der Erweiterung gestartet wurden, müssen neu geladen werden.
 - Nur der oberste Frame eines Tabs wird untersucht.
-- Zeiten stammen aus `performance.now()`, dessen Auflösung Browser auf etwa 0,1 ms vergröbern.
+- Die Zeitleiste zeichnet Frames auf, sobald das Panel verbunden ist.
+- Zeiten stammen von `performance.now()`, dessen Auflösung Browser auf etwa 0,1 ms begrenzen.

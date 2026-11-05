@@ -303,3 +303,18 @@ Gunakan `"force-static"` untuk menyimpan handler dalam cache. Handler yang di-ca
 
 <!-- s:95d0435b57 -->
 Gunakan `"force-dynamic"`, atau hapus ekspor tersebut, jika handler membaca permintaan. Lihat [Penyimpanan cache](/docs/caching).
+
+<!-- s:fa8a66bf23 -->
+WebAssembly Yoga gagal dimuat
+
+<!-- s:f2aaa80b0f -->
+`initYoga()` memuat WebAssembly Yoga dari file `.wasm` dalam aplikasi Text.js (`text dev`, `text build`), dalam build yang menetapkan kondisi resolusi `@textjs/client`, dan saat Anda meneruskan `initYoga({ wasm })`. Permintaan gagal, mengembalikan status error, atau mengembalikan data yang bukan WebAssembly valid. Error tersebut menyebutkan URL dan `Content-Type` yang dikirim server. Penyebab umumnya adalah server yang menjawab URL `.wasm` dengan halaman HTML fallback, dan Content Security Policy tanpa `'wasm-unsafe-eval'` di `script-src`.
+
+<!-- s:9de0a578e9 -->
+Pastikan URL dalam error mengembalikan file tersebut, dengan `Content-Type: application/wasm` agar file dikompilasi sambil diunduh. Aturan rewrite yang menyajikan `index.html` untuk path yang tidak dikenal harus melewati `/assets/`. Izinkan WebAssembly dalam Content Security Policy Anda:
+
+<!-- s:510b3ade73 -->
+Jika Anda memasang konsol sendiri dan menyajikan file dari lokasi lain, panggil `initYoga()` dengan URL file, byte file, atau `WebAssembly.Module` yang sudah dikompilasi sebelum `createConsoleRoot()`. Hanya panggilan pertama yang memuat Yoga:
+
+<!-- s:ed5dce1787 -->
+Lihat [WebAssembly](/docs/deploying#webassembly).

@@ -16,6 +16,9 @@ Adapter
 <!-- s:7e755a5c9f -->
 Bạn cũng có thể chỉ định adapter qua `TEXTJS_ADAPTER`. Khi `text build` chạy trên Vercel (`VERCEL=1`) hoặc Cloudflare Pages (`CF_PAGES=1`), adapter tương ứng sẽ tự động được chọn.
 
+<!-- s:d671e1ae31 -->
+Để thêm ứng dụng vào trang khác bằng một thẻ script, build với `--embed`. Mọi adapter đều hỗ trợ tùy chọn này (xem [Nhúng](/docs/embedding)).
+
 <!-- s:9d8df946e5 -->
 Các adapter máy chủ (`bun`, `vercel` và `cloudflare`) chạy cùng quy trình với `text start`: [middleware](/docs/middleware), `rewrites`, [route handler](/docs/route-handlers) với [bộ nhớ đệm route](/docs/caching), tài nguyên tĩnh, rồi đến tài liệu console cho URL của trang. Thay vào đó, các trình khách terminal như curl nhận frame đầu tiên của trang dưới dạng văn bản ANSI. Trên `vercel` và `cloudflare`, điều này chỉ áp dụng cho trang tĩnh (xem [curl và trình khách terminal](/docs/curl)). Các adapter máy chủ phục vụ tệp có mã băm trong `/assets/` với `Cache-Control: public, max-age=31536000, immutable`.
 
@@ -63,13 +66,13 @@ Cloudflare Pages
 <!-- s:6109800459 -->
 Đầu ra dùng chế độ nâng cao của Pages:
 
-<!-- s:9f0923168f -->
+<!-- s:f72ec91f11 -->
 | Tệp | Mục đích |
 | :-- | :-- |
-| `_worker.js` | Middleware, quy tắc viết lại, route handler và tài liệu console |
+| `_worker.js` | Middleware, rewrites, route handler và tài liệu console. Là thư mục (`index.js` và `yoga.wasm`) khi một route handler dùng Yoga |
 | `_routes.json` | Gửi mọi yêu cầu đến worker. Khi không có middleware hoặc `basePath`, `/assets/*` vẫn nằm trên CDN tĩnh của Pages |
 | `_headers` | Lưu bộ nhớ đệm bất biến cho `/assets/*` (nối thêm vào tệp của bạn) |
-| `404.html` | Khiến Pages trả về `404` cho tệp bị thiếu thay vì ứng dụng (giữ nguyên nếu bạn đã có tệp này) |
+| `404.html` | Khiến Pages trả về `404` cho tệp bị thiếu thay vì ứng dụng (giữ lại nếu bạn đã có tệp này) |
 
 <!-- s:9bc2b010d1 -->
 `.text/` (các gói máy chủ và bản kê build) bị xóa khỏi `dist/`, vì Pages xuất bản nguyên trạng thư mục này.
@@ -77,8 +80,33 @@ Cloudflare Pages
 <!-- s:1200dbc88d -->
 Bật cờ tương thích `nodejs_compat` trong dự án Pages (Settings → Runtime) hoặc trong `wrangler.toml`; bộ nhớ đệm dữ liệu dùng `AsyncLocalStorage`. Tệp tĩnh được phục vụ qua liên kết `ASSETS`, và quá trình xác thực lại ở nền dùng `ctx.waitUntil()`.
 
-<!-- s:0bb76cfebb -->
-Khi có middleware, mọi yêu cầu đều chạy worker, kể cả tài nguyên có mã băm, để middleware thấy mọi đường dẫn có thể truy cập một tệp. Mỗi yêu cầu chạy worker là một lần gọi Functions và tính vào hạn mức yêu cầu Workers của bạn. Với một lần tải trang, đó là tài liệu cộng với từng tệp mà trang tải về (2 đối với ứng dụng thử nghiệm nhỏ có một gói JavaScript; nhiều hơn với ứng dụng có nhiều tệp hơn). Trên gói Workers Free, Pages phục vụ tệp tĩnh mà không qua worker khi hết hạn mức hằng ngày, tức là bỏ qua middleware. Nếu middleware bảo vệ bất kỳ nội dung nào trong `dist/`, đặt Settings → Runtime → Fail open / closed thành **Fail closed**.
+<!-- s:398bcc3496 -->
+Khi có middleware, mọi yêu cầu đều chạy worker, kể cả yêu cầu tài nguyên có tên chứa hash, để middleware thấy mọi đường dẫn có thể truy cập một tệp. Mỗi yêu cầu chạy worker là một lần gọi Functions và được tính vào hạn mức yêu cầu Workers của bạn. Với một lần tải trang, số đó gồm tài liệu và từng tệp mà trang tải về (3 cho một ứng dụng thử nghiệm nhỏ: tài liệu, một bundle JavaScript và `yoga-[hash].wasm`; nhiều hơn với ứng dụng có nhiều tệp hơn). Trên gói Workers Free, Pages phục vụ tệp tĩnh mà không chạy worker khi hết hạn mức hằng ngày, bỏ qua middleware. Nếu middleware bảo vệ bất kỳ nội dung nào trong `dist/`, đặt Settings → Runtime → Fail open / closed thành **Fail closed**.
+
+<!-- s:24c3dfe433 -->
+WebAssembly
+
+<!-- s:72ec3f110c -->
+Ứng dụng Text.js tải Yoga, bộ máy layout, từ `assets/yoga-[hash].wasm` (72 kB, 29 kB khi nén gzip). `text build` tải trước tệp này từ mọi trang. Bundle máy chủ và `text run` dùng bản sao nhúng từ `yoga-layout`. Cloudflare worker là ngoại lệ: khi một route handler dùng Yoga, `dist/_worker.js/` chứa `yoga.wasm` bên cạnh `index.js`.
+
+<!-- s:0ca00aa2eb -->
+- Phục vụ tệp `.wasm` ở dạng nén như với JavaScript. Vercel nén `application/wasm` theo mặc định; nginx cần có `application/wasm` trong `gzip_types`. Nếu máy chủ lưu trữ nén JavaScript nhưng không nén `.wasm`, trang sẽ tải thêm khoảng 32 kB so với bản sao nhúng.
+- Gửi `Content-Type: application/wasm` để trình duyệt biên dịch tệp trong khi tải xuống. Với kiểu khác, trình duyệt biên dịch sau khi tải xong.
+- Lưu tệp vào bộ nhớ đệm như các tệp có tên chứa hash khác trong `assets/` (`Cache-Control: public, max-age=31536000, immutable`). Cách này an toàn vì tên thay đổi theo nội dung. Không dùng `immutable` cho đường dẫn không có hash.
+- Nếu đặt Chính sách bảo mật nội dung, thêm `'wasm-unsafe-eval'` vào `script-src` và origin của tệp (thường là `'self'`) vào `connect-src`.
+- Nếu đường dẫn không xác định chuyển về `index.html`, loại `/assets/` khỏi quy tắc rewrite đó. Nếu không, tệp bị thiếu sẽ trả về HTML và `initYoga()` từ chối với `TX032`.
+
+<!-- s:55fb3b1d03 -->
+Bản build Vite hoặc webpack của riêng bạn
+
+<!-- s:df66a10103 -->
+Khi bạn tự đóng gói `@textjs/core` và `@textjs/react`, Yoga vẫn được nhúng và không cần cấu hình bundler. Các bundle phân giải điều kiện `workerd`, như Wrangler, sẽ nhập `@textjs/core/yoga.wasm` dưới dạng mô-đun thay thế. Để tải tệp `.wasm` trong bản build cho trình duyệt, thêm điều kiện phân giải `@textjs/client` vào bản build phía máy khách. Trong Vite 6, phiên bản xuất `defaultClientConditions`, bộ đóng gói trước khi phát triển cũng cần điều kiện này:
+
+<!-- s:8f580efda1 -->
+Điều kiện này cũng tách bộ máy bidi thành một chunk riêng, được tải xuống lần đầu một trang hiển thị văn bản từ phải sang trái (xem [Tải bộ máy bidi](/docs/internationalization#loading-the-bidi-engine)).
+
+<!-- s:c2349d8226 -->
+Không thêm điều kiện này vào bản build máy chủ, prerender và kiểm thử (Vitest, jsdom), vì chúng chạy bình thường với bản sao nhúng.
 
 <!-- s:600050383d -->
 Nâng cấp

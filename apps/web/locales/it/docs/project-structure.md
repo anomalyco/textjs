@@ -36,17 +36,18 @@ Route dinamiche
 <!-- s:854c967567 -->
 text.config.ts
 
-<!-- s:144c0672ce -->
+<!-- s:1baaf058bb -->
 | Opzione | Valore predefinito | Descrizione |
 | :-- | :-- | :-- |
 | `title` | `""` | Titolo della pagina e del FocusPad |
-| `viewport` | adattamento alla console, altrimenti `120×36` | `responsive` (valore predefinito `true`), fallback `width × height`, `theme` |
+| `viewport` | adatta alla console, altrimenti `120×36` | `responsive` (valore predefinito `true`), ripiego `width × height`, `theme` |
 | `hints` | `[]` | Due o tre tasti mostrati sul FocusPad della pagina |
-| `action` | `press <first hint>` | Cosa fare dopo aver ottenuto il focus, ad esempio `"type a prompt"` |
-| `devIndicators` | `true` | Dev Overlay nella console (`[▼]`) |
+| `action` | `press <first hint>` | Cosa fare dopo aver attivato il focus, ad esempio `"type a prompt"` |
+| `devIndicators` | `true` | Overlay di sviluppo nella console (`[▼]`) |
 | `focusHint` | `true` | «Fai clic sulla pagina per usare la tastiera» sopra l’ultima riga della console quando la pagina non ha il focus |
 | `rewrites` | `[]` | Riscritture e proxy |
-| `ansi` | `{ cols: 80, rows: 24 }` | Dimensioni del frame per [curl e client terminale](/docs/curl), oppure `false` per fornire loro HTML |
+| `ansi` | `{ cols: 80, rows: 24 }` | Dimensioni del frame per [curl e i client terminale](/docs/curl), oppure `false` per fornire loro HTML |
+| `embed` | `false` | Compila l’app per consentire ad altri siti di aggiungerla con un solo tag script ([Incorporamento](/docs/embedding), sperimentale) |
 
 <!-- s:04e1df190e -->
 CLI

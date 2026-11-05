@@ -7,6 +7,44 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 <!-- s:2e16922cfc -->
 追加
 
+<!-- s:cbc6ef4438 -->
+- `@textjs/core/experimental`：`onConsoleIntent(onIntent, options)` は、訪問者がコンソールを使おうとしたときに `onIntent` を1回呼び出し、その時点でページがコンソールアプリをダウンロードできるようにします。読み込み時にDevToolsがドッキングされている場合や、後からドッキングされた場合（`"dock"`）、DevToolsのショートカットF12、Ctrl+Shift+J、I、C、K、およびMacの⌘⌥J、I、C、Kで発火します（`"shortcut"`）。また、`[data-textjs-engage]` 要素、`<text-console>` 要素、`<FocusPad>` のクリック、`[data-textjs-engage]` ボタンでのEnterまたはSpace、コンソール起動前の `<ViewportControl>` でのサイズ選択でも発火します（`"engage"`）。これらのいずれかがすでに発生したタブで再読み込みすると、`"session"` が発火します。タッチスクリーンでは自動的には発火しません。そこでアプリを読み込むには、ハンドルの `trigger()` を呼び出します。`prefetch` は、ポインターがコンソールの表示領域に達したときにアプリのチャンクを事前に読み込み、`canPrefetchConsole()` はデバイスと接続がプリフェッチに適しているかを返します。`CONSOLE_INTENT_KEY` は、使用する `sessionStorage` のキーです。読み込むアプリをコード分割すると、ビューポートのサイズ設定コードはこのチャンクに含まれません。エントリーが `onConsoleIntent` を呼び出し、`ConsoleRenderer` を遅延インポートするViteビルドでは、エントリーチャンクは2.8 KB（gzip）です。[コンソールの利用意図に応じた読み込み](https://textjs.org/docs/hooks-and-repl#loading-on-console-intent-experimental)を参照してください。
+- `@textjs/app`（実験的）：`text build --embed`、または `text.config.ts` の `embed` は、別のサイト向けにアプリを1つのタグとしてビルドします。`<script type="module" src="https://your-host/embed.js"></script>`。`embed.js` は、ビルド時にプリレンダリングしたルートの最初のフレームを出力し（`ppr: false` の場合、またはミドルウェアが `embed.initialPath` に一致する可能性がある場合を除く）、`onConsoleIntent` が発火するまでランタイムを読み込みません。その後、独自のReact 19を含み `react-dom` を含まないアプリをインポートし、同時に `yoga.wasm` を取得します。コンソールの利用意図が検出されると、このアプリは112.8 KBのJavaScriptと29.0 KBのWebAssembly（gzip）を読み込みます。追加の10.1 KBとなるbidiエンジンは、アプリが右から左のテキストを初めて表示するときに読み込まれます。`embed.initialPath` が `export const runtime = "server"` を持つルートの場合、`embed.js` は代わりに22.7 KBのフレームプレーヤーを読み込み、`embed.js` の配信元サーバーからストリーミングします。ナビゲーションはコンソール内にとどまり、ホストページのURL、履歴、タイトルを変更せず、クライアントレンダリングのアプリでは絶対URLを新しいタブで開きます。キー入力がアプリに届くのは、訪問者が `[data-textjs-engage]` 要素、`<text-console>` 要素、`<FocusPad>` を押すか、ページをクリックしてDevToolsからフォーカスを戻した後に限られ、ページ自体の入力欄や `[data-textjs-bypass]` 要素で入力している間は届きません。`embed.js` は自身のURLを基準にほかのファイルを読み込むため、出力はどのパスやオリジンでも動作します。出力は `embed.js` と `assets/` で、`index.html` や `404.html` はありません。サーバーレンダリングされるルート、ルートハンドラー、ミドルウェアを含むビルドでは、`text start` またはBunアダプター用の `.text/`（サーバーバンドル）も保持します。`assets/embed-[hash].js` は、無期限にキャッシュできるハッシュ付きの名前にした同じスクリプトです。`embed.standalone` はアプリ自体のページを保持し、`embed.initialPath` はルートを選択し、`embed.globalName` は `window.text` を改名または削除し、`embed.initialClear` は最初にページのコンソールをクリアします。120×36の枠付きステータスボックスでは、`embed.js` は2.9 KB（gzip）、`ppr: false` では2.2 KBです。タッチスクリーンでは、`embed.js` は何も出力せず、ランタイムも読み込まないため、アプリは開きません。ほかのサイトのページは、そのオリジンが `embed.allowOrigins` に含まれている場合にのみライブセッションを開くことができ、`embed.credentials` はそのCookieを送信します。`embed.js` と `assets/*` は、`Access-Control-Allow-Origin: *` と `Cross-Origin-Resource-Policy: cross-origin` を付けて配信されます。`text start` とBun、Cloudflare、Vercelアダプターは、リクエストごとに `embed.js` を再検証し、`assets/*` を変更不可としてキャッシュする設定で埋め込みビルドを配信し、静的アダプターは同じヘッダーを `_headers` に書き込みます。[埋め込み](https://textjs.org/docs/embedding)を参照してください。
+- `@textjs/app`（実験的）：`<text-console>` は、ホストページから埋め込みアプリにアクセスする方法を訪問者に示し、`mirror` を指定するとアプリ自体を表示します。`embed.js` はタグを定義し、ページにタグがある場合にのみ、その4.0 KB（gzip）のファイルを読み込みます。属性がなければ1行のバーです。コンソールを開くブラウザーのショートカットを表示し、次にクリックを求め、その後アプリの `hints` をキーとして並べ、アプリに届くと点灯させます。`mirror` を指定すると、ほかの何かを読み込む前に `embed.js` の最初のフレームを表示し、その後は実行中のアプリのフレームを表示します。`ppr: false` では、アプリが描画するまでミラーは空白です。ミラーをクリックするとアプリが起動し、訪問者のキー入力を送るため、DevToolsを閉じた状態でもアプリが動作します。`chrome` はミラーの周囲にDevToolsウィンドウを描画し、`mirror` も有効にします。`title`、`hints`（`"← →:switch region, Enter:open"`）、`action` 属性は、未指定の場合に `text.config.ts` を使用します。Reactの代わりにShadow DOMと構築可能なスタイルシートを使用するため、ページのCSSは内部に届かず、`style-src 'self'` ポリシーの変更も不要です。デフォルトはダーク表示です。`color-scheme: light`、`--text-console-bg`、`--text-console-fg`、または `::part(frame)` でスタイルを変更できます。サイズはフォントやコンテンツに依存しません。バーの高さは58pxで、ミラーはアプリのグリッドのアスペクト比を維持するため、`text build --embed` が出力する1行のCSSで、読み込み前にホストページ上の領域を確保できます（`@textjs/app/experimental` の `reserveCss()` も同じ行を返します）。タッチスクリーンでは、ミラーは最初のフレームを表示してアプリを起動せず、バーは非表示になります。[`<text-console>`](https://textjs.org/docs/embedding#text-console)を参照してください。
+- `@textjs/app`（実験的）：`text dev --embed` は、リクエストごとに新しい最初のフレームを含む `/embed.js` と、別のサイトと同じ方法でそれを読み込む、`<text-console mirror>` を配置したプレビューページを配信します。プレビューは `/`、`embed.standalone` を指定した場合は `/__textjs/embed` にあります。
+- `@textjs/app`：`<AppRouter openExternal>` は、別のオリジンのURLを開く方法を決定します（デフォルトは `window.location.assign`）。メモリー内の履歴を使う場合、ページのアドレスはアプリのアドレスではないため、すべての絶対URLを外部として扱います。
+- `@textjs/app/experimental`：埋め込みアプリを独自に読み込むページ向けに、`bootEmbedClient`、`bootEmbedPlayer`、`createHostInput`、`startEmbed`、`createTextConsoleMount`、`reserveCss` をエクスポートします。
+- `@textjs/core/experimental`：`CONSOLE_OWNER`（`Symbol.for("textjs.consoleOwner")`）は、ページのコンソールに描画するアプリを記録し、`claimConsole()` がその所有権を取得します。グローバルコンソール上の `ConsoleRenderer` と、自身のページを所有するフレームプレーヤーが所有権を取得するため、ホストアプリが起動すると埋め込みからコンソールを引き継ぎ、埋め込みはアンマウントし、入力を切り離し、自身の `window.text` を削除します。別のアプリがコンソールを所有している間、埋め込みは起動しません。
+- `@textjs/react`：`<ViewportControl>` は、コンソールのルートが存在する前から動作します。サイズを選択すると保存し、`onConsoleIntent` の `"engage"` を発火させ、`root` が設定された時点でそのサイズを適用します。`<FocusPad sizeControl>` もこの動作に対応し、コンソールが起動するまでサイズメニューが無効のままになることがなくなりました。
+- `@textjs/core`：`initYoga({ wasm })` は、URL、バイト列、`Response`、コンパイル済みの `WebAssembly.Module` からYogaを読み込みます。WebAssemblyファイルは `@textjs/core/yoga.wasm` としてエクスポートされます。読み込めない場合、`initYoga()` は [TX032](https://textjs.org/errors/TX032) で拒否されます。
+- `@textjs/core`：`loadBidi()` は、右から左のテキストを描画する前にbidiエンジンのダウンロードを開始し、そのテキストの最初のフレームを表示順にします。エンジンを含むビルド（サーバーレンダリング、`text run`、テスト）では即座に解決します。[bidiエンジンの読み込み](https://textjs.org/docs/internationalization#loading-the-bidi-engine)を参照してください。
+
+<!-- s:5b88618770 -->
+変更
+
+<!-- s:f738d37ae3 -->
+- `@textjs/react`：コンソールのルートは、Text.js DevTools拡張機能のフックがページにある場合にのみ、拡張機能と通信するコードを読み込みます。そのため、`text build` などのコード分割されたビルドでは、拡張機能のない訪問者はそのコードをダウンロードしません。拡張機能がある場合、ページの最初のルートは、そのファイル（gzipで約5 KB）の読み込み後に登録されます。それ以降のルートは作成時に登録されます。スターターテンプレートのクライアントJavaScriptは4.2 KB（gzip）、`text build --embed` のクライアントは4.1 KB、textjs.orgのコンソールアプリは3.8 KB小さくなりました。
+- `@textjs/core`：コンソールドライバーは、代替表示が必要になる可能性のあるグリフ（8分の1ブロック、四分区画、点字、▶、✓など）がコンソールのフォントに収まるかを、最初のフレームですべて測定する代わりに、そのグリフが初めて現れたときに確認します。同じフォントサイズとフォントファミリーを使うドライバーは結果を共有します。これらのグリフを含まないフレームでは代替表示の測定が発生しないため、M5 Pro Mac miniのヘッドレスChromiumでは、textjs.orgのホームのコンソールの最初のフレームが9.2 msから1.2 msに、CPUを4×にスロットリングした場合は38.4 msから4.8 msに短縮されました。ConsolasにこれらのグリフがないWindows 10では、これらを使うフレームに、最初のフレームから従来と同じ代替表示を使用します。
+- `@textjs/core`：`isRtlCodePoint` と `hasRtl` は、Unicode 18.0のデータから生成した59の右から左の範囲を参照し、bidiテーブルを読み込まなくなりました。どのコードポイントでも返す結果は同じです。単独の `<ConsoleMirror>` がバンドルするJavaScriptは2.1 KB（gzip）、サーバーレンダリングされるルートのフレームプレーヤーは1.6 KB小さくなりました。
+- `@textjs/app`：`text build` は、本番ビルドからDev OverlayとRedboxを除外します。これらは `text dev` でのみ表示されますが、以前はすべてのビルドにバンドルされていました。スターターテンプレートのクライアントJavaScriptは4.3 KB（gzip）、`examples/dashboard` は3.0 KB小さくなりました。`<AppRouter>` を自ら描画するアプリも、バンドラーが `process.env.NODE_ENV` を `"production"` に設定すると、これらを除外します（`vite build` とwebpack、`esbuild --minify`、`bun build --production` のデフォルト）。これらのビルドでは、`<AppRouter devOverlay>` は何も描画せず（維持するには `devOverlay={<TextDevOverlay />}` を渡します）、`errorStore` のデフォルトは `null` になり、`bootTextApp` は `dev: true` を無視します。
+- `@textjs/core`、`@textjs/app`：Text.jsのアプリ（`text dev`、`text build`）は、JavaScript内のbase64コピーの代わりに、独立した `.wasm` ファイルとしてYogaを読み込みます。`text build` は `assets/yoga-[hash].wasm` を出力し、HTMLからプリロードします。両ファイルにgzipを適用すると、スターターアプリのダウンロードは11.4 KB減り、解析するJavaScriptは95 KB減ります。ほかのバンドラーはインラインコピーを維持しますが、`workerd` 条件を解決するもの（Wrangler）は、`yoga.wasm` をモジュールとしてインポートします。Viteまたはwebpackで `@textjs/core` をバンドルするアプリも、`@textjs/client` の解決条件を追加すると `.wasm` ファイルを読み込めます。[WebAssembly](https://textjs.org/docs/deploying#webassembly)を参照してください。
+- `@textjs/core`：`ConsoleRenderer` は、ページ自体のアプリと並ぶ埋め込みなど、別のバンドル内で動作中のレンダラーから `window.text` を引き継がなくなりました。
+- `@textjs/react`：`@textjs/react/dom` は、ビューポート選択ヘルパー（`loadViewportChoice`、`saveViewportChoice`、`parseViewportChoice`、`formatViewportChoice`、`applyViewportChoice`、`VIEWPORT_CHOICE_KEY`、`VIEWPORT_PRESETS`）を専用モジュールに移動します。これらをあるチャンクでインポートし、別のチャンクで `<ViewportControl>` または `<FocusPad>` を描画するアプリでは、最初のチャンクにコントロールのコードが含まれなくなりました。エクスポートは変更ありません。
+- `@textjs/core`：`yoga.wasm` とそのローダーがそのバージョンから生成されるため、`yoga-layout` 3.2.1に厳密に依存します。
+- `@textjs/app`：`text build` のFirst Load JSに `.wasm` ファイルを含めます。
+- `@textjs/app`：`--adapter cloudflare` を指定すると、ルートハンドラーがYogaを使うワーカーは、`index.js` と `yoga.wasm` を含む `dist/_worker.js/` ディレクトリーとして書き出され、Cloudflareがコンパイル済みモジュールとして読み込みます。Yogaを使わないワーカーは、引き続き単一の `dist/_worker.js` ファイルです。
+- textjs.org：DevToolsのコンソールアプリは、DevToolsがドッキングされたとき、DevToolsのショートカットを押したとき、またはコンソールプレビュー、パッド、コンソールボタン、「コンソールで実行」をクリックしたときに読み込まれます。その後、同じタブで再読み込みすると即座に読み込まれます。タッチスクリーンでは自動的に読み込まれません。読み込まれるまで、ホームページのコンソールプレビューはビルド時に描画したアプリの最初のフレームを表示するため、初回描画の前からフレームが存在します。検索ダイアログ、ロゴメニュー、学習のクイズ、エラーページの原因と修正方法、ドキュメント、ブログ、ストアの説明は、最初に読み込まれなくなりました。これらの変更により、ホームページが最初に読み込む量は293.7 KBのJavaScriptとWebAssembly（gzip）から116.6 KBのJavaScriptに、ファイル数は37から10になり、`/docs/routing` の読み込み量は301.4 KBから116.7 KBになりました。CPUを4×にスロットリングし、デスクトップのビューポートを使うヘッドレスChromiumでは、ホームページのスクリプト実行時間は235 msから177 msに、JavaScriptヒープは4.2 MBから2.5 MBになりました。
+- textjs.org：コンソールミラーは13.5 KBのbidiチャンクをプリロードしなくなり、ホームページとドキュメントページからさらに12.9 KB（gzip）減りました。コンソールアプリはYogaを `.wasm` ファイルとして読み込むためダウンロードが9.3 KB小さくなり、右から左のテキストを表示するときにのみbidiエンジンを読み込むため、起動時にさらに13.4 KB削減します。国際化ページの双方向テキストのサンプルは、スクロールで表示領域に入るとエンジンを読み込みます。コンテンツセキュリティポリシーは、`connect-src` で `data:` を許可しなくなりました。
+- `@textjs/core`、`@textjs/app`：Text.jsのアプリ（`text dev`、`text build`）は、ページが右から左のテキストを初めて表示するときに、bidiエンジンとそのUnicodeテーブルを10.1 KBのチャンク（gzip）としてダウンロードします。以前のアプリは、これらを最初に読み込んでいました。スターターテンプレートは、初回アクセス時のJavaScript読み込み量が9.3 KB（gzip）減りました。チャンクが届く前に現れた右から左のテキストは論理順で描画され、その後コンソールが表示順で再描画します。サーバーレンダリング、`text run`、テスト、`@textjs/client` の解決条件がないバンドルは、エンジンをバンドル内に保持するため、出力は変わりません。右から左のテキストを含むプリレンダリング済みシェルでは、クライアントの起動時にYogaと並行してエンジンのダウンロードを開始するため、最初のクライアントフレームがシェルを表示順で再描画します。`embed.js` も最初のフレームに対して同じ動作をします。
+- `@textjs/react/testing`：`render()` はbidiエンジンのダウンロード中に完了を待つため、`@textjs/client` 条件下でもフレームが表示順になります。
+
+<!-- s:afe76b8d59 -->
+修正
+
+<!-- s:3892b5eb43 -->
+- `@textjs/app`：サーバーレンダリングされるルートのフレームプレーヤーは、`text.pause()` の後、タブが非表示になった後、または破棄された後に、ペーシングタイマーで待機していたフレームを出力しなくなりました。
+- `@textjs/core`：ページのズームが115%でDevToolsを閉じているSafariを、DevToolsが横にドッキングされている状態と誤認しなくなったため、レスポンシブなサイズ設定は存在しないパネルに合わせず、フォールバックサイズを維持します。
+
 <!-- s:b3ea6ef7f1 -->
 - `@textjs/react`: `<FocusPad messages>` で、翻訳されたサイト向けにパッドの組み込み文字列を置き換えられます。すべての行、スクリーンリーダー用ラベル、コンソールサイズのコントロールが対象です。`<TextCanvas>` と `<ViewportControl>` も `messages` を受け取ります。`<ViewportControl>` はサイズコントロールのキーのみを使います。「次にここをクリックして↑ ↓を押します。」など、値を含む文字列は、文全体を返す関数です。`defaultFocusPadMessages` に英語のテキストがあります。[フォーカスパッドの翻訳](https://textjs.org/docs/internationalization#translating-the-focus-pad)を参照してください。
 - `@textjs/react`: 右から左に書くページでは、フォーカスパッドは⌘ ⌥ Jなどのキーキャップや120×36などのコンソールサイズを左から右のまま表示し、サイズコントロールとステップバーを左右反転します。中国語と日本語のページでは2つの文の間のスペースを省き、韓国語では残します。
@@ -14,16 +52,10 @@ Text.jsの主な変更はすべてこのファイルに記録しています。
 - textjs.org: textjs.org/jaでは、各デモのキーの下にあるラベルを含め、すべてのページでフォーカスパッドが日本語になりました。
 - textjs.org：スペイン語、フランス語、ドイツ語、ブラジルポルトガル語、イタリア語、ロシア語、トルコ語、ポーランド語、インドネシア語、ベトナム語、ヒンディー語、韓国語、簡体字中国語、繁体字中国語、アラビア語、ヘブライ語、ペルシア語、ウルドゥー語が、textjs.org/es、/fr、/de、/pt-br、/it、/ru、/tr、/pl、/id、/vi、/hi、/ko、/zh-cn、/zh-tw、/ar、/he、/fa、/urの草稿表示を終了しました。日本語と同様に、フッターの言語選択とブラウザーの言語に応じたボタンで選べます。検索エンジンは翻訳済みのページをインデックスに登録し、それぞれを英語版と対応付けます。
 
-<!-- s:5b88618770 -->
-変更
-
 <!-- s:cb13a45198 -->
 - `@textjs/core`: ChromiumとFirefoxのコンソールは、アニメーションするスプライトの出力を4 MBではなく16 MBでクリアするため、textjs.org/doomで「コンソールがクリアされました」と表示される間隔が約4.5秒から約19秒になりました。Safariと、`▀` のハーフブロックで描画されるスプライトは4 MBのままです。textjs.org/doomのページのピークヒープ使用量は10.8 MBから約12〜13 MBになります。
 - textjs.org: ドキュメントページは全33ページ分ではなく、そのページのMarkdownのみをダウンロードするため、読み込むJavaScript（gzip）が英語のドキュメントページで43〜47 KB、/jaのドキュメントページで60〜64 KB減りました。別のドキュメントページへのリンクにカーソルを合わせるかフォーカスすると、そのページを先に取得するため、引き続きすぐに開けます。
 - `@textjs/react`: `<FocusPad>` と `<ViewportControl>` は、ページに `--mono` フォントスタックが定義されていれば等幅ラベルにそれを使い、なければ従来どおりGeist Monoにフォールバックします。アラビア語やヘブライ語のラベルを持つページでは、その文字体系のフォントを `--mono` に追加できます。
-
-<!-- s:afe76b8d59 -->
-修正
 
 <!-- s:965b020b1d -->
 - textjs.org/ja: ⌘K検索で日本語のドキュメント見出しを表示し、日本語のクエリーを照合するようになりました。以前は日本語のページタイトルの下に英語の見出しが表示されていました。英語名でも引き続きページを検索でき、`routing` で「ルーティング」、`open the console` で「コンソールを開く」が見つかります。

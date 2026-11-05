@@ -64,3 +64,38 @@ REPL `window.text`
 
 <!-- s:420cc7f125 -->
 Każda aplikacja dodaje funkcje pomocnicze do `window.text`. Wpisz je w wierszu poleceń DevTools.
+
+<!-- s:195573d803 -->
+Ładowanie na żądanie konsoli (eksperymentalne)
+
+<!-- s:97014ecad1 -->
+`@textjs/core/experimental` eksportuje `onConsoleIntent` dla stron, które pobierają aplikację konsolową dopiero wtedy, gdy odwiedzający tego chce. Wywołuje twoją funkcję raz, podając powód:
+
+<!-- s:444b1ebdd7 -->
+| Powód | Kiedy |
+| :-- | :-- |
+| `dock` | DevTools jest zadokowane podczas ładowania strony lub zostaje zadokowane później. Text.js odczytuje ten stan z rozmiaru okna |
+| `shortcut` | Odwiedzający naciska F12 lub Ctrl+Shift+J, I, C lub K albo ⌘⌥J, I, C lub K na komputerze Mac. Przeglądarka nadal otwiera DevTools |
+| `engage` | Kliknięcie głównym przyciskiem elementu pasującego do `engageSelector`, naciśnięcie Enter lub Space na przycisku `[data-textjs-engage]` albo wybranie rozmiaru w `<ViewportControl>` przed uruchomieniem aplikacji. Kliknięcia linków, przycisków i pól formularza wewnątrz pasującego elementu nie są uwzględniane, chyba że również mają `data-textjs-engage` |
+| `session` | Jedno z powyższych zdarzeń już wystąpiło w tej karcie, więc przeładowanie od razu uruchamia aplikację |
+| `manual` | Wywołujesz `trigger()` na zwróconym uchwycie |
+
+<!-- s:894b97fac4 -->
+DevTools otwarte we własnym oknie z menu przeglądarki nie wpływa na rozmiar okna. Ci odwiedzający uruchamiają aplikację za pomocą elementu `engage`, a `session` zapewnia jej uruchamianie po przeładowaniu w tej karcie.
+
+<!-- s:06cdcf713e -->
+Na ekranach dotykowych nic nie uruchamia się automatycznie. Wywołaj `trigger()` z własnej kontrolki.
+
+<!-- s:d7006796c2 -->
+| Opcja | Opis |
+| :-- | :-- |
+| `engageSelector` | Elementy uruchamiające aplikację po kliknięciu (domyślnie `[data-textjs-engage], [data-textjs-focus-pad], text-console`). `false` nie dodaje żadnych nasłuchiwaczy |
+| `persist` | Zapamiętywanie żądania dla karty w `sessionStorage` pod kluczem `CONSOLE_INTENT_KEY` (domyślnie `true`) |
+| `prefetch` | Wywołanie najwyżej raz, gdy wskaźnik lub fokus znajdzie się w elemencie pasującym do `engageSelector` |
+| `idlePrefetch` | Wywołanie `prefetch` także wtedy, gdy przeglądarka jest bezczynna po `load` (domyślnie `false`) |
+
+<!-- s:4460da3205 -->
+`prefetch` nigdy nie uruchamia się na ekranach dotykowych, przy włączonym oszczędzaniu danych ani na połączeniach wolniejszych niż 4G. `canPrefetchConsole()` zwraca wynik tego samego sprawdzenia. Metoda `dispose()` uchwytu usuwa wszystkie nasłuchiwacze.
+
+<!-- s:9128a9d98f -->
+`<ViewportControl>` działa, zanim powstanie korzeń konsoli. Wybranie rozmiaru zapisuje go, wyzwala `engage`, aby `onConsoleIntent` uruchomiło aplikację, i stosuje rozmiar po ustawieniu `root`. Zobacz [Zmiany niezgodne wstecz](/docs/support-policy#breaking-changes), aby dowiedzieć się, jak wersjonowane są eksperymentalne eksporty.

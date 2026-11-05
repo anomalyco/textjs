@@ -36,17 +36,18 @@
 <!-- s:854c967567 -->
 text.config.ts
 
-<!-- s:144c0672ce -->
-| 选项 | 默认值 | 说明 |
+<!-- s:1baaf058bb -->
+| 选项 | 默认值 | 描述 |
 | :-- | :-- | :-- |
 | `title` | `""` | 页面和 FocusPad 的标题 |
-| `viewport` | 适应控制台，否则为 `120×36` | `responsive`（默认为 `true`）、后备尺寸 `width × height`、`theme` |
+| `viewport` | 适配控制台，否则为 `120×36` | `responsive`（默认为 `true`）、回退尺寸 `width × height`、`theme` |
 | `hints` | `[]` | 页面 FocusPad 上显示的两个或三个按键 |
 | `action` | `press <first hint>` | 获得焦点后要执行的操作，例如 `"type a prompt"` |
 | `devIndicators` | `true` | 控制台内的开发浮层（`[▼]`） |
 | `focusHint` | `true` | 页面未获得焦点时，在控制台最后一行上方显示“点击页面以使用键盘” |
 | `rewrites` | `[]` | 重写和代理 |
-| `ansi` | `{ cols: 80, rows: 24 }` | [curl 和终端客户端](/docs/curl)的帧尺寸，设为 `false` 则向这些客户端提供 HTML |
+| `ansi` | `{ cols: 80, rows: 24 }` | [curl 和终端客户端](/docs/curl)的帧尺寸，或设为 `false` 以向其提供 HTML |
+| `embed` | `false` | 构建应用，供其他网站通过一个 script 标签添加（[嵌入](/docs/embedding)，实验性功能） |
 
 <!-- s:04e1df190e -->
 CLI

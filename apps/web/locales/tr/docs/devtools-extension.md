@@ -62,8 +62,8 @@ Süreler `console.log()` çağrısında sona erer. Mesajın biçimlendirilmesi v
 <!-- s:1dda342130 -->
 React DevTools gibi, uzantı da sayfa çalışmadan önce global bir hook kurar:
 
-<!-- s:5a865fb9ae -->
-Her konsol kökü oluşturulduğunda bu hook’a kaydolur. Uzantı yokken hook mevcut değildir; kök bunu bir kez kontrol eder ve kare başına hiçbir iş yapmaz. Uzantı yüklüyken panel kapalıysa karelerin maliyeti bir özellik okumasıdır. Ağaçlar ve kareler yalnızca panel istediğinde hesaplanır.
+<!-- s:9a7af3e89c -->
+Her konsol kökü bu hook’a kaydolur. Sayfadaki ilk kök, panelle iletişim kuran kodu (gzip ile yaklaşık 5 KB) yükler ve kod geldiğinde kaydolur. Sonraki kökler oluşturulduklarında kaydolur. Uzantı olmadan hook mevcut değildir; bu nedenle kök, hook’u bir kez kontrol eder, hiçbir şey yüklemez ve kare başına hiçbir işlem yapmaz. Uzantı kurulu ancak panel kapalıyken karelerin maliyeti bir özellik okumasıdır. Ağaçlar ve kareler yalnızca panel bunları istediğinde hesaplanır.
 
 <!-- s:843fc9a8ad -->
 Mesajlar sayfa → içerik betiği → service worker → panel yönünde akar. İçerik betikleri her sayfada çalışır; böylece uygulamanız başlamadan önce hook mevcut olur. Uzantının istediği tek erişim budur. Uzak kod yüklemez ve makine dışına hiçbir şey göndermez.
@@ -77,8 +77,9 @@ Uzantı veri toplamaz. Ağ isteği yapmaz, hiçbir şey saklamaz ve analitik iç
 <!-- s:639d5ea4c0 -->
 Sınırlamalar
 
-<!-- s:153a772b79 -->
-- Chrome ve Chromium tabanlı tarayıcılar, sürüm 111 veya sonrası.
-- Uzantı yüklenmeden önce başlatılan uygulamaların yeniden yüklenmesi gerekir.
-- Bir sekmenin yalnızca en üst karesi incelenir.
-- Süreler, tarayıcıların hassasiyetini yaklaşık 0,1 ms’ye düşürdüğü `performance.now()` çağrısından alınır.
+<!-- s:05616a1196 -->
+- Chrome ve Chromium tabanlı tarayıcılar, sürüm 111 veya üzeri.
+- Uzantı kurulmadan önce başlatılan uygulamaların yeniden yüklenmesi gerekir.
+- Bir sekmenin yalnızca en üst çerçevesi incelenir.
+- Zaman çizelgesi, panel bağlandıktan sonra kareleri kaydeder.
+- Süreler, tarayıcıların hassasiyetini yaklaşık 0,1 ms düzeyine düşürdüğü `performance.now()` çağrısından alınır.

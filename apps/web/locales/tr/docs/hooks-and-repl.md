@@ -64,3 +64,38 @@ Sayfa odakta değilken uygulamada bir `useInput` veya `usePaste` işleyicisi, bi
 
 <!-- s:420cc7f125 -->
 Her uygulama `window.text` nesnesine yardımcılar ekler. Bunları DevTools komut istemine yazın.
+
+<!-- s:195573d803 -->
+Konsol kullanım niyetiyle yükleme (deneysel)
+
+<!-- s:97014ecad1 -->
+`@textjs/core/experimental`, konsol uygulamasını yalnızca ziyaretçi istediğinde indiren sayfalar için `onConsoleIntent` dışa aktarımını sunar. Fonksiyonunuzu nedeni belirterek bir kez çağırır:
+
+<!-- s:444b1ebdd7 -->
+| Neden | Ne zaman |
+| :-- | :-- |
+| `dock` | Sayfa yüklendiğinde DevTools kenetlenmiştir veya daha sonra kenetlenir. Text.js bunu pencere boyutundan okur |
+| `shortcut` | Ziyaretçi F12 veya Ctrl+Shift+J, I, C ya da K tuşlarına, Mac’te ise ⌘⌥J, I, C ya da K tuşlarına basar. Tarayıcı yine DevTools’u açar |
+| `engage` | `engageSelector` ile eşleşen bir öğeye birincil tıklama, bir `[data-textjs-engage]` düğmesinde Enter veya Space tuşuna basılması ya da uygulama başlamadan önce `<ViewportControl>` bileşeninde boyut seçilmesi. Eşleşen öğenin içindeki bağlantılara, düğmelere ve form alanlarına yapılan tıklamalar, bunlarda da `data-textjs-engage` yoksa sayılmaz |
+| `session` | Yukarıdakilerden biri bu sekmede zaten gerçekleşmiştir; bu yüzden yeniden yükleme uygulamayı hemen başlatır |
+| `manual` | Döndürülen tanıtıcıda `trigger()` çağrısı yaptınız |
+
+<!-- s:894b97fac4 -->
+Tarayıcı menüsünden ayrı bir pencerede açılan DevTools, pencere boyutuna yansımaz. Bu ziyaretçiler uygulamayı bir `engage` öğesinden başlatır ve `session`, o sekmedeki yeniden yüklemelerde uygulamanın başlamasını sağlar.
+
+<!-- s:06cdcf713e -->
+Dokunmatik ekranlarda hiçbir şey otomatik olarak tetiklenmez. Kendi kontrolünüzden `trigger()` çağrısı yapın.
+
+<!-- s:d7006796c2 -->
+| Seçenek | Açıklama |
+| :-- | :-- |
+| `engageSelector` | Tıklandığında uygulamayı başlatan öğeler (varsayılan `[data-textjs-engage], [data-textjs-focus-pad], text-console`). `false` hiçbir dinleyici eklemez |
+| `persist` | Sekmenin niyetini `sessionStorage` içinde `CONSOLE_INTENT_KEY` anahtarı altında saklar (varsayılan `true`) |
+| `prefetch` | İşaretçi veya odak bir `engageSelector` öğesine girdiğinde en fazla bir kez çağrılır |
+| `idlePrefetch` | `load` sonrasında tarayıcı boşta kaldığında da `prefetch` çağrısı yapar (varsayılan `false`) |
+
+<!-- s:4460da3205 -->
+`prefetch`, dokunmatik ekranlarda, Veri Tasarrufu açıkken veya 4G’den yavaş bağlantılarda hiçbir zaman çalışmaz. `canPrefetchConsole()` aynı kontrolün sonucunu döndürür. Tanıtıcının `dispose()` metodu tüm dinleyicileri kaldırır.
+
+<!-- s:9128a9d98f -->
+`<ViewportControl>`, konsol kökü henüz yokken çalışır. Boyut seçildiğinde seçim kaydedilir, `onConsoleIntent` uygulamayı başlatsın diye `engage` tetiklenir ve `root` ayarlandığında boyut uygulanır. Deneysel dışa aktarımların nasıl sürümlendiği için [Uyumluluğu bozan değişiklikler](/docs/support-policy#breaking-changes) bölümüne bakın.

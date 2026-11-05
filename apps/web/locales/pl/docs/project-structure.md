@@ -36,17 +36,18 @@ Trasy dynamiczne
 <!-- s:854c967567 -->
 text.config.ts
 
-<!-- s:144c0672ce -->
+<!-- s:1baaf058bb -->
 | Opcja | Wartość domyślna | Opis |
 | :-- | :-- | :-- |
 | `title` | `""` | Tytuł strony i komponentu FocusPad |
-| `viewport` | dopasowanie do konsoli, w przeciwnym razie `120×36` | `responsive` (domyślnie `true`), rozmiar zastępczy `width × height`, `theme` |
+| `viewport` | dopasowanie do konsoli, w przeciwnym razie `120×36` | `responsive` (domyślnie `true`), zapasowe wymiary `width × height`, `theme` |
 | `hints` | `[]` | Dwa lub trzy klawisze wyświetlane w komponencie FocusPad na stronie |
-| `action` | `press <first hint>` | Czynność po uzyskaniu fokusu, np. `"type a prompt"` |
+| `action` | `press <first hint>` | Co zrobić po uzyskaniu fokusu, np. `"type a prompt"` |
 | `devIndicators` | `true` | Nakładka deweloperska w konsoli (`[▼]`) |
 | `focusHint` | `true` | „Kliknij stronę, aby używać klawiatury” nad ostatnim wierszem konsoli, gdy strona nie ma fokusu |
 | `rewrites` | `[]` | Reguły przepisywania i proxy |
 | `ansi` | `{ cols: 80, rows: 24 }` | Rozmiar klatki dla [curl i klientów terminalowych](/docs/curl) lub `false`, aby serwować im HTML |
+| `embed` | `false` | Budowanie aplikacji do dodania na innych stronach jednym tagiem script ([Osadzanie](/docs/embedding), eksperymentalne) |
 
 <!-- s:04e1df190e -->
 CLI
