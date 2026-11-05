@@ -43,8 +43,8 @@ LTS 修正範圍
 - `app/` 中的檔案慣例、`middleware.ts` 與路由區段設定
 - 配接器輸出版面配置（`.vercel/output`、`_worker.js`、`dist/server.js`）
 
-<!-- s:3a8ad71311 -->
-不涵蓋：標記為實驗性或 `unstable_` 的 API，包括 `@textjs/core/experimental` 和 `@textjs/react/experimental` 下的所有項目（可能在次要版本中變更，並在變更記錄中註明）、內部項目，例如 `@textjs/core/internal`、`x-middleware-*` 標頭與 `.text/` 建置中繼資料、canary 版本，以及 `console.log` 格式字串與 CSS 的確切內容（影格外觀維持一致；編碼速度可能提升）。
+<!-- s:883f3eeb26 -->
+不涵蓋：標示為實驗性或 `unstable_` 的 API，包括 `@textjs/core/experimental`、`@textjs/react/experimental` 和 `@textjs/app/experimental` 下的所有內容（可能在次要版本中變更，並在變更記錄中註明）、內部實作，例如 `@textjs/core/internal`、`x-middleware-*` 標頭和 `.text/` 建置中繼資料、canary 版本，以及確切的 `console.log` 格式字串和 CSS（影格的視覺呈現維持不變；編碼可能變得更快）。
 
 <!-- s:5c7d9aae9b -->
 執行環境支援

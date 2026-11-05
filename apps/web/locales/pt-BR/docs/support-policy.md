@@ -43,8 +43,8 @@ Os itens a seguir só mudam em uma versão principal, após um aviso de desconti
 - Convenções de arquivos em `app/`, `middleware.ts` e configuração de segmentos de rota
 - Layouts de saída dos adaptadores (`.vercel/output`, `_worker.js`, `dist/server.js`)
 
-<!-- s:3a8ad71311 -->
-Não estão cobertos: APIs marcadas como experimentais ou `unstable_`, incluindo tudo em `@textjs/core/experimental` e `@textjs/react/experimental` (elas podem mudar em uma versão secundária, com notas no changelog), detalhes internos como `@textjs/core/internal`, cabeçalhos `x-middleware-*` e metadados de build em `.text/`, versões canary e as strings de formato e o CSS exatos de `console.log` (os quadros permanecem visualmente idênticos; sua codificação pode ficar mais rápida).
+<!-- s:883f3eeb26 -->
+Não estão cobertos: APIs marcadas como experimentais ou `unstable_`, incluindo tudo em `@textjs/core/experimental`, `@textjs/react/experimental` e `@textjs/app/experimental` (elas podem mudar em uma versão secundária, com notas no registro de alterações), detalhes internos como `@textjs/core/internal`, cabeçalhos `x-middleware-*` e metadados de build em `.text/`, versões canary e as strings de formato e o CSS exatos de `console.log` (os quadros permanecem visualmente idênticos; sua codificação pode ficar mais rápida).
 
 <!-- s:5c7d9aae9b -->
 Suporte a runtimes

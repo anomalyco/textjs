@@ -43,8 +43,8 @@ LTS 수정 범위
 - `app/`의 파일 규칙, `middleware.ts` 및 라우트 세그먼트 설정
 - 어댑터 출력 레이아웃 (`.vercel/output`, `_worker.js`, `dist/server.js`)
 
-<!-- s:3a8ad71311 -->
-보장 범위에서 제외되는 항목: `@textjs/core/experimental`과 `@textjs/react/experimental` 아래의 모든 항목을 포함해 실험적이거나 `unstable_`로 표시된 API(마이너 릴리스에서 변경될 수 있으며 변경 로그에 기록돼요), `@textjs/core/internal` 같은 내부 요소, `x-middleware-*` 헤더와 `.text/` 빌드 메타데이터, 카나리 릴리스, 정확한 `console.log` 형식 문자열과 CSS(프레임의 시각적 모습은 동일하게 유지되며 인코딩은 더 빨라질 수 있어요).
+<!-- s:883f3eeb26 -->
+보장 범위에서 제외되는 항목: `@textjs/core/experimental`, `@textjs/react/experimental`, `@textjs/app/experimental` 아래의 모든 API를 포함해 실험적이거나 `unstable_`로 표시된 API(마이너 릴리스에서 변경될 수 있으며, 변경 로그에 기록해요), `@textjs/core/internal`, `x-middleware-*` 헤더, `.text/` 빌드 메타데이터 같은 내부 요소, 카나리 릴리스, 정확한 `console.log` 형식 문자열과 CSS(프레임의 시각적 모습은 동일하게 유지되지만, 인코딩은 더 빨라질 수 있어요).
 
 <!-- s:5c7d9aae9b -->
 런타임 지원

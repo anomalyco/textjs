@@ -43,8 +43,8 @@ Questi elementi cambiano solo in una versione major, dopo un avviso di deprecazi
 - Convenzioni dei file in `app/`, `middleware.ts` e configurazione dei segmenti di route
 - Layout di output degli adattatori (`.vercel/output`, `_worker.js`, `dist/server.js`)
 
-<!-- s:3a8ad71311 -->
-Sono esclusi: le API contrassegnate come sperimentali o `unstable_`, incluso tutto ciò che si trova in `@textjs/core/experimental` e `@textjs/react/experimental` (possono cambiare in una versione minor, con note nel changelog), gli elementi interni come `@textjs/core/internal`, gli header `x-middleware-*` e i metadati di build in `.text/`, le versioni canary e le stringhe di formato e il CSS esatti di `console.log` (i frame restano visivamente identici; la loro codifica può diventare più veloce).
+<!-- s:883f3eeb26 -->
+Sono esclusi: le API contrassegnate come sperimentali o `unstable_`, incluso tutto ciò che si trova sotto `@textjs/core/experimental`, `@textjs/react/experimental` e `@textjs/app/experimental` (possono cambiare in una versione minore, con note nel changelog), gli elementi interni come `@textjs/core/internal`, gli header `x-middleware-*` e i metadati di build in `.text/`, le versioni canary e le stringhe di formato e il CSS esatti di `console.log` (i frame restano visivamente identici; la loro codifica può diventare più veloce).
 
 <!-- s:5c7d9aae9b -->
 Supporto dei runtime

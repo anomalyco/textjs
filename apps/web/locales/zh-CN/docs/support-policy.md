@@ -43,8 +43,8 @@ LTS 修复范围
 - `app/` 中的文件约定、`middleware.ts` 和路由段配置
 - 适配器输出布局（`.vercel/output`、`_worker.js`、`dist/server.js`）
 
-<!-- s:3a8ad71311 -->
-不在保障范围内的内容：标记为实验性或 `unstable_` 的 API，包括 `@textjs/core/experimental` 和 `@textjs/react/experimental` 下的所有内容（可能在次版本中变更，并在更新日志中说明）；内部实现，如 `@textjs/core/internal`、`x-middleware-*` 请求头和 `.text/` 构建元数据；canary 版本；以及 `console.log` 格式字符串和 CSS 的具体内容（帧的视觉效果保持一致，编码速度可能提升）。
+<!-- s:883f3eeb26 -->
+不在保障范围内：标记为实验性或 `unstable_` 的 API，包括 `@textjs/core/experimental`、`@textjs/react/experimental` 和 `@textjs/app/experimental` 下的所有 API（可能在次要版本中变更，并在更新日志中说明）；内部实现，如 `@textjs/core/internal`、`x-middleware-*` 标头和 `.text/` 构建元数据；canary 版本；以及 `console.log` 格式字符串和 CSS 的具体内容（帧的视觉效果保持不变，编码速度可能提升）。
 
 <!-- s:5c7d9aae9b -->
 运行时支持

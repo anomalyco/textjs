@@ -43,8 +43,8 @@ Poniższe elementy zmieniają się tylko w wydaniu głównym, po ostrzeżeniu o
 - Konwencje plików w `app/`, `middleware.ts` i konfiguracja segmentów tras
 - Układy plików wyjściowych adapterów (`.vercel/output`, `_worker.js`, `dist/server.js`)
 
-<!-- s:3a8ad71311 -->
-Poza zakresem: API oznaczone jako eksperymentalne lub `unstable_`, w tym wszystko w `@textjs/core/experimental` i `@textjs/react/experimental` (mogą się zmieniać w wydaniu pobocznym, z adnotacją w historii zmian), elementy wewnętrzne, takie jak `@textjs/core/internal`, nagłówki `x-middleware-*` i metadane budowania w `.text/`, wydania canary oraz dokładna postać ciągów formatujących `console.log` i CSS (klatki pozostają wizualnie identyczne; ich kodowanie może stać się szybsze).
+<!-- s:883f3eeb26 -->
+Nie obejmuje: API oznaczonych jako eksperymentalne lub `unstable_`, w tym wszystkiego w `@textjs/core/experimental`, `@textjs/react/experimental` i `@textjs/app/experimental` (mogą się zmieniać w wydaniach minor, z informacją w dzienniku zmian), elementów wewnętrznych, takich jak `@textjs/core/internal`, nagłówków `x-middleware-*` i metadanych kompilacji w `.text/`, wydań canary oraz dokładnej postaci ciągów formatujących `console.log` i CSS (klatki pozostają wizualnie identyczne; ich kodowanie może stać się szybsze).
 
 <!-- s:5c7d9aae9b -->
 Obsługiwane środowiska uruchomieniowe
