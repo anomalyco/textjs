@@ -98,6 +98,8 @@ export function consoleRuns(format: string, css: string[]): Array<[string, strin
 
 const MONO = '"SF Mono",Menlo,"Cascadia Mono",Consolas,monospace';
 const SANS = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
+/** As textjs.org's mirrors: fonts whose box-drawing and block glyphs fill the whole cell, so borders don't break between rows. */
+const MIRROR_FONT = 'Menlo,"Cascadia Mono",Consolas,"DejaVu Sans Mono",monospace';
 /** A shade between the text and background colors. */
 const mix = (pct: number): string => `color-mix(in srgb,var(--fg) ${pct}%,var(--bg))`;
 
@@ -134,6 +136,7 @@ const STYLE = `:host{display:block;color-scheme:dark}
 .d{margin-inline-end:-8px;width:8px;height:8px;border-radius:50%;background:#45a557}
 .z{overflow:hidden}
 .s{width:max-content;transform-origin:0 0;direction:ltr;white-space:pre;font:12px/14px ${MONO};color:#ededed}
+.s,.s *{font-family:${MIRROR_FONT}!important}
 .o{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#0008;opacity:0;transition:opacity .2s;pointer-events:none}
 .o>*{padding:8px 14px;border-radius:99px;background:#fff;color:#000;font:500 13px/16px ${SANS}}
 :host(:hover) .o,:host(:focus-visible) .o{opacity:1}
