@@ -178,6 +178,10 @@ async function settle(page) {
 for (const name of browsers) {
   const browser = await pw[name].launch({ headless: true });
   console.log(`${name} ${browser.version()}`);
+  // A first page pays the browser's start-up costs (system fonts included), which would count against `/`'s font hold.
+  const warm = await browser.newContext();
+  await (await warm.newPage()).goto("about:blank");
+  await warm.close();
 
   for (const route of routes) {
     const { context, page, errors } = await newPage(browser, { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
