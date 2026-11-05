@@ -1,10 +1,17 @@
 /**
- * Right-to-left detection without the bidi tables, so the frame player and
- * DOM mirrors that only need to know whether text could be reordered don't
- * bundle the Unicode Bidirectional Algorithm (see `bidi.ts`).
+ * Right-to-left detection without the bidi tables, so the frame player, DOM
+ * mirrors and the scene painter can tell whether text could be reordered
+ * without bundling the Unicode Bidirectional Algorithm (see `bidi.ts`).
  */
 
 import { RTL_RANGES } from "./rtl-data";
+import type { Grapheme } from "./text-measure";
+
+/** LEFT-TO-RIGHT OVERRIDE and POP DIRECTIONAL FORMATTING: pin already-visual text to LTR order. */
+export const LTR_OVERRIDE = "\u202D";
+export const POP_DIRECTIONAL_FORMATTING = "\u202C";
+
+export type TextDirection = "auto" | "ltr" | "rtl";
 
 let ranges: Uint32Array | null = null;
 
@@ -34,6 +41,51 @@ export function hasRtl(text: string): boolean {
     const cp = c >= 0xd800 && c <= 0xdbff ? (text.codePointAt(i) as number) : c;
     if (isRtlCodePoint(cp)) return true;
     if (cp > 0xffff) i++;
+  }
+  return false;
+}
+
+/**
+ * Code points that can raise text to a right-to-left (odd) level: R, AL, AN
+ * and RLE, RLO, RLI. Without one, every resolved level is even, so LTR
+ * embeddings, overrides and isolates (LRE, LRO, LRI, FSI, PDF, PDI) alone
+ * never reorder, mirror or shape anything.
+ */
+function isReorderTrigger(cp: number): boolean {
+  if (cp < 0x0590) return false;
+  if (cp === 0x202b || cp === 0x202e || cp === 0x2067) return true;
+  return isRtlCodePoint(cp);
+}
+
+/** True when displaying `text` requires reordering (it contains R, AL or AN, or an RLE/RLO/RLI control). */
+export function textNeedsBidi(text: string): boolean {
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    if (c < 0x0590) continue;
+    if (isReorderTrigger(c >= 0xd800 && c <= 0xdbff ? (text.codePointAt(i) as number) : c)) return true;
+  }
+  return false;
+}
+
+/**
+ * Whether a grapheme sequence needs the bidi path: `dir === "rtl"` or any
+ * R/AL/AN character or RLE/RLO/RLI control (LTR-only controls and isolates
+ * cannot reorder anything). Pure-LTR text returns `false` after one cheap
+ * scan (every code point below U+0590 is rejected by a single comparison).
+ */
+export function graphemesNeedBidi(gs: readonly Grapheme[], dir: TextDirection = "auto"): boolean {
+  if (dir === "rtl") return true;
+  for (let i = 0; i < gs.length; i++) {
+    const g = gs[i] as Grapheme;
+    if (g.codePoint < 0x0590 && !g.isMulti) continue;
+    if (isReorderTrigger(g.codePoint)) return true;
+    if (g.isMulti) {
+      const s = g.grapheme;
+      for (let j = 0; j < s.length; j++) {
+        const c = s.charCodeAt(j);
+        if (c >= 0x0590 && isReorderTrigger(s.codePointAt(j) as number)) return true;
+      }
+    }
   }
   return false;
 }

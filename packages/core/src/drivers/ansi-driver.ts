@@ -10,8 +10,7 @@ import {
   GRAPHEME_POOL_FLAG,
   type CellGrid,
 } from "../cell-grid";
-import { LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../bidi";
-import { hasRtl, isRtlCodePoint } from "../rtl";
+import { hasRtl, isRtlCodePoint, LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../rtl";
 
 export interface AnsiRenderOptions {
   /** Separator between rows (default `"\n"`). */

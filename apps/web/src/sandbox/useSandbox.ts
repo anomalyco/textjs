@@ -69,12 +69,12 @@ export function useSandbox(app: ReactNode, { cols, rows, theme, wireframe = fals
     let created: ConsoleRoot | null = null;
     let queued = false;
     const capture = new CaptureConsole();
-    Promise.all([import("@textjs/core"), import("@textjs/react")])
-      .then(async ([core, react]) => {
+    import("./runtime")
+      .then(async (core) => {
         if (cancelled) return;
         const eng = engineRef.current ?? (engineRef.current = new core.InputEngine({ document: null }));
         setEngine(eng);
-        const r = await react.createConsoleRoot({
+        const r = await core.createConsoleRoot({
           width: initial.current.cols,
           height: initial.current.rows,
           theme: initial.current.theme,

@@ -135,6 +135,8 @@ export function boot(state) { return bootEmbedPlayer({ ...state, config: ${JSON.
 export interface EmbedEntryOptions {
   /** The shell replay expression (`createShellReplayCode`), or `null` for none. */
   shell: string | null;
+  /** The shell shows right-to-left text (`shellHasRtl`): the runtime fetches the bidi engine as it boots. */
+  shellRtl?: boolean;
   /** Module specifier of the runtime entry, relative to `embed.js` (or a root-relative dev URL). */
   runtime: string;
   /** Yoga's `.wasm`, relative to `embed.js`, fetched alongside a client runtime. */
@@ -150,7 +152,7 @@ export interface EmbedEntryOptions {
 /** The source of `embed.js`. */
 export function createEmbedEntry(o: EmbedEntryOptions): string {
   const url = (rel: string): string => `new URL(${JSON.stringify(rel)}, import.meta.url)`;
-  const extra = [o.wasm ? "wasm: w" : "", o.endpoint ? `endpoint: ${url(o.endpoint)}.href` : ""].filter(Boolean);
+  const extra = [o.wasm ? "wasm: w" : "", o.endpoint ? `endpoint: ${url(o.endpoint)}.href` : "", o.shell && o.shellRtl ? "shellRtl: s.shell" : ""].filter(Boolean);
   // The `.wasm` request starts with the runtime's: host pages have no preload for it. If the runtime never
   // loads, nothing awaits it, so its failure is marked handled (`initYoga` still sees it).
   const wasm = o.wasm ? `const w = fetch(${url(o.wasm)}); w.catch(() => {}); ` : "";

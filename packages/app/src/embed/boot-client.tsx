@@ -7,7 +7,7 @@
  */
 
 import { createElement } from "react";
-import { initYoga, type YogaWasmSource } from "@textjs/core";
+import { initYoga, loadBidi, type YogaWasmSource } from "@textjs/core";
 import { claimConsole, CONSOLE_OWNER, type ConsoleOwner } from "@textjs/core/experimental";
 import { createConsoleRootSync, type ConsoleRoot } from "@textjs/react";
 import type { ViewportConfig } from "../config";
@@ -33,6 +33,8 @@ export interface EmbedClientConfig {
 export interface EmbedClientOptions extends Partial<EmbedBootState> {
   routes: RouteManifest;
   config?: EmbedClientConfig;
+  /** `embed.js`'s first frame showed right-to-left text. */
+  shellRtl?: boolean;
   /** Yoga's WebAssembly, already requested by `embed.js` (default: the asset next to this chunk). */
   wasm?: YogaWasmSource;
 }
@@ -52,7 +54,9 @@ export interface EmbedClient {
 export async function bootEmbedClient(options: EmbedClientOptions): Promise<EmbedClient | null> {
   const config = options.config ?? {};
   const vp = config.viewport ?? {};
-  await initYoga(options.wasm === undefined ? undefined : { wasm: options.wasm });
+  // A first frame with right-to-left text: fetch the bidi engine alongside Yoga, so our first frame repaints it in
+  // display order too. A failed chunk never blocks boot.
+  await Promise.all([initYoga(options.wasm === undefined ? undefined : { wasm: options.wasm }), options.shellRtl === true ? loadBidi().catch(() => {}) : null]);
   const g = globalThis as Record<symbol, ConsoleOwner | undefined>;
   if (g[CONSOLE_OWNER] !== undefined && g[CONSOLE_OWNER].embed !== true) return null;
   // Our own renderer claims the console as it's created: drop embed.js's claim so it doesn't preempt us.

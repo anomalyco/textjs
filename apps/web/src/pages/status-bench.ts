@@ -4,7 +4,7 @@
  * browser. Frames go to an in-memory console, so nothing is logged to DevTools.
  */
 
-import type { ConsoleTarget, SceneNode, SceneNodeProps } from "@textjs/core";
+import { CellBuffer, CssConsoleDriver, createNode, createRawText, initYoga, paintScene, type ConsoleTarget, type SceneNode, type SceneNodeProps } from "@textjs/core";
 
 export const BENCH_COLS = 100;
 export const BENCH_ROWS = 32;
@@ -48,9 +48,7 @@ function summarize(samples: number[]): Summary {
 const yieldToBrowser = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 export async function runPipelineBench(onProgress?: (done: number) => void): Promise<BenchResult> {
-  const core = await import("@textjs/core");
-  await core.initYoga();
-  const { CellBuffer, CssConsoleDriver, createNode, createRawText, paintScene } = core;
+  await initYoga();
 
   const box = (props: SceneNodeProps = {}, ...children: SceneNode[]): SceneNode => {
     const n = createNode("box", props);

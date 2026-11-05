@@ -214,8 +214,8 @@ export default defineConfig(({ isSsrBuild }) => ({
   ...(isSsrBuild || process.env.VITEST
     ? {}
     : {
-        resolve: { conditions: ["@textjs/wasm-asset", ...defaultClientConditions] },
-        optimizeDeps: { esbuildOptions: { conditions: ["@textjs/wasm-asset"] } },
+        resolve: { conditions: ["@textjs/client", ...defaultClientConditions] },
+        optimizeDeps: { esbuildOptions: { conditions: ["@textjs/client"] } },
       }),
   // The build-time prerenderer bundles the workspace packages (TypeScript sources) and keeps React external.
   ssr: { noExternal: [/^@textjs\//, "@textjs/app"] },
