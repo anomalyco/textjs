@@ -91,6 +91,17 @@ export interface ShellReplayOptions {
    * 200). The frames loop while the page isn't hidden.
    */
   intervalMs?: number;
+  /**
+   * An identifier that holds `[table, ops]` (see {@link shellData}), read
+   * instead of inlining them, so other code in the same script can use the
+   * frames too. Only without `path`.
+   */
+  data?: string;
+}
+
+/** The `[table, ops]` a replay reads when given `data`, as a JavaScript expression. */
+export function shellData(compiled: CompiledShell): string {
+  return `[${inlineJson(compiled.table)},${inlineJson(compiled.ops)}]`;
 }
 
 const NOW = `typeof performance!=="undefined"?performance.now():void 0`;
@@ -130,7 +141,8 @@ export function createShellReplayCode(compiled: CompiledShell, options: ShellRep
   }
   const done = globalFlag ? `window.__TEXTJS_SHELL__=1;${shellHasRtl(compiled) ? "window.__TEXTJS_SHELL_RTL__=1;" : ""}window.__TEXTJS_SHELL_AT__=${NOW}` : `return ${NOW}`;
   const params = path === undefined ? "c,s" : "p,c,s";
-  const args = `${path === undefined ? "" : `${inlineJson(path)},`}${inlineJson(compiled.table)},${inlineJson(compiled.ops)}`;
+  if (options.data !== undefined && path !== undefined) throw new Error("createShellReplayCode: data needs no path");
+  const args = options.data !== undefined ? `...${options.data}` : `${path === undefined ? "" : `${inlineJson(path)},`}${inlineJson(compiled.table)},${inlineJson(compiled.ops)}`;
   return `(function(${params}){${guard}${DETECT}${paint}${done}})(${args})`;
 }
 

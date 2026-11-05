@@ -10,12 +10,12 @@ import type { ViteDevServer } from "vite";
 import type { TextConfig } from "../config";
 import type { ThemeName } from "@textjs/react";
 import { EMBED_ASSET_HEADERS } from "./cors";
-import { createEmbedEntry, EMBED_CLIENT_URL, EMBED_FILE, EMBED_LOADER_URL, EMBED_PLAYER_URL, middlewareCouldGuard, resolveEmbedSettings } from "./embed";
+import { createEmbedEntry, EMBED_CLIENT_URL, EMBED_FILE, EMBED_LOADER_URL, EMBED_PLAYER_URL, middlewareCouldGuard, resolveEmbedSettings, TEXT_CONSOLE_URL } from "./embed";
 import type { MiddlewareModule } from "./middleware";
 import { findMiddlewareFile } from "./middleware-node";
 import type { LiveEntryModule } from "./live-dev";
 import { createRuntimeMatcher, VIRTUAL_LIVE } from "./live-routes";
-import { compileShellCalls, createShellReplayCode, shellHasRtl } from "./ppr";
+import { compileShellCalls, type CompiledShell } from "./ppr";
 import { scanApp } from "./scan";
 import { LIVE_PATH } from "../live-protocol";
 
@@ -41,6 +41,7 @@ function escapeHtml(s: string): string {
 /** A plain page standing in for the site the app is embedded in. */
 export function createEmbedPreviewHtml(o: { title: string; src: string }): string {
   const tag = `<script type="module" src="${escapeHtml(o.src)}"></script>`;
+  const element = "<text-console mirror></text-console>";
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -59,17 +60,19 @@ export function createEmbedPreviewHtml(o: { title: string; src: string }): strin
       button { background: #171717; color: #fafafa; border: 0; cursor: pointer; }
       input { border: 1px solid #d4d4d4; background: #fff; min-width: 240px; }
       .tall { min-height: 120vh; }
+      text-console { margin: 0 0 32px; }
     </style>
   </head>
   <body>
     <main>
       <h1>${escapeHtml(o.title)}</h1>
-      <p>This page loads <code>embed.js</code> the way another site would. Dock DevTools, use a DevTools shortcut or press the button to start the app in the console.</p>
-      <pre><code>${escapeHtml(tag)}</code></pre>
+      <p>This page loads <code>embed.js</code> the way another site would. Dock DevTools, use a DevTools shortcut, or press the button or the console below to start the app.</p>
+      <pre><code>${escapeHtml(tag)}\n${escapeHtml(element)}</code></pre>
       <div class="row">
         <button type="button" data-textjs-engage>Open in the console</button>
         <input type="text" placeholder="Typing here stays on this page" aria-label="Host page field" />
       </div>
+      ${element}
       <div class="tall"></div>
     </main>
     ${tag}
@@ -79,7 +82,7 @@ export function createEmbedPreviewHtml(o: { title: string; src: string }): strin
 }
 
 export function createEmbedDevHandler(vite: ViteDevServer, o: EmbedDevOptions): EmbedDevHandler {
-  const renderShell = async (path: string, initialClear: boolean): Promise<{ code: string; rtl: boolean } | null> => {
+  const renderShell = async (path: string, initialClear: boolean): Promise<CompiledShell | null> => {
     if (o.config.ppr === false) return null;
     const vp = o.config.viewport ?? {};
     const middlewareFile = findMiddlewareFile(o.root);
@@ -90,8 +93,7 @@ export function createEmbedDevHandler(vite: ViteDevServer, o: EmbedDevOptions): 
     try {
       const mod = (await vite.ssrLoadModule(VIRTUAL_LIVE)) as LiveEntryModule;
       const calls = await mod.prerenderShell({ routes: mod.routes, path, cols: vp.width ?? 120, rows: vp.height ?? 36, theme: vp.theme as ThemeName | undefined, initialClear });
-      const compiled = compileShellCalls(calls);
-      return { code: createShellReplayCode(compiled), rtl: shellHasRtl(compiled) };
+      return compileShellCalls(calls);
     } catch (error) {
       if (error instanceof Error) vite.ssrFixStacktrace(error);
       o.logger?.error(` ⨯ embed.js has no first frame: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
@@ -110,8 +112,8 @@ export function createEmbedDevHandler(vite: ViteDevServer, o: EmbedDevOptions): 
         const server = createRuntimeMatcher(scanApp(o.root, o.appDir))(settings.initialPath.split(/[?#]/)[0] as string) === "server";
         const shell = await renderShell(settings.initialPath, settings.initialClear);
         const code = createEmbedEntry({
-          shell: shell?.code ?? null,
-          shellRtl: shell?.rtl,
+          shell,
+          element: `${base}${TEXT_CONSOLE_URL.slice(1)}`,
           runtime: `${base}${(server ? EMBED_PLAYER_URL : EMBED_CLIENT_URL).slice(1)}`,
           ...(server ? { endpoint: `.${LIVE_PATH}` } : {}),
           loader: `${base}${EMBED_LOADER_URL.slice(1)}`,

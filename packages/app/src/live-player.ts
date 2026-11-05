@@ -117,6 +117,9 @@ export class FramePlayerCore {
   /** Stop / restart painting (`text.pause()`: select and copy freely). */
   paused = false;
 
+  /** Called after each frame it logs (an embed mirrors them into `<text-console>`). */
+  onPaint: (() => void) | null = null;
+
   /** Apply a server frame. Returns `false` when the delta didn't match the buffer (a reconnect will resync). */
   applyFrame(msg: Extract<LiveServerMessage, { t: "f" }>, size = 0): boolean {
     this.bytes += size;
@@ -176,6 +179,7 @@ export class FramePlayerCore {
     this.lastEmit = this.now();
     this.lastCleared = r.cleared === true;
     this.frames++;
+    this.onPaint?.();
     return true;
   }
 }

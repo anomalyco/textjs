@@ -58,4 +58,4 @@ export function parseBannerColor(input: ColorInput): PackedColor {
   return COLOR_DEFAULT;
 }
 
-export { engageSurfaceOf, isMac } from "./console-intent";
+export { engageSurfaceOf, isMac, watchConsoleIntent } from "./console-intent";

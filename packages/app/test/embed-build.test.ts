@@ -58,6 +58,8 @@ const BUDGET = {
    * It measures 138.2 KiB, of which react-reconciler is about 39 KiB. The plan's target was 140 KiB.
    */
   lazy: 139 * 1024,
+  /** `<text-console>` (`text-console-[hash].js`). */
+  element: 4096,
 };
 
 /** As users run it: `bun test` sets NODE_ENV=test, which would bundle React's development builds. */
@@ -114,6 +116,7 @@ describe("text build --embed (client route)", () => {
     expect(out).toContain("embed.js");
     expect(out.filter((f) => /^assets\/embed-[\w-]{8}\.js$/.test(f))).toHaveLength(1);
     expect(out.filter((f) => /^assets\/embed-client-[\w-]+\.js$/.test(f))).toHaveLength(1);
+    expect(out.filter((f) => /^assets\/text-console-[\w-]{8}\.js$/.test(f))).toHaveLength(1);
     // Console intent loads the runtime and Yoga in parallel and nothing after them: no entry facade.
     expect(result.embed?.lazyFiles.filter((f) => f.endsWith(".js"))).toHaveLength(1);
     expect(out.filter((f) => /^assets\/yoga-[\w-]+\.wasm$/.test(f))).toHaveLength(1);
@@ -128,6 +131,7 @@ describe("text build --embed (client route)", () => {
 
   test("prints what it wrote: embed.js and what loads on intent, no route table", () => {
     expect(result.output).toContain("+ embed.js");
+    expect(result.output).toContain(`+ ${result.embed?.element}`);
     expect(result.output).toContain(result.embed?.hashedEntry as string);
     for (const f of result.embed?.lazyFiles ?? []) expect(result.output).toContain(`+ ${f}`);
     expect(result.output).not.toContain("Route (app)");
@@ -152,13 +156,37 @@ describe("text build --embed (client route)", () => {
     expect(copy).toContain(`import("./${client.slice("assets/".length)}")`);
   });
 
-  test("budgets: embed.js and what loads on console intent", () => {
+  test("budgets: embed.js, <text-console> and what loads on console intent", () => {
     const dist = join(dir, "dist");
     const entry = gz(join(dist, "embed.js"));
+    const element = gz(join(dist, result.embed?.element as string));
     const lazy = (result.embed?.lazyFiles ?? []).reduce((n, f) => n + gz(join(dist, f)), 0);
-    console.log(`embed.js ${entry} B gzip (budget ${BUDGET.entry}); client + wasm ${lazy} B gzip (budget ${BUDGET.lazy})`);
+    console.log(`embed.js ${entry} B gzip (budget ${BUDGET.entry}); text-console ${element} B gzip (budget ${BUDGET.element}); client + wasm ${lazy} B gzip (budget ${BUDGET.lazy})`);
     expect(entry).toBeLessThanOrEqual(BUDGET.entry);
+    expect(element).toBeLessThanOrEqual(BUDGET.element);
+    expect(result.embed?.elementSize.gzip).toBe(element);
     expect(lazy).toBeLessThanOrEqual(BUDGET.lazy);
+  });
+
+  test("<text-console>: its own file, loaded only for the tag, with no React and no onConsoleIntent prefetch in embed.js", () => {
+    const dist = join(dir, "dist");
+    const element = result.embed?.element as string;
+    expect(element).toMatch(/^assets\/text-console-[\w-]{8}\.js$/);
+    expect(result.embed?.lazyFiles).not.toContain(element);
+    const code = readFileSync(join(dist, "embed.js"), "utf8");
+    expect(code).toContain(`customElements.get("text-console")`);
+    expect(code).toContain(`import("./${element}")`);
+    // The immutable copy loads it from next to itself.
+    expect(readFileSync(join(dist, result.embed?.hashedEntry as string), "utf8")).toContain(`import("./${element.slice("assets/".length)}")`);
+    // Hovering a surface warms nothing in an embed, so onConsoleIntent's prefetch stays out of embed.js.
+    expect(code).not.toContain("effectiveType");
+    const el = readFileSync(join(dist, element), "utf8");
+    for (const react of ["react.element", "react.transitional.element", "useState", "$$typeof", "__REACT", "react-dom"]) expect({ react, has: el.includes(react) }).toEqual({ react, has: false });
+    // Shadow DOM and a constructed stylesheet: no <style> element or style attribute a strict CSP would block.
+    expect(el).toContain("adoptedStyleSheets");
+    expect(el).not.toMatch(/createElement\("style"\)|setAttribute\("style"|\.cssText\s*=|innerHTML/);
+    // text.config.ts's title is the element's default.
+    expect(el).toContain(`"Status"`);
   });
 
   test(

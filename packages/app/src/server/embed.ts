@@ -15,6 +15,8 @@ import type { MiddlewareModule } from "./middleware";
 import { matcherCouldMatch, middlewareMatchers } from "./middleware-runtime";
 import type { EmbedClientConfig } from "../embed/boot-client";
 import type { EmbedPlayerConfig } from "../embed/boot-player";
+import type { TextConsoleConfig } from "../embed/text-console-element";
+import { createShellReplayCode, shellData, shellHasRtl, type CompiledShell } from "./ppr";
 
 export const EMBED_FILE = "embed.js";
 export const VIRTUAL_EMBED_CLIENT = "virtual:textjs/embed-client";
@@ -24,6 +26,8 @@ export const EMBED_CLIENT_URL = "/@textjs/embed-client";
 export const EMBED_PLAYER_URL = "/@textjs/embed-player";
 /** `startEmbed` in `text dev`. */
 export const EMBED_LOADER_URL = "/@textjs/embed-loader";
+/** The `<text-console>` element in `text dev`. */
+export const TEXT_CONSOLE_URL = "/@textjs/text-console";
 
 const here = dirname(realpathSync(fileURLToPath(import.meta.url)));
 
@@ -88,6 +92,25 @@ export function embedClientConfig(config: TextConfig, s: EmbedSettings): EmbedCl
   };
 }
 
+/** The `text.config.ts` values `<text-console>` falls back to. */
+export function textConsoleConfig(config: TextConfig): TextConsoleConfig {
+  const vp = config.viewport ?? {};
+  return {
+    ...(config.title ? { title: config.title } : {}),
+    ...(config.hints ? { hints: config.hints.map((h) => ({ keys: h.keys, label: h.label })) } : {}),
+    ...(config.action ? { action: config.action } : {}),
+    cols: vp.width ?? 120,
+    rows: vp.height ?? 36,
+  };
+}
+
+/** The source of the `<text-console>` module: `mount(element, shell?)` with the app's defaults. */
+export function textConsoleModule(config: TextConfig): string {
+  return `import { createMount } from ${JSON.stringify(embedModule("text-console-element"))};
+export const mount = createMount(${JSON.stringify(textConsoleConfig(config))});
+`;
+}
+
 export function embedPlayerConfig(config: TextConfig, s: EmbedSettings): EmbedPlayerConfig {
   const { theme: _, ...viewport } = config.viewport ?? {};
   return { viewport, initialPath: s.initialPath, globalName: s.globalName, initialClear: s.initialClear, credentials: s.credentials };
@@ -96,6 +119,7 @@ export function embedPlayerConfig(config: TextConfig, s: EmbedSettings): EmbedPl
 const RESOLVED_CLIENT = `\0${VIRTUAL_EMBED_CLIENT}`;
 const RESOLVED_PLAYER = `\0${VIRTUAL_EMBED_PLAYER}`;
 const RESOLVED_LOADER = "\0virtual:textjs/embed-loader";
+const RESOLVED_ELEMENT = "\0virtual:textjs/text-console";
 
 export interface EmbedPluginOptions {
   config: TextConfig;
@@ -111,11 +135,13 @@ export function textjsEmbedPlugin(options: EmbedPluginOptions): Plugin {
       if (id === VIRTUAL_EMBED_CLIENT || id.endsWith(EMBED_CLIENT_URL)) return RESOLVED_CLIENT;
       if (id === VIRTUAL_EMBED_PLAYER || id.endsWith(EMBED_PLAYER_URL)) return RESOLVED_PLAYER;
       if (id.endsWith(EMBED_LOADER_URL)) return RESOLVED_LOADER;
+      if (id.endsWith(TEXT_CONSOLE_URL)) return RESOLVED_ELEMENT;
       return null;
     },
     load(id) {
       // A re-export, so Vite serves the framework file even where `server.fs.allow` doesn't list it (a linked package).
       if (id === RESOLVED_LOADER) return `export { startEmbed } from ${JSON.stringify(embedModule("loader"))};\n`;
+      if (id === RESOLVED_ELEMENT) return textConsoleModule(options.config);
       if (id === RESOLVED_CLIENT) {
         return `import { bootEmbedClient } from ${JSON.stringify(embedModule("boot-client"))};
 import routes from "virtual:textjs/routes";
@@ -133,12 +159,12 @@ export function boot(state) { return bootEmbedPlayer({ ...state, config: ${JSON.
 }
 
 export interface EmbedEntryOptions {
-  /** The shell replay expression (`createShellReplayCode`), or `null` for none. */
-  shell: string | null;
-  /** The shell shows right-to-left text (`shellHasRtl`): the runtime fetches the bidi engine as it boots. */
-  shellRtl?: boolean;
+  /** The prerendered first frame (`compileShellCalls`), or `null` for none. */
+  shell: CompiledShell | null;
   /** Module specifier of the runtime entry, relative to `embed.js` (or a root-relative dev URL). */
   runtime: string;
+  /** Module specifier of the `<text-console>` element, relative to `embed.js` (or a root-relative dev URL). */
+  element?: string;
   /** Yoga's `.wasm`, relative to `embed.js`, fetched alongside a client runtime. */
   wasm?: string;
   /** The live endpoint relative to `embed.js`, for a server runtime. */
@@ -152,12 +178,16 @@ export interface EmbedEntryOptions {
 /** The source of `embed.js`. */
 export function createEmbedEntry(o: EmbedEntryOptions): string {
   const url = (rel: string): string => `new URL(${JSON.stringify(rel)}, import.meta.url)`;
-  const extra = [o.wasm ? "wasm: w" : "", o.endpoint ? `endpoint: ${url(o.endpoint)}.href` : "", o.shell && o.shellRtl ? "shellRtl: s.shell" : ""].filter(Boolean);
+  const extra = [o.wasm ? "wasm: w" : "", o.endpoint ? `endpoint: ${url(o.endpoint)}.href` : "", o.shell && shellHasRtl(o.shell) ? "shellRtl: s.shell" : ""].filter(Boolean);
   // The `.wasm` request starts with the runtime's: host pages have no preload for it. If the runtime never
   // loads, nothing awaits it, so its failure is marked handled (`initYoga` still sees it).
   const wasm = o.wasm ? `const w = fetch(${url(o.wasm)}); w.catch(() => {}); ` : "";
   const boot = `(s) => { ${wasm}const o = { ...s${extra.map((e) => `, ${e}`).join("")} }; return import(${JSON.stringify(o.runtime)}).then((m) => m.boot(o)); }`;
+  // The frames are shared: the console replays them, and <text-console mirror> draws the first one.
+  const data = o.shell ? `const S = ${shellData(o.shell)};\n` : "";
+  const paint = o.shell ? `() => ${createShellReplayCode(o.shell, { data: "S" })}` : "null";
+  const element = o.element ? `, (e) => import(${JSON.stringify(o.element)}).then((m) => m.mount(e${o.shell ? ", S" : ""}))` : "";
   return `${o.prelude ?? ""}import { startEmbed } from ${JSON.stringify(o.loader ?? embedModule("loader"))};
-startEmbed(${o.shell ? `() => ${o.shell}` : "null"}, ${boot}, import.meta.url);
+${data}startEmbed(${paint}, ${boot}, import.meta.url${element});
 `;
 }
