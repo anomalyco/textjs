@@ -5,15 +5,16 @@
  * Text.js lays text out in logical order, wraps it, then reorders each wrapped
  * line into visual order (L1–L2). Cells therefore already hold glyphs in
  * left-to-right display order; drivers must keep the browser or terminal from
- * running bidi over them a second time (see `LTR_OVERRIDE`).
+ * running bidi over them a second time (see `LTR_OVERRIDE` in `rtl.ts`).
+ *
+ * The scene painter reaches this module through `bidi-engine.ts`, which loads
+ * it on the first text that needs it in Text.js client builds.
  *
  * Conformance is tested against BidiTest.txt and BidiCharacterTest.txt.
  */
 
 import { ARABIC_FORMS, BIDI_BRACKETS, BIDI_CLASS_RANGES, BIDI_MIRRORS, JOINING_TYPE_RANGES } from "./bidi-data";
-import type { CellBuffer } from "./cell-buffer";
-import type { PackedColor } from "./color";
-import { isRtlCodePoint } from "./rtl";
+import { isRtlCodePoint, type TextDirection } from "./rtl";
 import { LruCache, segmentGraphemes, type Grapheme } from "./text-measure";
 
 export { BIDI_UNICODE_VERSION } from "./bidi-data";
@@ -47,12 +48,6 @@ export const BIDI_CLASS_NAMES: readonly string[] = Object.freeze([
   "L", "R", "AL", "EN", "ES", "ET", "AN", "CS", "NSM", "BN", "B", "S", "WS", "ON",
   "LRE", "LRO", "RLE", "RLO", "PDF", "LRI", "RLI", "FSI", "PDI",
 ]);
-
-/** LEFT-TO-RIGHT OVERRIDE and POP DIRECTIONAL FORMATTING: pin already-visual text to LTR order. */
-export const LTR_OVERRIDE = "\u202D";
-export const POP_DIRECTIONAL_FORMATTING = "\u202C";
-
-export type TextDirection = "auto" | "ltr" | "rtl";
 
 /** Paragraph direction request: `0` LTR, `1` RTL, `-1` auto (P2–P3, LTR when no strong character). */
 export type ParagraphDirection = 0 | 1 | -1;
@@ -174,28 +169,6 @@ function isBidiTrigger(cp: number): boolean {
   if (cp >= 0x202a && cp <= 0x202e) return true;
   if (cp >= 0x2066 && cp <= 0x2069) return true;
   return isRtlCodePoint(cp);
-}
-
-/**
- * Code points that can raise text to a right-to-left (odd) level: R, AL, AN
- * and RLE, RLO, RLI. Without one, every resolved level is even, so LTR
- * embeddings, overrides and isolates (LRE, LRO, LRI, FSI, PDF, PDI) alone
- * never reorder, mirror or shape anything.
- */
-function isReorderTrigger(cp: number): boolean {
-  if (cp < 0x0590) return false;
-  if (cp === 0x202b || cp === 0x202e || cp === 0x2067) return true;
-  return isRtlCodePoint(cp);
-}
-
-/** True when displaying `text` requires reordering (it contains R, AL or AN, or an RLE/RLO/RLI control). */
-export function textNeedsBidi(text: string): boolean {
-  for (let i = 0; i < text.length; i++) {
-    const c = text.charCodeAt(i);
-    if (c < 0x0590) continue;
-    if (isReorderTrigger(c >= 0xd800 && c <= 0xdbff ? (text.codePointAt(i) as number) : c)) return true;
-  }
-  return false;
 }
 
 // -----------------------------------------------------------------------------
@@ -897,29 +870,6 @@ export interface GraphemeBidi {
 }
 
 /**
- * Whether a grapheme sequence needs the bidi path: `dir === "rtl"` or any
- * R/AL/AN character or RLE/RLO/RLI control (LTR-only controls and isolates
- * cannot reorder anything). Pure-LTR text returns `false` after one cheap
- * scan (every code point below U+0590 is rejected by a single comparison).
- */
-export function graphemesNeedBidi(gs: readonly Grapheme[], dir: TextDirection = "auto"): boolean {
-  if (dir === "rtl") return true;
-  for (let i = 0; i < gs.length; i++) {
-    const g = gs[i] as Grapheme;
-    if (g.codePoint < 0x0590 && !g.isMulti) continue;
-    if (isReorderTrigger(g.codePoint)) return true;
-    if (g.isMulti) {
-      const s = g.grapheme;
-      for (let j = 0; j < s.length; j++) {
-        const c = s.charCodeAt(j);
-        if (c >= 0x0590 && isReorderTrigger(s.codePointAt(j) as number)) return true;
-      }
-    }
-  }
-  return false;
-}
-
-/**
  * Resolve levels for a grapheme array. Newlines separate paragraphs; each
  * `auto` paragraph picks its own direction. A cluster takes the level and
  * class of its last code point that X9 keeps, so a space carrying a combining
@@ -1066,30 +1016,6 @@ export function visualizeText(text: string, dir: TextDirection = "auto", maxWidt
     items.push(i);
   }
   return visualizeLine(gs, resolveGraphemeBidi(gs, dir), items).graphemes;
-}
-
-/**
- * Draw one line of logical-order text into `buffer`, like `buffer.drawText`,
- * with right-to-left runs reordered, mirrored and shaped for display (cells
- * hold visual order). `maxWidth` keeps the logical start. Text with no
- * right-to-left content goes straight to `drawText`. Box titles use it via
- * `DrawBoxOptions.drawTitleText`.
- */
-export function drawLogicalText(
-  buffer: CellBuffer,
-  x: number,
-  y: number,
-  text: string,
-  fg: PackedColor,
-  bg: PackedColor,
-  attrs = 0,
-  maxWidth = Infinity,
-  dir: TextDirection = "auto",
-): number {
-  if (dir !== "rtl" && !textNeedsBidi(text)) return buffer.drawText(x, y, text, fg, bg, attrs, maxWidth);
-  if (maxWidth <= 0 || text.length === 0) return 0;
-  const gs = visualizeText(text, dir, maxWidth);
-  return buffer.drawGraphemes(x, y, gs, 0, gs.length, fg, bg, attrs);
 }
 
 /** Shaped base code point per line item (`-1` when unchanged). Every code point of a cluster takes the cluster's level. */

@@ -37,7 +37,9 @@ import {
   type YogaNode,
 } from "./layout";
 import { ELLIPSIS, layoutGraphemeLines, segmentGraphemes, type Grapheme, type TextLine, type WrapMode } from "./text-measure";
-import { drawLogicalText, graphemesNeedBidi, resolveGraphemeBidi, visualizeLine, type GraphemeBidi, type TextDirection, type VisualLine } from "./bidi";
+import type { GraphemeBidi, VisualLine } from "./bidi";
+import { bidiEngine, drawLogicalText, type BidiEngine } from "./bidi-engine";
+import { graphemesNeedBidi, type TextDirection } from "./rtl";
 
 export type SceneNodeType = "box" | "text" | "raw-text";
 /** `"start"`/`"end"` follow each paragraph's direction; unset text aligns to `"start"`. */
@@ -778,10 +780,12 @@ export class SceneNode {
   }
 
   /**
-   * @internal Line `li` of `lines` in visual order (bidi path only). Lines are
-   * wrapped in logical order first; each is then reordered on its own (L1–L4).
+   * @internal Line `li` of `lines` in visual order (bidi path only, once
+   * `bidiEngine()` is ready). Lines are wrapped in logical order first; each
+   * is then reordered on its own (L1–L4).
    */
   getVisualLine(lines: TextLine[], li: number): VisualLine {
+    const engine = bidiEngine() as BidiEngine;
     const model = this.getTextModel();
     if (this.visualFor !== lines || this.visualLines === null) {
       this.visualFor = lines;
@@ -789,14 +793,14 @@ export class SceneNode {
     }
     const cached = this.visualLines[li];
     if (cached !== undefined) return cached;
-    if (this.bidi === null) this.bidi = resolveGraphemeBidi(model.graphemes, this.props.dir);
+    if (this.bidi === null) this.bidi = engine.resolveGraphemeBidi(model.graphemes, this.props.dir);
     const line = lines[li] as TextLine;
     const items: number[] = [];
     for (let i = line.start; i < line.cutStart; i++) items.push(i);
     if (line.ellipsis) items.push(-1);
     for (let i = line.cutEnd; i < line.end; i++) items.push(i);
     const ref = ellipsisRef(model.graphemes, line);
-    const vl = visualizeLine(model.graphemes, this.bidi, items, ELLIPSIS_GRAPHEME, ref);
+    const vl = engine.visualizeLine(model.graphemes, this.bidi, items, ELLIPSIS_GRAPHEME, ref);
     this.visualLines[li] = vl;
     return vl;
   }
@@ -1392,7 +1396,8 @@ class Painter {
     const gs = model.graphemes;
     const runOf = model.runOf;
     const runs = model.runs;
-    if (model.needsBidi) {
+    // While the bidi engine loads (Text.js client builds only), right-to-left text paints in logical order.
+    if (model.needsBidi && bidiEngine() !== null) {
       this.paintVisualLines(node, lines, firstRow, lastRow, sr, align, inhFg, inhAttrs);
       return;
     }

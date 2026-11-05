@@ -25,8 +25,7 @@ import {
   type EffectiveStyle,
   type StyleResolveOptions,
 } from "./style";
-import { LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../bidi";
-import { hasRtl, isRtlCodePoint } from "../rtl";
+import { hasRtl, isRtlCodePoint, LTR_OVERRIDE, POP_DIRECTIONAL_FORMATTING } from "../rtl";
 import { LruCache } from "../text-measure";
 import { consoleProfile, inlineTypographyCss, type ConsoleBrowser, type ConsoleProfile } from "./console-browser";
 import { CANDIDATE_RANGE, createStandInResolver, type StandInResolver } from "./stand-ins";

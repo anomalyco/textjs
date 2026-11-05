@@ -1,6 +1,7 @@
 export * from "./color";
 export * from "./text-measure";
 export * from "./bidi";
+export { drawLogicalText, loadBidi } from "./bidi-engine";
 export * from "./rtl";
 export * from "./cell-buffer";
 export * from "./drivers/style";
