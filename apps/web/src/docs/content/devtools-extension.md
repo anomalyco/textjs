@@ -52,7 +52,7 @@ Like React DevTools, the extension installs a global hook before the page runs:
 globalThis.__TEXTJS_DEVTOOLS_HOOK__
 ```
 
-Every console root registers with it when it is created. The first root on a page loads the code that answers the panel, about 5 KB (gzip), then registers. Without the extension the hook does not exist, so a root checks for it once, loads nothing more and does no per-frame work. With the extension installed but the panel closed, frames cost one property read. Trees and frames are only computed when the panel asks for them.
+Every console root registers with it. The first root on a page loads the code that talks to the panel (about 5 KB gzip) and registers once it arrives. Later roots register as they're created. Without the extension the hook does not exist, so a root checks for it once, loads nothing and does no per-frame work. With the extension installed but the panel closed, frames cost one property read. Trees and frames are only computed when the panel asks for them.
 
 Messages flow page → content script → service worker → panel. The content scripts run on every page so the hook exists before your app boots. That is the only access the extension asks for. It loads no remote code and sends nothing off the machine.
 
@@ -65,4 +65,5 @@ The extension collects no data. It makes no network requests, stores nothing, an
 - Chrome and Chromium-based browsers, version 111 or later.
 - Apps that started before the extension was installed need a reload.
 - Only the top frame of a tab is inspected.
+- The timeline records frames once the panel is attached.
 - Times come from `performance.now()`, which browsers coarsen to about 0.1ms.

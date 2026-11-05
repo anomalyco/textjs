@@ -3,7 +3,8 @@
  * installs at `document_start`, and the JSON-safe types that cross it.
  *
  * Roots check for the hook here and import `./devtools-hook` (the connection
- * code) only when it exists, so apps without the extension never load it.
+ * code) only when it exists. In code-split builds, pages without the extension
+ * never download it.
  *
  * This module has no imports. The extension's page script bundles
  * `installDevToolsHook()` from it without pulling in React or Yoga.
