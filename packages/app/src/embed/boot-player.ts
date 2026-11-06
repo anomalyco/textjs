@@ -39,7 +39,7 @@ export function bootEmbedPlayer(options: EmbedPlayerOptions): EmbedPlayer | null
   const config = options.config ?? {};
   const g = globalThis as Record<symbol, ConsoleOwner | undefined>;
   if (g[CONSOLE_OWNER] !== undefined && g[CONSOLE_OWNER].embed !== true) return null;
-  const input = createHostInput({ engaged: options.reason === "engage" });
+  const input = createHostInput({ engaged: options.reason === "engage", away: options.away?.() });
   const painted = options.shell === true;
   const player = bootFramePlayer({
     basePath: "",

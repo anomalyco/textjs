@@ -1,6 +1,6 @@
 {
   "name": "@textjs/react",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "React 19 renderer for Text.js, with a custom reconciler, cell utility classes, hooks and components.",
   "type": "module",
   "license": "MIT",

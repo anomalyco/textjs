@@ -28,6 +28,12 @@ export interface HostInput {
 export interface HostInputOptions {
   /** Start engaged (the visitor pressed a console surface to open it). Default `false`. */
   engaged?: boolean;
+  /**
+   * Focus left the page for DevTools before this input started (`ConsoleIntentEvent.away()`). When the
+   * page has it back already, the visitor returned while the app loaded, so their next press on the
+   * page counts as the click that brings focus back from DevTools. Default `false`.
+   */
+  away?: boolean;
   document?: Document;
 }
 
@@ -50,6 +56,8 @@ export function createHostInput(options: HostInputOptions = {}): HostInput {
   const engine = new InputEngine({ document: doc, autoFocus: false, refocusOnClick: false, wheel: false, shouldCapture: routes });
   engine.attach();
   let focusedAt = -Infinity;
+  // The focus listener below wasn't there yet when the visitor came back.
+  let returned = options.away === true && doc.hasFocus();
   let focusAfterClick = false;
   const engage = (): void => {
     open = true;
@@ -63,7 +71,8 @@ export function createHostInput(options: HostInputOptions = {}): HostInput {
     const t = e.target as Element | null;
     // Ctrl+click is a right click on a Mac.
     if (e.button !== 0 || (e.ctrlKey && win !== null && isMac(win)) || typeof t?.closest !== "function") return;
-    const refocus = !doc.hasFocus() || e.timeStamp - focusedAt < REFOCUS_MS;
+    const refocus = returned || !doc.hasFocus() || e.timeStamp - focusedAt < REFOCUS_MS;
+    returned = false;
     // As onConsoleIntent counts presses: a surface's own links, buttons and fields keep theirs.
     open = t.closest(BYPASS_SELECTOR) === null && (engageSurfaceOf(t, ENGAGE_SELECTOR) !== null || (refocus && t.closest(INTERACTIVE) === null));
     focusAfterClick = open;

@@ -126,6 +126,8 @@ onConsoleIntent(
 );
 ```
 
+`e.away()` says whether focus has left the page for DevTools since the intent. Pass it to `createHostInput({ away: e.away() })` when the app's input starts, so a visitor who clicked back into the page while the app downloaded gets its keys with their next click on the page.
+
 DevTools opened in its own window from a browser menu doesn't show up in the window size. Those visitors start the app from an `engage` element, and `session` keeps it starting on reloads in that tab.
 
 Nothing fires automatically on touch screens. Call `trigger()` from your own control.
