@@ -19,6 +19,12 @@ export type ConsoleIntentReason = "dock" | "shortcut" | "engage" | "session" | "
 
 export interface ConsoleIntentEvent {
   reason: ConsoleIntentReason;
+  /**
+   * Whether focus has left the page since the intent: a DevTools shortcut, or DevTools (or anything
+   * else) had focus when it fired or has taken it since. Read it when the app's input starts
+   * (`createHostInput({ away })`), since the visitor may click back into the page while the app loads.
+   */
+  away(): boolean;
 }
 
 export interface ConsoleIntentOptions {
@@ -248,7 +254,10 @@ export function watchConsoleIntent(onIntent: (event: ConsoleIntentEvent) => void
     triggered = true;
     detach();
     if (persist && win && reason !== "manual") store(win, "sessionStorage", CONSOLE_INTENT_KEY, "1");
-    onIntent({ reason });
+    // DevTools takes focus as it opens, possibly after a dock's resize; until then, watch for it.
+    let away = reason === "shortcut" || win?.document.hasFocus?.() !== true;
+    if (!away) win?.addEventListener("blur", () => (away = true), { once: true });
+    onIntent({ reason, away: () => away });
   };
 
   const handle: ConsoleIntentHandle = {

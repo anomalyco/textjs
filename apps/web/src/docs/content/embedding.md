@@ -193,7 +193,7 @@ When the files are gone, `embed.js` logs one warning that asks the visitor to re
 | `startEmbed(paint, boot, src, element?)` | What `embed.js` runs: log the first frame, wait for console intent, then call `boot` |
 | `bootEmbedClient(options)` | Start a client-rendered app with in-memory routing and keyboard input gated for the page |
 | `bootEmbedPlayer(options)` | Start the frame player for a server-rendered route |
-| `createHostInput(options)` | Keyboard input that follows the rules above |
+| `createHostInput(options)` | Keyboard input that follows the rules above. `engaged` starts with the keys, and `away` (from the intent's `away()`) counts the next click on the page as the one back from DevTools |
 | `createTextConsoleMount(config)` | Returns a `mount(element, shell?)` function for `<text-console>` |
 | `reserveCss(cols, rows)` | The CSS that reserves `<text-console>`'s space |
 

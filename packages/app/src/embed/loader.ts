@@ -10,6 +10,8 @@ import { watchConsoleIntent } from "@textjs/core/internal";
 /** What `embed.js` hands the runtime it loads. */
 export interface EmbedBootState {
   reason: ConsoleIntentReason;
+  /** `ConsoleIntentEvent.away`, for the runtime's input to read once it starts. */
+  away: () => boolean;
   /** `embed.js` logged a prerendered first frame. */
   shell: boolean;
   /** When it did (`performance.now()`). */
@@ -63,10 +65,10 @@ export function startEmbed(paint: (() => number | undefined) | null, boot: (stat
   };
   g[CONSOLE_OWNER] = claim;
   const shellAt = paint?.();
-  const intent = watchConsoleIntent(({ reason }) => {
+  const intent = watchConsoleIntent(({ reason, away }) => {
     // A failed load (often a redeploy that removed this build's files) stays out of the page's own error reporting.
     Promise.resolve()
-      .then(() => boot({ reason, shell: shellAt !== undefined, shellAt }))
+      .then(() => boot({ reason, away, shell: shellAt !== undefined, shellAt }))
       .catch((error: unknown) => {
         release();
         console.warn(`▼ Text.js: ${src} couldn't load its files, so it won't start. If the site was just redeployed, reload the page.`, error);
