@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { CHROME_STORAGE_KEY } from "../src/index";
-import { canPrefetchConsole, CONSOLE_INTENT_KEY, onConsoleIntent, type ConsoleIntentOptions, type ConsoleIntentReason } from "../src/experimental";
+import { canPrefetchConsole, CONSOLE_INTENT_KEY, onConsoleIntent, type ConsoleIntentEvent, type ConsoleIntentOptions, type ConsoleIntentReason } from "../src/experimental";
 import { isDevToolsShortcut } from "../src/console-intent";
 
 type Listener = { fn: (e: unknown) => void; capture: boolean };
@@ -235,6 +235,33 @@ describe("onConsoleIntent: shortcut", () => {
   });
 });
 
+describe("onConsoleIntent: away", () => {
+  const intent = (focused: boolean, o: FakeOptions = {}) => {
+    const { win, doc } = fakeWindow(o);
+    Object.assign(doc, { hasFocus: () => focused });
+    const events: ConsoleIntentEvent[] = [];
+    const handle = onConsoleIntent((e) => events.push(e), { window: win as never });
+    return { win, events, handle };
+  };
+
+  test("DevTools has focus when it docks: away", () => {
+    expect(intent(false, { inner: [1440, 400] }).events[0]?.away()).toBe(true);
+  });
+
+  test("a DevTools shortcut on the focused page: away, since DevTools takes focus as it opens", () => {
+    const { win, events } = intent(true);
+    win.emit("keydown", key({ key: "F12", code: "F12" }));
+    expect(events[0]?.away()).toBe(true);
+  });
+
+  test("docked while the page has focus: away once it loses focus", () => {
+    const { win, events } = intent(true, { inner: [1440, 400] });
+    expect(events[0]?.away()).toBe(false);
+    win.emit("blur");
+    expect(events[0]?.away()).toBe(true);
+  });
+});
+
 describe("onConsoleIntent: session", () => {
   test("dock, shortcut and engage are remembered for the tab; session replays them", () => {
     const first = fakeWindow({ inner: [1440, 400] });
@@ -401,7 +428,7 @@ test("onConsoleIntent bundles without Yoga, the cell buffer or the renderer", as
     const code = (await result.outputs[0]?.text()) ?? "";
     for (const s of ["loadYoga", "CellBuffer", "ConsoleRenderer", "Intl.Segmenter"]) expect(code).not.toContain(s);
     expect(code).toContain("textjs:console-intent");
-    expect(gzipSync(code).length).toBeLessThan(2100);
+    expect(gzipSync(code).length).toBeLessThan(2200);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

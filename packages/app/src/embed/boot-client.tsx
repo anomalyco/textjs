@@ -62,7 +62,7 @@ export async function bootEmbedClient(options: EmbedClientOptions): Promise<Embe
   if (g[CONSOLE_OWNER] !== undefined && g[CONSOLE_OWNER].embed !== true) return null;
   // Our own renderer claims the console as it's created: drop embed.js's claim so it doesn't preempt us.
   delete g[CONSOLE_OWNER];
-  const input = createHostInput({ engaged: options.reason === "engage" });
+  const input = createHostInput({ engaged: options.reason === "engage", away: options.away?.() });
   const seen = new WeakSet<object>();
   let root: ConsoleRoot;
   try {
