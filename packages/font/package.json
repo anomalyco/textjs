@@ -1,6 +1,6 @@
 {
   "name": "@textjs/font",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "FIGlet 2.2 .flf parser and renderer for Text.js, with 17 bundled, tree-shakable fonts.",
   "type": "module",
   "license": "MIT AND BSD-3-Clause",
@@ -59,7 +59,7 @@
     "references": "bun scripts/generate-references.ts"
   },
   "peerDependencies": {
-    "@textjs/react": "^1.6.0",
+    "@textjs/react": "^1.6.1",
     "react": "^19.0.0"
   },
   "peerDependenciesMeta": {
