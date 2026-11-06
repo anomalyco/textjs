@@ -1,6 +1,6 @@
 {
   "name": "@textjs/app",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "React 19 App Router framework for apps that render in the browser console.",
   "type": "module",
   "license": "MIT",

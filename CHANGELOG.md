@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-11-06
+
 ### Fixed
 
 - `@textjs/app` (experimental): a visitor who clicks back into the page from DevTools while an embedded app is still downloading gets its keys with their next click on the page. Before, the app missed that return, and clicks on the page never reached it again until focus went to DevTools and back. `onConsoleIntent`'s event has `away()`, which says whether focus has left the page since the intent, and `createHostInput` takes it as `away`. `embed.js` passes it on by itself.
