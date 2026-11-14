@@ -6,6 +6,8 @@
 
 # ▼ Text.js
 
+<a href="https://opencode.ai"><picture><source media="(prefers-color-scheme: dark)" srcset="https://opencode.ai/brand/badges/opencode-built-with-g-dark-20.svg"><img alt="Built with OpenCode" src="https://opencode.ai/brand/badges/opencode-built-with-g-light-20.svg" height="20" /></picture></a>
+
 <span dir="ltr">Text.js</span> הוא פריימוורק React לאפליקציות שמרנדרות במסוף הדפדפן.
 
 [תיעוד](https://textjs.org/he/docs) · [למידה](https://textjs.org/he/learn) · [Playground](https://textjs.org/he/playground) · [OpenCode](https://textjs.org/he/opencode)

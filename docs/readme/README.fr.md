@@ -4,6 +4,8 @@
 
 # ▼ Text.js
 
+<a href="https://opencode.ai"><picture><source media="(prefers-color-scheme: dark)" srcset="https://opencode.ai/brand/badges/opencode-built-with-g-dark-20.svg"><img alt="Built with OpenCode" src="https://opencode.ai/brand/badges/opencode-built-with-g-light-20.svg" height="20" /></picture></a>
+
 Text.js est un framework React pour les applications qui s’affichent dans la console du navigateur.
 
 [Documentation](https://textjs.org/fr/docs) · [Apprendre](https://textjs.org/fr/learn) · [Playground](https://textjs.org/fr/playground) · [OpenCode](https://textjs.org/fr/opencode)
