@@ -4,6 +4,8 @@
 
 # ▼ Text.js
 
+<a href="https://opencode.ai"><picture><source media="(prefers-color-scheme: dark)" srcset="https://opencode.ai/brand/badges/opencode-built-with-g-dark-20.svg"><img alt="Built with OpenCode" src="https://opencode.ai/brand/badges/opencode-built-with-g-light-20.svg" height="20" /></picture></a>
+
 Text.js는 브라우저 콘솔에서 렌더링하는 앱을 위한 React 프레임워크예요.
 
 [문서](https://textjs.org/ko/docs) · [학습](https://textjs.org/ko/learn) · [Playground](https://textjs.org/ko/playground) · [OpenCode](https://textjs.org/ko/opencode)

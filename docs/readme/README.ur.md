@@ -6,6 +6,8 @@
 
 # ▼ Text.js
 
+<a href="https://opencode.ai"><picture><source media="(prefers-color-scheme: dark)" srcset="https://opencode.ai/brand/badges/opencode-built-with-g-dark-20.svg"><img alt="Built with OpenCode" src="https://opencode.ai/brand/badges/opencode-built-with-g-light-20.svg" height="20" /></picture></a>
+
 <span dir="ltr">Text.js</span> ان ایپس کے لیے React کا فریم ورک ہے جو براؤزر کونسول میں رینڈر ہوتی ہیں۔
 
 [دستاویزات](https://textjs.org/ur/docs) · [سیکھیں](https://textjs.org/ur/learn) · [Playground](https://textjs.org/ur/playground) · [OpenCode](https://textjs.org/ur/opencode)
