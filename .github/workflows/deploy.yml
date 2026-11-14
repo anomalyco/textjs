@@ -7,12 +7,13 @@
 #   cancels a running preview deploy.
 # - Pull requests never deploy; CI covers them without secrets.
 #
-# The steps live in deploy-site.yml. Secrets come from the GitHub environment
-# each run deploys to:
-# - `production` and `dev`: CLOUDFLARE_API_TOKEN (Account → Cloudflare Pages →
-#   Edit) and CLOUDFLARE_ACCOUNT_ID.
-# - `production` only, optional: CLOUDFLARE_WORKERS_TOKEN, which deploys the curl
-#   Worker in apps/web/workers/curl-http after every production deploy.
+# The steps live in deploy-site.yml. Secrets come from AWS Secrets Manager,
+# read with the AWS role of the GitHub environment each run deploys to:
+# - `production` and `dev`: textjs/<environment>/CLOUDFLARE_API_TOKEN (Account →
+#   Cloudflare Pages → Edit), assuming github/textjs-<environment>. The account
+#   id is the CLOUDFLARE_ACCOUNT_ID environment variable.
+# - `production` only: textjs/production/CLOUDFLARE_WORKERS_TOKEN, which deploys
+#   the curl Worker in apps/web/workers/curl-http after every production deploy.
 
 name: Deploy
 
@@ -23,6 +24,9 @@ on:
 
 permissions:
   contents: read
+  # The called workflow's jobs assume an AWS role; a called workflow cannot be
+  # granted more than its caller, so the permission is declared here too.
+  id-token: write
 
 jobs:
   production:
@@ -36,8 +40,6 @@ jobs:
     with:
       environment: production
       pages-branch: main
-    # A called workflow gets no secrets, environment secrets included, unless the caller passes them.
-    secrets: inherit
 
   dev:
     name: Preview
@@ -49,4 +51,3 @@ jobs:
     with:
       environment: dev
       pages-branch: dev
-    secrets: inherit

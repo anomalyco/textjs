@@ -4,6 +4,8 @@
 
 # ▼ Text.js
 
+<a href="https://opencode.ai"><picture><source media="(prefers-color-scheme: dark)" srcset="https://opencode.ai/brand/badges/opencode-built-with-g-dark-20.svg"><img alt="Built with OpenCode" src="https://opencode.ai/brand/badges/opencode-built-with-g-light-20.svg" height="20" /></picture></a>
+
 Text.js, tarayıcı konsolunda render edilen uygulamalar için bir React framework’üdür.
 
 [Belgeler](https://textjs.org/tr/docs) · [Öğren](https://textjs.org/tr/learn) · [Playground](https://textjs.org/tr/playground) · [OpenCode](https://textjs.org/tr/opencode)

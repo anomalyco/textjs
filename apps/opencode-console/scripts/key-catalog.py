@@ -1,7 +1,7 @@
 """Vendor the documented binding defaults (including disabled commands) without shipping CLI code."""
 import json,re,sys
 from pathlib import Path
-source=Path(sys.argv[1])/'services/www/src/docs/content/cli/keybinds.mdx'
+source=Path(sys.argv[1])/'services/site/src/docs/content/cli/keybinds.mdx'
 catalog={}
 for line in source.read_text().splitlines():
     if line.startswith('## '): group=line[3:]

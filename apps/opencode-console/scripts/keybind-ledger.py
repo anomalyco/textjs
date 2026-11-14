@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 reference = Path(sys.argv[1]).expanduser() if len(sys.argv) > 1 else Path.home()/'code/opencode'
-source = reference/'services/www/src/docs/content/cli/keybinds.mdx'
+source = reference/'services/site/src/docs/content/cli/keybinds.mdx'
 revision = subprocess.check_output(['git', '-C', reference, 'rev-parse', '--short', 'HEAD'], text=True).strip()
 supported = set('''leader command.palette.show help.show session.new session.list session.sidebar.toggle model.list
 agent.list agent.cycle variant.cycle variant.list model.cycle_recent model.cycle_recent_reverse theme.switch

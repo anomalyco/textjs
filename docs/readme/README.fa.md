@@ -6,6 +6,8 @@
 
 # ▼ Text.js
 
+<a href="https://opencode.ai"><picture><source media="(prefers-color-scheme: dark)" srcset="https://opencode.ai/brand/badges/opencode-built-with-g-dark-20.svg"><img alt="Built with OpenCode" src="https://opencode.ai/brand/badges/opencode-built-with-g-light-20.svg" height="20" /></picture></a>
+
 <span dir="ltr">Text.js</span> یک فریم‌ورک React برای اپ‌هایی است که در کنسول مرورگر رندر می‌شوند.
 
 [مستندات](https://textjs.org/fa/docs) · [آموزش](https://textjs.org/fa/learn) · [Playground](https://textjs.org/fa/playground) · [OpenCode](https://textjs.org/fa/opencode)
